@@ -45,10 +45,10 @@ fn is_isolated_merged_group_for_parent(
 /// when the reference is shared between routes. When the reference belongs to a server component,
 /// the relevant groups are the ones that contain that server component too.
 ///
-/// An empty intersection is not an error: in a development module graph the source module and the
-/// server component do not necessarily share a chunk group, and framework-level references have no
-/// server component at all. Falling back to the source module's own groups is the conservative
-/// choice -- the reference is still chunked, just not narrowed to the component's groups.
+/// An empty intersection is not an error: an async import separates the source from its owner,
+/// and framework-level references have no server component at all. The caller can further narrow
+/// disjoint groups using async importer ancestry. Without that proof, falling back to the source
+/// module's own groups is conservative -- the reference is still chunked.
 fn relevant_parent_indices(
     source_indices: FxIndexSet<u32>,
     server_component_indices: Option<&FxIndexSet<u32>>,
@@ -110,9 +110,36 @@ async fn derived_isolated_merged_groups(
         } else {
             None
         };
-        let source_indices = source_groups.iter().map(|group| group.index).collect();
-        let parent_indices =
-            relevant_parent_indices(source_indices, server_component_indices.as_ref());
+        let source_indices = source_groups
+            .iter()
+            .map(|group| group.index)
+            .collect::<FxIndexSet<_>>();
+        let mut parent_indices =
+            relevant_parent_indices(source_indices.clone(), server_component_indices.as_ref());
+        if let Some(owner_indices) = &server_component_indices
+            && !owner_indices.is_empty()
+            && source_indices.is_disjoint(owner_indices)
+        {
+            // Async server imports create new groups without changing the reference's owner.
+            // Follow their importer ancestry, not every group containing the shared proxy:
+            // unrelated pages' merged groups can also contain other client entries.
+            let mut async_parent_indices = FxIndexSet::default();
+            for group in source_groups.iter() {
+                if let ChunkGroup::Async(module) = &group.chunk_group
+                    && chunk_group_info
+                        .get_async_loader_ancestor_chunk_groups(**module)
+                        .await?
+                        .iter()
+                        .any(|ancestor| owner_indices.contains(&ancestor.index))
+                {
+                    async_parent_indices.insert(group.index);
+                }
+            }
+            // No proof means keeping the conservative fallback, not dropping a reference.
+            if !async_parent_indices.is_empty() {
+                parent_indices = async_parent_indices;
+            }
+        }
 
         let mut found = false;
         for group in chunk_group_info
