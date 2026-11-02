@@ -5,6 +5,7 @@ export const nativePromiseIntrinsicsKey =
 export type ClientNativePromiseIntrinsics = Readonly<{
   constructor: PromiseConstructor
   resolve: PromiseConstructor['resolve']
+  race?: PromiseConstructor['race']
   prototype: Promise<unknown>
   fetch?: typeof globalThis.fetch
   fetchRpc?: typeof globalThis.fetch
@@ -40,6 +41,7 @@ const captured = (() => {
       return undefined
     const constructor = own(record, 'constructor')?.value
     const resolve = own(record, 'resolve')?.value
+    const race = own(record, 'race')?.value
     const prototype = own(record, 'prototype')?.value
     if (
       typeof constructor !== 'function' ||
@@ -64,6 +66,7 @@ const captured = (() => {
     return Object.freeze({
       constructor,
       resolve,
+      ...(typeof race === 'function' ? { race } : {}),
       prototype,
       ...(typeof constructPromise === 'function' ? { constructPromise } : {}),
       ...(typeof callFetch === 'function' ? { callFetch } : {}),

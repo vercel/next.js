@@ -108,7 +108,14 @@ interface ClientSerializedDragCommand {
   element?: never
   args: unknown[]
 }
+interface ClientViewportCommand {
+  method: 'viewport'
+  element?: never
+  locator?: never
+  args: [number, number]
+}
 export type ClientBrowserCommand =
+  | ClientViewportCommand
   | ClientElementBrowserCommand
   | ClientSerializedLocatorCommand
   | ClientSerializedDragCommand

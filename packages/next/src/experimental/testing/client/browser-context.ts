@@ -18,6 +18,7 @@ import type {
   ClientBrowserCommand,
   ClientCommandAttemptOrigin,
 } from './protocol'
+import { createClientNativePromise } from './native-promise-allocation'
 import type { Task } from '../runner/tasks'
 import type { Locator, Page } from 'playwright'
 import {
@@ -26,6 +27,7 @@ import {
 } from './browser-action-identity'
 
 type Query = (...args: any[]) => Element[]
+type ElementCommandMethod = Exclude<ClientBrowserCommand['method'], 'viewport'>
 type DragOptions = Parameters<Page['dragAndDrop']>[2]
 type ClickOptions = Parameters<Locator['click']>[0]
 type DoubleClickOptions = Parameters<Locator['dblclick']>[0]
@@ -355,7 +357,7 @@ async function cleanupDeferredLocators() {
 
 async function dispatchBrowserCommand(
   resolveElement: (() => Element | null) | undefined,
-  method: ClientBrowserCommand['method'],
+  method: ElementCommandMethod,
   args: unknown[],
   resolveElements?: () => Element[],
   resolveNativeElements?: () => Element[],
@@ -375,7 +377,7 @@ async function dispatchBrowserCommand(
 
 async function dispatchBrowserCommandResult(
   resolveElement: (() => Element | null) | undefined,
-  method: ClientBrowserCommand['method'],
+  method: ElementCommandMethod,
   args: unknown[],
   resolveElements?: () => Element[],
   resolveNativeElements?: () => Element[],
@@ -464,6 +466,29 @@ async function dispatchBrowserCommandResult(
     const result = await operation
     if (!admission) assertBrowserApiScope('browser-native')
     return result
+  } finally {
+    admission?.finish(operation)
+  }
+}
+
+async function dispatchViewportCommand(
+  width: number,
+  height: number
+): Promise<void> {
+  assertBrowserApiScope('browser-native')
+  if (!command) throw new Error('Browser element transport has closed.')
+  const admission = actionCallbacks?.captureCommandAdmission?.()
+  const value: ClientBrowserCommand = {
+    method: 'viewport',
+    args: [width, height],
+  }
+  const operation = admission
+    ? command(value, admission.origin)
+    : command(value)
+  admission?.bind(operation)
+  try {
+    await operation
+    if (!admission) assertBrowserApiScope('browser-native')
   } finally {
     admission?.finish(operation)
   }
@@ -911,7 +936,7 @@ class ElementLocator {
     return page.screenshot({ ...options, element: this })
   }
   #action(
-    method: ClientBrowserCommand['method'],
+    method: ElementCommandMethod,
     args: unknown[],
     options?: unknown,
     serializedTarget?: { locator: SerializedLocator }
@@ -931,7 +956,7 @@ class ElementLocator {
     )
   }
   private async dispatch(
-    method: ClientBrowserCommand['method'],
+    method: ElementCommandMethod,
     args: unknown[],
     errorSource?: Error,
     serializedTarget?: { locator: SerializedLocator }
@@ -1052,6 +1077,12 @@ function selectors(root: Element | ElementLocator) {
 }
 const root = new ElementLocator(() => [document.body], '')
 export const page = Object.assign(selectors(root), {
+  viewport(width: number, height: number): Promise<void> {
+    const operation = dispatchViewportCommand(width, height)
+    return createClientNativePromise(Promise, (resolve, reject) => {
+      void operation.then(resolve, reject)
+    })
+  },
   screenshot,
   elementLocator(element: Element) {
     assertBrowserApiScope('browser-native')

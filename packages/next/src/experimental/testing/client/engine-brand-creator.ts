@@ -1,3 +1,4 @@
+import { isBrowserPollAwaitable } from './browser-action-identity'
 import { knownClientNativePromiseRoute } from './native-promise-allocation'
 
 // Selected only by the native Browser creator graph's resolved framework map.
@@ -18,6 +19,7 @@ export function isExactNativePromise(value: unknown): boolean {
     (typeof value !== 'object' && typeof value !== 'function')
   )
     return false
+  if (isBrowserPollAwaitable(value)) return false
   const known = knownClientNativePromiseRoute(value)
   if (known !== undefined) return true
   if (typeof classify !== 'function')

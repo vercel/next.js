@@ -5,6 +5,10 @@ const receipts = intrinsics ? new WeakSet<object>() : undefined
 const addReceipt = receipts?.add.bind(receipts)
 const hasReceipt = receipts?.has.bind(receipts)
 const getPrototypeOf = intrinsics ? Object.getPrototypeOf : undefined
+// Race emulates native member/Call operations without authored global helpers.
+const raceProxy = Proxy
+const raceGet = Reflect.get
+const raceApply = Reflect.apply
 
 /** Receipt issuance follows this actual construction, never a supplied value. */
 export function createClientNativePromise<T>(
@@ -97,5 +101,35 @@ export function captureClientNativeThen(
     const result = selectedApply(selectedThen, receiver, [fulfilled, rejected])
     if (qualifies) addReceipt!(result)
     return result
+  }
+}
+
+/** Select the real static member before its original argument expressions. */
+export function bindClientNativePromiseRace(
+  receiver: any
+): (...args: any[]) => any {
+  const callee = receiver.race
+  return function (...args: unknown[]): unknown {
+    if (
+      !intrinsics?.race ||
+      receiver !== intrinsics.constructor ||
+      callee !== intrinsics.race
+    )
+      return raceApply(callee, receiver, args)
+    // Native race still owns capability creation, resolver lookup, iteration
+    // and abrupt completion. Only its actual constructor allocates a receipt.
+    const constructor = new raceProxy(receiver, {
+      construct(target, values) {
+        return createClientNativePromise(target, values[0])
+      },
+      get(target, property) {
+        const value = raceGet(target, property, target)
+        if (property !== 'resolve' || typeof value !== 'function') return value
+        return function (input: unknown) {
+          return raceApply(value, target, [input])
+        }
+      },
+    })
+    return raceApply(callee, constructor, args)
   }
 }

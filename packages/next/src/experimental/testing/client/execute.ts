@@ -347,6 +347,25 @@ export async function executeClient(
         }
         const actionPage = page
         const actionFrame = testFrame ?? actionPage
+        if (commandTarget.kind === 'viewport') {
+          if (
+            engine !== 'chromium' ||
+            options.testFrame ||
+            testFrame ||
+            options.userCancelSignal ||
+            actionFrame !== actionPage
+          )
+            throw new Error(
+              'Browser viewport commands require a Chromium main-frame one-shot session.'
+            )
+          await runAction(() =>
+            actionPage.setViewportSize({
+              width: command.args[0] as number,
+              height: command.args[1] as number,
+            })
+          )
+          return null
+        }
         if (commandTarget.kind === 'drag') {
           const frame = testFrame ?? actionPage.mainFrame()
           await runAction(() =>

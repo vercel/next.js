@@ -1,4 +1,6 @@
 /// <reference lib="es2021.promise" />
+import { bindClientNativePromiseRace } from '../client/native-promise-allocation'
+import { createBrowserPollAwaitable } from '../client/browser-action-identity'
 import { VitestSnapshotEnvironment } from './snapshot-environment'
 import type {
   SnapshotHelperDispatch,
@@ -2350,7 +2352,7 @@ export async function createAssertionRuntime(options: {
               promise: Promise<T>,
               deadline: Promise<void>
             ) =>
-              Promise.race([
+              bindClientNativePromiseRace(Promise)([
                 promise.then((outcome) => ({
                   ok: true as const,
                   value: outcome,
@@ -2456,7 +2458,7 @@ export async function createAssertionRuntime(options: {
             const wrap = chai.util.flag(assertion, '_poll.wrap')
             const start = () =>
               (running ||= wrap ? wrap(run(), callsite) : run())
-            return {
+            return createBrowserPollAwaitable({
               then(onFulfilled: any, onRejected: any) {
                 awaited = true
                 return start().then(onFulfilled, onRejected)
@@ -2470,7 +2472,7 @@ export async function createAssertionRuntime(options: {
                 return start().finally(onFinally)
               },
               [Symbol.toStringTag]: 'Promise',
-            }
+            })
           }
         },
       })

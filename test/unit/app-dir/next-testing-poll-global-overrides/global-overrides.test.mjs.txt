@@ -1,0 +1,51 @@
+import { test, expect, vi } from 'vitest'
+const emit = value => console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value))
+const NativeProxy = Proxy, NativePromise = Promise, nativeApply = Reflect.apply
+const nativeRace = Promise.race, applyDescriptor = Object.getOwnPropertyDescriptor(Reflect, 'apply')
+
+test('keeps an authored transparent Proxy override out of native poll capability construction', async () => {
+  let calls = 0, nativeTargets = 0
+  const facade = expect.poll(() => { calls++; return 7 }).toBe(7)
+  vi.stubGlobal('Proxy', function (...args) {
+    if (args[0] === NativePromise) nativeTargets++
+    return new NativeProxy(...args)
+  })
+  try { await facade } finally { vi.unstubAllGlobals() }
+  emit({kind:'proxy-observe',calls,nativeTargets})
+  expect(calls).toBe(1);expect(nativeTargets).toBe(0)
+})
+test('preserves successful polling when an authored Proxy rejects only native Promise targets', async () => {
+  let calls = 0, nativeTargets = 0
+  const failure = new Error('authored Proxy native target veto')
+  const facade = expect.poll(() => { calls++; return 8 }).toBe(8)
+  vi.stubGlobal('Proxy', function (...args) {
+    if (args[0] === NativePromise) { nativeTargets++; throw failure }
+    return new NativeProxy(...args)
+  })
+  try { await facade } finally { vi.unstubAllGlobals() }
+  emit({kind:'proxy-veto',calls,nativeTargets})
+  expect(calls).toBe(1);expect(nativeTargets).toBe(0)
+})
+test('keeps an authored transparent Reflect.apply override out of native poll race dispatch', async () => {
+  let calls = 0, nativeRaceCalls = 0
+  const facade = expect.poll(() => { calls++; return 9 }).toBe(9)
+  Object.defineProperty(Reflect,'apply',{...applyDescriptor,value:function(...args){
+    if(args[0]===nativeRace)nativeRaceCalls++
+    return nativeApply(...args)
+  }})
+  try { await facade } finally { Object.defineProperty(Reflect,'apply',applyDescriptor) }
+  emit({kind:'apply-observe',calls,nativeRaceCalls})
+  expect(calls).toBe(1);expect(nativeRaceCalls).toBe(0)
+})
+test('preserves successful polling when authored Reflect.apply rejects only native race calls', async () => {
+  let calls = 0, nativeRaceCalls = 0
+  const failure = new Error('authored Reflect.apply native race veto')
+  const facade = expect.poll(() => { calls++; return 10 }).toBe(10)
+  Object.defineProperty(Reflect,'apply',{...applyDescriptor,value:function(...args){
+    if(args[0]===nativeRace){nativeRaceCalls++;throw failure}
+    return nativeApply(...args)
+  }})
+  try { await facade } finally { Object.defineProperty(Reflect,'apply',applyDescriptor) }
+  emit({kind:'apply-veto',calls,nativeRaceCalls})
+  expect(calls).toBe(1);expect(nativeRaceCalls).toBe(0)
+})

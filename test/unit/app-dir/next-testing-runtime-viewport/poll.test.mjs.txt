@@ -1,0 +1,34 @@
+import { test, expect } from 'vitest'
+const emit = value => console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value))
+test('retains ordinary lazy poll facade shape and shorthand method data', async () => {
+  let calls = 0
+  const facade = expect.poll(() => { calls++; return 7 }).toBe(7)
+  const descriptors = Object.getOwnPropertyDescriptors(facade)
+  const shape = { prototype: Object.getPrototypeOf(facade) === Object.prototype, keys: Reflect.ownKeys(facade).map(key=>typeof key==='symbol'?'Symbol.toStringTag':key), tag: facade[Symbol.toStringTag], before: calls, methods: ['then','catch','finally'].map(name=>{const d=descriptors[name],fn=d.value;let constructible=true;try{Reflect.construct(fn,[])}catch(error){constructible=!(error instanceof TypeError)}return {name,actualName:fn.name,length:fn.length,writable:d.writable,enumerable:d.enumerable,configurable:d.configurable,data:'value'in d,constructible}}) }
+  await facade
+  emit({kind:'shape',shape,calls})
+  expect(calls).toBe(1)
+})
+test('reads a replaced poll then getter once and invokes its actual receiver', async () => {
+  let calls=0,reads=0,invocations=0,getterReceiver=false,methodReceiver=false
+  const facade=expect.poll(()=>{calls++;return 8}).toBe(8), original=facade.then
+  Object.defineProperty(facade,'then',{configurable:true,get(){reads++;getterReceiver=this===facade;return function(...args){invocations++;methodReceiver=this===facade;return Reflect.apply(original,this,args)}}})
+  await facade
+  emit({kind:'getter',calls,reads,invocations,getterReceiver,methodReceiver})
+  expect(reads).toBe(1);expect(invocations).toBe(1);expect(calls).toBe(1)
+})
+test('keeps a borrowed poll then method on the supplied receiver', async () => {
+  let calls=0
+  const facade=expect.poll(()=>{calls++;return 9}).toBe(9),method=facade.then,receiver={marker:'borrowed'}
+  await new Promise((resolve,reject)=>Reflect.apply(method,receiver,[resolve,reject]))
+  emit({kind:'borrowed',calls,originalMethodRetained:facade.then===method,receiverMarker:receiver.marker})
+  expect(calls).toBe(1)
+})
+test('keeps proxied poll values on the genuine getter and then invocation path', async () => {
+  let calls=0,reads=0,invocations=0,receiverIsProxy=false
+  const facade=expect.poll(()=>{calls++;return 10}).toBe(10),original=facade.then
+  const proxy=new Proxy(facade,{get(target,key,receiver){if(key!=='then')return Reflect.get(target,key,receiver);reads++;return function(...args){invocations++;receiverIsProxy=this===proxy;return Reflect.apply(original,this,args)}}})
+  await proxy
+  emit({kind:'proxy',calls,reads,invocations,receiverIsProxy})
+  expect(calls).toBe(1);expect(reads).toBe(1);expect(invocations).toBe(1)
+})

@@ -1,6 +1,7 @@
 import type { Frame, Locator, Page } from 'playwright'
 
 export type ClientCommandTarget =
+  | { kind: 'viewport' }
   | { kind: 'element'; id: string; deferred: boolean }
   | { kind: 'locator'; selector: string; description: string }
   | { kind: 'drag'; sourceSelector: string; targetSelector: string }
@@ -16,6 +17,11 @@ export function resolveClientCommandTarget(
     return invalid()
   const value = command as Record<string, unknown>
   if (!Array.isArray(value.args)) return invalid()
+  if (value.method === 'viewport') {
+    if (Object.keys(value).length !== 2 || value.args.length !== 2)
+      return invalid()
+    return { kind: 'viewport' }
+  }
   const hasLocator = 'locator' in value
   const hasElement = 'element' in value
   if (hasLocator === hasElement) return invalid()
@@ -95,7 +101,7 @@ export function resolveClientCommandTarget(
 /** Use the actual serialized selector and provider action description. */
 export function getClientCommandLocator(
   frame: Page | Frame,
-  target: Exclude<ClientCommandTarget, { kind: 'drag' }>,
+  target: Exclude<ClientCommandTarget, { kind: 'drag' | 'viewport' }>,
   locatorEngine: string
 ): Locator {
   const locator = frame.locator(
