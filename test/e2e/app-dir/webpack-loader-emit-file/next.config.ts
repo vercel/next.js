@@ -45,7 +45,6 @@ const nextConfig: NextConfig = {
   experimental: {
     cachedNavigations: false,
     serverSourceMaps: true,
-    turbopackModuleFragments: process.env.__NEXT_TEST_AXIS === 'A',
   },
   turbopack: {
     rules: {

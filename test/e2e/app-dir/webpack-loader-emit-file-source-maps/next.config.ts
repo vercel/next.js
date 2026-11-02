@@ -14,7 +14,6 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: browserMaps,
   experimental: {
     cachedNavigations: false,
-    turbopackModuleFragments: process.env.__NEXT_TEST_AXIS === 'A',
     serverSourceMaps:
       process.env.TEST_SERVER_SOURCE_MAPS === 'default'
         ? undefined
