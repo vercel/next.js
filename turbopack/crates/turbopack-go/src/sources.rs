@@ -170,7 +170,7 @@ pub async fn go_bundle_from_sources(
 ) -> Result<Vc<GoBundleResult>> {
     let sources = sources.await?;
     let go_context = &session.await?.go_context;
-    let mut stale = sources.dirty || !sources.inputs.is_current()?;
+    let mut stale = sources.dirty || !sources.inputs.is_current().await?;
     let mut result = if stale {
         GoBundleResult {
             outcome: GoBuildOutcome::Retry,
@@ -186,7 +186,7 @@ pub async fn go_bundle_from_sources(
             generated,
         )
         .await?;
-        stale = !result.is_current()? || !sources.inputs.is_current()?;
+        stale = !result.is_current().await? || !sources.inputs.is_current().await?;
         (*result).clone()
     };
     if stale {

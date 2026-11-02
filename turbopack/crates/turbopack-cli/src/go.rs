@@ -7,8 +7,9 @@ use std::{
 use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileSystemPath, to_sys_path};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc};
+use turbo_tasks_fs::{FileSystem, FileSystemPath, to_sys_path};
+use turbo_unix_path::sys_to_unix;
 use turbopack_core::{
     asset::AssetContent,
     ident::AssetIdent,
@@ -21,8 +22,7 @@ use turbopack_go::{GoBuildContext, GoBuildOutcome, filesystem, go_bundle, valida
 
 use crate::arguments::CommonArguments;
 
-#[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, NonLocalValue)]
 pub struct GoBuild {
     pub go_context: GoBuildContext,
     project: RcStr,
@@ -30,13 +30,17 @@ pub struct GoBuild {
     output_name: RcStr,
 }
 
+impl TaskInput for GoBuild {
+    fn is_transient(&self) -> bool {
+        true
+    }
+}
+
 impl<C> Decode<C> for GoBuild {
     fn decode<D: bincode::de::Decoder<Context = C>>(
         _: &mut D,
     ) -> std::result::Result<Self, bincode::error::DecodeError> {
-        Err(bincode::error::DecodeError::Other(
-            "Go build sessions are transient",
-        ))
+        unreachable!("transient Go CLI inputs are never decoded")
     }
 }
 
@@ -70,16 +74,6 @@ impl GoBuild {
         fs.await?.stop_watching().await;
         self.go_context.stop_module_cache_watching().await?;
 
-        // A cancelled consumer can detach while compiler tasks are still unwinding. Drain
-        // their operation before stopping the engine, while it can still schedule work.
-        let root = FileSystemPath {
-            fs: ResolvedVc::upcast(fs),
-            path: rcstr!(""),
-        };
-        let _ = go_bundle(root, self.files.clone(), self.go_context.clone())
-            .resolve()
-            .strongly_consistent()
-            .await;
         Ok(())
     }
 }
@@ -97,20 +91,8 @@ fn input_files(common: &CommonArguments) -> Result<(PathBuf, Vec<RcStr>)> {
         .unwrap_or_default()
         .iter()
         .filter(|entry| is_go_entry(entry))
-        .map(|entry| {
-            let mut path = PathBuf::new();
-            for part in base.join(entry).components() {
-                match part {
-                    std::path::Component::CurDir => {}
-                    std::path::Component::ParentDir => {
-                        path.pop();
-                    }
-                    _ => path.push(part.as_os_str()),
-                }
-            }
-            path
-        })
-        .collect();
+        .map(|entry| base.join(entry).normalize_lexically())
+        .collect::<std::result::Result<_, _>>()?;
     let parent = paths
         .first()
         .context("supply .go input files")?
@@ -135,17 +117,16 @@ fn input_files(common: &CommonArguments) -> Result<(PathBuf, Vec<RcStr>)> {
     for path in &paths {
         validate_source_path(source_root, path)?;
     }
-    let mut files: Vec<RcStr> = paths
+    let mut files = paths
         .iter()
         .map(|path| {
-            Ok(path
+            let relative = path
                 .strip_prefix(module)?
                 .to_str()
-                .context("non-UTF8 Go input")?
-                .replace('\\', "/")
-                .into())
+                .context("non-UTF8 Go input")?;
+            Ok(RcStr::from(sys_to_unix(relative)))
         })
-        .collect::<Result<_>>()?;
+        .collect::<Result<Vec<_>>>()?;
     files.sort();
     files.dedup();
     let module = std::fs::canonicalize(module)?;
@@ -166,6 +147,8 @@ pub async fn prepare(common: &CommonArguments) -> Result<Option<Arc<GoBuild>>> {
     else {
         return Ok(None);
     };
+    // TODO: Keep the JavaScript graph persistent in mixed builds. The shared root currently
+    // contains transient Go inputs, so the CLI still disallows persistent caching here.
     ensure!(
         !common.persistent_caching,
         "Go build sessions do not support persistent task caching"
@@ -195,10 +178,7 @@ pub async fn output_assets(
         .resolve()
         .strongly_consistent()
         .await?;
-    let root = FileSystemPath {
-        fs: ResolvedVc::upcast(fs),
-        path: rcstr!(""),
-    };
+    let root = fs.root().owned().await?;
     let path = output_root.join(&build.output_name)?;
     let output = to_sys_path(path.clone())
         .await?
@@ -217,6 +197,8 @@ pub async fn output_assets(
         if build.go_context.is_cancelled() {
             return Ok(OutputAssets::empty());
         }
+        // Files can change before watcher delivery or during compilation. Validation
+        // invalidates those observations; retry the graph read before publishing any assets.
         if !result.validate().await? {
             continue;
         }

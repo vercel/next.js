@@ -19,13 +19,8 @@ func main() {
 }
 
 func analyze() error {
-	input, err := os.Open(os.Args[1])
-	if err != nil {
-		return err
-	}
-	defer input.Close()
 	var sources map[string]string
-	if err := json.NewDecoder(input).Decode(&sources); err != nil {
+	if err := json.NewDecoder(os.Stdin).Decode(&sources); err != nil {
 		return err
 	}
 	names := make([]string, 0, len(sources))
@@ -41,6 +36,7 @@ func analyze() error {
 			errors = append(errors, err.Error())
 			continue
 		}
+		// Include unexported package functions too; callers decide which names have meaning.
 		for _, declaration := range file.Decls {
 			if function, ok := declaration.(*ast.FuncDecl); ok && function.Recv == nil {
 				functions[function.Name.Name] = true

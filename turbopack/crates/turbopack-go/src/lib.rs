@@ -359,12 +359,22 @@ impl GoBuildContext {
         self.cancellation.token.is_cancelled()
     }
 
-    /// Run a host executable with the same concurrency limit, deadline and process-tree
+    /// Run a host executable with the same concurrency limit and process-tree
     /// cancellation as compiler commands. Callers own tracking its inputs and caching its output.
     pub async fn run_executable(
         &self,
         executable: &Path,
         arguments: &[&Path],
+    ) -> Result<std::process::Output> {
+        self.run_executable_with_input(executable, arguments, None)
+            .await
+    }
+
+    async fn run_executable_with_input(
+        &self,
+        executable: &Path,
+        arguments: &[&Path],
+        input: Option<&[u8]>,
     ) -> Result<std::process::Output> {
         let _permit = tokio::select! {
             permit = GO_ACTIONS.acquire() => permit?,
@@ -378,7 +388,7 @@ impl GoBuildContext {
                 command.env(name, value);
             }
         }
-        process::output(command, &self.cancellation.token).await
+        process::output_with_input(command, &self.cancellation.token, input).await
     }
 
     fn command(&self, directory: &Path) -> Command {
@@ -916,7 +926,7 @@ async fn observe_packages(
             let inputs: BTreeMap<_, _> = assembly_inputs
                 .into_iter()
                 .map(|path| {
-                    let input = tracker.inputs.files[&path].content_digest().clone();
+                    let input = tracker.inputs.files[&path].1.content_digest().clone();
                     (path, input)
                 })
                 .collect();
@@ -991,7 +1001,7 @@ async fn discover(
         for file in ["go.mod", "go.sum", "go.work", "go.work.sum"] {
             tracker.file(&project.join(file)).await?;
         }
-        if tracker.dirty || !tracker.inputs.is_current()? {
+        if tracker.dirty || !tracker.inputs.is_current().await? {
             return Ok(None);
         }
         ensure!(
@@ -1000,7 +1010,9 @@ async fn discover(
         );
         let config = module_configuration(
             project.to_str().context("non-UTF8 Go project")?.into(),
-            tracker.inputs.files[project.join("go.mod").to_str().unwrap()].clone(),
+            tracker.inputs.files[project.join("go.mod").to_str().unwrap()]
+                .1
+                .clone(),
             *go_session,
         )
         .await?;
@@ -1052,7 +1064,7 @@ async fn discover(
         let structure_changed = !tracker.dirty
             && added_inputs
             && packages != list(&directory, &files, &go_context, &project, &generated).await?;
-        if tracker.dirty || structure_changed || !tracker.inputs.is_current()? {
+        if tracker.dirty || structure_changed || !tracker.inputs.is_current().await? {
             return Ok(None);
         }
         let mut main = false;
@@ -1141,11 +1153,10 @@ async fn compile(
         },
     };
     let project_path = Path::new(project.as_str());
-    let module_cache = Path::new(go_context.module_cache.as_str());
     let directory = entry_directory(project_path, &plan.files)?;
     // Capture live metadata only when compilation runs, after verifying that the current bytes
     // match the persistent plan. These stamps guard this command without becoming its cache key.
-    let Some(before) = plan.inputs.snapshot(project_path, module_cache)? else {
+    let Some(before) = plan.inputs.snapshot().await? else {
         return Ok(Compilation::Retry(get_invalidator()).cell());
     };
     let temp = tempfile::Builder::new()
@@ -1185,7 +1196,7 @@ async fn compile(
         }
         Ok(report) => report,
     };
-    if !before.is_current(project_path, module_cache)? {
+    if !before.is_current().await? {
         return Ok(Compilation::Retry(get_invalidator()).cell());
     }
     let outcome = if report.status.success() {
@@ -1234,15 +1245,15 @@ impl GoBundleResult {
         self.inputs.contains_input(path)
     }
 
-    pub fn is_current(&self) -> Result<bool> {
-        self.inputs.is_current()
+    pub async fn is_current(&self) -> Result<bool> {
+        self.inputs.is_current().await
     }
 
     /// Live publication-boundary check. Invalidate compiler observations before the caller
     /// retries its graph read. This must run outside a memoized task at that boundary.
     pub async fn validate(&self) -> Result<bool> {
         let go_context = &self.session.await?.go_context;
-        if !go_context.is_cancelled() && self.is_current()? {
+        if !go_context.is_cancelled() && self.is_current().await? {
             return Ok(true);
         }
         let project = to_sys_path(self.root.clone())

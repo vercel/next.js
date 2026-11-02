@@ -684,7 +684,7 @@ fn one_shot_build_retries_when_source_changes_after_compilation() {
 }
 
 #[test]
-fn watch_recovers_after_compile_errors_and_timeouts() {
+fn watch_recovers_after_compile_errors_and_waits_for_slow_compilation() {
     let temp = tempfile::tempdir().unwrap();
     let project = temp.path();
     source(
@@ -735,47 +735,23 @@ fn watch_recovers_after_compile_errors_and_timeouts() {
         run(&target).as_deref() == Some("repaired")
     });
     assert!(process.0.try_wait().unwrap().is_none());
-    // Exercise the production deadline end to end: the failed compile must remain a
-    // recoverable graph result, preserving publication and the same active watcher.
+    // A slow compiler keeps the last successful executable until it finishes.
     for name in ["ready", "resume"] {
         std::fs::remove_file(control.path().join(name)).unwrap();
     }
-    std::fs::write(control.path().join("timeout"), "").unwrap();
     source(
         project,
-        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"timed-out\") }\n",
+        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"after-wait\") }\n",
     );
-    wait_for_log("Go compiler timeout readiness", &log_path, || {
+    wait_for_log("slow Go compiler readiness", &log_path, || {
         control.path().join("ready").exists()
     });
-    let previous = std::fs::read(&target).unwrap();
-    wait_for_timeout_and_log(
-        "recoverable compiler timeout",
-        Duration::from_secs(195),
-        Some(&log_path),
-        || {
-            assert!(
-                process.0.try_wait().unwrap().is_none(),
-                "timeout terminated watch mode"
-            );
-            std::fs::read_to_string(project.join("watch.log"))
-                .unwrap()
-                .contains("Go command timed out after 180 seconds")
-        },
-    );
-    assert_eq!(std::fs::read(&target).unwrap(), previous);
     assert_eq!(run(&target).as_deref(), Some("repaired"));
-    for name in ["timeout", "stall", "ready"] {
-        std::fs::remove_file(control.path().join(name)).unwrap();
-    }
-    source(
-        project,
-        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"after-timeout\") }\n",
-    );
-    wait_for_log("Go watch recovery after timeout", &log_path, || {
-        run(&target).as_deref() == Some("after-timeout")
-    });
     assert!(process.0.try_wait().unwrap().is_none());
+    std::fs::write(control.path().join("resume"), "").unwrap();
+    wait_for_log("Go publication after waiting", &log_path, || {
+        run(&target).as_deref() == Some("after-wait")
+    });
     #[cfg(unix)]
     {
         assert!(

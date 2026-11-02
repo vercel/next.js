@@ -98,7 +98,7 @@ impl Session {
                 )
                 .read_strongly_consistent()
                 .await?;
-                ensure!(result.is_current()?, "stale result");
+                ensure!(result.is_current().await?, "stale result");
                 let file = match &result.outcome {
                     GoBuildOutcome::Success(file) => *file,
                     GoBuildOutcome::Failed(message) => anyhow::bail!("{message}"),

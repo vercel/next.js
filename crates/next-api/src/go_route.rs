@@ -25,14 +25,14 @@ use turbopack_go::{
 };
 
 use crate::{
-    app::create_app_paths_manifest,
+    app::{AppProject, create_app_paths_manifest},
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
 };
 
 #[turbo_tasks::value(shared)]
 pub struct GoRouteEndpoint {
-    pub project: ResolvedVc<Project>,
+    pub app_project: ResolvedVc<AppProject>,
     pub path: FileSystemPath,
     pub page: AppPage,
 }
@@ -86,14 +86,14 @@ impl Endpoint for GoRouteEndpoint {
     #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<EndpointOutput>> {
         let this = self.await?;
+        let project = this.app_project.project().to_resolved().await?;
         ensure!(
-            *this.project.next_config().go_routes().await?,
+            *project.next_config().go_routes().await?,
             "route.go requires experimental.goRoutes: true"
         );
-        let source_root = this.project.project_root_path().owned().await?;
+        let source_root = project.project_root_path().owned().await?;
         let directory = this.path.parent();
-        let owner = this
-            .project
+        let owner = project
             .await?
             .go_sessions
             .context("native Go compilation is not enabled")?;
@@ -106,12 +106,12 @@ impl Endpoint for GoRouteEndpoint {
                 .unwrap_or_else(|_| "go".into())
                 .into(),
             tags: rcstr!(""),
-            poll_interval_ms: *this.project.watch_poll_interval_ms().await?,
+            poll_interval_ms: *project.watch_poll_interval_ms().await?,
         };
-        let watch = *this.project.is_watch_enabled().await?;
+        let watch = *project.is_watch_enabled().await?;
         let host = managed_session(scope.clone(), *owner, options.clone(), None, watch);
-        let target = if is_adapter_build(this.project).await? {
-            match &*this.project.next_config().adapter_go_target().await? {
+        let target = if is_adapter_build(project).await? {
+            match &*project.next_config().adapter_go_target().await? {
                 Some(target) => Some(GoTarget::new(target.os.clone(), target.arch.clone())?),
                 None => None,
             }
@@ -146,9 +146,9 @@ impl Endpoint for GoRouteEndpoint {
         // URL matching and parameter extraction owned by that executable. Development
         // and self-hosted builds emit a private worker: Next.js has already routed the
         // request and supplies its parameters, authentication token, and lifetime pipe.
-        let wrapper = if is_adapter_build(this.project).await? {
+        let wrapper = if is_adapter_build(project).await? {
             let pathname = AppPath::from(this.page.clone()).to_string();
-            let base_path = this.project.next_config().base_path().await?;
+            let base_path = project.next_config().base_path().await?;
             let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
             include_str!("go_route_adapter_main.go").replace(
                 "\"__NEXT_GO_ROUTE_PATTERN__\"",
@@ -177,7 +177,7 @@ impl Endpoint for GoRouteEndpoint {
         ]);
         let result = go_bundle_from_sources(*sources, session, generated).await?;
         ensure!(
-            result.is_current()?,
+            result.is_current().await?,
             "Go route inputs changed during compilation; retry the request"
         );
         let content = match &result.outcome {
@@ -190,7 +190,7 @@ impl Endpoint for GoRouteEndpoint {
                 .resolved_cell()
                 .emit();
                 return Ok(EndpointOutput {
-                    project: this.project,
+                    project,
                     output_assets: OutputAssets::empty().to_resolved().await?,
                     output_paths: EndpointOutputPaths::NativeFailed {
                         build: (*result).clone(),
@@ -213,7 +213,7 @@ impl Endpoint for GoRouteEndpoint {
             "app{original_name}-{hash}{}",
             go_session.go_context.exe_suffix
         );
-        let node_root = this.project.node_root().owned().await?;
+        let node_root = project.node_root().owned().await?;
         let descriptor = serde_json::json!({ "version": 1, "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
         let output_root = to_sys_path(node_root.clone())
             .await?
@@ -266,11 +266,11 @@ impl Endpoint for GoRouteEndpoint {
         ];
         // Validate again before these assets are offered to the output writer.
         ensure!(
-            result.is_current()?,
+            result.is_current().await?,
             "Go route inputs changed before publication"
         );
         Ok(EndpointOutput {
-            project: this.project,
+            project,
             output_assets: Vc::<OutputAssets>::cell(assets).to_resolved().await?,
             output_paths: EndpointOutputPaths::Native {
                 executable_path: executable.into(),
@@ -283,8 +283,7 @@ impl Endpoint for GoRouteEndpoint {
     #[turbo_tasks::function]
     async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
         Ok(self
-            .await?
-            .project
+            .project()
             .server_changed(*self.output().await?.output_assets))
     }
     #[turbo_tasks::function]
@@ -301,7 +300,7 @@ impl Endpoint for GoRouteEndpoint {
     }
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
-        *self.project
+        self.app_project.project()
     }
     #[turbo_tasks::function]
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {

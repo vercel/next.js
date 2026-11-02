@@ -115,7 +115,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn project(&self) -> Vc<Project> {
+    pub(crate) fn project(&self) -> Vc<Project> {
         *self.project
     }
 
@@ -1047,7 +1047,7 @@ impl AppProject {
 }
 
 #[turbo_tasks::function]
-pub async fn app_entry_point_to_route(
+pub fn app_entry_point_to_route(
     app_project: ResolvedVc<AppProject>,
     entrypoint: AppEntrypoint,
 ) -> Result<Vc<Route>> {
@@ -1088,7 +1088,7 @@ pub async fn app_entry_point_to_route(
             original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(
                 crate::go_route::GoRouteEndpoint {
-                    project: app_project.await?.project,
+                    app_project,
                     path,
                     page,
                 }

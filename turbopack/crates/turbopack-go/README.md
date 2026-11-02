@@ -98,7 +98,7 @@ semantics: platform suffixes and build tags do not filter the selected entry fil
 
 `go_declarations(sources, host_session)` reports top-level function names and syntax
 errors using Go's parser. The parser tool is cached independently of application
-modules, and queries are cached by source content. It never loads application code.
+modules, and queries are keyed by their resolved source generation. It never loads application code.
 Consumers interpret names and generate their own entrypoints. Syntax errors are
 available while allowing the compiler to emit its usual diagnostics.
 
@@ -152,8 +152,8 @@ writers: it does not lock sources or provide a transactional snapshot.
 - Persistent consumers can cache executable bytes between sessions through the
   session-valued API above. CLI context arguments are transient; Go's own build
   and module caches persist independently.
-- At most two Go actions run concurrently. Each command has a 180-second deadline.
-  Cancellation and timeouts terminate its process tree. Compiler subprocess errors
+- At most two Go actions run concurrently. Commands running longer than 180 seconds
+  emit a warning and keep running. Cancellation terminates the process tree. Compiler subprocess errors
   become failed build outcomes so a watch consumer can recover after input changes.
 - Temporary compiler output is removed after its bytes are read. The CLI publishes
   its executable through the same asset writer as other languages; application
@@ -167,8 +167,7 @@ Run from the repository root with Go on `PATH`:
 cargo test -p turbopack-go -p turbopack-cli
 ```
 
-Use `TURBOPACK_GO=/path/to/go/bin/go` to select another installed toolchain. The CLI
-watch timeout regression adds roughly three minutes to the combined suite.
+Use `TURBOPACK_GO=/path/to/go/bin/go` to select another installed toolchain.
 
 See the [live integration tests](tests/live.rs), [process tests](src/process.rs),
 [CLI tests](../turbopack-cli/tests/go.rs), and
