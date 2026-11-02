@@ -23,9 +23,11 @@ through the same output writer, and owns watching and shutdown.
    root `FileSystemPath` to `go_bundle` together with project-relative `.go` filenames.
    Input files must have the same parent directory, either the project root or one
    subdirectory, and form a single executable `package main`.
-3. Read `go_bundle` strongly consistently within Turbo Tasks. Inspect the
-   `GoBundleResult` outcome and call `validate().await` at the publication boundary.
-   It checks live inputs and invalidates source/module-cache observations before a retry.
+3. Use `read_with_validated_inputs` at the publication boundary. Supply a strongly
+   consistent read and an accessor for its `GoBundleResult`. The shared reader checks
+   live inputs, invalidates stale source/module-cache observations and retries the read.
+   It accepts non-Go results immediately when the accessor returns `None`.
+   Run it outside memoized tasks when accepting cached output for a new request.
 4. Before writing output, check `is_input(output_path)` to protect tracked files and
    potential embed matches. Validate inputs again immediately before publication.
 5. For watching, register the application project watcher and call
@@ -44,12 +46,12 @@ source symlinks and traversal between roots are unsupported.
 
 `GoBuildOutcome` separates compiler results from transient invalidation and shutdown:
 
-| Outcome           | Consumer action                                                             |
-| ----------------- | --------------------------------------------------------------------------- |
-| `Success(file)`   | Read the executable's `FileContent`, including its executable permissions.  |
-| `Failed(message)` | Report the diagnostic; watch consumers can retain their previous output.    |
-| `Retry`           | Read again after input invalidation; discard any previous attempt's result. |
-| `Cancelled`       | Stop consuming results from this session.                                   |
+| Outcome           | Consumer action                                                            |
+| ----------------- | -------------------------------------------------------------------------- |
+| `Success(file)`   | Read the executable's `FileContent`, including its executable permissions. |
+| `Failed(message)` | Report the diagnostic; watch consumers can retain their previous output.   |
+| `Retry`           | Handled by `read_with_validated_inputs`; discard the previous attempt.     |
+| `Cancelled`       | Stop consuming results from this session.                                  |
 
 Task and filesystem errors can also propagate as Rust errors. The crate returns
 executable bytes; consumers choose an output path and own publication and application
@@ -119,7 +121,8 @@ consistent. Go validates target availability for the installed SDK. The library 
 configured targets with CGO disabled; the CLI currently exposes host compilation only.
 Call `shutdown().await` before stopping the task engine. The pool cancels all its sessions
 and releases its watcher leases; the application still owns its project filesystem,
-publication effects and request retry limits. A shut-down pool cannot be reused.
+publication effects. `read_with_validated_inputs` bounds input-validation attempts and
+propagates read errors immediately. A shut-down pool cannot be reused.
 
 ## How it works
 

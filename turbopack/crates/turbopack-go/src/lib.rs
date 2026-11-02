@@ -12,6 +12,7 @@ mod sources;
 
 use std::{
     collections::BTreeMap,
+    future::Future,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{
@@ -1243,6 +1244,36 @@ pub enum GoBuildOutcome {
     Failed(RcStr),
     Retry,
     Cancelled,
+}
+
+/// Read a consumer's operation and validate its Go inputs before accepting the result.
+///
+/// `read` must perform a strongly consistent graph read on every attempt, including source
+/// selection and generated-source analysis. It may also apply the consumer's publication
+/// effects. Keep this call outside memoized tasks when accepting cached output in a new request.
+/// `get_build` returns `None` for results without a Go build, which are accepted immediately.
+pub async fn read_with_validated_inputs<T, F: Future<Output = Result<T>>>(
+    mut read: impl FnMut() -> F,
+    get_build: impl Fn(&T) -> Option<&GoBundleResult>,
+) -> Result<T> {
+    const MAX_INPUT_READS: usize = 8;
+    for _ in 0..MAX_INPUT_READS {
+        let value = read().await?;
+        let Some(build) = get_build(&value) else {
+            return Ok(value);
+        };
+        if matches!(build.outcome, GoBuildOutcome::Cancelled) {
+            return Ok(value);
+        }
+        ensure!(
+            !build.session.await?.go_context.is_cancelled(),
+            "Go build cancelled"
+        );
+        if build.validate().await? && !matches!(build.outcome, GoBuildOutcome::Retry) {
+            return Ok(value);
+        }
+    }
+    anyhow::bail!("Go inputs changed repeatedly during compilation; retry the operation")
 }
 
 impl GoBundleResult {

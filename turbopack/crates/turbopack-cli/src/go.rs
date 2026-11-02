@@ -21,7 +21,7 @@ use turbopack_core::{
 };
 use turbopack_go::{
     GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, filesystem,
-    go_bundle_with_session, validate_source_path,
+    go_bundle_with_session, read_with_validated_inputs, validate_source_path,
 };
 
 use crate::arguments::CommonArguments;
@@ -230,53 +230,52 @@ pub async fn output_assets(
     let output = to_sys_path(path.clone())
         .await?
         .context("Go output requires a disk filesystem")?;
-    loop {
-        if build.go_context.is_cancelled() {
-            return Ok(OutputAssets::empty());
-        }
-        // The caller's root read can be interrupted while this cached task is still waiting
-        // for graph consistency. Let this task unwind too, before shutdown stops scheduling.
-        let result = tokio::select! {
-            result = bundle_operation(root.clone(), build.files.clone(), build.session)
-                .read_strongly_consistent() => result?,
-            _ = build.go_context.cancelled() => return Ok(OutputAssets::empty()),
-        };
-        if build.go_context.is_cancelled() {
-            return Ok(OutputAssets::empty());
-        }
-        // Files can change before watcher delivery or during compilation. Validation
-        // invalidates those observations; retry the graph read before publishing any assets.
-        if !result.validate().await? {
-            continue;
-        }
-        match &result.outcome {
-            GoBuildOutcome::Success(file) => {
-                ensure!(
-                    !result.is_input(&output)?,
-                    "output must be outside tracked Go inputs and embed patterns"
-                );
-                let source =
-                    VirtualSource::new(root.join(&build.files[0])?, AssetContent::file(**file));
-                return Ok(Vc::cell(vec![ResolvedVc::upcast(
-                    RawOutput::new(path, Vc::upcast(source))
-                        .to_resolved()
-                        .await?,
-                )]));
+    let result = read_with_validated_inputs(
+        || async {
+            if build.go_context.is_cancelled() {
+                return Ok(None);
             }
-            GoBuildOutcome::Failed(message) => {
-                ModuleIssue::new(
-                    AssetIdent::from_path(root.join(&build.files[0])?).into_vc(),
-                    rcstr!("Go compilation failed"),
-                    message.clone(),
-                    None,
-                )
-                .to_resolved()
-                .await?
-                .emit();
-                return Ok(OutputAssets::empty());
-            }
-            GoBuildOutcome::Retry => continue,
-            GoBuildOutcome::Cancelled => return Ok(OutputAssets::empty()),
+            // Interrupt pending graph reads before shutdown stops scheduling.
+            let result = tokio::select! {
+                result = bundle_operation(root.clone(), build.files.clone(), build.session)
+                    .read_strongly_consistent() => result?,
+                _ = build.go_context.cancelled() => return Ok(None),
+            };
+            Ok((!build.go_context.is_cancelled()).then_some(result))
+        },
+        |value| value.as_deref(),
+    )
+    .await?;
+    let Some(result) = result else {
+        return Ok(OutputAssets::empty());
+    };
+    match &result.outcome {
+        GoBuildOutcome::Success(file) => {
+            ensure!(
+                !result.is_input(&output)?,
+                "output must be outside tracked Go inputs and embed patterns"
+            );
+            let source =
+                VirtualSource::new(root.join(&build.files[0])?, AssetContent::file(**file));
+            Ok(Vc::cell(vec![ResolvedVc::upcast(
+                RawOutput::new(path, Vc::upcast(source))
+                    .to_resolved()
+                    .await?,
+            )]))
         }
+        GoBuildOutcome::Failed(message) => {
+            ModuleIssue::new(
+                AssetIdent::from_path(root.join(&build.files[0])?).into_vc(),
+                rcstr!("Go compilation failed"),
+                message.clone(),
+                None,
+            )
+            .to_resolved()
+            .await?
+            .emit();
+            Ok(OutputAssets::empty())
+        }
+        GoBuildOutcome::Retry => unreachable!("validated Go build must have a final outcome"),
+        GoBuildOutcome::Cancelled => Ok(OutputAssets::empty()),
     }
 }
