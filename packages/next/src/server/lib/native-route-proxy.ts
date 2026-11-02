@@ -42,14 +42,16 @@ export function proxyNativeRequest(
     ? new Set(connection.split(',').map((name) => name.trim()))
     : undefined
   const headers: typeof req.headers = Object.create(null)
-  for (const [name, value] of Object.entries(req.headers)) {
+  for (const name in req.headers) {
     if (
+      !Object.hasOwn(req.headers, name) ||
       HOP_BY_HOP_HEADERS.has(name) ||
       connectionHeaders?.has(name) ||
       name.startsWith('x-next-go-')
     ) {
       continue
     }
+    const value = req.headers[name]
     const raw = rawValues[name]
     headers[name] =
       raw &&
@@ -89,7 +91,10 @@ export function proxyNativeRequest(
     upstream.once('response', (response) => {
       res.statusCode = response.statusCode || 502
       // headersDistinct preserves repeated Set-Cookie and other response fields.
-      for (const [name, value] of Object.entries(response.headersDistinct)) {
+      const responseHeaders = response.headersDistinct
+      for (const name in responseHeaders) {
+        if (!Object.hasOwn(responseHeaders, name)) continue
+        const value = responseHeaders[name]
         if (value === undefined) continue
         if (name === 'connection' || name === 'transfer-encoding') continue
         // Headers supplied by Next's routing/proxy phases remain on res.
