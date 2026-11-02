@@ -64,6 +64,7 @@ import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-route
 import { defaultOverrides } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { collectFallbackShellRuns } from './fallback-shell-runs'
+import { prioritizeGoArtifacts } from './go-routing'
 import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -2291,6 +2292,14 @@ export async function handleBuildComplete({
     const dynamicRoutes: DynamicRouteItem[] = []
     const dynamicDataRoutes: DynamicRouteItem[] = []
     const dynamicSegmentRoutes: DynamicRouteItem[] = []
+    const goDynamicRoutes = new Map<string, DynamicRouteItem>()
+    const rscRouteSources = new Map<DynamicRouteItem, string>()
+    const segmentRouteDestinations = new Map<DynamicRouteItem, string>()
+    const goRoutePages = new Set(
+      outputs.appRoutes
+        .filter((output) => output.runtime === 'go')
+        .map((output) => output.id)
+    )
 
     const getDestinationQuery = (routeKeys: Record<string, string>) => {
       const items = Object.entries(routeKeys ?? {})
@@ -2331,7 +2340,8 @@ export async function handleBuildComplete({
         route.page
       )
 
-      const shouldLocalize = Boolean(config.i18n)
+      const isGoRoute = goRoutePages.has(route.page)
+      const shouldLocalize = !isGoRoute && Boolean(config.i18n)
 
       const routeRegex = getNamedRouteRegex(route.page, {
         prefixRouteKeys: true,
@@ -2382,7 +2392,23 @@ export async function handleBuildComplete({
           config.basePath,
           shouldLocalize ? '/$nextLocale' : '',
           pagePath
-        ) + getDestinationQuery(route.routeKeys)
+        ) + (isGoRoute ? '' : getDestinationQuery(route.routeKeys))
+
+      // Go derives parameters from the trusted concrete pathname. It has no
+      // synthetic RSC outputs or Node query parameter transport.
+      if (isGoRoute) {
+        const goRoute: DynamicRouteItem = {
+          source: route.page,
+          sourceRegex,
+          destination,
+          has: undefined,
+          missing: undefined,
+        }
+        dynamicRoutes.push(goRoute)
+        goDynamicRoutes.set(route.page, goRoute)
+        continue
+      }
+
       // Count capture names, not parameter names. An interception route can
       // capture the same parameter with both nxtP and nxtI names.
       const suffixCaptureIndex =
@@ -2425,7 +2451,7 @@ export async function handleBuildComplete({
         // from the match result rather than from the pattern. A group that does
         // not match is then absent from that result, and the destination
         // placeholder stays unresolved.
-        dynamicRoutes.push({
+        const rscRoute: DynamicRouteItem = {
           source: pagePath,
           sourceRegex: sourceRegex.replace(
             new RegExp(escapeStringRegexp('(?:/)?$')),
@@ -2437,14 +2463,16 @@ export async function handleBuildComplete({
           ),
           has: plainHas,
           missing: undefined,
-        })
+        }
+        dynamicRoutes.push(rscRoute)
+        rscRouteSources.set(rscRoute, pagePath)
       } else {
         // This route serves two kinds of request for the page: a request for
         // the `.rsc` payload, and a per-segment prefetch request. The suffix
         // group accepts both forms, and the destination copies the matched
         // suffix, so each request resolves to the artifact that it asks for.
         if (hasAppPages) {
-          dynamicRoutes.push({
+          const rscRoute: DynamicRouteItem = {
             source: pagePath + '.rsc',
             sourceRegex: sourceRegex.replace(
               new RegExp(escapeStringRegexp('(?:/)?$')),
@@ -2456,7 +2484,9 @@ export async function handleBuildComplete({
             ),
             has: suffixedHas,
             missing: undefined,
-          })
+          }
+          dynamicRoutes.push(rscRoute)
+          rscRouteSources.set(rscRoute, pagePath)
         }
 
         // needs basePath and locale handling if pages router
@@ -2475,7 +2505,7 @@ export async function handleBuildComplete({
       // before that entry.
       if (!config.experimental.collapseAdapterRoutes) {
         for (const segmentRoute of route.prefetchSegmentDataRoutes || []) {
-          dynamicSegmentRoutes.push({
+          const segmentRouteItem: DynamicRouteItem = {
             source: route.page,
             sourceRegex: segmentRoute.source.replace(
               '^',
@@ -2489,7 +2519,12 @@ export async function handleBuildComplete({
             ),
             has: undefined,
             missing: undefined,
-          })
+          }
+          dynamicSegmentRoutes.push(segmentRouteItem)
+          segmentRouteDestinations.set(
+            segmentRouteItem,
+            segmentRoute.destination
+          )
         }
       }
     }
@@ -2593,11 +2628,12 @@ export async function handleBuildComplete({
     try {
       Log.info(`Running onBuildComplete from ${adapterMod.name}`)
 
-      const combinedDynamicRoutes = [
-        ...dynamicDataRoutes,
-        ...dynamicSegmentRoutes,
-        ...dynamicRoutes,
-      ] satisfies Route[]
+      const combinedDynamicRoutes = prioritizeGoArtifacts(
+        [...dynamicDataRoutes, ...dynamicSegmentRoutes, ...dynamicRoutes],
+        goDynamicRoutes,
+        rscRouteSources,
+        segmentRouteDestinations
+      ) satisfies Route[]
 
       const rewrites = {
         beforeFiles: routesManifest.rewrites.beforeFiles.map(buildRewriteItem),

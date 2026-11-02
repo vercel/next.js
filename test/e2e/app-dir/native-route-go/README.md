@@ -13,6 +13,20 @@ streaming, rewritten destination URLs and dynamic parameters.
 The executables target the build host. This is executable adapter-contract
 coverage, not a claim of hosted deployment coverage.
 
+Adapters can set `NEXT_GO_ADAPTER_ROUTING` to
+`{"version":1,"pathHeader":"x-matched-path"}` to supply a trusted concrete
+escaped pathname after routing. The adapter must strip client values and supply
+the header itself. This mode rejects missing, duplicate, or invalid context and
+removes the header before user code runs. Parameter extraction uses the trusted
+pathname while the handler retains the forwarded URL, raw query, and request URI,
+including encoded catch-all segment boundaries. Without this configuration the
+adapter executable matches the request URL directly.
+
+The Vercel proof of concept host packager requires static Linux x86_64 binaries.
+On another build host, crosscompiling the emitted Go entrypoint sources can check
+that packaging contract; executing a host-native copy checks HTTP behavior.
+Neither check substitutes for a deployment test of platform header filtering.
+
 The `src/app` suite also moves local source directories and starts a local server.
 The diagnostics suite intentionally invokes failing builds; these cannot be
 deployed. Those checks are local by definition.

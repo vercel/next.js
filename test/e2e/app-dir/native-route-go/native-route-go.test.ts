@@ -748,11 +748,63 @@ describe('native-route-go', () => {
           `basePath: '/adapter-base',\n  adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))},\n  experimental:`
         )
       )
-      const result = await next.build()
-      expect(result.exitCode).toBe(0)
+      let context!: Parameters<NextAdapter['onBuildComplete']>[0]
+      for (const collapseAdapterRoutes of [false, true]) {
+        await next.patchFile('next.config.ts', (config) =>
+          config.replace(
+            /goRoutes: true,(?:\s*collapseAdapterRoutes: (?:true|false),)?/,
+            `goRoutes: true,\n    collapseAdapterRoutes: ${collapseAdapterRoutes},`
+          )
+        )
+        const result = await next.build()
+        expect(result.exitCode).toBe(0)
+        context = await next.readJSON('go-adapter-output.json')
+        const routes = context.routing.dynamicRoutes
+        const firstRoute = (pathname: string) =>
+          routes.find((route) => new RegExp(route.sourceRegex).test(pathname))
 
-      const context: Parameters<NextAdapter['onBuildComplete']>[0] =
-        await next.readJSON('go-adapter-output.json')
+        for (const [source, pathname] of [
+          ['/native/[id]', '/native/a%2Fb.rsc'],
+          ['/catch/[...slug]', '/catch/one%2Ftwo/three.rsc'],
+          ['/adapter-optional/[[...slug]]', '/adapter-optional'],
+          ['/rsc/[id]/data.rsc', '/rsc/a%2Fb/data.rsc'],
+          [
+            '/rsc/[id]/data.segments/piece.segment.rsc',
+            '/rsc/a%2Fb/data.segments/piece.segment.rsc',
+          ],
+        ]) {
+          expect(firstRoute(`/adapter-base${pathname}`)).toMatchObject({
+            source,
+            destination: `/adapter-base${source}`,
+          })
+          const ownRoutes = routes.filter(
+            (route) =>
+              route.source === source &&
+              route.destination === `/adapter-base${source}`
+          )
+          expect(ownRoutes.length).toBeGreaterThan(0)
+          for (const route of ownRoutes) {
+            expect(route.destination).toBe(`/adapter-base${source}`)
+            expect(route.sourceRegex).not.toContain('segment\\.rsc|')
+            expect(route.sourceRegex).not.toContain('\\.rsc|')
+          }
+        }
+        expect(
+          routes.some((route) => route.source === '/native/[id].rsc')
+        ).toBe(false)
+        // Keep the Node document and its other RSC artifacts routable.
+        for (const pathname of [
+          '/rsc/123/data',
+          '/rsc/123/data.segments/other.segment.rsc',
+        ]) {
+          expect(firstRoute(`/adapter-base${pathname}`)?.destination).toContain(
+            '/adapter-base/rsc/[id]/data'
+          )
+          expect(firstRoute(`/adapter-base${pathname}`)?.destination).toContain(
+            'nxtPid='
+          )
+        }
+      }
       const goOutputs = context.outputs.appRoutes.filter(
         (output) => output.runtime === 'go'
       )
@@ -782,6 +834,8 @@ describe('native-route-go', () => {
         '/adapter-base/lifecycle',
         '/adapter-base/methods',
         '/adapter-base/native/[id]',
+        '/adapter-base/rsc/[id]/data.rsc',
+        '/adapter-base/rsc/[id]/data.segments/piece.segment.rsc',
       ])
       for (const output of goOutputs) {
         expect(output.type).toBe('APP_ROUTE')
@@ -834,7 +888,8 @@ describe('native-route-go', () => {
 
       async function withStandaloneRoute(
         output: AdapterOutput['APP_ROUTE'],
-        run: (port: number) => Promise<void>
+        run: (port: number) => Promise<void>,
+        environment: NodeJS.ProcessEnv = {}
       ) {
         const directory = await fs.mkdtemp(join(tmpdir(), 'go-adapter-route-'))
         let child: ReturnType<typeof spawn> | undefined
@@ -854,6 +909,7 @@ describe('native-route-go', () => {
           const port = await findPort()
           const env: NodeJS.ProcessEnv = {
             ...process.env,
+            ...environment,
             PORT: String(port),
           }
           delete env.__NEXT_GO_TOKEN
@@ -883,7 +939,9 @@ describe('native-route-go', () => {
               `http://127.0.0.1:${port}`,
               '/unmatched-readiness'
             )
-            expect(response.status).toBe(404)
+            expect(response.status).toBe(
+              environment.NEXT_GO_ADAPTER_ROUTING ? 400 : 404
+            )
           })
           await run(port)
         } finally {
@@ -1008,7 +1066,131 @@ describe('native-route-go', () => {
         }
       )
 
-      // Adapters forward the final rewritten URL, including its query and basePath.
+      const trustedRouting = {
+        NEXT_GO_ADAPTER_ROUTING: JSON.stringify({
+          version: 1,
+          pathHeader: 'x-matched-path',
+        }),
+      }
+      await withStandaloneRoute(
+        nativeOutput,
+        async (port) => {
+          const forwarded =
+            '/public-alias%2Fencoded?key=%2f&key=one+two&nxtPid=caller'
+          const response = await fetchViaHTTP(
+            `http://127.0.0.1:${port}`,
+            forwarded,
+            undefined,
+            {
+              headers: {
+                'x-matched-path': '/adapter-base/native/a%2Fb',
+                'x-next-internal-go-token': 'forged',
+              },
+            }
+          )
+          expect(response.status).toBe(201)
+          expect(await response.json()).toMatchObject({
+            id: 'a/b',
+            path: '/public-alias%2Fencoded',
+            requestURI: forwarded,
+            query: 'key=%2f&key=one+two&nxtPid=caller',
+            privateMetadata: false,
+          })
+          for (const pathname of [
+            undefined,
+            '',
+            'https://example.com/native/a',
+            '//example.com/native/a',
+            '/adapter-base/native/a?query=1',
+            '/adapter-base/native/a#fragment',
+            '/adapter-base/native/%FF',
+            '/adapter-base/native/%invalid',
+          ]) {
+            const invalid = await fetchViaHTTP(
+              `http://127.0.0.1:${port}`,
+              '/adapter-base/native/url-must-not-be-a-fallback',
+              undefined,
+              {
+                headers:
+                  pathname === undefined ? {} : { 'x-matched-path': pathname },
+              }
+            )
+            expect(invalid.status).toBe(400)
+          }
+          const duplicateStatus = await new Promise<number>(
+            (resolve, reject) => {
+              const req = request(
+                `http://127.0.0.1:${port}/adapter-base/native/no-fallback`,
+                {
+                  headers: {
+                    'x-matched-path': [
+                      '/adapter-base/native/first',
+                      '/adapter-base/native/second',
+                    ],
+                  },
+                },
+                (res) => {
+                  res.resume()
+                  res.on('end', () => resolve(res.statusCode!))
+                }
+              )
+              req.on('error', reject)
+              req.end()
+            }
+          )
+          expect(duplicateStatus).toBe(400)
+        },
+        trustedRouting
+      )
+      await withStandaloneRoute(
+        goOutputs.find((output) => output.id === '/catch/[...slug]')!,
+        async (port) => {
+          await expectParameterParity(
+            '/adapter-base/catch/[...slug]',
+            (pathname) =>
+              fetchViaHTTP(
+                `http://127.0.0.1:${port}`,
+                '/public-alias',
+                undefined,
+                {
+                  headers: { 'x-matched-path': pathname },
+                }
+              )
+          )
+        },
+        trustedRouting
+      )
+      await withStandaloneRoute(
+        goOutputs.find(
+          (output) => output.id === '/adapter-optional/[[...slug]]'
+        )!,
+        async (port) => {
+          for (const [pathname, params] of [
+            ['/adapter-base/adapter-optional', null],
+            [
+              '/adapter-base/adapter-optional/one%2Ftwo/three%20four',
+              ['one/two', 'three four'],
+            ],
+          ] as const) {
+            const response = await fetchViaHTTP(
+              `http://127.0.0.1:${port}`,
+              '/optional-alias?key=one+two',
+              undefined,
+              { headers: { 'x-matched-path': pathname } }
+            )
+            expect(response.status).toBe(200)
+            expect(await response.json()).toMatchObject({
+              params,
+              path: '/optional-alias',
+              requestURI: '/optional-alias?key=one+two',
+              query: 'key=one+two',
+            })
+          }
+        },
+        trustedRouting
+      )
+
+      // Adapters can also forward the final rewritten URL without header mode.
       await withStandaloneRoute(nativeOutput, async (port) => {
         const destination =
           '/adapter-base/native/a%2Fb?key=%2f&key=one+two&nxtPid=caller'
@@ -1101,6 +1283,36 @@ describe('native-route-go', () => {
           }
         )
       }
+      // Pages i18n does not add locale prefixes to App Router Go functions.
+      await next.patchFile('next.config.ts', (config) =>
+        config.replace(
+          "basePath: '/adapter-base',",
+          "basePath: '/adapter-base',\n  i18n: { locales: ['en', 'fr'], defaultLocale: 'en' },"
+        )
+      )
+      expect((await next.build()).exitCode).toBe(0)
+      const localizedContext: Parameters<NextAdapter['onBuildComplete']>[0] =
+        await next.readJSON('go-adapter-output.json')
+      for (const [source, pathname] of [
+        ['/native/[id]', '/native/a%2Fb'],
+        ['/catch/[...slug]', '/catch/one%2Ftwo/three'],
+        ['/adapter-optional/[[...slug]]', '/adapter-optional'],
+      ]) {
+        const route = localizedContext.routing.dynamicRoutes.find((route) =>
+          new RegExp(route.sourceRegex).test(`/adapter-base${pathname}`)
+        )
+        expect(route).toMatchObject({
+          source,
+          destination: `/adapter-base${source}`,
+        })
+        expect(route!.sourceRegex).not.toContain('nextLocale')
+      }
+      expect(localizedContext.outputs.staticFiles).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ pathname: '/adapter-base/en/legacy' }),
+          expect.objectContaining({ pathname: '/adapter-base/fr/legacy' }),
+        ])
+      )
     }, 180_000)
   }
 })

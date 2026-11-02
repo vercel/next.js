@@ -59,6 +59,6 @@ func serveNative(w http.ResponseWriter, r *http.Request) {
 		"repeated": r.Header.Values("X-Repeated"),
 		"path":     r.URL.EscapedPath(), "requestURI": r.RequestURI,
 		"address":         r.Context().Value(http.LocalAddrContextKey).(net.Addr).String(),
-		"privateMetadata": r.Header.Get("x-next-internal-go-token") != "",
+		"privateMetadata": r.Header.Get("x-next-internal-go-token") != "" || r.Header.Get("x-matched-path") != "",
 	})
 }

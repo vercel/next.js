@@ -1253,7 +1253,8 @@ impl Endpoint for GoRouteEndpoint {
             "\"__NEXT_GO_ROUTE_PATTERN__\"",
             &serde_json::to_string(&route_pattern)?,
         );
-        // All executables extract parameters from the selected destination URL.
+        // Executables share parameter matching; adapters may supply a trusted concrete
+        // pathname instead of matching the forwarded request URL.
         // Only the entrypoint's listener, authentication and process lifetime differ.
         let wrapper = if is_adapter_build(project).await? {
             include_str!("templates/go_route_adapter_main.go").to_owned()
