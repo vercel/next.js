@@ -36,16 +36,7 @@ export function proxyNativeRequest(
 ): Promise<void> {
   // Public values cannot supply private metadata. Authentication is process scoped.
   // Use normalized headers so proxy.ts request-header mutations are respected.
-  const rawValues: Record<string, string | string[]> = Object.create(null)
-  for (let i = 0; i < req.rawHeaders.length; i += 2) {
-    const name = req.rawHeaders[i].toLowerCase()
-    const value = req.rawHeaders[i + 1]
-    const existingRawValue = rawValues[name]
-    if (existingRawValue === undefined) rawValues[name] = value
-    else if (typeof existingRawValue === 'string')
-      rawValues[name] = [existingRawValue, value]
-    else existingRawValue.push(value)
-  }
+  const rawValues = req.headersDistinct
   const connection = String(req.headers.connection || '').toLowerCase()
   const connectionHeaders = connection
     ? new Set(connection.split(',').map((name) => name.trim()))
@@ -61,7 +52,9 @@ export function proxyNativeRequest(
     }
     const raw = rawValues[name]
     headers[name] =
-      Array.isArray(raw) && value === raw.join(name === 'cookie' ? '; ' : ', ')
+      raw &&
+      raw.length > 1 &&
+      value === raw.join(name === 'cookie' ? '; ' : ', ')
         ? raw
         : value
   }
@@ -79,12 +72,14 @@ export function proxyNativeRequest(
       upstream.destroy()
       done()
     }
+    const finish = () => done()
     let finished = false
     const done = (error?: Error) => {
       if (finished) return
       finished = true
       req.off('aborted', cancel)
       res.off('close', cancel)
+      res.off('finish', finish)
       if (error) reject(error)
       else resolve()
     }
@@ -93,33 +88,22 @@ export function proxyNativeRequest(
     upstream.once('error', done)
     upstream.once('response', (response) => {
       res.statusCode = response.statusCode || 502
-      // rawHeaders preserves repeated Set-Cookie and other response fields.
-      const responseHeaders: Record<string, string[]> = Object.create(null)
-      for (let i = 0; i < response.rawHeaders.length; i += 2) {
-        const name = response.rawHeaders[i].toLowerCase()
+      // headersDistinct preserves repeated Set-Cookie and other response fields.
+      for (const [name, value] of Object.entries(response.headersDistinct)) {
+        if (value === undefined) continue
         if (name === 'connection' || name === 'transfer-encoding') continue
-        ;(responseHeaders[name] ||= []).push(response.rawHeaders[i + 1])
-      }
-      for (const [name, value] of Object.entries(responseHeaders)) {
         // Headers supplied by Next's routing/proxy phases remain on res.
-        const existing = MERGED_RESPONSE_HEADERS.has(name)
-          ? res.getHeader(name)
-          : undefined
-        const merged = existing
-          ? [
-              ...(Array.isArray(existing)
-                ? existing.map(String)
-                : [String(existing)]),
-              ...value,
-            ]
-          : value
-        res.setHeader(name, merged.length === 1 ? merged[0] : merged)
+        if (MERGED_RESPONSE_HEADERS.has(name)) {
+          res.appendHeader(name, value)
+        } else {
+          res.setHeader(name, value.length === 1 ? value[0] : value)
+        }
       }
       response.once('error', (error) => {
         res.destroy(error)
         done(error)
       })
-      res.once('finish', () => done())
+      res.once('finish', finish)
       response.pipe(res)
     })
     req.pipe(upstream)
