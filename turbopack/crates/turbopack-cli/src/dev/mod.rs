@@ -464,6 +464,8 @@ pub async fn start_server(args: &DevArguments, exit: &ExitHandler) -> Result<()>
     register_shutdown(exit, tt.clone(), go_entries, build_task);
 
     if entries.iter().all(|entry| is_go_entry(entry)) {
+        // The shared build task owns Go watching. Keep it alive until the exit handler runs;
+        // there is no JavaScript application to serve over HTTP in this mode.
         std::future::pending().await
     } else {
         serve(args, tt, project_dir, root_dir, entries, start).await

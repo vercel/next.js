@@ -1,4 +1,5 @@
 #![feature(min_specialization)]
+#![feature(normalize_lexically)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 

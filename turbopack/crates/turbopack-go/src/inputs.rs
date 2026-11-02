@@ -8,6 +8,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystemPath, RawDirectoryContent, RawDirectoryEntry,
+    to_sys_path,
 };
 
 use crate::{
@@ -123,8 +124,10 @@ pub(crate) fn directory(path: &Path) -> Result<DirectoryInput> {
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Encode, Decode)]
 pub(crate) struct Inputs {
-    pub files: BTreeMap<RcStr, FileInput>,
-    pub directories: BTreeMap<RcStr, DirectoryInput>,
+    // String keys provide deterministic ordering and deduplication of Go-reported paths.
+    // Filesystem handles carry root containment and are used for all live reads.
+    pub files: BTreeMap<RcStr, (FileSystemPath, FileInput)>,
+    pub directories: BTreeMap<RcStr, (FileSystemPath, DirectoryInput)>,
     pub embed_patterns: BTreeMap<RcStr, Vec<RcStr>>,
 }
 
@@ -133,75 +136,72 @@ pub(crate) struct Inputs {
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 pub(crate) struct CompilerInputs {
-    files: BTreeMap<RcStr, Option<Vec<u8>>>,
-    directories: BTreeMap<RcStr, Option<BTreeMap<String, u8>>>,
+    files: BTreeMap<RcStr, (FileSystemPath, Option<Vec<u8>>)>,
+    directories: BTreeMap<RcStr, (FileSystemPath, Option<BTreeMap<String, u8>>)>,
 }
 
 /// Process-local race guards captured immediately before invoking the compiler.
 pub(crate) struct CompilationSnapshot {
-    files: BTreeMap<RcStr, Option<Stamp>>,
-    directories: BTreeMap<RcStr, DirectoryInput>,
+    files: BTreeMap<RcStr, (FileSystemPath, Option<Stamp>)>,
+    directories: BTreeMap<RcStr, (FileSystemPath, DirectoryInput)>,
 }
 
-fn validate_input_path(project: &Path, module_cache: &Path, path: &Path) -> Result<()> {
-    validate_source_path(
-        if path.starts_with(project) {
-            project
-        } else {
-            module_cache
-        },
-        path,
-    )
+// FileSystemPath has already selected and bounded the filesystem root. Keep the separate
+// symlink check: lexical containment alone cannot prevent a source alias from leaving it.
+async fn input_sys_path(path: &FileSystemPath) -> Result<std::path::PathBuf> {
+    let system = to_sys_path(path.clone())
+        .await?
+        .context("Go inputs require a disk filesystem")?;
+    // Publication checks also run in top-level tasks. Use the already resolved filesystem
+    // handle here, rather than reading a new `root()` task with eventual consistency.
+    let root = FileSystemPath::new_normalized_unchecked(path.fs, RcStr::default());
+    let root = to_sys_path(root)
+        .await?
+        .context("Go inputs require a disk filesystem")?;
+    validate_source_path(&root, &system)?;
+    Ok(system)
 }
 
 impl CompilerInputs {
-    pub(crate) fn snapshot(
-        &self,
-        project: &Path,
-        module_cache: &Path,
-    ) -> Result<Option<CompilationSnapshot>> {
+    pub(crate) async fn snapshot(&self) -> Result<Option<CompilationSnapshot>> {
         let mut snapshot = CompilationSnapshot {
             files: BTreeMap::new(),
             directories: BTreeMap::new(),
         };
-        for (path, expected) in &self.directories {
-            let path_ref = Path::new(path.as_str());
-            validate_input_path(project, module_cache, path_ref)?;
-            let actual = directory(path_ref)?;
+        for (key, (path, expected)) in &self.directories {
+            let path_ref = input_sys_path(path).await?;
+            let actual = directory(&path_ref)?;
             if &actual.names != expected {
                 return Ok(None);
             }
-            snapshot.directories.insert(path.clone(), actual);
+            snapshot
+                .directories
+                .insert(key.clone(), (path.clone(), actual));
         }
-        for (path, expected) in &self.files {
-            let path_ref = Path::new(path.as_str());
-            validate_input_path(project, module_cache, path_ref)?;
-            let before = stamp(path_ref)?;
-            let actual = content_digest(path_ref)?;
-            if before != stamp(path_ref)? || &actual != expected {
+        for (key, (path, expected)) in &self.files {
+            let path_ref = input_sys_path(path).await?;
+            let before = stamp(&path_ref)?;
+            let actual = content_digest(&path_ref)?;
+            if before != stamp(&path_ref)? || &actual != expected {
                 return Ok(None);
             }
-            snapshot.files.insert(path.clone(), before);
+            snapshot.files.insert(key.clone(), (path.clone(), before));
         }
-        Ok(snapshot
-            .is_current(project, module_cache)?
-            .then_some(snapshot))
+        Ok(snapshot.is_current().await?.then_some(snapshot))
     }
 }
 
 impl CompilationSnapshot {
-    pub(crate) fn is_current(&self, project: &Path, module_cache: &Path) -> Result<bool> {
-        for (path, expected) in &self.files {
-            let path = Path::new(path.as_str());
-            validate_input_path(project, module_cache, path)?;
-            if &stamp(path)? != expected {
+    pub(crate) async fn is_current(&self) -> Result<bool> {
+        for (path, expected) in self.files.values() {
+            let path = input_sys_path(path).await?;
+            if &stamp(&path)? != expected {
                 return Ok(false);
             }
         }
-        for (path, expected) in &self.directories {
-            let path = Path::new(path.as_str());
-            validate_input_path(project, module_cache, path)?;
-            if &directory(path)? != expected {
+        for (path, expected) in self.directories.values() {
+            let path = input_sys_path(path).await?;
+            if &directory(&path)? != expected {
                 return Ok(false);
             }
         }
@@ -215,12 +215,12 @@ impl Inputs {
             files: self
                 .files
                 .iter()
-                .map(|(path, input)| (path.clone(), input.digest.clone()))
+                .map(|(key, (path, input))| (key.clone(), (path.clone(), input.digest.clone())))
                 .collect(),
             directories: self
                 .directories
                 .iter()
-                .map(|(path, input)| (path.clone(), input.names.clone()))
+                .map(|(key, (path, input))| (key.clone(), (path.clone(), input.names.clone())))
                 .collect(),
         }
     }
@@ -253,14 +253,14 @@ impl Inputs {
 
     /// Validate directly against the OS, including before publication when watcher delivery may
     /// lag. No file contents are polled: stamps guard the content hashes recorded through Tasks FS.
-    pub(crate) fn is_current(&self) -> Result<bool> {
-        for (path, input) in &self.files {
-            if stamp(Path::new(path.as_str()))? != input.stamp {
+    pub(crate) async fn is_current(&self) -> Result<bool> {
+        for (path, input) in self.files.values() {
+            if stamp(&input_sys_path(path).await?)? != input.stamp {
                 return Ok(false);
             }
         }
-        for (path, input) in &self.directories {
-            if directory(Path::new(path.as_str()))?.names != input.names {
+        for (path, input) in self.directories.values() {
+            if directory(&input_sys_path(path).await?)?.names != input.names {
                 return Ok(false);
             }
         }
@@ -291,37 +291,27 @@ impl<'a> Tracker<'a> {
         }
     }
 
-    async fn path(&self, path: &Path) -> Result<FileSystemPath> {
-        let (root, relative) = if let Ok(relative) = path.strip_prefix(self.project) {
+    pub(crate) async fn path(&self, path: &Path) -> Result<FileSystemPath> {
+        let project_fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.root.fs)
+            .context("Go inputs require a disk filesystem")?;
+        if let Some(tracked) = project_fs.await?.try_from_sys_path(project_fs, path, None) {
             validate_source_path(self.project, path)?;
-            (self.root.clone(), relative)
-        } else {
-            let relative = path
-                .strip_prefix(self.go_context.module_cache.as_str())
-                .with_context(|| {
-                    format!("Go source outside project/module cache: {}", path.display())
-                })?;
-            validate_source_path(Path::new(self.go_context.module_cache.as_str()), path)?;
-            let fs = filesystem_with_poll_interval(
-                self.go_context.module_cache.clone(),
-                self.go_context.poll_interval_ms,
-            )
-            .resolve()
-            .await?;
-            (
-                FileSystemPath {
-                    fs: ResolvedVc::upcast(fs),
-                    path: RcStr::default(),
-                },
-                relative,
-            )
-        };
-        root.join(
-            &relative
-                .to_str()
-                .context("non-UTF8 Go path")?
-                .replace('\\', "/"),
+            return Ok(tracked);
+        }
+        let module_fs = filesystem_with_poll_interval(
+            self.go_context.module_cache.clone(),
+            self.go_context.poll_interval_ms,
         )
+        .resolve()
+        .await?;
+        let tracked = module_fs
+            .await?
+            .try_from_sys_path(module_fs, path, None)
+            .with_context(|| {
+                format!("Go source outside project/module cache: {}", path.display())
+            })?;
+        validate_source_path(Path::new(self.go_context.module_cache.as_str()), path)?;
+        Ok(tracked)
     }
 
     pub(crate) async fn file(&mut self, path: &Path) -> Result<()> {
@@ -350,10 +340,13 @@ impl<'a> Tracker<'a> {
         self.dirty |= before != after || after != stamp(path)? || digest != actual;
         self.inputs.files.insert(
             key,
-            FileInput {
-                stamp: after,
-                digest,
-            },
+            (
+                tracked,
+                FileInput {
+                    stamp: after,
+                    digest,
+                },
+            ),
         );
         Ok(())
     }
@@ -390,7 +383,7 @@ impl<'a> Tracker<'a> {
         };
         let after = directory(path)?;
         self.dirty |= before != after || recorded != after.names;
-        self.inputs.directories.insert(key, after);
+        self.inputs.directories.insert(key, (tracked, after));
         Ok(())
     }
 
@@ -410,7 +403,7 @@ impl<'a> Tracker<'a> {
         let mut pending = vec![root.to_owned()];
         while let Some(path) = pending.pop() {
             self.dir(&path).await?;
-            if let Some(names) = &self.inputs.directories[path.to_str().unwrap()].names {
+            if let Some(names) = &self.inputs.directories[path.to_str().unwrap()].1.names {
                 for (name, kind) in names {
                     if *kind == 1 {
                         pending.push(path.join(name));

@@ -147,7 +147,7 @@ async fn persistent_child() -> Result<()> {
             )
             .read_strongly_consistent()
             .await?;
-            ensure!(result.is_current()?, "restored stale input stamps");
+            ensure!(result.is_current().await?, "restored stale input stamps");
             match &result.outcome {
                 GoBuildOutcome::Failed(message) if expected == "error" => {
                     ensure!(message.contains("syntax error"), "{message}");

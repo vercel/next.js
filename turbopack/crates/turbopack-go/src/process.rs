@@ -12,7 +12,7 @@ pub(crate) use tokio::process::Command;
 use tokio_util::sync::CancellationToken;
 
 #[cfg(not(target_family = "wasm"))]
-const TIMEOUT: Duration = Duration::from_secs(180);
+const SLOW_COMMAND: Duration = Duration::from_secs(180);
 
 #[cfg(not(target_family = "wasm"))]
 struct ProcessGroup(Option<u32>);
@@ -60,7 +60,7 @@ pub(crate) async fn output(
     command: Command,
     cancel: &CancellationToken,
 ) -> Result<std::process::Output> {
-    output_with_timeout(command, cancel, TIMEOUT).await
+    output_with_input(command, cancel, None).await
 }
 
 #[cfg(target_family = "wasm")]
@@ -74,14 +74,27 @@ pub(crate) async fn output(
     )
 }
 
+#[cfg(target_family = "wasm")]
+pub(crate) async fn output_with_input(
+    command: Command,
+    cancel: &CancellationToken,
+    _input: Option<&[u8]>,
+) -> Result<std::process::Output> {
+    output(command, cancel).await
+}
+
 #[cfg(not(target_family = "wasm"))]
-async fn output_with_timeout(
+pub(crate) async fn output_with_input(
     mut command: Command,
     cancel: &CancellationToken,
-    timeout: Duration,
+    input: Option<&[u8]>,
 ) -> Result<std::process::Output> {
     command
-        .stdin(Stdio::null())
+        .stdin(if input.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
@@ -90,19 +103,32 @@ async fn output_with_timeout(
         use std::os::unix::process::CommandExt;
         command.as_std_mut().process_group(0);
     }
-    let child = command
+    let mut child = command
         .spawn()
         .context("starting Go; install Go 1.24 or newer or use --go")?;
+    let stdin = child.stdin.take();
     let mut pending = PendingOutput {
         group: ProcessGroup(child.id()),
-        output: Box::pin(child.wait_with_output()),
+        output: Box::pin(async move {
+            if let (Some(mut stdin), Some(input)) = (stdin, input) {
+                use tokio::io::AsyncWriteExt;
+                stdin.write_all(input).await?;
+            }
+            child.wait_with_output().await
+        }),
     };
-    let (result, wait_pending) = tokio::select! {
-        result = tokio::time::timeout(timeout, &mut pending.output) => match result {
-            Ok(result) => (result.context("waiting for Go"), false),
-            Err(error) => (Err(anyhow::Error::new(error).context(format!("Go command timed out after {} seconds", timeout.as_secs_f64()))), true),
-        },
-        _ = cancel.cancelled() => (Err(anyhow::anyhow!("Go build cancelled")), true),
+    let warning = tokio::time::sleep(SLOW_COMMAND);
+    tokio::pin!(warning);
+    let mut warned = false;
+    let (result, wait_pending) = loop {
+        tokio::select! {
+            result = &mut pending.output => break (result.context("waiting for Go"), false),
+            _ = cancel.cancelled() => break (Err(anyhow::anyhow!("Go build cancelled")), true),
+            _ = &mut warning, if !warned => {
+                eprintln!("Go command has been running for 180 seconds; waiting for it to finish");
+                warned = true;
+            }
+        }
     };
     if result.is_ok() {
         pending.group.0 = None;
@@ -135,7 +161,7 @@ mod tests {
     }
 
     // This is an entrypoint for controlled subprocesses, not a skipped assertion. The tests
-    // below invoke it in fresh processes and verify cancellation and timeout cleanup.
+    // below invoke it in fresh processes and verify cancellation and dropped-future cleanup.
     #[test]
     #[ignore = "Subprocess fixture invoked by process cleanup tests"]
     fn child_process_helper() {
@@ -257,7 +283,6 @@ mod tests {
     enum Completion {
         Cancel,
         DropFuture,
-        Timeout,
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -266,25 +291,12 @@ mod tests {
         verify_process_tree_cleanup(Completion::DropFuture).await;
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn timeout_terminates_process_tree() {
-        verify_process_tree_cleanup(Completion::Timeout).await;
-    }
-
     async fn verify_process_tree_cleanup(completion: Completion) {
         let control = tempfile::tempdir().unwrap();
         let token = CancellationToken::new();
         let command = Command::from(helper(control.path(), "parent"));
         let work_token = token.clone();
-        let started = Instant::now();
-        let work = tokio::spawn(async move {
-            match completion {
-                Completion::Timeout => {
-                    output_with_timeout(command, &work_token, Duration::from_secs(5)).await
-                }
-                _ => output(command, &work_token).await,
-            }
-        });
+        let work = tokio::spawn(async move { output(command, &work_token).await });
         let _abort_on_drop = AbortOnDrop(work.abort_handle());
         // Both processes record their own PID before signaling readiness.
         wait(|| control.path().join("parent.ready").exists()).await;
@@ -319,23 +331,6 @@ mod tests {
                         .to_string()
                         .contains("Go build cancelled")
                 );
-            }
-            Completion::Timeout => {
-                // Bound the test independently: removing the deadline must fail promptly,
-                // rather than waiting for the helper's 120-second self-cleanup.
-                let result = tokio::time::timeout(Duration::from_secs(15), work)
-                    .await
-                    .expect("Go timeout did not complete within its cleanup allowance")
-                    .unwrap()
-                    .unwrap_err();
-                assert!(
-                    result
-                        .to_string()
-                        .contains("Go command timed out after 5 seconds"),
-                    "{result:#}"
-                );
-                assert!(started.elapsed() >= Duration::from_secs(5));
-                assert!(started.elapsed() < Duration::from_secs(15));
             }
         }
         wait(|| !parent.running() && !descendant.running()).await;

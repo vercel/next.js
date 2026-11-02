@@ -46,10 +46,6 @@ func main() {
 				panic(err)
 			}
 			deadline := time.Now().Add(time.Minute)
-			// The CLI timeout regression uses the real 180-second command deadline.
-			if _, err := os.Stat(filepath.Join(string(control), "timeout")); err == nil {
-				deadline = time.Now().Add(4 * time.Minute)
-			}
 			for {
 				if _, err := os.Stat(filepath.Join(string(control), "resume")); err == nil {
 					break

@@ -148,8 +148,7 @@ the Go executable into `dist`. Go-only `dev` watches and compiles without starti
 an HTTP server or opening a browser. JavaScript target and optimization options
 control the JavaScript outputs in a mixed build.
 
-Go commands have a 180-second deadline. Compilation timeouts print diagnostics and
-keep watching for repairs. A failed single build exits with code 1 and preserves
+Go commands that run for more than 180 seconds print a warning and keep running. A failed single build exits with code 1 and preserves
 an existing output. Ctrl-C and, on Unix, SIGTERM cancel active Go commands and stop
 the watcher.
 
@@ -178,8 +177,7 @@ With Go on `PATH`, run from the repository root:
 cargo test -p turbopack-go -p turbopack-cli
 ```
 
-Set `TURBOPACK_GO=/path/to/go/bin/go` to select a test toolchain. The watch timeout
-regression uses the real 180-second deadline, adding roughly three minutes.
+Set `TURBOPACK_GO=/path/to/go/bin/go` to select a test toolchain.
 
 See the [CLI tests](tests/go.rs), [library tests](../turbopack-go/tests/live.rs),
 and the existing [Rust CI workflow](../../../.github/workflows/build_and_test.yml).
