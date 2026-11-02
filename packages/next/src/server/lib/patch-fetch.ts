@@ -82,7 +82,21 @@ function shouldProcessFetchConfigForWorkUnit(
 
 type Fetcher = typeof fetch
 
-type PatchedFetcher = Fetcher & {
+interface NextFetchRequestConfig {
+  revalidate?: number | false
+  tags?: string[]
+}
+
+interface NextFetchRequestInit extends RequestInit {
+  next?: NextFetchRequestConfig | undefined
+}
+
+type PatchedFetcher = {
+  (
+    input: RequestInfo | URL,
+    init?: NextFetchRequestInit
+  ): Promise<Response>
+} & {
   readonly __nextPatched: true
   readonly __nextGetStaticStore: () => WorkAsyncStorage
   readonly _nextOriginalFetch: Fetcher
@@ -377,7 +391,7 @@ export function createPatchedFetcher(
   // Create the patched fetch function.
   const patched = async function fetch(
     input: RequestInfo | URL,
-    init: RequestInit | undefined
+    init: NextFetchRequestInit | undefined
   ): Promise<Response> {
     let url: URL | undefined
     try {
@@ -653,7 +667,7 @@ export function createPatchedFetcher(
 
         let autoNoCache = Boolean(
           (hasUnCacheableHeader || isUnCacheableMethod) &&
-            revalidateStore?.revalidate === 0
+          revalidateStore?.revalidate === 0
         )
 
         let isImplicitBuildTimeCache = false
@@ -1087,13 +1101,13 @@ export function createPatchedFetcher(
             const entry = workStore.isOnDemandRevalidate
               ? null
               : await incrementalCache.get(cacheKey, {
-                  kind: IncrementalCacheKind.FETCH,
-                  revalidate: finalRevalidate,
-                  fetchUrl,
-                  fetchIdx,
-                  tags,
-                  softTags: implicitTags?.tags,
-                })
+              kind: IncrementalCacheKind.FETCH,
+              revalidate: finalRevalidate,
+              fetchUrl,
+              fetchIdx,
+              tags,
+              softTags: implicitTags?.tags,
+            })
 
             if (hasNoExplicitCacheConfig && workUnitStore) {
               switch (workUnitStore.type) {
@@ -1401,10 +1415,10 @@ export function patchFetch(options: PatchableModule) {
 
   // Grab the original fetch function. We'll attach this so we can use it in
   // the patched fetch function.
-  const original = createDedupeFetch(globalThis.fetch)
+  const original = createDedupeFetch(globalThis.fetch) as typeof fetch
 
   // Set the global fetch to the patched fetch.
-  globalThis.fetch = createPatchedFetcher(original, options)
+  globalThis.fetch = createPatchedFetcher(original, options) as unknown as typeof fetch
 }
 
 let currentTimeoutBoundary: null | Promise<void> = null
