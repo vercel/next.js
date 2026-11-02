@@ -100,20 +100,10 @@ With experimental [`route.go`](/docs/app/api-reference/file-conventions/route-go
 
 By default, the executable targets the build host. An adapter can select a deployment target through its [`goTarget` option](/docs/app/api-reference/adapters/api-reference#gotarget). The supported operating systems are `linux`, `darwin`, and `windows`, with `amd64` and `arm64` architectures. CGO stays disabled, and source analysis runs on the build host regardless of the target.
 
-Start the executable without arguments, set `PORT` to its assigned HTTP port, and use the packaged function directory as its working directory. The server listens on `0.0.0.0` so container and function ingress can reach it. The adapter owns network isolation and trusted-header filtering. The adapter build's executable runs independently of the self-hosted Next.js server: it requires neither a private Next.js token nor a parent-owned stdin pipe. By default, the generated server matches its emitted route pattern and derives decoded dynamic parameters from the request URL.
+Start the executable without arguments, set `PORT` to its assigned HTTP port, and use the packaged function directory as its working directory. The server listens on `0.0.0.0` so container and function ingress can reach it. The adapter owns network isolation. The adapter build's executable runs independently of the self-hosted Next.js server: it requires neither a private Next.js token nor a parent-owned stdin pipe.
 
-Each executable contains only its own emitted route pattern. `NEXT_GO_ADAPTER_ROUTING` configures how that executable reads routing metadata; it does not contain a list of routes.
+Forward the final destination URL after rewrites and proxy processing, including its query string and any `basePath`. For example, a request for `/alias?sort=asc` rewritten to `/users/123` must reach the Go server as `/users/123?sort=asc`. The handler's `r.URL`, `r.RequestURI`, and query reflect that destination, including any URL normalization the platform performs. Development and self-hosted deployments use the same destination URL contract.
 
-Platforms that preserve the public URL when rewriting to a Go function must supply the concrete routed pathname separately. Set the function's `NEXT_GO_ADAPTER_ROUTING` environment variable to JSON with `version: 1` and `pathHeader` naming a trusted request header with the `x-next-internal-` prefix:
-
-```json
-{ "version": 1, "pathHeader": "x-next-internal-route-path" }
-```
-
-The adapter must remove caller-supplied values for this header at ingress and replace them with exactly one concrete, escaped pathname after routing, including `basePath`. Send the routed pathname rather than a dynamic route template, and omit its query string and fragment. For example, a public request for `/alias?key=one` rewritten to `/users/a%2Fb` retains `/alias?key=one` as its HTTP request URL while the routing header carries `/users/a%2Fb`.
-
-These paths serve different purposes: the routed pathname selects and populates dynamic parameters, while the forwarded request URL remains available to application code. For a rewrite from `/alias` to `/users/a%2Fb`, matching `/alias` against `/users/[id]` would fail, and replacing the request URL would hide the URL requested by the caller. Platforms that forward the rewritten URL directly can leave `NEXT_GO_ADAPTER_ROUTING` unset.
-
-The server derives parameters from this trusted pathname and removes the routing header before calling the matching HTTP method function. `r.URL`, `r.RequestURI`, and the request query reflect the request forwarded by the platform, including any URL normalization it performs. Escaped slashes stay within their original parameter segments. Missing, repeated, or invalid routing headers return `400`; a valid pathname that does not match the emitted route returns `404`. Invalid routing configuration fails server startup. When the environment variable is unset or empty, routing headers have no special meaning and the server continues matching the request URL.
+Each executable contains only its own emitted route pattern. It matches the destination pathname and derives decoded dynamic and catch-all parameters from it. Escaped slashes stay within their original parameter segments. A pathname that does not match the emitted route returns `404`.
 
 The platform routes requests to the correct Go function and runs its own rewrite and proxy integration. Node.js outputs continue to use their existing handler interface. JavaScript callbacks such as `ctx.waitUntil` cannot be passed to the Go process; the initial server contract provides no completion guarantee for post-response work.

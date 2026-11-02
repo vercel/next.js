@@ -9,7 +9,17 @@ const nextConfig: NextConfig = {
     turbopackFileSystemCacheForBuild: true,
   },
   async rewrites() {
-    return [{ source: '/rewritten/:id', destination: '/native/:id' }]
+    return [
+      { source: '/alias', destination: '/native/123' },
+      { source: '/rewritten/:id', destination: '/native/:id' },
+      { source: '/native/original', destination: '/native/rewritten' },
+      { source: '/catch-alias/:slug*', destination: '/catch/:slug*' },
+      {
+        source: '/optional-alias/:slug*',
+        destination: '/adapter-optional/:slug*',
+      },
+      { source: '/static-alias', destination: '/adapter-static' },
+    ]
   },
 }
 export default nextConfig

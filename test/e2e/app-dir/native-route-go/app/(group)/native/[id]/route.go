@@ -57,6 +57,5 @@ func serveNative(w http.ResponseWriter, r *http.Request) {
 		"proxy": r.Header.Get("X-Proxy-Count"), "pid": os.Getpid(),
 		"repeated": r.Header.Values("X-Repeated"),
 		"path":     r.URL.EscapedPath(), "requestURI": r.RequestURI,
-		"routingHeader": r.Header.Get("X-Next-Internal-Route-Path"),
 	})
 }

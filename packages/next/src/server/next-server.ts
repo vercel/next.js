@@ -1117,6 +1117,10 @@ export default class NextNodeServer extends BaseServer<
             entry,
             req.originalRequest,
             res.originalResponse,
+            formatUrl({
+              pathname: this.nextConfig.basePath + pathname,
+              query,
+            }),
             match.params || {}
           )
           return true

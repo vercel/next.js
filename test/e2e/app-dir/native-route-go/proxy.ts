@@ -6,7 +6,9 @@ export function proxy(req: NextRequest) {
     String(Number(headers.get('x-proxy-count') || 0) + 1)
   )
   if (req.nextUrl.pathname === '/proxy-target') {
-    return NextResponse.rewrite(new URL('/native/proxy', req.url), {
+    const destination = req.nextUrl.clone()
+    destination.pathname = '/native/proxy'
+    return NextResponse.rewrite(destination, {
       request: { headers },
     })
   }

@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -17,52 +15,6 @@ import (
 const nextGoRoutePattern = "__NEXT_GO_ROUTE_PATTERN__"
 
 type nextGoParamsKey struct{}
-
-// This config selects trusted transport metadata; it contains no routes.
-type nextGoAdapterRouting struct {
-	Version    int    `json:"version"`
-	PathHeader string `json:"pathHeader"`
-}
-
-func nextGoRoutingConfig() (*nextGoAdapterRouting, error) {
-	raw := os.Getenv("NEXT_GO_ADAPTER_ROUTING")
-	if raw == "" {
-		return nil, nil
-	}
-	invalid := fmt.Errorf("invalid NEXT_GO_ADAPTER_ROUTING: expected version 1 and a valid x-next-internal-* pathHeader")
-	decoder := json.NewDecoder(strings.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	var config nextGoAdapterRouting
-	if err := decoder.Decode(&config); err != nil || config.Version != 1 || !strings.HasPrefix(strings.ToLower(config.PathHeader), "x-next-internal-") || len(config.PathHeader) == len("x-next-internal-") {
-		return nil, invalid
-	}
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		return nil, invalid
-	}
-	for _, char := range config.PathHeader {
-		if char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || strings.ContainsRune("!#$%&'*+-.^_`|~", char) {
-			continue
-		}
-		return nil, invalid
-	}
-	return &config, nil
-}
-
-func nextGoRoutingPath(r *http.Request, config *nextGoAdapterRouting) (string, error) {
-	if config == nil {
-		return r.URL.EscapedPath(), nil
-	}
-	values := r.Header.Values(config.PathHeader)
-	r.Header.Del(config.PathHeader)
-	if len(values) != 1 || !strings.HasPrefix(values[0], "/") || strings.HasPrefix(values[0], "//") || strings.ContainsAny(values[0], "?#\\") {
-		return "", fmt.Errorf("missing or invalid adapter routing path")
-	}
-	parsed, err := url.ParseRequestURI(values[0])
-	if err != nil || parsed.EscapedPath() != values[0] {
-		return "", fmt.Errorf("invalid adapter routing path")
-	}
-	return values[0], nil
-}
 
 // ParamValues returns decoded route parameters, including individual catch-all segments.
 func ParamValues(r *http.Request, name string) []string {
@@ -122,10 +74,6 @@ func nextGoMatchParams(path string) (map[string][]string, bool) {
 }
 
 func main() {
-	routing, err := nextGoRoutingConfig()
-	if err != nil {
-		panic(err)
-	}
 	port := os.Getenv("PORT")
 	number, err := strconv.Atoi(port)
 	if err != nil || number < 1 || number > 65535 {
@@ -137,14 +85,7 @@ func main() {
 	}
 	handler := nextGoRouteHandler()
 	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// A configured adapter owns the trusted routing header. Match its concrete
-		// escaped path without changing the public URL observed by the handler.
-		path, err := nextGoRoutingPath(r, routing)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		params, matched := nextGoMatchParams(path)
+		params, matched := nextGoMatchParams(r.URL.EscapedPath())
 		if !matched {
 			http.NotFound(w, r)
 			return

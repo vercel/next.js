@@ -9,7 +9,7 @@ contract, and adding a successful skipped assertion would not test that contract
 The main suite verifies public HTTP behavior in dev and start modes. Its start-mode
 adapter test copies each emitted executable and its assets into an isolated
 function directory, starts it without Next.js or Go, and exercises methods,
-streaming, rewrites, routing headers, dynamic parameters and invalid configuration.
+streaming, rewritten destination URLs and dynamic parameters.
 It also verifies Linux amd64 and arm64 outputs. This is executable adapter-contract
 coverage, not a claim of hosted deployment coverage.
 

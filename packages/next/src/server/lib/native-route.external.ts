@@ -204,6 +204,7 @@ export class NativeRouteManager {
     entry: string,
     req: IncomingMessage,
     res: ServerResponse,
+    url: string,
     params: ParsedUrlQuery
   ): Promise<void> {
     if (this.closed) throw new Error('Next.js server is closing')
@@ -301,7 +302,7 @@ export class NativeRouteManager {
           port: worker.port,
           agent: worker.agent,
           method: req.method,
-          path: req.url,
+          path: url,
           headers,
         })
         const cancel = () => {

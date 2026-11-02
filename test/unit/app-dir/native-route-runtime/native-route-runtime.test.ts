@@ -55,6 +55,7 @@ describe('native route runtime', () => {
         'route.native.json',
         req,
         res,
+        '/route',
         {}
       )
 

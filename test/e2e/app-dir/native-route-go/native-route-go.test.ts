@@ -155,6 +155,82 @@ describe('native-route-go', () => {
     })
     expect((await response.json()).id).toBe('trusted')
   })
+  it('passes the rewritten destination URL and derives parameters from it', async () => {
+    for (const [source, destination, id] of [
+      ['/alias', '/native/123', '123'],
+      ['/rewritten/a%2Fb', '/native/a%2Fb', 'a/b'],
+      ['/native/original', '/native/rewritten', 'rewritten'],
+      ['/proxy-target', '/native/proxy', 'proxy'],
+    ]) {
+      expect(await data(`${source}?key=one&key=two`)).toMatchObject({
+        id,
+        path: destination,
+        requestURI: `${destination}?key=one&key=two`,
+        query: 'key=one&key=two',
+      })
+    }
+    const catchAll = await next.fetch('/catch-alias/one%2Ftwo/three%20four')
+    expect(catchAll.status).toBe(200)
+    expect(await catchAll.json()).toEqual(['one/two', 'three four'])
+    for (const [source, destination, params] of [
+      ['/optional-alias', '/adapter-optional', null],
+      [
+        '/optional-alias/one%2Ftwo/three%20four',
+        '/adapter-optional/one%2Ftwo/three%20four',
+        ['one/two', 'three four'],
+      ],
+    ] as const) {
+      const response = await next.fetch(`${source}?key=one&key=two`)
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({
+        params,
+        path: destination,
+        requestURI: `${destination}?key=one&key=two`,
+        query: 'key=one&key=two',
+      })
+    }
+    const response = await next.fetch('/static-alias?key=one&key=two')
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      path: '/adapter-static',
+      requestURI: '/adapter-static?key=one&key=two',
+      query: 'key=one&key=two',
+    })
+  })
+  it('includes basePath in rewritten Go destination URLs', async () => {
+    const config = await next.readFile('next.config.ts')
+    try {
+      await next.stop()
+      await next.patchFile(
+        'next.config.ts',
+        config.replace(
+          'experimental:',
+          "basePath: '/go-base',\n  experimental:"
+        )
+      )
+      await next.start()
+      expect(await data('/go-base/rewritten/a%2Fb?sort=asc')).toMatchObject({
+        id: 'a/b',
+        path: '/go-base/native/a%2Fb',
+        requestURI: '/go-base/native/a%2Fb?sort=asc',
+        query: 'sort=asc',
+      })
+      const response = await next.fetch(
+        '/go-base/optional-alias/one%2Ftwo/three%20four?sort=asc'
+      )
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({
+        params: ['one/two', 'three four'],
+        path: '/go-base/adapter-optional/one%2Ftwo/three%20four',
+        requestURI: '/go-base/adapter-optional/one%2Ftwo/three%20four?sort=asc',
+        query: 'sort=asc',
+      })
+    } finally {
+      await next.stop()
+      await next.patchFile('next.config.ts', config)
+      await next.start()
+    }
+  })
   it('preserves repeated request headers and cancels streaming responses', async () => {
     await new Promise<void>((resolve, reject) => {
       const req = request(
@@ -543,8 +619,7 @@ describe('native-route-go', () => {
 
       async function withStandaloneRoute(
         output: AdapterOutput['APP_ROUTE'],
-        run: (port: number) => Promise<void>,
-        options: { routing?: string; startupError?: boolean } = {}
+        run: (port: number) => Promise<void>
       ) {
         const directory = await fs.mkdtemp(join(tmpdir(), 'go-adapter-route-'))
         let child: ReturnType<typeof spawn> | undefined
@@ -567,10 +642,6 @@ describe('native-route-go', () => {
             PORT: String(port),
           }
           delete env.__NEXT_GO_TOKEN
-          delete env.NEXT_GO_ADAPTER_ROUTING
-          if (options.routing !== undefined) {
-            env.NEXT_GO_ADAPTER_ROUTING = options.routing
-          }
           child = spawn(executable, [], {
             cwd: directory,
             env,
@@ -588,16 +659,6 @@ describe('native-route-go', () => {
           child.stderr?.on('data', (chunk) => {
             stderr += chunk.toString()
           })
-          if (options.startupError) {
-            await retry(async () => {
-              if (failure) throw failure
-              expect(child!.exitCode).not.toBeNull()
-            })
-            await closed
-            expect(child.exitCode).not.toBe(0)
-            expect(stderr).toContain('invalid NEXT_GO_ADAPTER_ROUTING')
-            return
-          }
           await retry(async () => {
             if (failure) throw failure
             if (child!.exitCode !== null) {
@@ -607,7 +668,7 @@ describe('native-route-go', () => {
               `http://127.0.0.1:${port}`,
               '/unmatched-readiness'
             )
-            expect(response.status).toBe(options.routing ? 400 : 404)
+            expect(response.status).toBe(404)
           })
           await run(port)
         } finally {
@@ -684,31 +745,6 @@ describe('native-route-go', () => {
           req.on('error', reject)
           req.end()
         })
-        const forged = await fetchViaHTTP(
-          `http://127.0.0.1:${port}`,
-          '/alias',
-          undefined,
-          {
-            headers: {
-              'x-next-internal-route-path': '/adapter-base/native/forged',
-            },
-          }
-        )
-        expect(forged.status).toBe(404)
-        const direct = await fetchViaHTTP(
-          `http://127.0.0.1:${port}`,
-          '/adapter-base/native/direct?nxtPid=caller',
-          undefined,
-          {
-            headers: {
-              'x-next-internal-route-path': '/adapter-base/native/forged',
-            },
-          }
-        )
-        expect(await direct.json()).toMatchObject({
-          id: 'direct',
-          query: 'nxtPid=caller',
-        })
       })
       await withStandaloneRoute(
         goOutputs.find(
@@ -754,115 +790,28 @@ describe('native-route-go', () => {
         }
       )
 
-      const routing = JSON.stringify({
-        version: 1,
-        pathHeader: 'x-next-internal-route-path',
+      // Adapters forward the final rewritten URL, including its query and basePath.
+      await withStandaloneRoute(nativeOutput, async (port) => {
+        const destination =
+          '/adapter-base/native/a%2Fb?key=%2f&key=one+two&nxtPid=caller'
+        const response = await fetchViaHTTP(
+          `http://127.0.0.1:${port}`,
+          destination,
+          undefined,
+          { method: 'POST', body: 'rewritten body' }
+        )
+        expect(response.status).toBe(201)
+        expect(await response.json()).toMatchObject({
+          id: 'a/b',
+          path: '/adapter-base/native/a%2Fb',
+          requestURI: destination,
+          query: 'key=%2f&key=one+two&nxtPid=caller',
+          body: 'rewritten body',
+        })
+        expect(
+          (await fetchViaHTTP(`http://127.0.0.1:${port}`, '/alias')).status
+        ).toBe(404)
       })
-      await withStandaloneRoute(
-        nativeOutput,
-        async (port) => {
-          const publicURL = '/alias?key=%2f&key=one+two&nxtPid=caller'
-          const response = await fetchViaHTTP(
-            `http://127.0.0.1:${port}`,
-            publicURL,
-            undefined,
-            {
-              method: 'POST',
-              body: 'rewritten body',
-              headers: {
-                'x-next-internal-route-path': '/adapter-base/native/a%2Fb',
-                'x-next-go-token': 'forged',
-                'x-next-go-params': 'forged',
-              },
-            }
-          )
-          expect(response.status).toBe(201)
-          expect(await response.json()).toMatchObject({
-            id: 'a/b',
-            path: '/alias',
-            requestURI: publicURL,
-            query: 'key=%2f&key=one+two&nxtPid=caller',
-            body: 'rewritten body',
-            routingHeader: '',
-          })
-          const samePatternRewrite = await fetchViaHTTP(
-            `http://127.0.0.1:${port}`,
-            '/adapter-base/native/original',
-            undefined,
-            {
-              headers: {
-                'x-next-internal-route-path': '/adapter-base/native/rewritten',
-              },
-            }
-          )
-          expect(await samePatternRewrite.json()).toMatchObject({
-            id: 'rewritten',
-            path: '/adapter-base/native/original',
-            requestURI: '/adapter-base/native/original',
-          })
-          const missing = await fetchViaHTTP(
-            `http://127.0.0.1:${port}`,
-            '/adapter-base/native/direct'
-          )
-          expect(missing.status).toBe(400)
-          for (const value of [
-            '',
-            'relative/path',
-            '//other/native/value',
-            '/adapter-base/native/value?query=1',
-            '/adapter-base/native/value#fragment',
-            '/adapter-base/native/a\\b',
-            '/adapter-base/native/a b',
-            '/adapter-base/native/%invalid',
-          ]) {
-            const invalid = await fetchViaHTTP(
-              `http://127.0.0.1:${port}`,
-              '/alias',
-              undefined,
-              { headers: { 'x-next-internal-route-path': value } }
-            )
-            expect(invalid.status).toBe(400)
-          }
-          await new Promise<void>((resolve, reject) => {
-            const req = request(
-              `http://127.0.0.1:${port}/alias`,
-              {
-                headers: {
-                  'x-next-internal-route-path': [
-                    '/adapter-base/native/first',
-                    '/adapter-base/native/second',
-                  ],
-                },
-              },
-              (res) => {
-                res.resume()
-                res.once('end', () => {
-                  try {
-                    expect(res.statusCode).toBe(400)
-                    resolve()
-                  } catch (error) {
-                    reject(error)
-                  }
-                })
-              }
-            )
-            req.on('error', reject)
-            req.end()
-          })
-          const unmatched = await fetchViaHTTP(
-            `http://127.0.0.1:${port}`,
-            '/alias',
-            undefined,
-            {
-              headers: {
-                'x-next-internal-route-path': '/adapter-base/unrelated',
-              },
-            }
-          )
-          expect(unmatched.status).toBe(404)
-        },
-        { routing }
-      )
       await withStandaloneRoute(
         goOutputs.find(
           (output) => output.pathname === '/adapter-base/catch/[...slug]'
@@ -870,19 +819,11 @@ describe('native-route-go', () => {
         async (port) => {
           const response = await fetchViaHTTP(
             `http://127.0.0.1:${port}`,
-            '/catch-alias',
-            undefined,
-            {
-              headers: {
-                'x-next-internal-route-path':
-                  '/adapter-base/catch/one%2Ftwo/three%20four',
-              },
-            }
+            '/adapter-base/catch/one%2Ftwo/three%20four'
           )
           expect(response.status).toBe(200)
           expect(await response.json()).toEqual(['one/two', 'three four'])
-        },
-        { routing }
+        }
       )
       await withStandaloneRoute(
         goOutputs.find(
@@ -899,98 +840,41 @@ describe('native-route-go', () => {
           ] as const) {
             const response = await fetchViaHTTP(
               `http://127.0.0.1:${port}`,
-              '/optional-alias?key=%252f',
-              undefined,
-              { headers: { 'x-next-internal-route-path': path } }
+              `${path}?key=%252f`
             )
             expect(response.status).toBe(200)
             expect(await response.json()).toMatchObject({
               params,
-              path: '/optional-alias',
-              requestURI: '/optional-alias?key=%252f',
+              path,
+              requestURI: `${path}?key=%252f`,
               query: 'key=%252f',
-              routingHeader: '',
             })
           }
-        },
-        { routing }
-      )
-      await withStandaloneRoute(
-        goOutputs.find(
-          (output) => output.pathname === '/adapter-base/adapter-static'
-        )!,
-        async (port) => {
-          const response = await fetchViaHTTP(
-            `http://127.0.0.1:${port}`,
-            '/static-alias?key=%2f&key=one+two',
-            undefined,
-            {
-              headers: {
-                'x-next-internal-matched-path': '/adapter-base/adapter-static',
-              },
-            }
-          )
-          expect(response.status).toBe(200)
-          expect(await response.json()).toMatchObject({
-            path: '/static-alias',
-            requestURI: '/static-alias?key=%2f&key=one+two',
-            query: 'key=%2f&key=one+two',
-          })
-        },
-        {
-          routing: JSON.stringify({
-            version: 1,
-            pathHeader: 'x-next-internal-matched-path',
-          }),
         }
       )
-      await withStandaloneRoute(
-        goOutputs.find(
-          (output) =>
-            output.pathname === '/adapter-base/adapter-special/café a 100%'
-        )!,
-        async (port) => {
-          const response = await fetchViaHTTP(
-            `http://127.0.0.1:${port}`,
-            '/special-alias?key=unchanged',
-            undefined,
-            {
-              headers: {
-                'x-next-internal-route-path':
-                  '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
-              },
-            }
-          )
-          expect(response.status).toBe(200)
-          expect(await response.json()).toMatchObject({
-            path: '/special-alias',
-            requestURI: '/special-alias?key=unchanged',
-            query: 'key=unchanged',
-            routingHeader: '',
-          })
-        },
-        { routing }
-      )
-      for (const invalid of [
-        '{',
-        'null',
-        JSON.stringify({
-          version: 2,
-          pathHeader: 'x-next-internal-route-path',
-        }),
-        JSON.stringify({ version: 1 }),
-        JSON.stringify({ version: 1, pathHeader: '' }),
-        JSON.stringify({ version: 1, pathHeader: 'invalid header' }),
-        JSON.stringify({ version: 1, pathHeader: ':invalid' }),
-        JSON.stringify({ version: 1, pathHeader: 'x-platform-route-path' }),
-        JSON.stringify({ version: 1, pathHeader: 'x-next-internal-' }),
-        JSON.stringify({ version: 1, pathHeader: 'x-path', unknown: true }),
-        `${routing} {}`,
+      for (const [pathname, escapedPath] of [
+        ['/adapter-base/adapter-static', '/adapter-base/adapter-static'],
+        [
+          '/adapter-base/adapter-special/café a 100%',
+          '/adapter-base/adapter-special/caf%C3%A9%20a%20100%25',
+        ],
       ]) {
-        await withStandaloneRoute(nativeOutput, async () => {}, {
-          routing: invalid,
-          startupError: true,
-        })
+        await withStandaloneRoute(
+          goOutputs.find((output) => output.pathname === pathname)!,
+          async (port) => {
+            const destination = `${escapedPath}?key=%2f&key=one+two`
+            const response = await fetchViaHTTP(
+              `http://127.0.0.1:${port}`,
+              destination
+            )
+            expect(response.status).toBe(200)
+            expect(await response.json()).toMatchObject({
+              path: escapedPath,
+              requestURI: destination,
+              query: 'key=%2f&key=one+two',
+            })
+          }
+        )
       }
 
       // Adapter targets are independent of provider and of the host analysis tool.
