@@ -1,5 +1,6 @@
 //! Go entrypoints participate in the CLI's task graph and emit ordinary output assets.
 use std::{
+    collections::BTreeMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -18,16 +19,64 @@ use turbopack_core::{
     raw_output::RawOutput,
     virtual_source::VirtualSource,
 };
-use turbopack_go::{GoBuildContext, GoBuildOutcome, filesystem, go_bundle, validate_source_path};
+use turbopack_go::{
+    GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, filesystem,
+    go_bundle_with_session, validate_source_path,
+};
 
 use crate::arguments::CommonArguments;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, NonLocalValue)]
 pub struct GoBuild {
     pub go_context: GoBuildContext,
+    session: ResolvedVc<GoBuildSession>,
     project: RcStr,
     files: Vec<RcStr>,
     output_name: RcStr,
+}
+
+/// Probing does not require a task engine. Attach the persistent session once the caller
+/// has opened its backing storage, before starting compilation or acquiring watchers.
+pub struct PreparedGoBuild {
+    probe: GoBuildContext,
+    project: RcStr,
+    files: Vec<RcStr>,
+    output_name: RcStr,
+}
+
+impl PreparedGoBuild {
+    pub async fn connect(self) -> Result<Arc<GoBuild>> {
+        let session = session_operation(self.project.clone(), self.probe.options)
+            .resolve()
+            .strongly_consistent()
+            .await?;
+        // The resident value may have been restored from disk. Retain its context, not
+        // the probe's cancellation handle, so shutdown cancels the work actually running.
+        let go_context = session.await?.go_context.clone();
+        Ok(Arc::new(GoBuild {
+            go_context,
+            session,
+            project: self.project,
+            files: self.files,
+            output_name: self.output_name,
+        }))
+    }
+}
+
+#[turbo_tasks::function(operation, root, session_dependent)]
+fn session_operation(project: RcStr, options: GoBuildOptions) -> Vc<GoBuildSession> {
+    GoBuildSession::persistent(format!("turbopack-cli:{project}").into(), options)
+}
+
+// Only the source/session identity enters the persistent compiler graph. The CLI owner
+// passed to orchestration tasks also carries live watchers and cancellation state.
+#[turbo_tasks::function(operation, root)]
+fn bundle_operation(
+    root: FileSystemPath,
+    files: Vec<RcStr>,
+    session: ResolvedVc<GoBuildSession>,
+) -> Vc<GoBundleResult> {
+    go_bundle_with_session(root, files, *session, BTreeMap::new())
 }
 
 impl TaskInput for GoBuild {
@@ -137,7 +186,7 @@ fn input_files(common: &CommonArguments) -> Result<(PathBuf, Vec<RcStr>)> {
     Ok((module, files))
 }
 
-pub async fn prepare(common: &CommonArguments) -> Result<Option<Arc<GoBuild>>> {
+pub async fn prepare(common: &CommonArguments) -> Result<Option<PreparedGoBuild>> {
     let Some(first) = common
         .entries
         .as_deref()
@@ -147,25 +196,23 @@ pub async fn prepare(common: &CommonArguments) -> Result<Option<Arc<GoBuild>>> {
     else {
         return Ok(None);
     };
-    // TODO: Keep the JavaScript graph persistent in mixed builds. The shared root currently
-    // contains transient Go inputs, so the CLI still disallows persistent caching here.
-    ensure!(
-        !common.persistent_caching,
-        "Go build sessions do not support persistent task caching"
-    );
     let (project, files) = input_files(common)?;
     let go_context = GoBuildContext::host(&common.go.go, None, &common.go.tags).await?;
+    // Allocate the output directory before discovery records its parent's inventory.
+    // Otherwise the first publication changes compiler inputs and misses the next warm cache.
+    std::fs::create_dir_all(common.dir.as_deref().unwrap_or(Path::new(".")).join("dist"))
+        .context("preparing Go output directory")?;
     let name = Path::new(first)
         .file_stem()
         .context("input has no filename")?
         .to_str()
         .context("non-UTF8 Go output name")?;
-    Ok(Some(Arc::new(GoBuild {
+    Ok(Some(PreparedGoBuild {
         output_name: format!("{name}{}", go_context.exe_suffix).into(),
         project: project.to_str().context("non-UTF8 Go project")?.into(),
         files,
-        go_context,
-    })))
+        probe: go_context,
+    }))
 }
 
 /// Compile native inputs in the caller's graph and publish through the shared asset writer.
@@ -190,7 +237,7 @@ pub async fn output_assets(
         // The caller's root read can be interrupted while this cached task is still waiting
         // for graph consistency. Let this task unwind too, before shutdown stops scheduling.
         let result = tokio::select! {
-            result = go_bundle(root.clone(), build.files.clone(), build.go_context.clone())
+            result = bundle_operation(root.clone(), build.files.clone(), build.session)
                 .read_strongly_consistent() => result?,
             _ = build.go_context.cancelled() => return Ok(OutputAssets::empty()),
         };

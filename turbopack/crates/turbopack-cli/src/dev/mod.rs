@@ -439,6 +439,11 @@ pub async fn start_server(args: &DevArguments, exit: &ExitHandler) -> Result<()>
         ))
     };
 
+    let go_entries = match go_entries {
+        Some(entries) => Some(tt.run_once(async move { entries.connect().await }).await?),
+        None => None,
+    };
+
     let entries = normalize_entries(&args.common.entries);
     let build_task = if go_entries.is_some() {
         let mut builder = TurbopackBuildBuilder::new(project_dir.clone(), root_dir.clone())

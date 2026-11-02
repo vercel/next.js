@@ -22,6 +22,18 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	if len(os.Args) > 1 {
+		log, err := os.OpenFile(filepath.Join(string(control), "invocations.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			panic(err)
+		}
+		if _, err := fmt.Fprintln(log, os.Args[1]); err != nil {
+			panic(err)
+		}
+		if err := log.Close(); err != nil {
+			panic(err)
+		}
+	}
 	action := "build"
 	if selected, err := os.ReadFile(filepath.Join(string(control), "action")); err == nil {
 		action = string(selected)

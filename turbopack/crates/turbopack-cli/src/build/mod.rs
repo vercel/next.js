@@ -677,6 +677,11 @@ pub async fn build(args: &BuildArguments, exit: &ExitHandler) -> Result<()> {
         ))
     };
 
+    let go_entries = match go_entries {
+        Some(entries) => Some(tt.run_once(async move { entries.connect().await }).await?),
+        None => None,
+    };
+
     let mut builder = TurbopackBuildBuilder::new(project_dir, root_dir)
         .go_entries(go_entries.clone())
         .log_detail(args.common.log_detail)
