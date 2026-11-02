@@ -442,10 +442,24 @@ pub struct ProjectContainer {
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
     #[turbo_tasks::function(operation, root)]
-    pub fn new_operation(name: RcStr, dev: bool) -> Result<Vc<Self>> {
+    pub fn new_operation(
+        name: RcStr,
+        dev: bool,
+        shutdown: TransientInstance<Arc<crate::shutdown::ShutdownHooks>>,
+    ) -> Result<Vc<Self>> {
+        let go_sessions = turbopack_go::GoSessionPool::new();
+        shutdown.on_shutdown(go_sessions, |sessions| {
+            Box::pin(async move {
+                sessions
+                    .await?
+                    .shutdown()
+                    .await
+                    .context("shutting down Go compiler sessions")
+            })
+        });
         Ok(ProjectContainer {
             name,
-            go_sessions: turbopack_go::GoSessionPool::new(),
+            go_sessions,
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
@@ -1008,30 +1022,6 @@ impl ProjectContainer {
             additional_roots,
         }
         .cell())
-    }
-
-    /// Cancel native compiler actions before stopping Turbo Tasks, then release their watcher.
-    #[turbo_tasks::function(session_dependent)]
-    pub async fn shutdown_go(self: Vc<Self>) -> Result<Vc<Completion>> {
-        let this = self.await?;
-        let sessions = this.go_sessions.await?;
-        let target = sessions.go_context.lock().await.take();
-        let host = sessions.host_context.lock().await.take();
-        for go_context in [&target, &host].into_iter().flatten() {
-            go_context.cancel();
-        }
-        // Both contexts share the same module-cache filesystem and watcher.
-        if let Some(go_context) = host.or(target) {
-            turbopack_go::filesystem_with_poll_interval(
-                go_context.module_cache.clone(),
-                go_context.poll_interval_ms,
-            )
-            .connect()
-            .await?
-            .stop_watching()
-            .await;
-        }
-        Ok(Completion::new())
     }
 
     /// See [Project::entrypoints].
