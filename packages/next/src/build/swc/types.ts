@@ -474,7 +474,8 @@ export type ServerPath = {
 export type WrittenEndpoint =
   | {
       type: 'native'
-      entryPath: string
+      /** Absent when native compilation failed before publishing an executable. */
+      entryPath?: string
       serverHmrEntryPaths: []
       clientPaths: []
       serverPaths: []
@@ -503,8 +504,6 @@ export type WrittenEndpoint =
     }
   | {
       type: 'none'
-      /** Preserve native identity when compilation failed before emitting files. */
-      nativeBuildFailed?: boolean
       serverHmrEntryPaths: []
       clientPaths: []
       serverPaths: []

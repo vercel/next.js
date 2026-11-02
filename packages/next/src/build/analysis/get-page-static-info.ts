@@ -653,8 +653,6 @@ export async function getAppPageStaticInfo({
   if (/(?:^|[\\/])route\.go$/.test(pageFilePath)) {
     if (!process.env.TURBOPACK)
       throw new Error('route.go requires Turbopack; remove --webpack')
-    if (!nextConfig.experimental?.goRoutes)
-      throw new Error('route.go requires experimental.goRoutes: true')
     return {
       type: PAGE_TYPES.APP,
       config: { dynamic: 'force-dynamic' },

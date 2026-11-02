@@ -710,7 +710,8 @@ export async function createHotReloaderTurbopack(
     return (
       !!serverFastRefresh &&
       splitEntryKey(key).type === 'app' &&
-      writtenEndpoint.type !== 'edge'
+      writtenEndpoint.type !== 'edge' &&
+      writtenEndpoint.type !== 'native'
     )
   }
 

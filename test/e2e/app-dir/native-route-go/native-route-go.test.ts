@@ -360,6 +360,26 @@ describe('native-route-go', () => {
     })
   })
   if (isNextDev) {
+    it('reports the disabled Go experiment from Rust and recovers when enabled', async () => {
+      const config = await next.readFile('next.config.ts')
+      try {
+        await next.stop()
+        await next.patchFile(
+          'next.config.ts',
+          config.replace('goRoutes: true', 'goRoutes: false')
+        )
+        await next.start({ env: { TURBOPACK_GO: '/missing-go-toolchain' } })
+        expect((await next.fetch('/native/disabled')).status).toBe(500)
+        expect(next.cliOutput).toContain(
+          'route.go requires experimental.goRoutes: true'
+        )
+      } finally {
+        await next.stop()
+        await next.patchFile('next.config.ts', config)
+        await next.start()
+      }
+      expect((await data()).id).toBe('example')
+    })
     it('repairs ordinary JS route errors alongside native routes', async () => {
       const source = await next.readFile('app/js/route.ts')
       try {
@@ -1021,6 +1041,26 @@ describe('native route diagnostics', () => {
     // These assertions invoke local failing builds, which cannot be deployed.
     // See README.md; HTTP adapter behavior is exercised by the start-mode cases.
     skipDeployment: true,
+  })
+  it('reports Go routes without the experiment before invoking the compiler', async () => {
+    const config = await next.readFile('next.config.ts')
+    await next.patchFile(
+      'next.config.ts',
+      config.replace('goRoutes: true', 'goRoutes: false'),
+      async () => {
+        const result = await next.runCommand(['build', '--turbopack'], {
+          env: {
+            TURBOPACK_GO: '/missing-go-toolchain',
+            IS_TURBOPACK_TEST: '1',
+            IS_WEBPACK_TEST: '',
+          },
+        })
+        expect(result.exitCode).not.toBe(0)
+        expect(result.cliOutput).toContain(
+          'route.go requires experimental.goRoutes: true'
+        )
+      }
+    )
   })
   it('does not require Go or trace its runtime when no Go routes exist', async () => {
     const files = (
