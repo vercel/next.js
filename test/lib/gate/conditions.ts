@@ -141,6 +141,10 @@ export const conditions: Record<string, Condition> = {
     () => getGateTestContext().bundler === 'webpack'
   ),
 
+  babel: staticCondition(
+    'running the Babel test variant (`TEST_BABEL=1`)',
+    () => process.env.TEST_BABEL === '1'
+  ),
   react18: staticCondition(
     'the fixture installs React 18 instead of the default React version',
     () => getGateTestContext().react18

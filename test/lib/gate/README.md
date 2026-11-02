@@ -83,7 +83,7 @@ fails the whole suite at collection time rather than silently disabling the gate
 There are two tiers:
 
 - **static** — the run's own shape (`dev`, `start`, `deploy`, `mode`,
-  `turbopack`, `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `linux`,
+  `turbopack`, `rspack`, `webpack`, `bundler`, `babel` (`TEST_BABEL=1`), `react18`, `wasm`, `linux`,
   `macos`, `windows`, `ci`), semantic aliases for `!dev` that state the reason
   rather than the mode (`prod`, `prefetching`), the deploy host (`vercel`: a
   deploy run declared as Vercel with `NEXT_TEST_DEPLOY_TARGET_VERCEL=1`, as
