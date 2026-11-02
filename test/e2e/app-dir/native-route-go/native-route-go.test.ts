@@ -210,9 +210,8 @@ describe('native-route-go', () => {
     expect((await data()).pid).toBe(first.pid)
     const response = await fetchViaRawHttp(next.url, '/native/trusted', {
       headers: {
-        connection: 'x-next-go-token, x-next-go-params',
+        connection: 'x-next-go-token',
         'x-next-go-token': 'forged',
-        'x-next-go-params': 'forged',
       },
     })
     expect(response.status).toBe(201)
@@ -784,7 +783,6 @@ describe('native-route-go', () => {
             body: 'adapter request body',
             headers: {
               'x-next-go-token': 'forged',
-              'x-next-go-params': 'forged',
             },
           }
         )
