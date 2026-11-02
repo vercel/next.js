@@ -7,10 +7,15 @@ import {
 
 type RegisterArguments = Parameters<MockRegistry['register']>
 
+interface CachedFactoryNamespace {
+  namespace: Record<string, unknown>
+  display: { request?: string }
+}
+
 interface FileMockState {
   registry: MockRegistry
   fresh: ReturnType<typeof createFreshModuleMocking>
-  importedMocks: Map<string, Record<string, unknown>>
+  importedMocks: Map<string, CachedFactoryNamespace>
   onLateFailure?: (error: Error) => void
 }
 
@@ -108,7 +113,8 @@ export async function resolveModuleMock(
 /** Compiler-only vi.importMock with a resolved original/factory selection. */
 export async function importModuleMock(
   target: string | (() => Promise<Record<string, unknown>>),
-  transform?: (module: Record<string, unknown>) => Record<string, unknown>
+  transform?: (module: Record<string, unknown>) => Record<string, unknown>,
+  displayRequest: string | undefined = undefined
 ): Promise<Record<string, unknown>> {
   const state = current()
   if (typeof target !== 'string') {
@@ -128,7 +134,11 @@ export async function importModuleMock(
     }
   }
   const previous = state.importedMocks.get(target)
-  if (previous) return previous
+  if (previous) {
+    if (previous.display.request === undefined && displayRequest !== undefined)
+      previous.display.request = displayRequest
+    return previous.namespace
+  }
   const exports = await resolveModuleMock(target, [])
   if (active !== state) {
     throw new Error('The module mock file context has been disposed.')
@@ -151,10 +161,28 @@ export async function importModuleMock(
     Symbol.toStringTag,
     Symbol.unscopables,
   ])
+  const display = { request: displayRequest }
   const namespace = new Proxy(exports, {
     get(moduleExports, key) {
       const value = Reflect.get(moduleExports, key)
       if (key !== 'then' && !(key in moduleExports) && !ignored.has(key)) {
+        if (display.request !== undefined) {
+          const error = new Error(
+            `[vitest] No "${String(key)}" export is defined on the "${display.request}" mock. Did you forget to return it from "vi.mock"?\n` +
+              'If you need to partially mock a module, you can use "importOriginal" helper inside:\n'
+          )
+          Object.assign(error, {
+            codeFrame:
+              `vi.mock(import("${display.request}"), async (importOriginal) => {\n` +
+              '  const actual = await importOriginal()\n' +
+              '  return {\n' +
+              '    ...actual,\n' +
+              '    // your mocked methods\n' +
+              '  }\n' +
+              '})',
+          })
+          throw error
+        }
         throw new Error(
           `Module mock ${target} does not define export ${JSON.stringify(String(key))}.`
         )
@@ -162,7 +190,9 @@ export async function importModuleMock(
       return value
     },
   })
-  state.importedMocks.set(target, namespace)
+  // Keep the existing publication point: an older pending factory that finishes
+  // last may still publish its own namespace and display cell after registration.
+  state.importedMocks.set(target, { namespace, display })
   return namespace
 }
 

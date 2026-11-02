@@ -3231,3 +3231,196 @@ it.each([
     expect(JSON.parse(result)).toEqual({ mode, originalInitialComponent: true })
   }
 )
+
+describe('compiler factory namespace display ownership', () => {
+  const runtime: typeof import('next/dist/experimental/testing/mocking/runtime') = require('next/dist/experimental/testing/mocking/runtime')
+  const missing = (
+    namespace: Record<string, unknown>
+  ): Error & { codeFrame?: string } => {
+    try {
+      void namespace.absent
+    } catch (error) {
+      return error as Error
+    }
+    throw new Error('missing export did not throw')
+  }
+  const message = (request: string) =>
+    `[vitest] No "absent" export is defined on the "${request}" mock. Did you forget to return it from "vi.mock"?\nIf you need to partially mock a module, you can use "importOriginal" helper inside:\n`
+
+  it('retains the legacy helper arity and undisplayed error', async () => {
+    const file = runtime.initializeModuleMocking()
+    try {
+      expect(runtime.importModuleMock.length).toBe(2)
+      runtime.registerModuleMock(
+        'display:old',
+        () => ({}),
+        async () => ({})
+      )
+      const namespace = await runtime.importModuleMock('display:old')
+      expect(missing(namespace).message).toBe(
+        'Module mock display:old does not define export "absent".'
+      )
+      const original = { value: 'actual' }
+      expect(
+        await runtime.importModuleMock(
+          async () => original,
+          undefined,
+          './ignored.cjs'
+        )
+      ).toBe(original)
+    } finally {
+      file.dispose()
+    }
+  })
+
+  it('creates the real missing-get Error with genuine message and own fields', async () => {
+    const file = runtime.initializeModuleMocking()
+    try {
+      runtime.registerModuleMock(
+        'display:actual',
+        () => ({ value: 1 }),
+        async () => ({})
+      )
+      const namespace = await runtime.importModuleMock(
+        'display:actual',
+        undefined,
+        './target.cjs'
+      )
+      const error = missing(namespace)
+      expect(error).toBeInstanceOf(Error)
+      expect(error.name).toBe('Error')
+      expect(error.message).toBe(message('./target.cjs'))
+      expect(Object.hasOwn(error, 'cause')).toBe(false)
+      expect(Reflect.ownKeys(error)).toEqual(['stack', 'message', 'codeFrame'])
+      expect(error.codeFrame).toBe(
+        'vi.mock(import("./target.cjs"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})'
+      )
+      expect(Object.getOwnPropertyDescriptor(error, 'codeFrame')).toMatchObject(
+        { enumerable: true, writable: true, configurable: true }
+      )
+    } finally {
+      file.dispose()
+    }
+  })
+
+  it('binds display on the same cached namespace without factory or getter reads', async () => {
+    const file = runtime.initializeModuleMocking()
+    let reads = 0
+    const exports = {
+      get value() {
+        reads++
+        return 1
+      },
+    }
+    const factory = jest.fn(() => exports)
+    try {
+      runtime.registerModuleMock('display:cache', factory, async () => ({}))
+      const first = await runtime.importModuleMock('display:cache')
+      const before = Object.getOwnPropertyDescriptor(first, 'value')
+      const second = await runtime.importModuleMock(
+        'display:cache',
+        undefined,
+        './first.cjs'
+      )
+      const third = await runtime.importModuleMock(
+        'display:cache',
+        undefined,
+        './later.cjs'
+      )
+      expect(second).toBe(first)
+      expect(third).toBe(first)
+      expect(Object.getOwnPropertyDescriptor(second, 'value')).toEqual(before)
+      expect(Reflect.ownKeys(second)).toEqual(['value'])
+      expect(reads).toBe(0)
+      expect(factory).toHaveBeenCalledTimes(1)
+      expect(missing(first).message).toBe(message('./first.cjs'))
+      expect(first.value).toBe(1)
+      expect(reads).toBe(1)
+    } finally {
+      file.dispose()
+    }
+  })
+
+  it('keeps held old namespace display cells across actual file disposal', async () => {
+    const firstFile = runtime.initializeModuleMocking()
+    runtime.registerModuleMock(
+      'display:file',
+      () => ({}),
+      async () => ({})
+    )
+    const old = await runtime.importModuleMock(
+      'display:file',
+      undefined,
+      './old.cjs'
+    )
+    firstFile.dispose()
+    const nextFile = runtime.initializeModuleMocking()
+    try {
+      runtime.registerModuleMock(
+        'display:file',
+        () => ({}),
+        async () => ({})
+      )
+      const next = await runtime.importModuleMock(
+        'display:file',
+        undefined,
+        './new.cjs'
+      )
+      expect(next).not.toBe(old)
+      expect(missing(old).message).toBe(message('./old.cjs'))
+      expect(missing(next).message).toBe(message('./new.cjs'))
+    } finally {
+      nextFile.dispose()
+    }
+  })
+
+  it('preserves older pending namespace publication with its own display cell', async () => {
+    let input = { index: 0, closed: false, evaluating: false }
+    const file = runtime.initializeModuleMocking({
+      registrationInput: () => input,
+    })
+    let release!: (value: Record<string, unknown>) => void
+    let started!: () => void
+    const begun = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    const pending = new Promise<Record<string, unknown>>((resolve) => {
+      release = resolve
+    })
+    try {
+      runtime.registerModuleMock(
+        'display:pending',
+        () => {
+          started()
+          return pending
+        },
+        async () => ({})
+      )
+      const oldPromise = runtime.importModuleMock(
+        'display:pending',
+        undefined,
+        './old.cjs'
+      )
+      await begun
+      input = { index: 1, closed: false, evaluating: false }
+      runtime.registerModuleMock(
+        'display:pending',
+        () => ({ value: 'new' }),
+        async () => ({})
+      )
+      const next = await runtime.importModuleMock(
+        'display:pending',
+        undefined,
+        './new.cjs'
+      )
+      release({ value: 'old' })
+      const old = await oldPromise
+      expect(await runtime.importModuleMock('display:pending')).toBe(old)
+      expect(old).not.toBe(next)
+      expect(missing(old).message).toBe(message('./old.cjs'))
+      expect(missing(next).message).toBe(message('./new.cjs'))
+    } finally {
+      file.dispose()
+    }
+  })
+})

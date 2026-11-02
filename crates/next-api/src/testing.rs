@@ -81,7 +81,7 @@ use crate::{
     testing_mock_graph::{
         MockActualSource, MockBuiltinFactoryTarget, MockBuiltinResolvePlugin, MockGraphTarget,
         MockGraphTargets, MockHoistedSource, MockImportKind, MockImportSource, MockOriginalSource,
-        MockRegistrationSource, MockResolvePlugin,
+        MockRegistrationSource, MockResolvePlugin, compiled_commonjs_namespace_wrapper_source,
         mock_registration_source_with_paired_native_helpers, mock_spec_source_with_imports,
         mock_wrapper_source_with_original_cycle, virtual_mock_wrapper_source,
     },
@@ -1835,6 +1835,54 @@ async fn commonjs_full_owner(
     Ok(None)
 }
 
+/// This bridge retains an actual unspecialized local CommonJS leaf module.
+/// It never derives module identity from an emitted ID or evaluates an original.
+async fn commonjs_original_require_module(
+    root: &FileSystemPath,
+    path: &FileSystemPath,
+    original: ResolvedVc<Box<dyn Module>>,
+) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
+    let Some(relative) = root.get_path_to(path) else {
+        return Ok(None);
+    };
+    if relative.split('/').any(|part| part == "node_modules") {
+        return Ok(None);
+    }
+    let Some(full) = commonjs_full_owner(original).await? else {
+        return Ok(None);
+    };
+    if original != ResolvedVc::upcast(full)
+        || full.ident().await?.path != *path
+        || !matches!(
+            *full.get_exports().await?,
+            EcmascriptExports::CommonJs(_) | EcmascriptExports::EmptyCommonJs
+        )
+    {
+        return Ok(None);
+    }
+    let analysis = full.analyze().await?;
+    if !analysis.successful
+        || analysis
+            .code_generation
+            .await?
+            .code_gens
+            .iter()
+            .any(|code| matches!(code, CodeGen::DynamicExpression(_)))
+    {
+        return Ok(None);
+    }
+    for dependency in primary_referenced_modules(*original).await?.iter() {
+        let Some(external) = ResolvedVc::try_downcast_type::<CachedExternalModule>(*dependency)
+        else {
+            return Ok(None);
+        };
+        if builtin_factory_name(&external.await?.request()).is_none() {
+            return Ok(None);
+        }
+    }
+    Ok(Some(original))
+}
+
 /// Optional exact leaf publication proof. Unsupported owners retain old codegen.
 async fn commonjs_callable_publication_source(
     module: ResolvedVc<Box<dyn Module>>,
@@ -2354,6 +2402,40 @@ async fn prepare_test_module_with_loading(
         HashMap::new();
     let mut native_unmock_runtime_targets = HashMap::new();
     let mut builtin_unmock_cuts = HashMap::new();
+    // The original-require bridge is a separate, bounded development Node fact.
+    // The older named-spy boolean alone does not establish this profile.
+    let allow_commonjs_original_require = if allow_cjs_named_spy
+        && inherited.is_empty()
+        && !layered_inputs
+        && !plan.reset_modules
+        && plan.runtime_requests.is_empty()
+        && plan.declarations.len() == 1
+        && crate::testing_mock_graph::is_commonjs_original_require_request(
+            &*Request::parse(RcStr::from(plan.declarations[0].request.as_str()).into()).await?,
+        )
+        && !plan.declarations[0].automatic
+        && !plan.declarations[0].has_parameters
+        && plan.declarations[0].has_object_return
+        && !plan.declarations[0].has_spread
+        && plan.actual_imports.is_empty()
+        && plan.mock_imports.is_empty()
+        && plan.unmocks.is_empty()
+        && project.next_mode().await?.is_development()
+        && let Some(entry) = project.await?.test_entry
+    {
+        let entry = entry.await?;
+        &*entry.environment == "node"
+            && !entry.browser_client
+            && entry.route.is_none()
+            && entry.setup_files.is_empty()
+            && entry.snapshot_serializers.is_empty()
+            && entry.cohort_files.is_empty()
+            && !entry.source_coverage
+            && !entry.import_coverage_roles
+            && !entry.dependency_plan
+    } else {
+        false
+    };
     let cache_actual_imports = allow_cjs_named_spy && inherited.is_empty();
     let paired_native_actual_candidate = static_runtime && !plan.actual_imports.is_empty();
     let allow_native_actual_imports = if cache_actual_imports
@@ -3402,14 +3484,39 @@ async fn prepare_test_module_with_loading(
     let mut graph_targets = Vec::new();
     let mut coverage_sources = Vec::new();
     let mut mock_wrappers = Vec::new();
-    for (target_path, (key, original_request, _, exports, mocked_exports)) in targets {
-        let original_mapping = ImportMapping::Direct(
-            ResolveResult::source(ResolvedVc::upcast(
-                FileSource::new(target_path.clone()).to_resolved().await?,
-            ))
-            .resolved_cell(),
-        )
-        .resolved_cell();
+    let mut commonjs_original_require_rules = Vec::new();
+    for (target_path, (key, original_request, original, exports, mocked_exports)) in targets {
+        let commonjs_original_require_source = if allow_commonjs_original_require
+            && let Some(original) =
+                commonjs_original_require_module(&root, &target_path, original).await?
+        {
+            let (source, rule) = crate::testing_external_modules::resolved_module_bridge(
+                original,
+                &format!("{id}/commonjs-original-require.mjs"),
+            )
+            .await?;
+            commonjs_original_require_rules.push(rule);
+            Some(source)
+        } else {
+            None
+        };
+        // Both original consumers must select this same issued bridge. Reprocessing
+        // the FileSource in the mock context would create a second Module with the
+        // same ident as the captured original.
+        let original_mapping_source = if let Some(source) = commonjs_original_require_source {
+            source
+        } else {
+            ResolvedVc::upcast(FileSource::new(target_path.clone()).to_resolved().await?)
+        };
+        if let Some(issued) = commonjs_original_require_source {
+            anyhow::ensure!(
+                original_mapping_source == issued,
+                "CommonJS original consumers must retain the same issued module bridge"
+            );
+        }
+        let original_mapping =
+            ImportMapping::Direct(ResolveResult::source(original_mapping_source).resolved_cell())
+                .resolved_cell();
         imports.insert_exact_alias(original_request.clone(), original_mapping);
         let deferred_original_request = if deferred_members.contains_key(&target_path) {
             let request = format!("{original_request}:deferred");
@@ -3455,14 +3562,29 @@ async fn prepare_test_module_with_loading(
             } else {
                 None
             };
-            let code = mock_wrapper_source_with_original_cycle(
-                runtime_request,
-                &key,
-                &original_request,
-                &exports,
-                &mocked_exports,
-                cycle_requests.as_deref(),
-            )?;
+            let code = if commonjs_original_require_source.is_some() {
+                anyhow::ensure!(
+                    cycle_requests.is_none(),
+                    "Leaf CommonJS namespace cannot use a cyclic original wrapper"
+                );
+                // The real cached factory Proxy owns key order/descriptors and
+                // missing-export access. An eager union-key check or export-value
+                // capture would reject unused missing fields or invoke getters.
+                compiled_commonjs_namespace_wrapper_source(
+                    runtime_request,
+                    &key,
+                    &plan.declarations[0].request,
+                )?
+            } else {
+                mock_wrapper_source_with_original_cycle(
+                    runtime_request,
+                    &key,
+                    &original_request,
+                    &exports,
+                    &mocked_exports,
+                    cycle_requests.as_deref(),
+                )?
+            };
             let wrapper_source = if let Some(generation) =
                 target_generations.shift_remove(&target_path)
             {
@@ -3496,6 +3618,7 @@ async fn prepare_test_module_with_loading(
                 original_request: original_request.into(),
                 additional_original_requests,
                 deferred_original_request,
+                commonjs_original_require_source,
                 wrapper_source,
             }
             .resolved_cell(),
@@ -3661,22 +3784,27 @@ async fn prepare_test_module_with_loading(
     if let Some(plugin) = builtin_plugin {
         resolve_options = builtin_mock_resolve_options(resolve_options, *plugin);
     }
-    let transitions = if browser_originals.is_empty() {
+    let transitions = if browser_originals.is_empty() && commonjs_original_require_rules.is_empty()
+    {
         base.transitions
     } else {
         let existing = base.transitions.await?;
         let mut named_transitions = existing.named_transitions.clone();
-        named_transitions.insert(
-            crate::testing_browser_mock_import::TRANSITION_NAME.into(),
-            ResolvedVc::upcast(
-                crate::testing_browser_mock_import::BrowserMockOriginalTransition::new()
-                    .to_resolved()
-                    .await?,
-            ),
-        );
+        if !browser_originals.is_empty() {
+            named_transitions.insert(
+                crate::testing_browser_mock_import::TRANSITION_NAME.into(),
+                ResolvedVc::upcast(
+                    crate::testing_browser_mock_import::BrowserMockOriginalTransition::new()
+                        .to_resolved()
+                        .await?,
+                ),
+            );
+        }
+        let mut rules = existing.transition_rules.clone();
+        rules.extend(commonjs_original_require_rules);
         TransitionOptions {
             named_transitions,
-            transition_rules: existing.transition_rules.clone(),
+            transition_rules: rules,
             ..Default::default()
         }
         .resolved_cell()

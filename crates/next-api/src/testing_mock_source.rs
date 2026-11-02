@@ -287,6 +287,7 @@ pub(crate) struct StaticMockDeclaration {
     pub export_names: Vec<String>,
     pub has_spread: bool,
     pub has_object_return: bool,
+    pub has_parameters: bool,
     pub automatic: bool,
     pub spy: bool,
 }
@@ -1230,6 +1231,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
                 export_names: Vec::new(),
                 has_spread: false,
                 has_object_return: false,
+                has_parameters: false,
                 automatic: true,
                 spy,
             });
@@ -1321,6 +1323,11 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             export_names: exports.names,
             has_spread: exports.has_spread,
             has_object_return: exports.has_object_return,
+            has_parameters: match factory {
+                Expr::Arrow(arrow) => !arrow.params.is_empty(),
+                Expr::Fn(function) => !function.function.params.is_empty(),
+                _ => true,
+            },
             automatic: false,
             spy: false,
         });
@@ -3658,6 +3665,58 @@ mod native_multi_target_cut_tests {
         );
         if let Ok(plan) = extract_test_mocks(&altered, "entry.mjs") {
             assert!(plan.native_unmock_targets().is_none());
+        }
+    }
+}
+
+#[cfg(test)]
+mod factory_parameter_plan_tests {
+    use crate::testing_mock_source::extract_static_mocks;
+
+    #[test]
+    fn retains_the_actual_factory_parameter_fact_without_reading_source_strings() {
+        for (factory, expected) in [
+            ("()=>({value:1})", false),
+            ("function(){return {value:1}}", false),
+            ("(importOriginal)=>({value:1})", true),
+            ("function(importOriginal){return {value:1}}", true),
+            ("(...args)=>({value:1})", true),
+            ("(importOriginal = 1)=>({value:1})", true),
+        ] {
+            let source = format!("import {{vi}} from 'vitest';vi.mock('./target.cjs',{factory})");
+            let plan = extract_static_mocks(&source, "spec.mjs").unwrap();
+            assert_eq!(plan.declarations.len(), 1);
+            assert_eq!(plan.declarations[0].has_parameters, expected, "{factory}");
+        }
+    }
+
+    #[test]
+    fn keeps_existing_direct_and_aliased_arguments_capture_rejections() {
+        for factory in [
+            "function(){return {value:arguments[0]()}}",
+            "function(){const original=arguments[0];return {value:original()}}",
+            "()=>({value:arguments[0]()})",
+        ] {
+            let source = format!("import {{vi}} from 'vitest';vi.mock('./target.cjs',{factory})");
+            let error = extract_static_mocks(&source, "spec.mjs")
+                .err()
+                .expect("existing arguments capture guard");
+            assert!(
+                error.to_string().contains("capture of arguments"),
+                "{factory}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn automatic_and_spy_declarations_do_not_invent_a_factory_parameter() {
+        for source in [
+            "import {vi} from 'vitest';vi.mock('./target.cjs')",
+            "import {vi} from 'vitest';vi.mock('./target.cjs',{spy:true})",
+        ] {
+            let plan = extract_static_mocks(source, "spec.mjs").unwrap();
+            assert!(plan.declarations[0].automatic);
+            assert!(!plan.declarations[0].has_parameters);
         }
     }
 }

@@ -15,6 +15,7 @@ use turbopack_core::{
     resolve::{
         ResolveResult, ResolveResultOption,
         parse::Request,
+        pattern::Pattern,
         plugin::{
             AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
             BeforeResolvePluginCondition,
@@ -23,12 +24,28 @@ use turbopack_core::{
     source::Source,
 };
 
+pub(crate) fn is_commonjs_original_require_request(request: &Request) -> bool {
+    matches!(request, Request::Relative { path: Pattern::Constant(_), query, fragment, .. }
+        if query.is_empty() && fragment.is_empty())
+}
+
+fn is_commonjs_original_require_reference(
+    reference_type: &ReferenceType,
+    request: &Request,
+) -> bool {
+    matches!(
+        reference_type,
+        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)
+    ) && is_commonjs_original_require_request(request)
+}
+
 #[turbo_tasks::value(shared)]
 pub(crate) struct MockGraphTarget {
     pub path: FileSystemPath,
     pub original_request: RcStr,
     pub additional_original_requests: Vec<RcStr>,
     pub deferred_original_request: Option<RcStr>,
+    pub commonjs_original_require_source: Option<ResolvedVc<Box<dyn Source>>>,
     pub wrapper_source: ResolvedVc<Box<dyn Source>>,
 }
 
@@ -99,6 +116,13 @@ impl AfterResolvePlugin for MockResolvePlugin {
             let deferred_original = original_request
                 .as_ref()
                 .is_some_and(|request| target.deferred_original_request.as_ref() == Some(request));
+            if is_commonjs_original_require_reference(&reference_type, &request)
+                && let Some(source) = target.commonjs_original_require_source
+            {
+                return Ok(Vc::cell(Some(
+                    ResolveResult::source(source).resolved_cell(),
+                )));
+            }
             if !matches!(
                 reference_type,
                 ReferenceType::EcmaScriptModules(
@@ -902,6 +926,21 @@ __turbopack_context__.n(new Proxy(await importModuleMock({}), {{}}));
     ))
 }
 
+pub(crate) fn compiled_commonjs_namespace_wrapper_source(
+    runtime_request: &str,
+    key: &str,
+    authored_request: &str,
+) -> Result<String> {
+    Ok(format!(
+        r#"const {{ importModuleMock }} = require({});
+__turbopack_context__.n(new Proxy(await importModuleMock({}, undefined, {}), {{}}));
+"#,
+        serde_json::to_string(runtime_request)?,
+        serde_json::to_string(key)?,
+        serde_json::to_string(authored_request)?,
+    ))
+}
+
 pub(crate) fn mock_wrapper_source_with_original_cycle(
     runtime_request: &str,
     key: &str,
@@ -1701,5 +1740,97 @@ mod builtin_resolve_tests {
                 Ok(())
             })
             .await
+    }
+}
+
+#[cfg(test)]
+mod commonjs_original_require_reference_tests {
+    use turbo_rcstr::RcStr;
+    use turbopack_core::{
+        reference_type::{
+            CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType,
+        },
+        resolve::{parse::Request, pattern::Pattern},
+    };
+
+    use crate::testing_mock_graph::is_commonjs_original_require_reference;
+
+    fn relative(query: &str, fragment: &str) -> Request {
+        Request::Relative {
+            path: Pattern::Constant(RcStr::from("./target.cjs")),
+            query: query.into(),
+            force_in_lookup_dir: false,
+            fragment: fragment.into(),
+        }
+    }
+
+    #[test]
+    fn admits_only_the_actual_ordinary_commonjs_relative_reference() {
+        let request = relative("", "");
+        assert!(is_commonjs_original_require_reference(
+            &ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+            &request
+        ));
+        for reference in [
+            ReferenceType::CommonJs(CommonJsReferenceSubType::Custom(1)),
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import),
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::DynamicImport),
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportWithType(
+                "json".into(),
+            )),
+        ] {
+            assert!(!is_commonjs_original_require_reference(
+                &reference, &request
+            ));
+        }
+    }
+
+    #[test]
+    fn preserves_query_fragment_bare_and_dynamic_reference_boundaries() {
+        let reference = ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined);
+        for request in [
+            relative("?query", ""),
+            relative("", "#fragment"),
+            Request::Module {
+                module: Pattern::Constant("package".into()),
+                path: Pattern::Constant("".into()),
+                query: "".into(),
+                fragment: "".into(),
+            },
+            Request::Relative {
+                path: Pattern::Dynamic,
+                query: "".into(),
+                force_in_lookup_dir: false,
+                fragment: "".into(),
+            },
+        ] {
+            assert!(!is_commonjs_original_require_reference(
+                &reference, &request
+            ));
+        }
+    }
+}
+
+#[cfg(test)]
+mod compiled_commonjs_namespace_display_tests {
+    #[test]
+    fn forwards_only_the_actual_request_and_preserves_old_wrapper_arity() {
+        let selected = crate::testing_mock_graph::compiled_commonjs_namespace_wrapper_source(
+            "runtime",
+            "key",
+            "./target\"quoted.cjs",
+        )
+        .unwrap();
+        crate::testing_mock_source::validate_mock_target_source(&selected, "wrapper.mjs").unwrap();
+        assert!(
+            selected.contains("importModuleMock(\"key\", undefined, \"./target\\\"quoted.cjs\")")
+        );
+        let old = crate::testing_mock_graph::virtual_mock_wrapper_source("runtime", "key").unwrap();
+        assert_eq!(
+            old,
+            "const { importModuleMock } = require(\"runtime\");\n__turbopack_context__.n(new \
+             Proxy(await importModuleMock(\"key\"), {}));\n"
+        );
+        assert!(!selected.contains("resolveModuleMock"));
     }
 }

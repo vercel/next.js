@@ -1,0 +1,8 @@
+import {test,expect,vi} from 'vitest'
+import * as mocked from './target.cjs'
+import required from './consumer.cjs'
+import {appendFileSync} from 'node:fs'
+const counts=vi.hoisted(()=>({factory:0}))
+vi.mock('./target.cjs',()=>{counts.factory++;return{value:'mocked',default:{value:'mock-default',token:{}}}})
+const descriptor=(value)=>Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return{key:typeof key==='symbol'?String(key):key,enumerable:d.enumerable,configurable:d.configurable,...('writable'in d?{writable:d.writable}:{}),kind:'value'in d?'data':'accessor',type:typeof('value'in d?d.value:d.get)}})
+test('original CommonJS require and mocked ESM remain separate',async()=>{const raw=required.read(),dynamic=await import('./target.cjs');expect(raw).toBe(required.initial);expect(raw.value).toBe('actual');expect(mocked.value).toBe('mocked');expect(mocked.default.value).toBe('mock-default');expect(dynamic).toBe(mocked);expect(counts.factory).toBe(1);appendFileSync(process.env.NEXT_REQUIRE_ROWS,JSON.stringify({name:'ordinary-require-composition',rawValue:raw.value,mockedValue:mocked.value,defaultValue:mocked.default.value,rawIdentity:raw===required.initial,mockedIdentity:dynamic===mocked,factoryCalls:counts.factory,rawKeys:Reflect.ownKeys(raw),mockedKeys:Reflect.ownKeys(mocked).map(x=>typeof x==='symbol'?String(x):x),rawDescriptors:descriptor(raw),mockedDescriptors:descriptor(mocked),})+'\n')})
