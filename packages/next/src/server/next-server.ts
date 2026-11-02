@@ -1094,7 +1094,7 @@ export default class NextNodeServer extends BaseServer<
 
       if (
         this.nextConfig.experimental.goRoutes &&
-        match.definition.kind === RouteKind.APP_ROUTE
+        match.definition.kind === RouteKind.APP_ROUTE_GO
       ) {
         if (this.dev) {
           await this.ensurePage({
@@ -1106,24 +1106,25 @@ export default class NextNodeServer extends BaseServer<
           })
         }
         const entry = this.getAppPathsManifest()?.[match.definition.page]
-        if (entry?.endsWith('.native.json')) {
-          if (!this.nativeRoutes) {
-            const { NativeRouteManager } =
-              require('./lib/native-route.external') as typeof import('./lib/native-route.external')
-            this.nativeRoutes = new NativeRouteManager(this.distDir, this.dev)
-          }
-          await this.nativeRoutes.invoke(
-            match.definition.page,
-            entry,
-            req.originalRequest,
-            res.originalResponse,
-            formatUrl({
-              pathname: this.nextConfig.basePath + pathname,
-              query,
-            })
-          )
-          return true
+        if (!entry) {
+          throw new InvariantError('Missing Go route manifest entry')
         }
+        if (!this.nativeRoutes) {
+          const { NativeRouteManager } =
+            require('./lib/native-route.external') as typeof import('./lib/native-route.external')
+          this.nativeRoutes = new NativeRouteManager(this.distDir, this.dev)
+        }
+        await this.nativeRoutes.invoke(
+          match.definition.page,
+          entry,
+          req.originalRequest,
+          res.originalResponse,
+          formatUrl({
+            pathname: this.nextConfig.basePath + pathname,
+            query,
+          })
+        )
+        return true
       }
 
       // TODO-APP: move this to a route handler
