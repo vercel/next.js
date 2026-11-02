@@ -1,123 +1,20 @@
-/**
- * View Transitions
- *
- * Tests whether the agent correctly adds React View Transitions to a Next.js
- * product gallery app covering shared element morphs, directional navigation,
- * Suspense reveal animations, and accessibility.
- *
- * View transitions need no next.config flag: experimental.viewTransition was
- * inert and removed in #96098, and the docs now say "works with no
- * configuration" — so nothing here may grade the config either way.
- *
- * Tricky because agents may:
- * - Try to call document.startViewTransition manually instead of using
- *   React's <ViewTransition> component
- * - Import ViewTransition from a third-party library instead of 'react'
- * - Not know about the transitionTypes prop on next/link
- * - Forget default="none" causing every transition to cross-fade everything
- * - Skip prefers-reduced-motion (React does NOT disable animations automatically)
- */
-
+/** Verify the requested transition behavior without requiring one source shape. */
 import { expect, test } from 'vitest'
-import { readFileSync, existsSync, readdirSync } from 'fs'
-import { join } from 'path'
+import { environment } from '@vercel/agent-eval/eval'
 
-const IGNORE_DIRS = new Set([
-  'node_modules',
-  '.next',
-  '.git',
-  'dist',
-  'build',
-  'coverage',
-])
+test('implements shared-element, navigation, and Suspense transitions accessibly', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The product gallery must implement all behavior requested in PROMPT.md:
 
-function findFiles(dir: string, ext: string): string[] {
-  const results: string[] = []
-  const base = join(process.cwd(), dir)
-  if (!existsSync(base)) return results
+- Grid-to-detail navigation smoothly morphs the selected product image between its thumbnail and detail positions through a shared-element transition.
+- Page navigations slide directionally, including the return to the grid.
+- Suspense loading states transition from skeleton to resolved content.
+- Animations respect prefers-reduced-motion rather than forcing motion for those users.
 
-  function walk(d: string) {
-    for (const entry of readdirSync(d, { withFileTypes: true })) {
-      if (IGNORE_DIRS.has(entry.name)) continue
-      const full = join(d, entry.name)
-      if (entry.isDirectory()) walk(full)
-      else if (entry.name.endsWith(ext)) results.push(full)
-    }
-  }
-  walk(base)
-  return results
-}
+Follow the implementation through its imports, event handlers, navigation commits, and styles. Gather concrete evidence for each behavior; unused CSS, animation names, or imports alone do not establish that it works. Do not modify the implementation while checking it.
 
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\r\n]*/g, '')
-}
+React ViewTransition and a correctly integrated browser View Transition API are both valid. For a browser-API solution, verify that the transition spans the actual asynchronous route update, rather than only wrapping a router.push() call that returns before the next page renders. Do not require ViewTransition imports or JSX tags, transitionTypes, enter/exit props, or default="none" literally when an equivalent implementation provides the requested behavior. Reduced-motion handling may be in CSS or JavaScript.
 
-const SOURCE_EXTS = ['.tsx', '.ts', '.jsx', '.js']
-const SOURCE_DIRS = ['app', 'lib', 'components', 'src']
-
-function readAllSourceFiles(): string {
-  const files = SOURCE_DIRS.flatMap((dir) =>
-    SOURCE_EXTS.flatMap((ext) => findFiles(dir, ext))
+Reject an implementation that omits any requested behavior, breaks navigation, or adds animations only to a hard reload rather than the app's client navigation. Use the installed version's bundled docs when checking framework integration.`
   )
-  return files
-    .map((f) => stripComments(readFileSync(f, 'utf-8')))
-    .join('\n---FILE---\n')
-}
-
-function readAllCssFiles(): string {
-  const files = [
-    ...findFiles('app', '.css'),
-    ...findFiles('src', '.css'),
-    ...findFiles('.', '.css').filter(
-      (f) => !f.includes('node_modules') && !f.includes('.next')
-    ),
-  ]
-  const unique = [...new Set(files)]
-  return unique.map((f) => readFileSync(f, 'utf-8')).join('\n')
-}
-
-test('ViewTransition is imported from react', () => {
-  const allSource = readAllSourceFiles()
-
-  expect(allSource).toMatch(
-    /import\s+\{[^}]*ViewTransition[^}]*\}\s+from\s+['"]react['"]/
-  )
-})
-
-test('Shared element transitions use named ViewTransition', () => {
-  const allSource = readAllSourceFiles()
-
-  const nameMatches = allSource.match(/<ViewTransition[^>]*\bname\s*=/g)
-  expect(nameMatches).not.toBeNull()
-  expect(nameMatches!.length).toBeGreaterThanOrEqual(2)
-})
-
-test('Link uses transitionTypes for directional navigation', () => {
-  const allSource = readAllSourceFiles()
-
-  expect(allSource).toMatch(/transitionTypes/)
-})
-
-test('Suspense content uses ViewTransition with enter or exit', () => {
-  const allSource = readAllSourceFiles()
-
-  expect(allSource).toMatch(/<ViewTransition[^>]*\b(enter|exit)\s*=/)
-})
-
-test('default="none" prevents unintended animations', () => {
-  const allSource = readAllSourceFiles()
-
-  expect(allSource).toMatch(/default\s*=\s*["']none["']/)
-})
-
-test('CSS handles prefers-reduced-motion', () => {
-  const allCss = readAllCssFiles()
-
-  expect(allCss).toMatch(/prefers-reduced-motion/)
-})
-
-test('CSS defines view transition animations', () => {
-  const allCss = readAllCssFiles()
-
-  expect(allCss).toMatch(/::view-transition-(old|new|group)/)
 })
