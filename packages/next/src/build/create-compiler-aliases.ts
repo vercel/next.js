@@ -220,9 +220,12 @@ export function createWebpackAliases({
       : {
           // The project's own `instrumentation.{pageExt}` file, chained after
           // the `instrumentationInject` entries by
-          // `next-instrumentation-inject-loader`. Same lookup as Turbopack:
-          // every page extension at the project root, then in `src/`. Exact
-          // names, so compound extensions like `page.ts` match.
+          // `next-instrumentation-inject-loader`. Checks the project root,
+          // then `src/`, trying each page extension in config order. Exact
+          // names, so compound extensions like `page.ts` match. Turbopack also
+          // checks parent folders and tries longer extensions first, so with
+          // more than one candidate file the two bundlers can pick different
+          // ones.
           'private-next-instrumentation-user': [
             ...['', 'src'].flatMap((subDir) =>
               pageExtensions.map((ext) =>
