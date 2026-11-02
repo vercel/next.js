@@ -429,7 +429,7 @@ struct ProjectFileSystemState {
 #[turbo_tasks::value(evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
-    go_sessions: ResolvedVc<crate::go_route::GoSessions>,
+    go_sessions: ResolvedVc<turbopack_go::GoSessionPool>,
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
@@ -445,7 +445,7 @@ impl ProjectContainer {
     pub fn new_operation(name: RcStr, dev: bool) -> Result<Vc<Self>> {
         Ok(ProjectContainer {
             name,
-            go_sessions: crate::go_route::GoSessions::new(),
+            go_sessions: turbopack_go::GoSessionPool::new(),
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
@@ -1065,7 +1065,7 @@ impl ProjectContainer {
 #[derive(Clone)]
 #[turbo_tasks::value]
 pub struct Project {
-    pub(crate) go_sessions: Option<ResolvedVc<crate::go_route::GoSessions>>,
+    pub(crate) go_sessions: Option<ResolvedVc<turbopack_go::GoSessionPool>>,
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
