@@ -1,5 +1,5 @@
 import execa from 'execa'
-import { spawnSync } from 'child_process'
+import spawn from 'cross-spawn'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { trace } from 'next/dist/trace'
@@ -346,7 +346,7 @@ describe('deployment lifecycle', () => {
       expect(env.NODE_PENDING_DEPRECATION).toBe(
         flag === '--env' ? '1' : undefined
       )
-      const result = spawnSync(
+      const result = spawn.sync(
         process.execPath,
         ['--eval', 'void module.parent'],
         {
@@ -386,12 +386,12 @@ describe('deployment lifecycle', () => {
       })
       try {
         await next.setup(trace('test'))
-        const result = spawnSync('pnpm', ['run', 'build'], {
+        const result = spawn.sync('pnpm', ['run', 'build'], {
           cwd: next.testDir,
           env: { ...process.env, NODE_PENDING_DEPRECATION: '', ...next.env },
           encoding: 'utf8',
         })
-        expect(result.error).toBeUndefined()
+        if (result.error) throw result.error
         if (result.status !== 0) {
           throw new Error(result.stdout + result.stderr)
         }
