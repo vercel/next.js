@@ -44,7 +44,8 @@ export function proxyNativeRequest(
   url: string,
   target: { port: number; agent: Agent; token: string }
 ): Promise<void> {
-  // Public values cannot supply private metadata. Authentication is process scoped.
+  // Discard client-supplied internal Go headers.
+  // Authenticate forwarded requests with this Go worker's token.
   // Use normalized headers so proxy.ts request-header mutations are respected.
   const rawValues = distinctHeaders(req)
   const connection = String(req.headers.connection || '').toLowerCase()
