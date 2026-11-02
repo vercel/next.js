@@ -156,6 +156,22 @@ Go owns dependency discovery and compilation through `go list` and `go build`;
 Turbopack watches the reported inputs. See the [Go crate README](../turbopack-go/README.md)
 for the integration design.
 
+### Persistent caching
+
+Add `--persistent-caching` to `build`, `build --watch`, or `dev` to reuse Go
+compiler results and JavaScript tasks across CLI processes. This works for both
+Go-only and mixed entrypoints. The default task cache is `.turbopack/cache` under
+`--dir`; `--cache-dir` selects another directory.
+
+Each process probes the Go toolchain and re-registers input observations. Unchanged
+compiler inputs restore executable bytes without invoking `go build`; Go source,
+dependency, toolchain and build-option changes invalidate the
+appropriate compiler results. Cancellation handles and watcher leases belong to
+the current process, including after a warm restore. JavaScript compilation keeps
+its own persistent task identity, independent of the Go orchestration state.
+
+Go's build and module caches are separate from the Turbo Tasks cache.
+
 ### Current limitations
 
 - Native host executables only, with CGO disabled. Imported packages may contain
@@ -166,8 +182,6 @@ for the integration design.
 - Module replacements (all `replace` directives), project Go workspaces, vendoring,
   source symlinks and cross-compilation are unsupported. Symlink checks cover files
   and directory components in consumed inputs.
-- Persistent Turbo Tasks caching is unsupported. Task results are memoized within
-  the process; Go's build and module caches persist between CLI runs.
 
 ## Contributor verification
 

@@ -460,15 +460,209 @@ fn rejection(project: &Path, arguments: &[&str], diagnostic: &str) {
 }
 
 #[test]
-fn rejects_persistent_go_task_caching() {
-    let temp = tempfile::tempdir().unwrap();
-    source(temp.path(), "package main\nfunc main() {}\n");
-    rejection(
-        temp.path(),
-        &["build", "main.go", "--persistent-caching"],
-        "Go build sessions do not support persistent task caching",
-    );
-    assert!(!executable(temp.path()).exists());
+fn persistent_go_and_mixed_builds_reuse_compilation_across_processes() {
+    for mixed in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path();
+        source(project, MAIN);
+        let helper = project.join("helper.go");
+        std::fs::write(
+            &helper,
+            "package main\nfunc value() string { return \"go-v1\" }\n",
+        )
+        .unwrap();
+        let javascript = project.join("index.ts");
+        if mixed {
+            std::fs::write(&javascript, "console.log('js-v1')\n").unwrap();
+        }
+        let control = tempfile::tempdir().unwrap();
+        let wrapper = controlled_go(control.path());
+        let command = || {
+            let mut command = cli(project);
+            command.args(["build", "main.go", "helper.go"]);
+            if mixed {
+                command.arg("index.ts");
+            }
+            command
+                .args(["--go"])
+                .arg(&wrapper)
+                .args([
+                    "--persistent-caching",
+                    "--target",
+                    "node",
+                    "--no-minify",
+                    "--no-sourcemap",
+                ])
+                .env("TURBO_ENGINE_IGNORE_DIRTY", "1");
+            command
+        };
+        let builds = || {
+            std::fs::read_to_string(control.path().join("invocations.log"))
+                .unwrap_or_default()
+                .lines()
+                .filter(|line| *line == "build")
+                .count()
+        };
+        let build = |expected_go: &str, expected_js: &str, expected_builds: usize| {
+            let log = tempfile::NamedTempFile::new().unwrap();
+            let mut process = Process(
+                command()
+                    .stdout(log.as_file().try_clone().unwrap())
+                    .stderr(log.as_file().try_clone().unwrap())
+                    .spawn()
+                    .unwrap(),
+            );
+            wait_for_log("persistent build completion", log.path(), || {
+                process.0.try_wait().unwrap().is_some()
+            });
+            let output = std::fs::read_to_string(log.path()).unwrap();
+            assert_eq!(
+                process.0.wait().unwrap().code(),
+                Some(0),
+                "mixed={mixed}: {output}"
+            );
+            assert_eq!(
+                run(&executable(project)).as_deref(),
+                Some(expected_go),
+                "{output}"
+            );
+            if mixed {
+                assert_eq!(
+                    run_javascript(project).as_deref(),
+                    Some(expected_js),
+                    "{output}"
+                );
+            }
+            assert_eq!(builds(), expected_builds, "mixed={mixed}: {output}");
+            assert!(!output.contains("panicked"), "{output}");
+        };
+        build("go-v1", "js-v1", 1);
+        // Remove the emitted files, retaining the directory. Warm tasks must restore their
+        // output effects as well as compiler bytes, without running Go's compiler again.
+        std::fs::remove_file(executable(project)).unwrap();
+        if mixed {
+            std::fs::remove_file(project.join("dist/index.entry.js")).unwrap();
+        }
+        build("go-v1", "js-v1", 1);
+        std::fs::write(
+            &helper,
+            "package main\nfunc value() string { return \"go-v2\" }\n",
+        )
+        .unwrap();
+        build("go-v2", "js-v1", 2);
+        if mixed {
+            std::fs::write(&javascript, "console.log('js-v2')\n").unwrap();
+            build("go-v2", "js-v2", 2);
+        }
+        // A warm watch process must acquire fresh lifecycle state and shut down cleanly.
+        #[cfg(unix)]
+        {
+            let target = executable(project);
+            std::fs::remove_file(&target).unwrap();
+            let log = tempfile::NamedTempFile::new().unwrap();
+            let mut process = Process(
+                command()
+                    .arg("--watch")
+                    .stdout(log.as_file().try_clone().unwrap())
+                    .stderr(log.as_file().try_clone().unwrap())
+                    .spawn()
+                    .unwrap(),
+            );
+            wait_for_log("warm watch output restoration", log.path(), || {
+                run(&target).as_deref() == Some("go-v2")
+            });
+            assert_eq!(builds(), 2, "warm watch recompiled Go");
+            assert!(
+                Command::new("/bin/kill")
+                    .args(["-INT", &process.0.id().to_string()])
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+            wait_for_log("warm watch shutdown", log.path(), || {
+                process.0.try_wait().unwrap().is_some()
+            });
+            assert_eq!(process.0.wait().unwrap().code(), Some(0));
+
+            // Restore again, invalidate Go input before startup, and interrupt the actual
+            // compiler. The wrapper holds its output until the CLI's cancellation kills it.
+            std::fs::write(control.path().join("stall"), "").unwrap();
+            std::fs::write(
+                &helper,
+                "package main\nfunc value() string { return \"go-v3\" }\n",
+            )
+            .unwrap();
+            let log = tempfile::NamedTempFile::new().unwrap();
+            let mut process = Process(
+                command()
+                    .arg("--watch")
+                    .stdout(log.as_file().try_clone().unwrap())
+                    .stderr(log.as_file().try_clone().unwrap())
+                    .spawn()
+                    .unwrap(),
+            );
+            wait_for_log("warm compiler readiness", log.path(), || {
+                control.path().join("ready").exists()
+            });
+            assert_eq!(builds(), 3);
+            assert_eq!(run(&target).as_deref(), Some("go-v2"));
+            assert!(
+                Command::new("/bin/kill")
+                    .args(["-INT", &process.0.id().to_string()])
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+            wait_for_log("warm compiler cancellation", log.path(), || {
+                process.0.try_wait().unwrap().is_some()
+            });
+            assert_eq!(process.0.wait().unwrap().code(), Some(0));
+            for name in ["stall", "ready"] {
+                std::fs::remove_file(control.path().join(name)).unwrap();
+            }
+            // Cancellation from the previous process must not poison the restored session.
+            build("go-v3", if mixed { "js-v2" } else { "" }, 4);
+
+            if !mixed {
+                std::fs::remove_file(&target).unwrap();
+                let log = tempfile::NamedTempFile::new().unwrap();
+                let mut process = Process(
+                    cli(project)
+                        .args([
+                            "dev",
+                            "main.go",
+                            "helper.go",
+                            "--persistent-caching",
+                            "--go",
+                        ])
+                        .arg(&wrapper)
+                        .args(["--no-open", "--port", "0"])
+                        .env("TURBO_ENGINE_IGNORE_DIRTY", "1")
+                        .stdout(log.as_file().try_clone().unwrap())
+                        .stderr(log.as_file().try_clone().unwrap())
+                        .spawn()
+                        .unwrap(),
+                );
+                wait_for_log("persistent dev output restoration", log.path(), || {
+                    run(&target).as_deref() == Some("go-v3")
+                });
+                assert_eq!(builds(), 4, "warm dev recompiled Go");
+                assert!(
+                    Command::new("/bin/kill")
+                        .args(["-INT", &process.0.id().to_string()])
+                        .status()
+                        .unwrap()
+                        .success()
+                );
+                wait_for_log("persistent dev shutdown", log.path(), || {
+                    process.0.try_wait().unwrap().is_some()
+                });
+                assert_eq!(process.0.wait().unwrap().code(), Some(0));
+            }
+        }
+        #[cfg(not(unix))]
+        build("go-v2", if mixed { "js-v2" } else { "" }, 2);
+    }
 }
 
 #[test]
