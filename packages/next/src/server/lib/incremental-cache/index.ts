@@ -476,6 +476,11 @@ export class IncrementalCache implements IncrementalCacheType {
     if ('traceparent' in headers) delete headers['traceparent']
     if ('tracestate' in headers) delete headers['tracestate']
 
+    // // The Vercel runtime can stamp invocation IDs onto a reused headers object.
+    // // These per-invocation values must not affect the fetch cache key.
+    // if ('x-vercel-id' in headers) delete headers['x-vercel-id']
+    // if ('x-invocation-id' in headers) delete headers['x-invocation-id']
+
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,
       this.fetchCacheKeyPrefix || '',
