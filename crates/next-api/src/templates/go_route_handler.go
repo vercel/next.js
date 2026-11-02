@@ -85,9 +85,20 @@ func nextGoMatchParams(path string) (map[string][]string, bool, error) {
 }
 
 func nextGoHandler() http.HandlerFunc {
+	return nextGoHandlerWithPath(func(r *http.Request) (string, error) {
+		return r.URL.EscapedPath(), nil
+	})
+}
+
+func nextGoHandlerWithPath(pathname func(*http.Request) (string, error)) http.HandlerFunc {
 	handler := nextGoRouteHandler()
 	return func(w http.ResponseWriter, r *http.Request) {
-		params, matched, err := nextGoMatchParams(r.URL.EscapedPath())
+		path, err := pathname(r)
+		if err != nil {
+			http.Error(w, "Invalid route context", http.StatusBadRequest)
+			return
+		}
+		params, matched, err := nextGoMatchParams(path)
 		if err != nil {
 			http.Error(w, "Invalid route parameters", http.StatusBadRequest)
 			return
