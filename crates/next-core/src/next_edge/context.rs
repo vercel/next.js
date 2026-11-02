@@ -10,7 +10,10 @@ use turbopack_core::{
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
-    compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
+    compile_time_info::{
+        CompileTimeDefines, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
+        FreeVarReferences,
+    },
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
     issue::IssueSeverity,
@@ -48,8 +51,9 @@ async fn next_edge_free_vars(
     project_path: FileSystemPath,
     define_env: Vc<OptionEnvMap>,
     report_system_env_inlining: Vc<IssueSeverity>,
+    public_path: RcStr,
 ) -> Result<Vc<FreeVarReferences>> {
-    Ok(free_var_references!(
+    let mut free_vars = free_var_references!(
         ..free_var_references_with_vercel_system_env_warnings(
             defines(&*define_env.await?),
             *report_system_env_inlining.await?
@@ -59,8 +63,15 @@ async fn next_edge_free_vars(
             lookup_path: Some(project_path),
             export: Some(rcstr!("Buffer")),
         },
-    )
-    .cell())
+    );
+    // Match webpack, where server code reads the client public path.
+    free_vars
+        .0
+        .entry(vec![DefinableNameSegment::Name(rcstr!(
+            "__webpack_public_path__"
+        ))])
+        .or_insert(FreeVarReference::RuntimePublicPath(Some(public_path)));
+    Ok(free_vars.cell())
 }
 
 #[turbo_tasks::function]
@@ -70,6 +81,7 @@ pub async fn get_edge_compile_time_info(
     node_version: ResolvedVc<NodeJsVersion>,
     report_system_env_inlining: Vc<IssueSeverity>,
     import_meta_env_base_url: RcStr,
+    public_path: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::EdgeWorker(
@@ -80,9 +92,14 @@ pub async fn get_edge_compile_time_info(
     )
     .defines(next_edge_defines(define_env).to_resolved().await?)
     .free_var_references(
-        next_edge_free_vars(project_path, define_env, report_system_env_inlining)
-            .to_resolved()
-            .await?,
+        next_edge_free_vars(
+            project_path,
+            define_env,
+            report_system_env_inlining,
+            public_path,
+        )
+        .to_resolved()
+        .await?,
     )
     .import_meta_env_base_url(import_meta_env_base_url)
     .cell()

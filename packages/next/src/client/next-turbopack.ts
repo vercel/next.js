@@ -16,7 +16,13 @@ window.next = {
   },
   emitter,
 }
-;(self as any).__next_set_public_path__ = () => {}
+declare let __webpack_public_path__: string
+;(self as any).__next_set_public_path__ = (path: string) => {
+  // Assigning switches chunk loading to the assigned path, so skip a no-op.
+  if (path !== __webpack_public_path__) {
+    __webpack_public_path__ = path
+  }
+}
 ;(self as any).__webpack_hash__ = ''
 
 // for the page loader

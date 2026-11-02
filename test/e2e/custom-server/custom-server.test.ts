@@ -72,6 +72,20 @@ describe.each([
       })
     })
 
+    if (useHttps === 'false') {
+      // Turbopack's runtime does not recognize chunks loaded from a dynamic
+      // assetPrefix, so the page never hydrates.
+      // @gate !turbopack
+      it('should use the dynamic assetPrefix as the client public path', async () => {
+        const browser = await next.browser('/asset?setAssetPrefix=1')
+        await retry(async () => {
+          expect(await browser.elementByCss('#public-path').text()).toMatch(
+            /^http:\/\/127\.0\.0\.1:\d+\/_next\/$/
+          )
+        })
+      })
+    }
+
     it('should handle null assetPrefix accordingly', async () => {
       const normalUsage = await renderViaRawHTTP(
         next.url,
