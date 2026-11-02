@@ -57,7 +57,7 @@ export function proxyNativeRequest(
       !Object.hasOwn(req.headers, name) ||
       HOP_BY_HOP_HEADERS.has(name) ||
       connectionHeaders?.has(name) ||
-      name.startsWith('x-next-go-')
+      name.startsWith('x-next-internal-go-')
     ) {
       continue
     }
@@ -70,7 +70,7 @@ export function proxyNativeRequest(
         ? raw
         : value
   }
-  headers['x-next-go-token'] = target.token
+  headers['x-next-internal-go-token'] = target.token
   return new Promise<void>((resolve, reject) => {
     const upstream = request({
       hostname: '127.0.0.1',

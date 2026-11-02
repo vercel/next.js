@@ -210,18 +210,18 @@ describe('native-route-go', () => {
     expect((await data()).pid).toBe(first.pid)
     const response = await fetchViaRawHttp(next.url, '/native/trusted', {
       headers: {
-        connection: 'x-next-go-token',
-        'x-next-go-token': 'forged',
+        connection: 'x-next-internal-go-token',
+        'x-next-internal-go-token': 'forged',
       },
     })
     expect(response.status).toBe(201)
     const result = await response.json()
     expect(result.id).toBe('trusted')
     expect(result.privateMetadata).toBe(false)
-    for (const headers of [{}, { 'x-next-go-token': 'wrong' }] as Record<
-      string,
-      string
-    >[]) {
+    for (const headers of [
+      {},
+      { 'x-next-internal-go-token': 'wrong' },
+    ] as Record<string, string>[]) {
       const direct = await fetchViaHTTP(
         `http://${result.address}`,
         '/native/trusted',
@@ -823,7 +823,7 @@ describe('native-route-go', () => {
             method: 'POST',
             body: 'adapter request body',
             headers: {
-              'x-next-go-token': 'forged',
+              'x-next-internal-go-token': 'forged',
             },
           }
         )

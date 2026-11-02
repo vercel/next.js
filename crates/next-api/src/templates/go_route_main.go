@@ -22,7 +22,7 @@ func main() {
 	}
 	handler := nextGoHandler()
 	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Next-Go-Token")), []byte(token)) != 1 {
+		if subtle.ConstantTimeCompare([]byte(r.Header.Get("x-next-internal-go-token")), []byte(token)) != 1 {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
