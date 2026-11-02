@@ -19,7 +19,7 @@ describe('webpack-loader-emit-file', () => {
 
   async function fetchAsset(name: string) {
     const response = await next.fetch(
-      `/_next/static/media/${name}${next.getAssetQuery()}`
+      `/_next/static/media/${name}${next.getDeploymentIdQuery()}`
     )
     expect(response.status).toBe(200)
     return Buffer.from(await response.arrayBuffer())
@@ -27,7 +27,7 @@ describe('webpack-loader-emit-file', () => {
 
   async function fetchSourceMap(name: string) {
     const response = await next.fetch(
-      `/_next/static/media/${name}${next.getAssetQuery()}`
+      `/_next/static/media/${name}${next.getDeploymentIdQuery()}`
     )
     if (isNextDeploy) {
       // The deployment test project blocks source maps, including maps that do not exist.
@@ -168,7 +168,9 @@ describe('webpack-loader-emit-file', () => {
   it('writes query-suffixed asset names to their unsuffixed output path', async () => {
     await next.render('/')
     for (const query of ['?version=1', '?version=2']) {
-      const response = await next.fetch(`/_next/static/media/query.txt${query}`)
+      const response = await next.fetch(
+        `/_next/static/media/query.txt${query}${next.getDeploymentIdQuery(true)}`
+      )
       expect(response.status).toBe(200)
       expect(await response.text()).toBe('query-content')
     }
@@ -189,7 +191,7 @@ describe('webpack-loader-emit-file', () => {
         expect.stringContaining('indexed-original.js')
       )
     const invalid = await next.fetch(
-      `/_next/static/media/invalid-map.js.map${next.getAssetQuery()}`
+      `/_next/static/media/invalid-map.js.map${next.getDeploymentIdQuery()}`
     )
     expect(invalid.status).toBe(isNextDeploy ? 403 : 404)
   })
@@ -223,7 +225,7 @@ describe('webpack-loader-emit-file', () => {
     const $ = await next.render$('/')
     expect($('#transitive-value').text()).toBe('transitive-value')
     const response = await next.fetch(
-      `/_next/static/media/transitive-sidecar.txt${next.getAssetQuery()}`
+      `/_next/static/media/transitive-sidecar.txt${next.getDeploymentIdQuery()}`
     )
     expect(response.status).toBe(isTurbopack ? 404 : 200)
     if (!isTurbopack) {
@@ -234,7 +236,7 @@ describe('webpack-loader-emit-file', () => {
   it('does not build skipped CommonJS dependencies solely for loader emissions in Turbopack', async () => {
     await next.render('/')
     const response = await next.fetch(
-      `/_next/static/media/commonjs-sidecar.txt${next.getAssetQuery()}`
+      `/_next/static/media/commonjs-sidecar.txt${next.getDeploymentIdQuery()}`
     )
     expect(response.status).toBe(isTurbopack ? 404 : 200)
     if (!isTurbopack) {

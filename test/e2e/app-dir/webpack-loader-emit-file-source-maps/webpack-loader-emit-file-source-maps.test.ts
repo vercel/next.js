@@ -25,12 +25,12 @@ describe.each([
       expect(edge.status).toBe(200)
       expect(await edge.json()).toEqual({ mapped: 'mapped-value' })
       const asset = await next.fetch(
-        '/_next/static/media/shared.js' + next.getAssetQuery()
+        '/_next/static/media/shared.js' + next.getDeploymentIdQuery()
       )
       expect(asset.status).toBe(200)
       const content = await asset.text()
       const map = await next.fetch(
-        '/_next/static/media/shared.js.map' + next.getAssetQuery()
+        '/_next/static/media/shared.js.map' + next.getDeploymentIdQuery()
       )
       if (isNextDev || browserMaps) {
         expect(content).toContain('sourceMappingURL=shared.js.map')

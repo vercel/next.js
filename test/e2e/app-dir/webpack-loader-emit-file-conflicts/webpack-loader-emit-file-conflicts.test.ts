@@ -13,7 +13,7 @@ describe('webpack-loader-emit-file-conflicts', () => {
     const $ = await next.render$('/')
     expect($('p').text()).toBe('first:second')
     const response = await next.fetch(
-      `/_next/static/media/shared.txt${next.getAssetQuery()}`
+      `/_next/static/media/shared.txt${next.getDeploymentIdQuery()}`
     )
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('shared-content\n')
@@ -21,7 +21,7 @@ describe('webpack-loader-emit-file-conflicts', () => {
 
   it('allows separate modules to emit identical contents with different source maps', async () => {
     const response = await next.fetch(
-      `/_next/static/media/same-map.js${next.getAssetQuery()}`
+      `/_next/static/media/same-map.js${next.getDeploymentIdQuery()}`
     )
     expect(response.status).toBe(200)
     expect(await response.text()).toContain('console.log("same")')
@@ -29,7 +29,7 @@ describe('webpack-loader-emit-file-conflicts', () => {
 
   it('allows different compilers to emit identical contents at the same path', async () => {
     const response = await next.fetch(
-      `/_next/static/media/compiler.txt${next.getAssetQuery()}`
+      `/_next/static/media/compiler.txt${next.getDeploymentIdQuery()}`
     )
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('same')

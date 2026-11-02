@@ -109,7 +109,9 @@ pub async fn expand_outputs(
     let mut output_assets = output_assets
         .into_iter()
         .map(async |asset| {
-            if let Some(path) = root.get_path_to(&*asset.path().await?) {
+            if let Some(path) = root.get_path_to(&*asset.path().await?)
+                && path.starts_with("static/immutable/")
+            {
                 Ok(Some((asset, RcStr::from(path))))
             } else {
                 Ok(None)
