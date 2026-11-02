@@ -338,6 +338,10 @@ for (const name of [
 // MessageChannel is used by React's scheduler. Its registration happens while
 // collecting modules, whereas the originating work is chosen when posting.
 const nativeEventAdd = EventTarget.prototype.addEventListener
+const nativeSignalAborted = Object.getOwnPropertyDescriptor(
+  AbortSignal.prototype,
+  'aborted'
+)!.get!
 const channelLinks = new WeakMap<MessagePort, MessagePort>()
 const closedPorts = new WeakSet<MessagePort>()
 const messageScopes = new WeakMap<MessagePort, { scope: Scope | undefined }[]>()
@@ -554,7 +558,11 @@ if (typeof EventTarget !== 'undefined') {
     // The DOM ignores duplicate and already-aborted registrations. Neither may
     // replace or delete the original listener's owner, and invalid options may
     // never leave a wrapper behind after native add throws.
-    if (created && !settings.signal?.aborted) {
+    if (
+      created &&
+      (!settings.signal ||
+        !Reflect.apply(nativeSignalAborted, settings.signal, []))
+    ) {
       registrations.set(key, wrapped)
       if (settings.signal)
         Reflect.apply(nativeEventAdd, settings.signal, [

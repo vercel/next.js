@@ -1,0 +1,65 @@
+import { test, expect } from 'vitest'
+import { page } from 'vitest/browser'
+const stringify = JSON.stringify
+for (const kind of ['active', 'already-aborted', 'foreign-active', 'foreign-aborted', 'invalid']) {
+  test('retains actual native signal receiver and listener lifecycle ' + kind, async () => {
+    const input = document.createElement('input')
+    input.dataset.testid = 'signal-control-' + kind
+    document.body.append(input)
+    let frame
+    if (kind.startsWith('foreign')) {
+      frame = document.createElement('iframe')
+      document.body.append(frame)
+    }
+    const Controller = frame ? frame.contentWindow.AbortController : AbortController
+    const controller = new Controller(), signal = controller.signal
+    const rows = []
+    rows.push({ event: 'actual-realm', foreignSignal: !(signal instanceof AbortSignal) })
+    if (kind.includes('aborted')) controller.abort()
+    function callback(event) {
+      rows.push({ event: 'input', receiverIsInput: this === input, currentTargetIsInput: event.currentTarget === input, trusted: event.isTrusted, value: input.value })
+    }
+    const locator = page.getByTestId('signal-control-' + kind)
+    try {
+      if (kind === 'invalid') {
+        let caught
+        try { input.addEventListener('input', callback, { signal: {} }) }
+        catch (error) { caught = error; rows.push({ event: 'native-error', typeError: error instanceof TypeError, name: error.name, message: error.message }) }
+        expect(caught).toBeInstanceOf(TypeError)
+        input.addEventListener('input', callback, { once: true })
+        await locator.fill('valid-after-error')
+        await locator.fill('removed-after-once')
+        expect(rows.filter(row => row.event === 'input')).toHaveLength(1)
+      } else if (kind.includes('aborted')) {
+        input.addEventListener('input', callback, { once: true, signal })
+        await locator.fill('already-aborted')
+        expect(rows.filter(row => row.event === 'input')).toHaveLength(0)
+        input.addEventListener('input', callback, { once: true })
+        await locator.fill('new-unbound-listener')
+        await locator.fill('new-once-removed')
+        expect(rows.filter(row => row.event === 'input')).toHaveLength(1)
+      } else {
+        input.addEventListener('input', callback, { once: true, signal })
+        input.addEventListener('input', callback, { signal })
+        await locator.fill('first-once')
+        await locator.fill('once-removed')
+        expect(rows.filter(row => row.event === 'input')).toHaveLength(1)
+        input.addEventListener('input', callback, { signal })
+        input.removeEventListener('input', callback)
+        await locator.fill('explicitly-removed')
+        expect(rows.filter(row => row.event === 'input')).toHaveLength(1)
+        input.addEventListener('input', callback, { signal })
+        controller.abort()
+        await locator.fill('actually-aborted')
+        expect(rows.filter(row => row.event === 'input')).toHaveLength(1)
+      }
+      rows.push({ event: 'complete', value: input.value })
+      console.log('BROWSER_NATIVE_FIXTURE:' + stringify({ kind, rows }))
+    } finally {
+      controller.abort()
+      input.removeEventListener('input', callback)
+      input.remove()
+      frame?.remove()
+    }
+  })
+}
