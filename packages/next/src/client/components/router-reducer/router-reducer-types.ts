@@ -95,6 +95,29 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   scrollBehavior: ScrollBehavior
+  // Set when this is the commit phase of `router.experimental_prepare()`.
+  preparation: PreparedNavigationRecord | null
+}
+
+/**
+ * State shared by the prepare and commit phases of a navigation started with
+ * `router.experimental_prepare()`. Both phases read and write it
+ * synchronously.
+ */
+export type PreparedNavigationRecord = {
+  // The time the prepare phase started. The commit only reuses BFCache entries
+  // written at or after this time.
+  preparedAt: number
+  // The BFCache version when the prepare phase started. If a refresh or server
+  // action invalidates the BFCache, the version changes, and the commit
+  // doesn't reuse the prepared request.
+  bfcacheVersion: number
+  // For a route that wasn't known when the prepare phase started, the request
+  // it's waiting on, and the tree it was made against. Null for a known route,
+  // and once the response comes back. A commit that starts before then takes
+  // over the request instead of issuing its own, and clears these fields.
+  inFlightRequest: Promise<FetchServerResponseResult> | null
+  inFlightRequestTree: FlightRouterState | null
 }
 
 /**

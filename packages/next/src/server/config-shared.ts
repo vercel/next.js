@@ -816,6 +816,13 @@ export interface ExperimentalConfig {
   gestureTransition?: boolean
 
   /**
+   * Enables `router.experimental_prepare()`, which starts a navigation
+   * without committing it, so its data can be requested ahead of time (e.g.
+   * on `pointerdown`) and the navigation committed later (e.g. on `click`).
+   */
+  prepareNavigation?: boolean
+
+  /**
    * Controls Turbopack's memory eviction strategy for development sessions
    *
    * Only effective in dev sessions where
@@ -2529,6 +2536,7 @@ export const defaultConfig = Object.freeze({
     transitionIndicator: false,
     gestureTransition: false,
     hydrationChangeEvent: false,
+    prepareNavigation: false,
     inlineCss: false,
     useCache: undefined,
     useCacheStaticRootParamTracking: false,
