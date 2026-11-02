@@ -815,6 +815,13 @@ export default class NextNodeServer extends BaseServer<
 
     for (const pagePath of pagePaths) {
       try {
+        if (
+          pagePath !== page &&
+          !getMaybePagePath(pagePath, this.distDir, undefined, isAppPath)
+        ) {
+          continue
+        }
+
         const components = await loadComponents({
           distDir: this.distDir,
           page: pagePath,
