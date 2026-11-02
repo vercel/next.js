@@ -85,12 +85,13 @@ async fn derived_isolated_merged_groups(
                     groups.len(),
                 );
             };
-            let owner_index = group.index;
+            let server_component_index = group.index;
             let mut indices = FxIndexSet::default();
-            if source_indices.contains(&owner_index) {
-                indices.insert(owner_index);
+            if source_indices.contains(&server_component_index) {
+                indices.insert(server_component_index);
             }
-            // A reference may be imported both directly and through async chunks inside its owner.
+            // A reference may be imported both directly and through async chunks inside its server
+            // component.
             // Follow async importer ancestry, not every group containing the shared proxy:
             // unrelated pages' merged groups can also contain other client entries.
             for group in source_groups.iter() {
@@ -99,14 +100,14 @@ async fn derived_isolated_merged_groups(
                         .get_async_loader_ancestor_chunk_groups(**module)
                         .await?
                         .iter()
-                        .any(|ancestor| ancestor.index == owner_index)
+                        .any(|ancestor| ancestor.index == server_component_index)
                 {
                     indices.insert(group.index);
                 }
             }
             indices
         } else {
-            // Without an owner group, fall back to the source module's groups.
+            // These are the framework-level references, fall back to the source module's groups.
             source_indices
         };
         if parent_indices.is_empty() {
