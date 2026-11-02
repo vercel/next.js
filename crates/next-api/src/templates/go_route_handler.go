@@ -97,7 +97,7 @@ func nextGoHandler() http.HandlerFunc {
 			return
 		}
 		// Public requests cannot provide the private self-hosted transport metadata.
-		r.Header.Del("X-Next-Go-Token")
+		r.Header.Del("x-next-internal-go-token")
 		for name, values := range params {
 			r.SetPathValue(name, strings.Join(values, "/"))
 		}
