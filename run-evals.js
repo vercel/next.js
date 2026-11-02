@@ -36,7 +36,7 @@ const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
 const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
 
-/** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean, publish?: boolean, metrics?: string }} EvalConfig */
+/** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean, publish?: boolean, browserJs?: boolean, metrics?: string }} EvalConfig */
 /** @type {Record<string, EvalConfig>} */
 const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
 
@@ -61,7 +61,13 @@ function pack() {
 }
 
 /** @param {string[] | null} selectedEvals  null means all evals */
-function writeExperiments(selectedEvals, variants, timeout, runs, options) {
+function writeExperiments(
+  selectedEvals,
+  variants,
+  timeout,
+  runs,
+  options = {}
+) {
   fs.rmSync(EXPERIMENTS_DIR, { recursive: true, force: true })
   fs.mkdirSync(EXPERIMENTS_DIR, { recursive: true })
 
@@ -70,9 +76,31 @@ function writeExperiments(selectedEvals, variants, timeout, runs, options) {
     const evalsField = variantEvals
       ? `\n  evals: ${JSON.stringify(variantEvals.length === 1 ? variantEvals[0] : variantEvals)},`
       : ''
+    const browserJsFixtures = Object.fromEntries(
+      (variantEvals ?? listEvals())
+        .filter((name) => readFixtureConfig(name).browserJs)
+        .map((name) => {
+          const pkg = JSON.parse(
+            fs.readFileSync(
+              path.join(FIXTURES_DIR, name, 'package.json'),
+              'utf8'
+            )
+          )
+          return [name, pkg.name]
+        })
+    )
+    const measuresBrowserJs = Object.keys(browserJsFixtures).length > 0
+    let onRunComplete = v.onRunComplete
+    if (measuresBrowserJs) {
+      const runData = onRunComplete
+        ? `${onRunComplete}(context)`
+        : 'context.runData'
+      onRunComplete = `(context) => browserJs.onRunComplete({ ...context, runData: ${runData} })`
+    }
     const body = `import type { ExperimentConfig } from '@vercel/agent-eval'
 ${v.imports}
 ${options.metrics ? `import { recordAgentTime } from '../lib/metrics.js'` : ''}
+${measuresBrowserJs ? `import { createBrowserJsHooks } from '../lib/bundle-optimizer/hooks.js'\n\nconst browserJs = createBrowserJsHooks(${JSON.stringify(browserJsFixtures)}, ${JSON.stringify(v.skills ?? [])})\n` : ''}
 
 const config: ExperimentConfig = {
   // Via the Vercel AI Gateway, so the OIDC token from \`vc env pull\` is the only
@@ -88,10 +116,11 @@ const config: ExperimentConfig = {
   timeout: ${timeout},
   sandbox: 'auto',
   ${options.metrics ? `copyFiles: 'all',` : ''}
-  ${v.onRunComplete ? `onRunComplete: ${v.onRunComplete},` : ''}
+  ${onRunComplete ? `onRunComplete: ${onRunComplete},` : ''}
   setup: async (sandbox) => {
     ${v.setup}
     ${options.metrics ? 'recordAgentTime(sandbox)' : ''}
+    ${measuresBrowserJs ? 'return browserJs.setup(sandbox)' : ''}
   },
 }
 
@@ -179,10 +208,16 @@ function readFixtureConfig(evalName) {
       `${EVAL_CONFIG_PATH}: ${evalName}.agentFeedback must be a boolean`
     )
   }
+  if (config.browserJs !== undefined && typeof config.browserJs !== 'boolean') {
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.browserJs must be a boolean`
+    )
+  }
   return {
     skills: skillNames,
     timeout: config.timeout ?? 720,
     agentFeedback: config.agentFeedback ?? false,
+    browserJs: config.browserJs ?? false,
   }
 }
 
@@ -211,6 +246,7 @@ function getExperimentSettings(selectedEvals) {
     suffix: multipleSkillGroups ? `skills-${skills.join('-')}` : 'skills',
     imports: `import { installLocalSkills, installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
     setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
+    skills,
     evals,
   }))
 

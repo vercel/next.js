@@ -66,6 +66,24 @@
     "publish": false,
     "timeout": 900
   },
+  "agent-059-bundle-optimizer-next-dynamic": {
+    "skills": ["next-bundle-optimizer"],
+    "browserJs": true,
+    "publish": false,
+    "timeout": 1800
+  },
+  "agent-060-bundle-optimizer-rsc-markdown": {
+    "skills": ["next-bundle-optimizer"],
+    "browserJs": true,
+    "publish": false,
+    "timeout": 1800
+  },
+  "agent-061-bundle-optimizer-dedupe-packages": {
+    "skills": ["next-bundle-optimizer"],
+    "browserJs": true,
+    "publish": false,
+    "timeout": 1800
+  },
   "agent-062-pokedex-dev-loop": {
     "skills": ["next-dev-loop"],
     "publish": false,
