@@ -1720,8 +1720,8 @@ impl FileSystem for DiskFileSystem {
             // The error is part of this task's output. Use the location-independent path instead
             // of the absolute one, so that the output doesn't change when the project is moved.
             Err(err) => {
-                return Err(anyhow::Error::new(err)
-                    .context(turbofmt!("reading metadata for {fs_path}").await?));
+                let message = turbofmt!("reading metadata for {fs_path}").await?;
+                return Err(anyhow::Error::new(err).context(message));
             }
         };
 
