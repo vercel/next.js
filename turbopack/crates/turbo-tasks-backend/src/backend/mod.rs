@@ -554,6 +554,11 @@ impl TurboTasksBackend {
             .map(|stats| stats.increment_cache_miss(native_fn));
     }
 
+    fn track_execution_by_fn(&self, native_fn: &'static NativeFunction) {
+        self.task_statistics
+            .map(|stats| stats.increment_execution(native_fn));
+    }
+
     /// Reconstructs a full [`TurboTasksExecutionError`] from the compact [`TaskError`] storage
     /// representation. For [`TaskError::TaskChain`], this looks up the source error from the last
     /// task's output and rebuilds the nested `TaskContext` wrappers with `TurboTasksCallApi`
@@ -2178,6 +2183,7 @@ impl TurboTasksBackend {
                     this,
                     arg,
                 } = &*task_type;
+                self.track_execution_by_fn(native_fn);
                 (
                     native_fn.span(
                         task_id.persistence(),
