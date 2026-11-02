@@ -209,14 +209,16 @@ describe('saved eval effort', () => {
         )
       )
       expect(
-        results.find((r: { run: string }) => r.run.endsWith('/saved'))
+        results.find((r: { run: string }) => path.basename(r.run) === 'saved')
       ).toMatchObject({
         status: 'failed',
         estimatedModelUsd: 0.123,
         inputTokens: 200,
       })
       expect(
-        results.find((r: { run: string }) => r.run.endsWith('/uncollected'))
+        results.find(
+          (r: { run: string }) => path.basename(r.run) === 'uncollected'
+        )
       ).toMatchObject({
         status: 'failed',
         inputTokens: 100,
