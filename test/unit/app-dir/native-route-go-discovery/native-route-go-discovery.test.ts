@@ -43,7 +43,7 @@ describe('native route discovery', () => {
     })
     expect(mapped['(group)/[id]/route']).toContain('route.go')
   })
-  it('reports Webpack and missing opt-in before JavaScript analysis', async () => {
+  it('requires Turbopack and leaves opt-in validation to Rust', async () => {
     const saved = process.env.TURBOPACK
     try {
       delete process.env.TURBOPACK
@@ -65,7 +65,10 @@ describe('native route discovery', () => {
           page: '/route',
           pageType: PAGE_TYPES.APP,
         })
-      ).rejects.toThrow('experimental.goRoutes')
+      ).resolves.toMatchObject({
+        type: PAGE_TYPES.APP,
+        config: { dynamic: 'force-dynamic' },
+      })
     } finally {
       if (saved === undefined) delete process.env.TURBOPACK
       else process.env.TURBOPACK = saved
@@ -83,9 +86,9 @@ describe('native route discovery', () => {
     expect(result.page).toBe('/native/route')
     expect(normalizePathSep(result.filename)).toContain('/app/native/route.go')
   })
-  it('diagnoses Go and TS handlers in the same directory', async () => {
+  it('resolves Go and TS handlers while Rust diagnoses conflicts', async () => {
     await expect(
       findPageFile(join(__dirname, 'app'), '/route', ['ts'], true)
-    ).rejects.toThrow('Conflicting App Router handlers')
+    ).resolves.toContain('route.ts')
   })
 })
