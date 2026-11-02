@@ -3,6 +3,12 @@ import { installGate } from './lib/gate/runtime'
 
 expect.extend(matchers)
 
+const testFilePath = expect.getState().testPath
+if (!testFilePath) {
+  throw new Error('Jest did not provide the current test file path')
+}
+process.env.TEST_FILE_PATH = testFilePath
+
 // Installs the `_test_gate` global that `// @gate` pragmas compile to, and
 // wraps `it`/`test` so a gate on a `describe` reaches the tests inside it.
 // See test/lib/gate/runtime.ts.
