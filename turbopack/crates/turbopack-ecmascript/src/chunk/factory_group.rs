@@ -169,7 +169,7 @@ mod tests {
 
     /// A strict factory `s` carries a recorded directive, a non-strict one `n` does not.
     fn item(id: u64, strict: bool) -> CodeModuleIdAndPath {
-        let mut code = CodeBuilder::new(false, false);
+        let mut code = CodeBuilder::new(false);
         if strict {
             code += "(()=>{";
             code.push_strict_directive();
@@ -188,7 +188,7 @@ mod tests {
     fn write(items: &[CodeModuleIdAndPath]) -> String {
         let mode = strict_factory_mode(items, true);
         let wrapper = strict_chunk_wrapper(mode, true);
-        let mut code = CodeBuilder::new(false, false);
+        let mut code = CodeBuilder::new(false);
         if let Some((prefix, _)) = wrapper {
             code += prefix;
         }

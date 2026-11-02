@@ -8,13 +8,16 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use byteorder::{BE, WriteBytesExt};
 use next_core::app_structure::FileSystemPathVec;
-use output_file::{AnalyzedChunkPart, analyze_output_file, analyze_traced_file};
+use output_file::{
+    AnalyzedChunkPart, OptionAnalyzedOutputFile, analyze_output_file, analyze_traced_file,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, JoinIterExt, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, ValueToStringRef, Vc,
+    FxIndexSet, JoinIterExt, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
+    graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
@@ -26,8 +29,7 @@ use turbopack_core::{
     chunk::{ChunkingType, TracedMode},
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph},
-    output::{OutputAsset, OutputAssets, OutputAssetsReference},
-    reference::all_assets_from_entries,
+    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReference},
 };
 use turbopack_ecmascript::references::service_worker::ServiceWorkerEntryModule;
 
@@ -667,15 +669,142 @@ impl AnalyzedRoute {
     }
 }
 
+#[turbo_tasks::value]
+pub struct AnalyzeRouteInput {
+    pub output_assets: ResolvedVc<OutputAssets>,
+    pub traced_files: ResolvedVc<FileSystemPathVec>,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct AnalyzeRouteInputs(FxHashMap<RcStr, AnalyzeRouteInput>);
+
+#[turbo_tasks::value(serialization = "skip")]
+pub struct AnalyzedRouteFiles {
+    output_files: Vec<ReadRef<OptionAnalyzedOutputFile>>,
+}
+
+// Route slices share file results in memory; persisting them would duplicate the per-file cache.
+#[turbo_tasks::value(transparent, cell = "keyed", serialization = "skip")]
+pub struct AnalyzeRoutesFiles(FxHashMap<RcStr, AnalyzedRouteFiles>);
+
+#[turbo_tasks::function]
+pub async fn analyze_route_files(
+    inputs: Vc<AnalyzeRouteInputs>,
+    module_graph: Vc<ModuleGraph>,
+) -> Result<Vc<AnalyzeRoutesFiles>> {
+    let inputs = inputs.await?;
+    let routes = inputs
+        .iter()
+        .map(async |(key, input)| {
+            Ok((
+                key.clone(),
+                input.output_assets.await?,
+                input.traced_files.await?,
+            ))
+        })
+        .try_join()
+        .await?;
+    let graph = AdjacencyMap::new()
+        .visit(
+            routes
+                .iter()
+                .flat_map(|(_, assets, _)| assets.iter().copied())
+                .map(ExpandOutputAssetsInput::Asset),
+            |input| async move {
+                let reference = match input {
+                    ExpandOutputAssetsInput::Asset(asset) => ResolvedVc::upcast(asset),
+                    ExpandOutputAssetsInput::Reference(reference) => reference,
+                };
+                let references = reference.references().await?;
+                anyhow::Ok(
+                    references
+                        .assets
+                        .await?
+                        .iter()
+                        .chain(references.referenced_assets.await?.iter())
+                        .copied()
+                        .map(ExpandOutputAssetsInput::Asset)
+                        .chain(
+                            references
+                                .references
+                                .await?
+                                .iter()
+                                .copied()
+                                .map(ExpandOutputAssetsInput::Reference),
+                        )
+                        .collect::<Vec<_>>(),
+                )
+            },
+        )
+        .await
+        .completed()?;
+    let module_index = analyze_module_index(module_graph);
+    let files: FxHashMap<_, _> = graph
+        .postorder_topological()
+        .filter_map(|input| match *input {
+            ExpandOutputAssetsInput::Asset(asset) => Some(asset),
+            ExpandOutputAssetsInput::Reference(_) => None,
+        })
+        .map(async |asset| Ok((asset, analyze_output_file(*asset, module_index).await?)))
+        .try_join()
+        .await?
+        .into_iter()
+        .collect();
+    let traced: FxIndexSet<_> = routes
+        .iter()
+        .flat_map(|(_, _, paths)| paths.iter().cloned())
+        .collect();
+    let traced: FxHashMap<_, _> = traced
+        .into_iter()
+        .map(async |path| Ok((path.clone(), analyze_traced_file(path).await?)))
+        .try_join()
+        .await?
+        .into_iter()
+        .collect();
+
+    let mut prepared = FxHashMap::default();
+    for (key, assets, paths) in routes {
+        let route_graph = AdjacencyMap::new()
+            .visit(
+                assets.iter().copied().map(ExpandOutputAssetsInput::Asset),
+                |input| {
+                    std::future::ready(anyhow::Ok(
+                        graph
+                            .get(&input)
+                            .unwrap()
+                            .map(|&(node, ())| node)
+                            .collect::<Vec<_>>(),
+                    ))
+                },
+            )
+            .await
+            .completed()?;
+        let mut route_files: Vec<_> = route_graph
+            .into_postorder_topological()
+            .filter_map(|input| match input {
+                ExpandOutputAssetsInput::Asset(asset) => Some(files[&asset].clone()),
+                ExpandOutputAssetsInput::Reference(_) => None,
+            })
+            .collect();
+        route_files.extend(paths.iter().map(|path| traced[path].clone()));
+        prepared.insert(
+            key,
+            AnalyzedRouteFiles {
+                output_files: route_files,
+            },
+        );
+    }
+    Ok(Vc::cell(prepared))
+}
+
 #[turbo_tasks::function]
 pub async fn analyze_output_assets(
-    output_assets: Vc<OutputAssets>,
-    traced_files: Vc<FileSystemPathVec>,
+    route: RcStr,
+    files: Vc<AnalyzeRoutesFiles>,
     route_entries: Vc<AnalyzeRouteEntries>,
     chunk_groups: Vc<AnalyzeChunkGroups>,
     module_graph: Vc<ModuleGraph>,
 ) -> Result<Vc<AnalyzedRoute>> {
-    let output_assets = all_assets_from_entries(output_assets);
     let mut summary = RouteBundleSummary {
         size: 0,
         compressed_size: 0,
@@ -695,22 +824,13 @@ pub async fn analyze_output_assets(
     let mut candidates = Vec::new();
     let mut browser_chunks = FxHashSet::default();
 
-    let output_assets = output_assets.await?;
-    let traced_files = traced_files.await?;
-    // One call per file: per-route fan-out over shared assets dominates analysis
-    // through task-graph bookkeeping, not the work behind each call.
-    let files = output_assets
-        .iter()
-        .map(|&asset| analyze_output_file(*asset, module_index_vc))
-        .chain(
-            traced_files
-                .iter()
-                .map(|path| analyze_traced_file(path.clone())),
-        )
-        .try_join()
-        .await?;
+    let files = files.get(&route).await?.expect("prepared analyzer route");
 
-    for file in files.iter().filter_map(|file| (**file).as_ref()) {
+    for file in files
+        .output_files
+        .iter()
+        .filter_map(|file| (**file).as_ref())
+    {
         let is_client = file.filename.starts_with("[client-fs]/");
         let output_file_index = builder.add_output_file(AnalyzeOutputFile {
             filename: file.filename.clone(),
@@ -920,8 +1040,8 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
 #[turbo_tasks::value]
 pub struct AnalyzeDataOutputAsset {
     pub path: FileSystemPath,
-    pub output_assets: ResolvedVc<OutputAssets>,
-    pub traced_files: ResolvedVc<FileSystemPathVec>,
+    pub route: RcStr,
+    pub files: ResolvedVc<AnalyzeRoutesFiles>,
     pub route_entries: ResolvedVc<AnalyzeRouteEntries>,
     pub chunk_groups: ResolvedVc<AnalyzeChunkGroups>,
     pub module_graph: ResolvedVc<ModuleGraph>,
@@ -932,16 +1052,16 @@ impl AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     pub async fn new(
         path: FileSystemPath,
-        output_assets: ResolvedVc<OutputAssets>,
-        traced_files: ResolvedVc<FileSystemPathVec>,
+        route: RcStr,
+        files: ResolvedVc<AnalyzeRoutesFiles>,
         route_entries: ResolvedVc<AnalyzeRouteEntries>,
         chunk_groups: ResolvedVc<AnalyzeChunkGroups>,
         module_graph: ResolvedVc<ModuleGraph>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
             path,
-            output_assets,
-            traced_files,
+            route,
+            files,
             route_entries,
             chunk_groups,
             module_graph,
@@ -955,8 +1075,8 @@ impl Asset for AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         let file_content = analyze_output_assets(
-            *self.output_assets,
-            *self.traced_files,
+            self.route.clone(),
+            *self.files,
             *self.route_entries,
             *self.chunk_groups,
             *self.module_graph,

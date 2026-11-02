@@ -4,8 +4,9 @@ use anyhow::{Result, ensure};
 use next_api::{
     analyze::{
         AnalyzeClientReferenceEntry, AnalyzeDataOutputAsset, AnalyzeRouteEntries,
-        AnalyzeRouteEntry, ModulesDataOutputAsset, RouteBundleSummary, analyze_output_assets,
-        analyze_route_entry_id, combine_output_assets, combine_traced_files,
+        AnalyzeRouteEntry, AnalyzeRouteInput, AnalyzeRouteInputs, ModulesDataOutputAsset,
+        RouteBundleSummary, analyze_output_assets, analyze_route_entry_id, analyze_route_files,
+        combine_output_assets, combine_traced_files,
     },
     project::ProjectContainer,
     route::{AnalyzeChunkGroup, AnalyzeChunkGroups, Endpoint, EndpointGroup, EndpointGroupKey},
@@ -267,9 +268,25 @@ async fn get_analyze_data_operation(
         .try_join()
         .await?;
 
+    let inputs = prepared_endpoint_groups
+        .iter()
+        .map(async |(key, output_assets, traced_files, _, _)| {
+            anyhow::Ok((
+                key.as_str().into(),
+                AnalyzeRouteInput {
+                    output_assets: output_assets.to_resolved().await?,
+                    traced_files: traced_files.to_resolved().await?,
+                },
+            ))
+        })
+        .try_join()
+        .await?;
+    let inputs: Vc<AnalyzeRouteInputs> = Vc::cell(inputs.into_iter().collect());
+    let files = analyze_route_files(inputs, *whole_app_module_graphs.await?.full);
+
     let analyze_data_and_summaries = prepared_endpoint_groups
         .into_iter()
-        .map(|(key, output_assets, traced_files, groups, entries)| {
+        .map(|(key, _, _, groups, entries)| {
             let chunk_groups: Vc<AnalyzeChunkGroups> = Vc::cell(groups);
             let route_entries: Vc<AnalyzeRouteEntries> = Vc::cell(entries);
             async move {
@@ -277,8 +294,8 @@ async fn get_analyze_data_operation(
                     analyze_output_root
                         .join(&key.to_string())?
                         .join("analyze.data")?,
-                    output_assets,
-                    traced_files,
+                    key.as_str().into(),
+                    files,
                     route_entries,
                     chunk_groups,
                     *whole_app_module_graphs.await?.full,
@@ -290,8 +307,8 @@ async fn get_analyze_data_operation(
                     Some(RouteSummary {
                         route: route.to_string(),
                         bundles: analyze_output_assets(
-                            output_assets,
-                            traced_files,
+                            key.as_str().into(),
+                            files,
                             route_entries,
                             chunk_groups,
                             *whole_app_module_graphs.await?.full,

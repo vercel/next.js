@@ -54,8 +54,6 @@ impl EcmascriptNodeChunkContent {
 impl EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     async fn code(&self) -> Result<Vc<Code>> {
-        use std::io::Write;
-
         let mut code = CodeBuilder::new(*self.chunking_context.debug_ids_enabled().await?);
         let supports_arrow_functions = *self
             .chunking_context
