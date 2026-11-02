@@ -1,3 +1,0 @@
-verifyDepsBeforeRun: false
-# Deployment build commands use a POSIX shell, including when tested on Windows.
-scriptShell: bash
