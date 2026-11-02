@@ -1092,18 +1092,28 @@ pub async fn app_entry_point_to_route(
                 })
                 .collect(),
         ),
-        AppEntrypoint::AppGoRoute { page, path, .. } => Route::AppRoute {
-            original_name: page.to_string().into(),
-            endpoint: ResolvedVc::upcast(
-                GoRouteEndpoint {
-                    app_project,
-                    path,
-                    page,
+        AppEntrypoint::AppGoRoute { page, path, .. } => {
+            if !*app_project.project().next_config().go_routes().await? {
+                GoRouteIssue {
+                    path: path.clone(),
+                    message: rcstr!("route.go requires experimental.goRoutes: true"),
                 }
-                .resolved_cell(),
-            ),
-            has_action_manifest: false,
-        },
+                .resolved_cell()
+                .emit();
+            }
+            Route::AppRoute {
+                original_name: page.to_string().into(),
+                endpoint: ResolvedVc::upcast(
+                    GoRouteEndpoint {
+                        app_project,
+                        path,
+                        page,
+                    }
+                    .resolved_cell(),
+                ),
+                has_action_manifest: false,
+            }
+        }
         AppEntrypoint::AppRoute { page, path, .. } => Route::AppRoute {
             original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(

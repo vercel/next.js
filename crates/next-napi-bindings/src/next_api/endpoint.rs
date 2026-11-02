@@ -52,8 +52,6 @@ impl From<AssetPath> for NapiAssetPath {
 #[derive(Default)]
 pub struct NapiWrittenEndpoint {
     pub r#type: String,
-    /// A native compiler failure has no output paths, but must retain native issue handling.
-    pub native_build_failed: Option<bool>,
     pub entry_path: Option<String>,
     pub server_hmr_entry_paths: Vec<String>,
     pub client_paths: Vec<String>,
@@ -97,8 +95,7 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
                 ..Default::default()
             },
             Some(EndpointOutputPaths::NativeFailed { .. }) => Self {
-                r#type: "none".to_string(),
-                native_build_failed: Some(true),
+                r#type: "native".to_string(),
                 ..Default::default()
             },
             Some(EndpointOutputPaths::NotFound) | None => Self {

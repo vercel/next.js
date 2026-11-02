@@ -778,12 +778,6 @@ async function startWatcher(
           // Skip non-router pages (loading.tsx, error.tsx, etc.)
           if (!validFileMatcher.isAppRouterPage(fileName)) continue
 
-          if (fileName.endsWith('route.go')) {
-            if (!opts.turbo)
-              throw new Error('route.go requires Turbopack; remove --webpack')
-            if (!nextConfig.experimental.goRoutes)
-              throw new Error('route.go requires experimental.goRoutes: true')
-          }
           const originalPageName = pageName
           pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
           const appRoute = normalizePathSep(pageName)
