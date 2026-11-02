@@ -1210,6 +1210,9 @@ export async function createHotReloaderTurbopack(
     state.clientIssues.delete(key)
   }
 
+  let nativeRoutePages: ReadonlySet<string> | undefined
+  const nativeRouteListeners = new Set<(pages: ReadonlySet<string>) => void>()
+
   async function handleEntrypointsSubscription() {
     for await (const entrypoints of entrypointsSubscription) {
       if (!currentEntriesHandlingResolve) {
@@ -1235,6 +1238,14 @@ export async function createHotReloaderTurbopack(
       }
 
       const routes = entrypoints.value.routes
+      // Only valid Rust entrypoint snapshots replace the active Go route set.
+      // Original names retain route groups and distinguish Go-to-JS replacement.
+      nativeRoutePages = new Set(
+        [...routes.values()].flatMap((route) =>
+          route.type === 'app-route-go' ? [route.originalName] : []
+        )
+      )
+      for (const listener of nativeRouteListeners) listener(nativeRoutePages)
       const prevRouteKeys = previousRouteKeys
       const addedRoutes = prevRouteKeys
         ? [...routes.keys()].filter((route) => !prevRouteKeys.has(route))
@@ -1519,6 +1530,13 @@ export async function createHotReloaderTurbopack(
 
   const hotReloader: NextJsHotReloaderInterface = {
     turbopackProject: project,
+    onNativeRoutesChanged(listener) {
+      nativeRouteListeners.add(listener)
+      if (nativeRoutePages) listener(nativeRoutePages)
+      return () => {
+        nativeRouteListeners.delete(listener)
+      }
+    },
     activeWebpackConfigs: undefined,
     serverStats: null,
     edgeServerStats: null,

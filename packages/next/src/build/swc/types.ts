@@ -414,7 +414,7 @@ export type Route =
       }[]
     }
   | {
-      type: 'app-route'
+      type: 'app-route' | 'app-route-go'
       originalName: string
       hasActionManifest: boolean
       endpoint: Endpoint
@@ -571,7 +571,7 @@ export type AppRoute =
       rscHmrEndpoint: Endpoint
     }
   | {
-      type: 'app-route'
+      type: 'app-route' | 'app-route-go'
       hasActionManifest: boolean
       endpoint: Endpoint
     }

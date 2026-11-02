@@ -1101,7 +1101,7 @@ pub async fn app_entry_point_to_route(
                 .resolved_cell()
                 .emit();
             }
-            Route::AppRoute {
+            Route::AppGoRoute {
                 original_name: page.to_string().into(),
                 endpoint: ResolvedVc::upcast(
                     GoRouteEndpoint {
@@ -1111,7 +1111,6 @@ pub async fn app_entry_point_to_route(
                     }
                     .resolved_cell(),
                 ),
-                has_action_manifest: false,
             }
         }
         AppEntrypoint::AppRoute { page, path, .. } => Route::AppRoute {

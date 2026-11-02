@@ -36,6 +36,10 @@ pub enum Route {
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     AppPage(Vec<AppPageRoute>),
+    AppGoRoute {
+        original_name: RcStr,
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    },
     AppRoute {
         original_name: RcStr,
         endpoint: ResolvedVc<Box<dyn Endpoint>>,

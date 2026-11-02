@@ -984,6 +984,17 @@ impl NapiRoute {
                 ),
                 ..Default::default()
             },
+            RouteOperation::AppGoRoute {
+                original_name,
+                endpoint,
+            } => NapiRoute {
+                pathname,
+                original_name: Some(original_name),
+                r#type: "app-route-go",
+                endpoint: convert_endpoint(endpoint),
+                has_action_manifest: Some(false),
+                ..Default::default()
+            },
             RouteOperation::AppRoute {
                 original_name,
                 endpoint,
@@ -1262,7 +1273,7 @@ fn compute_deferred_phase_build_paths(
                     non_deferred_app.insert(app_debug_path);
                 }
             }
-            Route::AppRoute { original_name, .. } => {
+            Route::AppRoute { original_name, .. } | Route::AppGoRoute { original_name, .. } => {
                 let app_debug_path = to_app_debug_path(route_key.as_str(), "route");
                 if is_deferred_app_route(route_key.as_str(), deferred_entries) {
                     deferred_app.insert(app_debug_path);

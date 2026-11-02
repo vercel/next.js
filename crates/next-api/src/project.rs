@@ -1565,7 +1565,8 @@ impl Project {
                         },
                     ));
                 }
-                Route::AppRoute {
+                Route::AppGoRoute { endpoint, .. }
+                | Route::AppRoute {
                     original_name: _,
                     endpoint,
                     ..

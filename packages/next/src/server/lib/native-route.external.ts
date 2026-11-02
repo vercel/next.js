@@ -22,6 +22,7 @@ export class NativeRouteManager {
   private routes = new Map<string, string>()
   private executablePaths = new Map<string, string | Promise<string>>()
   private closed = false
+  private activePages: ReadonlySet<string> | undefined
   private allWorkers = new Set<Worker>()
 
   constructor(
@@ -196,6 +197,9 @@ export class NativeRouteManager {
       executable = resolved
     }
     if (this.closed) throw new Error('Next.js server is closing')
+    if (this.activePages && !this.activePages.has(page)) {
+      throw new Error('Native route was removed; retry the request')
+    }
     const previous = this.routes.get(page)
     this.routes.set(page, executable)
     let pending = this.workers.get(executable)
@@ -235,7 +239,8 @@ export class NativeRouteManager {
     }
   }
 
-  reconcile(pages: Set<string>) {
+  reconcile(pages: ReadonlySet<string>) {
+    this.activePages = pages
     for (const [page, executable] of this.routes) {
       if (pages.has(page)) continue
       this.routes.delete(page)
