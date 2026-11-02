@@ -69,16 +69,20 @@ export async function watchTestFiles(
     observeFailureBeforeClose?(error: unknown, observation: object): void
   }
 ): Promise<TestWatchSource> {
-  if (options.sourceProcess) {
-    const snapshot = {
-      ...snapshotWatchDirectories(options),
-      signal: options.signal,
-      onChange: options.onChange,
-      onError: options.onError,
-    }
-    const { createOwnedWatchSource } = await import('./watch-source-process.js')
-    return createOwnedWatchSource(snapshot)
+  const snapshot = {
+    ...snapshotWatchDirectories(options),
+    signal: options.signal ?? new AbortController().signal,
+    onChange: options.onChange,
+    onError: options.onError,
   }
+  const { createOwnedWatchSource } = await import('./watch-source-process.js')
+  return createOwnedWatchSource(snapshot)
+}
+
+/** Local engine for the owned worker and controls of its native subscriptions. */
+export async function watchTestFilesInProcess(
+  options: Parameters<typeof watchTestFiles>[0]
+): Promise<TestWatchSource> {
   let directories: string[] = []
   let outputs: string[] = []
   let outputFiles: string[] = []

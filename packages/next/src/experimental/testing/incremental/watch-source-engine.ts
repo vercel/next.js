@@ -1,5 +1,5 @@
 import { parentPort } from 'worker_threads'
-import { watchTestFiles, type TestWatchSource } from './watch-files'
+import { watchTestFilesInProcess, type TestWatchSource } from './watch-files'
 import { createWatchSourceErrorEncoder } from './watch-source-errors'
 import type {
   WatchSourceRequest,
@@ -80,7 +80,7 @@ port.on('message', (value: WatchSourceRequest) => {
     try {
       if (value?.type === 'watch-source-open' && !opening) {
         opening = true
-        source = await watchTestFiles({
+        source = await watchTestFilesInProcess({
           ...value.directories,
           onChange: (change) => post({ type: 'watch-source-change', change }),
           onError: publishFailure,

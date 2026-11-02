@@ -5,7 +5,7 @@ const os = require('node:os')
 const path = require('node:path')
 const { EventEmitter } = require('node:events')
 const { resolveTestWatchOptions } = require(process.argv[2])
-const { watchTestFiles } = require(process.argv[3])
+const { watchTestFilesInProcess: watchTestFiles } = require(process.argv[3])
 const mode = process.argv[4]
 assert.ok(mode === 'development' || mode === 'production')
 

@@ -6,6 +6,7 @@ import {
 } from 'next/dist/experimental/testing/incremental/watch-session'
 import {
   watchTestFiles,
+  watchTestFilesInProcess,
   type FileChange,
 } from 'next/dist/experimental/testing/incremental/watch-files'
 import {
@@ -310,7 +311,7 @@ describe('test input filesystem watcher', () => {
       })
     try {
       await expect(
-        watchTestFiles({
+        watchTestFilesInProcess({
           directories: [first, second],
           outputDirectories: [],
           onChange: jest.fn(),
@@ -332,7 +333,7 @@ describe('test input filesystem watcher', () => {
     await mkdir(second)
     const errors: unknown[] = []
     const nativeWatch = jest.spyOn(fs, 'watch')
-    const source = await watchTestFiles({
+    const source = await watchTestFilesInProcess({
       directories: [first, second],
       outputDirectories: [],
       onChange: jest.fn(),
@@ -385,7 +386,7 @@ describe('test input filesystem watcher', () => {
     )
     const events: FileChange[] = []
     const changed = deferred()
-    const source = await watchTestFiles({
+    const source = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [],
       dependencyFiles: [dependency],
@@ -435,7 +436,7 @@ describe('test input filesystem watcher', () => {
       .mockReturnValueOnce(new Subscription())
     const changed = deferred()
     const events: FileChange[] = []
-    const source = await watchTestFiles({
+    const source = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [],
       onChange: (event) => {
@@ -470,7 +471,7 @@ describe('test input filesystem watcher', () => {
     const root = path.join(parent, 'project')
     await mkdir(root)
     const errors: unknown[] = []
-    const source = await watchTestFiles({
+    const source = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [],
       onChange: jest.fn(),
@@ -497,7 +498,7 @@ describe('test input filesystem watcher', () => {
     const root = path.join(parent, 'project')
     await mkdir(root, { recursive: true })
     const errors: unknown[] = []
-    const source = await watchTestFiles({
+    const source = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [],
       onChange: jest.fn(),
@@ -542,7 +543,7 @@ describe('test input filesystem watcher', () => {
         .mockReturnValueOnce(new Subscription())
         .mockReturnValueOnce(new Subscription())
       const errors: unknown[] = []
-      const source = await watchTestFiles({
+      const source = await watchTestFilesInProcess({
         directories: [root],
         outputDirectories: [],
         onChange: jest.fn(),
@@ -587,7 +588,7 @@ describe('test input filesystem watcher', () => {
     )
     const nativeWatch = jest.spyOn(fs, 'watch')
     const errors: unknown[] = []
-    const source = await watchTestFiles({
+    const source = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [],
       onChange: jest.fn(),
@@ -657,7 +658,7 @@ describe('test input filesystem watcher', () => {
     await mkdir(snapshot)
     const changes: FileChange[] = []
     const errors: unknown[] = []
-    const watcher = await watchTestFiles({
+    const watcher = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [output],
       artifactDirectories: [
@@ -743,7 +744,7 @@ it('excludes exact machine-report outputs and owned temporary files while observ
   const temporary = `${report}.12345678-1234-1234-1234-123456789abc.tmp`
   const neighbor = `${report}.source.ts`
   const changes: FileChange[] = []
-  const watcher = await watchTestFiles({
+  const watcher = await watchTestFilesInProcess({
     directories: [root],
     outputDirectories: [],
     outputFiles: [report],
@@ -1339,7 +1340,7 @@ it('reconciles exact source/config/setup/add/delete paths when native notificati
   const errors: unknown[] = []
   let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
   try {
-    watcher = await watchTestFiles({
+    watcher = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [output],
       dependencyFiles: [dependency],
@@ -1470,7 +1471,7 @@ it('retains native changes until the initial reconciliation returns the watch so
     })
   const changes: FileChange[] = []
   const errors: unknown[] = []
-  const opening = watchTestFiles({
+  const opening = watchTestFilesInProcess({
     directories: [root],
     outputDirectories: [],
     onChange: (change) => changes.push(change),
@@ -1544,7 +1545,7 @@ it('reports reconciliation failure and closes the acquired native subscriptions'
   let acquired: Awaited<ReturnType<typeof watchTestFiles>> | undefined
   try {
     await expect(
-      watchTestFiles({
+      watchTestFilesInProcess({
         directories: [root],
         outputDirectories: [],
         onChange: jest.fn(),
@@ -1597,7 +1598,7 @@ it('awaits outstanding reconciliation reads before close releases the source', a
     })
   const changes: FileChange[] = []
   const errors: unknown[] = []
-  const watcher = await watchTestFiles({
+  const watcher = await watchTestFilesInProcess({
     directories: [root],
     outputDirectories: [],
     onChange: (change) => changes.push(change),
@@ -1650,7 +1651,7 @@ it('does not repeat descendants covered by native populated-directory deletion o
     .mockImplementation(() => new Subscription() as unknown as fs.FSWatcher)
   const changes: FileChange[] = []
   const errors: unknown[] = []
-  const watcher = await watchTestFiles({
+  const watcher = await watchTestFilesInProcess({
     directories: [root],
     outputDirectories: [],
     onChange: (change) => changes.push(change),
@@ -1755,7 +1756,7 @@ describe('watch configuration fences during periodic input reconciliation', () =
         return result
       })
     )
-    const watcher = await watchTestFiles(directories)
+    const watcher = await watchTestFilesInProcess(directories)
     return {
       watcher,
       subscriptions,
@@ -2186,7 +2187,7 @@ it('retains authored AGENTS.md creation, edits and deletion as real watch inputs
   const errors: unknown[] = []
   let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
   try {
-    watcher = await watchTestFiles({
+    watcher = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [],
       onChange: (change) => changes.push(change),
@@ -3265,7 +3266,7 @@ it('ignores a delayed native event for an identical regular-file baseline', asyn
     .mockImplementation(() => new Subscription() as unknown as fs.FSWatcher)
   const changes: FileChange[] = []
   const errors: unknown[] = []
-  const watcher = await watchTestFiles({
+  const watcher = await watchTestFilesInProcess({
     directories: [root],
     outputDirectories: [],
     onChange: (change) => changes.push(change),
@@ -3309,7 +3310,7 @@ it.each(['same-size content', 'mtime', 'known deletion', 'new file'] as const)(
       .mockImplementation(() => new Subscription() as unknown as fs.FSWatcher)
     const changes: FileChange[] = []
     const errors: unknown[] = []
-    const watcher = await watchTestFiles({
+    const watcher = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [],
       onChange: (change) => changes.push(change),
@@ -3371,7 +3372,7 @@ it.each(['never present', 'deleted before acquisition'] as const)(
           if (delay === 20) tick.resolve()
         }, delay)
       )
-    const watcher = await watchTestFiles({
+    const watcher = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [],
       onChange: (change) => changes.push(change),
@@ -3439,7 +3440,7 @@ it('retains an already reconciled known deletion when its delayed native callbac
     })
   const changes: FileChange[] = []
   const errors: unknown[] = []
-  const watcher = await watchTestFiles({
+  const watcher = await watchTestFilesInProcess({
     directories: [root],
     outputDirectories: [],
     onChange: (change) => changes.push(change),
@@ -3514,7 +3515,7 @@ async function nativeDirectorySource() {
     onChange: (change: FileChange) => changes.push(change),
     onError: (error: unknown) => errors.push(error),
   }
-  const watcher = await watchTestFiles(options)
+  const watcher = await watchTestFilesInProcess(options)
   const notify = Reflect.get(nativeWatch.mock.calls[0], 2) as (
     event: string,
     filename: string | null
@@ -3670,7 +3671,7 @@ it('retains an already reconciled directory identity change before its precise n
     })
   const changes: FileChange[] = []
   const errors: unknown[] = []
-  const watcher = await watchTestFiles({
+  const watcher = await watchTestFilesInProcess({
     directories: [root],
     outputDirectories: [],
     onChange: (change) => changes.push(change),
@@ -3759,7 +3760,7 @@ it('reconciles a real edit in the pre-observation to subscription gap without na
   })
   let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
   try {
-    watcher = await watchTestFiles({
+    watcher = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [],
       onChange: (change) => changes.push(change),
@@ -3814,7 +3815,7 @@ it('uses the prior opening observation for delayed exact files while preserving 
   })
   let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
   try {
-    watcher = await watchTestFiles({
+    watcher = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [],
       onChange: (change) => changes.push(change),
@@ -3855,7 +3856,7 @@ it('retains an unknown startup native scope even when its complete opening obser
   })
   let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
   try {
-    watcher = await watchTestFiles({
+    watcher = await watchTestFilesInProcess({
       directories: [root],
       outputDirectories: [],
       onChange: (change) => changes.push(change),
@@ -3880,7 +3881,7 @@ it('owns a failed pre-subscription observation without acquiring native subscrip
   const nativeWatch = jest.spyOn(fs, 'watch')
   try {
     await expect(
-      watchTestFiles({
+      watchTestFilesInProcess({
         directories: [root],
         outputDirectories: [],
         onChange: jest.fn(),
@@ -3984,7 +3985,7 @@ it.each([false, true])(
     })
     let source: Awaited<ReturnType<typeof watchTestFiles>> | undefined
     try {
-      source = await watchTestFiles({
+      source = await watchTestFilesInProcess({
         directories: [root],
         outputDirectories: [],
         onChange() {},

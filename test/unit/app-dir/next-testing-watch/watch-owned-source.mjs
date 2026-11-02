@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { watchFile, unwatchFile } from 'node:fs'
+import { watchFile, unwatchFile, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -50,12 +50,20 @@ function fileReady(file) {
     )
     function finish(error) {
       clearTimeout(timer)
+      clearInterval(poll)
       unwatchFile(file, changed)
       error ? reject(error) : resolve()
     }
     function changed(stat) {
       if (stat.size) finish()
     }
+    const poll = setInterval(() => {
+      try {
+        changed(statSync(file))
+      } catch (error) {
+        if (error.code !== 'ENOENT') finish(error)
+      }
+    }, 20)
     watchFile(file, { interval: 20 }, changed)
   })
 }
