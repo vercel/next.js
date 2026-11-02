@@ -8143,3 +8143,50 @@ JSON-before asynchronous writer timing, earlier pending callbacks with accessor 
 The user-approved eight work-3 and four Root obsolete generated package targets were retired after fresh guards:1016701517+509383691 logical bytes, with current packages, promised fallbacks, source, native artifacts, locks and raw evidence held. No physical reclamation or shared-store prune is claimed. The existing work-3 checkout now matches42023 current source paths and private641;119 replaced files/index are backed,484 new paths added,149 unrelated paths held, and normal18-task bootstrap/root+Next types pass. No new checkout or Cargo cache was created.
 
 Frozen390 remains active with30 raw regression failures,36/36 incremental and no final focused result/retention audit at this checkpoint. Closed340 and historical155 remain separate. All776 names/overloads and80scoped/271partial/404missing/21unreviewed statuses are retained; release-compatible0/stableReadyfalse. Documentation/migrations stay last, Linux/performance deferred, and all source stays local.
+
+## Signed CommonJS and Browser checkpoint420
+
+Signed local `cb0fdafaef` composes eligible isolated-development Node original
+CommonJS require/cache identity with same-target ESM factories. Source and
+installed each match18 complete genuine models; the generated durable suite
+passes all3 real-native pipeline cases. Earlier170 Rust and189 mocking controls,
+normal18-task bootstrap and repository/Next types remain recorded separately.
+Cycles with hoisted factories, production, runtime reset/registration/profile
+combinations and complete raw stack presentation remain required work.
+
+Signed `5026091862` captures intrinsic AbortSignal state for Browser listener
+ownership; signed `f4cc80412a` resolves serialized Browser query locators through
+open shadow roots. Source and installed each pass4 signal profiles/16 cases and
+2 rendering profiles/8 cases. The unchanged Promise preservation helper later
+passes4 profiles/8 cases per lane with clean ownership. Its three earlier runs
+retain successful authored reports but failed timeout/EPERM ownership checks;
+no causal fix or deadline change is inferred. The original mixed464 selection
+retains462 passes and2 failures; both failed controls pass sequentially, while
+the original failures remain unassigned. A separate diagnostic is not a
+conformance replacement.
+
+Prior signed `e276f240bc`, `635b5e8943` and `1857033885` retain ten qualified root
+type exports, reporter completion ownership and ordered watch-trigger mapping.
+The reviewed inventory moves only those ten type statuses and the watch-trigger
+entry:776 original APIs,90 scoped/272 partial/393 missing/21 unreviewed;
+declarations295 available/287 absent/194 not applicable. All names, surfaces,
+overloads and release classifications remain held; release-compatible remains0.
+The older shared-RSC watch foundation remains preserved and unqualified.
+
+Frozen390 is now closed failed: the focused32-suite raw log reports6754/6795
+with41 failures, while Jest rejects its JSON output on an actual circular Error.
+No machine focused result or original-name retention qualification is inferred.
+Regression remains234/264; incremental36/36, bridge79, rendering35 and snapshot29
+pass. Final frozen source/native, reference graph and canonical reference-temp
+checks hold. These results and historical340/155 checkpoints stay distinct from
+later scoped positives. The next coherent run reuses the existing isolated
+acceptance checkout; no per-increment checkout or Cargo cache is created.
+
+Signed `f412cc9b45` also commits the earlier owned filesystem-watch routing after
+all142 integrated watch controls pass. Its existing engine and approved helper
+bindings remain distinct from the unqualified shared-RSC watch foundation.
+
+All four functional commits are signed locally with `tim@vercel.com`; nothing
+is pushed. Documentation and migration examples remain last, Linux qualification
+and performance stay deferred, and all source stays local. Stable readiness is
+false; no supported range or exception is declared.

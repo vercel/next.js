@@ -13,8 +13,8 @@
     "unreviewed": "No complete implementation/evidence review for this surface is recorded. This is not proof that underlying functionality is absent."
   },
   "checkpoint": {
-    "implementationCommit": "484033463ff2368c254165bf2f188996e584e93e",
-    "implementation": "Signed local steps through407 include native independent targets, ignored Edge options, shared development RSC/file caches, fixture overloads, primitive and carried retry metadata, coverage/reporter completion and failed JSON, configured watch startup and deferred reporter getter reads. All use tim@vercel.com; nothing pushed. Coherent407 normal core/root+Next types,202 focused controls,18 actual Source tasks and22 installed tasks pass on package5162e57f/private641/9605 compiled files. At407, receipt/public-lifecycle, reporter-prefix, Browser event and trigger work remained separate owner tasks; the signed408 receipt subset is recorded below. Every failed full acceptance and unqualified combination remains required. Signedb5066bfdab subsequently integrates actual collection capture-rejection continuation/result-only packets. Coherent408 core/root+Next types,210 focused controls, Source7 and installed8 actual tasks pass on packagee0e5a0b4/private641/9605. Public case/module/global-error lifecycle phase3 remains open; the structured407 one-row status change is unchanged. At408, Reporter119, watch triggers, Browser normalization and original CommonJS require composition remained owner tasks; the later signed409 subset is recorded below. Signed484033463f then qualifies truthful completion failure prefixes: coherent409 core/both types/214 focused plus12 Source and12 installed actual models pass on f179760a/private641/9605. JSON-before, earlier pending accessor/close ownership, raw errors and Proxy combinations remain required. New Browser Promise/watch-trigger/order/signal/type and CommonJS leaf work is not certified here.",
+    "implementationCommit": "f412cc9b45f75312b79a4252140d57108f19b389",
+    "implementation": "Signed local increments through f4cc80412a add eligible original CommonJS require/ESM factory composition, intrinsic Browser signal state and open-shadow query/native target identity. Prior signed steps retain actual task-update Promises, ten strict root type contracts, reporter callback ownership and ordered watch-trigger mapping. Current bounded Source/installed results are separate from closed failed full390. Older shared-RSC watch foundations and broader required profiles remain unqualified. All source stays local; no push, docs/migrations last, Linux/performance deferred.",
     "lastFullAcceptance": {
       "revision": 155,
       "focusedTests": 2947,
@@ -34,10 +34,10 @@
       "nativeSHA256": "ea0fcf3207c867255335f362d142c58684522f98de39037719bf1d886bcebe26",
       "passed": false,
       "mainPassed": false,
-      "inProgress": true,
+      "inProgress": false,
       "rootTypesPassed": true,
       "bootstrapTasksPassed": 18,
-      "focusedComplete": false,
+      "focusedComplete": true,
       "regressionComplete": true,
       "regressionPassed": 234,
       "regressionFailed": 30,
@@ -47,11 +47,21 @@
       "renderingPassed": 35,
       "snapshotParentPassed": 29,
       "focusedJSONWritten": false,
-      "finalSourceNativeReferenceAndBaselineRetentionAuditPending": true,
+      "finalSourceNativeReferenceAndBaselineRetentionAuditPending": false,
       "singleAcceptanceWriter": true,
       "browserReplayRequiredCases": 47,
       "browserReplayComplete": false,
-      "scope": "Exclusive frozen390 reuses the fixed isolated checkout from the complete current source including uncommitted changes at freeze time. Bootstrap18/types/bridge79/render35/snapshot29 and incremental36/36 pass; regression234/264 retains30 raw failures. Focused32-suite command is still running and has no final result JSON. No final frozen/reference/retention audit or full green result is inferred. Earlier closed failed340 remains preserved in prior attempts; later scoped407 positives do not replace either failed full revision."
+      "scope": "Frozen390 is closed failed. Bootstrap18/types/bridge79/render35/snapshot29 and incremental36/36 pass; regression234/264 retains30 failures. The focused32-suite raw log reports6754/6795 with41 failures, then Jest JSON serialization rejects an actual circular Error; no focused machine result or retention qualification is inferred. Final frozen source/native, reference graph and continuously sampled canonical temp hold. Earlier340 and155 checkpoints remain historical; later bounded positives do not replace full acceptance.",
+      "focusedMachineResultAvailable": false,
+      "focusedRawLogPassed": 6754,
+      "focusedRawLogFailed": 41,
+      "focusedRawLogTotal": 6795,
+      "focusedRawLogSuitesPassed": 26,
+      "focusedRawLogSuitesFailed": 6,
+      "frozenSourceAndNativeHeld": true,
+      "referenceGraphHeld": true,
+      "canonicalReferenceTempHeld": true,
+      "originalNameRetentionQualified": false
     },
     "priorFullAcceptanceAttempts": [
       {
@@ -1001,6 +1011,54 @@
       "broaderInstalledPreservationPending": true,
       "sharedRscProducerAndConsumerPacketsNotFunctionalityQualified": true,
       "stableReady": false
+    },
+    "currentRoot419Verification": {
+      "signedLocalFunctionalCommits": [
+        "cb0fdafaefa4a2b7cf7244065dee1d0dfa698a7a",
+        "5026091862d79f82d74fe2c834e9207a50142e5c",
+        "f4cc80412a513706b1a1cfe9def4b692fb2b191e"
+      ],
+      "priorSignedTypeReporterWatchCommits": [
+        "e276f240bcf147b18026ba6f0a98bb6fdf68610e",
+        "635b5e8943c879bc1e61d47c840c68ded4dc1ea0",
+        "185703388579e3b3a00a8ba37d52f562a15978b3"
+      ],
+      "SourceAndInstalledCommonJsWholeModelsEach": 18,
+      "SourceAndInstalledSignalProfilesEach": 4,
+      "SourceAndInstalledShadowProfilesEach": 2,
+      "laterUninstrumentedSourceAndInstalledPromiseProfilesEach": 4,
+      "newDurableCommonJsNormalJest": 3,
+      "fullBootstrap18AndBothTypesPassed": true,
+      "Root419MixedSelection": {
+        "passed": 462,
+        "failed": 2,
+        "total": 464,
+        "bothFailedControlsPassSequentially": true,
+        "originalFailuresRetainedAndUnassigned": true,
+        "selectionIncorrectlyIncludedActualWorkersInConcurrentPureBatch": true
+      },
+      "earlierPromiseOwnership": {
+        "failedRuns": 3,
+        "authoredCasesAndReportsPassed": true,
+        "verifierTimeoutAndKillEPERMRetained": true,
+        "laterInstrumentationAndOriginalRunsPass": true,
+        "noCausalFixOrDeadlineChangeClaim": true
+      },
+      "RootAndInstalledCompiledFiles": 9611,
+      "installedPackageSHA256": "1cdefa7b2869646f1fa93c91787b1cae273278f6fdd9af112488969a6572c61f",
+      "currentNativeSHA256": "71d1003dd6753375c4c1adb2a6efa2c6a9a39b2925a123f4e301f4aa9d61252c",
+      "noVitestViteMockerOrFormatterInInstalledPackage": true,
+      "sourceAndInstalledWatchGenerationsEachOn416": 5,
+      "sourceAndInstalledReporterModelsEachOn416": 12,
+      "sourceAndInstalledStrictTypeProgramsEachOn415": 320,
+      "olderSharedRscWatchFoundationStillUnqualified": true,
+      "stableReady": false
+    },
+    "currentOwnedFilesystemWatch420": {
+      "signedLocalCommit": "f412cc9b45f75312b79a4252140d57108f19b389",
+      "completeIntegratedControls": 142,
+      "allPassed": true,
+      "sharedRscWatchFoundationStillUnqualified": true
     }
   },
   "qualification": {
@@ -1031,16 +1089,16 @@
   },
   "summary": {
     "referenceApis": 776,
-    "declarations": { "available": 285, "absent": 297, "notApplicable": 194 },
+    "declarations": { "available": 295, "absent": 287, "notApplicable": 194 },
     "implementation": {
-      "scoped": 80,
-      "partial": 271,
-      "missing": 404,
+      "scoped": 90,
+      "partial": 272,
+      "missing": 393,
       "unreviewed": 21
     },
     "evidenceGroups": {
-      "scoped": 11,
-      "partial": 59,
+      "scoped": 16,
+      "partial": 60,
       "missing": 10,
       "unreviewed": 5
     },
@@ -2540,10 +2598,9 @@
         "Remaining authored API/editor/watch-trigger/debug configuration forms; configured initial watch and one-shot result paths have separate partial evidence."
       ],
       "workstream": "scheduling-tooling",
-      "implemented": "The remaining API/editor/watch-trigger/debug configuration forms are unimplemented. Positive configured initial watch functionality is tracked in its own group; existing CLI-only behavior does not substitute for these authored options.",
+      "implemented": "Remaining API/editor/debug configuration forms stay unimplemented. Watch-trigger patterns now have separate bounded functional evidence; configured initial watch and one-shot result paths retain their separate partial evidence.",
       "remaining": [
         "Implement configured API/UI/debug and watch-trigger options beyond the separately measured configured initial watch and one-shot reporter/output subsets.",
-        "Watch-trigger extension points and UI behavior",
         "Preserve actual lifecycle and reporter semantics when adding configuration forms"
       ],
       "evidence": [
@@ -3571,6 +3628,148 @@
         "test/unit/next-testing-configured-watch/next-testing-configured-watch.test.ts",
         "test/unit/next-testing-configured-watch/reference.json",
         "test/unit/next-testing-configured-watch/verify.mjs"
+      ]
+    },
+    {
+      "id": "authoring-qualified-snapshot-and-task-root-types",
+      "status": "scoped",
+      "capabilityPaths": [
+        "authoring.publicDeclarationTypes",
+        "authoring.typeAssertionScope"
+      ],
+      "profiles": [
+        "Strict actual public package consumer programs on Node20/22/24/26; pinned5.0.4 declarations with repository config/global augmentations"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "Ten root type exports match the pinned target identities and positive/negative contracts: six snapshot types and TaskState, TestExecutionMethod, TestTryOptions, ExternalResult. Normal primitive declaration generation changes only the Node and Browser declaration exports; runtime JS/licenses stay byte-identical. All80 strict programs per engine (38 new and42 preserved) pass against normally built Source and the actual installed package,640 actual programs total, without Vitest/Vite/formatter declaration dependencies. Signed local e276f240bc records the exact48 files.",
+      "remaining": [
+        "Other17 root type contracts remain separately missing or unqualified.",
+        "These type contracts do not establish complete runtime snapshot, collector, benchmark or release functionality."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/bundles/next-test-primitives/index.d.ts",
+        "packages/next/src/bundles/next-test-primitives/browser/index.d.ts",
+        "packages/next/src/compiled/next-test-primitives/index.d.ts",
+        "packages/next/src/compiled/next-test-primitives/browser/index.d.ts",
+        "test/unit/next-testing-assertions/snapshot-root-exports.cjs",
+        "test/unit/next-testing-assertions/standalone-target-types.cjs",
+        "test/unit/next-testing-assertions/fixtures/snapshot-root-exports/reference.json",
+        "test/unit/next-testing-assertions/fixtures/standalone-target-types/reference.json"
+      ]
+    },
+    {
+      "id": "configuration.ordered-watch-trigger-patterns",
+      "status": "partial",
+      "capabilityPaths": ["features.watch"],
+      "profiles": [
+        "Actual development Node watch with root configuration and two inline projects; full five-generation Source and installed runs on Node26, genuine models on Node20/22/24/26"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Real configuration-realm RegExp match callbacks retain receiver, named groups, state and delivered order. Actual string/array mappings override imported-file selection, null falls back, empty arrays suppress scheduling for the complete30-second observation and an empty-string requested path produces the real failed zero-test report. Source and installed match every genuine standard JSON field across five terminal generations and separately validate Next envelopes/API/events. The actual retained trigger owner with no global setup supplies fresh cloned provide values without repeating one-shot setup; actual global-setup requests are never skipped. Six real configuration-worker lifecycle controls and273 selected pure/ownership controls pass. Signed1857033885 excludes the four earlier unqualified shared-RSC watch hunks while preserving them unchanged in the working tree.",
+      "remaining": [
+        "Asynchronous mapper/error presentation, dynamic config edits, external-project retained owners and global-setup compositions require separate complete runtime qualification.",
+        "Browser/RSC/production execution combinations and full tooling/editor/watch compatibility remain required.",
+        "The separate shared-RSC watch foundation remains unqualified and is not completed functionality."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config-watch-triggers.ts",
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/experimental/testing/config-modules.ts",
+        "packages/next/src/experimental/testing/config-worker.ts",
+        "packages/next/src/experimental/testing/incremental/watch-trigger-selection.ts",
+        "packages/next/src/experimental/testing/watch-orchestrator.ts",
+        "test/unit/next-testing-watch-trigger-patterns/verify.mjs",
+        "test/unit/next-testing-watch-trigger-patterns/reference.json",
+        "test/unit/next-testing-watch-trigger-patterns/retained-context.cjs",
+        "test/unit/next-testing-watch-trigger-patterns/ordering.test.ts"
+      ]
+    },
+    {
+      "id": "mocking-original-commonjs-require-and-esm-factory",
+      "status": "scoped",
+      "capabilityPaths": ["features.staticFactoryMocks.commonJsFactories"],
+      "profiles": [
+        "Actual normally built Source and separately installed package; exact pinned5.0.4 reference models within the stated execution bounds"
+      ],
+      "workstream": "mocking",
+      "implemented": "An eligible isolated development Node leaf CommonJS module retains its actual original require/evaluation/cache while the same target has an explicit ESM object factory. Actual resolved module identity, lazy original evaluation, namespace descriptors and static/dynamic cache identity match18 complete Source and18 installed reference models across measured Node20/22/24/26 roles. Real missing-export Errors preserve the measured name/message/own fields/no-cause/codeFrame; raw stacks stay untouched. The appended existing compiler controls and generated durable three-variant real-native regression suite pass. Signed local cb0fdafaef records5 product/compiler paths and13 additive fixture files; normal full18 bootstrap, both repository types,170 Rust controls and189 mocking controls pass in the recorded coherent owner/integration revisions.",
+      "remaining": [
+        "Production, cycles with hoisted factories, runtime registration/reset/shared/coverage and additional factory/module shapes remain required functional work.",
+        "Full raw stack and complete error-presentation equality remain unqualified; refusing other profiles does not complete them."
+      ],
+      "evidence": [
+        "crates/next-api/src/testing.rs",
+        "crates/next-api/src/testing_mock_graph.rs",
+        "crates/next-api/src/testing_mock_source.rs",
+        "packages/next/src/experimental/testing/mocking/runtime.ts",
+        "test/unit/next-testing-cjs-require-composition/verify.mjs",
+        "test/unit/next-testing-cjs-require-composition/reference.json",
+        "test/unit/next-testing-cjs-require-composition/next-testing-cjs-require-composition.test.ts"
+      ]
+    },
+    {
+      "id": "browser-intrinsic-abort-signal-listener-state",
+      "status": "scoped",
+      "capabilityPaths": ["execution.browser", "features.browserUserEvent"],
+      "profiles": [
+        "Actual normally built Source and separately installed package; exact pinned5.0.4 reference models within the stated execution bounds"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Actual Browser event-listener bookkeeping reads the captured native AbortSignal aborted getter after successful native registration, preserving accepted iframe signals and native brand errors without reading an authored own aborted getter. Source and installed each match4 development/production Chromium profiles and16 cases, including actual input-event fields, listener removal and abort ownership. Separate actual Node/JSDOM realm controls pass. Signed local5026091862 retains every authored body and reference. The unchanged Promise preservation corpus later passes4 clean profiles in both lanes; earlier timeout/EPERM evidence remains retained without a causal fix claim.",
+      "remaining": [
+        "Mixed internal Node EventTarget/JSDOM signal roles, additional engines, other event types and broader cancellation/concurrency combinations remain unqualified.",
+        "This bounded listener-state repair does not establish every constructor, signal, input, utility or Browser runtime contract."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/client/async-context.ts",
+        "test/unit/next-testing-input-event-signals/verify.mjs",
+        "test/unit/next-testing-input-event-signals/reference.json",
+        "test/unit/next-testing-input-event-signals/listener-realms.cjs"
+      ]
+    },
+    {
+      "id": "browser-open-shadow-query-and-native-target-identity",
+      "status": "scoped",
+      "capabilityPaths": [
+        "features.browserRendering",
+        "features.browserUserEvent"
+      ],
+      "profiles": [
+        "Actual normally built Source and separately installed package; exact pinned5.0.4 reference models within the stated execution bounds"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Browser serialized query locators use the existing selector engine and locator formatter to resolve through open shadow roots, so native actions and expect.element observe the same actual node. Complete Source and installed development/production Chromium models match8 cases per lane, including hydration, portal context, fill and query forms; the owner also preserves102 prior command controls and48 signal/Promise cases. Strict zero/multiple matching and the separate legacy helper path stay intact. Signed local f4cc80412a adds the maintained rendering fixture and exact genuine reference.",
+      "remaining": [
+        "Closed shadow roots, iframe rendering, other engines and broader rerender/isolation/concurrency combinations remain unqualified.",
+        "Normal route/layout, streaming, navigation, cache/PPR and production rendering fidelity retain their separate required contracts."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/client/browser-context.ts",
+        "test/unit/app-dir/next-testing-shadow-rendering/verify.mjs",
+        "test/unit/app-dir/next-testing-shadow-rendering/reference.json",
+        "test/unit/app-dir/next-testing-shadow-rendering/rendering.test.mjs.txt"
+      ]
+    },
+    {
+      "id": "tooling-owned-filesystem-watch-source-lifetime",
+      "status": "scoped",
+      "capabilityPaths": ["features.watch"],
+      "profiles": [
+        "Normally built Source filesystem-watch controls and owned worker/helper operations in the existing integration checkout"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Default filesystem subscriptions are opened inside the existing owned source worker rather than the caller. The native subscription/reconciliation engine stays in process within that owner. All142 integrated filesystem-watch controls pass with the original assertions, including source/config/setup edits, output exclusions, subscription failure and close behavior. Only previously user-approved native-engine test bindings and parent-gate notification corrections are included. Signed local f412cc9b45 commits the five-file step; normal build and repository/Next types pass.",
+      "remaining": [
+        "Complete Browser/RSC/production watch combinations, rapid edits, failure/crash/interrupt permutations and platform qualification remain required.",
+        "The separate shared-RSC watch foundation is preserved unqualified; these filesystem controls do not establish native shared rendering generations."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/incremental/watch-files.ts",
+        "packages/next/src/experimental/testing/incremental/watch-source-engine.ts",
+        "packages/next/src/experimental/testing/incremental/watch-source-process.ts",
+        "test/unit/app-dir/next-testing-watch/next-testing-watch.test.ts",
+        "test/unit/app-dir/next-testing-watch/watch-owned-source.mjs"
       ]
     }
   ],
@@ -5567,10 +5766,8 @@
       "classification": "Missing or unverified",
       "declaration": { "status": "not-applicable" },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": [
-          "configuration.reporting-editor-watch-and-debug-options"
-        ]
+        "status": "partial",
+        "evidenceGroups": ["configuration.ordered-watch-trigger-patterns"]
       }
     },
     {
@@ -8730,12 +8927,12 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["authoring-unexported-target-types"]
+        "status": "scoped",
+        "evidenceGroups": ["authoring-qualified-snapshot-and-task-root-types"]
       }
     },
     {
@@ -9345,12 +9542,12 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["authoring-unexported-target-types"]
+        "status": "scoped",
+        "evidenceGroups": ["authoring-qualified-snapshot-and-task-root-types"]
       }
     },
     {
@@ -9359,12 +9556,12 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["authoring-unexported-target-types"]
+        "status": "scoped",
+        "evidenceGroups": ["authoring-qualified-snapshot-and-task-root-types"]
       }
     },
     {
@@ -9387,12 +9584,12 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["authoring-unexported-target-types"]
+        "status": "scoped",
+        "evidenceGroups": ["authoring-qualified-snapshot-and-task-root-types"]
       }
     },
     {
@@ -9415,12 +9612,12 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["authoring-unexported-target-types"]
+        "status": "scoped",
+        "evidenceGroups": ["authoring-qualified-snapshot-and-task-root-types"]
       }
     },
     {
@@ -9429,12 +9626,12 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["authoring-unexported-target-types"]
+        "status": "scoped",
+        "evidenceGroups": ["authoring-qualified-snapshot-and-task-root-types"]
       }
     },
     {
@@ -9555,12 +9752,12 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["authoring-unexported-target-types"]
+        "status": "scoped",
+        "evidenceGroups": ["authoring-qualified-snapshot-and-task-root-types"]
       }
     },
     {
@@ -9751,12 +9948,12 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["authoring-unexported-target-types"]
+        "status": "scoped",
+        "evidenceGroups": ["authoring-qualified-snapshot-and-task-root-types"]
       }
     },
     {
@@ -9852,12 +10049,12 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["authoring-unexported-target-types"]
+        "status": "scoped",
+        "evidenceGroups": ["authoring-qualified-snapshot-and-task-root-types"]
       }
     },
     {
@@ -9877,12 +10074,12 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["authoring-unexported-target-types"]
+        "status": "scoped",
+        "evidenceGroups": ["authoring-qualified-snapshot-and-task-root-types"]
       }
     },
     {
