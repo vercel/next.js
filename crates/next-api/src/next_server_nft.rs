@@ -316,7 +316,7 @@ fn next_owned_ignores(
     ];
 
     if !has_native_routes {
-        globs.push(rcstr!("**/next/dist/server/lib/native-route.external.js"));
+        globs.push(rcstr!("**/next/dist/server/lib/native-route*.js"));
     }
 
     // only ignore image-optimizer code when

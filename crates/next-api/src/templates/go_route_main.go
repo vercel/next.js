@@ -3,24 +3,13 @@ package main
 import (
 	"context"
 	"crypto/subtle"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 )
-
-type nextGoParamsKey struct{}
-
-// ParamValues returns decoded route parameters, including individual catch-all segments.
-func ParamValues(r *http.Request, name string) []string {
-	params, _ := r.Context().Value(nextGoParamsKey{}).(map[string][]string)
-	return params[name]
-}
 
 func main() {
 	token := os.Getenv("__NEXT_GO_TOKEN")
@@ -31,30 +20,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	handler := nextGoRouteHandler()
+	handler := nextGoHandler()
 	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Next-Go-Token")), []byte(token)) != 1 {
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
-		params := map[string][]string{}
-		encoded, err := base64.RawURLEncoding.DecodeString(r.Header.Get("X-Next-Go-Params"))
-		if err != nil || json.Unmarshal(encoded, &params) != nil {
-			http.Error(w, "Invalid route parameters", http.StatusBadRequest)
-			return
-		}
-		r.Header.Del("X-Next-Go-Token")
-		r.Header.Del("X-Next-Go-Params")
-		for name, values := range params {
-			r.SetPathValue(name, strings.Join(values, "/"))
-		}
-		r = r.WithContext(context.WithValue(r.Context(), nextGoParamsKey{}, params))
-		defer func() {
-			if recovered := recover(); recovered != nil {
-				fmt.Fprintln(os.Stderr, "native route panic:", recovered)
-				panic(http.ErrAbortHandler)
-			}
-		}()
 		handler(w, r)
 	})}
 	shutdownDone := make(chan struct{})
