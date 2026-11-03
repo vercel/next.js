@@ -50,7 +50,7 @@ use crate::{
         esm::{
             EsmExport,
             export::{SubsumedImports, all_known_export_names, is_export_missing},
-            mangle::generated_export_key,
+            mangle::{flat_export_group, generated_export_key},
         },
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
@@ -336,7 +336,13 @@ impl ReferencedAsset {
                     }
                 }
 
-                let import_source = ImportSource::new_module(*asset, chunking_context).await?;
+                let target =
+                    if let Some(group) = *flat_export_group(**asset, chunking_context).await? {
+                        group.await?.entry
+                    } else {
+                        *asset
+                    };
+                let import_source = ImportSource::new_module(target, chunking_context).await?;
                 Some(ReferencedAssetIdent::Module {
                     ctxt: None,
                     // The target module may emit its exports under shortened keys. This is the

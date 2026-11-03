@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/flat-hoisted-namespace/input/first.js","turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/flat-hoisted-namespace/input/second.js"],"sourcesContent":["export const sameLongExportName = 'first'\nexport const a = 'first-short'\n","export const sameLongExportName = 'second'\nexport const a = 'second-short'\n"],"names":["sameLongExportName","a"],"mappings":";;AAAO,MAAMA,qBAAqB;AAC3B,MAAMC,IAAI;;;;;;;;;;;ACDV,MAAMD,sBAAqB;AAC3B,MAAM,KAAI"}},
+    {"offset": {"line": 33, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/flat-hoisted-namespace/input/index.js"],"sourcesContent":["import { sameLongExportName as first, a as firstShort } from './first'\nimport * as second from './second'\n\nconsole.log(first, firstShort, Object.keys(second), second)\nimport('./lazy').then(({ read }) => console.log(read()))\n"],"names":["console","log","Object","keys","imported module [project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/flat-hoisted-namespace/input/second.js [test] (ecmascript)","then","read"],"mappings":"AAAA;AACA;;;AAEAA,QAAQC,GAAG,CAAC,oOAAK,EAAE,oOAAU,EAAEC,OAAOC,IAAI,CAACC,mOAASA;AACpD,2KAAiBC,IAAI,CAAC,CAAC,EAAEC,IAAI,EAAE,GAAKN,QAAQC,GAAG,CAACK"}}]
+}
