@@ -67,6 +67,7 @@ export interface TestUserConfig {
   sequence?: ConfigurationSequence
   projects?: TestProjectConfiguration[]
   watch?: boolean
+  inspect?: boolean | string
   watchTriggerPatterns?: TestWatchTriggerPattern[]
   shard?: string
   testNamePattern?: string | RegExp
@@ -89,6 +90,7 @@ type ProjectTestSettings = Omit<
   | 'snapshotFormat'
   | 'sequence'
   | 'watch'
+  | 'inspect'
   | 'watchTriggerPatterns'
   | 'shard'
   | 'testNamePattern'

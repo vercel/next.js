@@ -852,6 +852,12 @@ program
     '--inspect [address]',
     'Inspect the actual test worker at [host:]port (default 127.0.0.1:9229).'
   )
+  .addOption(
+    new Option(
+      '--no-inspect',
+      'Disable configured test worker inspection.'
+    ).default(undefined)
+  )
   .option(
     '--inspectBrk [address]',
     'Inspect and pause the test worker before entry evaluation (default 127.0.0.1:9229).'

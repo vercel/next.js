@@ -54,6 +54,7 @@ import { discoverTests } from '../experimental/testing/discovery'
 import { configDefaults } from '../experimental/testing/config-api'
 import {
   parseTestInspectAddress,
+  parseConfiguredTestInspectAddress,
   parseTestInspectBrkAddress,
 } from '../experimental/testing/execution/inspector'
 import {
@@ -201,7 +202,7 @@ export async function nextTestRunner(
   const cliStandardCoverageOptions = standardCoverageOptions
   const breakAddress = parseTestInspectBrkAddress(options.inspectBrk)
   const inspectBrk = breakAddress !== undefined
-  const inspect = inspectBrk
+  let inspect = inspectBrk
     ? (parseTestInspectBrkAddress(options.inspect) ?? breakAddress)
     : parseTestInspectAddress(options.inspect)
   const isTTY =
@@ -454,6 +455,15 @@ export async function nextTestRunner(
             options['coverage.provider']
           )
         : await openTestConfiguration(projectDir, controller.signal)
+    const configuredInspect =
+      options.inspect === undefined
+        ? parseConfiguredTestInspectAddress(configuration.config.inspect)
+        : undefined
+    if (configuredInspect !== undefined) inspect = configuredInspect
+    if (inspect && (options.list || options.coverage || options.mergeReports))
+      throw new Error(
+        '--inspect currently requires a one-shot execution without coverage.'
+      )
     const configuredWatch = options.watch ?? configuration.config.watch
     if (
       options.watch === undefined &&
@@ -527,6 +537,20 @@ export async function nextTestRunner(
           }
         : parsedConfig
     if (
+      configuredInspect !== undefined &&
+      (config.projects.length !== 1 ||
+        config.projects.some(
+          (project) =>
+            project.isolate === false ||
+            project.profile.environment !== 'node' ||
+            project.profile.route !== undefined ||
+            project.executionEnvironment !== undefined
+        ))
+    )
+      throw new Error(
+        'Configured inspect currently requires one isolated ordinary Node project without routes or custom environments.'
+      )
+    if (
       config.projects.some((project) => project.typecheck?.enabled) &&
       (options.watch || options.list || inspect || options.coverage)
     ) {
@@ -550,6 +574,17 @@ export async function nextTestRunner(
       project: options.project,
       files: options.filter,
     })
+    if (
+      configuredInspect !== undefined &&
+      projects.some((project) =>
+        project.entries.some(
+          (entry) => entry.executionEnvironment !== undefined
+        )
+      )
+    )
+      throw new Error(
+        'Configured inspect currently requires one isolated ordinary Node project without routes or custom environments.'
+      )
     const configuredCoverage = resolveProjectStandardCoverage(
       projects,
       coverageFlags,

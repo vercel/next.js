@@ -98,6 +98,8 @@ export interface TestConfig {
   compatibility: 'vitest'
   /** Root session mode; project settings do not inherit this selection. */
   watch?: boolean
+  /** Root-owned ordinary worker inspection; never inherited by projects. */
+  inspect?: boolean | string
   maxWorkers: number
   fileParallelism?: boolean
   cache?: boolean | { dir: string }
@@ -279,6 +281,7 @@ export function parseTestConfig(
       'maxWorkers',
       'fileParallelism',
       'watch',
+      'inspect',
       'testNamePattern',
       'cache',
     ],
@@ -309,6 +312,12 @@ export function parseTestConfig(
     invalid('config.fileParallelism must be a boolean.')
   if (config.watch !== undefined && typeof config.watch !== 'boolean')
     invalid('config.watch must be a boolean.')
+  if (
+    config.inspect !== undefined &&
+    typeof config.inspect !== 'boolean' &&
+    typeof config.inspect !== 'string'
+  )
+    invalid('config.inspect must be a boolean or string.')
   let cache: TestConfig['cache']
   if (config.cache !== undefined) {
     if (typeof config.cache === 'boolean') cache = config.cache
@@ -347,6 +356,9 @@ export function parseTestConfig(
       : { snapshotFormat: parseSnapshotFormat(config.snapshotFormat) }),
     compatibility: 'vitest',
     ...(config.watch === undefined ? {} : { watch: config.watch as boolean }),
+    ...(config.inspect === undefined
+      ? {}
+      : { inspect: config.inspect as boolean | string }),
     ...(cache === undefined ? {} : { cache }),
     ...(config.fileParallelism === undefined
       ? {}
@@ -977,6 +989,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
     maxWorkers,
     fileParallelism,
     watch,
+    inspect,
     name,
     cache,
     reporters,
@@ -993,6 +1006,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
         maxWorkers,
         fileParallelism,
         watch,
+        inspect,
         cache,
         reporters,
         outputFile,
@@ -1012,6 +1026,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
       maxWorkers,
       fileParallelism,
       watch,
+      inspect,
       cache,
       reporters,
       outputFile,

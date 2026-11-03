@@ -710,6 +710,10 @@ export async function openTestProjectModules(
         ...compilerOptions,
         test: { ...settings, name },
       })
+      if (config.inspect !== undefined)
+        throw new Error(
+          `Project configuration ${file} cannot select inspection yet; configure inspect on the root test configuration.`
+        )
       if (config.fileParallelism !== undefined)
         throw new Error(
           `Project configuration ${file} cannot select fileParallelism yet; configure it on the root test configuration.`
