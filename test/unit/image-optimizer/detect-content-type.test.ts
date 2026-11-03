@@ -108,6 +108,22 @@ describe('detectContentType', () => {
     const buffer = await getImage('./images/test.avif')
     expect(await detectContentType(buffer)).toBe('image/avif')
   })
+  it('should return svg for svg that looks like an avif ftyp box', async () => {
+    const buffer = Buffer.from(
+      '<!--ftypavif--><svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'
+    )
+    expect(await detectContentType(buffer)).toBe('image/svg+xml')
+  })
+  it('should not return avif or heic for text with an ftyp brand at offset 4', async () => {
+    for (const brand of ['avif', 'heic']) {
+      expect(
+        await detectContentType(Buffer.from(`<!--ftyp${brand}--><html></html>`))
+      ).not.toBe(brand === 'avif' ? 'image/avif' : 'image/heic')
+      expect(
+        await detectContentType(Buffer.from(`abcdftyp${brand}-padding`))
+      ).toBe(null)
+    }
+  })
   it('should return icon', async () => {
     const buffer = await getImage('./images/test.ico')
     expect(await detectContentType(buffer)).toBe('image/x-icon')
