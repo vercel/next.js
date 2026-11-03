@@ -13,6 +13,97 @@ is recorded in the generated inventory and lockfile. The supported stable range
 is undecided, `stableReady` remains false, and no stable exception is approved.
 This is an implementation checkpoint, not graduation of the experiment.
 
+## Current recorded status — November 3, 2026
+
+The implementation is pushed through `d1a103d6fd274e13a0c0450d25054fc9d2c31c20`
+to draft [PR #98869](https://github.com/vercel/next.js/pull/98869), on
+`codex/experiment-next-test`. The fast-forward publishes 156 commits since the
+previous PR head. The entries below this current-status section are historical
+checkpoints; their earlier “nothing pushed” or “acceptance running” statements
+describe their recorded time. This inventory refresh is a separate local change.
+
+Signed `7fd43891f1` adds measured production original CommonJS require/ESM factory
+composition: eight complete Source and eight installed profiles, 194 controls and
+five production omission cases pass. Active native D188 retains 59 inputs, ten
+raw runtimes and the official ABI; 170 Rust controls pass. Reset/runtime/hoisted
+cycle and broader graph/profile combinations remain open.
+
+Signed `21eef2d7b4` and `c0de101fbc` prepare retained custom-provider values and
+drain actual task callbacks before stopping capture. Source and installed each
+match nine complete exit/trace/report lifecycle models; 72 ownership/protocol
+controls pass. Provider stop-failure policy, asynchronous suite-return behavior,
+public SIGINT, generic errors/stacks and broader profiles remain required.
+
+Signed `a0c9425fa3` and `d1a103d6fd` add measured runtime viewport changes for
+Chromium main frames and owned Firefox direct-child test frames, plus actual
+polling deadline-race/global-override behavior. Real native viewport operations,
+responsive layout/media models and polling effects match the recorded genuine
+profiles. Arbitrary frames, watch/cancellation, WebKit viewport and complete
+error/resize-order/realm compatibility remain open. `expect.poll` and the broad
+Browser/configuration API rows remain partial.
+
+Signed `bfcab2f93b` adds actual SuiteCollector returns, deferred normal factories,
+first collection rejection and file-load ownership, with strict SuiteAPI and
+collector declarations. Current installed verification passes 32 whole Node
+profiles, 112 actual strict programs across Node 20/22/24/26 and six Browser
+profiles. Only `SuiteAPI` and `SuiteCollector` gain scoped API status in this
+refresh. The 776 reference names, surfaces, overloads and all release
+classifications are retained: **92 scoped, 272 partial, 392 missing, 20 unreviewed**;
+declarations **296 available, 286 absent, 194 not applicable**. These are API rows,
+not a completion percentage; release-compatible remains zero.
+
+Signed `9401e3f2a6` adds the measured shared explicit-route, one-project, one-worker
+development Node/Turbopack RSC watch cohort with `isolate:false` and snapshot mode
+`none`. Three complete generations pass in Source and installed runs, preserving
+actual rendering/cache rows and physical cleanup. The ordinary reference needs
+its cooperative shutdown flags; default detached shutdown, shared production,
+local default snapshot mode, cancellation and broader configurations remain open.
+
+The newer integrated checkpoint 426 Source selection passes five CLI/editor,
+72 custom ownership, eight Browser and two shared RSC watch tests. Its full lifecycle suite is
+**369/372**, with three original declaration-fn helper timeouts. The later
+10-profile own-property observer pass proves neither a product fix nor the cause
+of the historical shutdown delay; four historical owner receipts remain
+incomplete. The installed checkpoint 426 sweep passes all 41 groups plus six Suite Browser
+and nine custom-provider models. Before the metadata refresh, 196 integrated
+source paths remained exact through formatting/lint, the full 18-task bootstrap
+and root/Next type checks. None of these scoped results replaces full acceptance.
+
+The frozen checkpoint 421 acceptance run is now **closed and failed** on raw tree
+`01b93ed8752a04021c5217588bfec008b426c293`, base `120669673e` and older native 71d:
+
+| Check             | Passed | Failed | Total |
+| ----------------- | -----: | -----: | ----: |
+| Focused           |  7,051 |     17 | 7,068 |
+| Regression        |    240 |     24 |   264 |
+| Incremental/watch |     35 |      1 |    36 |
+| RSC bridge        |     79 |      0 |    79 |
+| Rendering         |     35 |      0 |    35 |
+| Snapshot parent   |     29 |      0 |    29 |
+
+All ordinary result JSONs exist. The 50 focused suites have 45 passing and five
+failing suites. Frozen source/native, reference graph and continuously sampled
+canonical reference temp checks hold. Six baseline test titles remain
+unreconciled in the original receipt; this proves neither removal nor complete
+retention. Every original failure remains required. Historical passing checkpoint 155,
+failed checkpoints 390/340 and the incomplete original 47-case Browser whole-oracle replay remain
+separate. A future full run must use a coherent newer integrated revision.
+
+Isolated BenchFn, Browser clock, fixture Context/Receiver/Order, Locator/DOM,
+WebKit viewport and native reset126 packets remain **pending integration** and
+are excluded from the counts above. The reset candidate's 174 Rust controls do
+not establish current Root runtime support. Locator production error text,
+DOM error formatting, Browser destructured callbacks, worker-fixture assertion
+ownership and the WebKit Source-development timeout remain explicit gaps.
+
+The checkpoint metadata now separates authoritative current fields from an
+explicit historical checkpoint, preserving every older recorded value. Stable
+readiness remains false, supported range null and approved exceptions empty.
+Documentation and migration examples remain the final step. Linux qualification
+and performance benchmarking remain deferred; benchmark API/type requirements
+remain required. Source stays local except for the authorized GitHub PR push;
+no remote sandbox source export is authorized.
+
 ## Focused verification workflow
 
 Use the saved full-run JSON to group failures by their earliest shared cause.
