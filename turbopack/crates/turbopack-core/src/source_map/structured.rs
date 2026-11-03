@@ -14,6 +14,10 @@
 //! serializer, so maps built via [`StructuredSourceMap::from_swc_map`] serialize byte-for-byte
 //! identically to what `swc_sourcemap::SourceMap::to_writer` would have produced (pinned by the
 //! golden tests below).
+//!
+//! In the persistent cache, sharing ropes doesn't avoid copies: every persisted map stores its own
+//! bytes. A module's map is therefore stored as a [`SplitSourceMap`], whose tail (everything after
+//! `sources`) is a cell that the maps of the module's factories reference.
 
 use std::sync::LazyLock;
 
@@ -21,9 +25,11 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use serde_json::value::RawValue;
-use turbo_tasks::NonLocalValue;
+use turbo_tasks::{NonLocalValue, ResolvedVc};
 use turbo_tasks_fs::rope::{Rope, RopeBuilder};
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
+
+use crate::code_builder::SectionMap;
 
 /// A single source map in structured form. See the module documentation.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Encode, Decode, NonLocalValue)]
@@ -364,117 +370,163 @@ impl StructuredSourceMap {
     /// Serializes the map. Field order matches `swc_sourcemap`'s serializer; `sourcesContent`
     /// and `mappings` ropes are shared, not copied, into the result.
     pub fn to_rope(&self) -> Rope {
-        // `key` is a literal identifier and `raw_json` holds a complete, valid JSON value
-        // (parsed as `RawValue` or produced by `serde_json` serialization), so neither needs
-        // escaping here.
-        fn field(
-            builder: &mut RopeBuilder,
-            first: &mut bool,
-            key: &'static str,
-            raw_json: Option<&Rope>,
-        ) {
-            if let Some(value) = raw_json {
+        let mut builder = RopeBuilder::default();
+        let mut first = true;
+        builder += "{";
+        self.write_head(&mut builder, &mut first);
+        self.write_tail(&mut builder, &mut first);
+        builder += "}";
+        builder.build()
+    }
+
+    /// Whether the map has any of the head fields, see [`StructuredSourceMap::split`].
+    fn has_head(&self) -> bool {
+        self.version.is_some() || self.file.is_some() || self.sources.is_some()
+    }
+
+    /// Splits the map into its head (`version`, `file` and `sources`, the fields that come
+    /// first in the serialized form) and the serialized bytes of everything after them (the
+    /// tail, through the closing `}`).
+    ///
+    /// `head.head_to_rope()` followed by the tail is exactly `self.to_rope()`. Rewriting the
+    /// head's `sources` (see [`StructuredSourceMap::rewrite_sources`]) doesn't change which head
+    /// fields are present, so the tail also completes a rewritten head: maps that only differ in
+    /// `sources` (e.g. one module's map rewritten for several chunking contexts) can share it.
+    pub fn split(self) -> (StructuredSourceMap, Rope) {
+        let mut builder = RopeBuilder::default();
+        let mut first = !self.has_head();
+        self.write_tail(&mut builder, &mut first);
+        builder += "}";
+        let head = StructuredSourceMap {
+            version: self.version,
+            file: self.file,
+            sources: self.sources,
+            ..Default::default()
+        };
+        (head, builder.build())
+    }
+
+    /// Serializes the head of a map split by [`StructuredSourceMap::split`]: the opening `{` and
+    /// the head fields, to be followed by the tail.
+    pub fn head_to_rope(&self) -> Rope {
+        debug_assert!(
+            !self.has_tail(),
+            "head_to_rope is only meant for a split head"
+        );
+        let mut builder = RopeBuilder::default();
+        let mut first = true;
+        builder += "{";
+        self.write_head(&mut builder, &mut first);
+        builder.build()
+    }
+
+    /// Whether the map has any of the fields that [`StructuredSourceMap::split`] moves to the
+    /// tail.
+    fn has_tail(&self) -> bool {
+        let mut builder = RopeBuilder::default();
+        let mut first = true;
+        self.write_tail(&mut builder, &mut first);
+        !first
+    }
+
+    /// Writes the head fields (`version`, `file`, `sources`), see [`StructuredSourceMap::split`].
+    fn write_head(&self, builder: &mut RopeBuilder, first: &mut bool) {
+        write_field(builder, first, "version", self.version.as_ref());
+        write_field(builder, first, "file", self.file.as_ref());
+        match &self.sources {
+            None => {}
+            Some(SourcesField::Raw(raw)) => {
+                write_field(builder, first, "sources", Some(raw));
+            }
+            Some(SourcesField::Rewritten(sources)) => {
                 if !*first {
                     *builder += ",";
                 }
                 *first = false;
-                *builder += "\"";
-                *builder += key;
-                *builder += "\":";
-                *builder += value;
-            }
-        }
-
-        let mut builder = RopeBuilder::default();
-        let mut first = true;
-        builder += "{";
-        field(&mut builder, &mut first, "version", self.version.as_ref());
-        field(&mut builder, &mut first, "file", self.file.as_ref());
-        match &self.sources {
-            None => {}
-            Some(SourcesField::Raw(raw)) => {
-                field(&mut builder, &mut first, "sources", Some(raw));
-            }
-            Some(SourcesField::Rewritten(sources)) => {
-                if !first {
-                    builder += ",";
-                }
-                first = false;
-                builder += "\"sources\":";
-                builder += &Rope::from(
+                *builder += "\"sources\":";
+                *builder += &Rope::from(
                     serde_json::to_vec(sources).expect("string serialization is infallible"),
                 );
             }
         }
-        field(
-            &mut builder,
-            &mut first,
-            "sourceRoot",
-            self.source_root.as_ref(),
-        );
+    }
+
+    /// Writes every field after the head fields, without the closing `}`.
+    fn write_tail(&self, builder: &mut RopeBuilder, first: &mut bool) {
+        write_field(builder, first, "sourceRoot", self.source_root.as_ref());
         match &self.sources_content {
             None => {}
             Some(SourcesContentField::Raw(raw)) => {
-                field(&mut builder, &mut first, "sourcesContent", Some(raw));
+                write_field(builder, first, "sourcesContent", Some(raw));
             }
             Some(SourcesContentField::Escaped(contents)) => {
-                if !first {
-                    builder += ",";
+                if !*first {
+                    *builder += ",";
                 }
-                first = false;
-                builder += "\"sourcesContent\":[";
+                *first = false;
+                *builder += "\"sourcesContent\":[";
                 for (i, content) in contents.iter().enumerate() {
                     if i > 0 {
-                        builder += ",";
+                        *builder += ",";
                     }
-                    builder += content;
+                    *builder += content;
                 }
-                builder += "]";
+                *builder += "]";
             }
         }
-        field(&mut builder, &mut first, "sections", self.sections.as_ref());
-        field(&mut builder, &mut first, "names", self.names.as_ref());
-        field(&mut builder, &mut first, "scopes", self.scopes.as_ref());
-        field(
-            &mut builder,
-            &mut first,
+        write_field(builder, first, "sections", self.sections.as_ref());
+        write_field(builder, first, "names", self.names.as_ref());
+        write_field(builder, first, "scopes", self.scopes.as_ref());
+        write_field(
+            builder,
+            first,
             "rangeMappings",
             self.range_mappings.as_ref(),
         );
-        field(&mut builder, &mut first, "mappings", self.mappings.as_ref());
-        field(
-            &mut builder,
-            &mut first,
-            "ignoreList",
-            self.ignore_list.as_ref(),
-        );
-        field(
-            &mut builder,
-            &mut first,
+        write_field(builder, first, "mappings", self.mappings.as_ref());
+        write_field(builder, first, "ignoreList", self.ignore_list.as_ref());
+        write_field(
+            builder,
+            first,
             "x_facebook_offsets",
             self.x_facebook_offsets.as_ref(),
         );
-        field(
-            &mut builder,
-            &mut first,
+        write_field(
+            builder,
+            first,
             "x_metro_module_paths",
             self.x_metro_module_paths.as_ref(),
         );
-        field(
-            &mut builder,
-            &mut first,
+        write_field(
+            builder,
+            first,
             "x_facebook_sources",
             self.x_facebook_sources.as_ref(),
         );
-        field(
-            &mut builder,
-            &mut first,
-            "debug_id",
-            self.debug_id_old.as_ref(),
-        );
-        field(&mut builder, &mut first, "debugId", self.debug_id.as_ref());
-        builder += "}";
-        builder.build()
+        write_field(builder, first, "debug_id", self.debug_id_old.as_ref());
+        write_field(builder, first, "debugId", self.debug_id.as_ref());
+    }
+}
+
+/// Writes `"key":value` (preceded by a comma unless it's the first field), if there is a value.
+///
+/// `key` is a literal identifier and `raw_json` holds a complete, valid JSON value (parsed as
+/// `RawValue` or produced by `serde_json` serialization), so neither needs escaping here.
+fn write_field(
+    builder: &mut RopeBuilder,
+    first: &mut bool,
+    key: &'static str,
+    raw_json: Option<&Rope>,
+) {
+    if let Some(value) = raw_json {
+        if !*first {
+            *builder += ",";
+        }
+        *first = false;
+        *builder += "\"";
+        *builder += key;
+        *builder += "\":";
+        *builder += value;
     }
 }
 
@@ -485,9 +537,117 @@ impl DeterministicHash for StructuredSourceMap {
     }
 }
 
+/// A [`StructuredSourceMap`] split by [`StructuredSourceMap::split`]: its head, and a [`Rope`]
+/// cell holding the serialized tail, owned by the task that created it.
+///
+/// A module's map is stored like this so that the maps derived from it, which only rewrite
+/// `sources` (one per chunking context the module's factory is generated for), can reference
+/// the tail instead of each persisting a copy of it (see [`SectionMap::Split`]). The tail is most
+/// of a map's bytes: `sourcesContent`, `names` and `mappings`.
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
+pub struct SplitSourceMap {
+    head: StructuredSourceMap,
+    tail: ResolvedVc<Rope>,
+}
+
+impl SplitSourceMap {
+    /// Splits `map`, storing its tail in a new cell of the current task.
+    pub fn new(map: StructuredSourceMap) -> Self {
+        let (head, tail) = map.split();
+        SplitSourceMap {
+            head,
+            tail: tail.resolved_cell(),
+        }
+    }
+
+    /// The head fields (`version`, `file` and `sources`).
+    pub fn head(&self) -> &StructuredSourceMap {
+        &self.head
+    }
+
+    /// The cell holding the serialized tail.
+    pub fn tail(&self) -> ResolvedVc<Rope> {
+        self.tail
+    }
+
+    /// A section map with `head` (this map's head, possibly with rewritten `sources`) followed
+    /// by this map's tail. Reads the tail.
+    pub async fn to_section_map(&self, head: StructuredSourceMap) -> Result<SectionMap> {
+        debug_assert_eq!(head.has_head(), self.head.has_head());
+        Ok(SectionMap::Split {
+            head: Box::new(head),
+            tail: self.tail,
+            tail_bytes: self.tail.owned().await?,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Asserts that `map`'s split head and tail reassemble into `map.to_rope()`, and that the
+    /// tail also completes the head with rewritten `sources`.
+    fn assert_split_reassembles(map: StructuredSourceMap) -> Result<()> {
+        let expected = map.to_rope().to_bytes().to_vec();
+        let rewritten = map.rewrite_sources(|source| Ok(Some(format!("rewritten/{source}"))))?;
+        let rewritten_expected = rewritten.to_rope().to_bytes().to_vec();
+
+        let (head, tail) = map.split();
+        let mut joined = head.head_to_rope().to_bytes().to_vec();
+        joined.extend_from_slice(&tail.to_bytes());
+        assert_eq!(joined, expected);
+
+        let rewritten_head =
+            head.rewrite_sources(|source| Ok(Some(format!("rewritten/{source}"))))?;
+        let mut joined = rewritten_head.head_to_rope().to_bytes().to_vec();
+        joined.extend_from_slice(&tail.to_bytes());
+        assert_eq!(joined, rewritten_expected);
+        Ok(())
+    }
+
+    #[test]
+    fn split_reassembles_swc_maps() -> Result<()> {
+        let mut builder = swc_sourcemap::SourceMapBuilder::new(Some("out.js".into()));
+        let src_a = builder.add_source("turbopack:///[project]/a.js".into());
+        let src_b = builder.add_source("turbopack:///[project]/dir/b\u{2028}c\"d\\e.js".into());
+        builder.set_source_contents(
+            src_a,
+            Some("let a = 1;\r\nconsole.log(\"hi\\n\", '\u{1F980}', `\u{2028}\u{0000}`);".into()),
+        );
+        builder.set_source_contents(src_b, None);
+        let name = builder.add_name("console".into());
+        builder.add_raw(0, 0, 0, 0, Some(src_a), Some(name), false);
+        builder.add_raw(0, 10, 1, 0, Some(src_b), None, false);
+        assert_split_reassembles(StructuredSourceMap::from_swc_map(builder.into_sourcemap())?)?;
+
+        // Without any source contents.
+        let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
+        let src = builder.add_source("turbopack:///[project]/a.js".into());
+        builder.add_raw(0, 0, 0, 0, Some(src), None, false);
+        assert_split_reassembles(StructuredSourceMap::from_swc_map(builder.into_sourcemap())?)
+    }
+
+    #[test]
+    fn split_reassembles_external_maps() -> Result<()> {
+        for input in [
+            // Verbatim `sources` and `sourcesContent`, including a lone surrogate escape.
+            r#"{"version":3,"sources":["a.js"],"sourcesContent":["x\ud800y"],"names":[],"mappings":"AAAA","ignoreList":[0]}"#,
+            // Undecodable `sources` (kept verbatim by a rewrite).
+            r#"{"version":3,"sources":["\ud800"],"names":[],"mappings":"AAAA"}"#,
+            // No `sources`.
+            r#"{"version":3,"file":"out.js","names":[],"mappings":""}"#,
+            // No head field at all: the tail starts the object.
+            r#"{"mappings":"AAAA","names":[]}"#,
+            // Only head fields: the tail is just the closing brace.
+            r#"{"version":3,"sources":["a.js"]}"#,
+            // An index map.
+            r#"{"version":3,"sections":[{"offset":{"line":0,"column":0},"map":{"version":3,"sources":["a.js"],"names":[],"mappings":"AAAA"}}]}"#,
+        ] {
+            assert_split_reassembles(StructuredSourceMap::from_json(&Rope::from(input))?)?;
+        }
+        Ok(())
+    }
 
     /// `to_rope(from_swc_map(m))` must be byte-identical to `m.to_writer()` — this pins the
     /// emitter to `swc_sourcemap`'s format so emitted maps (and snapshot fixtures) don't change.

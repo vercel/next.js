@@ -30,6 +30,18 @@ use crate::{
 pub enum SectionMap {
     Raw(Rope),
     Structured(Box<StructuredSourceMap>),
+    /// A map split by [`StructuredSourceMap::split`] (see
+    /// [`SplitSourceMap`](crate::source_map::structured::SplitSourceMap)): `head`, possibly
+    /// with rewritten `sources`, followed by the tail held by the `tail` cell, whose bytes are
+    /// `tail_bytes`.
+    ///
+    /// Stored as [`CodeCells`], the section map references `tail` instead of copying it, see
+    /// [`Code::resolved_code_cells`].
+    Split {
+        head: Box<StructuredSourceMap>,
+        tail: ResolvedVc<Rope>,
+        tail_bytes: Rope,
+    },
 }
 
 impl From<Rope> for SectionMap {
@@ -55,6 +67,12 @@ impl DeterministicHash for SectionMap {
                 state.write_u8(1);
                 map.deterministic_hash(state);
             }
+            SectionMap::Split { .. } => {
+                // Hashed like the `Raw` map with the same bytes: the cell is only where the tail
+                // is stored.
+                state.write_u8(0);
+                self.to_rope().deterministic_hash(state);
+            }
         }
     }
 }
@@ -64,7 +82,29 @@ impl SectionMap {
         match self {
             SectionMap::Raw(map) => map.clone(),
             SectionMap::Structured(map) => map.to_rope(),
+            SectionMap::Split {
+                head, tail_bytes, ..
+            } => {
+                let mut builder = RopeBuilder::default();
+                builder.concat(&head.head_to_rope());
+                builder.concat(tail_bytes);
+                builder.build()
+            }
         }
+    }
+
+    /// The map as a [`CellRope`]: a [`SectionMap::Split`] map references its tail cell, other
+    /// maps are inline.
+    fn to_cell_rope(&self) -> CellRope {
+        let mut builder = CellRopeBuilder::default();
+        match self {
+            SectionMap::Split { head, tail, .. } => {
+                builder.concat(&head.head_to_rope());
+                builder.push_cell(*tail);
+            }
+            SectionMap::Raw(_) | SectionMap::Structured(_) => builder.concat(&self.to_rope()),
+        }
+        builder.build()
     }
 }
 
@@ -87,19 +127,20 @@ pub struct Code {
     strict_directive: Option<usize>,
 }
 
-/// A [`Code`] stored as cells: the code bytes and each section's source map are separate
-/// [`Rope`] cells, owned by the task that created them.
+/// A [`Code`] stored as cells: the code bytes in a [`Rope`] cell and each section's source map in
+/// a [`CellRope`] cell, owned by the task that created them.
 ///
 /// [`Code`] is only hashed in the persistent cache, so this is how a piece of code (e.g. a module
 /// factory) is persisted. Keeping the bytes in their own cells lets composite outputs reference
-/// them through a [`CellRope`] instead of persisting a copy (see [`CodeCompositionBuilder`]).
+/// them through a [`CellRope`] instead of persisting a copy (see [`CodeCompositionBuilder`]). A
+/// section map can in turn reference another task's cell (see [`SectionMap::Split`]).
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub struct CodeCells {
     code: ResolvedVc<Rope>,
     /// The same byte offsets as [`Code`]'s mappings, with each map as a cell holding
-    /// [`SectionMap::to_rope`].
-    mappings: Vec<(usize, Option<ResolvedVc<Rope>>)>,
+    /// [`SectionMap::to_cell_rope`].
+    mappings: Vec<(usize, Option<ResolvedVc<CellRope>>)>,
     should_generate_debug_id: bool,
     /// Same as [`Code`]'s strict directive offset.
     strict_directive: Option<usize>,
@@ -122,7 +163,7 @@ impl CodeCells {
                 Ok((
                     *index,
                     match map {
-                        Some(map) => Some(SectionMap::Raw(map.owned().await?)),
+                        Some(map) => Some(SectionMap::Raw(map.await?.read().await?)),
                         None => None,
                     },
                 ))
@@ -148,6 +189,11 @@ impl CodeCells {
     /// The cell holding the byte range of the code's strict directive, if it has one.
     pub fn strict_directive_range(&self) -> ResolvedVc<OptionByteRange> {
         self.strict_directive_range
+    }
+
+    /// The cells holding the code's section maps, in order.
+    pub fn section_map_cells(&self) -> impl Iterator<Item = ResolvedVc<CellRope>> + '_ {
+        self.mappings.iter().filter_map(|(_, map)| *map)
     }
 }
 
@@ -178,7 +224,8 @@ impl Code {
     }
 
     /// Stores this `Code` as [`CodeCells`] in the current task: the code and each section map
-    /// become their own persisted [`Rope`] cells.
+    /// become their own persisted cells. A [`SectionMap::Split`] map's cell references its tail
+    /// cell instead of copying it.
     pub fn resolved_code_cells(self) -> ResolvedVc<CodeCells> {
         let mappings = self
             .mappings
@@ -186,7 +233,7 @@ impl Code {
             .map(|(index, map)| {
                 (
                     *index,
-                    map.as_ref().map(|map| map.to_rope().resolved_cell()),
+                    map.as_ref().map(|map| map.to_cell_rope().resolved_cell()),
                 )
             })
             .collect();
@@ -807,7 +854,7 @@ impl CodeComposition {
 
     /// The pieces' section maps that are cells, by their byte offset in the built code. Reads the
     /// pieces' bytes to compute the offsets.
-    async fn map_cells(&self) -> Result<FxHashMap<usize, ResolvedVc<Rope>>> {
+    async fn map_cells(&self) -> Result<FxHashMap<usize, ResolvedVc<CellRope>>> {
         let mut map_cells = FxHashMap::default();
         if !self.collect_mappings {
             return Ok(map_cells);
@@ -860,14 +907,14 @@ impl CodeComposition {
 }
 
 enum ComposedSection {
-    Cell(ResolvedVc<Rope>),
+    Cell(ResolvedVc<CellRope>),
     Inline(Rope),
 }
 
 impl ComposedSection {
     fn push_to(&self, rope: &mut CellRopeBuilder) {
         match self {
-            ComposedSection::Cell(cell) => rope.push_cell(*cell),
+            ComposedSection::Cell(cell) => rope.push_rope(*cell),
             ComposedSection::Inline(map) => rope.concat(map),
         }
     }
@@ -944,6 +991,7 @@ mod tests {
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
+    use crate::source_map::structured::SplitSourceMap;
 
     #[turbo_tasks::value]
     struct Text {
@@ -998,6 +1046,14 @@ mod tests {
 
     static COMPOSITION_EXECUTIONS: AtomicUsize = AtomicUsize::new(0);
 
+    /// How many parts of `rope` reference another cell (a section map's cell is referenced as a
+    /// nested rope).
+    fn referenced_parts(rope: &CellRope) -> usize {
+        rope.parts()
+            .filter(|part| !matches!(part, CellRopePart::Inline(_)))
+            .count()
+    }
+
     /// The structure-only task: `[<edited>,<fixed>]`.
     #[turbo_tasks::function]
     async fn composition(text: ResolvedVc<Text>) -> Result<Vc<CodeComposition>> {
@@ -1029,7 +1085,7 @@ mod tests {
         let composition = composition(*text).await?;
         let code = composition.build_code().await?;
         let map_rope = composition.generate_source_map(&code, None).await?;
-        let map_cells = map_rope.cell_count();
+        let map_cells = referenced_parts(&map_rope);
         let map = map_rope.read().await?;
 
         let mut flat = CodeBuilder::new(true, false);
@@ -1172,7 +1228,7 @@ mod tests {
         let composition = strict_composition(*text).await?;
         let code = composition.build_code().await?;
         let map_rope = composition.generate_source_map(&code, None).await?;
-        let map_cells = map_rope.cell_count();
+        let map_cells = referenced_parts(&map_rope);
         let map = map_rope.read().await?;
 
         let edited = edited_strict_piece(*text).to_code().await?;
@@ -1244,6 +1300,240 @@ mod tests {
                 "the composition must not re-execute"
             );
             assert_eq!(before.body, after.body);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// A module's source map, with `text` as its source's content.
+    fn module_map(text: &str) -> Result<StructuredSourceMap> {
+        StructuredSourceMap::from_json(&Rope::from(format!(
+            r#"{{"version":3,"sources":["module.js"],"sourcesContent":["{text}"],"names":[],"mappings":"AAAA"}}"#
+        )))
+    }
+
+    fn rewrite(map: &StructuredSourceMap, prefix: &str) -> Result<StructuredSourceMap> {
+        map.rewrite_sources(|source| Ok(Some(format!("{prefix}/{source}"))))
+    }
+
+    /// Like a module's content: the module's map, split, with the tail in this task's cell.
+    #[turbo_tasks::value(shared)]
+    struct ModuleMap {
+        map: SplitSourceMap,
+    }
+
+    #[turbo_tasks::function]
+    async fn split_module_map(text: ResolvedVc<Text>) -> Result<Vc<ModuleMap>> {
+        let text = text.await?.text.get().clone();
+        Ok(ModuleMap {
+            map: SplitSourceMap::new(module_map(&text)?),
+        }
+        .cell())
+    }
+
+    /// Like a module factory for one chunking context: the module's map with `sources` rewritten
+    /// under `prefix`. Its code bytes don't depend on the map's tail.
+    #[turbo_tasks::function]
+    async fn split_piece(text: ResolvedVc<Text>, prefix: RcStr) -> Result<Vc<CodeCells>> {
+        let module = split_module_map(*text).await?;
+        let head = rewrite(module.map.head(), &prefix)?;
+        let mut code = CodeBuilder::new(true, false);
+        code += "(()=>{";
+        code.push_source(
+            &Rope::from("x()"),
+            Some(module.map.to_section_map(head).await?),
+        );
+        code += "})";
+        Ok(*code.build().resolved_code_cells())
+    }
+
+    static SPLIT_COMPOSITION_EXECUTIONS: AtomicUsize = AtomicUsize::new(0);
+
+    #[turbo_tasks::function]
+    fn structured_piece() -> Result<Vc<CodeCells>> {
+        let map = rewrite(&module_map("structured")?, "structured")?;
+        let mut code = CodeBuilder::new(true, false);
+        code += "(()=>{";
+        code.push_source(&Rope::from("y()"), Some(map));
+        code += "})";
+        Ok(*code.build().resolved_code_cells())
+    }
+
+    fn section_map_cells(cells: &CodeCells) -> Vec<ResolvedVc<CellRope>> {
+        cells.section_map_cells().collect()
+    }
+
+    /// `[<a>,<b>,<structured>,<fixed>]`: the same module's factory for two chunking contexts, a
+    /// piece with an unsplit structured map, and a piece with a raw map.
+    #[turbo_tasks::function]
+    async fn split_composition(text: ResolvedVc<Text>) -> Result<Vc<CodeComposition>> {
+        SPLIT_COMPOSITION_EXECUTIONS.fetch_add(1, Ordering::SeqCst);
+        let mut builder = CodeCompositionBuilder::new(true, false);
+        builder += "[";
+        for prefix in ["a", "b"] {
+            let piece = piece_ref(split_piece(*text, prefix.into())).await?;
+            builder.push_code_cells(piece.cells, piece.code);
+            builder += ",";
+        }
+        let structured = piece_ref(structured_piece()).await?;
+        builder.push_code_cells(structured.cells, structured.code);
+        builder += ",";
+        let fixed = piece_ref(fixed_piece()).await?;
+        builder.push_code_cells(fixed.cells, fixed.code);
+        builder += "]";
+        Ok(builder.build().cell())
+    }
+
+    #[turbo_tasks::value(shared, serialization = "skip")]
+    struct SplitOutput {
+        map: RcStr,
+        body: ReadRef<CellRope>,
+        /// The factories' section map cells.
+        piece_maps: Vec<ReadRef<CellRope>>,
+    }
+
+    /// Reads the composition and checks its pieces and map against the flat equivalents.
+    #[turbo_tasks::function(operation, root)]
+    async fn split_output_operation(text: ResolvedVc<Text>) -> Result<Vc<SplitOutput>> {
+        let composition = split_composition(*text).await?;
+        let code = composition.build_code().await?;
+        let map = composition
+            .generate_source_map(&code, None)
+            .await?
+            .read()
+            .await?;
+
+        let module = split_module_map(*text).await?;
+        let full_map = module_map(&text.await?.text.get().clone())?;
+        let mut flat = CodeBuilder::new(true, false);
+        flat += "[";
+        let mut piece_maps = Vec::new();
+        for prefix in ["a", "b"] {
+            let cells = split_piece(*text, prefix.into()).await?;
+            let [map_cell] = section_map_cells(&cells)[..] else {
+                anyhow::bail!("a factory has one section map");
+            };
+            let map_cell = map_cell.await?;
+            // The section map references the module's tail instead of copying it.
+            let referenced = map_cell
+                .parts()
+                .filter_map(|part| match part {
+                    CellRopePart::Cell { cell, skip: None } => Some(cell),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            ensure!(
+                referenced == [module.map.tail()],
+                "the tail isn't referenced"
+            );
+            ensure!(
+                map_cell.read().await? == rewrite(&full_map, prefix)?.to_rope(),
+                "the section map differs from the rewritten module map"
+            );
+            piece_maps.push(map_cell);
+
+            let piece = split_piece(*text, prefix.into()).to_code().await?;
+            flat.push_code(&piece);
+            flat += ",";
+        }
+        let structured_cells = structured_piece().await?;
+        let [structured_map] = section_map_cells(&structured_cells)[..] else {
+            anyhow::bail!("a piece has one section map");
+        };
+        let structured_map = structured_map.await?;
+        ensure!(
+            structured_map
+                .parts()
+                .all(|part| matches!(part, CellRopePart::Inline(_))),
+            "an unsplit structured map is stored inline"
+        );
+        ensure!(
+            structured_map.read().await?
+                == rewrite(&module_map("structured")?, "structured")?.to_rope(),
+            "the unsplit structured map changed"
+        );
+        flat.push_code(&*structured_piece().to_code().await?);
+        flat += ",";
+
+        let fixed_cells = fixed_piece().await?;
+        let [fixed_map] = section_map_cells(&fixed_cells)[..] else {
+            anyhow::bail!("a piece has one section map");
+        };
+        ensure!(
+            fixed_map
+                .await?
+                .parts()
+                .all(|part| matches!(part, CellRopePart::Inline(_))),
+            "a map that isn't split is stored inline"
+        );
+        flat.push_code(&*fixed_piece().to_code().await?);
+        flat += "]";
+        let flat = flat.build();
+        ensure!(code.source_code() == flat.source_code(), "code differs");
+        ensure!(
+            map == flat.generate_source_map_ref(None),
+            "source map differs"
+        );
+        Ok(SplitOutput {
+            map: map.to_str()?.into(),
+            body: composition.body().await?,
+            piece_maps,
+        }
+        .cell())
+    }
+
+    /// Factory maps reference their module's map tail: editing only the tail (here the source's
+    /// content) updates the composed map without changing the factories' map cells or
+    /// re-executing the composition.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn split_maps_reference_the_module_tail() {
+        turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ))
+        .run_once(async {
+            let text_op = text_operation();
+            let text = text_op.resolve().strongly_consistent().await?;
+            let output = split_output_operation(text);
+            let before = output.read_strongly_consistent().await?;
+            assert!(
+                before
+                    .map
+                    .contains(r#""sources":["a/module.js"],"sourcesContent":["one"]"#)
+            );
+            assert!(
+                before
+                    .map
+                    .contains(r#""sources":["b/module.js"],"sourcesContent":["one"]"#)
+            );
+            let executions = SPLIT_COMPOSITION_EXECUTIONS.load(Ordering::SeqCst);
+
+            text_op
+                .read_strongly_consistent()
+                .await?
+                .text
+                .set("two".into());
+
+            let after = output.read_strongly_consistent().await?;
+            assert!(
+                after
+                    .map
+                    .contains(r#""sources":["a/module.js"],"sourcesContent":["two"]"#)
+            );
+            assert!(
+                after
+                    .map
+                    .contains(r#""sources":["b/module.js"],"sourcesContent":["two"]"#)
+            );
+            assert!(!after.map.contains("one"));
+            assert_eq!(
+                SPLIT_COMPOSITION_EXECUTIONS.load(Ordering::SeqCst),
+                executions,
+                "the composition must not re-execute"
+            );
+            assert_eq!(before.body, after.body);
+            assert_eq!(before.piece_maps, after.piece_maps);
             anyhow::Ok(())
         })
         .await
