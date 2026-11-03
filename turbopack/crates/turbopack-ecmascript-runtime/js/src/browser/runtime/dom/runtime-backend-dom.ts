@@ -28,15 +28,25 @@ function getAssetSuffixFromScriptSrc() {
 function matchesChunkUrl(
   value: string | null,
   url: string,
-  decodedUrl: string
+  decodedUrl: string,
+  chunkPath: string | undefined
 ): boolean {
   return (
     value != null &&
     (value === url ||
       value.startsWith(url + '?') ||
       value === decodedUrl ||
-      value.startsWith(decodedUrl + '?'))
+      value.startsWith(decodedUrl + '?') ||
+      // After a public path assignment, the tag may use another base path.
+      (chunkPath !== undefined &&
+        getOwnedChunkPath(splitChunkUrl(value)[0]) === chunkPath))
   )
+}
+
+function getAssignedChunkPath(url: string): string | undefined {
+  return publicPathAssigned
+    ? getOwnedChunkPath(splitChunkUrl(url)[0])
+    : undefined
 }
 
 // These lookups only search `<head>`: the runtime inserts its chunk tags there,
@@ -55,11 +65,14 @@ function matchesChunkUrl(
  */
 function findChunkScripts(url: string): HTMLScriptElement[] {
   const decodedUrl = decodeURI(url)
+  const chunkPath = getAssignedChunkPath(url)
   const scripts = document.head.getElementsByTagName('script')
   const result: HTMLScriptElement[] = []
   for (let i = 0; i < scripts.length; i++) {
     const script = scripts[i]
-    if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+    if (
+      matchesChunkUrl(script.getAttribute('src'), url, decodedUrl, chunkPath)
+    ) {
       result.push(script)
     }
   }
@@ -76,6 +89,7 @@ function findChunkLinks(
   stylesheetsOnly: boolean = false
 ): HTMLLinkElement[] {
   const decodedUrl = decodeURI(url)
+  const chunkPath = getAssignedChunkPath(url)
   const links = document.head.getElementsByTagName('link')
   const result: HTMLLinkElement[] = []
   for (let i = 0; i < links.length; i++) {
@@ -83,7 +97,7 @@ function findChunkLinks(
     if (
       (!stylesheetsOnly ||
         link.getAttribute('rel')?.toLowerCase() === 'stylesheet') &&
-      matchesChunkUrl(link.getAttribute('href'), url, decodedUrl)
+      matchesChunkUrl(link.getAttribute('href'), url, decodedUrl, chunkPath)
     ) {
       result.push(link)
     }
@@ -111,10 +125,10 @@ type ChunkResolver = {
 let BACKEND: RuntimeBackend
 
 /**
- * Maps chunk paths to the corresponding resolver.
+ * Maps chunk cache keys to the corresponding resolver.
  */
 const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
-
+chunkUrlCaches.push(chunkResolvers)
 ;(() => {
   BACKEND = {
     async registerChunk(chunk, params) {
@@ -162,7 +176,8 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
   }
 
   function getOrCreateResolver(chunkUrl: ChunkUrl): ChunkResolver {
-    let resolver = chunkResolvers.get(chunkUrl)
+    const cacheKey = getChunkCacheKey(chunkUrl)
+    let resolver = chunkResolvers.get(cacheKey)
     if (!resolver) {
       let resolve: () => void
       let reject: (error?: Error) => void
@@ -181,7 +196,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         },
         reject: reject!,
       }
-      chunkResolvers.set(chunkUrl, resolver)
+      chunkResolvers.set(cacheKey, resolver)
     }
     return resolver
   }
@@ -196,8 +211,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     resolver: ChunkResolver,
     error?: Error
   ) {
-    if (chunkResolvers.get(chunkUrl) === resolver) {
-      chunkResolvers.delete(chunkUrl)
+    const cacheKey = getChunkCacheKey(chunkUrl)
+    if (chunkResolvers.get(cacheKey) === resolver) {
+      chunkResolvers.delete(cacheKey)
     }
     resolver.reject(error)
   }
@@ -229,7 +245,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     if (
       !isRetryableChunkLoadError(error) ||
       resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS ||
-      chunkResolvers.get(chunkUrl) !== resolver
+      chunkResolvers.get(getChunkCacheKey(chunkUrl)) !== resolver
     ) {
       rejectChunkResolver(chunkUrl, resolver, error)
       return
@@ -240,7 +256,10 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       // if this chunk is being fetched multiple times, and one of those
       // attempts succeeds. or, if this chunk has another resolver
       // mapped to it - it's safe to skip retrying.
-      if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
+      if (
+        resolver.resolved ||
+        chunkResolvers.get(getChunkCacheKey(chunkUrl)) !== resolver
+      ) {
         return
       }
       if (reload) {

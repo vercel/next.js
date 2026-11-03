@@ -25,6 +25,6 @@ console.log(assetUrl);
 fetch(assetUrl).then((res)=>res.text()).then(console.log);
 }),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static in ecmascript)",((__turbopack_context__) => {
 
-__turbopack_context__.q("/static/asset.1z1abqqd69ldl.txt");})]);
+__turbopack_context__.q(__turbopack_context__.u("/static/asset.1z1abqqd69ldl.txt"));})]);
 
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_import-meta_url_input_0jbqiqv96e9z4._.js.map

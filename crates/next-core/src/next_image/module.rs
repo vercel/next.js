@@ -42,7 +42,8 @@ impl StructuredImageModuleType {
         blur_placeholder_mode: BlurPlaceholderMode,
         module_asset_context: ResolvedVc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let static_asset = StaticUrlJsModule::new(*source, Some(rcstr!("client")))
+        // Like `next-image-loader`, image URLs ignore a runtime public path assignment.
+        let static_asset = StaticUrlJsModule::new(*source, Some(rcstr!("client")), false)
             .to_resolved()
             .await?;
         Ok(module_asset_context

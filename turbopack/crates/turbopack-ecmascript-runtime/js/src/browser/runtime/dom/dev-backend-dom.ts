@@ -118,7 +118,7 @@ let DEV_BACKEND: DevRuntimeBackend
   }
 
   function deleteResolver(chunkUrl: ChunkUrl) {
-    chunkResolvers.delete(chunkUrl)
+    chunkResolvers.delete(getChunkCacheKey(chunkUrl))
   }
 })()
 

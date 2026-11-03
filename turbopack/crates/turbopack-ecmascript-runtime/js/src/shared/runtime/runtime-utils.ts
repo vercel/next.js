@@ -80,6 +80,49 @@ function Context(
 const contextPrototype = Context.prototype as TurbopackBaseContext<Module>
 contextPrototype.M = moduleFactories
 
+let runtimePublicPath = ''
+// The public path before any assignment. Asset URLs are built with it.
+let defaultPublicPath = ''
+let publicPathInitialized = false
+let publicPathAssigned = false
+// Set by runtimes whose caches must be rekeyed once a public path is assigned.
+let onPublicPathAssigned: (() => void) | undefined
+
+function initializePublicPath(defaultPath: string) {
+  if (!publicPathInitialized) {
+    runtimePublicPath = defaultPublicPath = defaultPath
+    publicPathInitialized = true
+  }
+}
+contextPrototype.B = initializePublicPath
+
+/**
+ * Like webpack's asset modules, asset URLs under the default public path follow
+ * the public path assigned before the asset's module is evaluated.
+ */
+function resolvePublicAssetUrl(url: string): string {
+  return publicPathAssigned &&
+    defaultPublicPath !== '' &&
+    url.startsWith(defaultPublicPath)
+    ? runtimePublicPath + url.slice(defaultPublicPath.length)
+    : url
+}
+contextPrototype.u = resolvePublicAssetUrl
+
+Object.defineProperty(contextPrototype, 'p', {
+  get() {
+    return runtimePublicPath
+  },
+  set(value: string) {
+    runtimePublicPath = value
+    publicPathInitialized = true
+    if (!publicPathAssigned) {
+      publicPathAssigned = true
+      onPublicPathAssigned?.()
+    }
+  },
+})
+
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
 
 interface ModuleContextEntry {

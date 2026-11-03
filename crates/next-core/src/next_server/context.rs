@@ -19,7 +19,10 @@ use turbopack_core::{
         UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_defines,
-    compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
+    compile_time_info::{
+        CompileTimeDefines, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
+        FreeVarReferences,
+    },
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     issue::IssueSeverity,
     module_graph::{
@@ -296,12 +299,20 @@ async fn next_server_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileT
 async fn next_server_free_vars(
     define_env: Vc<OptionEnvMap>,
     report_system_env_inlining: Vc<IssueSeverity>,
+    public_path: RcStr,
 ) -> Result<Vc<FreeVarReferences>> {
-    Ok(free_var_references_with_vercel_system_env_warnings(
+    let mut free_vars = free_var_references_with_vercel_system_env_warnings(
         defines(&*define_env.await?),
         *report_system_env_inlining.await?,
-    )
-    .cell())
+    );
+    // Match webpack, where server code reads the client public path.
+    free_vars
+        .0
+        .entry(vec![DefinableNameSegment::Name(rcstr!(
+            "__webpack_public_path__"
+        ))])
+        .or_insert(FreeVarReference::RuntimePublicPath(Some(public_path)));
+    Ok(free_vars.cell())
 }
 
 #[turbo_tasks::function]
@@ -312,6 +323,7 @@ pub async fn get_server_compile_time_info(
     report_system_env_inlining: Vc<IssueSeverity>,
     hot_module_replacement_enabled: bool,
     import_meta_env_base_url: RcStr,
+    public_path: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::NodeJsLambda(
@@ -327,7 +339,7 @@ pub async fn get_server_compile_time_info(
     )
     .defines(next_server_defines(define_env).to_resolved().await?)
     .free_var_references(
-        next_server_free_vars(define_env, report_system_env_inlining)
+        next_server_free_vars(define_env, report_system_env_inlining, public_path)
             .to_resolved()
             .await?,
     )

@@ -14,7 +14,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
         EcmascriptExports, ecmascript_chunk_item,
     },
-    runtime_functions::{TURBOPACK_EXPORT_URL, TURBOPACK_EXPORT_VALUE},
+    runtime_functions::{TURBOPACK_EXPORT_URL, TURBOPACK_EXPORT_VALUE, TURBOPACK_PUBLIC_ASSET_URL},
     utils::StringifyJs,
 };
 
@@ -25,13 +25,23 @@ use crate::output_asset::StaticOutputAsset;
 pub struct StaticUrlJsModule {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub tag: Option<RcStr>,
+    /// Whether the URL follows a runtime public path assignment, like webpack's asset modules.
+    pub follows_public_path: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticUrlJsModule {
     #[turbo_tasks::function]
-    pub fn new(source: ResolvedVc<Box<dyn Source>>, tag: Option<RcStr>) -> Vc<Self> {
-        Self::cell(StaticUrlJsModule { source, tag })
+    pub fn new(
+        source: ResolvedVc<Box<dyn Source>>,
+        tag: Option<RcStr>,
+        follows_public_path: bool,
+    ) -> Vc<Self> {
+        Self::cell(StaticUrlJsModule {
+            source,
+            tag,
+            follows_public_path,
+        })
     }
 
     #[turbo_tasks::function]
@@ -55,6 +65,9 @@ impl Module for StaticUrlJsModule {
             .with_modifier(rcstr!("static in ecmascript"));
         if let Some(tag) = &self.tag {
             ident = ident.with_modifier(format!("tag {}", tag).into());
+        }
+        if !self.follows_public_path {
+            ident = ident.with_modifier(rcstr!("fixed public path"));
         }
         Ok(ident.into_vc())
     }
@@ -104,32 +117,33 @@ impl EcmascriptChunkPlaceable for StaticUrlJsModule {
             .await?;
 
         let url_behavior = chunking_context.url_behavior(this.tag.clone()).await?;
+        let path = StringifyJs(&url).to_string();
+        let path = if this.follows_public_path {
+            format!("{TURBOPACK_PUBLIC_ASSET_URL}({path})")
+        } else {
+            path
+        };
 
         let inner_code = match &url_behavior.suffix {
             AssetSuffix::None => {
                 // No suffix, export as-is
-                format!(
-                    "{TURBOPACK_EXPORT_VALUE}({path});",
-                    path = StringifyJs(&url)
-                )
+                format!("{TURBOPACK_EXPORT_VALUE}({path});")
             }
             AssetSuffix::Constant(suffix) => {
                 // Append constant suffix
                 format!(
                     "{TURBOPACK_EXPORT_VALUE}({path} + {suffix});",
-                    path = StringifyJs(&url),
                     suffix = StringifyJs(suffix.as_str())
                 )
             }
             AssetSuffix::Inferred => {
                 // The runtime logic will infer the suffix
-                format!("{TURBOPACK_EXPORT_URL}({path});", path = StringifyJs(&url))
+                format!("{TURBOPACK_EXPORT_URL}({path});")
             }
             AssetSuffix::FromGlobal(global_name) => {
                 // Read suffix from global at runtime
                 format!(
                     "{TURBOPACK_EXPORT_VALUE}({path} + (globalThis[{global}] || ''));",
-                    path = StringifyJs(&url),
                     global = StringifyJs(global_name)
                 )
             }
