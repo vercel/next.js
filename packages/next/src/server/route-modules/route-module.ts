@@ -11,7 +11,7 @@ import type {
   PreviewPropsManifest,
   RequiredServerFilesManifest,
 } from '../../build'
-import type { DevRoutesManifest } from '../lib/router-utils/setup-dev-bundler'
+import type { DevRoutesManifest } from '../lib/router-utils/dev-bundler-types'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import {

@@ -23,7 +23,7 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
+import type { ServerFields } from './lib/router-utils/dev-bundler-types'
 import type { ServerInitResult } from './lib/render-server'
 import { AsyncCallbackSet } from './lib/async-callback-set'
 

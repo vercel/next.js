@@ -1,5 +1,5 @@
 import type { IncomingMessage } from 'http'
-import type { DevBundler } from './router-utils/setup-dev-bundler'
+import type { DevBundler } from './router-utils/dev-bundler-types'
 import type { WorkerRequestHandler } from './types'
 
 import { LRUCache } from './lru-cache'

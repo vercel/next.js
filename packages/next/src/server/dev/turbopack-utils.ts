@@ -1,7 +1,7 @@
 import type {
   ServerFields,
   SetupOpts,
-} from '../lib/router-utils/setup-dev-bundler'
+} from '../lib/router-utils/dev-bundler-types'
 import type {
   Issue,
   TurbopackResult,
