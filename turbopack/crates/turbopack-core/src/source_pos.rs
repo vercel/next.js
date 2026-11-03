@@ -87,20 +87,10 @@ impl SourcePos {
             }
         }
         match line_start {
-            Some(start) => self.column = utf16_len(&code[start..]) as u32,
-            None => self.column += utf16_len(code) as u32,
+            Some(start) => self.column = simd_utf16_len::utf16_len_bytes(&code[start..]) as u32,
+            None => self.column += simd_utf16_len::utf16_len_bytes(code) as u32,
         }
     }
-}
-
-/// Counts the UTF-16 code units of UTF-8 encoded text, as JavaScript string lengths and source
-/// map columns do.
-///
-/// A non-BMP char (4 UTF-8 bytes) counts as 2, since UTF-16 encodes it as a surrogate pair. The
-/// count uses the SIMD kernels of `simd-utf16-len`. It is exact for valid UTF-8; for other bytes
-/// it is still safe, but the result is unspecified.
-pub(crate) fn utf16_len(bytes: &[u8]) -> usize {
-    simd_utf16_len::utf16_len_bytes(bytes)
 }
 
 impl std::cmp::PartialEq<(u32, u32)> for SourcePos {
