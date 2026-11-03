@@ -524,10 +524,15 @@ export function createFixtureFile(
                   )
                 )
               ) as Record<string, unknown>)
+          const requested = dependencies(fn)
+          const requestedFixtures: Record<string, true> = Object.create(null)
+          for (const name of requested)
+            if (definitions[name]) requestedFixtures[name] = true
           for (const name of Object.keys(definitions))
             if (
-              normalize(definitions[name]).auto &&
-              (!suiteHook || normalize(definitions[name]).scope !== 'test')
+              requestedFixtures[name] ||
+              (normalize(definitions[name]).auto &&
+                (!suiteHook || normalize(definitions[name]).scope !== 'test'))
             )
               Object.defineProperty(values, name, {
                 configurable: true,
@@ -535,7 +540,8 @@ export function createFixtureFile(
                 writable: true,
                 value: await resolve(name, []),
               })
-          for (const name of dependencies(fn)) {
+          for (const name of requested) {
+            if (definitions[name]) continue
             // The reused public context already owns builtin accessors. Leave
             // their single observable read to the authored parameter binding.
             if (

@@ -1,0 +1,28 @@
+{
+  "args": [
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/vitest.mjs",
+    "run",
+    "--root",
+    "/private/tmp/fixture-registration-order-qualification/genuine/26-production/fixture",
+    "--mode",
+    "production",
+    "--config",
+    "/private/tmp/fixture-registration-order-qualification/genuine/26-production/fixture/vitest.config.mjs",
+    "--configLoader=native",
+    "--reporter=json",
+    "--reporter=/private/tmp/fixture-registration-order-qualification/genuine/26-production/fixture/reporter.mjs",
+    "--outputFile=/private/tmp/fixture-registration-order-qualification/genuine/26-production/report.json"
+  ],
+  "mode": "production",
+  "actualNode": "v26.12.1",
+  "actualExecutable": "/usr/local/bin/node",
+  "bodySHA256": "cfca585813a445208cfd4e26543f9dfea2dfc48f49414eba30022b710d3434fb",
+  "config": "export default {cacheDir:\"/private/tmp/fixture-registration-order-qualification/genuine/26-production/cache\",test:{include:['suite.test.mjs'],maxWorkers:1,fileParallelism:false,testTimeout:5000,hookTimeout:5000,includeTaskLocation:false}}\n",
+  "configSHA256": "2848b2907a9d59fa0dd93ab96f238c8145f0ddfd10f763bd0e9135b5613559ca",
+  "bounds": {
+    "cli": 120000,
+    "test": 5000,
+    "hook": 5000
+  },
+  "unwrappedPinnedRuntimeAndPrivateCache": true
+}

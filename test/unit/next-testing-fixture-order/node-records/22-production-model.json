@@ -1,0 +1,225 @@
+{
+  "status": 0,
+  "rows": [
+    {
+      "group": "selected",
+      "phase": "first-in",
+      "value": null
+    },
+    {
+      "group": "selected",
+      "phase": "auto-in",
+      "value": null
+    },
+    {
+      "group": "selected",
+      "phase": "second-in",
+      "value": null
+    },
+    {
+      "group": "selected",
+      "phase": "body",
+      "value": {
+        "first": "first",
+        "second": "second"
+      }
+    },
+    {
+      "group": "selected",
+      "phase": "second-out",
+      "value": null
+    },
+    {
+      "group": "selected",
+      "phase": "auto-out",
+      "value": null
+    },
+    {
+      "group": "selected",
+      "phase": "first-out",
+      "value": null
+    },
+    {
+      "group": "dependency",
+      "phase": "wanted-in",
+      "value": null
+    },
+    {
+      "group": "dependency",
+      "phase": "later-in",
+      "value": null
+    },
+    {
+      "group": "dependency",
+      "phase": "auto-in",
+      "value": "later"
+    },
+    {
+      "group": "dependency",
+      "phase": "body",
+      "value": {
+        "wanted": "wanted",
+        "automatic": "automatic"
+      }
+    },
+    {
+      "group": "dependency",
+      "phase": "auto-out",
+      "value": null
+    },
+    {
+      "group": "dependency",
+      "phase": "later-out",
+      "value": null
+    },
+    {
+      "group": "dependency",
+      "phase": "wanted-out",
+      "value": null
+    },
+    {
+      "group": "scoped",
+      "phase": "worker-in",
+      "value": 1
+    },
+    {
+      "group": "scoped",
+      "phase": "file-in",
+      "value": 1
+    },
+    {
+      "group": "scoped",
+      "phase": "auto-in",
+      "value": 1
+    },
+    {
+      "group": "scoped",
+      "phase": "first-body",
+      "value": {
+        "workerValue": 1,
+        "fileValue": 1,
+        "automatic": 1
+      }
+    },
+    {
+      "group": "scoped",
+      "phase": "auto-out",
+      "value": 1
+    },
+    {
+      "group": "scoped",
+      "phase": "auto-in",
+      "value": 2
+    },
+    {
+      "group": "scoped",
+      "phase": "second-body",
+      "value": {
+        "workerValue": 1,
+        "fileValue": 1,
+        "automatic": 2
+      }
+    },
+    {
+      "group": "scoped",
+      "phase": "auto-out",
+      "value": 2
+    },
+    {
+      "group": "override",
+      "phase": "parent-in",
+      "value": null
+    },
+    {
+      "group": "override",
+      "phase": "child-in",
+      "value": 1
+    },
+    {
+      "group": "override",
+      "phase": "auto-in",
+      "value": 2
+    },
+    {
+      "group": "override",
+      "phase": "body",
+      "value": {
+        "automatic": 2,
+        "value": 2
+      }
+    },
+    {
+      "group": "override",
+      "phase": "auto-out",
+      "value": null
+    },
+    {
+      "group": "override",
+      "phase": "child-out",
+      "value": null
+    },
+    {
+      "group": "override",
+      "phase": "parent-out",
+      "value": null
+    },
+    {
+      "group": "scoped",
+      "phase": "file-out",
+      "value": 1
+    },
+    {
+      "group": "scoped",
+      "phase": "worker-out",
+      "value": 1
+    }
+  ],
+  "cases": [
+    {
+      "name": "registration order precedes reversed callback parameters",
+      "state": "passed"
+    },
+    {
+      "name": "actual dependency DFS precedes its selected auto consumer",
+      "state": "passed"
+    },
+    {
+      "name": "scoped registrations precede test auto despite reversed request order",
+      "state": "passed"
+    },
+    {
+      "name": "scoped values are reused while actual test cleanup joins each attempt",
+      "state": "passed"
+    },
+    {
+      "name": "same-name parent and child precede their later automatic consumer",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 5,
+    "numPassedTests": 5,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "terminal": [
+    {
+      "hook": "end",
+      "reason": "passed",
+      "errors": [],
+      "modules": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ]
+    }
+  ],
+  "allOwnersJoined": true
+}

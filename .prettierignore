@@ -136,3 +136,6 @@ test/unit/next-testing-fixture-context/node-records/
 
 # Exact fixture factory receiver inputs and whole genuine reports.
 test/unit/next-testing-fixture-receivers/node-records/
+
+# Exact fixture ordering inputs and whole genuine reports.
+test/unit/next-testing-fixture-order/node-records/

@@ -1,0 +1,80 @@
+{
+  "target": "Vitest5.0.4 registration-ordered requested/auto fixtures with real dependency and scoped cleanup",
+  "bodySHA256": "cfca585813a445208cfd4e26543f9dfea2dfc48f49414eba30022b710d3434fb",
+  "profiles": {
+    "20-development": {
+      "actualNode": "v20.20.0",
+      "bodySHA256": "cfca585813a445208cfd4e26543f9dfea2dfc48f49414eba30022b710d3434fb",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "20-production": {
+      "actualNode": "v20.20.0",
+      "bodySHA256": "cfca585813a445208cfd4e26543f9dfea2dfc48f49414eba30022b710d3434fb",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "22-development": {
+      "actualNode": "v22.12.0",
+      "bodySHA256": "cfca585813a445208cfd4e26543f9dfea2dfc48f49414eba30022b710d3434fb",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "22-production": {
+      "actualNode": "v22.12.0",
+      "bodySHA256": "cfca585813a445208cfd4e26543f9dfea2dfc48f49414eba30022b710d3434fb",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "24-development": {
+      "actualNode": "v24.0.0",
+      "bodySHA256": "cfca585813a445208cfd4e26543f9dfea2dfc48f49414eba30022b710d3434fb",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "24-production": {
+      "actualNode": "v24.0.0",
+      "bodySHA256": "cfca585813a445208cfd4e26543f9dfea2dfc48f49414eba30022b710d3434fb",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "26-development": {
+      "actualNode": "v26.12.1",
+      "bodySHA256": "cfca585813a445208cfd4e26543f9dfea2dfc48f49414eba30022b710d3434fb",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "26-production": {
+      "actualNode": "v26.12.1",
+      "bodySHA256": "cfca585813a445208cfd4e26543f9dfea2dfc48f49414eba30022b710d3434fb",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    }
+  },
+  "allCanonicalGraphAndTempGuardsHeld": true,
+  "noWorkerAssertionOwnershipBrowserConcurrentOrRetryClaim": true
+}
