@@ -1,0 +1,38 @@
+import { test, expect } from 'vitest'
+import { page, utils } from 'vitest/browser'
+const emit=value=>console.log('BROWSER_NATIVE_FIXTURE:'+JSON.stringify(value))
+const create=()=>{const host=document.createElement('section');host.dataset.testid='dom-utility';host.innerHTML='<h2>Hello <span>world</span></h2><button aria-label="Save">go</button>';document.body.append(host);return host}
+
+test('prints the actual owned DOM element and Locator with explicit options',()=>{
+ const host=create()
+ try{
+  const locator=page.getByTestId('dom-utility'),direct=utils.prettyDOM(host,10000,{highlight:false}),located=utils.prettyDOM(locator,10000,{highlight:false}),compact=utils.prettyDOM(host,10000,{highlight:false,min:true})
+  expect(typeof direct).toBe('string');expect(direct).toBe(located);expect(direct).toContain('Hello');expect(compact).toContain('world')
+  emit({direct,located,compact,zero:utils.prettyDOM(host,0),locatorNodeSame:locator.element()===host})
+ }finally{host.remove()}
+})
+
+test('retains actual configurable defaults and later authored object mutations',()=>{
+ const host=create(),defaults={highlight:false,maxLength:10000}
+ try{
+  const returned=utils.configurePrettyDOM(defaults),full=utils.prettyDOM(host)
+  defaults.maxLength=24
+  const clipped=utils.prettyDOM(host),explicit=utils.prettyDOM(host,10000,{highlight:false,min:true})
+  defaults.maxLength=10000
+  const recovered=utils.prettyDOM(host,10000,{highlight:false,min:true})
+  expect(returned).toBeUndefined();expect(full).toContain('Hello');expect(clipped.length).toBeLessThan(full.length);expect(explicit.length).toBeLessThan(recovered.length);expect(recovered).toContain('world')
+  emit({returnedUndefined:returned===undefined,full,clipped,explicit,recovered,mutatedMaxLength:defaults.maxLength})
+ }finally{if(typeof utils.configurePrettyDOM==='function')utils.configurePrettyDOM(undefined);host.remove()}
+})
+
+test('debugs an actual Element and Locator array in order through the real console',()=>{
+ const host=create(),logs=[],original=console.log
+ try{
+  const locator=page.getByRole('button',{name:'Save'})
+  console.log=function(...args){logs.push({receiver:this===console,args});return Reflect.apply(original,this,args)}
+  const returned=utils.debug([host,locator],10000,{highlight:false})
+  console.log=original
+  expect(logs).toHaveLength(2);expect(logs.every(value=>value.receiver)).toBe(true);expect(returned).toBeUndefined()
+  emit({returnedUndefined:returned===undefined,logs})
+ }finally{console.log=original;host.remove()}
+})

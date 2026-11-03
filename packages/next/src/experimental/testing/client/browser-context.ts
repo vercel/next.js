@@ -1,6 +1,7 @@
 import {
   queries,
-  prettyDOM,
+  prettyDOM as legacyPrettyDOM,
+  stringify,
   domMatchers,
   createBrowserLocatorFormatter,
 } from '../../../compiled/next-test-primitives/browser'
@@ -20,6 +21,7 @@ import type {
 } from './protocol'
 import { createClientNativePromise } from './native-promise-allocation'
 import type { Task } from '../runner/tasks'
+import { getBrowserEnv } from './env'
 import type { Locator as PlaywrightLocator, Page } from 'playwright'
 import {
   registerBrowserActionIdentity,
@@ -46,6 +48,9 @@ export interface BrowserLocators {
     ) => ReturnType<LocatorSelectors[K]> | string
   }): void
 }
+
+type BrowserStringifyOptions = NonNullable<Parameters<typeof stringify>[2]>
+export type PrettyDOMOptions = Omit<BrowserStringifyOptions, 'maxLength'>
 
 type Query = (...args: any[]) => Element[]
 type ElementCommandMethod = Exclude<ClientBrowserCommand['method'], 'viewport'>
@@ -1475,15 +1480,62 @@ function getElementLocatorSelectors(
     }, {}),
   }
 }
+let defaultPrettyDOMOptions: BrowserStringifyOptions | undefined
+function prettyDOM(
+  dom?: Element | ElementLocator | null,
+  maxLength = Number(
+    defaultPrettyDOMOptions?.maxLength ??
+      getBrowserEnv({}).DEBUG_PRINT_LIMIT ??
+      7000
+  ),
+  prettyFormatOptions: PrettyDOMOptions = {}
+): string {
+  if (maxLength === 0) return ''
+  if (!dom) dom = document.body
+  if ('element' in dom && 'all' in dom) dom = dom.element()
+  const type = typeof dom
+  if (type !== 'object' || !(dom as Element).outerHTML) {
+    const typeName = type === 'object' ? dom.constructor.name : type
+    throw new TypeError(`Expecting a valid DOM element, but got ${typeName}.`)
+  }
+  const pretty = stringify(dom, Number.POSITIVE_INFINITY, {
+    maxLength,
+    highlight: true,
+    ...defaultPrettyDOMOptions,
+    ...prettyFormatOptions,
+  })
+  return (dom as Element).outerHTML.length > maxLength
+    ? `${pretty.slice(0, maxLength)}...`
+    : pretty
+}
+function configurePrettyDOM(options: BrowserStringifyOptions): void {
+  defaultPrettyDOMOptions = options
+}
 export const utils = {
   getElementLocatorSelectors,
+  prettyDOM,
+  configurePrettyDOM,
   debug(
-    element: Element = document.body,
+    element:
+      | Element
+      | ElementLocator
+      | null
+      | Array<Element | ElementLocator> = document.body,
     maxLength?: number,
-    options?: unknown
+    options?: PrettyDOMOptions
   ) {
     assertBrowserApiScope('utility')
-    console.log(prettyDOM(element, maxLength, options as any))
+    if (!serializedClickTargets) {
+      console.log(
+        legacyPrettyDOM(element as Element, maxLength, options as any)
+      )
+      return
+    }
+    if (Array.isArray(element))
+      element.forEach((value) =>
+        console.log(prettyDOM(value, maxLength, options))
+      )
+    else console.log(prettyDOM(element, maxLength, options))
   },
 }
 export function elementExpect(

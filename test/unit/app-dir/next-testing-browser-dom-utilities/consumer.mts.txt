@@ -1,0 +1,16 @@
+import { utils, page, type PrettyDOMOptions } from 'vitest/browser'
+const element = document.createElement('section')
+const locator = page.getByRole('button')
+const options: PrettyDOMOptions = { highlight: false, min: true }
+const elementText: string = utils.prettyDOM(element, 100, options)
+const locatorText: string = utils.prettyDOM(locator, 100, options)
+const nullText: string = utils.prettyDOM(null)
+const logged: void = utils.debug([element, locator], 100, options)
+const configured: void = utils.configurePrettyDOM({ maxLength: 100, highlight: false })
+// @ts-expect-error a number is not a DOM element or Locator
+utils.prettyDOM(1)
+// @ts-expect-error debug arrays contain actual elements or Locators
+utils.debug([element, 1])
+// @ts-expect-error positional maxLength is excluded from the third options argument
+utils.prettyDOM(element, 100, { maxLength: 10 })
+void [elementText, locatorText, nullText, logged, configured]

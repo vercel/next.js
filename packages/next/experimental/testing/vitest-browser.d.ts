@@ -8,6 +8,7 @@ declare module 'vitest/browser' {
     type BrowserPage,
     type BrowserLocators,
     type LocatorSelectors,
+    type PrettyDOMOptions,
   } from 'next/dist/experimental/testing/client/browser-context.js'
 }
 
@@ -20,5 +21,6 @@ declare module '@vitest/browser/context' {
     type BrowserPage,
     type BrowserLocators,
     type LocatorSelectors,
+    type PrettyDOMOptions,
   } from 'next/dist/experimental/testing/client/browser-context.js'
 }
