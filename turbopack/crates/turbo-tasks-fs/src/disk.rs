@@ -5,7 +5,7 @@ use std::{
     ffi::OsString,
     fmt::{self, Debug, Formatter},
     future::Future,
-    io::{self, ErrorKind, Write as _},
+    io::{self, BufRead as _, BufWriter, ErrorKind, Write as _},
     mem::take,
     ops::ControlFlow,
     path::{Component, MAIN_SEPARATOR, Path, PathBuf, Prefix},
@@ -1685,6 +1685,29 @@ async fn capture_composed(
         .then(|| PersistedFileContent::Content(File::from(bytes)))
 }
 
+/// How much a file write buffers before writing to the file, see [`write_file_content`].
+const WRITE_BUFFER_SIZE: usize = 64 * 1024;
+
+/// Writes `file`'s bytes to `f`, segment by segment through a [`BufWriter`].
+///
+/// A composed file (see [`File::from_cell_rope`]) is made of many segments, some of them tiny (the
+/// scaffolding between referenced chunk items). The buffer coalesces those into large writes,
+/// while segments at least as big as the buffer are written directly, without copying them.
+fn write_file_content(file: &File, f: &mut std::fs::File) -> io::Result<()> {
+    let mut writer = BufWriter::with_capacity(WRITE_BUFFER_SIZE, f);
+    let mut reader = file.read();
+    loop {
+        let segment = reader.fill_buf()?;
+        if segment.is_empty() {
+            break;
+        }
+        let len = segment.len();
+        writer.write_all(segment)?;
+        reader.consume(len);
+    }
+    writer.flush()
+}
+
 #[derive(NonLocalValue, Clone)]
 struct CapturedWriteEffect {
     full_path: Arc<PathBuf>,
@@ -1757,10 +1780,9 @@ impl CapturedWriteEffect {
                     let PersistedFileContent::Content(file) = &*content else {
                         unreachable!()
                     };
-                    std::io::copy(&mut file.read(), &mut f)?;
+                    write_file_content(file, &mut f)?;
                     #[cfg(unix)]
                     f.set_permissions(file.meta.permissions.into())?;
-                    f.flush()?;
 
                     static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
                         std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
@@ -1778,10 +1800,9 @@ impl CapturedWriteEffect {
                         full_path.set_extension(ext);
                         validate_path_length(&full_path)?;
                         let mut f = std::fs::File::create(&*full_path)?;
-                        std::io::copy(&mut file.read(), &mut f)?;
+                        write_file_content(file, &mut f)?;
                         #[cfg(unix)]
                         f.set_permissions(file.meta.permissions.into())?;
-                        f.flush()?;
                     }
                     Ok::<(), io::Error>(())
                 };
