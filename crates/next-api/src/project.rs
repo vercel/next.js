@@ -986,8 +986,8 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
-            build_id,
-            encryption_key,
+            build_id: ResolvedVc::cell(build_id),
+            encryption_key: ResolvedVc::cell(encryption_key),
             preview_props: ResolvedVc::cell(preview_props),
             no_mangling,
             write_routes_hashes_manifest,
@@ -1074,9 +1074,14 @@ pub struct Project {
 
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 
-    build_id: RcStr,
+    /// Stored in a separate cell, as it can change between builds. Keeping it out of the
+    /// [`Project`] value avoids invalidating every task that reads the [`Project`].
+    build_id: ResolvedVc<RcStr>,
 
-    encryption_key: RcStr,
+    /// Stored in a separate cell, as it can change between builds (e.g. key rotation or a
+    /// per-build `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`). Keeping it out of the [`Project`] value
+    /// avoids invalidating every task that reads the [`Project`].
+    encryption_key: ResolvedVc<RcStr>,
 
     preview_props: ResolvedVc<DraftModeOptionsValue>,
 
@@ -1376,7 +1381,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn encryption_key(&self) -> Vc<RcStr> {
-        Vc::cell(self.encryption_key.clone())
+        *self.encryption_key
     }
 
     #[turbo_tasks::function]
@@ -1733,8 +1738,8 @@ impl Project {
     pub(super) async fn edge_env(&self) -> Result<Vc<EnvMap>> {
         let preview_props = self.preview_props.await?;
         let edge_env = fxindexmap! {
-            rcstr!("__NEXT_BUILD_ID") => self.build_id.clone(),
-            rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.clone(),
+            rcstr!("__NEXT_BUILD_ID") => self.build_id.owned().await?,
+            rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.owned().await?,
             rcstr!("__NEXT_PREVIEW_MODE_ID") => preview_props.preview_mode_id.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => preview_props.preview_mode_encryption_key.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => preview_props.preview_mode_signing_key.clone(),
