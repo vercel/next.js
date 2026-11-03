@@ -596,7 +596,7 @@ export async function GET(request, { params }) {
 }
 ```
 
-The [`Content-Disposition`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Disposition) header set to `attachment` tells the browser to download the file. To display a file such as an image in the browser instead, set `Content-Type` to the file's actual type and omit `Content-Disposition`.
+The [`Content-Disposition`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Disposition) header set to `attachment` tells the browser to download the file instead of displaying it, so an uploaded HTML or SVG file can't run scripts in your app.
 
 ## Manipulating data
 
