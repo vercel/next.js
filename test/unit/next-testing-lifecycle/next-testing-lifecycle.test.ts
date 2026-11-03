@@ -1094,7 +1094,7 @@ describe('Next-owned Vitest lifecycle', () => {
     )
   })
 
-  it('allows an empty root while retaining failures for empty nested suites', async () => {
+  it('allows empty root and nested suites when passWithNoTests is enabled', async () => {
     for (const nested of [false, true]) {
       const c = createCollector('file')
       if (nested) c.api.describe('empty', () => {})
@@ -1110,8 +1110,8 @@ describe('Next-owned Vitest lifecycle', () => {
         },
         () => {}
       )
-      expect(result.errors).toHaveLength(nested ? 1 : 0)
-      expect(suites.at(-1)?.status).toBe(nested ? 'failed' : 'passed')
+      expect(result.errors).toHaveLength(0)
+      expect(suites.at(-1)?.status).toBe('passed')
     }
   })
 
@@ -10718,3 +10718,20 @@ it.each([
   },
   20000
 )
+
+describe('empty suite lifecycle completion', () => {
+  it('runs every empty suite lifecycle before assigning local no-test failures', async () => {
+    const { stdout } = await promisify(execFile)(process.execPath, [
+      join(__dirname, 'empty-suite-lifecycle.cjs'),
+    ])
+    expect(JSON.parse(stdout)).toMatchObject({
+      referenceVersion: '5.0.4',
+      scenarios: 16,
+      pathCases: 6,
+      emptySuitesPreserveDescendants: true,
+      hooksAndOriginalFailuresPreserved: true,
+      passWithNoTestsIncludesNestedSuites: true,
+      projectRelativeNoTestsFileName: true,
+    })
+  })
+})

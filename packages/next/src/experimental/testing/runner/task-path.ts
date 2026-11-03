@@ -1,1 +1,1 @@
-export { basename } from 'node:path'
+export { basename, relative } from 'node:path'

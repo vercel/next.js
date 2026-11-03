@@ -193,12 +193,9 @@ if (phase !== 'child') {
       assert(result.cases.every((item) => item.status === 'skipped'))
       assert.equal(result.errors.length, 0)
     } else if (mode === 'empty') {
-      assert.equal(result.errors.length, 1)
-      assert.equal(result.errors[0].phase, 'runtime')
-      assert.equal(
-        result.errors[0].error.message,
-        'No test found in suite empty'
-      )
+      assert.equal(result.errors.length, 0)
+      assert.equal(actualFile.tasks[0].mode, 'run')
+      assert.equal(actualFile.tasks[0].result.state, 'pass')
     } else assert.equal(result.errors.length, 0)
   }
   assert.equal(bodies, 0)

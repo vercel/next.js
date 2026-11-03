@@ -33,6 +33,7 @@ import {
   captureAsyncScope,
 } from './async-context'
 import { getFinalCaseResults } from '../reporting/final-cases'
+import { relative } from './task-path'
 import { shuffle, type TestSequenceOptions } from './sequence'
 import {
   configureFixtureCallback,
@@ -480,7 +481,8 @@ export async function runCollected(
     }
   }
   const limitCase = concurrencyLimit()
-  const selected = selectedCases(root)
+  const selectedSuiteModes = new Map<TestSuite, 'run' | 'skip' | 'todo'>()
+  const selected = selectedCases(root, selectedSuiteModes)
   if (options.testNamePattern !== undefined) {
     const pattern = new RegExp(options.testNamePattern)
     for (const [test, mode] of selected) {
@@ -2533,10 +2535,19 @@ export async function runCollected(
     collectionBlocked = false
   ) {
     const start = frameworkDateNow()
-    const finalizedMode =
-      finalizedModes && !collectionBlocked
-        ? finalizedModes.get(node)!
+    const selectedEmptyMode =
+      focusedPublicTaskModes &&
+      options.finalizeFocusedPublicTaskModes === true &&
+      !collectionBlocked &&
+      node !== root &&
+      !hasTests(node)
+        ? selectedSuiteModes.get(node)
         : undefined
+    const finalizedMode =
+      selectedEmptyMode ??
+      (finalizedModes && !collectionBlocked
+        ? finalizedModes.get(node)!
+        : undefined)
     const mode =
       finalizedMode !== undefined
         ? finalizedMode === 'only'
@@ -2578,21 +2589,6 @@ export async function runCollected(
         else selected.set(child, 'skip')
     }
     if (blockChildren) markSkipped(node)
-    if (
-      mode === 'run' &&
-      !excludedByAncestor &&
-      !poisoned &&
-      !options.signal.aborted &&
-      !(node === root && (options.passWithNoTests || filePreparationFailure)) &&
-      !hasTests(node)
-    ) {
-      const failure: RunnerFailure = {
-        phase: 'runtime',
-        error: new Error(`No test found in suite ${node.name}`),
-      }
-      errors.push(failure)
-      result.errors.push(failure)
-    }
     if (node === root && options.captureModuleStart === true)
       options.onFilePrepared?.(publicSuite as File)
     const cleanups: { fn: Cleanup; index: number; timeout: number }[] = []
@@ -2629,10 +2625,7 @@ export async function runCollected(
     }
     const enter =
       (runnable(node) ||
-        (node === root &&
-          options.prepareEmptyPublicFile === true &&
-          collectedFile.tasks.length === 0 &&
-          options.passWithNoTests === true)) &&
+        (mode === 'run' && !excludedByAncestor && !hasTests(node))) &&
       !errors.length &&
       !poisoned &&
       !options.signal.aborted
@@ -2965,6 +2958,30 @@ export async function runCollected(
           await runSuite(child, ancestors, [], 'skip', true)
         else await runCase(child, ancestors, [], true)
     }
+    // An empty suite still runs its own lifecycle and every child suite. The
+    // local no-tests failure is determined after that work and never blocks it.
+    if (
+      mode === 'run' &&
+      !excludedByAncestor &&
+      !poisoned &&
+      !options.signal.aborted &&
+      !options.passWithNoTests &&
+      !hasTests(node) &&
+      errors.length === 0
+    ) {
+      const name =
+        node === root &&
+        options.filePath !== undefined &&
+        options.projectDir !== undefined
+          ? relative(options.projectDir, options.filePath).replace(/\\/g, '/')
+          : node.name
+      const failure: RunnerFailure = {
+        phase: 'runtime',
+        error: new Error(`No test found in suite ${name}`),
+      }
+      errors.push(failure)
+      result.errors.push(failure)
+    }
     function publishSuiteResult() {
       const directCases =
         node === root
@@ -3007,7 +3024,11 @@ export async function runCollected(
             : cancelled
               ? 'cancelled'
               : !runnable(node) &&
-                  !(node === root && options.passWithNoTests && !hasTests(node))
+                  !(
+                    mode === 'run' &&
+                    options.passWithNoTests &&
+                    !hasTests(node)
+                  )
                 ? 'skipped'
                 : 'passed',
         durationMs: frameworkDateNow() - start,

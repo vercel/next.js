@@ -1,0 +1,4 @@
+import {test,describe,beforeAll,afterAll,aroundAll} from 'vitest'
+import {appendFileSync} from 'node:fs'
+const trace=(...row)=>appendFileSync('authored.jsonl',JSON.stringify(row)+'\n')
+beforeAll(()=>trace('root before'));afterAll(()=>trace('root after'));aroundAll(async run=>{trace('root around+');await run();trace('root around-')});describe('outer',()=>{beforeAll(()=>trace('outer before'));afterAll(()=>trace('outer after'));aroundAll(async run=>{trace('outer around+');await run();trace('outer around-')});describe('inner',()=>{beforeAll(()=>trace('inner before'));afterAll(()=>trace('inner after'))})})

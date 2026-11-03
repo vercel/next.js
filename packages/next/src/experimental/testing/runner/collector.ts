@@ -1937,7 +1937,8 @@ export function hasFocusedTests(node: TestSuite | TestCase): boolean {
 }
 
 export function selectedCases(
-  root: TestSuite
+  root: TestSuite,
+  suiteModes?: Map<TestSuite, 'run' | 'skip' | 'todo'>
 ): Map<TestCase, 'run' | 'skip' | 'todo'> {
   const cases = new Map<TestCase, 'run' | 'skip' | 'todo'>()
   const containsOnly = new Map<TestSuite, boolean>()
@@ -1973,8 +1974,10 @@ export function selectedCases(
             : child.mode === 'skip' || (focused && !included)
               ? 'skip'
               : 'run'
-      if (child.type === 'suite') visit(child, mode, !!included)
-      else cases.set(child, mode)
+      if (child.type === 'suite') {
+        suiteModes?.set(child, mode)
+        visit(child, mode, !!included)
+      } else cases.set(child, mode)
     }
   }
   visit(
