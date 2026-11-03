@@ -1,0 +1,8 @@
+{
+  "policy": "security",
+  "target": "15.5.24",
+  "range": ">=15.0.0 <15.5.24",
+  "versions": ["15.5.23", "15.5.24", "16.4.0"],
+  "severity": "high",
+  "syntheticTargets": false
+}

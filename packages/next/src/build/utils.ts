@@ -52,12 +52,9 @@ import { findPageFile } from '../server/lib/find-page-file'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import * as Log from './output/log'
 import type { LoadComponentsReturnType } from '../server/load-components'
-import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { getRuntimeContext } from '../server/web/sandbox'
 import { RouteKind } from '../server/route-kind'
 import type { PageExtensions } from './page-extensions-type'
 import type { FallbackMode } from '../lib/fallback'
@@ -67,11 +64,8 @@ import type {
   AppSegment,
   ParamMatching,
 } from './segment-config/app/app-segments'
-import { collectSegments } from './segment-config/app/app-segments'
-import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
+import type { collectSegments } from './segment-config/app/app-segments'
 import { collectRootParamKeys } from './segment-config/app/collect-root-param-keys'
-import { buildAppStaticPaths } from './static-paths/app'
-import { buildPagesStaticPaths } from './static-paths/pages'
 import type {
   PrerenderRouteMatcher,
   PrerenderedRoute,
@@ -93,6 +87,17 @@ import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { mapNftFileEntries, type NftJson, resolveNftOutputPath } from './nft'
+
+// Modules only needed when collecting page data / static paths (which runs in
+// build workers) are required lazily, so the main `next build` process doesn't
+// pay for evaluating them (and their dependency graphs) at startup.
+function loadComponents(
+  ...args: Parameters<typeof import('../server/load-components').loadComponents>
+) {
+  return (
+    require('../server/load-components') as typeof import('../server/load-components')
+  ).loadComponents(...args)
+}
 
 /**
  * Get the display path for build output. For static metadata files under
@@ -440,82 +445,122 @@ export async function printTreeView(
       ])
 
       if (pageInfo?.ssgPageRoutes?.length) {
-        const totalRoutes = pageInfo.ssgPageRoutes.length
+        const ssgPageRoutes = pageInfo.ssgPageRoutes
+        const totalRoutes = ssgPageRoutes.length
         const contSymbol = i === arr.length - 1 ? ' ' : '│'
+        const routeDurations = pageInfo.ssgPageDurations
+        let hasDuration = false
 
-        // HERE
-
-        let routes: { route: string; duration: number; avgDuration?: number }[]
-        if (pageInfo.ssgPageDurations?.some((d) => d > MIN_DURATION)) {
-          const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
-          const routesWithDuration = pageInfo.ssgPageRoutes
-            .map((route, idx) => ({
-              route,
-              duration: pageInfo.ssgPageDurations![idx] || 0,
-            }))
-            .sort(({ duration: a }, { duration: b }) =>
-              // Sort by duration
-              // keep too small durations in original order at the end
-              a <= MIN_DURATION && b <= MIN_DURATION ? 0 : b - a
-            )
-          routes = routesWithDuration.slice(0, previewPages)
-          const remainingRoutes = routesWithDuration.slice(previewPages)
-          if (remainingRoutes.length) {
-            const remaining = remainingRoutes.length
-            const avgDuration = Math.round(
-              remainingRoutes.reduce(
-                (total, { duration }) => total + duration,
-                0
-              ) / remainingRoutes.length
-            )
-            routes.push({
-              route: `[+${remaining} more paths]`,
-              duration: 0,
-              avgDuration,
-            })
-          }
-        } else {
-          const previewPages = totalRoutes === 4 ? 4 : Math.min(totalRoutes, 3)
-          routes = pageInfo.ssgPageRoutes
-            .slice(0, previewPages)
-            .map((route) => ({ route, duration: 0 }))
-          if (totalRoutes > previewPages) {
-            const remaining = totalRoutes - previewPages
-            routes.push({ route: `[+${remaining} more paths]`, duration: 0 })
+        if (routeDurations) {
+          for (let index = 0; index < routeDurations.length; index++) {
+            if (routeDurations[index] > MIN_DURATION) {
+              hasDuration = true
+              break
+            }
           }
         }
 
-        routes.forEach(
-          ({ route, duration, avgDuration }, index, { length }) => {
-            const innerSymbol = index === length - 1 ? '└' : '├'
-            // Generated child paths can have more precise metadata than the
-            // parent route pattern, so prefer the child entry when present.
-            const routePageInfo = pageInfos.get(route) ?? pageInfo
-            const routeSymbol = getTreeViewSymbol(route, routePageInfo)
-            usedSymbols.add(routeSymbol)
+        const maxPreviewPages = hasDuration ? 7 : 3
+        const previewPages =
+          totalRoutes === maxPreviewPages + 1
+            ? totalRoutes
+            : Math.min(totalRoutes, maxPreviewPages)
+        let routeIndexes: number[] | undefined
 
-            const initialCacheControl =
-              pageInfos.get(route)?.initialCacheControl
-
-            messages.push([
-              `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${
-                duration > MIN_DURATION
-                  ? ` (${getPrettyDuration(duration)})`
-                  : ''
-              }${
-                avgDuration && avgDuration > MIN_DURATION
-                  ? ` (avg ${getPrettyDuration(avgDuration)})`
-                  : ''
-              }`,
-              showRevalidate && initialCacheControl
-                ? formatRevalidate(initialCacheControl)
-                : '',
-              showExpire && initialCacheControl
-                ? formatExpire(initialCacheControl)
-                : '',
-            ])
+        if (hasDuration) {
+          // Keep the source arrays immutable. Sorting only their indexes avoids
+          // allocating a route object for every generated path.
+          routeIndexes = []
+          for (let index = 0; index < totalRoutes; index++) {
+            routeIndexes.push(index)
           }
-        )
+
+          routeIndexes.sort((indexA, indexB) => {
+            const durationA = routeDurations![indexA] || 0
+            const durationB = routeDurations![indexB] || 0
+
+            // Keep too small durations in their original order at the end.
+            return durationA <= MIN_DURATION && durationB <= MIN_DURATION
+              ? 0
+              : durationB - durationA
+          })
+        }
+
+        const hasSummary = totalRoutes > previewPages
+        let summarySymbol: string | undefined
+        let avgDuration: number | undefined
+
+        if (hasSummary) {
+          const firstHiddenIndex = routeIndexes?.[previewPages] ?? previewPages
+          const firstHiddenRoute = ssgPageRoutes[firstHiddenIndex]
+          summarySymbol = getTreeViewSymbol(
+            firstHiddenRoute,
+            pageInfos.get(firstHiddenRoute) ?? pageInfo
+          )
+
+          let hiddenTotalDuration = 0
+          for (let index = previewPages; index < totalRoutes; index++) {
+            const routeIndex = routeIndexes?.[index] ?? index
+            const route = ssgPageRoutes[routeIndex]
+
+            if (
+              index > previewPages &&
+              summarySymbol !== undefined &&
+              getTreeViewSymbol(route, pageInfos.get(route) ?? pageInfo) !==
+                summarySymbol
+            ) {
+              summarySymbol = undefined
+            }
+
+            if (hasDuration) {
+              hiddenTotalDuration += routeDurations![routeIndex] || 0
+            }
+          }
+
+          if (hasDuration) {
+            avgDuration = Math.round(
+              hiddenTotalDuration / (totalRoutes - previewPages)
+            )
+          }
+        }
+
+        // Emit the preview and optional summary directly into the table instead
+        // of allocating intermediate route arrays.
+        const displayedRoutes = previewPages + (hasSummary ? 1 : 0)
+        for (let index = 0; index < displayedRoutes; index++) {
+          const isSummary = index === previewPages
+          const routeIndex = routeIndexes?.[index] ?? index
+          const route = isSummary
+            ? `[+${totalRoutes - previewPages} more paths]`
+            : ssgPageRoutes[routeIndex]
+          const duration = isSummary
+            ? 0
+            : hasDuration
+              ? routeDurations![routeIndex] || 0
+              : 0
+          const routeSymbol =
+            (isSummary ? summarySymbol : undefined) ??
+            getTreeViewSymbol(route, pageInfos.get(route) ?? pageInfo)
+          const innerSymbol = index === displayedRoutes - 1 ? '└' : '├'
+          const initialCacheControl = pageInfos.get(route)?.initialCacheControl
+
+          usedSymbols.add(routeSymbol)
+          messages.push([
+            `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${
+              duration > MIN_DURATION ? ` (${getPrettyDuration(duration)})` : ''
+            }${
+              isSummary && avgDuration && avgDuration > MIN_DURATION
+                ? ` (avg ${getPrettyDuration(avgDuration)})`
+                : ''
+            }`,
+            showRevalidate && initialCacheControl
+              ? formatRevalidate(initialCacheControl)
+              : '',
+            showExpire && initialCacheControl
+              ? formatExpire(initialCacheControl)
+              : '',
+          ])
+        }
       }
     })
   }
@@ -857,6 +902,8 @@ export async function isPageStatic({
     }
   }
 
+  const { createIncrementalCache } =
+    require('../export/helpers/create-incremental-cache') as typeof import('../export/helpers/create-incremental-cache')
   await createIncrementalCache({
     cacheHandler,
     cacheHandlers,
@@ -869,6 +916,8 @@ export async function isPageStatic({
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async (): Promise<PageIsStaticResult> => {
+      const { setHttpClientAndAgentOptions } =
+        require('../server/setup-http-agent-env') as typeof import('../server/setup-http-agent-env')
       setHttpClientAndAgentOptions({
         httpAgentOptions,
       })
@@ -883,6 +932,8 @@ export async function isPageStatic({
       const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
 
       if (pathIsEdgeRuntime) {
+        const { getRuntimeContext } =
+          require('../server/web/sandbox') as typeof import('../server/web/sandbox')
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
           edgeFunctionEntry: {
@@ -942,7 +993,9 @@ export async function isPageStatic({
 
         let collectedSegments: Awaited<ReturnType<typeof collectSegments>>
         try {
-          collectedSegments = await collectSegments(
+          const { collectSegments: collectAppSegments } =
+            require('./segment-config/app/app-segments') as typeof import('./segment-config/app/app-segments')
+          collectedSegments = await collectAppSegments(
             // We know this is an app page or app route module because we
             // checked above that the page type is 'app'.
             routeModule as AppPageRouteModule | AppRouteRouteModule,
@@ -1008,7 +1061,9 @@ export async function isPageStatic({
               prerenderRouteMatchers,
               paramMatching,
               fallbackMode: prerenderFallbackMode,
-            } = await buildAppStaticPaths({
+            } = await (
+              require('./static-paths/app') as typeof import('./static-paths/app')
+            ).buildAppStaticPaths({
               dir,
               page,
               route,
@@ -1077,14 +1132,15 @@ export async function isPageStatic({
       }
 
       if (hasStaticProps && hasStaticPaths) {
-        ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
-          await buildPagesStaticPaths({
-            page,
-            locales,
-            defaultLocale,
-            configFileName,
-            getStaticPaths: componentsResult.getStaticPaths!,
-          }))
+        ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } = await (
+          require('./static-paths/pages') as typeof import('./static-paths/pages')
+        ).buildPagesStaticPaths({
+          page,
+          locales,
+          defaultLocale,
+          configFileName,
+          getStaticPaths: componentsResult.getStaticPaths!,
+        }))
       }
 
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED

@@ -22,7 +22,7 @@ import type {
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
-import { push, replace, refresh, hmrRefresh } from './navigator'
+import { push, replace, prepare, refresh, hmrRefresh } from './navigator'
 import { prefetchRoute } from './prefetch'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
@@ -310,7 +310,9 @@ function gesturePush(href: string, options?: NavigateOptions): void {
       state.nextUrl,
       freshnessPolicy,
       scrollBehavior,
-      'push'
+      'push',
+      // Not part of a prepared navigation.
+      null
     )
     dispatchGestureState(forkedGestureState)
   }
@@ -336,7 +338,12 @@ export const publicAppRouterInstance: AppRouterInstance = {
 
 // Conditionally add experimental_gesturePush when gestureTransition is enabled
 if (process.env.__NEXT_GESTURE_TRANSITION) {
-  ;(publicAppRouterInstance as any).experimental_gesturePush = gesturePush
+  publicAppRouterInstance.experimental_gesturePush = gesturePush
+}
+
+// Conditionally add experimental_prepare when prepareNavigation is enabled
+if (process.env.__NEXT_PREPARE_NAVIGATION) {
+  publicAppRouterInstance.experimental_prepare = prepare
 }
 
 // Exists for debugging purposes. Don't use in application code.

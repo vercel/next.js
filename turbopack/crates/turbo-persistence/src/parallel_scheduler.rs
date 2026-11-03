@@ -1,4 +1,7 @@
 pub trait ParallelScheduler: Clone + Sync + Send {
+    /// The number of tasks this scheduler can run at the same time. Always at least 1.
+    fn parallelism(&self) -> usize;
+
     fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
     where
         R: Send;
@@ -20,6 +23,18 @@ pub trait ParallelScheduler: Clone + Sync + Send {
         &self,
         items: &'l mut [T],
         f: impl (Fn(&'l mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send + 'static;
+
+    /// Like [`ParallelScheduler::try_parallel_for_each_mut`], but `items` are already chunked by
+    /// the caller: every item runs as its own task, and implementations must not group items
+    /// into larger chunks.
+    fn try_parallel_for_each_task_mut<T, E>(
+        &self,
+        items: &mut [T],
+        f: impl (Fn(&mut T) -> Result<(), E>) + Send + Sync,
     ) -> Result<(), E>
     where
         T: Send + Sync,
@@ -59,6 +74,10 @@ pub trait ParallelScheduler: Clone + Sync + Send {
 pub struct SerialScheduler;
 
 impl ParallelScheduler for SerialScheduler {
+    fn parallelism(&self) -> usize {
+        1
+    }
+
     fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
     where
         R: Send,
@@ -97,6 +116,21 @@ impl ParallelScheduler for SerialScheduler {
     ) -> Result<(), E>
     where
         T: Sync,
+        E: Send,
+    {
+        for item in items {
+            f(item)?;
+        }
+        Ok(())
+    }
+
+    fn try_parallel_for_each_task_mut<T, E>(
+        &self,
+        items: &mut [T],
+        f: impl (Fn(&mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
         E: Send,
     {
         for item in items {

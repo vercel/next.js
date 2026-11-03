@@ -197,7 +197,7 @@ export async function verifyAndRunTypeScript({
         if (err && typeof err === 'object' && 'command' in err) {
           console.error(
             `Failed to install required TypeScript dependencies, please install them manually to continue:\n` +
-              (err as any).command +
+              err.command +
               '\n'
           )
         }

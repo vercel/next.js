@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
 use next_core::{
     app_structure::{
@@ -32,10 +32,9 @@ use next_core::{
     },
     next_server_component::NextServerComponentTransition,
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
-    parse_segment_config_from_source,
-    segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
+use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -60,7 +59,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
@@ -893,6 +892,12 @@ impl AppProject {
             let next_mode_ref = next_mode.await?;
             let should_trace = *self.project.should_write_nft_manifests().await?;
             let should_read_binding_usage = next_mode_ref.is_production();
+            let remove_unused_imports = *self
+                .project
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?;
+            let graph_options = self.project.module_graph_options().await?;
 
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
@@ -938,8 +943,7 @@ impl AppProject {
                             ),
                         ]),
                         visited_modules,
-                        should_trace,
-                        should_read_binding_usage,
+                        graph_options,
                     );
                     graphs.push(graph);
                     visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -957,8 +961,7 @@ impl AppProject {
                                 ResolvedVc::upcast(*module),
                             )]),
                             visited_modules,
-                            should_trace,
-                            should_read_binding_usage,
+                            graph_options,
                         );
                         graphs.push(graph);
                         let is_layout = module.server_path().await?.file_stem() == Some("layout");
@@ -980,8 +983,7 @@ impl AppProject {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     GraphEntries::from_chunk_groups(vec![rsc_entry_chunk_group]),
                     visited_modules,
-                    should_trace,
-                    should_read_binding_usage,
+                    graph_options,
                 );
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -991,8 +993,7 @@ impl AppProject {
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
                     visited_modules,
-                    should_trace,
-                    should_read_binding_usage,
+                    graph_options,
                 );
                 graphs.push(additional_module_graph);
 
@@ -1004,18 +1005,15 @@ impl AppProject {
                     span.record("modules", module_count);
                 }
 
-                let remove_unused_imports = *self
-                    .project
-                    .next_config()
-                    .turbopack_remove_unused_imports(next_mode)
-                    .await?;
-
                 let (full, binding_usage_info) = if remove_unused_imports {
                     let full_with_unused_references =
                         ModuleGraph::from_graphs(graphs.clone(), None);
+                    // This is a per-route graph: a module that is unused here might still be code
+                    // generated via another graph, so dropping its data would only cause re-parses.
                     let binding_usage_info = compute_binding_usage_info(
                         full_with_unused_references,
                         should_read_binding_usage,
+                        /* drop_unused_module_data */ false,
                     );
                     (
                         ModuleGraph::from_graphs(graphs, Some(binding_usage_info)),
@@ -1078,16 +1076,11 @@ pub fn app_entry_point_to_route(
                 })
                 .collect(),
         ),
-        AppEntrypoint::AppRoute {
-            page,
-            path,
-            root_layouts,
-            ..
-        } => Route::AppRoute {
+        AppEntrypoint::AppRoute { page, path, .. } => Route::AppRoute {
             original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(
                 AppEndpoint {
-                    ty: AppEndpointType::Route { path, root_layouts },
+                    ty: AppEndpointType::Route { path },
                     app_project,
                     page,
                 }
@@ -1128,7 +1121,6 @@ enum AppEndpointType {
     },
     Route {
         path: FileSystemPath,
-        root_layouts: ResolvedVc<FileSystemPathVec>,
     },
     Metadata {
         metadata: MetadataItem,
@@ -1160,31 +1152,16 @@ impl AppEndpoint {
     async fn app_route_entry(
         &self,
         path: FileSystemPath,
-        root_layouts: Vc<FileSystemPathVec>,
         next_config: Vc<NextConfig>,
     ) -> Result<Vc<AppEntry>> {
-        let root_layouts = root_layouts.await?;
-        let config = if root_layouts.is_empty() {
-            None
-        } else {
-            let mut config = NextSegmentConfig::default();
-
-            for layout in root_layouts.iter().rev() {
-                let source = Vc::upcast(FileSource::new(layout.clone()));
-                let layout_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
-                config.apply_parent_config(&*layout_config.await?);
-            }
-
-            Some(config.cell())
-        };
-
         Ok(get_app_route_entry(
             self.app_project.route_module_context(),
             self.app_project.edge_route_module_context(),
             Vc::upcast(FileSource::new(path)),
             self.page.clone(),
             self.app_project.project().project_path().owned().await?,
-            config,
+            // Route Handlers only use their own exports, not ancestor layout configuration.
+            None,
             next_config,
         ))
     }
@@ -1213,9 +1190,7 @@ impl AppEndpoint {
         let next_config = self.await?.app_project.project().next_config();
         let app_entry = match &this.ty {
             AppEndpointType::Page { loader_tree, .. } => self.app_page_entry(**loader_tree),
-            AppEndpointType::Route { path, root_layouts } => {
-                self.app_route_entry(path.clone(), **root_layouts, next_config)
-            }
+            AppEndpointType::Route { path } => self.app_route_entry(path.clone(), next_config),
             AppEndpointType::Metadata { metadata } => {
                 self.app_metadata_entry(metadata.clone(), next_config)
             }
@@ -1291,7 +1266,10 @@ impl AppEndpoint {
         let ssr_chunking_context = if process_ssr {
             Some(
                 match runtime {
-                    NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
+                    NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(
+                        true, // client_assets
+                        true, // supports_lazy_dynamic_imports
+                    )),
                     NextRuntime::Edge => this
                         .app_project
                         .project()
@@ -1402,7 +1380,10 @@ impl AppEndpoint {
                 original_name = app_entry.original_name
             ))?;
             let ssr_hmr_chunks = project
-                .server_chunking_context(process_client_assets)
+                .server_chunking_context(
+                    process_client_assets,
+                    true, // supports_lazy_dynamic_imports
+                )
                 .server_hmr_chunk_list(
                     ssr_hmr_chunk_list_path,
                     Vc::cell(ssr_client_reference_chunks),
@@ -1475,6 +1456,39 @@ impl AppEndpoint {
             None
         };
 
+        // Like the polyfill, this is a pre-compiled asset distributed as part of next and served
+        // as-is rather than bundled with the framework. Keeping it small and independent lets it
+        // reveal streamed Suspense boundaries before the framework loads or hydration begins.
+        // React only publishes it on the experimental channel, which
+        // `experimental.externalBrowserRuntime` opts into.
+        let external_browser_runtime_output_asset =
+            if matches!(this.ty, AppEndpointType::Page { .. })
+                && *project
+                    .next_config()
+                    .enable_external_browser_runtime()
+                    .await?
+            {
+                let next_package = get_next_package(project.project_path().owned().await?).await?;
+                let external_browser_runtime_source = FileSource::new(next_package.join(
+                    "dist/compiled/react-dom-experimental/unstable_server-external-runtime.js",
+                )?);
+
+                let external_browser_runtime_output_asset = ResolvedVc::upcast(
+                    SingleFileEcmascriptOutput::new(
+                        *client_chunking_context,
+                        Vc::upcast(external_browser_runtime_source),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+
+                client_assets.insert(external_browser_runtime_output_asset);
+
+                Some(external_browser_runtime_output_asset)
+            } else {
+                None
+            };
+
         // Compile any service workers registered via `navigator.serviceWorker.register(new
         // URL(...), { scope })` reachable from this endpoint.
         client_assets.extend(
@@ -1509,6 +1523,7 @@ impl AppEndpoint {
                 pages: Default::default(),
                 root_main_files: client_shared_chunks,
                 polyfill_files: polyfill_output_asset.into_iter().collect(),
+                external_browser_runtime_file: external_browser_runtime_output_asset,
                 root_main_files_per_page,
                 pages_chunk_group_bootstrap_params: client_chunk_group_bootstrap_params
                     .map(|params| {
@@ -1582,14 +1597,13 @@ impl AppEndpoint {
         let app_entry_chunks = app_entry_chunk_group_ref.assets;
         let app_entry_chunks_ref = app_entry_chunks.await?;
 
-        if is_app_page
-            && runtime == NextRuntime::NodeJs
+        if runtime == NextRuntime::NodeJs
             && *project
                 .next_config()
                 .turbopack_lazy_dynamic_imports_ssr(*project.next_mode().await?)
                 .await?
         {
-            let rsc_chunks = expanded_app_entry_chunks
+            let dynamic_import_chunks = expanded_app_entry_chunks
                 .await?
                 .iter()
                 .copied()
@@ -1607,18 +1621,21 @@ impl AppEndpoint {
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
-            let rsc_hmr_chunks = project
-                .server_chunking_context(true)
+            let dynamic_import_hmr_chunks = project
+                .server_chunking_context(
+                    process_client_assets,
+                    true, // supports_lazy_dynamic_imports
+                )
                 .server_hmr_chunk_list(
                     server_path.join(&format!(
-                        "app{}/rsc-dynamic-imports.js",
+                        "app{}/dynamic-imports.js",
                         app_entry.original_name
                     ))?,
-                    Vc::cell(rsc_chunks),
+                    Vc::cell(dynamic_import_chunks),
                 )
                 .to_resolved()
                 .await?;
-            server_assets.insert(rsc_hmr_chunks);
+            server_assets.insert(dynamic_import_hmr_chunks);
         }
 
         // these references are important for turbotrace
@@ -1775,8 +1792,8 @@ impl AppEndpoint {
                             .config
                             .await?
                             .preferred_region
-                            .clone()
-                            .map(Regions::Multiple),
+                            .as_ref()
+                            .map(|region| Regions::Multiple(region.to_vec())),
                         matchers: vec![matchers],
                         env: project.edge_env().owned().await?,
                     };
@@ -1932,14 +1949,16 @@ impl AppEndpoint {
             NextRuntime::Edge => {
                 let chunk_group1 = chunking_context.chunk_group(
                     server_action_manifest_loader.ident(),
-                    ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
+                    smallvec![ChunkGroupKey::Shared(ResolvedVc::upcast(
+                        server_action_manifest_loader,
+                    ))],
                     module_graph,
                     AvailabilityInfo::root(),
                 );
 
                 let chunk_group2_assets = chunking_context.evaluated_chunk_group_assets(
                     app_entry.rsc_entry.ident(),
-                    ChunkGroup::Entry(vec![app_entry.rsc_entry]),
+                    ChunkGroupKey::Entry(vec![app_entry.rsc_entry]),
                     module_graph,
                     OutputAssets::empty(),
                     chunk_group1.await?.availability_info,
@@ -1953,7 +1972,7 @@ impl AppEndpoint {
                 async {
                     let mut current_chunk_group = ChunkGroupResult::empty_resolved();
 
-                    let entry_chunk_group = ChunkGroup::Entry(vec![app_entry.rsc_entry]);
+                    let entry_chunk_group = ChunkGroupKey::Entry(vec![app_entry.rsc_entry]);
 
                     let client_references = client_references.await?;
 
@@ -1964,46 +1983,65 @@ impl AppEndpoint {
                     // `per_page_module_graph`), so without this the layout segments would share
                     // very little across pages.
                     //
-                    // It must not be created in production. Its `parent` is *this* endpoint's
-                    // entry chunk group, and `parent` is part of a merged group's identity, so
-                    // the group -- and hence the availability info it seeds into the layout
-                    // segment chain below -- would differ for every endpoint. That makes each
-                    // shared layout segment re-chunk once per descendant endpoint. In production
-                    // a single whole-app module graph already shares these modules, so they are
-                    // chunked as part of the entry instead.
+                    // It must not be created in production. The group is the merged child of
+                    // *this* endpoint's entry chunk group, and that parent is part of a merged
+                    // group's identity, so the group -- and hence the availability info it seeds
+                    // into the layout segment chain below -- would differ for every endpoint.
+                    // That makes each shared layout segment re-chunk once per descendant
+                    // endpoint. In production a single whole-app module graph already shares
+                    // these modules, so they are chunked as part of the entry instead.
                     if *project.per_page_module_graph().await? {
                         let chunk_group_info = module_graph.chunk_group_info();
                         let span = tracing::trace_span!("server utils");
                         async {
-                            let parent_chunk_group = *chunk_group_info
-                                .get_index_of(entry_chunk_group.clone())
-                                .await?;
+                            let has_server_utils = !client_references.server_utils.is_empty();
 
-                            let server_utils = client_references
-                                .server_utils
-                                .iter()
-                                .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
-                                .try_join()
-                                .await?;
-                            let chunk_group = chunking_context
-                                .chunk_group(
-                                    AssetIdent::from_path(
-                                        this.app_project.project().project_path().owned().await?,
+                            // The server utilities of this entry are merged into a single group:
+                            // the one merged child of the entry chunk group carrying the server
+                            // utility merge tag.
+                            let derived_group = if !has_server_utils {
+                                None
+                            } else {
+                                let entry_index = chunk_group_info
+                                    .get_index_of(entry_chunk_group.clone())
+                                    .await?;
+                                let merged = chunk_group_info
+                                    .get_shared_merged_chunk_group(
+                                        entry_index,
+                                        NEXT_SERVER_UTILITY_MERGE_TAG,
                                     )
-                                    .with_modifier(rcstr!("server-utils"))
-                                    .into_vc(),
-                                    ChunkGroup::SharedMerged {
-                                        merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
-                                        entries: server_utils,
-                                        parent: parent_chunk_group,
-                                    },
-                                    module_graph,
-                                    AvailabilityInfo::root(),
-                                )
-                                .to_resolved()
-                                .await?;
+                                    .await?;
+                                merged.as_ref().map(|group| group.chunk_group.key())
+                            };
 
-                            current_chunk_group = chunk_group;
+                            ensure!(
+                                !has_server_utils || derived_group.is_some(),
+                                "could not find a graph-derived shared merged group for server \
+                                 utilities"
+                            );
+
+                            let mut combined_chunk_group = ChunkGroupResult::empty_resolved();
+                            if let Some(group) = derived_group {
+                                combined_chunk_group = chunking_context
+                                    .chunk_group(
+                                        AssetIdent::from_path(
+                                            this.app_project
+                                                .project()
+                                                .project_path()
+                                                .owned()
+                                                .await?,
+                                        )
+                                        .with_modifier(rcstr!("server-utils"))
+                                        .into_vc(),
+                                        smallvec![group],
+                                        module_graph,
+                                        AvailabilityInfo::root(),
+                                    )
+                                    .to_resolved()
+                                    .await?;
+                            }
+
+                            current_chunk_group = combined_chunk_group;
 
                             anyhow::Ok(())
                         }
@@ -2028,7 +2066,9 @@ impl AppEndpoint {
                         async {
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
-                                ChunkGroup::Shared(ResolvedVc::upcast(server_component)),
+                                smallvec![ChunkGroupKey::Shared(ResolvedVc::upcast(
+                                    server_component
+                                ))],
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );
@@ -2047,7 +2087,9 @@ impl AppEndpoint {
                     {
                         let chunk_group = chunking_context.chunk_group(
                             server_action_manifest_loader.ident(),
-                            ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
+                            smallvec![ChunkGroupKey::Shared(ResolvedVc::upcast(
+                                server_action_manifest_loader,
+                            ))],
                             module_graph,
                             current_chunk_group.await?.availability_info,
                         );
@@ -2241,14 +2283,13 @@ impl Endpoint for AppEndpoint {
                         format!("{hmr_entry_path}.js").into(),
                         format!("{hmr_entry_path}/client-components-ssr.js").into(),
                     ];
-                    if matches!(this.ty, AppEndpointType::Page { .. })
-                        && *project
-                            .next_config()
-                            .turbopack_lazy_dynamic_imports_ssr(*project.next_mode().await?)
-                            .await?
+                    if *project
+                        .next_config()
+                        .turbopack_lazy_dynamic_imports_ssr(*project.next_mode().await?)
+                        .await?
                     {
                         server_hmr_entry_paths
-                            .push(format!("{hmr_entry_path}/rsc-dynamic-imports.js").into());
+                            .push(format!("{hmr_entry_path}/dynamic-imports.js").into());
                     }
                     EndpointOutputPaths::NodeJs {
                         server_hmr_entry_paths,

@@ -110,6 +110,7 @@ fn react_server_components_errors(input: PathBuf) {
         .iter()
         .position(|s| s.to_str() == Some("app-dir"))
         .map(|pos| input.iter().take(pos + 1).collect());
+    let is_app_router = app_dir.is_some();
 
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
@@ -123,6 +124,7 @@ fn react_server_components_errors(input: PathBuf) {
                     use_cache_enabled,
                     taint_enabled,
                     page_extensions: vec![],
+                    is_app_router,
                 }),
                 tr.comments.as_ref().clone(),
                 app_dir.clone(),
@@ -183,6 +185,7 @@ fn react_server_actions_errors(input: PathBuf) {
                         use_cache_enabled: true,
                         taint_enabled: true,
                         page_extensions: vec![],
+                        is_app_router: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -255,6 +258,7 @@ fn server_actions_turbopack_rsc_errors(input: PathBuf) {
                             use_cache_enabled: true,
                             taint_enabled: true,
                             page_extensions: vec![],
+                            is_app_router: true,
                         }),
                         None,
                     ));
@@ -309,6 +313,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                         use_cache_enabled: false,
                         taint_enabled: true,
                         page_extensions: vec![],
+                        is_app_router: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,

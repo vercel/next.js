@@ -904,7 +904,7 @@ pub struct PlainIssue {
 
 /// A collection of [`PlainIssue`]s collected from a single source.
 ///
-/// Returned by [`collect_issues`] so that the (plain) issues can be read strongly
+/// Returned by `collect_issues` so that the (plain) issues can be read strongly
 /// consistently from a top-level task and handed to a non-turbo-task [`IssueReporter`].
 #[turbo_tasks::value(serialization = "skip")]
 #[derive(Debug)]
@@ -1075,7 +1075,7 @@ pub trait IssueReporter {
     /// (program-ending) issues were present.
     ///
     /// This is intentionally *not* a `#[turbo_tasks::function]`: it performs no turbo-tasks
-    /// reads of its own (the issues are collected ahead of time by [`collect_issues`]), so it
+    /// reads of its own (the issues are collected ahead of time by `collect_issues`), so it
     /// is safe to call from a top-level task.
     ///
     /// # Arguments:

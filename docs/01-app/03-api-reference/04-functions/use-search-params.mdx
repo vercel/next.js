@@ -83,6 +83,8 @@ If a route is [prerendered](/docs/app/glossary#prerendering), calling `useSearch
 
 This allows a part of the route to be prerendered while the dynamic part that uses `useSearchParams` is client-side rendered.
 
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), the boundary is client-side rendered only when the rest of the route is prerendered. If any component on the route reads request data, such as [`cookies()`](/docs/app/api-reference/functions/cookies), Next.js renders the boundary on the server at request time with the real search params. To keep a component that reads browser-only APIs, such as `sessionStorage`, out of the server render, use [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) instead of relying on the `useSearchParams` boundary.
+
 We recommend wrapping the Client Component that uses `useSearchParams` in a `<Suspense/>` boundary. This will allow any Client Components above it to be prerendered and sent as part of initial HTML.
 
 See [Next.js encountered URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook) for full fix options and trade-offs.
