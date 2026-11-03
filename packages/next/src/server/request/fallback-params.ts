@@ -5,12 +5,45 @@ import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { extractPathnameRouteParamSegmentsFromLoaderTree } from '../../build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree'
 import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 /**
  * Maps unknown param names to internal placeholders. The parameter wrappers
  * control when reads suspend; these placeholders must not become rendered UI.
  */
 export type OpaqueFallbackRouteParams = ReadonlyMap<string, string>
+
+type PrerenderCandidate = {
+  readonly pathname: string
+  readonly fallbackRouteParams?: readonly FallbackRouteParam[]
+}
+
+/**
+ * Selects the most specific prerender candidate that matches a pathname.
+ * Candidates with equal specificity retain their input order.
+ */
+export function selectPrerenderedRoute<T extends PrerenderCandidate>(
+  candidates: readonly T[],
+  targetPathname: string
+): T | undefined {
+  let selected: T | undefined
+
+  for (const candidate of candidates) {
+    if (!getRouteRegex(candidate.pathname).re.test(targetPathname)) {
+      continue
+    }
+
+    if (
+      selected === undefined ||
+      (candidate.fallbackRouteParams?.length ?? 0) <
+        (selected.fallbackRouteParams?.length ?? 0)
+    ) {
+      selected = candidate
+    }
+  }
+
+  return selected
+}
 
 /**
  * Creates an opaque fallback route params object from the fallback route params.
