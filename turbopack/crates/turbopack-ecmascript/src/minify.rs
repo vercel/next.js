@@ -34,7 +34,7 @@ use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
-    source_map::{SourceMapGenerationOptions, SourceMaps, structured::StructuredSourceMap},
+    source_map::{SourceMaps, structured::StructuredSourceMap},
 };
 
 use crate::parse::{IdentCollector, generate_js_source_map};
@@ -55,7 +55,6 @@ pub fn minify(code: Code, emit_source_maps: bool, mangle: Option<MangleType>) ->
     minify_source(
         source_code,
         original_maps,
-        source_maps,
         emit_source_maps,
         generate_debug_id,
         mangle,
@@ -88,7 +87,6 @@ pub fn minify_chunk_item(
     minify_source(
         source_code,
         original_maps,
-        source_maps,
         emit_source_maps,
         generate_debug_id,
         mangle,
@@ -124,12 +122,12 @@ const CHUNK_ITEM_SENTINEL: &str = "__TURBOPACK_CHUNK_ITEM__";
 fn minify_source(
     source_code: BytesStr,
     original_maps: SourceMaps<Rope>,
-    source_maps: bool,
     emit_source_maps: bool,
     generate_debug_id: bool,
     mangle: Option<MangleType>,
     target: MinifyTarget,
 ) -> Result<Code> {
+    let source_maps = !matches!(original_maps, SourceMaps::None);
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let fm = cm.new_source_file(FileName::Anon.into(), source_code);
 
@@ -244,55 +242,44 @@ fn minify_source(
         src_map_buf,
         strict_directive,
     } = output;
-    let source_map = |src_map_buf: Vec<(BytePos, LineCol)>| {
-        let mut maps = original_maps.clone().try_map(|original_map| {
-            generate_js_source_map(
-                &*cm,
-                &src_map_buf,
-                Some(&original_map),
-                true,
-                false,
-                &source_map_names,
-            )
-        })?;
-        if emit_source_maps && matches!(maps, SourceMaps::None) {
-            maps = SourceMaps::Shared(StructuredSourceMap::from_swc_map(
-                swc_sourcemap::SourceMapBuilder::new(None).into_sourcemap(),
-            )?);
-        }
-        Ok::<_, anyhow::Error>(maps)
-    };
-
-    let generation = if emit_source_maps && matches!(original_maps, SourceMaps::None) {
-        SourceMapGenerationOptions {
-            full: true,
-            shallow: true,
-        }
+    let src_map_buf = if let Some(directive) = &strict_directive {
+        mappings_after(&src, src_map_buf, directive.end)
     } else {
-        original_maps.generation_options()
+        src_map_buf
     };
-    let mut builder = CodeBuilder::new(generate_debug_id, generation);
+    let mut maps = original_maps.try_map(|original_map| {
+        generate_js_source_map(
+            &*cm,
+            &src_map_buf,
+            Some(&original_map),
+            true,
+            false,
+            &source_map_names,
+        )
+    })?;
+    if emit_source_maps && matches!(maps, SourceMaps::None) {
+        maps = SourceMaps::Shared(StructuredSourceMap::from_swc_map(
+            swc_sourcemap::SourceMapBuilder::new(None).into_sourcemap(),
+        )?);
+    }
+    let mut builder = CodeBuilder::new(generate_debug_id, maps.generation_options());
     if let Some(prefix) = prefix {
         builder.push_source(&format!("{prefix},").into(), SourceMaps::<Rope>::None)?;
     }
     match strict_directive {
-        None => builder.push_source(&src.into(), source_map(src_map_buf)?)?,
+        None => builder.push_source(&src.into(), maps)?,
         Some(directive) => {
             // The directive becomes its own unmapped section, so that a chunk can remove it
             // without rewriting any source map. The code in front of it is the factory's
             // synthetic head (`function(e){` or `e=>{`, unmapped in the unminified factory as
             // well), so it is emitted unmapped too. The mappings of the body move into a section
             // starting right after the directive.
-            let body_map = mappings_after(&src, src_map_buf, directive.end);
             builder.push_source(
                 &src[..directive.start].to_string().into(),
                 SourceMaps::<Rope>::None,
             )?;
             builder.push_strict_directive();
-            builder.push_source(
-                &src[directive.end..].to_string().into(),
-                source_map(body_map)?,
-            )?;
+            builder.push_source(&src[directive.end..].to_string().into(), maps)?;
         }
     }
     Ok(builder.build())
@@ -525,7 +512,7 @@ mod tests {
     use turbopack_core::{
         chunk::MangleType,
         code_builder::{CodeBuilder, STRICT_DIRECTIVE},
-        source_map::{SourceMap, SourceMapType},
+        source_map::{SourceMap, SourceMapGenerationOptions, SourceMapType},
     };
 
     use super::*;
