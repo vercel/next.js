@@ -65,9 +65,10 @@ pub struct Config {
 /// if the server actions transform may need to generate server reference IDs (and therefore
 /// [`Config::hash_salt`]) for it.
 ///
-/// This is a conservative check: it returns `true` for any string literal anywhere in the program
-/// that starts with `"use server"` or `"use cache"`, regardless of its position. False positives
-/// are fine, false negatives are not.
+/// This is a conservative check: it returns `true` for any valid UTF-8 string literal anywhere in
+/// the program that starts with `"use server"` or `"use cache"`, regardless of its position.
+/// Ill-formed strings are ignored because they cannot be directives. False positives are fine,
+/// false negatives are not.
 pub fn may_contain_server_reference_directives(program: &Program) -> bool {
     struct DirectiveFinder {
         found: bool,
@@ -80,7 +81,13 @@ pub fn may_contain_server_reference_directives(program: &Program) -> bool {
             if self.found {
                 return;
             }
-            if s.value.starts_with("use server") || s.value.starts_with("use cache") {
+            // Directives are always valid UTF-8 (the transform matches them via `==` /
+            // `as_str()`), so strings that aren't can be skipped. Don't use
+            // `Wtf8::starts_with`: it slices at the pattern's byte length and panics when that
+            // isn't a char boundary.
+            if s.value.as_str().is_some_and(|value| {
+                value.starts_with("use server") || value.starts_with("use cache")
+            }) {
                 self.found = true;
             }
         }
@@ -4138,6 +4145,24 @@ mod tests {
             ));
             Ok(())
         });
+    }
+
+    #[test]
+    fn non_ascii_string_does_not_panic() {
+        // Byte 9 (`"use cache".len()`) falls inside `Ñ` in the first string. Byte 10
+        // (`"use server".len()`) falls inside `Ñ` in the second string.
+        assert!(!check(
+            "export const a = 'ÄÅÇÉÑÖÜáàâäãåçéèêë'; export const b = 'aÄÅÇÉÑÖÜáàâ';"
+        ));
+    }
+
+    #[test]
+    fn lone_surrogate_string_does_not_hide_directive() {
+        assert!(!check("export const s = '\\uD800abcdefghijkl';"));
+        assert!(check(
+            "export const s = '\\uD800abcdefghijkl'; export async function action() { 'use \
+             server'; }"
+        ));
     }
 
     #[test]
