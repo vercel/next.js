@@ -170,6 +170,7 @@
       "test/e2e/app-dir/dynamic/dynamic.test.ts",
       "test/e2e/app-dir/edge-route-catchall/edge-route-catchall.test.ts",
       "test/e2e/app-dir/edge-route-rewrite/edge-route-rewrite.test.ts",
+      "test/e2e/app-dir/edge-x-middleware-set-cookie/edge-x-middleware-set-cookie.test.ts",
       "test/e2e/app-dir/edge-runtime-node-compatibility/edge-runtime-node-compatibility.test.ts",
       "test/e2e/app-dir/errors/index.test.ts",
       "test/e2e/app-dir/expire-time/**/*",

@@ -2261,8 +2261,14 @@ export default class NextNodeServer extends BaseServer<
     // TODO: (wyattjoh) investigate improving this
 
     result.response.headers.forEach((value, key) => {
+      const lowerKey = key.toLowerCase()
+      // `x-middleware-set-cookie` is an internal header not needed for the response
+      if (lowerKey === 'x-middleware-set-cookie') {
+        return
+      }
+
       // The append handling is special cased for `set-cookie`.
-      if (key.toLowerCase() === 'set-cookie') {
+      if (lowerKey === 'set-cookie') {
         // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
         for (const cookie of splitCookiesString(value)) {
           params.res.appendHeader(key, cookie)
