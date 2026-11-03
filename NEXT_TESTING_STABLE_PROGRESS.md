@@ -13,7 +13,66 @@ is recorded in the generated inventory and lockfile. The supported stable range
 is undecided, `stableReady` remains false, and no stable exception is approved.
 This is an implementation checkpoint, not graduation of the experiment.
 
-## Current recorded status — November 3, 2026
+## Current recorded status — A1–A4 integration, November 3, 2026
+
+Implementation `a13626a8624faaa6fff9afd5bd2994cceb5af5d1` integrates only the existing A1–A4
+packets: BenchFn, the three ordered fixture patches, Browser clock evidence,
+locator extensions/types and phase1 DOM utilities. Actual Source/installed checks
+and physical joins are recorded in the checkpoint's closed qualification summary.
+The last independently verified GitHub publication remains the point-in-time
+`70973735e5` push to draft PR #98869; publication and the implementation snapshot
+are recorded separately rather than through a “not yet pushed” metadata flag.
+
+BenchFn is only the exact `() => unknown` type; benchmark execution is not
+implemented by that export. The fixture patches preserve actual test context,
+factory receivers and registration/dependency order in their measured Node roles.
+Browser manual/nextAsync clock evidence adds no new clock runtime. Locator/DOM
+utilities and strict declarations use the explicit shipped Browser opt-in, with
+no change to bare Vitest globals or addition of unrelated Browser options/types.
+
+Integrated verification passed:
+
+- Normal primitive generation changed only two declaration files; primitive
+  JavaScript, licenses, the native binding, core build and root/Next types passed.
+- Strict programs: **464 Source and 464 installed**, including 32 new BenchFn
+  and 432 preservation programs per consumer, across Node 20/22/24/26. The normal
+  BenchFn wrapper also passed.
+- Fixtures: **24 profiles, 72 cases, 512 whole rows and 96 component controls per
+  consumer**, in both modes across all four Node versions.
+- Browser: **15 normal Source tests** across eight suites, plus 32 additional
+  Source cases with the other driver; **28 installed profiles / 84 cases**.
+  Both consumers passed four strict alias programs; installed aliases exclude
+  separate Vitest declarations. Clock cases ran once per consumer.
+- Preservation: **120 fixture tests passed** from the 380-test catalog (260
+  outside the focused selection), plus **102 legacy locator controls**. All
+  original bodies, assertions, reports, deadlines and process joins were retained.
+
+Only `BenchFn` gains scoped API status: **93 scoped, 272 partial, 391 missing,
+20 unreviewed**. Declarations are **297 available, 285 absent, 194 not applicable**.
+All 776 reference names, surfaces, overloads and release classifications remain
+unchanged; release-compatible stays zero. The Locator/DOM/context exports have
+no mapped root inventory rows and do not produce invented API counts.
+
+The entire Locator production numeric-callback error-message field remains
+unqualified. DOM getElementError/ARIA/error-formatting phase2, worker-fixture
+assertion ownership, Browser destructured callbacks, WebKit viewport and native
+reset126 remain outside A and open. Broader fixtures/clocks/Browser APIs stay
+partial. No native, WebKit execute, protocol or primitive runtime widening is
+part of this integration.
+
+Full frozen checkpoint 421 remains closed failed: **7,051/7,068 focused**, **240/264 regression**
+and **35/36 incremental**. Bridge 79, rendering 35 and snapshot 29 pass; all ordinary
+JSONs and held source/native/reference checks remain recorded. Six historical
+titles still need reconciliation and the original 47-case Browser replay remains
+incomplete. The newer historical checkpoint 426 lifecycle result remains **369/372** with
+three helper timeouts, no proven product fix, and four incomplete historical
+owner receipts. Scoped A qualification replaces none of those full-run failures.
+
+Stable readiness remains false, range null and approved exceptions empty.
+Documentation/migrations remain last; Linux qualification and performance
+benchmarking remain deferred. Other functional workstreams were not advanced.
+
+## Historical recorded status through metadata commit 70973735e5
 
 The implementation is pushed through `d1a103d6fd274e13a0c0450d25054fc9d2c31c20`
 to draft [PR #98869](https://github.com/vercel/next.js/pull/98869), on
@@ -7833,7 +7892,7 @@ Normal core/types/lint/style pass. The coherent pre200 revision passes746 compil
 
 The next integrated Source step passes10 focused CLI controls (28 actual ordered/Boolean profiles plus external-project/selected-input controls),23 coverage controls and4 whole formatter/current-AST CLI profiles. It composes the eight-file formatter prepare/commit implementation, independent external transform ownership, selected compiler inputs, and explicit Boolean CLI forms. The old10 flag models remain unchanged; new9 forms also run with the directory before/after flags. All protected expectations remain as approved; the old external refusal and five private test-double corrections await separate approval. New installed replay is pending.
 
-Active parallel work: Browser concurrent producer/per-case collector with all admission gates still closed; five additional standard reporters and measured zero-output cleanup semantics in the coverage slot; exact parent fs.watch readiness diagnosis for native capture controls; and watch removal-diagnostic settlement after the real rejection. Formatter-active SIGINT retains its measured config-write/teardown divergence. Numeric/arbitrary-string/negative-equals flag quirks, actual cancellation/watch gaps, original47 Browser authority restoration, cross-profile qualification and full release gates remain open.
+Active parallel work: Browser concurrent producer/per-case collector with all admission gates still closed; five additional standard reporters and measured zero-output cleanup semantics in the coverage slot; exact parent fs.watch readiness diagnosis for native capture controls; and watch removal-diagnostic settlement after the real rejection. Formatter-active SIGINT retains its measured config-write/teardown divergence. Numeric/arbitrary-string/negative-equals flag quirks, actual cancellation/watch gaps, original 47-case Browser authority restoration, cross-profile qualification and full release gates remain open.
 
 Completed archives are retired only after owned readers join; fixed worktrees/consumers/native target are reused. Signed local commits still await the configured signer. All source stays local, nothing is pushed, and Linux/performance/docs/migrations remain deferred.
 
@@ -7871,7 +7930,7 @@ Two completed package-copy outputs from frozen207 were retired after closed pare
 
 User committed alias204 as7f1da973cdaba4cc073666a8ca7a737b0978bd6f. The index is empty and no push occurred. The held installed216 driver resumed after confirmation; all19 checks are now closed green on package420bf0fe/9502 exact files/private NativeS27, including native Promise16, config types, JSON messages24, eight Istanbul settings, default/two-worker and six CommonJS cases. The prior package/archive was removed before replacement.
 
-Frozen21511fc8cf1b03dcf89d3e858290a2a87f4d6f171d0 is closed and failed:4254/4285 focused,242/264 regression,35/36 incremental; bootstrap18/types,bridge79,rendering35 and snapshot-parent17 pass. All baseline names are accounted for including approved corrections; original raw failures remain unchanged and no cause is inferred from counts. The original47 Browser replay remains incomplete.
+Frozen21511fc8cf1b03dcf89d3e858290a2a87f4d6f171d0 is closed and failed:4254/4285 focused,242/264 regression,35/36 incremental; bootstrap18/types,bridge79,rendering35 and snapshot-parent17 pass. All baseline names are accounted for including approved corrections; original raw failures remain unchanged and no cause is inferred from counts. The original 47-case Browser replay remains incomplete.
 
 Root217 applies eight immutable verified packets: imported-only Istanbul70, actual-map observer71, direct ESM-to-CJS coverage74, immutable map preparation76, final JSONMAP214 and GLOBAL215, bounded public Browser concurrency6 and maintained209 corpus. All251 incoming paths apply cleanly without index mutation. Owner composed Node maps/reporters/teardown passes82 Source and25 installed; Browser Source72 and installed72 close the stated positive/failing/limits/physical-cancellation scope. Chromium empty-stack custom errors and cancellation JSON presence are explicit gaps. Current coherent Root verification remains pending.
 
@@ -7891,7 +7950,7 @@ The217 installed run is closed:64 Browser concurrency profiles and34 Node map/cu
 
 Root218 normal core/types/lint/style/generator checks pass. All378 runtime/assertion,210 Browser-server and2 configuration-type controls pass. Sandbox-only preliminary failures remain separate. The maintained109-path plain-fixture corpus roundtrips exactly; all74 raw/authored hashes and33 JSON values hold. The same installed consumer350f1517/9505 exact files/privateS27 passes16 representative Chromium/Firefox development/production profiles,40 cases and112 exact authored rows. All owners join and temporary fixtures are removed; prior7b package/archive was removed before replacement.
 
-The fixed frozen217 run has36 incremental,79 RSC bridge and35 rendering checks passing; the full focused run is active and snapshot/regression follow. This is separate from current218 and does not erase the54 failed frozen215 observations or complete the original47 Browser replay.
+The fixed frozen217 run has36 incremental,79 RSC bridge and35 rendering checks passing; the full focused run is active and snapshot/regression follow. This is separate from current218 and does not erase the54 failed frozen215 observations or complete the original 47-case Browser replay.
 
 After Root Source readers joined, NativeS28 producer changes were applied under the owned normal watcher: actual generated setup/serializer Source identity+content sidecar and ordinary named CommonJS flat shorthand defaults. The user-approved single obsolete negative was removed, retaining its exact literal positively. Rust/compiler/native build and the normal full bootstrap use the sole existing Cargo target/cache. Actual Source/installed consumer qualification is still pending; setup/serializer coverage is not declared implemented merely by metadata production. Browser native-fixture actions, settled failure coverage, scheduling and rendering work continue independently. No source export or push occurred; documentation/migrations remain last, Linux qualification/performance deferred.
 
@@ -7903,7 +7962,7 @@ Root222 passes core/repository types/lint/style/generator and all778 selected So
 
 Actual Istanbul generated setup/serializer roles,settled afterAll assertion-finalizer/file-fixture errors and scope-distinct shared payloads are integrated. Root223 applies the two exact newly approved held-key registration/order and capabilities-profile corrections plus callback-only beforeAll77. Owner beforeAll11 new+12 unchanged Source and9 installed profiles pass, preserving real skipped/unstarted descendants,exact suite carriers,report policy,snapshots and all timeout/abort/independent-stage vetoes. Coherent Root223 build/verification follows; collection/beforeEach/native-BODY/V8 and broader combinations remain open.
 
-Frozen2173cb4a28479c0f594367deea1476682f0694818c3 closes failed:4330/4366 focused and235/264 regressions;bootstrap18/types,incremental36,bridge79,rendering35,snapshot-parent17 pass. All65 raw failures and baseline names remain accounted for. It predates218–223/finalS28; original47 Browser replay remains incomplete.35 closed generated fixtures were moved outside the fixed acceptance watch root,retiring27,289,175 bytes of standard build outputs while retaining authored/config/raw/unknown artifacts. Stable readiness remains false,range null,exceptions empty andCompatible API count zero. Documentation/migration examples remain last;Linux/performance deferred. No source export,push,new checkout,consumer or Cargo target.
+Frozen2173cb4a28479c0f594367deea1476682f0694818c3 closes failed:4330/4366 focused and235/264 regressions;bootstrap18/types,incremental36,bridge79,rendering35,snapshot-parent17 pass. All65 raw failures and baseline names remain accounted for. It predates218–223/finalS28; original 47-case Browser replay remains incomplete.35 closed generated fixtures were moved outside the fixed acceptance watch root,retiring27,289,175 bytes of standard build outputs while retaining authored/config/raw/unknown artifacts. Stable readiness remains false,range null,exceptions empty andCompatible API count zero. Documentation/migration examples remain last;Linux/performance deferred. No source export,push,new checkout,consumer or Cargo target.
 
 Root223 coherent verification closes green:67 Source controls (50 coverage-composition,15suite-hook,2 approved controls) and all9 installed profiles on a18fff5f/9508 exact files/private finalS28. Both user-approved corrections apply and pass. Every Source/native pin stays held; previous red observations remain retained. Full acceptance on this coherent revision is next; no release promotion follows.
 
@@ -7917,7 +7976,7 @@ The reused consumer1e74950e contains9511 exact dist files/private finalS28 and e
 
 Component16, plain serial beforeEach79 and isolated explicit development/production RSC watch are sealed owner-qualified handoffs queued for integration. Async/generator CommonJS144 reference profiles are pinned; current S28 baseline admits6 and refuses30 of36 measured forms, with binding-self remaining separate. The original pure-module V8 omission and raw frame columns/rendering remain open. No scope or release promotion follows from these partial proofs.
 
-Frozen223 d8821500f071f17998ab12a25090a702fda7b889 continues independently on finalS28:bootstrap18/types,bridge79,rendering35 pass; incremental25/36 fails11, with complete raw output retained after circular-error JSON serialization failed. Focused223 now closes4381/4435 with54failed sections across coverage/execution/watch; raw log/names are retained after circular-error JSON serialization failed. Snapshot-parent17 passes and regressions remain active. Closed217 stays failed at4330/4366 and235/264; original47 Browser replay remains incomplete. Docs/migrations remain last, Linux/performance deferred; source stays local and nothing is pushed.
+Frozen223 d8821500f071f17998ab12a25090a702fda7b889 continues independently on finalS28:bootstrap18/types,bridge79,rendering35 pass; incremental25/36 fails11, with complete raw output retained after circular-error JSON serialization failed. Focused223 now closes4381/4435 with54failed sections across coverage/execution/watch; raw log/names are retained after circular-error JSON serialization failed. Snapshot-parent17 passes and regressions remain active. Closed217 stays failed at4330/4366 and235/264; original 47-case Browser replay remains incomplete. Docs/migrations remain last, Linux/performance deferred; source stays local and nothing is pushed.
 
 ## Signed225 and integrated component cleanup226
 
@@ -8113,7 +8172,7 @@ S40 adds real nested ordinary factory receivers/defaults/inherited arrows and li
 
 DROP7 is integrated with842 Root controls and separately scoped Source/installed evidence. Its original production mutated-target event failure and unchanged awake replay are both retained; no broad physical drag claim follows. Browser watch map/history/provider/result-policy/publication-order components are implemented only in the measured single-file JS/MJS Chromium development V8 role.28 affected controls preserve all7 old Node controls; actual Source initial report/maps/counters/LCOV/assets match. Original Source quit5s and installed pre-readiness25s failures remain open; installed never sent q. A one-run logging diagnostic closes all owners in1.79s but establishes no causal fix. TS/MTS source lowering still has three exact zero-map association differences; raw parser acceptance is not implementation.
 
-Frozen323/S39 is stopped incomplete and unqualified after independent reference temporary-output overlap;64 saved failure headings are observations, not an invented whole test count. Bootstrap18/roottypes/bridge79/render35/snapshot-parent29 pass, with original logs and failed fixtures preserved.140 obsolete generated fixture directories (1.13GB) were removed only after all41429 old source bytes/readers and a1MB raw input/report/ownership archive were checked. The duplicated native build outputs and an older SDK were also retired; current source, package/native outputs and shared stores remain. Failed298/S38 remains5493/5516 focused,234/264 regression,34/36 incremental. The next coherent full acceptance reuses the same checkout; original47 Browser authority and release readiness remain incomplete. Documentation and migrations stay last; Linux and performance qualification remain deferred.
+Frozen323/S39 is stopped incomplete and unqualified after independent reference temporary-output overlap;64 saved failure headings are observations, not an invented whole test count. Bootstrap18/roottypes/bridge79/render35/snapshot-parent29 pass, with original logs and failed fixtures preserved.140 obsolete generated fixture directories (1.13GB) were removed only after all41429 old source bytes/readers and a1MB raw input/report/ownership archive were checked. The duplicated native build outputs and an older SDK were also retired; current source, package/native outputs and shared stores remain. Failed298/S38 remains5493/5516 focused,234/264 regression,34/36 incremental. The next coherent full acceptance reuses the same checkout; original 47-case Browser authority and release readiness remain incomplete. Documentation and migrations stay last; Linux and performance qualification remain deferred.
 
 The coherent frozen330 run now uses exact raw treead7ddc19/privateS41 and41,538 source paths in the same acceptance checkout. Offline full18 bootstrap/roottypes/bridge79/render35/snapshot-parent29 pass; incremental/regression/fullfocused remain active. Independent published-reference and canonical temporary-output guards are observed throughout. Expanded factory receiver models match all12 extra Source20/22/24 profiles, but only11 have qualified owners: the Node22 arrow-development run overlaps an exact915s MaintenanceSleep interval and retains its timeout/killEPERM as unqualified. Installed12 is fully owned/exact. No blanket timing attribution, retry, deadline change or full-engine qualification is inferred.
 
@@ -8213,7 +8272,7 @@ Signede5e902ce11 implements initial authored root watch dispatch with explicit C
 
 The fixed installed consumer holds5162e57f with9605 exact compiled files and a separate private641 native; Vitest/Vite/mocker/formatter dependencies remain absent. Exactly12 approved obsolete generated targets were retired after hash/reader/lock guards, totaling1526901082 logical bytes. Current package, qualified fallback, source, native artifacts, locks and raw evidence remain; no physical reclamation or shared-store prune is claimed. New generated next-env.d.ts remains ignored and on disk; only maintained files are committed. All local commits use tim@vercel.com and nothing is pushed.
 
-Frozen390 is still running32 focused suites in the fixed isolated checkout on raw treea3796586/privateS49. Its264 regression cases have234 passes/30 raw failures; incremental36/36, bootstrap18/types, bridge79, rendering35 and snapshot29 pass. Final focused JSON, continuous reference/retention/frozen audits and the original47 Browser whole-oracle replay remain incomplete. Closed failed340 remains6039/6069 focused,230/264 regression and35/36 incremental. Scoped407 passes replace neither failed acceptance revision.
+Frozen390 is still running32 focused suites in the fixed isolated checkout on raw treea3796586/privateS49. Its264 regression cases have234 passes/30 raw failures; incremental36/36, bootstrap18/types, bridge79, rendering35 and snapshot29 pass. Final focused JSON, continuous reference/retention/frozen audits and the original 47-case Browser whole-oracle replay remain incomplete. Closed failed340 remains6039/6069 focused,230/264 regression and35/36 incremental. Scoped407 passes replace neither failed acceptance revision.
 
 The inventory retains776 names/overloads and moves only config.test.watch from missing to partial. Release-compatible remains0, stableReadyfalse, supported range null and approved exceptions empty. Publication-failure receipts, actual watch-trigger selection, reporter failure prefixes and production Browser fill events advance in parallel owners; unintegrated work is not certified here. Documentation and migration examples remain last; Linux qualification and performance remain deferred. All source stays local.
 

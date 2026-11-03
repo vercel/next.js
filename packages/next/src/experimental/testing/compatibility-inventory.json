@@ -14,8 +14,8 @@
   },
   "checkpoint": {
     "recordedOn": "2026-11-03",
-    "implementationCommit": "d1a103d6fd274e13a0c0450d25054fc9d2c31c20",
-    "implementation": "Pushed signed increments through d1a103d6fd add measured production original CommonJS require/ESM factory composition, generated custom coverage preparation and actual task-callback draining, Chromium main-frame and owned Firefox-frame runtime viewport changes, polling deadline/global-override behavior, deferred Suite collection/load errors and serial shared development RSC watch. Claims are limited to the linked Source/installed evidence and profiles. Isolated owner packets awaiting integration are listed separately.",
+    "implementationCommit": "a13626a8624faaa6fff9afd5bd2994cceb5af5d1",
+    "implementation": "A1-A4 integrates the existing BenchFn type, test-fixture context identity, factory receivers and registration ordering, Browser manual/nextAsync clock evidence, locator extensions/opt-in declarations and phase1 DOM formatting utilities. Claims apply only to the measured integrated Source and installed profiles. No WebKit viewport, native reset, worker fixture assertion fix, DOM error-factory phase2 or other feature was added.",
     "lastFullAcceptance": {
       "revision": 155,
       "focusedTests": 2947,
@@ -25,16 +25,14 @@
       "browserArtifacts": 6
     },
     "implementationCommitFullAcceptance": false,
-    "scope": "776 reference names, surfaces and overloads retained;92 scoped/272 partial/392 missing/20 unreviewed API rows,296 available/286 absent/194 not-applicable declarations. Only SuiteAPI and SuiteCollector gain scoped status in this refresh. Release-compatible APIs remain0; these counts are not a completion percentage.",
+    "scope": "All 776 reference names, surfaces, overloads and release classifications are retained. Only BenchFn gains scoped API status:93 scoped/272 partial/391 missing/20 unreviewed; declarations297 available/285 absent/194 not applicable. The new Browser context APIs have no mapped root inventory rows. These counts are not a completion percentage; release-compatible remains0.",
     "publication": {
       "pr": "https://github.com/vercel/next.js/pull/98869",
       "headRefName": "codex/experiment-next-test",
-      "pushedImplementationCommit": "d1a103d6fd274e13a0c0450d25054fc9d2c31c20",
-      "pushedOn": "2026-11-03",
-      "draft": true,
-      "normalFastForward": true,
-      "newCommitsSincePriorPRHead": 156,
-      "metadataRefreshNotYetPushed": true,
+      "lastVerifiedRemoteCommit": "70973735e5f170c261427bd34f537b8871c4a613",
+      "lastVerifiedOn": "2026-11-03",
+      "draftAtLastVerification": true,
+      "scope": "This is the last verified authorized GitHub publication, not a claim that every later local implementation or metadata commit has been pushed. The implementation commit is recorded separately.",
       "remoteSandboxSourceExport": false
     },
     "latestFullAcceptanceAttempt": {
@@ -581,122 +579,107 @@
       "scope": "Active integrated native used by the qualified Source and installed production122 and later426 profiles. The newer isolated reset126/8ef candidate and its174 Rust controls are not integrated or a Root runtime qualification."
     },
     "scopedVerification": {
-      "implementationCommit": "d1a103d6fd274e13a0c0450d25054fc9d2c31c20",
-      "qualificationDoesNotReplaceFullAcceptance": true,
-      "integrated426SourceChecks": [
-        {
-          "name": "corrected-cli-editor",
-          "exitCode": 0,
-          "seconds": 89.174865667,
-          "numPassedTests": 5,
-          "numFailedTests": 0,
-          "numPendingTests": 613
+      "implementationCommit": "a13626a8624faaa6fff9afd5bd2994cceb5af5d1",
+      "scope": "A1-A4 only",
+      "integration": 430,
+      "actualClosedQualification": {
+        "baseCommit": "70973735e5f170c261427bd34f537b8871c4a613",
+        "integration": 430,
+        "maintainedPaths": 163,
+        "physicalPaths": 165,
+        "uniqueProductPaths": 9,
+        "build": {
+          "coreAndRootNextTypesPassed": true,
+          "normalPrimitiveRegenerationPassed": true,
+          "onlyTwoDerivedDeclarationsChanged": true,
+          "compiledFiles": 9611,
+          "SourceAndInstalledBeforeMetadataBytesExact": true,
+          "nativeD188Held": true
         },
-        {
-          "name": "custom-ownership72",
-          "exitCode": 0,
-          "seconds": 20.394524250000003,
-          "numPassedTests": 72,
-          "numFailedTests": 0,
-          "numPendingTests": 2450
+        "strictPrograms": {
+          "Source": 464,
+          "installed": 464,
+          "newBenchPerConsumer": 32,
+          "preservationPerConsumer": 432,
+          "actualNodeVersions": ["v20.20.0", "v22.12.0", "v24.0.0", "v26.12.1"],
+          "normalBenchWrapperPassed": 1
         },
-        {
-          "name": "browser8",
-          "exitCode": 0,
-          "seconds": 194.44768625,
-          "numPassedTests": 8,
-          "numFailedTests": 0,
-          "numPendingTests": 0
+        "fixtures": {
+          "Source": {
+            "profiles": 24,
+            "cases": 72,
+            "wholeRows": 512,
+            "componentControls": 96
+          },
+          "installed": {
+            "profiles": 24,
+            "cases": 72,
+            "wholeRows": 512,
+            "componentControls": 96
+          },
+          "preservationPassed": 120,
+          "preservationOutsideSelection": 260,
+          "preservationCatalogTotal": 380
         },
-        {
-          "name": "shared-rsc-watch",
-          "exitCode": 0,
-          "seconds": 129.824833667,
-          "numPassedTests": 2,
-          "numFailedTests": 0,
-          "numPendingTests": 0
+        "Browser": {
+          "SourceNormalTestsPassed": 15,
+          "SourceNormalSuites": 8,
+          "SourceAdditionalDriverProfiles": 12,
+          "SourceAdditionalDriverCases": 32,
+          "SourceStrictAliasPrograms": 4,
+          "installedProfiles": 28,
+          "installedCases": 84,
+          "installedStrictAliasPrograms": 4,
+          "clockSourceProfiles": 4,
+          "clockSourceCases": 20,
+          "clockSourceWholeRows": 24,
+          "clockInstalledProfiles": 4,
+          "clockInstalledCases": 20,
+          "clockInstalledWholeRows": 24,
+          "legacyLocatorControlsPassed": 102,
+          "legacyLocatorOutsideSelection": 385,
+          "noSeparateVitestInBothInstalledAliases": true,
+          "productionNumericCallbackMessageFullyQualified": false,
+          "productionNumericCallbackMessageReference": "cb.call is not a function",
+          "productionNumericCallbackMessageActual": "n.call is not a function",
+          "fullBrowserCompatibilityClaim": false
         },
-        {
-          "name": "full-lifecycle",
-          "exitCode": 1,
-          "seconds": 796.6568480829999,
-          "numPassedTests": 369,
-          "numFailedTests": 3,
-          "numPendingTests": 0
-        }
-      ],
-      "integrated426Lifecycle": {
+        "SDK": {
+          "archiveSHA256": "554eb91fe3e1b381676cdd45cfb4ec519df2d7a77515eda1b277ed069fd5b71f",
+          "oneNormalPackAndOfflineInPlaceInstall": true,
+          "separatePrivateD188": true
+        },
+        "allOwnedProcessesJoined": true,
+        "allRuntimeReadLeasesClosed": true,
+        "originalBodiesGoldensComparatorsAndDeadlinesHeld": true,
+        "originalClockCoordinatorOnlyFailureAndReconciliationRetained": true,
+        "clockNotRerun": true,
+        "full421StillFailed": true,
+        "historicalRoot426Lifecycle369of372NotReplaced": true,
+        "noWebKitOrNativeResetOtherFeatureIncluded": true
+      },
+      "allSelectedAIntegrationChecksPassed": true,
+      "allRuntimeReadLeasesClosed": true,
+      "fullAcceptanceResultReplaced": false,
+      "fullAcceptanceRemainsFailed": true,
+      "priorIntegratedLifecycleResult": {
+        "revision": 426,
         "passed": 369,
         "failed": 3,
         "total": 372,
-        "failures": [
-          "compiled raw fn declaration rows outer helper timeout",
-          "custom matcher task ownership/native assertion identity outer helper timeout",
-          "own assertion functions/getter alias ownership outer helper timeout"
-        ],
-        "originalDeadlinesBodiesAndComparatorsUnchanged": true,
-        "laterOwnPropertyObserverProfilesPassed": 10,
-        "historicalRetainedProfilesWithExactModelsAndOwnerReceipts": 53,
-        "historicalRetainedProfilesWithIncompleteOwnerReceipts": 4,
-        "productFixOrHistoricalTimeoutCauseProven": false
+        "originalThreeHelperTimeoutsRetained": true,
+        "productFixOrHistoricalTimeoutCauseProven": false,
+        "fullOriginalRecord": "checkpoint.priorIntegratedCheckpoint426.scopedVerification"
       },
-      "installed426": {
-        "all41GroupsPassed": true,
-        "wholeSuiteNodeProfiles": 32,
-        "actualStrictSuiteTypePrograms": 112,
-        "actualStrictSuiteTypeProgramsPerNode": {
-          "20": 28,
-          "22": 28,
-          "24": 28,
-          "26": 28
-        },
-        "wholeSuiteBrowserProfiles": 6,
-        "customCoverageWholeModels": 9,
-        "compiledFilesComparedBeforeMetadataRefresh": 9611,
-        "archiveSHA256": "589b791d783bb7c2752fa1ed7f663b79adf2875f81b364a7f230ce1fd24d8715",
-        "noVitestViteMockerOrFormatterDependencies": true,
-        "allRuntimeOwnersJoined": true
-      },
-      "customCoverageSourceWholeModels": 9,
-      "sharedRscWatch": {
-        "source426NormalTestsPassed": 2,
-        "completeGenerationsPerRun": 3,
-        "sourceAndInstalled425Passed": true,
-        "scope": "serial explicit-route development Node/Turbopack isolate:false cohort, one project/worker, snapshot mode none; cooperative ordinary reference shutdown flags retained"
-      },
-      "productionOriginalCommonJsRequire": {
-        "sourceWholeProfiles": 8,
-        "installedWholeProfiles": 8,
-        "preservationControls": 194,
-        "productionOmissionCases": 5
-      },
-      "prePushChecks20261103": {
-        "formattingPassed": true,
-        "eslintPassed": true,
-        "bootstrapTasksPassed": 18,
-        "rootTypesPassed": true,
-        "nextTypesPassed": true,
-        "all196IntegratedSourceBytesHeld": true,
-        "nativeD188Held": true
-      },
-      "localEvidence": [
-        "next-testing-handoffs/integration426-suite-coverage-firefox",
-        "next-testing-handoffs/integration426-fn-shutdown-triage",
-        "next-testing-handoffs/integration422-production122"
+      "bounds": [
+        "BenchFn is type-only ()=>unknown; no benchmark execution claim.",
+        "Fixture context/receivers/order qualify measured default isolated Node; worker fixture assertion ownership and Browser callback parameter scope remain open.",
+        "Clock evidence covers measured Chromium/Firefox manual/nextAsync modes; no new clock runtime implementation or broad engine/profile claim.",
+        "Locator whole positive models are qualified; the entire production numeric-callback Error.message field remains unqualified.",
+        "DOM phase1 covers prettyDOM/configurePrettyDOM/debug formatting/options/env/getter effects; getElementError and ARIA/HTML error formatting remain missing."
       ]
     },
     "pendingIntegration": [
-      {
-        "workstream": "authoring-runtime",
-        "features": [
-          "BenchFn type export",
-          "fixture context identity",
-          "fixture factory receiver behavior",
-          "fixture registration order",
-          "Browser clock tick-mode evidence"
-        ],
-        "status": "Verified only in isolated owner workspaces; not integrated into this implementation commit or counted here. Broader worker-fixture assertion ownership and Browser destructured callback collection remain open."
-      },
       {
         "workstream": "mocking",
         "features": [
@@ -707,12 +690,8 @@
       },
       {
         "workstream": "browser-rendering",
-        "features": [
-          "locator extensions and opt-in Browser types",
-          "DOM formatting utilities",
-          "WebKit runtime viewport"
-        ],
-        "status": "Separate isolated packets remain unintegrated. Locator production numeric-callback Error.message parity, getElementError formatting and the WebKit Source-development timeout remain explicit gaps."
+        "features": ["WebKit runtime viewport"],
+        "status": "The separate WebKit packet remains unintegrated; its original Source-development timeout is unresolved. Locator/DOM A packets are integrated only within their stated bounded contracts; numeric-callback error text, getElementError formatting and broader Browser behavior remain required implementation work."
       },
       {
         "workstream": "scheduling-tooling",
@@ -745,7 +724,7 @@
         "status": "Required release gates remain open; documentation/migrations are the final step. Linux qualification and performance benchmarking remain deferred by user direction."
       }
     ],
-    "nextFullAcceptance": "Reuse the existing isolated acceptance checkout for a new coherent revision after integration. Frozen421 is closed failed and predates the pushed implementation. Do not substitute focused owner/integration passes for full acceptance or weaken reference expectations.",
+    "nextFullAcceptance": "Reuse the isolated acceptance checkout for a coherent newer revision. A1-A4 focused integration does not rerun or replace failed frozen421. The original47 Browser authority replay, six unreconciled historical titles and three426 lifecycle helper timeouts remain open.",
     "historicalCheckpointThrough420": {
       "implementationCommit": "f412cc9b45f75312b79a4252140d57108f19b389",
       "implementation": "Signed local increments through f4cc80412a add eligible original CommonJS require/ESM factory composition, intrinsic Browser signal state and open-shadow query/native target identity. Prior signed steps retain actual task-update Promises, ten strict root type contracts, reporter callback ownership and ordered watch-trigger mapping. Current bounded Source/installed results are separate from closed failed full390. Older shared-RSC watch foundations and broader required profiles remain unqualified. All source stays local; no push, docs/migrations last, Linux/performance deferred.",
@@ -1315,6 +1294,189 @@
         "allPassed": true,
         "sharedRscWatchFoundationStillUnqualified": true
       }
+    },
+    "priorIntegratedCheckpoint426": {
+      "recordedOn": "2026-11-03",
+      "implementationCommit": "d1a103d6fd274e13a0c0450d25054fc9d2c31c20",
+      "implementation": "Pushed signed increments through d1a103d6fd add measured production original CommonJS require/ESM factory composition, generated custom coverage preparation and actual task-callback draining, Chromium main-frame and owned Firefox-frame runtime viewport changes, polling deadline/global-override behavior, deferred Suite collection/load errors and serial shared development RSC watch. Claims are limited to the linked Source/installed evidence and profiles. Isolated owner packets awaiting integration are listed separately.",
+      "scope": "776 reference names, surfaces and overloads retained;92 scoped/272 partial/392 missing/20 unreviewed API rows,296 available/286 absent/194 not-applicable declarations. Only SuiteAPI and SuiteCollector gain scoped status in this refresh. Release-compatible APIs remain0; these counts are not a completion percentage.",
+      "publication": {
+        "pr": "https://github.com/vercel/next.js/pull/98869",
+        "headRefName": "codex/experiment-next-test",
+        "pushedImplementationCommit": "d1a103d6fd274e13a0c0450d25054fc9d2c31c20",
+        "pushedOn": "2026-11-03",
+        "draft": true,
+        "normalFastForward": true,
+        "newCommitsSincePriorPRHead": 156,
+        "metadataRefreshNotYetPushed": true,
+        "remoteSandboxSourceExport": false
+      },
+      "scopedVerification": {
+        "implementationCommit": "d1a103d6fd274e13a0c0450d25054fc9d2c31c20",
+        "qualificationDoesNotReplaceFullAcceptance": true,
+        "integrated426SourceChecks": [
+          {
+            "name": "corrected-cli-editor",
+            "exitCode": 0,
+            "seconds": 89.174865667,
+            "numPassedTests": 5,
+            "numFailedTests": 0,
+            "numPendingTests": 613
+          },
+          {
+            "name": "custom-ownership72",
+            "exitCode": 0,
+            "seconds": 20.394524250000003,
+            "numPassedTests": 72,
+            "numFailedTests": 0,
+            "numPendingTests": 2450
+          },
+          {
+            "name": "browser8",
+            "exitCode": 0,
+            "seconds": 194.44768625,
+            "numPassedTests": 8,
+            "numFailedTests": 0,
+            "numPendingTests": 0
+          },
+          {
+            "name": "shared-rsc-watch",
+            "exitCode": 0,
+            "seconds": 129.824833667,
+            "numPassedTests": 2,
+            "numFailedTests": 0,
+            "numPendingTests": 0
+          },
+          {
+            "name": "full-lifecycle",
+            "exitCode": 1,
+            "seconds": 796.6568480829999,
+            "numPassedTests": 369,
+            "numFailedTests": 3,
+            "numPendingTests": 0
+          }
+        ],
+        "integrated426Lifecycle": {
+          "passed": 369,
+          "failed": 3,
+          "total": 372,
+          "failures": [
+            "compiled raw fn declaration rows outer helper timeout",
+            "custom matcher task ownership/native assertion identity outer helper timeout",
+            "own assertion functions/getter alias ownership outer helper timeout"
+          ],
+          "originalDeadlinesBodiesAndComparatorsUnchanged": true,
+          "laterOwnPropertyObserverProfilesPassed": 10,
+          "historicalRetainedProfilesWithExactModelsAndOwnerReceipts": 53,
+          "historicalRetainedProfilesWithIncompleteOwnerReceipts": 4,
+          "productFixOrHistoricalTimeoutCauseProven": false
+        },
+        "installed426": {
+          "all41GroupsPassed": true,
+          "wholeSuiteNodeProfiles": 32,
+          "actualStrictSuiteTypePrograms": 112,
+          "actualStrictSuiteTypeProgramsPerNode": {
+            "20": 28,
+            "22": 28,
+            "24": 28,
+            "26": 28
+          },
+          "wholeSuiteBrowserProfiles": 6,
+          "customCoverageWholeModels": 9,
+          "compiledFilesComparedBeforeMetadataRefresh": 9611,
+          "archiveSHA256": "589b791d783bb7c2752fa1ed7f663b79adf2875f81b364a7f230ce1fd24d8715",
+          "noVitestViteMockerOrFormatterDependencies": true,
+          "allRuntimeOwnersJoined": true
+        },
+        "customCoverageSourceWholeModels": 9,
+        "sharedRscWatch": {
+          "source426NormalTestsPassed": 2,
+          "completeGenerationsPerRun": 3,
+          "sourceAndInstalled425Passed": true,
+          "scope": "serial explicit-route development Node/Turbopack isolate:false cohort, one project/worker, snapshot mode none; cooperative ordinary reference shutdown flags retained"
+        },
+        "productionOriginalCommonJsRequire": {
+          "sourceWholeProfiles": 8,
+          "installedWholeProfiles": 8,
+          "preservationControls": 194,
+          "productionOmissionCases": 5
+        },
+        "prePushChecks20261103": {
+          "formattingPassed": true,
+          "eslintPassed": true,
+          "bootstrapTasksPassed": 18,
+          "rootTypesPassed": true,
+          "nextTypesPassed": true,
+          "all196IntegratedSourceBytesHeld": true,
+          "nativeD188Held": true
+        },
+        "localEvidence": [
+          "next-testing-handoffs/integration426-suite-coverage-firefox",
+          "next-testing-handoffs/integration426-fn-shutdown-triage",
+          "next-testing-handoffs/integration422-production122"
+        ]
+      },
+      "pendingIntegration": [
+        {
+          "workstream": "authoring-runtime",
+          "features": [
+            "BenchFn type export",
+            "fixture context identity",
+            "fixture factory receiver behavior",
+            "fixture registration order",
+            "Browser clock tick-mode evidence"
+          ],
+          "status": "Verified only in isolated owner workspaces; not integrated into this implementation commit or counted here. Broader worker-fixture assertion ownership and Browser destructured callback collection remain open."
+        },
+        {
+          "workstream": "mocking",
+          "features": [
+            "original CommonJS require/ESM mock reset126 native candidate",
+            "reset utility identity/compiler-reference contract"
+          ],
+          "status": "The isolated native reset candidate has174 Rust controls; complete runtime Source/installed qualification and integration are not established here."
+        },
+        {
+          "workstream": "browser-rendering",
+          "features": [
+            "locator extensions and opt-in Browser types",
+            "DOM formatting utilities",
+            "WebKit runtime viewport"
+          ],
+          "status": "Separate isolated packets remain unintegrated. Locator production numeric-callback Error.message parity, getElementError formatting and the WebKit Source-development timeout remain explicit gaps."
+        },
+        {
+          "workstream": "scheduling-tooling",
+          "features": [
+            "shared RSC production/watch expansion",
+            "dynamic watch transitions",
+            "broader editor/debug/sharding/configuration combinations"
+          ],
+          "status": "Only the measured serial shared development RSC watch subset is newly qualified; broader functional and full acceptance gates remain required."
+        },
+        {
+          "workstream": "coverage",
+          "features": [
+            "custom provider stop-failure policy",
+            "ignored asynchronous suite-return behavior",
+            "remaining mapping/provider/report/aggregation/profile combinations"
+          ],
+          "status": "Provider preparation and task draining are integrated within their measured scope; later isolated producer proposals are not integrated functionality."
+        },
+        {
+          "workstream": "adoption-release",
+          "features": [
+            "full coherent acceptance",
+            "original47 Browser authority replay",
+            "test-name retention reconciliation",
+            "CI/platform/browser matrix",
+            "cleanup stress and production omission breadth",
+            "documentation and migration examples"
+          ],
+          "status": "Required release gates remain open; documentation/migrations are the final step. Linux qualification and performance benchmarking remain deferred by user direction."
+        }
+      ],
+      "nextFullAcceptance": "Reuse the existing isolated acceptance checkout for a new coherent revision after integration. Frozen421 is closed failed and predates the pushed implementation. Do not substitute focused owner/integration passes for full acceptance or weaken reference expectations."
     }
   },
   "qualification": {
@@ -1327,7 +1489,7 @@
       "Historical full passing155 is separate from closed failed421:7051/7068 focused,240/264 regression and35/36 incremental. Bridge79, rendering35, snapshot29,18-task bootstrap and root types pass. All ordinary result JSONs exist; six baseline title matches remain unreconciled. Original47 Browser whole-oracle recovery remains incomplete. No new full green checkpoint is declared.",
       "The newer integrated426 lifecycle suite remains369/372 with three original helper timeouts. A later10-profile observer pass proves neither a product fix nor the cause of the historical shutdown delays; four historical owner receipts remain incomplete.",
       "Complete authoring/assertion/fixture/clock/snapshot, CommonJS reset/runtime/hoisted-cycle, Browser realm/event/rendering, dynamic watch/editor/debug/sharding and coverage mapping/provider/report/aggregation/profile contracts remain required. Unsupported-feature diagnostics do not complete them.",
-      "Isolated BenchFn, fixture Context/Receiver/Order, Browser clock, Locator/DOM, WebKit viewport and native reset packets are pending integration, not current Root claims. Their explicit errors and unqualified profiles remain open.",
+      "A1-A4 BenchFn, fixture context/receiver/order, Browser clock evidence, Locator/DOM utilities are integrated only within their verified scope. Worker-fixture assertion ownership, Browser destructured callback collection, Locator production error text, DOM error-factory formatting, WebKit viewport and the separate native reset candidate remain gaps.",
       "Full supported Node/OS/architecture/browser/CI qualification, sustained cleanup stress, production omission breadth, supported version range and release decisions remain open. No stable exception is approved."
     ],
     "deferred": [
@@ -1338,24 +1500,25 @@
     "evidence": [
       "NEXT_TESTING_STABLE_PROGRESS.md",
       "NEXT_TESTING_STABLE_RELEASE.md",
-      "Signed implementation d1a103d6fd is pushed to draftPR98869. Its196 latest integrated paths retain exact verified bytes, full18-task bootstrap, formatting/lint and repository/Next type checks; the current metadata-only refresh is local until separately pushed.",
+      "The last verified GitHub push is70973735e5 to draftPR98869 on 2026-11-03. That point-in-time publication is separate from this implementation snapshot and any later local commits.",
       "Suite bfcab2f93b:32 installed whole Node profiles,112 actual installed strict programs and6 installed Browser profiles; original Source369/372 lifecycle failures remain recorded separately.",
       "Custom21eef2d7b4/c0de101fbc:9 complete Source and9 installed lifecycle models plus72 ownership/protocol controls.",
       "Browsera0c9425fa3/d1a103d6fd and shared-watch9401e3f2a6: measured viewport/poll/global override profiles and three complete shared development RSC watch generations, with native owner joins and original bounds.",
-      "Closed frozen421 ordinary results and held final source/native/reference graph/temp checks; retention reconciliation and every original failure remain required. Earlier390/340/155 records are preserved as history."
+      "Closed frozen421 ordinary results and held final source/native/reference graph/temp checks; retention reconciliation and every original failure remain required. Earlier390/340/155 records are preserved as history.",
+      "A1-A4 integrated implementation a13626a8624faaa6fff9afd5bd2994cceb5af5d1: actual closed Source and installed qualification is recorded in checkpoint.scopedVerification. All earlier full acceptance failures and broader feature gaps remain required."
     ]
   },
   "summary": {
     "referenceApis": 776,
-    "declarations": { "available": 296, "absent": 286, "notApplicable": 194 },
+    "declarations": { "available": 297, "absent": 285, "notApplicable": 194 },
     "implementation": {
-      "scoped": 92,
+      "scoped": 93,
       "partial": 272,
-      "missing": 392,
+      "missing": 391,
       "unreviewed": 20
     },
     "evidenceGroups": {
-      "scoped": 21,
+      "scoped": 26,
       "partial": 60,
       "missing": 10,
       "unreviewed": 5
@@ -1501,11 +1664,11 @@
         "bounded serial development Chromium corpus"
       ],
       "workstream": "authoring-runtime",
-      "implemented": "Node uses the pinned fake-timers primitive/patch with file-owned clocks, Date-only and async operations, captured real runner deadlines and qualified tick-mode public overloads. A separately measured serial development Chromium subset supports numeric project/per-call configuration, advancement, counts and restoration.\n\nRoot376 adds maintained genuine-matched clock configuration evidence for actual Chromium/Firefox development/production on Node26: numeric project epoch, browser-created per-call Date overrides, Date-only transitions, microtasks and RAF/performance retain all7whole rows/cases per profile, including actual DOM realm checks. Source normalJest1 and installed public verifier each close4profiles/28cases with exact inputs and physical cleanup. The genuine Date-valued project configuration is separately unsupported; this is not broad project-Date, WebKit or all-host-Node conformance.",
+      "implemented": "Node uses the pinned fake-timers primitive/patch with file-owned clocks, Date-only and async operations, captured real runner deadlines and qualified tick-mode public overloads. A separately measured serial development Chromium subset supports numeric project/per-call configuration, advancement, counts and restoration.\n\nRoot376 adds maintained genuine-matched clock configuration evidence for actual Chromium/Firefox development/production on Node26: numeric project epoch, browser-created per-call Date overrides, Date-only transitions, microtasks and RAF/performance retain all7whole rows/cases per profile, including actual DOM realm checks. Source normalJest1 and installed public verifier each close4profiles/28cases with exact inputs and physical cleanup. The genuine Date-valued project configuration is separately unsupported; this is not broad project-Date, WebKit or all-host-Node conformance.\n\nA1-A4 integrates maintained manual/nextAsync Browser tick-mode evidence in its separate scoped group; no new clock runtime behavior is inferred.",
       "remaining": [
         "Node child workers cannot fake nextTick.",
         "Complete concurrent clock/resource interactions and profile combinations are unqualified.",
-        "Measured Browser numeric project/per-call Date/RAF/microtask profiles pass on Node26 Chromium/Firefox in both modes; broader frame/tick modes, WebKit, host Nodes and project-Date error-phase parity remain required."
+        "Measured Chromium/Firefox manual/nextAsync tick modes are qualified alongside the earlier numeric/per-call Date/RAF/microtask profiles. Unmeasured frame/tick configurations, WebKit, host Nodes and project-Date error-phase parity remain required."
       ],
       "evidence": [
         "packages/next/src/experimental/testing/assertions/fake-timers.ts",
@@ -1752,7 +1915,7 @@
       ],
       "profiles": ["isolated development Node", "isolated production Node"],
       "workstream": "authoring-runtime",
-      "implemented": "Object/builder fixtures, measured test/file/worker lifetimes, injection, overrides, receiver identity, prototype-shadowing names and qualified Unicode dependencies have maintained Node evidence; serial development isolate:false cohorts share the worker cache until cohort cleanup. Browser plain asynchronous test/file/worker setup/use/teardown now has measured lifetime/identity/public Task behavior across both modes and Chromium/Firefox, including per-file worker reset under default isolation; Root218 selected590 Source and16 installed representative profiles passed. Root219–222 adds live native file/worker setup/teardown Actions and the true before-worker cleanup boundary;213 resource controls and16 native plus16 cleanup/React installed profiles pass. Root225 adds the actual joined Browser worker-fixture Cleanup Error occurrence. Worker-only primary/getter8 Source-owner and Root-installed profiles preserve the full supported module/case/run projection, original receiver and one name/message/stack read. Same-Error file/worker4 retains separate worker occurrences and authored rows; ordinary file-message formatting remains a recorded gap. Internal failure and snapshot/publication vetoes stay intact;215 Root resource controls pass. Root226 adds actual component cleanup occurrence capture before later keyboard/worker work, preserving original receiver and one ordered name/message/stack read. Component-only4 Source+4 installed profiles match complete supported projections; same-Error file/component/worker4 each preserve ordered raw Cleanup Error occurrences while ordinary file-message formatting remains red. Internal failed completion and snapshot/publication vetoes stay intact. Root642 selected controls pass, including418execution,216Browser resources and8affected reporter cases.\n\nSigned764051e73b implements the measured options-only, extra tuple/builder option, inherited option, ordinary-array and numeric fixture forms. The generated fixture-overload and fixture-numeric corpora remain independent reference evidence; coherent392 passes278 selected controls including122 fixture controls. This supersedes the earlier blanket options-only limitation. General describe-registration timing, destructuring and cross-profile combinations remain open.",
+      "implemented": "Object/builder fixtures, measured test/file/worker lifetimes, injection, overrides, receiver identity, prototype-shadowing names and qualified Unicode dependencies have maintained Node evidence; serial development isolate:false cohorts share the worker cache until cohort cleanup. Browser plain asynchronous test/file/worker setup/use/teardown now has measured lifetime/identity/public Task behavior across both modes and Chromium/Firefox, including per-file worker reset under default isolation; Root218 selected590 Source and16 installed representative profiles passed. Root219–222 adds live native file/worker setup/teardown Actions and the true before-worker cleanup boundary;213 resource controls and16 native plus16 cleanup/React installed profiles pass. Root225 adds the actual joined Browser worker-fixture Cleanup Error occurrence. Worker-only primary/getter8 Source-owner and Root-installed profiles preserve the full supported module/case/run projection, original receiver and one name/message/stack read. Same-Error file/worker4 retains separate worker occurrences and authored rows; ordinary file-message formatting remains a recorded gap. Internal failure and snapshot/publication vetoes stay intact;215 Root resource controls pass. Root226 adds actual component cleanup occurrence capture before later keyboard/worker work, preserving original receiver and one ordered name/message/stack read. Component-only4 Source+4 installed profiles match complete supported projections; same-Error file/component/worker4 each preserve ordered raw Cleanup Error occurrences while ordinary file-message formatting remains red. Internal failed completion and snapshot/publication vetoes stay intact. Root642 selected controls pass, including418execution,216Browser resources and8affected reporter cases.\n\nSigned764051e73b implements the measured options-only, extra tuple/builder option, inherited option, ordinary-array and numeric fixture forms. The generated fixture-overload and fixture-numeric corpora remain independent reference evidence; coherent392 passes278 selected controls including122 fixture controls. This supersedes the earlier blanket options-only limitation. General describe-registration timing, destructuring and cross-profile combinations remain open.\n\nA1-A4 integrates the separately scoped context/receiver/registration-order contract. Broader fixture assertion and lifecycle/profile combinations remain partial.",
       "remaining": [
         "Describe-registration timing and builder/receiver overloads outside the separately measured options-only, extra-option, tuple and numeric forms remain unqualified.",
         "Rest/computed dependencies and general nested destructuring remain gaps outside the explicitly measured Unicode/nested subset.",
@@ -4162,6 +4325,112 @@
         "test/unit/next-testing-execution/shared-rsc-watch-contract.cjs",
         "test/unit/app-dir/next-testing-shared-rsc-watch/next-testing-shared-rsc-watch.test.ts",
         "test/unit/next-testing-cli/next-testing-cli.test.ts"
+      ]
+    },
+    {
+      "id": "authoring-bench-fn-type",
+      "status": "scoped",
+      "capabilityPaths": ["authoring.publicDeclarationTypes"],
+      "profiles": [
+        "strict genuine/Source/clean installed root consumers on measured Node20/22/24/26"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "BenchFn is the exact dependency-free callback type()=>unknown in Node/browser primitive declaration inputs, their normal generated outputs and the public root type export. Strict positive/negative consumer programs qualify its measured inference/assignability shape; primitive runtime JavaScript is unchanged.",
+      "remaining": [
+        "No benchmark runtime, execution, storage/report/provider or complete benchmark type-surface claim. Remaining benchmark APIs/types are still required; performance benchmarking remains deferred."
+      ],
+      "evidence": [
+        "packages/next/src/bundles/next-test-primitives/index.d.ts",
+        "packages/next/src/bundles/next-test-primitives/browser/index.d.ts",
+        "packages/next/src/compiled/next-test-primitives/index.d.ts",
+        "packages/next/src/compiled/next-test-primitives/browser/index.d.ts",
+        "packages/next/src/experimental/testing/vitest.ts",
+        "test/unit/next-testing-assertions/bench-fn-types.cjs"
+      ]
+    },
+    {
+      "id": "authoring-fixture-context-receivers-and-order",
+      "status": "scoped",
+      "capabilityPaths": ["authoring.fixtures"],
+      "profiles": ["measured isolated Node20/22/24/26 development/production"],
+      "workstream": "authoring-runtime",
+      "implemented": "Test-scoped reusable fixtures receive the actual public context without eagerly rereading builtin accessors. Factories execute as ordinary calls with genuine strict/sloppy/bound/lexical receiver behavior. Requested and eligible automatic fixtures resolve in registration order while preserving actual dependency DFS, cache, parent override and cleanup lifetimes. Existing file/worker or nonreused context paths retain their contracts.",
+      "remaining": [
+        "Broader worker/file-fixture assertion ownership, Browser declaration parameter scope and concurrent/retry/failure/suite-hook/shared-profile interactions remain unqualified.",
+        "Rest/computed/general nested dependencies, additional builder overloads, timeout/cancellation/snapshot/coverage combinations remain required."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/runner/fixtures.ts",
+        "test/unit/next-testing-fixture-context/verify-node.mjs",
+        "test/unit/next-testing-fixture-context/component.cjs",
+        "test/unit/next-testing-fixture-receivers/verify-node.mjs",
+        "test/unit/next-testing-fixture-receivers/component.cjs",
+        "test/unit/next-testing-fixture-order/verify-node.mjs",
+        "test/unit/next-testing-fixture-order/component.cjs"
+      ]
+    },
+    {
+      "id": "browser-clock-manual-nextasync-tick-evidence",
+      "status": "scoped",
+      "capabilityPaths": ["authoring.browserFakeTimers"],
+      "profiles": [
+        "measured serial Chromium/Firefox development/production with existing Playwright1.61/1.64 drivers"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "Maintained unchanged genuine-matched Browser evidence verifies manual and nextAsync tick modes, nested timers/microtasks/Promises, interval advancement, cross-case pending manual clocks and real-clock restoration. This packet adds tests/evidence, not new clock runtime behavior.",
+      "remaining": [
+        "WebKit, other host Nodes, concurrent clocks/resources, arbitrary frame/profile combinations and project-Date error-phase parity remain unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/client/fake-timers.ts",
+        "test/unit/next-testing-browser-clock-tick-modes/verify.mjs",
+        "test/unit/next-testing-browser-clock-tick-modes/next-testing-browser-clock-tick-modes.test.ts"
+      ]
+    },
+    {
+      "id": "browser-locator-extensions-and-opt-in-types",
+      "status": "scoped",
+      "capabilityPaths": ["execution.browser", "features.browserRendering"],
+      "profiles": [
+        "measured isolated Chromium development/production",
+        "strict clean installed NodeNext consumer through both opt-in Browser aliases"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Actual locators.extend installs ordinary prototype/page methods with genuine inherited enumerable registration, callback receiver and string-to-native-locator behavior. Element locator facades retain the measured registration/dispatch lifetime. Type-only Locator/BrowserPage/BrowserLocators/LocatorSelectors and consumer augmentation flow through the explicit shipped vitest-browser opt-in; bare Vitest globals are unchanged.",
+      "remaining": [
+        "The entire production numeric-callback Error.message field remains unqualified: genuine cb.call versus minified n.call. Whole positive models do not qualify that failure field.",
+        "Configured browser.locators options, custom providers/commands and the five unrelated public Browser declaration inventory rows remain missing.",
+        "Broader engines/frames/watch/concurrency/cleanup/error-stack behavior remains unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/client/browser-context.ts",
+        "packages/next/experimental/testing/vitest-browser.d.ts",
+        "packages/next/package.json",
+        "test/unit/app-dir/next-testing-locator-extensions/verify.mjs",
+        "test/unit/app-dir/next-testing-locator-extensions/verify-types.mjs",
+        "test/unit/app-dir/next-testing-locator-extensions/projection.mjs"
+      ]
+    },
+    {
+      "id": "browser-dom-formatting-utilities",
+      "status": "scoped",
+      "capabilityPaths": ["execution.browser"],
+      "profiles": [
+        "measured isolated Chromium development/production",
+        "strict clean installed consumers through both opt-in Browser aliases"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Actual prettyDOM/configurePrettyDOM/debug reuse the frozen stringifier and live Browser environment. The measured live defaults reference, option/getter order, Number conversion, zero early return, clipping, actual Locator/DOM values and sparse/inherited array console calls match the reference. PrettyDOMOptions and utility signatures are available only through the explicit shipped Browser opt-in.",
+      "remaining": [
+        "getElementError, ARIA/HTML error-factory formatting and configured errorFormat options remain separate missing work.",
+        "Other engines/frames/watch/cancellation and complete legacy debug reflection/array behavior remain unqualified. Locator production numeric-callback error text remains separate."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/client/browser-context.ts",
+        "packages/next/experimental/testing/vitest-browser.d.ts",
+        "test/unit/app-dir/next-testing-browser-dom-utilities/verify.mjs",
+        "test/unit/app-dir/next-testing-browser-dom-utilities/verify-types.mjs",
+        "test/unit/app-dir/next-testing-browser-dom-utilities/reference.json"
       ]
     }
   ],
@@ -8970,12 +9239,12 @@
       "overloads": [],
       "classification": "Missing or unverified",
       "declaration": {
-        "status": "absent",
+        "status": "available",
         "entry": "packages/next/src/experimental/testing/vitest.ts"
       },
       "implementation": {
-        "status": "missing",
-        "evidenceGroups": ["authoring-unexported-target-types"]
+        "status": "scoped",
+        "evidenceGroups": ["authoring-bench-fn-type"]
       }
     },
     {
