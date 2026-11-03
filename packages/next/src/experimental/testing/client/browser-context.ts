@@ -1444,8 +1444,22 @@ export async function cleanupBrowserKeyboard<T>(
     throw new AggregateError(failures, 'Browser keyboard cleanup failed.')
 }
 
+interface BrowserServerConfiguration {
+  browser: {
+    locators: {
+      testIdAttribute: string
+      errorFormat: 'html' | 'aria' | 'all'
+    }
+  }
+}
+function createBrowserConfiguration(errorFormat: unknown) {
+  return {
+    browser: { locators: { testIdAttribute: 'data-testid', errorFormat } },
+  }
+}
+let browserConfiguration = createBrowserConfiguration('all')
 export const server = {
-  config: { browser: { locators: { testIdAttribute: 'data-testid' } } },
+  config: browserConfiguration as BrowserServerConfiguration,
 }
 function getElementLocatorSelectors(
   element: Element | ElementLocator
@@ -1519,7 +1533,13 @@ function getElementError(
     typeof selector === 'string'
       ? locatorFormatter.asLocator(selector)
       : selector.asLocator()
-  const formatted = `ARIA tree:\n${locatorFormatter.formatAriaTree(container as Element)}\n\nHTML:\n${prettyDOM(container)}`
+  const format = browserConfiguration.browser.locators.errorFormat
+  const formatted =
+    format === 'aria'
+      ? `ARIA tree:\n${locatorFormatter.formatAriaTree(container as Element)}`
+      : format === 'all'
+        ? `ARIA tree:\n${locatorFormatter.formatAriaTree(container as Element)}\n\nHTML:\n${prettyDOM(container)}`
+        : prettyDOM(container)
   const error = new Error(
     `Cannot find element with locator: ${locator}\n\n${formatted}`
   )
@@ -1567,10 +1587,27 @@ export function elementExpect(
 export function initializeBrowserContext(
   send: NonNullable<typeof command>,
   callbacks?: BrowserActionCallbacks,
-  transport?: { serializedClickTargets?: true }
+  transport?: { serializedClickTargets?: true },
+  configuration?: { browserLocatorErrorFormat?: unknown }
 ) {
   if (command || deferredCommands.size)
     throw new Error('Browser context already has an owner.')
+  const previousConfiguration = browserConfiguration
+  const previousPublicConfig = Object.getOwnPropertyDescriptor(
+    server,
+    'config'
+  )!
+  browserConfiguration = createBrowserConfiguration(
+    configuration === undefined
+      ? 'all'
+      : configuration.browserLocatorErrorFormat
+  )
+  Object.defineProperty(server, 'config', {
+    configurable: true,
+    enumerable: true,
+    writable: true,
+    value: browserConfiguration,
+  })
   Object.defineProperty(globalThis, deferredLocatorKey, {
     configurable: true,
     value: resolveDeferredLocators,
@@ -1589,6 +1626,8 @@ export function initializeBrowserContext(
       command = undefined
       actionCallbacks = undefined
       serializedClickTargets = false
+      browserConfiguration = previousConfiguration
+      Object.defineProperty(server, 'config', previousPublicConfig)
       releaseDeferredLocators()
     },
   }

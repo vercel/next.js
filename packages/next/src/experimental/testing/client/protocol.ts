@@ -36,6 +36,7 @@ export interface ClientConfiguration extends ClientIdentity {
   sourceHash: string
   projectDir: string
   snapshotUpdateMode: SnapshotUpdateMode
+  browserLocatorErrorFormat?: unknown
   snapshotFormat?: import('../snapshot-format').SnapshotFormatWire
   testNamePattern?: { source: string; flags: string }
   allowOnly?: boolean

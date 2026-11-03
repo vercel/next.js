@@ -336,7 +336,8 @@ export async function startClientTest(
           ? captureClientCommandAdmission
           : captureClientResourceCommandAdmission,
     },
-    { serializedClickTargets: true }
+    { serializedClickTargets: true },
+    { browserLocatorErrorFormat: config.browserLocatorErrorFormat }
   )
   let mocks: { dispose(): void } | undefined
   let imports: ReturnType<NonNullable<typeof createImports>> | undefined

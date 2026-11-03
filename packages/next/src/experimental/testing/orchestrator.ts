@@ -1303,6 +1303,12 @@ export async function runTests(
         provide: project.provide,
         env: project.env,
         browserViewport: project.browserViewport,
+        ...(project.profile.browserClient === true
+          ? {
+              browserLocatorErrorFormat:
+                project.browserLocatorErrorFormat ?? 'all',
+            }
+          : {}),
         ...(project.browserEngine === undefined
           ? {}
           : { browserEngine: project.browserEngine }),

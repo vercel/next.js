@@ -143,3 +143,79 @@ it('publishes strict missing-element Error signatures through both Browser modul
       await rm(temporary, { recursive: true, force: true })
   }
 }, 150000)
+
+it('uses actual configured locator error formats and retains canonical config effects', async () => {
+  const retained = process.env.NEXT_TESTING_DOM_ERROR_FORMAT_STATE_EVIDENCE
+  const temporary =
+    retained ?? (await mkdtemp(join(tmpdir(), 'next-dom-error-format-state-')))
+  let complete = false
+  try {
+    const evidence = retained ?? join(temporary, 'evidence')
+    await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'verify-error-format-state.mjs'),
+        join(__dirname, '../../../..'),
+        evidence,
+      ],
+      { timeout: 270000, maxBuffer: 1024 * 1024 }
+    )
+    const result = JSON.parse(
+      await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+    )
+    expect(result.profiles).toBe(2)
+    expect(result.cases).toBe(16)
+    expect(result.rows).toBe(16)
+    expect(result.completeModelsExact).toBe(true)
+    expect(result.fullNativeStacksRetainedOutsideSemanticProjection).toBe(true)
+    expect(result.allOwnersJoined).toBe(true)
+    complete = true
+  } catch (error) {
+    throw new Error(`DOM errorFormat state evidence retained at ${temporary}`, {
+      cause: error,
+    })
+  } finally {
+    if (complete && !retained)
+      await rm(temporary, { recursive: true, force: true })
+  }
+}, 300000)
+
+it('publishes writable required errorFormat types through both Browser modules', async () => {
+  const retained = process.env.NEXT_TESTING_DOM_ERROR_FORMAT_TYPES_EVIDENCE
+  const temporary =
+    retained ?? (await mkdtemp(join(tmpdir(), 'next-dom-error-format-types-')))
+  let complete = false
+  try {
+    const evidence = retained ?? join(temporary, 'evidence')
+    await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'verify-error-format-types.mjs'),
+        'source',
+        join(__dirname, '../../../..'),
+        evidence,
+      ],
+      { timeout: 140000, maxBuffer: 1024 * 1024 }
+    )
+    const result = JSON.parse(
+      await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+    )
+    expect(result.qualification).toBe('source')
+    expect(result.profiles).toBe(2)
+    expect(result.requiredWritableThreeLiteralUnion).toBe(true)
+    expect(result.negativeAssertionsConsumed).toBe(6)
+    expect(result.unsuppressedNegativeDiagnosticsExact).toBe(true)
+    expect(result.bothAliasesResolveSameActualNextServerSymbol).toBe(true)
+    expect(result.actualShippedAmbientEntry).toBe(true)
+    expect(result.installedZeroVitestQualified).toBe(false)
+    expect(result.allOwnersJoined).toBe(true)
+    complete = true
+  } catch (error) {
+    throw new Error(`DOM errorFormat type evidence retained at ${temporary}`, {
+      cause: error,
+    })
+  } finally {
+    if (complete && !retained)
+      await rm(temporary, { recursive: true, force: true })
+  }
+}, 150000)

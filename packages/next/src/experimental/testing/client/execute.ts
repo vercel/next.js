@@ -301,6 +301,7 @@ export async function executeClient(
           : { projectName: options.entry.projectName }),
         sourceHash: artifact.sourceHash,
         projectDir: options.projectDir,
+        browserLocatorErrorFormat: options.browserLocatorErrorFormat,
         snapshotUpdateMode,
         snapshotFormat: encodeSnapshotFormat(options.snapshotFormat),
         ...(options.captureTaskResults ? { captureTaskResults: true } : {}),

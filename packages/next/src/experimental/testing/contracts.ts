@@ -516,6 +516,8 @@ export interface ExecuteTestOptions {
   env?: Record<string, string>
   /** Resolved viewport for Browser Mode clients, independent of app drivers. */
   browserViewport?: BrowserViewport
+  /** Authored Browser locator formatting data, carried without enum coercion. */
+  browserLocatorErrorFormat?: unknown
   /** Explicit actual Browser client launch mode. */
   browserHeadless?: boolean
   /** Normalized enabled-client instance; omission preserves Chromium. */

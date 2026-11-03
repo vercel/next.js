@@ -1,0 +1,239 @@
+import { test, expect } from "vitest";
+import { utils, server } from "vitest/browser";
+const emit = (value) =>
+  console.log("BROWSER_NATIVE_FIXTURE:" + JSON.stringify(value));
+const captureNativeErrorFields = (error) => ({
+  instanceOfError: error instanceof Error,
+  constructor: error?.constructor?.name,
+  name: error?.name,
+  message: error?.message,
+  stack: error?.stack,
+  ownKeys: Reflect.ownKeys(error).map(String),
+  descriptors: Object.fromEntries(
+    Object.getOwnPropertyNames(error).map((key) => {
+      const d = Object.getOwnPropertyDescriptor(error, key);
+      return [
+        key,
+        {
+          enumerable: d.enumerable,
+          configurable: d.configurable,
+          writable: d.writable,
+          hasGet: typeof d.get === "function",
+          hasSet: typeof d.set === "function",
+        },
+      ];
+    }),
+  ),
+});
+const errorFields = (error) => {
+  const captured = captureNativeErrorFields(error);
+  const { stack, ...fields } = captured;
+  console.log(
+    "BROWSER_NATIVE_STACK:" +
+      JSON.stringify({ name: captured.name, message: captured.message, stack }),
+  );
+  return { ...fields, stackType: typeof stack };
+};
+const descriptor = (object, key) => {
+  const d = Object.getOwnPropertyDescriptor(object, key);
+  return d
+    ? {
+        enumerable: d.enumerable,
+        configurable: d.configurable,
+        writable: d.writable,
+        isData: "value" in d,
+        valueType: typeof d.value,
+        ...(d.value === null ||
+        ["string", "boolean", "number"].includes(typeof d.value)
+          ? { value: d.value }
+          : {}),
+        hasGet: typeof d.get === "function",
+        hasSet: typeof d.set === "function",
+      }
+    : null;
+};
+function run(callback) {
+  const serverDescriptor = Object.getOwnPropertyDescriptor(server, "config"),
+    config = server.config,
+    locators = config.browser.locators,
+    formatDescriptor = Object.getOwnPropertyDescriptor(locators, "errorFormat"),
+    calls = [],
+    host = document.createElement("section");
+  host.innerHTML = '<h2>Hello</h2><button aria-label="Save">go</button>';
+  document.body.append(host);
+  const button = host.querySelector("button"),
+    nativeAttribute = button.getAttribute,
+    nativeHTML = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      "outerHTML",
+    ).get;
+  button.getAttribute = function (...args) {
+    calls.push("aria:" + args[0]);
+    return Reflect.apply(nativeAttribute, this, args);
+  };
+  Object.defineProperty(host, "outerHTML", {
+    configurable: true,
+    get() {
+      calls.push("html");
+      return Reflect.apply(nativeHTML, this, []);
+    },
+  });
+  try {
+    utils.configurePrettyDOM({ highlight: false });
+    callback({ config, locators, formatDescriptor, host, calls });
+  } finally {
+    if (formatDescriptor)
+      Object.defineProperty(locators, "errorFormat", formatDescriptor);
+    else delete locators.errorFormat;
+    Object.defineProperty(server, "config", serverDescriptor);
+    utils.configurePrettyDOM(undefined);
+    host.remove();
+    expect(Object.getOwnPropertyDescriptor(server, "config")).toEqual(
+      serverDescriptor,
+    );
+    expect(Object.getOwnPropertyDescriptor(locators, "errorFormat")).toEqual(
+      formatDescriptor,
+    );
+  }
+}
+test("public config has actual own data descriptors", () =>
+  run(({ config, locators, calls }) => {
+    expect(config).toBe(server.config);
+    expect(locators.errorFormat).toBe("all");
+    emit({
+      role: "descriptors",
+      serverConfig: descriptor(server, "config"),
+      browserLocators: descriptor(config.browser, "locators"),
+      errorFormat: descriptor(locators, "errorFormat"),
+      sameConfigReference: config === server.config,
+      calls,
+    });
+  }));
+for (const format of ["aria", "html", "all"])
+  test("nested config selects actual " + format, () =>
+    run(({ config, locators, host, calls }) => {
+      locators.errorFormat = format;
+      const error = utils.getElementError("css=.missing", host);
+      expect(error).toBeInstanceOf(Error);
+      expect(error.name).toBe("VitestBrowserElementError");
+      expect(calls.some((value) => value.startsWith("aria:"))).toBe(
+        format !== "html",
+      );
+      expect(calls.includes("html")).toBe(format !== "aria");
+      emit({
+        role: "nested-format",
+        format,
+        sameConfigReference: config === server.config,
+        calls,
+        error: errorFields(error),
+      });
+    }),
+  );
+test("selector receiver precedes actual config getter and ARIA", () =>
+  run(({ locators, host, calls }) => {
+    Object.defineProperty(locators, "errorFormat", {
+      configurable: true,
+      enumerable: true,
+      get() {
+        calls.push("config-getter");
+        return "aria";
+      },
+    });
+    const selector = {
+      asLocator() {
+        calls.push("selector:" + String(this === selector));
+        return "authored locator";
+      },
+    };
+    const error = utils.getElementError(selector, host);
+    expect(error.name).toBe("VitestBrowserElementError");
+    expect(calls[0]).toBe("selector:true");
+    expect(calls[1]).toBe("config-getter");
+    expect(calls.filter((value) => value === "config-getter")).toHaveLength(1);
+    expect(calls.some((value) => value.startsWith("aria:"))).toBe(true);
+    expect(calls.includes("html")).toBe(false);
+    emit({ role: "config-getter", calls, error: errorFields(error) });
+  }));
+test("actual config getter preserves its original thrown Error", () =>
+  run(({ locators, host, calls }) => {
+    const original = new Error("authored-error-format-getter");
+    Object.defineProperty(locators, "errorFormat", {
+      configurable: true,
+      enumerable: true,
+      get() {
+        calls.push("config-getter");
+        throw original;
+      },
+    });
+    const selector = {
+      asLocator() {
+        calls.push("selector:" + String(this === selector));
+        return "authored locator";
+      },
+    };
+    let caught;
+    try {
+      utils.getElementError(selector, host);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBe(original);
+    expect(calls).toEqual(["selector:true", "config-getter"]);
+    emit({
+      role: "throwing-config-getter",
+      sameError: caught === original,
+      calls,
+      error: errorFields(caught),
+    });
+  }));
+test("deleted config format reaches actual HTML fallback", () =>
+  run(({ locators, host, calls }) => {
+    const deleted = delete locators.errorFormat;
+    expect(deleted).toBe(true);
+    expect(Object.hasOwn(locators, "errorFormat")).toBe(false);
+    const error = utils.getElementError("css=.missing", host);
+    expect(error.name).toBe("VitestBrowserElementError");
+    expect(calls.some((value) => value.startsWith("aria:"))).toBe(false);
+    expect(calls.includes("html")).toBe(true);
+    emit({
+      role: "deleted-format",
+      deleted,
+      descriptor: descriptor(locators, "errorFormat"),
+      calls,
+      error: errorFields(error),
+    });
+  }));
+test("public config replacement leaves actual retained runtime config", () =>
+  run(({ config, locators, host, calls }) => {
+    const replacement = {
+      ...config,
+      browser: {
+        ...config.browser,
+        locators: { ...locators, errorFormat: "html" },
+      },
+    };
+    server.config = replacement;
+    Object.defineProperty(locators, "errorFormat", {
+      configurable: true,
+      enumerable: true,
+      get() {
+        calls.push("original-config-getter");
+        return "aria";
+      },
+    });
+    const error = utils.getElementError("css=.missing", host);
+    expect(server.config === replacement).toBe(true);
+    expect(server.config !== config).toBe(true);
+    expect(server.config.browser.locators.errorFormat).toBe("html");
+    expect(calls[0]).toBe("original-config-getter");
+    expect(calls.some((value) => value.startsWith("aria:"))).toBe(true);
+    expect(calls.includes("html")).toBe(false);
+    emit({
+      role: "public-config-replacement",
+      sameReplacement: server.config === replacement,
+      retainedConfigDiffers: server.config !== config,
+      publicReplacementFormat: server.config.browser.locators.errorFormat,
+      calls,
+      error: errorFields(error),
+    });
+  }));

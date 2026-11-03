@@ -82,6 +82,13 @@ export async function executeWithEnvironment(
   if (options.captureCompletedModuleResult && options.collectOnly)
     throw new Error('Module completion capture requires actual execution.')
   if (
+    options.browserLocatorErrorFormat !== undefined &&
+    (artifact.kind !== 'browser' || artifact.profile.browserClient !== true)
+  )
+    throw new Error(
+      'Browser locator formatting requires an actual Browser client artifact.'
+    )
+  if (
     options.browserHeadless !== undefined &&
     (artifact.kind !== 'browser' ||
       artifact.profile.browserClient !== true ||

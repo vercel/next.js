@@ -1,0 +1,6309 @@
+{
+  "inputs": {
+    "normalization-omitted": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "normalization-undefined": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "normalization-null": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "normalization-aria": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "normalization-html": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "normalization-all": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "normalization-false": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "normalization-zero": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "normalization-empty": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "normalization-unknown": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "normalization-array": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "normalization-object": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "inheritance-inherited-default": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "inheritance-inherited-true": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "inheritance-independent-false": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "inheritance-inherited-empty": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "inheritance-inherited-null": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "inheritance-inherited-undefined": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "inheritance-inherited-locators-null": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "inheritance-inherited-locators-undefined": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "inheritance-inherited-html": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-locators-omitted": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-locators-undefined": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-locators-null": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-locators-empty": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-value-undefined": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-value-null": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-value-aria": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-value-html": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-value-all": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-value-false": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-value-zero": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-value-empty": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-value-unknown": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-value-array": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0",
+    "instances-value-object": "d968460d817657e256d11cdf4ae0bf6d426f1980e1692cfc3b502533dc30c1d0"
+  },
+  "configurationInput": "8f092bc900015ff69ea4b7da440495f1025b37aa0d0a1c35e15e5caa537db6b5",
+  "singleCaseBuilderInput": "87289fdd15c283cf3ed32efdb696eb65a7c3c249a214cbc0b8c9b2b871a30c32",
+  "descriptionInput": "801240ab7d8a70a55133b0f0b6c78b2057846312f4973b900570b2a2c18deaf8",
+  "models": {
+    "normalization-omitted": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-omitted",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-omitted",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "normalization-undefined": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-undefined",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-undefined",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "normalization-null": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-null",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-null",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "normalization-aria": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-aria",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-aria",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "normalization-html": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-html",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "html"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-html",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "html"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "normalization-all": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-all",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-all",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "normalization-false": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-false",
+              "errorFormat": {
+                "type": "boolean",
+                "array": false,
+                "value": false
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-false",
+              "errorFormat": {
+                "type": "boolean",
+                "array": false,
+                "value": false
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "normalization-zero": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-zero",
+              "errorFormat": {
+                "type": "number",
+                "array": false,
+                "value": 0
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-zero",
+              "errorFormat": {
+                "type": "number",
+                "array": false,
+                "value": 0
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "normalization-empty": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-empty",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": ""
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-empty",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": ""
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "normalization-unknown": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-unknown",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "future-format"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-unknown",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "future-format"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "normalization-array": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-array",
+              "errorFormat": {
+                "type": "object",
+                "array": true,
+                "value": []
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-array",
+              "errorFormat": {
+                "type": "object",
+                "array": true,
+                "value": []
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "normalization-object": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-object",
+              "errorFormat": {
+                "type": "object",
+                "array": false,
+                "value": {}
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "normalization-object",
+              "errorFormat": {
+                "type": "object",
+                "array": false,
+                "value": {}
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "inheritance-inherited-default": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-default",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-default",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "inheritance-inherited-true": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-true",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-true",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "inheritance-independent-false": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-independent-false",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-independent-false",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "inheritance-inherited-empty": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-empty",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-empty",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "inheritance-inherited-null": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-null",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-null",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "inheritance-inherited-undefined": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-undefined",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-undefined",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "inheritance-inherited-locators-null": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-locators-null",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-locators-null",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "inheritance-inherited-locators-undefined": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-locators-undefined",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-locators-undefined",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "inheritance-inherited-html": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-html",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "html"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "inheritance-inherited-html",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "html"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-locators-omitted": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-locators-omitted",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-locators-omitted",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-locators-undefined": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-locators-undefined",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-locators-undefined",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-locators-null": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-locators-null",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-locators-null",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-locators-empty": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-locators-empty",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-locators-empty",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-value-undefined": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-undefined",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-undefined",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-value-null": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-null",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-null",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-value-aria": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-aria",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-aria",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "aria"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-value-html": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-html",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "html"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-html",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "html"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-value-all": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-all",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-all",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "all"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\nARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go\n\nHTML:\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-value-false": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-false",
+              "errorFormat": {
+                "type": "boolean",
+                "array": false,
+                "value": false
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-false",
+              "errorFormat": {
+                "type": "boolean",
+                "array": false,
+                "value": false
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-value-zero": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-zero",
+              "errorFormat": {
+                "type": "number",
+                "array": false,
+                "value": 0
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-zero",
+              "errorFormat": {
+                "type": "number",
+                "array": false,
+                "value": 0
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-value-empty": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-empty",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": ""
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-empty",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": ""
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-value-unknown": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-unknown",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "future-format"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-unknown",
+              "errorFormat": {
+                "type": "string",
+                "array": false,
+                "value": "future-format"
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-value-array": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-array",
+              "errorFormat": {
+                "type": "object",
+                "array": true,
+                "value": []
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-array",
+              "errorFormat": {
+                "type": "object",
+                "array": true,
+                "value": []
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "instances-value-object": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-object",
+              "errorFormat": {
+                "type": "object",
+                "array": false,
+                "value": {}
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "label": "instances-value-object",
+              "errorFormat": {
+                "type": "object",
+                "array": false,
+                "value": {}
+              },
+              "error": {
+                "instanceOfError": true,
+                "prototypeIsNativeError": true,
+                "constructorIsNativeError": true,
+                "name": "VitestBrowserElementError",
+                "message": "Cannot find element with locator: locator('.missing')\n\n<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+                "ownKeys": ["stack", "message", "name"],
+                "stackType": "string"
+              }
+            },
+            "task": "formats a real DOM error with the resolved locator option"
+          }
+        ],
+        "cases": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "formats a real DOM error with the resolved locator option",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "formats a real DOM error with the resolved locator option",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 1,
+          "numPassedTests": 1,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    }
+  }
+}

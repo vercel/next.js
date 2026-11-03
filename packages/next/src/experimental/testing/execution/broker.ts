@@ -208,6 +208,7 @@ export function createExecutionBrokerHost(options: {
     | 'browserFixtures'
     | 'browserEngine'
     | 'browserHeadless'
+    | 'browserLocatorErrorFormat'
     | 'includeTaskLocation'
   >[]
   /** Explicit parent authorization; plans are committed after generation cleanup. */
@@ -392,9 +393,15 @@ export function createExecutionBrokerHost(options: {
                     ? (project.browserEngine ?? 'chromium') ===
                         (message.options.browserEngine ?? 'chromium') &&
                       (project.browserHeadless ?? isTestCI) ===
-                        (message.options.browserHeadless ?? isTestCI)
+                        (message.options.browserHeadless ?? isTestCI) &&
+                      isDeepStrictEqual(
+                        project.browserLocatorErrorFormat ?? 'all',
+                        message.options.browserLocatorErrorFormat ?? 'all'
+                      )
                     : message.options.browserEngine === undefined &&
-                      message.options.browserHeadless === undefined) &&
+                      message.options.browserHeadless === undefined &&
+                      message.options.browserLocatorErrorFormat ===
+                        undefined) &&
                   project.includeTaskLocation ===
                     message.options.includeTaskLocation &&
                   project.entries.some(
@@ -1288,6 +1295,7 @@ async function executeBrokerFile(
         | 'browserFixtures'
         | 'browserEngine'
         | 'browserHeadless'
+        | 'browserLocatorErrorFormat'
         | 'includeTaskLocation'
       >
     | undefined,

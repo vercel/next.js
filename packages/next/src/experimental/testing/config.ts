@@ -64,6 +64,8 @@ export interface TestProjectConfig {
   provide?: Record<string, unknown>
   env?: Record<string, string>
   browserViewport?: BrowserViewport
+  /** Resolved authored data; public types declare html, aria, or all. */
+  browserLocatorErrorFormat?: unknown
   /** Explicit enabled Browser launch mode; omission keeps the existing default. */
   browserHeadless?: boolean
   fakeTimers?: FakeTimerOptions
@@ -167,6 +169,23 @@ function object(value: unknown, label: string): Record<string, unknown> {
     invalid(`${label} must be an object.`)
   }
   return value as Record<string, unknown>
+}
+
+function browserLocatorErrorFormat(
+  value: unknown,
+  label: string,
+  fallback: unknown
+): unknown {
+  const locators = value == null ? {} : object(value, label)
+  keys(locators, ['errorFormat'], label)
+  const format = locators.errorFormat ?? fallback
+  try {
+    structuredClone(format)
+    JSON.stringify(format)
+  } catch {
+    invalid(`${label}.errorFormat must contain serializable data.`)
+  }
+  return format
 }
 
 function keys(
@@ -314,7 +333,11 @@ export function parseTestConfig(
   const names = new Set<string>()
   const instances = new Map<
     number,
-    { browser: TestBrowserEngine; name?: string }[]
+    {
+      browser: TestBrowserEngine
+      name?: string
+      browserLocatorErrorFormat?: unknown
+    }[]
   >()
   const normalized: TestConfig = {
     ...parseConfiguredReporters(config.reporters),
@@ -396,7 +419,7 @@ export function parseTestConfig(
       if (browser) {
         keys(
           browser,
-          ['enabled', 'viewport', 'instances', 'headless'],
+          ['enabled', 'viewport', 'instances', 'headless', 'locators'],
           `${label}.browser`
         )
         if (typeof browser.enabled !== 'boolean')
@@ -408,6 +431,13 @@ export function parseTestConfig(
           invalid(`${label}.browser.headless must be a boolean.`)
       }
       const browserClient = browser?.enabled === true
+      const resolvedBrowserLocatorErrorFormat = browserClient
+        ? browserLocatorErrorFormat(
+            browser.locators,
+            `${label}.browser.locators`,
+            'all'
+          )
+        : undefined
       const expandsBrowserInstances =
         browserClient && browser.instances !== undefined
       if (
@@ -426,7 +456,7 @@ export function parseTestConfig(
           browser.instances.map((instanceValue, instanceIndex) => {
             const instanceLabel = `${label}.browser.instances[${instanceIndex}]`
             const instance = object(instanceValue, instanceLabel)
-            keys(instance, ['browser', 'name'], instanceLabel)
+            keys(instance, ['browser', 'name', 'locators'], instanceLabel)
             if (
               instance.browser !== 'chromium' &&
               instance.browser !== 'firefox' &&
@@ -440,9 +470,17 @@ export function parseTestConfig(
               typeof instance.name !== 'string'
             )
               invalid(`${instanceLabel}.name must be a string.`)
-            return instance.name === undefined
-              ? { browser: instance.browser }
-              : { browser: instance.browser, name: instance.name as string }
+            return {
+              browser: instance.browser,
+              ...(instance.name === undefined
+                ? {}
+                : { name: instance.name as string }),
+              browserLocatorErrorFormat: browserLocatorErrorFormat(
+                instance.locators,
+                `${instanceLabel}.locators`,
+                resolvedBrowserLocatorErrorFormat
+              ),
+            }
           })
         )
       }
@@ -824,6 +862,9 @@ export function parseTestConfig(
         ...(provide === undefined ? {} : { provide }),
         ...(env === undefined ? {} : { env }),
         ...(browserViewport === undefined ? {} : { browserViewport }),
+        ...(browserClient
+          ? { browserLocatorErrorFormat: resolvedBrowserLocatorErrorFormat }
+          : {}),
         ...(browserClient && browser.headless !== undefined
           ? { browserHeadless: browser.headless as boolean }
           : {}),
@@ -893,6 +934,7 @@ export function parseTestConfig(
         : {}),
       browserInstance: parentName === undefined ? {} : { parentName },
       profile: { ...project.profile },
+      browserLocatorErrorFormat: instance.browserLocatorErrorFormat,
     }))
   })
   assignBrowserInstanceIds(normalized.projects)
@@ -988,9 +1030,42 @@ export function normalizeTestConfig(value: unknown): TestConfig {
         )
           invalid(`test.projects[${index}].extends must be a boolean.`)
         const inherited = project.extends === false ? {} : defaults
+        const inheritedBrowser = object(inherited.browser ?? {}, 'test.browser')
+        const projectBrowser = object(
+          settings.browser ?? {},
+          `test.projects[${index}].browser`
+        )
+        const inheritedLocators = object(
+          inheritedBrowser.locators ?? {},
+          'test.browser.locators'
+        )
+        const projectLocators = object(
+          projectBrowser.locators ?? {},
+          `test.projects[${index}].browser.locators`
+        )
         return {
           ...inherited,
           ...settings,
+          ...(inherited.browser !== undefined || settings.browser !== undefined
+            ? {
+                browser: {
+                  ...inheritedBrowser,
+                  ...projectBrowser,
+                  ...(inheritedBrowser.locators !== undefined ||
+                  projectBrowser.locators !== undefined
+                    ? {
+                        locators: {
+                          ...inheritedLocators,
+                          ...projectLocators,
+                          errorFormat:
+                            projectLocators.errorFormat ??
+                            inheritedLocators.errorFormat,
+                        },
+                      }
+                    : {}),
+                },
+              }
+            : {}),
           name: settings.name ?? `project-${index}`,
           sequence: inheritGlobalTestSequence(
             {
