@@ -13,7 +13,7 @@ use hex::encode as hex_encode;
 use indoc::formatdoc;
 use pathdiff::diff_paths;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
     atoms::{Atom, Wtf8Atom, atom},
@@ -28,7 +28,7 @@ use swc_core::{
         ast::*,
         codegen::{self, Emitter, text_writer::JsWriter},
         utils::{ExprFactory, prepend_stmts, private_ident, quote_ident},
-        visit::{VisitMut, VisitMutWith, noop_visit_mut_type},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
 };
@@ -48,25 +48,65 @@ pub struct Config {
     pub is_react_server_layer: bool,
     pub is_development: bool,
     pub use_cache_enabled: bool,
-    /// The salt mixed into every generated server reference ID. Required when deserializing.
-    ///
-    /// When `None`, the transform runs without the salt, so that the salt (e.g. the server actions
-    /// encryption key) only needs to be read for modules that actually need it. Most modules
-    /// contain no server functions and are fully transformed by that run. As soon as it finds
-    /// something that needs the salt (any `"use server"` or `"use cache"` directive), it stops
-    /// transforming and [`ServerActions::hash_salt_needed`] returns `true` afterwards: the program
-    /// and comments are left unchanged, no diagnostics are reported and no telemetry is counted.
-    /// The caller must then run the transform again with the salt on the same program. Either
-    /// way, the result is the same as a single run with the salt.
-    #[serde(deserialize_with = "deserialize_hash_salt")]
-    pub hash_salt: Option<String>,
+    pub hash_salt: HashSalt,
     pub cache_kinds: FxHashSet<RcStr>,
 }
 
-fn deserialize_hash_salt<'de, D: Deserializer<'de>>(
-    deserializer: D,
-) -> Result<Option<String>, D::Error> {
-    String::deserialize(deserializer).map(Some)
+/// The salt mixed into every generated server reference ID.
+///
+/// It is only read when the transform generates a server reference ID, i.e. for modules with
+/// `"use server"` or `"use cache"` functions. A [lazy](HashSalt::lazy) salt allows callers to
+/// avoid computing (or depending on) the salt for all other modules.
+#[derive(Clone, Deserialize)]
+#[serde(from = "String")]
+pub struct HashSalt(HashSaltInner);
+
+#[derive(Clone)]
+enum HashSaltInner {
+    Value(RcStr),
+    Lazy(Arc<dyn Fn() -> RcStr + Send + Sync>),
+}
+
+impl HashSalt {
+    /// A salt that is computed by `get` when it is needed. `get` may be called multiple times.
+    pub fn lazy(get: impl Fn() -> RcStr + Send + Sync + 'static) -> Self {
+        Self(HashSaltInner::Lazy(Arc::new(get)))
+    }
+
+    fn get(&self) -> RcStr {
+        match &self.0 {
+            HashSaltInner::Value(value) => value.clone(),
+            HashSaltInner::Lazy(get) => get(),
+        }
+    }
+}
+
+impl From<RcStr> for HashSalt {
+    fn from(value: RcStr) -> Self {
+        Self(HashSaltInner::Value(value))
+    }
+}
+
+impl From<String> for HashSalt {
+    fn from(value: String) -> Self {
+        RcStr::from(value).into()
+    }
+}
+
+impl From<&str> for HashSalt {
+    fn from(value: &str) -> Self {
+        RcStr::from(value).into()
+    }
+}
+
+impl std::fmt::Debug for HashSalt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Don't print the salt: it can be a secret (e.g. the server actions encryption key).
+        f.write_str(match &self.0 {
+            HashSaltInner::Value(_) => "HashSalt(..)",
+            HashSaltInner::Lazy(_) => "HashSalt(lazy)",
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -161,21 +201,6 @@ enum ServerActionsErrorKind {
     },
 }
 
-/// Collects diagnostics, either emitting them immediately or deferring them (during the salt-less
-/// run, whose diagnostics must be discarded if the transform has to run again with the salt).
-struct ErrorSink {
-    deferred: Option<RefCell<Vec<ServerActionsErrorKind>>>,
-}
-
-impl ErrorSink {
-    fn emit(&self, error_kind: ServerActionsErrorKind) {
-        match &self.deferred {
-            Some(deferred) => deferred.borrow_mut().push(error_kind),
-            None => emit_error(error_kind),
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(
@@ -187,9 +212,8 @@ pub fn server_actions<C: Comments>(
     cm: Arc<SourceMap>,
     use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
     mode: ServerActionsMode,
-) -> ServerActions<C> {
-    let is_salt_less = config.hash_salt.is_none();
-    ServerActions {
+) -> impl Pass + use<C> {
+    visit_mut_pass(ServerActions {
         config,
         mode,
         comments,
@@ -233,40 +257,7 @@ pub fn server_actions<C: Comments>(
         local_ids_that_need_cache_runtime_wrapper_if_exported: FxHashSet::default(),
 
         use_cache_telemetry_tracker,
-
-        hash_salt_needed: false,
-        errors: ErrorSink {
-            deferred: is_salt_less.then(Default::default),
-        },
-    }
-}
-
-impl<C: Comments> ServerActions<C> {
-    /// Whether a run without [`Config::hash_salt`] found something that needs it. If so, the
-    /// program was left unchanged, and the transform must run again with the salt.
-    pub fn hash_salt_needed(&self) -> bool {
-        self.hash_salt_needed
-    }
-
-    fn is_salt_less(&self) -> bool {
-        self.config.hash_salt.is_none()
-    }
-}
-
-impl<C: Comments> Pass for ServerActions<C> {
-    fn process(&mut self, program: &mut Program) {
-        program.visit_mut_with(self);
-
-        // Diagnostics of a run without the salt are deferred. Report them if the run is final;
-        // otherwise the run with the salt reports them.
-        if let Some(deferred) = self.errors.deferred.take()
-            && !self.hash_salt_needed
-        {
-            for error_kind in deferred.into_inner() {
-                emit_error(error_kind);
-            }
-        }
-    }
+    })
 }
 
 /// Serializes the Server References into a magic comment prefixed by
@@ -290,7 +281,7 @@ fn generate_server_references_comment(
     )
 }
 
-pub struct ServerActions<C: Comments> {
+struct ServerActions<C: Comments> {
     #[allow(unused)]
     config: Config,
     file_name: String,
@@ -348,11 +339,6 @@ pub struct ServerActions<C: Comments> {
     local_ids_that_need_cache_runtime_wrapper_if_exported: FxHashSet<Id>,
 
     use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
-
-    /// Set by a run without [`Config::hash_salt`] when it finds something that needs the salt.
-    /// From then on, the run must not change the program.
-    hash_salt_needed: bool,
-    errors: ErrorSink,
 }
 
 impl<C: Comments> ServerActions<C> {
@@ -367,16 +353,7 @@ impl<C: Comments> ServerActions<C> {
         // Currently encoded as hex.
 
         let mut hasher = Sha1::new();
-        hasher.update(
-            self.config
-                .hash_salt
-                .as_deref()
-                .expect(
-                    "server reference IDs require the hash salt, but the run without the salt \
-                     tried to generate one",
-                )
-                .as_bytes(),
-        );
+        hasher.update(self.config.hash_salt.get().as_bytes());
         hasher.update(self.file_name.as_bytes());
         hasher.update(b":");
 
@@ -507,26 +484,18 @@ impl<C: Comments> ServerActions<C> {
         if let Some(body) = maybe_body {
             let directive_visitor = &mut DirectiveVisitor {
                 config: &self.config,
-                errors: &self.errors,
                 directive: None,
                 has_file_directive: self.file_directive.is_some(),
                 is_allowed_position: true,
                 location: DirectiveLocation::FunctionBody,
-                use_cache_telemetry_tracker: (!self.is_salt_less())
-                    .then_some(&self.use_cache_telemetry_tracker),
+                use_cache_telemetry_tracker: self.use_cache_telemetry_tracker.clone(),
             };
-            let is_salt_less = self.is_salt_less();
-            let hash_salt_needed = &mut self.hash_salt_needed;
 
             body.stmts.retain(|stmt| {
                 let has_directive = directive_visitor.visit_stmt(stmt);
 
-                !has_directive || stop_for_hash_salt(is_salt_less, hash_salt_needed)
+                !has_directive
             });
-
-            if self.hash_salt_needed {
-                return None;
-            }
 
             directive = directive_visitor.directive.clone();
         }
@@ -545,31 +514,23 @@ impl<C: Comments> ServerActions<C> {
     fn get_directive_for_module(&mut self, stmts: &mut Vec<ModuleItem>) -> Option<Directive> {
         let directive_visitor = &mut DirectiveVisitor {
             config: &self.config,
-            errors: &self.errors,
             directive: None,
             has_file_directive: false,
             is_allowed_position: true,
             location: DirectiveLocation::Module,
-            use_cache_telemetry_tracker: (!self.is_salt_less())
-                .then_some(&self.use_cache_telemetry_tracker),
+            use_cache_telemetry_tracker: self.use_cache_telemetry_tracker.clone(),
         };
-        let is_salt_less = self.is_salt_less();
-        let hash_salt_needed = &mut self.hash_salt_needed;
 
         stmts.retain(|item| {
             if let ModuleItem::Stmt(stmt) = item {
                 let has_directive = directive_visitor.visit_stmt(stmt);
 
-                !has_directive || stop_for_hash_salt(is_salt_less, hash_salt_needed)
+                !has_directive
             } else {
                 directive_visitor.is_allowed_position = false;
                 true
             }
         });
-
-        if self.hash_salt_needed {
-            return None;
-        }
 
         directive_visitor.directive.clone()
     }
@@ -1071,11 +1032,10 @@ impl<C: Comments> ServerActions<C> {
         if is_async {
             true
         } else {
-            self.errors
-                .emit(ServerActionsErrorKind::InlineSyncFunction {
-                    span: fn_name.as_ref().map_or(span, |ident| ident.span),
-                    directive: directive.clone(),
-                });
+            emit_error(ServerActionsErrorKind::InlineSyncFunction {
+                span: fn_name.as_ref().map_or(span, |ident| ident.span),
+                directive: directive.clone(),
+            });
             false
         }
     }
@@ -1746,11 +1706,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let (is_action_fn, is_cache_fn) = has_body_directive(&n.function.body);
 
             if is_action_fn {
-                self.errors.emit(
+                emit_error(
                     ServerActionsErrorKind::InlineUseServerInClassInstanceMethod { span: n.span },
                 );
             } else if is_cache_fn {
-                self.errors.emit(
+                emit_error(
                     ServerActionsErrorKind::InlineUseCacheInClassInstanceMethod { span: n.span },
                 );
             } else {
@@ -2193,11 +2153,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                 // Emit validation error if we found a disallowed export
                 if disallowed_export_span != DUMMY_SP {
-                    self.errors
-                        .emit(ServerActionsErrorKind::ExportedSyncFunction {
-                            span: disallowed_export_span,
-                            in_action_file,
-                        });
+                    emit_error(ServerActionsErrorKind::ExportedSyncFunction {
+                        span: disallowed_export_span,
+                        in_action_file,
+                    });
                     return;
                 }
             }
@@ -2954,23 +2913,21 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_this_expr(&mut self, n: &mut ThisExpr) {
         if let ThisStatus::Forbidden { directive } = &self.this_status {
-            self.errors
-                .emit(ServerActionsErrorKind::ForbiddenExpression {
-                    span: n.span,
-                    expr: "this".into(),
-                    directive: directive.clone(),
-                });
+            emit_error(ServerActionsErrorKind::ForbiddenExpression {
+                span: n.span,
+                expr: "this".into(),
+                directive: directive.clone(),
+            });
         }
     }
 
     fn visit_mut_super(&mut self, n: &mut Super) {
         if let ThisStatus::Forbidden { directive } = &self.this_status {
-            self.errors
-                .emit(ServerActionsErrorKind::ForbiddenExpression {
-                    span: n.span,
-                    expr: "super".into(),
-                    directive: directive.clone(),
-                });
+            emit_error(ServerActionsErrorKind::ForbiddenExpression {
+                span: n.span,
+                expr: "super".into(),
+                directive: directive.clone(),
+            });
         }
     }
 
@@ -2978,12 +2935,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if n.sym == *"arguments"
             && let ThisStatus::Forbidden { directive } = &self.this_status
         {
-            self.errors
-                .emit(ServerActionsErrorKind::ForbiddenExpression {
-                    span: n.span,
-                    expr: "arguments".into(),
-                    directive: directive.clone(),
-                });
+            emit_error(ServerActionsErrorKind::ForbiddenExpression {
+                span: n.span,
+                expr: "arguments".into(),
+                directive: directive.clone(),
+            });
         }
     }
 
@@ -3494,14 +3450,11 @@ fn collect_decl_idents_in_stmt(stmt: &Stmt, idents: &mut Vec<Ident>) {
 
 struct DirectiveVisitor<'a> {
     config: &'a Config,
-    errors: &'a ErrorSink,
     location: DirectiveLocation,
     directive: Option<Directive>,
     has_file_directive: bool,
     is_allowed_position: bool,
-    /// `None` in the salt-less run, which never processes recognized directives (the run with the
-    /// salt counts them instead).
-    use_cache_telemetry_tracker: Option<&'a Rc<RefCell<FxHashMap<String, usize>>>>,
+    use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
 }
 
 impl DirectiveVisitor<'_> {
@@ -3520,43 +3473,38 @@ impl DirectiveVisitor<'_> {
             }) => {
                 if value == "use server" {
                     if in_fn_body && !allow_inline {
-                        self.errors
-                            .emit(ServerActionsErrorKind::InlineUseServerInClientComponent {
-                                span: *span,
-                            })
+                        emit_error(ServerActionsErrorKind::InlineUseServerInClientComponent {
+                            span: *span,
+                        })
                     } else if let Some(Directive::UseCache { .. }) = self.directive {
-                        self.errors
-                            .emit(ServerActionsErrorKind::MultipleDirectives {
-                                span: *span,
-                                location: self.location.clone(),
-                            });
+                        emit_error(ServerActionsErrorKind::MultipleDirectives {
+                            span: *span,
+                            location: self.location.clone(),
+                        });
                     } else if self.is_allowed_position {
                         self.directive = Some(Directive::UseServer);
 
                         return true;
                     } else {
-                        self.errors
-                            .emit(ServerActionsErrorKind::MisplacedDirective {
-                                span: *span,
-                                directive: value.to_string_lossy().into_owned(),
-                                location: self.location.clone(),
-                            });
+                        emit_error(ServerActionsErrorKind::MisplacedDirective {
+                            span: *span,
+                            directive: value.to_string_lossy().into_owned(),
+                            location: self.location.clone(),
+                        });
                     }
                 } else if detect_similar_strings(&value.to_string_lossy(), "use server") {
                     // Detect typo of "use server"
-                    self.errors
-                        .emit(ServerActionsErrorKind::MisspelledDirective {
-                            span: *span,
-                            directive: value.to_string_lossy().into_owned(),
-                            expected_directive: "use server".to_string(),
-                        });
+                    emit_error(ServerActionsErrorKind::MisspelledDirective {
+                        span: *span,
+                        directive: value.to_string_lossy().into_owned(),
+                        expected_directive: "use server".to_string(),
+                    });
                 } else if value == "use action" {
-                    self.errors
-                        .emit(ServerActionsErrorKind::MisspelledDirective {
-                            span: *span,
-                            directive: value.to_string_lossy().into_owned(),
-                            expected_directive: "use server".to_string(),
-                        });
+                    emit_error(ServerActionsErrorKind::MisspelledDirective {
+                        span: *span,
+                        directive: value.to_string_lossy().into_owned(),
+                        expected_directive: "use server".to_string(),
+                    });
                 } else
                 // `use cache` or `use cache: foo`
                 if let Some(rest) = value.as_str().and_then(|s| s.strip_prefix("use cache"))
@@ -3564,24 +3512,20 @@ impl DirectiveVisitor<'_> {
                     // Increment telemetry counter tracking usage of "use cache" directives
 
                     if in_fn_body && !allow_inline {
-                        self.errors
-                            .emit(ServerActionsErrorKind::InlineUseCacheInClientComponent {
-                                span: *span,
-                            })
+                        emit_error(ServerActionsErrorKind::InlineUseCacheInClientComponent {
+                            span: *span,
+                        })
                     } else if let Some(Directive::UseServer) = self.directive {
-                        self.errors
-                            .emit(ServerActionsErrorKind::MultipleDirectives {
-                                span: *span,
-                                location: self.location.clone(),
-                            });
+                        emit_error(ServerActionsErrorKind::MultipleDirectives {
+                            span: *span,
+                            location: self.location.clone(),
+                        });
                     } else if self.is_allowed_position {
                         if !self.config.use_cache_enabled {
-                            self.errors.emit(
-                                ServerActionsErrorKind::UseCacheWithoutCacheComponents {
-                                    span: *span,
-                                    directive: value.to_string_lossy().into_owned(),
-                                },
-                            );
+                            emit_error(ServerActionsErrorKind::UseCacheWithoutCacheComponents {
+                                span: *span,
+                                directive: value.to_string_lossy().into_owned(),
+                            });
                         }
 
                         if rest.is_empty() {
@@ -3599,7 +3543,7 @@ impl DirectiveVisitor<'_> {
 
                             if !cache_kind.is_empty() {
                                 if !self.config.cache_kinds.contains(&cache_kind) {
-                                    self.errors.emit(ServerActionsErrorKind::UnknownCacheKind {
+                                    emit_error(ServerActionsErrorKind::UnknownCacheKind {
                                         span: *span,
                                         cache_kind: cache_kind.clone(),
                                     });
@@ -3632,31 +3576,28 @@ impl DirectiveVisitor<'_> {
                             }
                         };
 
-                        self.errors
-                            .emit(ServerActionsErrorKind::MisspelledDirective {
-                                span: *span,
-                                directive: value.to_string_lossy().into_owned(),
-                                expected_directive,
-                            });
+                        emit_error(ServerActionsErrorKind::MisspelledDirective {
+                            span: *span,
+                            directive: value.to_string_lossy().into_owned(),
+                            expected_directive,
+                        });
 
                         return true;
                     } else {
-                        self.errors
-                            .emit(ServerActionsErrorKind::MisplacedDirective {
-                                span: *span,
-                                directive: value.to_string_lossy().into_owned(),
-                                location: self.location.clone(),
-                            });
+                        emit_error(ServerActionsErrorKind::MisplacedDirective {
+                            span: *span,
+                            directive: value.to_string_lossy().into_owned(),
+                            location: self.location.clone(),
+                        });
                     }
                 } else {
                     // Detect typo of "use cache"
                     if detect_similar_strings(&value.to_string_lossy(), "use cache") {
-                        self.errors
-                            .emit(ServerActionsErrorKind::MisspelledDirective {
-                                span: *span,
-                                directive: value.to_string_lossy().into_owned(),
-                                expected_directive: "use cache".to_string(),
-                            });
+                        emit_error(ServerActionsErrorKind::MisspelledDirective {
+                            span: *span,
+                            directive: value.to_string_lossy().into_owned(),
+                            expected_directive: "use cache".to_string(),
+                        });
                     }
                 }
             }
@@ -3674,33 +3615,31 @@ impl DirectiveVisitor<'_> {
                     || detect_similar_strings(&value.to_string_lossy(), "use server")
                 {
                     if self.is_allowed_position {
-                        self.errors.emit(ServerActionsErrorKind::WrappedDirective {
+                        emit_error(ServerActionsErrorKind::WrappedDirective {
                             span: *span,
                             directive: "use server".to_string(),
                         });
                     } else {
-                        self.errors
-                            .emit(ServerActionsErrorKind::MisplacedWrappedDirective {
-                                span: *span,
-                                directive: "use server".to_string(),
-                                location: self.location.clone(),
-                            });
+                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
+                            span: *span,
+                            directive: "use server".to_string(),
+                            location: self.location.clone(),
+                        });
                     }
                 } else if value == "use cache"
                     || detect_similar_strings(&value.to_string_lossy(), "use cache")
                 {
                     if self.is_allowed_position {
-                        self.errors.emit(ServerActionsErrorKind::WrappedDirective {
+                        emit_error(ServerActionsErrorKind::WrappedDirective {
                             span: *span,
                             directive: "use cache".to_string(),
                         });
                     } else {
-                        self.errors
-                            .emit(ServerActionsErrorKind::MisplacedWrappedDirective {
-                                span: *span,
-                                directive: "use cache".to_string(),
-                                location: self.location.clone(),
-                            });
+                        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
+                            span: *span,
+                            directive: "use cache".to_string(),
+                            location: self.location.clone(),
+                        });
                     }
                 }
             }
@@ -3715,10 +3654,7 @@ impl DirectiveVisitor<'_> {
 
     // Increment telemetry counter tracking usage of "use cache" directives
     fn increment_cache_usage_counter(&mut self, cache_kind: &str) {
-        let Some(tracker) = self.use_cache_telemetry_tracker else {
-            return;
-        };
-        let mut tracker_map = RefCell::borrow_mut(tracker);
+        let mut tracker_map = RefCell::borrow_mut(&self.use_cache_telemetry_tracker);
         let entry = tracker_map.entry(cache_kind.to_string());
         match entry {
             hash_map::Entry::Occupied(mut occupied) => {
@@ -3881,15 +3817,6 @@ impl From<Name> for Box<Expr> {
 
         expr
     }
-}
-
-/// In a salt-less run, records that the hash salt is needed and returns `true`: the caller must
-/// then leave the program unchanged (the run with the salt transforms it instead).
-fn stop_for_hash_salt(is_salt_less: bool, hash_salt_needed: &mut bool) -> bool {
-    if is_salt_less {
-        *hash_salt_needed = true;
-    }
-    is_salt_less
 }
 
 fn emit_error(error_kind: ServerActionsErrorKind) {

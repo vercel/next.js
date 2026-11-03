@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use next_custom_transforms::transforms::server_actions::{
-    Config, ServerActionsMode, server_actions,
+    Config, HashSalt, ServerActionsMode, server_actions,
 };
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
@@ -77,37 +77,29 @@ struct NextServerActions {
 impl CustomTransformer for NextServerActions {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "server_actions", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
-        let file_name = FileName::Real(ctx.file_path_str.into());
-        let run = async |program: &mut Program, hash_salt| -> Result<bool> {
-            let mut actions = server_actions(
-                &file_name,
-                Some(ctx.query_str.clone()),
-                Config {
-                    is_react_server_layer: self.is_react_server_layer,
-                    is_development: self.mode.is_development(),
-                    use_cache_enabled: self.use_cache_enabled,
-                    hash_salt,
-                    cache_kinds: self.cache_kinds.owned().await?,
-                },
-                ctx.comments.clone(),
-                ctx.unresolved_mark,
-                ctx.source_map.clone(),
-                Default::default(),
-                ServerActionsMode::Turbopack,
-            );
-            program.mutate(&mut actions);
-            Ok(actions.hash_salt_needed())
-        };
-
         // The hash salt (the encryption key) is only needed for modules with server functions.
-        // This transform runs on every module, so reading the key unconditionally would make every
-        // module's parse depend on it, and a key change (e.g. key rotation or a per-build
-        // `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`) would invalidate most of the build graph. Run
-        // without the salt first, and only read it and run again if it turns out to be needed.
-        if run(program, None).await? {
-            let hash_salt = self.encryption_key.await?.to_string();
-            run(program, Some(hash_salt)).await?;
-        }
+        // This transform runs on every module, so depending on the key unconditionally would make
+        // every module's parse depend on it, and a key change (e.g. key rotation or a per-build
+        // `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`) would invalidate most of the build graph. Read it
+        // lazily: the dependency is dropped again if the transform never generates an ID.
+        let encryption_key = self.encryption_key.lazy_reader().await?;
+        let actions = server_actions(
+            &FileName::Real(ctx.file_path_str.into()),
+            Some(ctx.query_str.clone()),
+            Config {
+                is_react_server_layer: self.is_react_server_layer,
+                is_development: self.mode.is_development(),
+                use_cache_enabled: self.use_cache_enabled,
+                hash_salt: HashSalt::lazy(move || encryption_key.get().clone()),
+                cache_kinds: self.cache_kinds.owned().await?,
+            },
+            ctx.comments.clone(),
+            ctx.unresolved_mark,
+            ctx.source_map.clone(),
+            Default::default(),
+            ServerActionsMode::Turbopack,
+        );
+        program.mutate(actions);
         Ok(())
     }
 }
