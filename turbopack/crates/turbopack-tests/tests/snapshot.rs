@@ -80,9 +80,6 @@ struct SnapshotOptions {
     entry: String,
     #[serde(default = "default_minify_type")]
     minify_type: MinifyType,
-    /// EXPERIMENTAL: minify each chunk item before assembling the chunk.
-    #[serde(default)]
-    minify_before_chunking: bool,
     #[serde(default)]
     runtime: Runtime,
     #[serde(default = "default_runtime_type")]
@@ -143,7 +140,6 @@ impl Default for SnapshotOptions {
             browserslist: default_browserslist(),
             entry: default_entry(),
             minify_type: default_minify_type(),
-            minify_before_chunking: false,
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
@@ -554,7 +550,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 options.runtime_type,
             )
             .minify_type(options.minify_type)
-            .minify_before_chunking(options.minify_before_chunking)
             .module_merging(options.scope_hoisting)
             .shared_runtime(options.shared_runtime)
             .export_usage(if options.remove_unused_exports {
@@ -608,7 +603,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 options.runtime_type,
             )
             .minify_type(options.minify_type)
-            .minify_before_chunking(options.minify_before_chunking)
             .module_merging(options.scope_hoisting)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)

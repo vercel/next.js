@@ -2,12 +2,11 @@ use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_core::chunk::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo,
-    ChunkType, ChunkingContext, round_chunk_item_size,
+    ChunkType, ChunkingContext, MinifyType, round_chunk_item_size,
 };
 
 use super::{
-    ChunkMinification, EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem,
-    minified_module_factory,
+    EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem, minified_module_factory,
 };
 use crate::chunk::batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo};
 
@@ -66,19 +65,19 @@ impl ChunkType for EcmascriptChunkType {
         else {
             bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
         };
-        let minification = ChunkMinification::for_chunking_context(chunking_context).await?;
+        let minify = *chunking_context.minify_type().await?;
         let size = async {
             let content = ecmascript_chunk_item
                 .into_trait_ref()
                 .await?
                 .content_with_async_module_info(async_module_info, true)
                 .await?;
-            anyhow::Ok(match minification {
-                // When chunk items are minified one by one, the chunk is made of the minified
-                // factories, so size them as such. This minifies every item before chunking, but
+            anyhow::Ok(match minify {
+                // Chunk items are minified one by one, so the chunk is made of the minified
+                // factories: size them as such. This minifies every item before chunking, but
                 // the result is shared with code generation (see `minified_module_factory`), so
                 // the work isn't repeated.
-                ChunkMinification::PerItem { mangle } => {
+                MinifyType::Minify { mangle } => {
                     // Code generation asks for source maps per chunk. Both chunking contexts answer
                     // the same for every chunk and module; if that ever changes, this only costs a
                     // second minification, since source maps don't change the minified code.
@@ -89,9 +88,7 @@ impl ChunkType for EcmascriptChunkType {
                         minified_module_factory(content, source_maps, mangle.is_some()).await?;
                     code.source_code().len()
                 }
-                ChunkMinification::None | ChunkMinification::WholeChunk { .. } => {
-                    content.await?.inner_code.len()
-                }
+                MinifyType::NoMinify => content.await?.inner_code.len(),
             })
         }
         .await;

@@ -15,8 +15,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        ChunkMinification, EcmascriptChunkContent, EcmascriptChunkContentEntries,
-        strict_chunk_wrapper, strict_factory_mode, write_module_factories,
+        EcmascriptChunkContent, EcmascriptChunkContentEntries, strict_chunk_wrapper,
+        strict_factory_mode, write_module_factories,
     },
     hmr::{
         EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
@@ -94,10 +94,9 @@ impl EcmascriptBrowserChunkContent {
             .supports_arrow_functions()
             .await?;
         let content = this.content.await?;
-        let minification =
-            ChunkMinification::for_chunking_context(Vc::upcast(*this.chunking_context)).await?;
+        let minify = *this.chunking_context.minify_type().await?;
         let chunk_items = content
-            .chunk_item_code_module_ids_and_paths(minification, source_maps)
+            .chunk_item_code_module_ids_and_paths(minify, source_maps)
             .await?;
         let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
         let strict_chunk_wrapper =
@@ -138,7 +137,7 @@ impl EcmascriptBrowserChunkContent {
             code += suffix;
         }
 
-        Ok(minification.finish_chunk(code.build(), source_maps)?.cell())
+        Ok(code.build().cell())
     }
 
     #[turbo_tasks::function]

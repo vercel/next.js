@@ -4,6 +4,5 @@
     "Minify": {
       "mangle": "optimal-size"
     }
-  },
-  "minifyBeforeChunking": true
+  }
 }
