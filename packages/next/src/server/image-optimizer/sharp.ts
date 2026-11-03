@@ -73,7 +73,7 @@ export async function optimizeImage({
   operationCache?: boolean | null | undefined
   maxInputPixels?: number
   sequentialRead?: boolean | null
-  timeoutInSeconds?: number
+  timeoutInSeconds: number
   mozjpeg?: boolean
 }): Promise<Buffer> {
   const sharp = getSharp(concurrency, operationCache)
@@ -82,7 +82,7 @@ export async function optimizeImage({
     sequentialRead: sequentialRead ?? undefined,
   })
     .timeout({
-      seconds: timeoutInSeconds ?? 7,
+      seconds: timeoutInSeconds,
     })
     .rotate()
 

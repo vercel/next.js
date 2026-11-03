@@ -50,7 +50,7 @@ async function imageOptimizerTransform(
 ): Promise<ImageOptimizerResult>
 ```
 
-Validates an upstream image, optimizes it with sharp, and returns the result with caching metadata.
+Validates an upstream image, optimizes it with sharp or `@next/safe-image-optimization`, and returns the result with caching metadata.
 
 #### imageUpstream
 
@@ -74,33 +74,38 @@ Validates an upstream image, optimizes it with sharp, and returns the result wit
 
 All fields are optional.
 
-| Field                 | Type              | Default     | Description                                                                                   |
-| --------------------- | ----------------- | ----------- | --------------------------------------------------------------------------------------------- |
-| `dangerouslyAllowSVG` | `boolean`         | `false`     | Allows SVG sources. When `false`, an SVG source throws an `ImageError`.                       |
-| `minimumCacheTTL`     | `number`          | `0`         | The minimum `maxAge` of the result, in seconds.                                               |
-| `concurrency`         | `number \| null`  | `undefined` | The sharp thread pool size. When not a number, a default based on `NODE_ENV` is used.         |
-| `operationCache`      | `boolean \| null` | `undefined` | Enables or disables the libvips operation cache. When not a boolean, sharp's default is used. |
-| `maxInputPixels`      | `number`          | `undefined` | Passed to sharp as `limitInputPixels`. When omitted, sharp's default of `268402689` is used.  |
-| `sequentialRead`      | `boolean \| null` | `undefined` | Passed to sharp as `sequentialRead`.                                                          |
-| `timeoutInSeconds`    | `number`          | `7`         | Per-image processing timeout.                                                                 |
-| `mozjpeg`             | `boolean`         | `true`      | Encodes JPEG output with mozjpeg.                                                             |
-| `logger`              | `object`          | `undefined` | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs.      |
+| Field                   | Type              | Default     | Description                                                                                                                                                                                             |
+| ----------------------- | ----------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dangerouslyAllowSVG`   | `boolean`         | `false`     | Allows SVG sources. When `false`, an SVG source throws an `ImageError`.                                                                                                                                 |
+| `minimumCacheTTL`       | `number`          | `0`         | The minimum `maxAge` of the result, in seconds.                                                                                                                                                         |
+| `concurrency`           | `number \| null`  | `undefined` | How many images to optimize in parallel. Some image codecs are multithreaded, so the actual number of threads may be higher than this value. The default value is derived from the available CPU cores. |
+| `operationCache`        | `boolean \| null` | `undefined` | Enables or disables the libvips operation cache. When not a boolean, sharp's default is used. Only used by sharp.                                                                                       |
+| `maxInputPixels`        | `number`          | `undefined` | The maximum number of pixels in a source image. When omitted, sharp's default of `268402689` is used.                                                                                                   |
+| `sequentialRead`        | `boolean \| null` | `undefined` | Passed to sharp as [`sequentialRead`]. Only used by sharp.                                                                                                                                              |
+| `timeoutInSeconds`      | `number`          | `7`         | Per-image processing timeout.                                                                                                                                                                           |
+| `mozjpeg`               | `boolean`         | `true`      | Encodes JPEG output with mozjpeg. Much slower, but produces smaller files.                                                                                                                              |
+| `safeImageOptimization` | `boolean`         | `false`     | Optimizes with `@next/safe-image-optimization` instead of sharp.                                                                                                                                        |
+| `logger`                | `object`          | `undefined` | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs.                                                                                                                |
 
-These correspond to the [`images`](/docs/app/api-reference/config/next-config-js/images) and `experimental.imgOpt*` options in `next.config.js`, but the defaults are not the same. For example, Next.js defaults `images.minimumCacheTTL` to `14400`.
+[`sequentialRead`]: https://sharp.pixelplumbing.com/api-constructor/#new
+
+These correspond to the [`images`](/docs/app/api-reference/config/next-config-js/images) and `experimental.imgOpt*` options in `next.config.js`, but the defaults are not the same. For example, Next.js defaults `images.minimumCacheTTL` to `14400`. `safeImageOptimization` corresponds to `experimental.imgOptSafeImageOptimization.nextImage`.
+
+When `safeImageOptimization` is `true`, only WebP, PNG, JPEG, and GIF output are supported. Requesting another output type returns the upstream image with `error` set. `operationCache` and `sequentialRead` are ignored.
 
 #### Returns
 
 `Promise<ImageOptimizerResult>` with the following fields:
 
-| Field          | Type      | Description                                                                               |
-| -------------- | --------- | ----------------------------------------------------------------------------------------- |
-| `buffer`       | `Buffer`  | The optimized image, or the upstream image when optimization is skipped or failed.        |
-| `contentType`  | `string`  | The MIME type of `buffer`.                                                                |
-| `maxAge`       | `number`  | The cache lifetime in seconds.                                                            |
-| `etag`         | `string`  | The ETag for the returned buffer.                                                         |
-| `upstreamEtag` | `string`  | The ETag of the upstream image.                                                           |
-| `optimized`    | `boolean` | `true` when `buffer` was produced by sharp, `false` when the upstream image was returned. |
-| `error`        | `unknown` | Present only when optimization failed and the upstream image was returned instead.        |
+| Field          | Type      | Description                                                                         |
+| -------------- | --------- | ----------------------------------------------------------------------------------- |
+| `buffer`       | `Buffer`  | The optimized image, or the upstream image when optimization is skipped or failed.  |
+| `contentType`  | `string`  | The MIME type of `buffer`.                                                          |
+| `maxAge`       | `number`  | The cache lifetime in seconds.                                                      |
+| `etag`         | `string`  | The ETag for the returned buffer.                                                   |
+| `upstreamEtag` | `string`  | The ETag of the upstream image.                                                     |
+| `optimized`    | `boolean` | `true` when `buffer` was transformed, `false` when the upstream image was returned. |
+| `error`        | `unknown` | Present only when optimization failed and the upstream image was returned instead.  |
 
 The function runs the following steps in order:
 
@@ -110,7 +115,7 @@ The function runs the following steps in order:
 4. Returns animated WebP, PNG, and GIF sources unoptimized, and calls `logger.warnOnce`.
 5. Returns SVG, ICO, ICNS, BMP, JXL, and HEIC sources unmodified.
 6. Selects the output type: `paramsResult.mimeType` when non-empty, `image/jpeg` for WebP or AVIF sources when no type is requested, otherwise the detected source type.
-7. Resizes and re-encodes the image with sharp using the sharp-related `opts` values. The output is auto-rotated according to the EXIF orientation of the source image.
+7. Resizes and re-encodes the image. The output is auto-rotated according to the EXIF orientation of the source image.
 8. On failure, returns the upstream buffer and content type with `maxAge` set to `opts.minimumCacheTTL` and the caught value on `result.error`. The failure does not throw.
 
 ### getMaxAge
@@ -157,6 +162,7 @@ The error type thrown by `imageOptimizerTransform` for invalid input. `statusCod
 ## Good to know
 
 - `sharp` is required and is loaded lazily on the first call to `getSharp` or the first image that `imageOptimizerTransform` optimizes. The same instance is reused afterwards.
+- `sharp` is not used if `safeImageOptimization` is enabled.
 - The module intentionally imports very little so it loads quickly in a separate process, such as a worker or child process. Its file location and exports are a stable public contract.
 - The `contentType` field of `imageUpstream` is not used for detection. The content type is detected from the first bytes of the buffer.
 - Optimization failures do not throw. `imageOptimizerTransform` returns the upstream buffer with `error` set on the result.

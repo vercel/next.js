@@ -23,6 +23,8 @@ import { getImageEtag } from './extract-etag'
 import { getMaxAge } from './get-max-age'
 import { ImageError } from './image-error'
 import { getSharp, optimizeImage } from './sharp'
+import { nsioOptimizeImage } from './nsio'
+import { DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS } from '../../shared/lib/image-optimizer-constants'
 
 export { ImageError }
 export { getMaxAge }
@@ -70,6 +72,11 @@ export interface ImageOptimizerTransformOptions {
   timeoutInSeconds?: number
   /** Encodes JPEG output with mozjpeg. Defaults to `true`. */
   mozjpeg?: boolean
+  /**
+   * Optimizes with `@next/safe-image-optimization` (nsio) instead of sharp.
+   * Defaults to `false`.
+   */
+  safeImageOptimization?: boolean
   logger?: ImageOptimizerTransformLogger
 }
 
@@ -80,9 +87,8 @@ export interface ImageOptimizerResult {
   etag: string
   upstreamEtag: string
   /**
-   * `true` when `buffer` was produced by sharp. `false` when the upstream
-   * image was passed through (animated, a bypassed type, or optimization
-   * failed).
+   * `true` when `buffer` was transformed. `false` when the upstream image was
+   * passed through (animated, a bypassed type, or optimization failed).
    */
   optimized: boolean
   error?: unknown
@@ -95,7 +101,11 @@ export async function imageOptimizerTransform(
 ): Promise<ImageOptimizerResult> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
-  const { dangerouslyAllowSVG = false, minimumCacheTTL = 0 } = opts
+  const {
+    dangerouslyAllowSVG = false,
+    minimumCacheTTL = 0,
+    timeoutInSeconds = DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS,
+  } = opts
   const maxAge = Math.max(
     minimumCacheTTL,
     getMaxAge(imageUpstream.cacheControl)
@@ -160,13 +170,17 @@ export async function imageOptimizerTransform(
   }
 
   try {
-    const optimizedBuffer = await optimizeImage({
+    const optimizeOpts = {
       ...opts,
       buffer: upstreamBuffer,
       contentType,
       quality,
       width,
-    })
+      timeoutInSeconds,
+    }
+    const optimizedBuffer = opts.safeImageOptimization
+      ? await nsioOptimizeImage({ ...optimizeOpts, dangerouslyAllowSVG })
+      : await optimizeImage(optimizeOpts)
     return {
       buffer: optimizedBuffer,
       contentType,

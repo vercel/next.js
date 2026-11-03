@@ -61,6 +61,7 @@ import { getMaxAge } from './image-optimizer/get-max-age'
 import { getPreviouslyCachedImageOrNull } from './image-optimizer/get-previously-cached-image-or-null'
 import { getImageSize } from './image-optimizer/get-image-size'
 import { ImageError } from './image-optimizer/image-error'
+import { NSIO_OUTPUT_MIME_TYPES } from '../shared/lib/image-optimizer-constants'
 
 // `next-server.ts` destructures `ImageError` from this module to check
 // `instanceof` on errors thrown by the transform.
@@ -178,6 +179,10 @@ function validateUrlParam(
 }
 
 function getSupportedMimeType(options: string[], accept = ''): string {
+  // With no preferences, `mediaType()` returns the client's preferred type.
+  if (options.length === 0) {
+    return ''
+  }
   const mimeType = mediaType(accept, options)
   return accept.includes(mimeType) ? mimeType : ''
 }
@@ -335,7 +340,18 @@ export class ImageOptimizerCache {
       }
     }
 
-    const mimeType = getSupportedMimeType(formats || [], req.headers['accept'])
+    let supportedFormats: string[] = formats || []
+    if (nextConfig.experimental.imgOptSafeImageOptimization.nextImage) {
+      // `config.ts` warns about the formats that are filtered out
+      supportedFormats = supportedFormats.filter((format) =>
+        NSIO_OUTPUT_MIME_TYPES.includes(format)
+      )
+    }
+
+    const mimeType = getSupportedMimeType(
+      supportedFormats,
+      req.headers['accept']
+    )
     const { href, isAbsolute } = urlResult
     const isStatic =
       href.startsWith(`${nextConfig.basePath || ''}/_next/static/media`) ||
@@ -1118,7 +1134,10 @@ type ImageOptimizerNextConfig = {
     | 'imgOptSequentialRead'
     | 'imgOptTimeoutInSeconds'
     | 'imgOptMozjpeg'
-  >
+  > &
+    Partial<
+      Pick<NextConfigComplete['experimental'], 'imgOptSafeImageOptimization'>
+    >
   images: Pick<
     NextConfigComplete['images'],
     'dangerouslyAllowSVG' | 'minimumCacheTTL'
@@ -1149,6 +1168,8 @@ export function getImageOptimizerTransformOptions(
     sequentialRead: nextConfig.experimental.imgOptSequentialRead,
     timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
     mozjpeg: nextConfig.experimental.imgOptMozjpeg,
+    safeImageOptimization:
+      nextConfig.experimental.imgOptSafeImageOptimization?.nextImage,
   }
 }
 
