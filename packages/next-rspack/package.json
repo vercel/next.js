@@ -10,6 +10,6 @@
     "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   },
   "dependencies": {
-    "@next/rspack-core": "1.0.3"
+    "@next-rspack/core": "1.0.3-beta.3"
   }
 }
