@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use swc_core::{
     common::{DUMMY_SP, GLOBALS, Span, Spanned, source_map::SmallPos},
@@ -84,13 +84,6 @@ pub enum NextSegmentRegion {
     Multiple(Vec<RcStr>),
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum NextSegmentRsc {
-    Server,
-    Client,
-}
-
 impl NextSegmentRegion {
     pub fn to_vec(&self) -> Vec<RcStr> {
         match self {
@@ -115,7 +108,6 @@ pub struct NextEntryConfig {
 #[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
     pub entry: NextEntryConfig,
-    pub rsc: Option<NextSegmentRsc>,
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
     pub revalidate: Option<NextRevalidate>,
@@ -214,8 +206,6 @@ impl NextSegmentConfig {
     pub fn apply_parent_config(&mut self, parent: &Self, is_ancestor: bool) {
         let NextSegmentConfig {
             entry,
-            // A layout's RSC classification does not apply to its child page.
-            rsc: _,
             dynamic,
             dynamic_params,
             revalidate,
@@ -245,7 +235,6 @@ impl NextSegmentConfig {
     pub fn apply_parallel_config(&mut self, parallel_config: &Self) -> Result<()> {
         let Self {
             entry,
-            rsc,
             dynamic,
             dynamic_params,
             revalidate,
@@ -262,9 +251,6 @@ impl NextSegmentConfig {
             generate_static_params: _,
         } = self;
         entry.apply_parallel_config(&parallel_config.entry)?;
-        // Carry the leaf page's RSC classification up through its loader-tree branch. Unlike route
-        // segment config, classifications in different parallel branches are not conflicts.
-        *rsc = (*rsc).or(parallel_config.rsc);
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
         merge_parallel(
             dynamic_params,
@@ -331,7 +317,8 @@ impl NextSegmentConfig {
                     // TODO: The implementation of getMiddlewareMatchers outputs a regex here
                     // using path-to-regexp. Currently there is no
                     // equivalent of that so it post-processes
-                    // this value to the relevant regex in manifest-loader.ts
+                    // this value to the relevant regex in manifest-loader.ts and
+                    // readStaticInfo() for static-info.json.
                     matcher.regexp = Some(RcStr::from(source));
 
                     matcher
@@ -554,7 +541,7 @@ pub async fn parse_segment_config_from_source(
     // Arena for the `JsValue`s produced while evaluating config expressions;
     // freed when this function returns.
     let arena = ThreadLocal::new();
-    let mut config = WrapFuture::new(
+    let config = WrapFuture::new(
         async {
             let mut config = NextSegmentConfig::default();
             let mut legacy_config = LegacySegmentConfig::default();
@@ -674,12 +661,6 @@ pub async fn parse_segment_config_from_source(
             },
             _ => false,
         });
-
-    config.rsc = Some(if is_client_entry {
-        NextSegmentRsc::Client
-    } else {
-        NextSegmentRsc::Server
-    });
 
     if mode == ParseSegmentMode::App && is_client_entry {
         if let Some(span) = config.generate_static_params {
