@@ -52,10 +52,11 @@ use crate::{
 /// one session to start the clock and then eventually the timer expires.  This is intentionally
 /// course.
 ///
-/// "Showing up" means being anchored again (pinned, or otherwise observed live by a pass), not
-/// merely being resident: restoring a task from disk (e.g. to propagate an invalidation through
-/// the aggregation graph) does not re-anchor it. Until a persisted root is anchored again in the
-/// current session it is protected from collection, and only goes once its TTL expires.
+/// "Showing up" means being observed as a root again by a pass in the new session (pinned, or
+/// reported by `gc_scan_roots`), not merely being resident: restoring a task from disk (e.g. to
+/// propagate an invalidation through the aggregation graph) does not make it a current root. Until
+/// a persisted root is a current root again it is protected from collection, and only goes once its
+/// TTL expires.
 pub(crate) const DEFAULT_GC_ROOT_TTL: Duration = Duration::from_secs(3 * 24 * 60 * 60);
 
 /// How long a GC root has gone without being observed live, as stored in the persisted roots map.
@@ -245,9 +246,10 @@ impl TurboTasksBackend {
                     GcJob::Collect(task_id) => task_id,
                 };
                 // Entries still in the roots map are protected until they age out (aged-out ids
-                // were removed from the map above, so they do get collected). This covers both a
-                // shard-scan candidate and a cascade that just dropped the task's last persistent
-                // parent.
+                // were removed from the map above, so they do get collected). Checking here rather
+                // than only in the shard scan also covers the cascade: a root from an earlier
+                // session can gain a persistent parent in this session, and collecting that parent
+                // enqueues the root again.
                 if roots.contains_key(&task_id) {
                     return ControlFlow::Continue(());
                 }
@@ -302,10 +304,10 @@ impl TurboTasksBackend {
         // non-root later due to other operations (e.g. it might get promoted to a live aggregation
         // root).
         {
-            let mut live = self.gc_live_roots.lock();
+            let mut current = self.gc_current_roots.lock();
             for id in self.storage.gc_scan_roots() {
                 roots.insert(id, TtlCounter::MostRecent);
-                live.insert(id);
+                current.insert(id);
             }
         }
 
@@ -326,12 +328,13 @@ impl TurboTasksBackend {
     /// pass (see the check at the top of the `Collect` job in [`Self::gc_collect`]).
     ///
     /// For each entry:
-    /// - Pinned (a session-only reference holds it): it is live. Keep it as
+    /// - Pinned (a session-only reference holds it): it is a current root. Keep it as
     ///   [`TtlCounter::MostRecent`]. This is decided here rather than left to `gc_scan_roots`,
     ///   which cannot see a task whose `Meta` has been evicted.
-    /// - Resident, unpinned, and observed live earlier in this session: it was released in this
-    ///   session. Drop it from the map so the pass judges it like any other task.
-    /// - Otherwise -- not resident, or resident without having been anchored in this session (e.g.
+    /// - Resident, unpinned, and a current root (observed as a root earlier in this session): it
+    ///   was released in this session. Drop it from the map so the pass judges it like any other
+    ///   task.
+    /// - Otherwise -- not resident, or resident without having been a root in this session (e.g.
     ///   restored to propagate an invalidation): advance its TTL clock, starting it if needed, and
     ///   keep it until it ages out. Residency alone says nothing about whether anything still wants
     ///   the root.
@@ -340,8 +343,8 @@ impl TurboTasksBackend {
         map: &mut FxHashMap<TaskId, TtlCounter>,
         now: u64,
     ) -> Vec<TaskId> {
-        let mut live = self.gc_live_roots.lock();
-        refresh_roots_map(map, &mut live, now, self.gc_root_ttl, |id| {
+        let mut current = self.gc_current_roots.lock();
+        refresh_roots_map(map, &mut current, now, self.gc_root_ttl, |id| {
             self.storage
                 .with_task(id, |task| task.gc_transient_ref_count() > 0)
         })
@@ -417,34 +420,34 @@ impl TurboTasksBackend {
 
 /// The pure core of [`TurboTasksBackend::gc_roots_refresh_and_age_out`].
 ///
-/// `map` is the roots map loaded from storage at the start of the pass, and `live` is the
-/// session's history of roots observed live (see `TurboTasksBackend::gc_live_roots`).
+/// `map` is the roots map loaded from storage at the start of the pass, and `current` is the
+/// session's set of current roots (see `TurboTasksBackend::gc_current_roots`).
 /// `residency(id)` is `None` when `id` is not resident, otherwise whether it is pinned.
 ///
-/// History is pruned only once the loaded map no longer contains an entry. A pass can be
+/// `current` is pruned only once the loaded map no longer contains an entry. A pass can be
 /// interrupted after deciding to drop a released root, in which case that decision is never
-/// persisted and the next pass sees the old map again. Keeping the history until the map catches
-/// up makes that retry make the same decision instead of mistaking the released root for one
-/// from an earlier session.
+/// persisted and the next pass sees the old map again. Keeping the entry in `current` until the map
+/// catches up makes that retry make the same decision instead of mistaking the released root for
+/// one from an earlier session.
 fn refresh_roots_map(
     map: &mut FxHashMap<TaskId, TtlCounter>,
-    live: &mut FxHashSet<TaskId>,
+    current: &mut FxHashSet<TaskId>,
     now: u64,
     ttl: Duration,
     mut residency: impl FnMut(TaskId) -> Option<bool>,
 ) -> Vec<TaskId> {
     let ttl_ms = ttl.as_millis() as u64;
-    live.retain(|id| map.contains_key(id));
+    current.retain(|id| map.contains_key(id));
 
     let mut aged_out = Vec::new();
     map.retain(|id, counter| {
         if let Some(pinned) = residency(*id) {
             if pinned {
-                live.insert(*id);
+                current.insert(*id);
                 *counter = TtlCounter::MostRecent;
                 return true;
             }
-            if live.contains(id) {
+            if current.contains(id) {
                 return false;
             }
         }
@@ -484,15 +487,19 @@ mod tests {
     }
 
     #[test]
-    fn interrupted_refresh_keeps_released_root_history() {
+    fn interrupted_refresh_keeps_released_current_root() {
         let root = task_id(1);
         let persisted = FxHashMap::from_iter([(root, TtlCounter::MostRecent)]);
-        let mut live = FxHashSet::default();
+        let mut current = FxHashSet::default();
 
         let mut first = persisted.clone();
-        refresh_roots_map(&mut first, &mut live, 10, Duration::from_secs(3600), |_| {
-            Some(true)
-        });
+        refresh_roots_map(
+            &mut first,
+            &mut current,
+            10,
+            Duration::from_secs(3600),
+            |_| Some(true),
+        );
         assert_eq!(first.get(&root), Some(&TtlCounter::MostRecent));
 
         // The root is released. This refresh decides to drop it, but suppose the pass is
@@ -500,7 +507,7 @@ mod tests {
         let mut interrupted = persisted.clone();
         refresh_roots_map(
             &mut interrupted,
-            &mut live,
+            &mut current,
             20,
             Duration::from_secs(3600),
             |_| Some(false),
@@ -510,20 +517,24 @@ mod tests {
         // The retry sees the old persisted map again. It must still treat the root as released in
         // this session, not protect it as a root from an earlier session.
         let mut retry = persisted.clone();
-        refresh_roots_map(&mut retry, &mut live, 30, Duration::from_secs(3600), |_| {
-            Some(false)
-        });
+        refresh_roots_map(
+            &mut retry,
+            &mut current,
+            30,
+            Duration::from_secs(3600),
+            |_| Some(false),
+        );
         assert!(!retry.contains_key(&root));
 
-        // Once a completed pass persisted the drop, the history can go.
+        // Once a completed pass persisted the drop, it is no longer a current root.
         let mut after_drop = FxHashMap::default();
         refresh_roots_map(
             &mut after_drop,
-            &mut live,
+            &mut current,
             40,
             Duration::from_secs(3600),
             |_| None,
         );
-        assert!(live.is_empty());
+        assert!(current.is_empty());
     }
 }
