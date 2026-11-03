@@ -9,7 +9,6 @@ use turbo_tasks::{
     Completion, FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ResolvedVc,
     TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
-use turbo_tasks_fs::DiskFileSystem;
 use turbopack_core::{
     module::Module,
     module_graph::{GraphEntries, ModuleGraph},
@@ -323,38 +322,6 @@ pub async fn endpoint_client_changed_operation(
     } else {
         Completion::new()
     })
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct NativeFileSystems(pub Vec<ResolvedVc<DiskFileSystem>>);
-
-/// Return filesystem handles only. Invalidation is performed by the non-memoized consumer.
-#[turbo_tasks::function(operation, root)]
-pub async fn endpoint_native_file_systems_operation(
-    endpoint: OperationVc<OptionEndpoint>,
-) -> Result<Vc<NativeFileSystems>> {
-    // The session stores process-local context, including the selected module cache.
-    Completion::session_dependent().await?;
-    let mut systems = vec![];
-    if let Some(endpoint) = *endpoint.connect().await? {
-        let project_vc = endpoint.project();
-        systems.push(project_vc.project_fs().to_resolved().await?);
-        let project = project_vc.await?;
-        if let Some(sessions) = &project.go_sessions
-            && let Some(go_context) = sessions.await?.go_context.lock().await.as_ref()
-        {
-            systems.push(
-                turbopack_go::filesystem_with_poll_interval(
-                    go_context.module_cache.clone(),
-                    go_context.poll_interval_ms,
-                )
-                .connect()
-                .to_resolved()
-                .await?,
-            );
-        }
-    }
-    Ok(Vc::cell(systems))
 }
 
 #[turbo_tasks::value(shared)]
