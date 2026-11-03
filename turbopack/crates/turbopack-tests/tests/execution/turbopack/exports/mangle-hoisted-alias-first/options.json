@@ -1,0 +1,6 @@
+{
+  "mangleExportNames": true,
+  "mangleViaMaterializedNamespaceObject": false,
+  "crossModuleConstants": false,
+  "scopeHoisting": true
+}
