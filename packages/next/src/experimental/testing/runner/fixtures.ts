@@ -470,8 +470,9 @@ export function createFixtureFile(
             release.resolve()
             await task
           }
-          const setup = () =>
-            (fixture.value as FixtureFactory)(deps, async (value) => {
+          const setup = () => {
+            const factory = fixture.value as FixtureFactory
+            return factory(deps, async (value) => {
               if (used)
                 throw new Error(
                   `Fixture "${name}" called use() more than once.`
@@ -486,6 +487,7 @@ export function createFixtureFile(
               ready.resolve(value)
               await release.promise
             })
+          }
           const task = Promise.resolve().then(() =>
             fixture.scope === 'worker'
               ? worker.run(setup)
