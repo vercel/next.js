@@ -24,19 +24,19 @@ Use Node.js 24.21 or later, for example with `fnm exec --using=24 pnpm test-rout
 
 ### How long a run takes
 
-Measured on 2026-10-31 on an Apple Silicon Mac (15 cores, 48 GB) with Node.js 24.22.2, at the default concurrency of 4. Each time covers the whole mode, including the shared Next.js install that `run-tests.js` creates first.
+Measured on 2026-11-02 on an Apple Silicon Mac (15 cores, 48 GB) with Node.js 24.22.2, at the default concurrency of 4. Each time covers the whole mode, including the shared Next.js install that `run-tests.js` creates first.
 
 | Mode  | Files | Turbopack | webpack  |
 | ----- | ----- | --------- | -------- |
-| start | 79    | 9.9 min   | 15.5 min |
-| dev   | 73    | 9.2 min   | 10.6 min |
+| start | 86    | 11.3 min  | 14.1 min |
+| dev   | 80    | 10.7 min  | 15.4 min |
 
-Times vary with other load on the machine. Across three passing runs, start took 9.9–11.7 min with Turbopack and 12.4–15.5 min with webpack, and dev took 9.2–9.8 min and 9.8–10.6 min.
+Times vary with other load on the machine, and a retried file adds its run time again. Before the last seven suites joined the selection, three passing runs took 9.9–11.7 min (start) and 9.2–9.8 min (dev) with Turbopack, and 12.4–15.5 min and 9.8–10.6 min with webpack.
 
 ## What the suite selects
 
 - Every `*.test.ts` under `test/e2e/routing-server/`, by glob. These fixtures check routing and HTTP behavior directly: payloads and body limits, headers and cookies, streaming, compression, listener lifecycle, route selection, routing phase order, Proxy, internationalized routing, RSC requests, caching, Draft Mode and image endpoints.
-- Existing suites that mostly test server routing, listed by path. They cover basePath, trailing slashes, custom routes, Proxy matchers, redirects and rewrites, i18n, parallel and intercepted routes, multi-zone, Server Action dispatch and graceful shutdown.
+- Existing suites that mostly test server routing, listed by path. They cover basePath, trailing slashes, custom routes, dynamic routes, Proxy matchers, redirects and rewrites, the rewritten-path headers on RSC requests, i18n, parallel and intercepted routes, multi-zone, WebSocket upgrades, forwarded host headers, Server Action dispatch and graceful shutdown.
 
 Files under `test/e2e` run in every mode, `test/production` files only in start mode, and `test/development` files only in dev mode. That's the same split as `run-tests.js --type`.
 
