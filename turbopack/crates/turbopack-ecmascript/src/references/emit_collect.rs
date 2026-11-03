@@ -30,7 +30,7 @@ use crate::{
     collect_module::{COLLECT_LIST_EXPORT, EcmascriptCollectModule},
     create_visitor,
     references::{
-        esm::{base::ReferencedAsset, mangle::generated_export_key},
+        esm::{base::ReferencedAsset, mangle::export_info},
         pattern_mapping::{PatternMapping, ResolveType},
         removal::RemovalCodeGen,
     },
@@ -269,7 +269,12 @@ impl CollectReferenceCodeGen {
         let export =
             match ReferencedAsset::from_resolve_result(self.reference.resolve_reference()).await? {
                 ReferencedAsset::Some(module) => {
-                    generated_export_key(module, chunking_context, &COLLECT_LIST_EXPORT).await?
+                    // Collect modules are synthetic, non-mergeable modules; PatternMapping above
+                    // already addresses their own namespace.
+                    export_info(*module, chunking_context)
+                        .await?
+                        .export_name(&COLLECT_LIST_EXPORT)
+                        .clone()
                 }
                 _ => COLLECT_LIST_EXPORT,
             };

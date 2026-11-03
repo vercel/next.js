@@ -51,7 +51,7 @@ pub async fn make_chunk_group(
     let is_nested_async_availability_enabled = *chunking_context
         .is_nested_async_availability_enabled()
         .await?;
-    let should_merge_modules = *chunking_context.is_module_merging_enabled().await?;
+    let should_merge_modules = chunking_context.merged_modules().await?.is_some();
     let batching_config = chunking_context.batching_config().to_resolved().await?;
 
     let ChunkGroupContent {

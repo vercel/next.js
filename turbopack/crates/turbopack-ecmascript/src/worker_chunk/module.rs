@@ -27,7 +27,7 @@ use crate::{
         EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
     embed_js::embed_fs,
-    references::esm::{generated_export_key, mangle::flat_export_group},
+    references::esm::mangle::export_info,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
 };
@@ -303,10 +303,9 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             Some(placeable) => {
                 // Resolve the factory identity as well as the key, just like a generated ESM
                 // import.
-                if let Some(group) = *flat_export_group(*placeable, chunking_context).await? {
-                    create_worker_target = ResolvedVc::upcast(group.await?.entry);
-                }
-                generated_export_key(placeable, chunking_context, &rcstr!("default")).await?
+                let info = export_info(*placeable, chunking_context).await?;
+                create_worker_target = ResolvedVc::upcast(info.namespace());
+                info.export_name(&rcstr!("default")).clone()
             }
             None => rcstr!("default"),
         };

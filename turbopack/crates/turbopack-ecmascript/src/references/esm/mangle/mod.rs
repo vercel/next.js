@@ -8,17 +8,13 @@
 //! domain, with distinct keys for each `(module, export)` binding. Other members keep their own
 //! source-module namespaces.
 //!
-//! [`mangled_export_names`] is the single source of truth for that mapping. Both the producer
-//! ([`super::export::EsmExports::code_generation`]) and the consumer
-//! ([`super::base::ReferencedAsset`]) ask it for the *target* module's map, so they cannot
-//! disagree. It returns an empty map whenever the module has to keep its original names — the
-//! same effect as mangling every name to itself, so callers never need to branch on "did mangling
-//! even apply here", only look a name up and fall back to itself.
+//! [`export_info`] resolves the namespace target and export names together. Producers, consumers
+//! and export metadata all use the same per-source-module decision, whether the module shares a
+//! flat table, mangles independently, or keeps its original namespace and names.
 //!
-//! Code generation that spells an export access out **as a string** — rather than going through
-//! `ReferencedAssetIdent`, which handles this automatically — must resolve its key through
-//! [`generated_export_key`]. A hard-coded `["someExport"]` in generated source silently misses as
-//! soon as the target module's exports are mangled.
+//! Code generation that spells an export access out **as a string** must use both
+//! [`ExportInfo::namespace`] and [`ExportInfo::export_name`] from that result.
+//! `ReferencedAssetIdent` handles this automatically for generated ESM imports.
 
 mod table;
 
@@ -34,23 +30,52 @@ use turbopack_core::{
 use self::table::shorten_to_unique_names;
 use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 
-/// A module's export name mapping: original export name -> the key actually used in the output.
-///
-/// `None` means the module is not eligible for mangling at all and keeps every original name (see
-/// [`mangled_export_names`] for the conditions). `Some` covers only the exports that were actually
-/// *renamed* for standalone modules. Flat scope-hoisting groups may also explicitly map a name to
-/// itself, since their allocation keys include source-module identity. An absent key means "use the
-/// original name", and callers that only want the correct output key can ignore the distinction
-/// entirely (see [`generated_export_key`]); the `canMangle` reporting in
-/// [`crate::references::exports_info`] is the one caller that needs to tell "not eligible" from
-/// "eligible but unchanged", which is exactly what the `Option` gives it.
-#[turbo_tasks::value(transparent)]
-pub struct MangledExportNames(pub Option<FrozenMap<RcStr, RcStr>>);
+/// The namespace and names used to register and read a source module's exports.
+#[turbo_tasks::value]
+pub struct ExportInfo {
+    namespace: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    /// `None` means ineligible for mangling; `Some` also includes eligible but unchanged names.
+    /// Standalone maps omit unchanged keys, while flat tables can explicitly map names to
+    /// themselves.
+    names: Option<FrozenMap<RcStr, RcStr>>,
+    flat: bool,
+}
+
+impl ExportInfo {
+    fn unmangled(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Self {
+        Self {
+            namespace: module,
+            names: None,
+            flat: false,
+        }
+    }
+
+    pub fn namespace(&self) -> ResolvedVc<Box<dyn EcmascriptChunkPlaceable>> {
+        self.namespace
+    }
+
+    /// The output key, falling back to the source name when it was not renamed.
+    pub fn export_name<'a>(&'a self, name: &'a RcStr) -> &'a RcStr {
+        self.names
+            .as_ref()
+            .and_then(|names| names.get(name))
+            .unwrap_or(name)
+    }
+
+    /// Distinguishes ineligible modules from eligible modules whose names happen to be unchanged.
+    pub fn mangled_names(&self) -> Option<&FrozenMap<RcStr, RcStr>> {
+        self.names.as_ref()
+    }
+
+    pub fn is_flat(&self) -> bool {
+        self.flat
+    }
+}
 
 /// One flat namespace for a scope-hoisting group. Allocation keys include the module index,
 /// so two source modules exporting the same name still get distinct output properties.
 #[turbo_tasks::value]
-pub struct FlatExportGroup {
+pub(crate) struct FlatExportGroup {
     /// The source-module identity used for the shared namespace. In mixed groups this may
     /// differ from the merged factory's original entry, which needs its own namespace.
     pub entry: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
@@ -61,25 +86,7 @@ pub struct FlatExportGroup {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionFlatExportGroup(pub Option<ResolvedVc<FlatExportGroup>>);
-
-#[turbo_tasks::function]
-pub async fn flat_export_group(
-    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<OptionFlatExportGroup>> {
-    if let Some(group) = chunking_context
-        .merged_modules()
-        .get(&ResolvedVc::upcast(module))
-        .await?
-        .as_deref()
-        && let Some(flat_group) = *flat_group_exports(**group, chunking_context).await?
-        && flat_group.await?.names.contains_key(&module)
-    {
-        return Ok(Vc::cell(Some(flat_group)));
-    }
-    Ok(Vc::cell(None))
-}
+pub(crate) struct OptionFlatExportGroup(pub Option<ResolvedVc<FlatExportGroup>>);
 
 #[turbo_tasks::function]
 pub(crate) async fn flat_group_exports(
@@ -162,8 +169,8 @@ pub(crate) async fn flat_group_exports(
     )))
 }
 
-/// Computes the mangled export names of `module`, or `None` when its exports must keep their
-/// original names.
+/// Resolves the namespace target, output keys and registration mode of `module` together.
+/// For a re-export, pass the source module that actually produces the binding.
 ///
 /// Both the producing and the consuming side call this for the same `module`, which is what
 /// guarantees they agree. The mapping covers the module's *used* exports: unused exports are not
@@ -185,28 +192,37 @@ pub(crate) async fn flat_group_exports(
 /// 4. its exports are not statically known ECMAScript exports, or contain dynamic re-exports.
 ///
 /// None of these depend on the individual export, so "is `e` a candidate for mangling" is exactly
-/// "is this `Some`, and is `e` used" — the per-name step (hashing into a short identifier) never
-/// itself excludes a name.
+/// "is `mangled_names()` `Some`, and is `e` used" — the per-name step (hashing into a short
+/// identifier) never itself excludes a name.
 #[turbo_tasks::function]
-pub async fn mangled_export_names(
+pub async fn export_info(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<MangledExportNames>> {
-    if let Some(group) = *flat_export_group(*module, chunking_context).await? {
-        return Ok(Vc::cell(Some(
-            group.await?.names.get(&module).cloned().unwrap_or_default(),
-        )));
+) -> Result<Vc<ExportInfo>> {
+    if let Some(groups) = *chunking_context.merged_modules().await?
+        && let Some(group) = groups.get(&ResolvedVc::upcast(module)).await?.as_deref()
+        && let Some(flat_group) = *flat_group_exports(**group, chunking_context).await?
+    {
+        let flat_group = flat_group.await?;
+        if let Some(names) = flat_group.names.get(&module) {
+            return Ok(ExportInfo {
+                namespace: flat_group.entry,
+                names: Some(names.clone()),
+                flat: true,
+            }
+            .cell());
+        }
     }
     // (4) Only statically known ESM exports can be renamed.
     let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
-        return Ok(Vc::cell(None));
+        return Ok(ExportInfo::unmangled(module).cell());
     };
 
     // (1) Disabled for the module these exports belong to. Deliberately independent of whether
     // this build minifies at all: mangling and minification are two separate concerns, and a
     // caller may want either without the other.
     if !exports.await?.mangle_export_names {
-        return Ok(Vc::cell(None));
+        return Ok(ExportInfo::unmangled(module).cell());
     }
 
     let usage = chunking_context
@@ -215,16 +231,16 @@ pub async fn mangled_export_names(
 
     // (3) An original name may still be read through a namespace value.
     if usage.namespace_object_may_escape {
-        return Ok(Vc::cell(None));
+        return Ok(ExportInfo::unmangled(module).cell());
     }
 
     // (2) We don't know which exports are used, so we don't know that all uses are ours.
     let usage_info = usage.export_usage.await?;
     let ModuleExportUsageInfo::Exports(used) = &*usage_info else {
-        return Ok(Vc::cell(None));
+        return Ok(ExportInfo::unmangled(module).cell());
     };
     if used.is_empty() {
-        return Ok(Vc::cell(None));
+        return Ok(ExportInfo::unmangled(module).cell());
     }
 
     // (4) `export * from "./some-dynamic-cjs"` is resolved at runtime by property access on the
@@ -232,7 +248,7 @@ pub async fn mangled_export_names(
     // mangle.
     let expanded = exports.expand_exports(*usage.export_usage).await?;
     if !expanded.dynamic_exports.is_empty() || expanded.exports.is_empty() {
-        return Ok(Vc::cell(None));
+        return Ok(ExportInfo::unmangled(module).cell());
     }
 
     // Every emitted export is mangled, `default` and `__esModule` included.
@@ -244,31 +260,10 @@ pub async fn mangled_export_names(
     // how a CommonJS module signals interop *to* ESM, so an ESM module that happens to export that
     // name is just an ordinary export. `__esModule` still cannot be *assigned* to some other
     // export, because the runtime defines that property itself; see `RESERVED_KEYS` in `table`.
-    Ok(Vc::cell(Some(shorten_to_unique_names(
-        expanded.exports.keys(),
-    ))))
-}
-
-/// The key that generated code has to use to read `export` from `module` — the mangled key when
-/// the module's exports are mangled, and `export` itself otherwise.
-///
-/// **Every** piece of code generation that materializes an export access as a string has to get its
-/// key from here, or the access will miss when the module is mangled. That includes generated
-/// source text (`__turbopack_require__(id)["default"](…)` and friends) as well as AST built by
-/// hand. Code that goes through `ReferencedAssetIdent` (see `super::base`) is already covered.
-///
-/// `module` must be the module that actually *produces* the export. For a re-export, resolve to the
-/// producing module first (as `ReferencedAsset::get_ident_inner` does). Flat scope-hoisting groups
-/// allocate keys jointly; other modules allocate them independently.
-pub async fn generated_export_key(
-    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    export: &RcStr,
-) -> Result<RcStr> {
-    let names = mangled_export_names(*module, chunking_context).await?;
-    Ok(names
-        .as_ref()
-        .and_then(|names| names.get(export))
-        .cloned()
-        .unwrap_or_else(|| export.clone()))
+    Ok(ExportInfo {
+        namespace: module,
+        names: Some(shorten_to_unique_names(expanded.exports.keys())),
+        flat: false,
+    }
+    .cell())
 }

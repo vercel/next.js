@@ -37,7 +37,7 @@ use crate::{
     module_fragments::part::module::EcmascriptModulePartAsset,
     references::esm::{
         base::{EsmAssetReference, ImportSource, ReferencedAsset, ReferencedAssetIdent},
-        mangle::{flat_export_group, mangled_export_names},
+        mangle::export_info,
     },
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM, TURBOPACK_ESM_REEXPORT},
     side_effect_optimization::reference::EcmascriptModulePartReference,
@@ -541,7 +541,7 @@ pub struct EsmExports {
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
     /// Whether the keys these exports are emitted under may be shortened. Carried with the exports
     /// so a module deriving its exports from another (facade, locals, part, rename) inherits it.
-    /// `mangle::mangled_export_names` decides whether they actually are.
+    /// `mangle::export_info` decides whether they actually are.
     pub mangle_export_names: bool,
 }
 
@@ -1074,15 +1074,11 @@ impl EsmExports {
         let mut getters = Vec::new();
         // The keys this module's exports are emitted under. Consumers resolve the same map for this
         // module (see `ReferencedAsset::get_ident`), so both sides always agree.
-        let mangled_names = mangled_export_names(*module, chunking_context).await?;
-        let flat_group = if scope_hoisting_context.module().is_some() {
-            *flat_export_group(*module, chunking_context).await?
-        } else {
-            None
-        };
+        let info = export_info(*module, chunking_context).await?;
+        let flat_exports = scope_hoisting_context.module().is_some() && info.is_flat();
         // A group can be re-entered between evaluating two of its source modules, even if
         // neither is the chosen cycle breaker. Expose getters before any group imports run.
-        let early_exports = export_usage_info.is_circuit_breaker || flat_group.is_some();
+        let early_exports = export_usage_info.is_circuit_breaker || flat_exports;
 
         // A module whose exports are *only* forwarded from other modules can register them all in
         // one compact call instead of one arrow function per binding. `export_registration_mode`
@@ -1094,13 +1090,13 @@ impl EsmExports {
             mode: export_registration_mode,
             is_circuit_breaker: export_usage_info.is_circuit_breaker,
             is_async_module,
-        }) && flat_group.is_none()
+        }) && !flat_exports
             && expanded.dynamic_exports.is_empty()
             && !expanded.exports.is_empty()
         {
             build_compact_reexports(
                 &expanded.exports,
-                mangled_names.as_ref(),
+                info.mangled_names(),
                 eval_context,
                 export_registration_mode,
                 synthetic_references,
@@ -1266,12 +1262,7 @@ impl EsmExports {
                         span: DUMMY_SP,
                         // The key this export is emitted under: the mangled one when this module's
                         // names are shortened, otherwise the original.
-                        value: mangled_names
-                            .as_ref()
-                            .and_then(|names| names.get(exported))
-                            .unwrap_or(exported)
-                            .as_str()
-                            .into(),
+                        value: info.export_name(exported).as_str().into(),
                         raw: None,
                     }))
                     .into(),
@@ -1317,7 +1308,7 @@ impl EsmExports {
         let has_dynamic_exports = !expanded.dynamic_exports.is_empty();
         let esm_exports = vec![CodeGenerationHoistedStmt::new(
             rcstr!("__turbopack_esm__"),
-            if flat_group.is_some() {
+            if flat_exports {
                 // AST merging collects these contributions into one registration for the factory.
                 quote!("__turbopack_flat_esm__($getters);" as Stmt, getters: Expr = getters)
             } else if let Some(module) = scope_hoisting_context.module() {

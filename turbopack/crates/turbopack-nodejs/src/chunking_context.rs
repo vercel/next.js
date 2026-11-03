@@ -26,7 +26,7 @@ use turbopack_core::{
         ModuleGraph,
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
         chunk_group_info::ChunkGroupKey,
-        merged_modules::MergedModuleGroups,
+        merged_modules::{MergedModuleGroups, OptionMergedModuleGroups},
     },
     output::{OutputAsset, OutputAssets},
 };
@@ -434,11 +434,6 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn is_module_merging_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.merged_modules.is_some())
-    }
-
-    #[turbo_tasks::function]
     fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_dynamic_chunk_content_loading)
     }
@@ -838,12 +833,8 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn merged_modules(&self) -> Vc<MergedModuleGroups> {
-        if let Some(merged_modules) = self.merged_modules {
-            *merged_modules
-        } else {
-            Vc::cell(Default::default())
-        }
+    fn merged_modules(&self) -> Vc<OptionMergedModuleGroups> {
+        Vc::cell(self.merged_modules)
     }
 
     #[turbo_tasks::function]

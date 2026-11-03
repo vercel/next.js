@@ -251,7 +251,7 @@ pub struct EcmascriptOptions {
     pub cjs_tree_shaking: bool,
     /// Whether to shorten ("mangle") the export names this module exposes to other modules, to
     /// reduce output size. Defaults to false. See
-    /// `references::esm::mangle::mangled_export_names`.
+    /// `references::esm::mangle::export_info`.
     pub mangle_export_names: bool,
     /// Whether to materialize public namespaces with a facade so local export keys can still be
     /// mangled when the namespace escapes. Defaults to false and requires `mangle_export_names`.
@@ -1360,12 +1360,12 @@ impl EcmascriptModuleContent {
             // regards to minify_type and chunking_context.
             let options = module_options.last().unwrap().await?;
             let first_entry = entry_points.first().unwrap().0;
-            let flat_group = if let Some(group) = options
-                .chunking_context
-                .merged_modules()
-                .get(&ResolvedVc::upcast(first_entry))
-                .await?
-                .as_deref()
+            let flat_group = if let Some(groups) =
+                *options.chunking_context.merged_modules().await?
+                && let Some(group) = groups
+                    .get(&ResolvedVc::upcast(first_entry))
+                    .await?
+                    .as_deref()
             {
                 if let Some(flat_group) =
                     *references::esm::mangle::flat_group_exports(**group, *options.chunking_context)

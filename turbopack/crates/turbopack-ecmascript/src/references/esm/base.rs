@@ -50,7 +50,7 @@ use crate::{
         esm::{
             EsmExport,
             export::{SubsumedImports, all_known_export_names, is_export_missing},
-            mangle::{flat_export_group, generated_export_key},
+            mangle::export_info,
         },
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
@@ -335,21 +335,13 @@ impl ReferencedAsset {
                     }
                 }
 
-                let target =
-                    if let Some(group) = *flat_export_group(**asset, chunking_context).await? {
-                        group.await?.entry
-                    } else {
-                        *asset
-                    };
-                let import_source = ImportSource::new_module(target, chunking_context).await?;
-                // Allocate against the original module, not the shared factory target,
-                // using the same mapping as the producing module.
-                let export = match &export {
-                    Some(export) => {
-                        Some(generated_export_key(*asset, chunking_context, export).await?)
-                    }
-                    None => None,
-                };
+                let info = export_info(**asset, chunking_context).await?;
+                let import_source =
+                    ImportSource::new_module(info.namespace(), chunking_context).await?;
+                // Resolve the namespace and key against the original source module together.
+                let export = export
+                    .as_ref()
+                    .map(|export| info.export_name(export).clone());
                 Some(ReferencedAssetIdent::Module {
                     ctxt: None,
                     export,

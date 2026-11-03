@@ -22,7 +22,7 @@ use crate::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
-    references::esm::{EsmExport, EsmExports, Liveness, mangle::generated_export_key},
+    references::esm::{EsmExport, EsmExports, Liveness, mangle::export_info},
     runtime_functions::{TURBOPACK_ESM, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
@@ -30,7 +30,7 @@ use crate::{
 /// The single export of the generated collect module.
 ///
 /// Both the producer below and the read side in `references::emit_collect` resolve the key this is
-/// actually *emitted* under through `generated_export_key`, rather than assuming the source name,
+/// actually *emitted* under through `export_info`, rather than assuming the source name,
 /// so the two cannot drift apart. Today that always resolves back to this name — see
 /// `get_exports` for why — but wiring it through means mangling starts applying to both sides
 /// together the moment it becomes possible, with no further change here.
@@ -185,7 +185,7 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
                 // of module as the wasm loader and the client-reference proxy, which
                 // `BindingUsageInfo::used_exports` special-cases by ident with a `TODO fix these
                 // cases`. Mangling therefore cannot be computed here at all, rather than being
-                // merely undesirable. Keeping this `false` makes `mangled_export_names` answer
+                // merely undesirable. Keeping this `false` makes `export_info` answer
                 // before it consults the graph; flip it once this module is graph-tracked.
                 mangle_export_names: false,
             }
@@ -281,12 +281,8 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
 
         // The *key* this is exposed under may be mangled; the local binding keeps its own name.
         // `references::emit_collect` resolves the same key for the read side, so both agree.
-        let export = generated_export_key(
-            ResolvedVc::upcast(self.to_resolved().await?),
-            chunking_context,
-            &COLLECT_LIST_EXPORT,
-        )
-        .await?;
+        let info = export_info(Vc::upcast(self), chunking_context).await?;
+        let export = info.export_name(&COLLECT_LIST_EXPORT).clone();
 
         writeln!(
             code,
