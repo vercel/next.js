@@ -1,0 +1,4 @@
+import { appendFileSync } from 'node:fs'
+appendFileSync(process.env.RESET_LITERAL_EVENTS, JSON.stringify({ event: 'counter-evaluated' }) + '\n')
+let value = 0
+export function next() { return ++value }

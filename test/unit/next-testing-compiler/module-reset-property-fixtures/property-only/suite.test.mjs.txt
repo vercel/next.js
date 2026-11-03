@@ -1,0 +1,55 @@
+import { afterAll, expect, test, vi } from 'vitest'
+const original = Object.getOwnPropertyDescriptor(vi, 'resetModules')
+const emit = (label, value) => console.log('RESET_UTILITY_ROW ' + JSON.stringify({ label, value }))
+afterAll(() => {
+  if (original) Object.defineProperty(vi, 'resetModules', original)
+  else Reflect.deleteProperty(vi, 'resetModules')
+})
+test('a collection descriptor value invalidates the real imported namespace without a method member read', async () => {
+  const before = await import('./counter.mjs')
+  const same = await import('./counter.mjs')
+  const beforeValue = before.next()
+  const resetReturn = original.value() === vi
+  const after = await import('./counter.mjs')
+  const afterValue = after.next()
+  const heldValue = before.next()
+  const current = Object.getOwnPropertyDescriptor(vi, 'resetModules')
+  const value = { mode: import.meta.env.MODE, production: import.meta.env.PROD, development: import.meta.env.DEV, nodeEnvironment: process.env.NODE_ENV, descriptorKind: 'value' in original ? 'data' : 'accessor', writable: original.writable, enumerable: original.enumerable, configurable: original.configurable, stableValue: current.value === original.value, beforeValue, afterValue, heldValue, sameBeforeReset: same === before, freshAfterReset: after !== before, resetReturn }
+  emit('descriptor-cache', value)
+  expect(value).toEqual({ mode: process.env.RESET_EXPECTED_MODE, production: process.env.RESET_EXPECTED_MODE === 'production', development: process.env.RESET_EXPECTED_MODE === 'development', nodeEnvironment: process.env.RESET_EXPECTED_MODE, descriptorKind: 'data', writable: true, enumerable: true, configurable: true, stableValue: true, beforeValue: 1, afterValue: 1, heldValue: 2, sameBeforeReset: true, freshAfterReset: true, resetReturn: true })
+})
+test('descriptor-only replacement deletion getter invocation and restoration retain the real cache contract', async () => {
+  const before = await import('./counter.mjs')
+  const beforeValue = before.next()
+  const receiver = { marker: 'foreign descriptor receiver' }
+  const replacement = function () { return this }
+  let getterReceiver
+  let value
+  try {
+    const defineReturnedApi = Object.defineProperty(vi, 'resetModules', { value: replacement, writable: true, enumerable: true, configurable: true }) === vi
+    const replacementDescriptor = Object.getOwnPropertyDescriptor(vi, 'resetModules')
+    const replacementIdentity = replacementDescriptor.value === replacement
+    const replacementForeignReceiver = replacementDescriptor.value.call(receiver) === receiver
+    const unchanged = await import('./counter.mjs')
+    const deleted = Reflect.deleteProperty(vi, 'resetModules')
+    const absentDescriptor = Object.getOwnPropertyDescriptor(vi, 'resetModules') === undefined
+    Object.defineProperty(vi, 'resetModules', { configurable: true, enumerable: false, get() { getterReceiver = this; return original.value } })
+    const getterDescriptor = Object.getOwnPropertyDescriptor(vi, 'resetModules')
+    const getterIsAccessor = !('value' in getterDescriptor) && typeof getterDescriptor.get === 'function'
+    const explicitGetterValue = getterDescriptor.get.call(receiver) === original.value
+    const explicitGetterReceiver = getterReceiver === receiver
+    const restoredApi = Object.defineProperty(vi, 'resetModules', original) === vi
+    const restored = Object.getOwnPropertyDescriptor(vi, 'resetModules')
+    const restoredIdentity = restored.value === original.value
+    const restoredReturn = restored.value() === vi
+    const after = await import('./counter.mjs')
+    const afterValue = after.next()
+    const heldValue = before.next()
+    value = { defineReturnedApi, replacementIdentity, replacementForeignReceiver, namespaceUnchangedByPropertyMutation: unchanged === before, deleted, absentDescriptor, getterIsAccessor, explicitGetterValue, explicitGetterReceiver, restoredApi, restoredIdentity, restoredReturn, beforeValue, afterValue, heldValue, freshAfterRestoredReset: after !== before }
+  } finally {
+    if (original) Object.defineProperty(vi, 'resetModules', original)
+    else Reflect.deleteProperty(vi, 'resetModules')
+  }
+  emit('descriptor-property', value)
+  expect(value).toEqual({ defineReturnedApi: true, replacementIdentity: true, replacementForeignReceiver: true, namespaceUnchangedByPropertyMutation: true, deleted: true, absentDescriptor: true, getterIsAccessor: true, explicitGetterValue: true, explicitGetterReceiver: true, restoredApi: true, restoredIdentity: true, restoredReturn: true, beforeValue: 2, afterValue: 1, heldValue: 3, freshAfterRestoredReset: true })
+})

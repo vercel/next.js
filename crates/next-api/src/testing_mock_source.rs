@@ -677,6 +677,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     module.visit_with(&mut aliases);
     let mut calls = MockCalls {
         bindings: &bindings,
+        unresolved,
         alias_bindings: &aliases.aliases,
         identity_observers: &identity_observers,
         identity_observation: false,
@@ -688,13 +689,31 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         unmock_calls: Vec::new(),
         reset_calls: Vec::new(),
         reset_method_reference: false,
+        reset_property_access: false,
+        reset_property_intrinsics: HashSet::new(),
         runtime_calls: Vec::new(),
         allow_runtime,
         invalid: false,
         value_alias: false,
     };
     module.visit_with(&mut calls);
-    let reset_required = !calls.reset_calls.is_empty() || calls.reset_method_reference;
+    let reset_required = !calls.reset_calls.is_empty()
+        || calls.reset_method_reference
+        || calls.reset_property_access;
+    if calls.reset_property_access {
+        let mut intrinsic_uses = ResetPropertyIntrinsicUses {
+            unresolved,
+            roots: &calls.reset_property_intrinsics,
+            invalid: false,
+        };
+        module.visit_with(&mut intrinsic_uses);
+        if intrinsic_uses.invalid {
+            bail!(
+                "Reset property operations require unmodified direct Object or Reflect intrinsics \
+                 ({filename})."
+            );
+        }
+    }
     if (calls.identity_observation || calls.strict_identity_observation)
         && calls.runtime_calls.is_empty()
         && !reset_required
@@ -735,8 +754,8 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     if calls.reset_calls.iter().any(|call| !call.args.is_empty()) {
         bail!("vi.resetModules currently requires no arguments ({filename}).");
     }
-    // Member references demand the real cache, but certify no mock/helper combination.
-    if calls.reset_method_reference
+    // References and property operations demand a real cache, not mock/helper certificates.
+    if (calls.reset_method_reference || calls.reset_property_access)
         && (!calls.calls.is_empty()
             || !calls.hoisted_calls.is_empty()
             || !calls.actual_calls.is_empty()
@@ -744,9 +763,13 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             || !calls.unmock_calls.is_empty()
             || !calls.runtime_calls.is_empty())
     {
+        let operation = if calls.reset_method_reference {
+            "Reset method references"
+        } else {
+            "Reset property operations"
+        };
         bail!(
-            "Reset method references cannot currently combine with module mock or helper plans \
-             ({filename})."
+            "{operation} cannot currently combine with module mock or helper plans ({filename})."
         );
     }
     // Each direct literal target owns factories, cuts, runtime registration and
@@ -1632,8 +1655,162 @@ impl Visit for ApiAliases<'_> {
     fn visit_ts_type(&mut self, _: &TsType) {}
 }
 
+// This guard belongs only to an admitted literal property role. It rejects
+// obvious replacement and escape of that role's actual global intrinsic,
+// without changing ordinary Object/Reflect operations in other test files.
+struct ResetPropertyIntrinsicUses<'a> {
+    unresolved: SyntaxContext,
+    roots: &'a HashSet<&'static str>,
+    invalid: bool,
+}
+
+fn reset_property_expression(expression: &Expr) -> &Expr {
+    match expression {
+        Expr::Paren(expression) => reset_property_expression(&expression.expr),
+        Expr::TsAs(expression) => reset_property_expression(&expression.expr),
+        Expr::TsConstAssertion(expression) => reset_property_expression(&expression.expr),
+        Expr::TsSatisfies(expression) => reset_property_expression(&expression.expr),
+        Expr::TsNonNull(expression) => reset_property_expression(&expression.expr),
+        Expr::TsTypeAssertion(expression) => reset_property_expression(&expression.expr),
+        Expr::TsInstantiation(expression) => reset_property_expression(&expression.expr),
+        expression => expression,
+    }
+}
+
+fn reset_property_literal_name(property: &MemberProp) -> Option<&str> {
+    match property {
+        MemberProp::Ident(name) => Some(name.sym.as_ref()),
+        MemberProp::Computed(property) => match reset_property_expression(&property.expr) {
+            Expr::Lit(Lit::Str(name)) => name.value.as_str(),
+            _ => None,
+        },
+        MemberProp::PrivateName(_) => None,
+    }
+}
+
+impl ResetPropertyIntrinsicUses<'_> {
+    fn root_ident(&self, ident: &Ident) -> bool {
+        ident.ctxt == self.unresolved && self.roots.contains(ident.sym.as_ref())
+    }
+
+    fn global_this(&self, expression: &Expr) -> bool {
+        matches!(reset_property_expression(expression), Expr::Ident(ident) if ident.ctxt == self.unresolved && ident.sym == "globalThis")
+    }
+
+    fn global_root_member(&self, member: &MemberExpr) -> bool {
+        self.global_this(&member.obj)
+            && reset_property_literal_name(&member.prop)
+                .is_some_and(|name| self.roots.contains(name))
+    }
+
+    fn intrinsic_receiver(&self, expression: &Expr) -> bool {
+        match reset_property_expression(expression) {
+            Expr::Ident(ident) => self.root_ident(ident),
+            Expr::Member(member) => {
+                self.global_root_member(member) || self.intrinsic_receiver(&member.obj)
+            }
+            _ => false,
+        }
+    }
+
+    fn intrinsic_pattern_target(&self, pattern: &Pat) -> bool {
+        match pattern {
+            Pat::Ident(ident) => self.root_ident(&ident.id),
+            Pat::Array(array) => array
+                .elems
+                .iter()
+                .flatten()
+                .any(|pattern| self.intrinsic_pattern_target(pattern)),
+            Pat::Object(object) => object.props.iter().any(|property| match property {
+                ObjectPatProp::KeyValue(property) => self.intrinsic_pattern_target(&property.value),
+                ObjectPatProp::Assign(property) => self.root_ident(&property.key.id),
+                ObjectPatProp::Rest(property) => self.intrinsic_pattern_target(&property.arg),
+            }),
+            Pat::Assign(assignment) => self.intrinsic_pattern_target(&assignment.left),
+            Pat::Rest(rest) => self.intrinsic_pattern_target(&rest.arg),
+            Pat::Expr(expression) => self.intrinsic_receiver(expression),
+            Pat::Invalid(_) => false,
+        }
+    }
+}
+
+impl Visit for ResetPropertyIntrinsicUses<'_> {
+    fn visit_ident(&mut self, ident: &Ident) {
+        self.invalid |= self.root_ident(ident);
+    }
+
+    fn visit_member_expr(&mut self, member: &MemberExpr) {
+        if matches!(reset_property_expression(&member.obj), Expr::Ident(ident) if self.root_ident(ident))
+        {
+            member.prop.visit_with(self);
+            return;
+        }
+        self.invalid |= self.global_root_member(member);
+        member.visit_children_with(self);
+    }
+
+    fn visit_assign_expr(&mut self, assignment: &AssignExpr) {
+        self.invalid |= match &assignment.left {
+            AssignTarget::Simple(target) => {
+                let target: Box<Expr> = target.clone().into();
+                self.intrinsic_receiver(&target)
+            }
+            AssignTarget::Pat(target) => {
+                let target: Pat = target.clone().into();
+                self.intrinsic_pattern_target(&target)
+            }
+        };
+        assignment.visit_children_with(self);
+    }
+
+    fn visit_for_head(&mut self, head: &ForHead) {
+        if let ForHead::Pat(pattern) = head {
+            self.invalid |= self.intrinsic_pattern_target(pattern);
+        }
+        head.visit_children_with(self);
+    }
+
+    fn visit_update_expr(&mut self, update: &UpdateExpr) {
+        self.invalid |= self.intrinsic_receiver(&update.arg);
+        update.visit_children_with(self);
+    }
+
+    fn visit_unary_expr(&mut self, expression: &UnaryExpr) {
+        if expression.op == UnaryOp::Delete {
+            self.invalid |= self.intrinsic_receiver(&expression.arg);
+        }
+        expression.visit_children_with(self);
+    }
+
+    fn visit_call_expr(&mut self, call: &CallExpr) {
+        if let Callee::Expr(callee) = &call.callee
+            && let Expr::Member(member) = reset_property_expression(callee)
+            && let Expr::Ident(object) = reset_property_expression(&member.obj)
+            && object.ctxt == self.unresolved
+            && let Some(method) = reset_property_literal_name(&member.prop)
+            && matches!(
+                (object.sym.as_ref(), method),
+                ("Object", "defineProperty")
+                    | ("Reflect", "set" | "defineProperty" | "deleteProperty")
+            )
+            && call.args.len() >= 2
+            && call.args[0].spread.is_none()
+            && self.global_this(&call.args[0].expr)
+            && call.args[1].spread.is_none()
+            && matches!(reset_property_expression(&call.args[1].expr), Expr::Lit(Lit::Str(key)) if key.value.as_str().is_some_and(|name| self.roots.contains(name)))
+        {
+            self.invalid = true;
+        }
+        call.visit_children_with(self);
+    }
+
+    fn visit_import_decl(&mut self, _: &ImportDecl) {}
+    fn visit_ts_type(&mut self, _: &TsType) {}
+}
+
 struct MockCalls<'a> {
     bindings: &'a HashSet<Id>,
+    unresolved: SyntaxContext,
     alias_bindings: &'a HashSet<Id>,
     identity_observers: &'a HashSet<Id>,
     identity_observation: bool,
@@ -1646,6 +1823,9 @@ struct MockCalls<'a> {
     reset_calls: Vec<CallExpr>,
     /// A real member value use demands a cache without certifying a direct call.
     reset_method_reference: bool,
+    /// A direct literal intrinsic property operation also demands the actual cache.
+    reset_property_access: bool,
+    reset_property_intrinsics: HashSet<&'static str>,
     runtime_calls: Vec<(bool, CallExpr)>,
     allow_runtime: bool,
     invalid: bool,
@@ -1713,6 +1893,35 @@ impl Visit for MockCalls<'_> {
     }
 
     fn visit_call_expr(&mut self, call: &CallExpr) {
+        if let Callee::Expr(callee) = &call.callee
+            && let Expr::Member(member) = &**callee
+            && let Expr::Ident(object) = &*member.obj
+            && object.ctxt == self.unresolved
+            && let MemberProp::Ident(method) = &member.prop
+        {
+            let operation = match (object.sym.as_ref(), method.sym.as_ref()) {
+                ("Object", "getOwnPropertyDescriptor") => Some(("Object", 2)),
+                ("Object", "defineProperty") => Some(("Object", 3)),
+                ("Reflect", "deleteProperty") => Some(("Reflect", 2)),
+                _ => None,
+            };
+            if let Some((intrinsic, arity)) = operation
+                && call.args.len() == arity
+                && call.args.iter().all(|argument| argument.spread.is_none())
+                && matches!(&*call.args[0].expr, Expr::Ident(ident) if self.bindings.contains(&ident.to_id()))
+                && matches!(&*call.args[1].expr, Expr::Lit(Lit::Str(key)) if key.value == "resetModules")
+            {
+                self.reset_property_access = true;
+                self.reset_property_intrinsics.insert(intrinsic);
+                // Only this exact API target is a property role. The key and
+                // descriptor bodies retain every ordinary alias/mock check.
+                call.callee.visit_with(self);
+                for argument in &call.args[1..] {
+                    argument.visit_with(self);
+                }
+                return;
+            }
+        }
         // Reading the API object for the imported builtin's strict identity
         // comparison does not create a reusable registration alias. Preserve
         // traversal of the expected expression (including resetModules).
@@ -2993,6 +3202,8 @@ mod tests {
             "import {vi} from 'vitest';const reset=vi.resetModules;test('fresh',()=>reset())",
             "import {vitest as tools} from 'vitest';const reset=tools.resetModules;reset()",
             "import {vi} from 'vitest';const reset=vi.resetModules;vi.resetModules();reset()",
+            "import {vi} from 'vitest';const \
+             reset=vi.resetModules;Object.getOwnPropertyDescriptor(vi,'resetModules')",
         ] {
             for extract in [extract_static_mocks, extract_test_mocks] {
                 let plan = extract(source, "reset-reference.mjs").unwrap();
@@ -3014,6 +3225,166 @@ mod tests {
     }
 
     #[test]
+    fn literal_reset_property_operations_require_a_real_cache_without_direct_calls() {
+        for body in [
+            "const descriptor=Object.getOwnPropertyDescriptor(vi,'resetModules');descriptor.\
+             value()",
+            "Object.defineProperty(vi,'resetModules',{value(){return 1},configurable:true})",
+            "Reflect.deleteProperty(vi,'resetModules')",
+            "const reset=vi.resetModules;Object.getOwnPropertyDescriptor(vi,'resetModules')",
+        ] {
+            let source = format!("import {{vi}} from 'vitest';{body}");
+            for extract in [extract_static_mocks, extract_test_mocks] {
+                let plan = extract(&source, "reset-property.mjs").unwrap();
+                assert!(plan.reset_modules);
+                assert!(!plan.is_empty());
+                assert_eq!(plan.source.as_bytes(), source.as_bytes());
+                assert!(plan.declarations.is_empty());
+                assert!(plan.hoisted.is_empty());
+                assert!(plan.actual_imports.is_empty());
+                assert!(plan.mock_imports.is_empty());
+                assert!(plan.unmocks.is_empty());
+                assert!(plan.runtime_requests.is_empty());
+            }
+        }
+        let source = "import {vitest as tools} from \
+                      'vitest';Object.getOwnPropertyDescriptor(tools,'resetModules').value()";
+        assert!(
+            extract_test_mocks(source, "renamed.mjs")
+                .unwrap()
+                .reset_modules
+        );
+        for source in [
+            "import {vi} from 'vitest';function \
+             foreign(vi){Object.getOwnPropertyDescriptor(vi,'resetModules')}",
+            "import {vi} from 'vitest';const other={};Reflect.deleteProperty(other,'resetModules')",
+        ] {
+            let plan = extract_test_mocks(source, "foreign.mjs").unwrap();
+            assert!(plan.is_empty());
+            assert!(!plan.reset_modules);
+        }
+    }
+
+    #[test]
+    fn reset_property_roles_preserve_unrelated_metadata_and_actual_lexical_shadowing() {
+        for body in [
+            "const reset=Object.getOwnPropertyDescriptor(vi,'resetModules').value;Object.\
+             hasOwn(reset,'prototype');try{Reflect.construct(reset,[])}catch{}",
+            "const key=Symbol();const \
+             original=Object.getOwnPropertyDescriptor(globalThis,key);Object.\
+             getOwnPropertyDescriptor(vi,'resetModules');if(original)Object.\
+             defineProperty(globalThis,key,original);Reflect.deleteProperty(globalThis,key)",
+            "function foreign(Object){Object.defineProperty=1}Object.getOwnPropertyDescriptor(vi,'\
+             resetModules')",
+            "function foreign(Reflect){Reflect.deleteProperty=1}Reflect.deleteProperty(vi,'\
+             resetModules')",
+            "const fn=()=>1;const holder={};let \
+             local;({[Object.name]:local=Object.hasOwn(fn,'name')}=holder);Object.\
+             getOwnPropertyDescriptor(vi,'resetModules')",
+            "for(let Object of \
+             [{}]){Object.getOwnPropertyDescriptor=1}Object.getOwnPropertyDescriptor(vi,'\
+             resetModules')",
+        ] {
+            let source = format!("import {{vi}} from 'vitest';{body}");
+            assert!(
+                extract_test_mocks(&source, "metadata.mjs")
+                    .unwrap()
+                    .reset_modules
+            );
+        }
+        let source = "import {vi} from \
+                      'vitest';Object.defineProperty(vi,'resetModules',{get(){return \
+                      this===vi?()=>1:()=>2}});vi.resetModules";
+        assert!(
+            extract_test_mocks(source, "receiver.mjs")
+                .unwrap()
+                .reset_modules
+        );
+    }
+
+    #[test]
+    fn reset_property_roles_do_not_waive_targets_keys_bodies_or_mock_plans() {
+        let prefix =
+            "import {vi} from 'vitest';Object.getOwnPropertyDescriptor(vi,'resetModules');";
+        for body in [
+            "Object.getOwnPropertyDescriptor(vi,'resetModules',1)",
+            "Object.defineProperty(vi,'resetModules')",
+            "Reflect.deleteProperty(vi,'resetModules',1)",
+            "Object.getOwnPropertyDescriptor(...[vi,'resetModules'])",
+            "Object.getOwnPropertyDescriptor(vi,key)",
+            "Object['getOwnPropertyDescriptor'](vi,'resetModules')",
+            "const tools=vi;Object.getOwnPropertyDescriptor(tools,'resetModules')",
+            "function foreign(Object){Object.getOwnPropertyDescriptor(vi,'resetModules')}",
+            "Object.defineProperty(vi,'resetModules',{value:consume(vi)})",
+            "Object.defineProperty(vi,'resetModules',{[consume(vi)]:1})",
+            "Object.defineProperty(vi,'resetModules',{get(){vi.mock('./dep',()=>({value:1}));\
+             return 1}})",
+            "vi.resetModules('unused')",
+            "vi.mock('./dep',()=>({value:1}))",
+            "vi.hoisted(()=>({value:1}))",
+            "vi.importActual('./dep')",
+            "vi.importMock('./dep')",
+            "vi.unmock('package')",
+            "vi.doMock('package',()=>({value:1}))",
+            "vi.doUnmock('package')",
+        ] {
+            let source = format!("{prefix}{body}");
+            assert!(
+                extract_test_mocks(&source, "property-negative.mjs").is_err(),
+                "{body}"
+            );
+        }
+    }
+
+    #[test]
+    fn reset_property_roles_reject_obvious_enabled_intrinsic_mutation_or_escape() {
+        let prefix = "import {vi} from \
+                      'vitest';Object.getOwnPropertyDescriptor(vi,'resetModules');Reflect.\
+                      deleteProperty(vi,'resetModules');";
+        for body in [
+            "Object=fake",
+            "Object.getOwnPropertyDescriptor=fake",
+            "Object['getOwnPropertyDescriptor']++",
+            "delete Object.defineProperty",
+            "const escaped=Object",
+            "consume(Reflect)",
+            "Reflect.deleteProperty=fake",
+            "globalThis.Object=fake",
+            "globalThis['Reflect'].deleteProperty=fake",
+            "const escaped=globalThis.Object",
+            "Object.defineProperty(globalThis,'Object',{value:fake})",
+            "Reflect.set(globalThis,'Object',fake)",
+            "Reflect.defineProperty(globalThis,'Reflect',{value:fake})",
+            "Reflect.deleteProperty(globalThis,'Object')",
+            "Object['defineProperty'](globalThis,'Object',{value:fake})",
+            "(Object.defineProperty)(globalThis,'Object',{value:fake})",
+            "(Reflect['set'])(globalThis,'Object',fake)",
+            "Reflect['set'](globalThis,'Object',fake)",
+            "Reflect['defineProperty']((globalThis),'Reflect',{value:fake})",
+            "Reflect['deleteProperty']((globalThis as any),'Object')",
+            "(globalThis).Object=fake",
+            "Object.defineProperty((globalThis),'Object',{value:fake})",
+            "globalThis[('Object')]=fake",
+            "[Object.getOwnPropertyDescriptor]=[fake]",
+            "({x:Object.getOwnPropertyDescriptor}=holder)",
+            "for(Object.getOwnPropertyDescriptor of replacements){}",
+            "for(Reflect.deleteProperty in replacements){}",
+        ] {
+            let source = format!("{prefix}{body}");
+            assert!(
+                extract_test_mocks(&source, "intrinsic-negative.mjs").is_err(),
+                "{body}"
+            );
+        }
+        let source = "import {vi} from 'vitest';vi.resetModules();const unqualified=Object";
+        assert!(
+            extract_test_mocks(source, "old-scope.mjs")
+                .unwrap()
+                .reset_modules
+        );
+    }
+
+    #[test]
     fn reset_member_references_do_not_certify_calls_aliases_or_mock_combinations() {
         for body in [
             "const reset=vi.resetModules;vi.resetModules('unused')",
@@ -3024,7 +3395,6 @@ mod tests {
             "const reset=vi.resetModules;vi.hoisted(()=>({value:1}))",
             "const reset=vi.resetModules;vi.importActual('./dep')",
             "const reset=vi.resetModules;vi.doMock('package',()=>({value:1}))",
-            "const reset=vi.resetModules;Object.getOwnPropertyDescriptor(vi,'resetModules')",
         ] {
             let source = format!("import {{vi}} from 'vitest';{body}");
             assert!(extract_test_mocks(&source, "reset-reference-negative.mjs").is_err());

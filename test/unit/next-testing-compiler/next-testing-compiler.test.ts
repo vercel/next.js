@@ -10315,3 +10315,68 @@ it.each([
   },
   130000
 )
+
+it.each([
+  ['development', 'v2', 5, 5, 6],
+  ['production', 'v2', 5, 5, 6],
+  ['development', 'old-control', 1, 1, 2],
+  ['production', 'old-control', 1, 1, 2],
+  ['development', 'property-only', 2, 2, 3],
+  ['production', 'property-only', 2, 2, 3],
+] as const)(
+  'preserves real reset property descriptors and module cache ownership in %s %s',
+  (mode, variant, cases, rows, callbacks) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const temporary = mkdtempSync(join(tmpdir(), 'next-reset-property-'))
+    const output = join(temporary, 'run')
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'module-reset-property.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          variant,
+          'source',
+        ],
+        { encoding: 'utf8', timeout: 125000, maxBuffer: 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+      ).toEqual({
+        passed: true,
+        kind: 'source',
+        engine: process.versions.node.split('.')[0],
+        actualNodeVersion: process.version,
+        mode,
+        variant,
+        cases,
+        rows,
+        callbacks,
+        completeStandardReportExact: true,
+        completeReporterCallbacksExact: true,
+        completeRowsAndTerminalExact: true,
+        completeExecutionEventsExact: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+      })
+      expect(
+        JSON.parse(readFileSync(join(output, 'CLOSED.json'), 'utf8'))
+      ).toEqual({
+        allActualProcessesJoined: true,
+        fixtureRetired: true,
+      })
+      complete = true
+    } catch (cause) {
+      throw new Error(`Reset property evidence retained at ${temporary}`, {
+        cause,
+      })
+    } finally {
+      if (complete) rmSync(temporary, { recursive: true, force: true })
+    }
+  },
+  130000
+)

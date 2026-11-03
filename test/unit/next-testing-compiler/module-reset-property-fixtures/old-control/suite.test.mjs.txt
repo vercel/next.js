@@ -1,0 +1,26 @@
+import { test, expect } from 'vitest'
+import { appendFileSync } from 'node:fs'
+const event = value => appendFileSync(process.env.RESET_LITERAL_EVENTS, JSON.stringify(value) + '\n')
+event({ event: 'observation-before-counter' })
+const before = await import('./counter.mjs')
+const beforeValue = before.next()
+event({ event: 'observation-before-unchanged-module' })
+const authored = await import('./spec.mjs')
+event({ event: 'observation-after-unchanged-module' })
+const after = await import('./counter.mjs')
+const afterValue = after.next()
+const heldValue = before.next()
+event({ event: 'observation-before-test-registration' })
+test('the unchanged descriptor control evaluates without invalidating the actual cache', () => {
+  const value = { mode: import.meta.env.MODE, production: import.meta.env.PROD, development: import.meta.env.DEV, nodeEnvironment: process.env.NODE_ENV, beforeValue, afterValue, heldValue, sameCounterNamespace: before === after, authoredExports: Object.keys(authored) }
+  console.log('RESET_UTILITY_ROW ' + JSON.stringify(value))
+  expect(value.mode).toBe(process.env.RESET_EXPECTED_MODE)
+  expect(value.production).toBe(value.mode === 'production')
+  expect(value.development).toBe(value.mode === 'development')
+  expect(value.nodeEnvironment).toBe(value.mode)
+  expect(beforeValue).toBe(1)
+  expect(afterValue).toBe(2)
+  expect(heldValue).toBe(3)
+  expect(after).toBe(before)
+  expect(value.authoredExports).toEqual([])
+})
