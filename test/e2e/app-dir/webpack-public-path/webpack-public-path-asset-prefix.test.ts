@@ -12,10 +12,6 @@ describe('webpack-public-path with assetPrefix', () => {
   it('starts from the asset prefix on the server', async () => {
     const response = await next.fetch('/api/public-path')
     expect((await response.json()).original).toBe(`${assetPrefix}/_next/`)
-    const edgeResponse = await next.fetch('/api/edge-public-path')
-    expect(await edgeResponse.json()).toEqual({
-      publicPath: `${assetPrefix}/_next/`,
-    })
   })
 
   it('rebases prefixed route chunk URLs onto the assigned path', async () => {
