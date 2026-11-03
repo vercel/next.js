@@ -1,0 +1,12 @@
+import type {SuiteCollector} from 'vitest'
+declare let collector: SuiteCollector
+collector.type = 'collector'
+collector.suite = collector.suite
+collector.options = collector.options
+collector.test = collector.test
+collector.file = collector.file
+collector.tasks = collector.tasks
+collector.collect = collector.collect
+collector.task = collector.task
+collector.clear = collector.clear
+collector.on = collector.on

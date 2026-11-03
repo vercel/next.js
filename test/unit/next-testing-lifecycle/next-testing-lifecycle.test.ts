@@ -139,6 +139,7 @@ describe('Next-owned Vitest lifecycle', () => {
         }
       )
     })
+    await c.settle()
     const execution = await run(c)
     expect(execution.cases.map((test) => test.status)).toEqual([
       'passed',
@@ -183,6 +184,7 @@ describe('Next-owned Vitest lifecycle', () => {
       test.skip.describe('suite ignores test modifier', () => {
         test('runs', ({ value }) => values.push(value))
       })
+      await c.settle()
       expect(warning).toHaveBeenCalledTimes(1)
       expect(warning).toHaveBeenCalledWith(
         'test.scoped() is deprecated and will be removed in future versions. Please use test.override() instead.'
@@ -254,12 +256,13 @@ describe('Next-owned Vitest lifecycle', () => {
       expect(() => assertTestFileCollection(invalid, artifact)).toThrow()
   })
 
-  it('uses authoritative nested focus for collected listing', () => {
+  it('uses authoritative nested focus for collected listing', async () => {
     const c = createCollector('file')
     c.api.describe.only('outer', () => {
       c.api.test('ordinary', () => {})
       c.api.test.only('selected', () => {})
     })
+    await c.settle()
     const root = c.close()
     expect(collectTestCases(root).map((test) => test.name)).toEqual([
       'outer > selected',
@@ -272,6 +275,7 @@ describe('Next-owned Vitest lifecycle', () => {
       hidden.api.test.only('hidden', () => {})
     )
     hidden.api.test('ordinary', () => {})
+    await hidden.settle()
     expect(() =>
       collectTestCases(hidden.close(), { allowOnly: false })
     ).toThrow('focus and allowOnly:false is not implemented')
@@ -310,6 +314,7 @@ describe('Next-owned Vitest lifecycle', () => {
           })
       })
     })
+    await c.settle()
     const result = await runCollected(
       c.close(),
       { ...options(), sequence: { seed: 8127 } },
@@ -337,6 +342,7 @@ describe('Next-owned Vitest lifecycle', () => {
         trace.push('after')
       })
     })
+    await c.settle()
     const result = await runCollected(
       c.close(),
       { ...options(), sequence: { seed: 8127 } },
@@ -383,6 +389,7 @@ describe('Next-owned Vitest lifecycle', () => {
         })
       })
     })
+    await c.settle()
     const result = await run(c)
     expect(result.cases.every(({ status }) => status === 'passed')).toBe(true)
     expect(result.errors).toEqual([])
@@ -468,6 +475,7 @@ describe('Next-owned Vitest lifecycle', () => {
     c.api.test.concurrent('group two', () => {
       trace.push('group two')
     })
+    await c.settle()
     const result = await run(c)
     expect(result.cases.every(({ status }) => status === 'passed')).toBe(true)
     expect(trace.filter((entry) => entry !== 'group one')).toEqual([
@@ -502,6 +510,7 @@ describe('Next-owned Vitest lifecycle', () => {
         )
       })
     )
+    await c.settle()
     const result = await runCollected(
       c.close(),
       { ...options(), maxConcurrency: 2 },
@@ -811,6 +820,7 @@ describe('Next-owned Vitest lifecycle', () => {
     test('outside override', ({ value }) => {
       values.push(value)
     })
+    await c.settle()
     const result = await run(c)
     expect(result.cases.every(({ status }) => status === 'passed')).toBe(true)
     expect(values).toEqual([2, 4, 2, 1])
@@ -1132,7 +1142,7 @@ describe('Next-owned Vitest lifecycle', () => {
     expect((c.root.children[1] as any).hooks.beforeEach).toHaveLength(0)
   })
 
-  it('observes every asynchronous collection rejection and settles surviving siblings', async () => {
+  it('stops starting later suite factories after a collection rejection', async () => {
     const c = createCollector('file')
     for (const name of ['first', 'second']) {
       c.api.describe(name, async () => {
@@ -1145,14 +1155,11 @@ describe('Next-owned Vitest lifecycle', () => {
       c.api.test('collected', () => {})
     })
     const failure = await c.settle().catch((error) => error)
-    expect(failure).toBeInstanceOf(AggregateError)
-    expect(failure.errors.map((error: Error) => error.message)).toEqual([
-      'first',
-      'second',
-    ])
+    expect(failure).toBeInstanceOf(Error)
+    expect(failure.message).toBe('first')
     expect(
       [...selectedCases(c.close()).keys()].map((test) => test.name)
-    ).toEqual(['collected'])
+    ).toEqual([])
   })
 
   it('reports suite outcomes independently of successful cases and includes empty suites', async () => {
@@ -1168,6 +1175,7 @@ describe('Next-owned Vitest lifecycle', () => {
       })
     })
     const suites: any[] = []
+    await c.settle()
     const result = await runCollected(
       c.close(),
       {
@@ -1282,6 +1290,7 @@ describe('Next-owned Vitest lifecycle', () => {
       })
     })
     const suites: string[] = []
+    await c.settle()
     await runCollected(
       c.close(),
       {
@@ -1330,6 +1339,7 @@ describe('Next-owned Vitest lifecycle', () => {
         throw new Error('filtered suite')
       })
     })
+    await c.settle()
     const result = await runCollected(
       c.close(),
       {
@@ -1457,6 +1467,7 @@ describe('Next-owned Vitest lifecycle', () => {
       }
       if (nested) c.api.describe('nested', declare)
       else declare()
+      await c.settle()
       const result = await runCollected(
         c.close(),
         {
@@ -1671,7 +1682,7 @@ describe('Next-owned Vitest lifecycle', () => {
     expect(result.cases[0].status).toBe('passed')
   })
 
-  it('selects focus without reviving skipped ancestors and preserves stable declaration IDs', () => {
+  it('selects focus without reviving skipped ancestors and preserves stable declaration IDs', async () => {
     const c = createCollector('file')
     c.api.test('ordinary', () => {})
     c.api.describe.skip('skip', () => c.api.test.only('hidden focus', () => {}))
@@ -1679,6 +1690,7 @@ describe('Next-owned Vitest lifecycle', () => {
       c.api.test('selected', () => {})
       c.api.test.todo('pending')
     })
+    await c.settle()
     expect(
       [...selectedCases(c.close())].map(([test, mode]) => [test.id, mode])
     ).toEqual([
@@ -1712,6 +1724,7 @@ describe('Next-owned Vitest lifecycle', () => {
         c.api.test('second', test('second'))
       })
     })
+    await c.settle()
     const root = c.close()
     const declarations = [...selectedCases(root).keys()].map((test) => [
       test.id,
@@ -1756,6 +1769,7 @@ describe('Next-owned Vitest lifecycle', () => {
         c.api.test.only('hidden focus', () => trace.push('hidden focus'))
         c.api.test('hidden ordinary', () => trace.push('hidden ordinary'))
       })
+      await c.settle()
       const root = c.close()
       expect(hasFocusedTests(root)).toBe(true)
       expect(
@@ -1792,6 +1806,7 @@ describe('Next-owned Vitest lifecycle', () => {
           c.api.test('ordinary sibling', () => trace.push('ordinary sibling'))
         })
       })
+      await c.settle()
       const root = c.close()
       expect(
         [...selectedCases(root)].map(([test, selection]) => [
@@ -1820,6 +1835,7 @@ describe('Next-owned Vitest lifecycle', () => {
       c.api.test.skip('skipped', () => trace.push('skipped'))
       c.api.test.todo('pending')
     })
+    await c.settle()
     const result = await run(c)
     expect(trace).toEqual(['first', 'second'])
     expect(result.cases.map(({ mode }) => mode)).toEqual([
@@ -1838,6 +1854,7 @@ describe('Next-owned Vitest lifecycle', () => {
       c.api.test('ordinary', () => trace.push('ordinary'))
       c.api.test.only('focused', () => trace.push('focused'))
     })
+    await c.settle()
     const root = c.close()
     expect([...selectedCases(root).values()]).toEqual(['skip', 'run'])
     const result = await runCollected(
@@ -1884,6 +1901,7 @@ describe('Next-owned Vitest lifecycle', () => {
       })
     })
     c.api.test.only('direct focused', () => trace.push('direct focused'))
+    await c.settle()
     const root = c.close()
     const declared = [...selectedCases(root)].map(([test]) => ({
       id: test.id,
@@ -2021,6 +2039,7 @@ describe('Next-owned Vitest lifecycle', () => {
       c.api.describe[mode]('hidden', () => {
         c.api.test.only('focused', () => trace.push('focused'))
       })
+      await c.settle()
       const result = await runCollected(
         c.close(),
         { ...options(), allowOnly: false },
@@ -2047,6 +2066,7 @@ describe('Next-owned Vitest lifecycle', () => {
       })
     })
     const starts: unknown[] = []
+    await c.settle()
     const result = await runCollected(
       c.close(),
       {
@@ -2140,6 +2160,7 @@ describe('Next-owned Vitest lifecycle', () => {
         })
       })
     })
+    await c.settle()
     const result = await run(c)
     expect(result.cases[0].status).toBe('passed')
     expect(log).toEqual([
@@ -2258,6 +2279,7 @@ describe('Next-owned Vitest lifecycle', () => {
         })
       })
     })
+    await c.settle()
     const result = await runCollected(
       c.close(),
       {
@@ -2431,6 +2453,7 @@ describe('Next-owned Vitest lifecycle', () => {
         log.push('body')
       })
     })
+    await c.settle()
     const result = await runCollected(
       c.close(),
       {
@@ -2487,6 +2510,7 @@ describe('Next-owned Vitest lifecycle', () => {
         throw new Error('body must not run')
       })
     })
+    await c.settle()
     const result = await runCollected(
       c.close(),
       {
@@ -2595,6 +2619,7 @@ describe('Next-owned Vitest lifecycle', () => {
       throw new Error('after all')
     })
     c.api.describe('nested', () => c.api.test('blocked', () => {}))
+    await c.settle()
     const result = await run(c)
     expect(result.cases[0]).toMatchObject({ status: 'skipped', errors: [] })
     expect(result.errors.map(({ phase }) => phase)).toEqual([
@@ -2711,6 +2736,7 @@ describe('Next-owned Vitest lifecycle', () => {
         expect(local).toBe(99)
       })
     })
+    await c.settle()
     const result = await run(c)
     expect(result.cases.map((test) => test.status)).toEqual([
       'passed',
@@ -2847,6 +2873,7 @@ describe('Next-owned Vitest lifecycle', () => {
       )
     })
     c.api.test('pending without callback')
+    await c.settle()
     const result = await run(c)
     expect(result.cases.map(({ name, status }) => [name, status])).toEqual([
       ['adds 1 and 2 as case 0', 'passed'],
@@ -2981,6 +3008,7 @@ describe('Next-owned Vitest lifecycle', () => {
       })
     })
     test('base again', ({ derived }) => log.push(derived))
+    await c.settle()
     const result = await run(c)
     expect(result.cases.map(({ status }) => status)).toEqual([
       'passed',
@@ -5613,6 +5641,7 @@ it('preserves plain and explicit fixture overrides and typed injected builder op
     // @ts-expect-error injected is a boolean in the public fixture options.
     c.api.test.extend('invalid', { injected: 'yes' }, 1)
   }
+  await c.settle()
   const result = await run(c)
   expect(result.cases.map(({ status }) => status)).toEqual(
     Array(6).fill('passed')
@@ -5655,6 +5684,7 @@ it('collects tagged each and for tables with fixture context and stable public n
       rows.push({ api: 'describe.for', label, value })
     })
   })
+  await collector.settle()
   const result = await run(collector)
   expect(result.cases.map(({ name, status }) => [name, status])).toEqual([
     ['adds 1 and 2', 'passed'],
@@ -5741,6 +5771,7 @@ it('preserves object-prototype fixture names across extensions and dependencies'
     events.push(['sibling body', toString, hasOwnProperty])
   })
 
+  await c.settle()
   const result = await run(c)
   expect(result.errors).toEqual([])
   expect(result.cases.map((test) => test.status)).toEqual(
@@ -5844,6 +5875,7 @@ it.each(['case', 'suite'])(
       ])
         suite(name, [name])
     }
+    await c.settle()
     const running = runCollected(
       c.close(),
       { ...options(), maxConcurrency: 2 },
@@ -6718,6 +6750,7 @@ it('uses actual fixture-builder receivers and fresh default modifiers while pres
     other('changed other', ({ base }) => events.push(['other', base]))
   })
   own('outside', ({ base }) => events.push(['outside', base]))
+  await c.settle()
   const result = await run(c)
   expect(result.cases.map(({ status }) => status)).toEqual(
     Array(8).fill('passed')
@@ -6825,6 +6858,7 @@ it('recognizes options-only fixture builders while retaining ordinary values and
       events.push(['override', Object.keys(value)])
     })
   })
+  await c.settle()
   const result = await run(c)
   expect(result.cases.map(({ status }) => status)).toEqual(
     Array(9).fill('passed')
@@ -7266,6 +7300,7 @@ it.each(['stack', 'list', 'parallel'] as const)(
         })
       })
     }
+    await c.settle()
     const result = await runCollected(
       c.close(),
       {
@@ -7355,6 +7390,7 @@ it.each(['stack', 'list', 'parallel'] as const)(
         rows.push(['body', setup])
       })
     })
+    await c.settle()
     const result = await runCollected(
       c.close(),
       { ...options(), sequence: { hooks: sequence } },
@@ -10312,4 +10348,373 @@ it.each(
     }
   },
   130000
+)
+
+describe('normal SuiteAPI collector ownership', () => {
+  it('returns the real collector before starting nested asynchronous factories', async () => {
+    const c = createCollector('normal-suite-return')
+    const trace: unknown[] = []
+    let nested: ReturnType<typeof c.api.describe> | undefined
+    const outer = c.api.describe('outer', async (provided) => {
+      trace.push(['outer', provided === outer.test])
+      await Promise.resolve()
+      provided('first', () => {})
+      nested = c.api.describe('inner', (child) => {
+        trace.push(['inner', child === nested!.test])
+        child('second', () => {})
+      })
+    })
+    expect(trace).toEqual([])
+    expect(Object.keys(outer)).toEqual([
+      'type',
+      'name',
+      'mode',
+      'suite',
+      'options',
+      'test',
+      'file',
+      'tasks',
+      'collect',
+      'task',
+      'clear',
+      'on',
+    ])
+    expect(outer.tasks).toEqual([])
+    await c.settle()
+    expect(trace).toEqual([
+      ['outer', true],
+      ['inner', true],
+    ])
+    expect(outer.tasks[1]).toBe(nested)
+    expect(nested!.suite!.suite).toBe(outer.suite)
+    expect(nested!.file).toBe(outer.file)
+    const result = await run(c)
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'passed',
+      'passed',
+    ])
+  })
+
+  it('retains manual repeated collect and the same actual suite and test identities', async () => {
+    const c = createCollector('normal-suite-manual')
+    let calls = 0
+    const collector = c.api.describe('manual', (provided) => {
+      expect(provided).toBe(collector.test)
+      provided(`child ${++calls}`, () => {})
+    })
+    const first = await collector.collect(collector.file)
+    const second = await collector.collect(collector.file)
+    expect(second).toBe(first)
+    expect(first).toBe(collector.suite)
+    expect(collector.tasks.map(({ name }) => name)).toEqual([
+      'child 1',
+      'child 2',
+    ])
+    await c.settle()
+    expect(calls).toBe(3)
+    expect(collector.tasks.map(({ name }) => name)).toEqual([
+      'child 1',
+      'child 2',
+      'child 3',
+    ])
+    expect((await run(c)).cases.map(({ status }) => status)).toEqual([
+      'passed',
+      'passed',
+      'passed',
+    ])
+  })
+
+  it.each([
+    undefined,
+    null,
+    false,
+    0,
+    '',
+    new Error('actual normal factory rejection'),
+  ])(
+    'stops starting later factories after an actual rejection: %p',
+    async (failure) => {
+      const c = createCollector('normal-suite-stop', {
+        observeSettledDeclarationCoverage: true,
+      })
+      const trace: string[] = []
+      const first = c.api.describe('first', async () => {
+        trace.push('first entered')
+        await Promise.resolve()
+        trace.push('first rejected')
+        throw failure
+      })
+      c.api.describe('second', async () => {
+        trace.push('second entered')
+        throw failure
+      })
+      const returned: unknown[] = []
+      await c.settle().then(
+        () => returned.push('fulfilled'),
+        (error) => returned.push(error)
+      )
+      expect(returned).toEqual([failure])
+      expect(trace).toEqual(['first entered', 'first rejected'])
+      const observed = c.getCompletedDeclarationCoverageFailure!()
+      expect(observed!.error).toBe(failure)
+      expect(observed!.occurrences).toHaveLength(1)
+      expect(observed!.occurrences[0].suite).toBe(c.root.children[0])
+      expect(observed!.occurrences[0].reason).toBe(failure)
+      expect(first.tasks).toEqual([])
+      await c.settle().then(
+        () => returned.push('fulfilled'),
+        (error) => returned.push(error)
+      )
+      expect(returned).toEqual([failure, failure])
+      expect(trace).toEqual(['first entered', 'first rejected'])
+      expect(c.getCompletedDeclarationCoverageFailure!()).toBeUndefined()
+      c.close()
+    }
+  )
+
+  it('withholds declaration coverage certification after an actual manual collect invocation', async () => {
+    const c = createCollector('normal-suite-manual-coverage', {
+      observeSettledDeclarationCoverage: true,
+    })
+    const failure = new Error('manual and automatic actual rejection')
+    let calls = 0
+    const collector = c.api.describe('owned', async () => {
+      calls++
+      throw failure
+    })
+    await expect(collector.collect(collector.file)).rejects.toBe(failure)
+    await expect(c.settle()).rejects.toBe(failure)
+    expect(calls).toBe(2)
+    expect(c.getCompletedDeclarationCoverageFailure!()).toBeUndefined()
+    c.close()
+  })
+})
+
+it('retains the exact public normal SuiteAPI generic and predicate-chain contracts', async () => {
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'normal-suite-types.cjs')],
+    { encoding: 'utf8', timeout: 30000 }
+  )
+  expect(JSON.parse(stdout)).toMatchObject({
+    rootConfigAndGlobalAugmentations: true,
+    noExternalVitestViteFormatterDeclarations: true,
+    programs: 28,
+    accepted: 17,
+    rejected: 11,
+  })
+}, 35000)
+
+it('retains normal SuiteAPI collectors through real Chromium execution', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const temporary = await mkdtemp(join(tmpdir(), 'next-normal-suite-browser-'))
+  let completed = false
+  try {
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'normal-suite-browser.mjs'),
+        join(__dirname, '../../..'),
+        join(temporary, 'profiles'),
+        'source149',
+      ],
+      { encoding: 'utf8', timeout: 280000 }
+    )
+    expect(JSON.parse(stdout)).toEqual({
+      allPassed: true,
+      profiles: 2,
+      cases: 12,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(temporary, { recursive: true, force: true })
+    else console.error('Retained SuiteAPI Browser evidence: ' + temporary)
+  }
+}, 290000)
+
+describe('normal SuiteAPI failed-load ownership', () => {
+  it('leaves every unstarted normal factory unstarted when collection is stopped', async () => {
+    const c = createCollector('normal-suite-load-stop', {
+      observeSettledDeclarationCoverage: true,
+    })
+    const trace: string[] = []
+    c.api.describe('unstarted', () => {
+      trace.push('factory')
+    })
+    await c.settle({ startFactories: false })
+    expect(trace).toEqual([])
+    expect(c.getCompletedDeclarationCoverageFailure!()).toBeUndefined()
+    c.close()
+  })
+
+  it('joins actual already-started collection without adopting unstarted factories or handled errors', async () => {
+    const c = createCollector('normal-suite-load-owned', {
+      observeSettledDeclarationCoverage: true,
+    })
+    const failure = new Error('actual handled manual rejection')
+    const trace: unknown[] = []
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const owned = c.api.describe('owned', async () => {
+      trace.push('entered')
+      await gate
+      trace.push('resumed')
+      c.api.describe('registered while joining', () => {
+        trace.push('nested unstarted')
+      })
+      throw failure
+    })
+    c.api.describe('not owned', () => {
+      trace.push('unstarted')
+    })
+    const pending = owned.collect(owned.file)
+    const handled = pending.then(
+      () => {
+        throw new Error('actual manual collect must reject')
+      },
+      (error) => {
+        expect(error).toBe(failure)
+        trace.push('handled')
+      }
+    )
+    let settled = false
+    const settlement = c.settle({ startFactories: false }).then(() => {
+      settled = true
+    })
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    expect(trace).toEqual(['entered'])
+    expect(c.getCompletedDeclarationCoverageFailure!()).toBeUndefined()
+    release()
+    await Promise.all([settlement, handled])
+    expect(settled).toBe(true)
+    expect(trace).toEqual(['entered', 'resumed', 'handled'])
+    expect(c.getCompletedDeclarationCoverageFailure!()).toBeUndefined()
+    c.close()
+  })
+
+  it.each(['undefined', 'null', 'false', 'zero', 'empty', 'error', 'owned'])(
+    'retains the actual failed-load value and owned file settlement: %s',
+    async (group) => {
+      const { stdout } = await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'normal-suite-loads.mjs'),
+          join(__dirname, '../../..'),
+          group,
+        ],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        group,
+        actualLoadValueRetained: true,
+        noUnstartedFactoryRan: true,
+        ownedWorkJoined: true,
+        noInventedDeclarationOrBodyOccurrence: true,
+      })
+    },
+    20000
+  )
+})
+
+it.each(['development', 'production'])(
+  'retains complete genuine load-failure reports and already-owned async collection in %s',
+  async (mode) => {
+    const { mkdtemp, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), 'next-normal-suite-load-report-')
+    )
+    let completed = false
+    try {
+      for (const group of ['load-failure', 'load-owned']) {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, 'normal-suite-api.mjs'),
+            join(__dirname, '../../..'),
+            join(directory, group),
+            mode,
+            group,
+          ],
+          { encoding: 'utf8', timeout: 125000 }
+        )
+      }
+      completed = true
+    } finally {
+      if (completed) await rm(directory, { recursive: true, force: true })
+      else
+        console.error(
+          'Retained normal suite load-failure report observations: ' + directory
+        )
+    }
+  },
+  260000
+)
+
+it('retains complete Browser load-failure reports without starting unowned factories', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const directory = await mkdtemp(
+    join(tmpdir(), 'next-normal-suite-browser-load-')
+  )
+  let completed = false
+  try {
+    for (const group of ['load-failure', 'load-owned']) {
+      const { stdout } = await promisify(execFile)(
+        process.execPath,
+        [
+          join(__dirname, 'normal-suite-browser.mjs'),
+          join(__dirname, '../../..'),
+          join(directory, group),
+          'source149',
+          group,
+        ],
+        { encoding: 'utf8', timeout: 280000 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        allPassed: true,
+        profiles: 2,
+        cases: 0,
+      })
+    }
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else console.error('Retained Browser suite load observations: ' + directory)
+  }
+}, 570000)
+
+it.each([
+  'load-error',
+  'load-undefined',
+  'load-false',
+  'load-async',
+  'setup-error',
+  'mock-error',
+  'declaration-error',
+])(
+  'wraps only the actual Browser module import and preserves its original cause: %s',
+  async (group) => {
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'browser-suite-import-errors.cjs'),
+        join(__dirname, '../../..'),
+        group,
+      ],
+      { encoding: 'utf8', timeout: 15000 }
+    )
+    expect(JSON.parse(stdout)).toEqual({
+      group,
+      exactLoadWrapperAndCause: true,
+      otherCollectionPhasesUnwrapped: true,
+      actualErrorFieldsHeld: true,
+      originalCleanupJoined: true,
+    })
+  },
+  20000
 )

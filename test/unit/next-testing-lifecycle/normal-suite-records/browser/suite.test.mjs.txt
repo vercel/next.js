@@ -1,0 +1,46 @@
+import { describe, test, expect } from 'vitest'
+const trace = []
+const observations = []
+function view(label, collector) {
+  return { label, keys: Object.keys(collector), name: collector.name, mode: collector.mode,
+    taskNames: collector.tasks.map(task => task.name), suiteTaskNames: collector.suite.tasks.map(task => task.name),
+    fileIdentity: collector.file === collector.suite.file }
+}
+let outer
+let inner
+trace.push('before registration')
+outer = describe('normal outer', { meta: { declared: true } }, async provided => {
+  trace.push(['outer factory', provided === outer.test])
+  await Promise.resolve()
+  provided('outer body', context => {
+    trace.push(['outer body', context.task.suite === outer.suite])
+  })
+  inner = describe('normal inner', nested => {
+    trace.push(['inner factory', nested === inner.test, inner.suite.suite === outer.suite, nested === provided])
+    nested('inner body', context => {
+      trace.push(['inner body', context.task.suite === inner.suite, context.task.file === inner.file])
+    })
+  })
+  observations.push(view('inner registered', inner))
+})
+trace.push('after registration')
+observations.push(view('outer registered', outer))
+outer.on('beforeAll', suite => { trace.push(['beforeAll', suite === outer.suite]) })
+outer.on('beforeEach', (context, suite) => { trace.push(['beforeEach', context.task.suite === suite, suite.name]) })
+outer.on('afterEach', (context, suite) => { trace.push(['afterEach', context.task.suite === suite, suite.name]) })
+outer.on('afterAll', suite => { trace.push(['afterAll', suite === outer.suite]) })
+let calls = 0
+const manual = describe('manual repeat', provided => {
+  trace.push(['manual factory', ++calls, provided === manual.test])
+  provided('manual child ' + calls, () => { trace.push('manual body ' + calls) })
+})
+const manualSuite = manual.suite
+const manuallyCollected = await manual.collect(manual.file)
+observations.push({ label: 'manual collect', originalSuite: manuallyCollected === manualSuite, collectorSuite: manual.suite === manualSuite, ...view('manual collect view', manual) })
+const secondCollected = await manual.collect(manual.file)
+observations.push({ label: 'manual repeat', sameSuite: secondCollected === manuallyCollected, ...view('manual repeat view', manual) })
+test('records actual normal collector operations', () => {
+  observations.push(view('outer executed', outer), view('inner executed', inner), view('manual executed', manual))
+  console.log('SUITE_API_BROWSER:' + JSON.stringify({ trace, observations, calls }))
+  expect(calls).toBe(3)
+})

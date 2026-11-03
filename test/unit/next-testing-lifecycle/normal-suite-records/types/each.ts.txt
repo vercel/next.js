@@ -1,0 +1,2 @@
+import {describe,type SuiteAPI,type SuiteCollector} from 'vitest'
+const api:SuiteAPI=describe;api.each([[1,'a']] as const)('suite %s',(number,text)=>{const value:1=number;const label:'a'=text;void value;void label})

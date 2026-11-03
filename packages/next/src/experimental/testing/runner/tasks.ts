@@ -127,7 +127,7 @@ interface TaskBase {
   result?: TaskResult
   promises?: Promise<any>[]
 }
-export interface Test<ExtraContext extends object = object> extends TaskBase {
+export interface Test<ExtraContext = object> extends TaskBase {
   type: 'test'
   context: TestContext & ExtraContext
   timeout: number

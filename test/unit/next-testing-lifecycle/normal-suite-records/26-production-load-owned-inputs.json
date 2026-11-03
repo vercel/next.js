@@ -1,0 +1,17 @@
+{
+  "runtime": "v26.12.1",
+  "executable": "/usr/local/bin/node",
+  "args": [
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/vitest.mjs",
+    "--run",
+    "--root",
+    "/private/tmp/suite-api-normal417/26-production-owned-load-owned/fixture",
+    "--config",
+    "/private/tmp/suite-api-normal417/26-production-owned-load-owned/fixture/vitest.config.mjs",
+    "--configLoader",
+    "native"
+  ],
+  "bodySHA256": "8590fa8beb6981edd16b740a1da7b9b8acb46c3c64dfce5e968af5440d905f0f",
+  "configSHA256": "c5c48eb48cf8cdc67d4d23f01af2423e85503531b800f98f66f1f5e22d4490d7",
+  "scope": "New genuine normal SuiteAPI handle operations and separate actual collection error behavior; raw original output; no provider/runtime wrapper, Root/SDK run, or original expectation change"
+}

@@ -1,0 +1,259 @@
+{
+  "trace": [
+    "before registration",
+    "after registration",
+    [
+      "manual factory",
+      1,
+      true
+    ],
+    [
+      "manual factory",
+      2,
+      true
+    ],
+    [
+      "outer factory",
+      true
+    ],
+    [
+      "inner factory",
+      true,
+      true,
+      false
+    ],
+    [
+      "manual factory",
+      3,
+      true
+    ],
+    [
+      "beforeAll",
+      true
+    ],
+    [
+      "beforeEach",
+      true,
+      "normal outer"
+    ],
+    [
+      "outer body",
+      true
+    ],
+    [
+      "afterEach",
+      true,
+      "normal outer"
+    ],
+    [
+      "beforeEach",
+      true,
+      "normal inner"
+    ],
+    [
+      "inner body",
+      true,
+      true
+    ],
+    [
+      "afterEach",
+      true,
+      "normal inner"
+    ],
+    [
+      "afterAll",
+      true
+    ],
+    "manual body 3",
+    "manual body 3",
+    "manual body 3"
+  ],
+  "observations": [
+    {
+      "label": "outer registered",
+      "keys": [
+        "type",
+        "name",
+        "mode",
+        "suite",
+        "options",
+        "test",
+        "file",
+        "tasks",
+        "collect",
+        "task",
+        "clear",
+        "on"
+      ],
+      "name": "normal outer",
+      "mode": "run",
+      "taskNames": [],
+      "suiteTaskNames": [],
+      "fileIdentity": true
+    },
+    {
+      "label": "manual collect view",
+      "originalSuite": true,
+      "collectorSuite": true,
+      "keys": [
+        "type",
+        "name",
+        "mode",
+        "suite",
+        "options",
+        "test",
+        "file",
+        "tasks",
+        "collect",
+        "task",
+        "clear",
+        "on"
+      ],
+      "name": "manual repeat",
+      "mode": "run",
+      "taskNames": [
+        "manual child 1"
+      ],
+      "suiteTaskNames": [
+        "manual child 1"
+      ],
+      "fileIdentity": true
+    },
+    {
+      "label": "manual repeat view",
+      "sameSuite": true,
+      "keys": [
+        "type",
+        "name",
+        "mode",
+        "suite",
+        "options",
+        "test",
+        "file",
+        "tasks",
+        "collect",
+        "task",
+        "clear",
+        "on"
+      ],
+      "name": "manual repeat",
+      "mode": "run",
+      "taskNames": [
+        "manual child 1",
+        "manual child 2"
+      ],
+      "suiteTaskNames": [
+        "manual child 1",
+        "manual child 2"
+      ],
+      "fileIdentity": true
+    },
+    {
+      "label": "inner registered",
+      "keys": [
+        "type",
+        "name",
+        "mode",
+        "suite",
+        "options",
+        "test",
+        "file",
+        "tasks",
+        "collect",
+        "task",
+        "clear",
+        "on"
+      ],
+      "name": "normal inner",
+      "mode": "run",
+      "taskNames": [],
+      "suiteTaskNames": [],
+      "fileIdentity": true
+    },
+    {
+      "label": "outer executed",
+      "keys": [
+        "type",
+        "name",
+        "mode",
+        "suite",
+        "options",
+        "test",
+        "file",
+        "tasks",
+        "collect",
+        "task",
+        "clear",
+        "on"
+      ],
+      "name": "normal outer",
+      "mode": "run",
+      "taskNames": [
+        "outer body",
+        "normal inner"
+      ],
+      "suiteTaskNames": [
+        "outer body",
+        "normal inner"
+      ],
+      "fileIdentity": true
+    },
+    {
+      "label": "inner executed",
+      "keys": [
+        "type",
+        "name",
+        "mode",
+        "suite",
+        "options",
+        "test",
+        "file",
+        "tasks",
+        "collect",
+        "task",
+        "clear",
+        "on"
+      ],
+      "name": "normal inner",
+      "mode": "run",
+      "taskNames": [
+        "inner body"
+      ],
+      "suiteTaskNames": [
+        "inner body"
+      ],
+      "fileIdentity": true
+    },
+    {
+      "label": "manual executed",
+      "keys": [
+        "type",
+        "name",
+        "mode",
+        "suite",
+        "options",
+        "test",
+        "file",
+        "tasks",
+        "collect",
+        "task",
+        "clear",
+        "on"
+      ],
+      "name": "manual repeat",
+      "mode": "run",
+      "taskNames": [
+        "manual child 1",
+        "manual child 2",
+        "manual child 3"
+      ],
+      "suiteTaskNames": [
+        "manual child 1",
+        "manual child 2",
+        "manual child 3"
+      ],
+      "fileIdentity": true
+    }
+  ],
+  "calls": 3
+}

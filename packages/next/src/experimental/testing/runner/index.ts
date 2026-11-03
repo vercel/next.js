@@ -776,6 +776,7 @@ function initializeFile(
             }
           }
           const errors: unknown[] = []
+          let loadFailed = false
           let loadFailure: { error: unknown } | undefined
           let declarationFailure: { error: unknown } | undefined
           const collectionAssertions = fileAssertions!.beginCollection({
@@ -785,11 +786,12 @@ function initializeFile(
           try {
             await load()
           } catch (error) {
+            loadFailed = true
             if (captureCollectionCoverage) loadFailure = { error }
             errors.push(error)
           }
           try {
-            await collector.settle()
+            await collector.settle({ startFactories: !loadFailed })
           } catch (error) {
             const observed =
               collector.getCompletedDeclarationCoverageFailure?.()

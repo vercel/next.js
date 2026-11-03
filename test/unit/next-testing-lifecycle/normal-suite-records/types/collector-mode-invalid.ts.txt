@@ -1,0 +1,3 @@
+import type {SuiteCollector} from 'vitest'
+const invalid: SuiteCollector['mode'] = 'future'
+void invalid

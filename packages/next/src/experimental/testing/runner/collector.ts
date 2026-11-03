@@ -130,15 +130,12 @@ export type InternalTestContext = Omit<
 export type TestBody = (
   context: InternalTestContext
 ) => unknown | Promise<unknown>
-export type AroundEachBody<
-  T extends object = {},
-  Context extends object = TestContext,
-> = (
+export type AroundEachBody<T = {}, Context extends object = TestContext> = (
   runTest: () => Promise<void>,
   context: Context & T,
   suite: Readonly<Suite>
 ) => unknown | Promise<unknown>
-export type AroundAllBody<T extends object = {}> = (
+export type AroundAllBody<T = {}> = (
   runSuite: () => Promise<void>,
   context: T,
   suite: Readonly<Suite>
@@ -217,11 +214,7 @@ type EachDeclaration<T extends readonly unknown[], Options = TestOptions> = {
   (name: Name, fn: EachCallback<T>, timeout?: number): void
   (name: Name, options: Options, fn: EachCallback<T>): void
 }
-type ForDeclaration<
-  T,
-  C extends object,
-  Context extends object = TestContext,
-> = {
+type ForDeclaration<T, C, Context extends object = TestContext> = {
   (name: Name, fn: (item: T, context: Context & C) => unknown): void
   (
     name: Name,
@@ -289,11 +282,7 @@ type ObjectFixtureContext<
   K extends keyof E,
   Context extends object,
 > = Context & Omit<E, K> & Omit<T, Exclude<keyof E, K>>
-type ObjectFixtures<
-  E extends object,
-  T extends object,
-  Context extends object = TestContext,
-> = {
+type ObjectFixtures<E, T, Context extends object = TestContext> = {
   [K in keyof E]:
     | FixtureValue<E, K, ObjectFixtureContext<E, T, K, Context>>
     | [
@@ -304,7 +293,7 @@ type ObjectFixtures<
 type FlattenFixtureContext<T> = { [Key in keyof T]: T[Key] }
 type ScopedFixtures<
   E extends ScopedFixturesDefinition,
-  T extends object,
+  T,
   Context extends object = TestContext,
 > = {
   [K in keyof NonNullable<E['$test']>]:
@@ -335,18 +324,15 @@ type ScopedFixtures<
   ]
 }
 
-export interface TestDeclaration<
-  T extends object = {},
-  Context extends object = TestContext,
-> {
+export interface TestDeclaration<T = {}, Context extends object = TestContext> {
   readonly fn: (
     this: Record<'concurrent' | 'only' | 'skip' | 'todo' | 'fails', any>,
     name: Name,
     options?: TestOptions,
     fn?: (context: Context & T) => void | PromiseLike<void>
   ) => void
-  describe: SuiteDeclaration<Context>
-  suite: SuiteDeclaration<Context>
+  describe: SuiteAPI
+  suite: SuiteAPI
   beforeEach(
     fn: (context: Context & T, suite: Readonly<Suite>) => unknown,
     timeout?: number
@@ -458,29 +444,36 @@ export interface TestDeclaration<
   ): TestDeclaration<T, Context>
 }
 
-export interface SuiteDeclaration<Context extends object = TestContext> {
-  readonly fn: (
+interface ChainableSuiteDeclaration<
+  ExtraContext,
+  Context extends object,
+  FactoryReturn,
+> {
+  fn: (
     this: Record<'concurrent' | 'only' | 'skip' | 'todo' | 'shuffle', any>,
     name: Name,
     options: SuiteOptions,
-    fn?: (test: TestDeclaration<{}, Context>) => void | PromiseLike<void>
-  ) => SuiteCollector<Omit<Context, keyof TestContext>>
-  <ExtraContext extends object = object>(
+    fn?: (
+      test: TestDeclaration<ExtraContext, Context>
+    ) => void | PromiseLike<void>
+  ) => SuiteCollector<ExtraContext>
+  <OverrideExtraContext extends ExtraContext = ExtraContext>(
     name: Name,
-    fn: (test: TestDeclaration<ExtraContext, Context>) => unknown,
+    fn?: (
+      test: TestDeclaration<OverrideExtraContext, Context>
+    ) => FactoryReturn,
     timeout?: number
-  ): void
-  <ExtraContext extends object = object>(
+  ): SuiteCollector<OverrideExtraContext>
+  <OverrideExtraContext extends ExtraContext = ExtraContext>(
     name: Name,
     options: SuiteOptions,
-    fn: (test: TestDeclaration<ExtraContext, Context>) => unknown
-  ): void
-  (name: Name): void
-  readonly skip: SuiteDeclaration<Context>
-  readonly only: SuiteDeclaration<Context>
-  readonly todo: SuiteDeclaration<Context>
-  readonly concurrent: SuiteDeclaration<Context>
-  readonly shuffle: SuiteDeclaration<Context>
+    fn?: (test: TestDeclaration<OverrideExtraContext, Context>) => FactoryReturn
+  ): SuiteCollector<OverrideExtraContext>
+  skip: ChainableSuiteDeclaration<ExtraContext, Context, FactoryReturn>
+  only: ChainableSuiteDeclaration<ExtraContext, Context, FactoryReturn>
+  todo: ChainableSuiteDeclaration<ExtraContext, Context, FactoryReturn>
+  concurrent: ChainableSuiteDeclaration<ExtraContext, Context, FactoryReturn>
+  shuffle: ChainableSuiteDeclaration<ExtraContext, Context, FactoryReturn>
   each<C extends readonly unknown[]>(
     cases: readonly C[]
   ): EachDeclaration<C, SuiteOptions>
@@ -494,16 +487,46 @@ export interface SuiteDeclaration<Context extends object = TestContext> {
     strings: TemplateStringsArray,
     ...values: any[]
   ): EachDeclaration<any[], SuiteOptions>
-  skipIf(condition: unknown): SuiteDeclaration<Context>
-  runIf(condition: unknown): SuiteDeclaration<Context>
 }
+
+type SuiteDeclarationPredicates<
+  ExtraContext,
+  Context extends object,
+  FactoryReturn,
+> = {
+  skipIf: (
+    condition: any
+  ) => ChainableSuiteDeclaration<ExtraContext, Context, FactoryReturn>
+  runIf: (
+    condition: any
+  ) => ChainableSuiteDeclaration<ExtraContext, Context, FactoryReturn>
+}
+
+export type SuiteAPI<ExtraContext = object> = ChainableSuiteDeclaration<
+  ExtraContext,
+  TestContext,
+  void | PromiseLike<void>
+> &
+  SuiteDeclarationPredicates<
+    ExtraContext,
+    TestContext,
+    void | PromiseLike<void>
+  >
+
+// Direct internal controls accept callback values ignored by the collector.
+// The public facade exposes the target's narrower SuiteAPI factory contract.
+export type SuiteDeclaration<
+  Context extends object = TestContext,
+  FactoryReturn = void | PromiseLike<void>,
+> = ChainableSuiteDeclaration<object, Context, FactoryReturn> &
+  SuiteDeclarationPredicates<object, Context, FactoryReturn>
 
 export interface TaskCustomOptions extends TestOptions {
   each?: boolean
   handler?: (context: TestContext) => void | PromiseLike<void>
 }
 
-export interface SuiteHooks<ExtraContext extends object = object> {
+export interface SuiteHooks<ExtraContext = object> {
   beforeAll: ((suite: Readonly<Suite | File>) => unknown)[]
   afterAll: ((suite: Readonly<Suite | File>) => unknown)[]
   beforeEach: ((
@@ -525,10 +548,10 @@ export interface SuiteHooks<ExtraContext extends object = object> {
   ) => unknown)[]
 }
 
-export interface SuiteCollector<ExtraContext extends object = object> {
+export interface SuiteCollector<ExtraContext = object> {
   type: 'collector'
   readonly name: string
-  readonly mode: TestMode
+  readonly mode: TestMode | 'queued'
   suite?: Suite
   options?: SuiteOptions
   test: TestDeclaration<ExtraContext>
@@ -794,6 +817,12 @@ export function createCollector(
   const pendingDeclarations: (() => void)[] = []
   type DeclarationFailure = Readonly<{ suite: TestSuite; reason: unknown }>
   const declarationFailures = new WeakMap<object, DeclarationFailure>()
+  const actualDeclarationFailures: DeclarationFailure[] = []
+  type CollectionCompletion = { started: boolean; settled: boolean }
+  const ownedCollections: {
+    promise: Promise<Suite>
+    completion: CollectionCompletion
+  }[] = []
   let settleCalls = 0
   let completedDeclarationFailure:
     | Readonly<{
@@ -801,10 +830,13 @@ export function createCollector(
         occurrences: readonly DeclarationFailure[]
         pendingCount: number
         rawCount: number
+        workCount: number
       }>
     | undefined
   const rawSuites: {
     collected: boolean
+    normal: boolean
+    manualCalls: number
     collect(file: File, automatic?: boolean): Promise<Suite>
     api?: SuiteCollector
   }[] = []
@@ -961,7 +993,8 @@ export function createCollector(
     name: Name,
     factory: Function | undefined,
     mode: TestMode,
-    options: SuiteOptions
+    options: SuiteOptions,
+    normal = false
   ): SuiteCollector {
     assertCollecting()
     const parent = currentSuite()
@@ -1009,12 +1042,45 @@ export function createCollector(
     }
     const state = {
       collected: false,
-      async collect(file: File, automatic = false): Promise<Suite> {
-        assertCollecting()
-        if (!file) throw new TypeError('File is required to collect tasks.')
+      normal,
+      manualCalls: 0,
+      collect(file: File, automatic = false): Promise<Suite> {
+        const completion = { started: false, settled: false }
+        const promise = collectOwned(completion, file, automatic)
+        // Only calls that actually entered collection own work. The original
+        // async promise is retained without adding a reaction or adoption.
+        if (completion.started) ownedCollections.push({ promise, completion })
+        return promise
+      },
+    }
+    async function collectOwned(
+      completion: CollectionCompletion,
+      file: File,
+      automatic: boolean
+    ): Promise<Suite> {
+      assertCollecting()
+      if (!file) throw new TypeError('File is required to collect tasks.')
+      completion.started = true
+      try {
         if (automatic) state.collected = true
+        else state.manualCalls++
         node.children = staged
-        if (factory) await suiteStorage.run(node, () => factory(test))
+        if (factory) {
+          try {
+            await suiteStorage.run(node, () => factory(test))
+          } catch (reason) {
+            if (normal && automatic) {
+              // This fact is issued only after this actual factory rejects.
+              // The settled result also preserves rejection on repeated settle.
+              const rejected = { status: 'rejected' as const, reason }
+              const occurrence = Object.freeze({ suite: node, reason })
+              actualDeclarationFailures.push(occurrence)
+              declarationFailures.set(rejected, occurrence)
+              pending.push(Promise.resolve(rejected))
+            }
+            throw reason
+          }
+        }
         async function descendants(container: TestSuite) {
           for (const child of container.children) {
             if (child.type !== 'suite') continue
@@ -1027,7 +1093,9 @@ export function createCollector(
         node.children = [...staged]
         refreshTasks()
         return publishSuite(node)
-      },
+      } finally {
+        completion.settled = true
+      }
     }
     async function collect(file: File) {
       return state.collect(file)
@@ -1153,7 +1221,6 @@ export function createCollector(
       const current = currentSuite()
       if (extra.length) unsupported('additional declaration arguments')
       name = formatName(name)
-      const id = `${current.id}/${current.children.length}`
       if (kind === 'suite') {
         let options: SuiteOptions = {}
         let fn: Function | undefined
@@ -1199,45 +1266,13 @@ export function createCollector(
             : options.todo
               ? 'todo'
               : mode
-        if (rawSuiteNodes.has(current)) {
-          rawSuite(
-            name,
-            fn,
-            !fn && optionMode === 'run' ? 'todo' : optionMode,
-            inheritedOptions
-          )
-          return
-        }
-        const child = suite(
-          id,
+        return rawSuite(
           name,
+          fn,
           !fn && optionMode === 'run' ? 'todo' : optionMode,
-          current,
-          inheritedOptions
+          inheritedOptions,
+          true
         )
-        captureSuiteLocation(child)
-        current.children.push(child)
-        const result = fn
-          ? suiteStorage.run(child, () => fn(declaration('test', 'run')))
-          : undefined
-        if (result && typeof result.then === 'function') {
-          // Observe immediately, but report after every nested collection job
-          // settles. The suite identity follows awaits without changing siblings.
-          pending.push(
-            Promise.resolve(result).then(
-              (value) => ({ status: 'fulfilled' as const, value }),
-              (reason) => {
-                const rejected = { status: 'rejected' as const, reason }
-                if (config.observeSettledDeclarationCoverage === true)
-                  declarationFailures.set(
-                    rejected,
-                    Object.freeze({ suite: child, reason })
-                  )
-                return rejected
-              }
-            )
-          )
-        }
       } else {
         let options: TestOptions
         let fn: TestBody | undefined
@@ -1350,7 +1385,7 @@ export function createCollector(
     }
     const chain = new Proxy(declare, {
       apply(target, receiver, args) {
-        Reflect.apply(target, receiver, args)
+        return Reflect.apply(target, receiver, args)
       },
       get(target, key, receiver) {
         if (key === 'fn') {
@@ -1731,7 +1766,7 @@ export function createCollector(
     'test',
     'run'
   )
-  const describe: SuiteDeclaration<InternalTestContext> = declaration(
+  const describe: SuiteDeclaration<InternalTestContext, unknown> = declaration(
     'suite',
     'run'
   )
@@ -1804,22 +1839,26 @@ export function createCollector(
               settleCalls !== 1 ||
               !completedDeclarationFailure ||
               completedDeclarationFailure.pendingCount !== pending.length ||
-              completedDeclarationFailure.rawCount !== rawSuites.length
+              completedDeclarationFailure.rawCount !== rawSuites.length ||
+              completedDeclarationFailure.workCount !==
+                ownedCollections.length ||
+              ownedCollections.some((work) => !work.completion.settled)
             )
               return undefined
             return completedDeclarationFailure
           },
         }
       : {}),
-    async settle() {
+    async settle({ startFactories = true }: { startFactories?: boolean } = {}) {
       settleCalls++
       completedDeclarationFailure = undefined
       const errors: unknown[] = []
       const occurrences: DeclarationFailure[] = []
-      // Awaiting a suite can register more async suites. Read the live queue
-      // length until all collection work, including rejected siblings, finishes.
+      // Read the live queues: an already-owned collection can issue nested
+      // work, but a failed load must not start automatic declarations.
       let index = 0
       let rawIndex = 0
+      let ownedIndex = 0
       while (index < pending.length || rawIndex < rawSuites.length) {
         while (index < pending.length) {
           const result = await pending[index++]
@@ -1829,12 +1868,34 @@ export function createCollector(
             if (occurrence) occurrences.push(occurrence)
           }
         }
+        // Registration does not start a factory. After an actual failure,
+        // drain already-started work without starting later declarations.
+        if (!startFactories || errors.length) {
+          rawIndex = rawSuites.length
+          while (ownedIndex < ownedCollections.length) {
+            const work = ownedCollections[ownedIndex++]
+            if (work.completion.settled) continue
+            try {
+              await work.promise
+            } catch {
+              // Public manual collect retains its rejection ownership. Its
+              // caller and the existing unhandled sink observe that value.
+            }
+          }
+          rawIndex = rawSuites.length
+          continue
+        }
         const raw = rawSuites[rawIndex++]
         if (raw && !raw.collected) {
+          const failureIndex = actualDeclarationFailures.length
           try {
             await raw.collect(publicTask(root) as File, true)
           } catch (error) {
-            errors.push(error)
+            const observed = actualDeclarationFailures.slice(failureIndex)
+            // The exact rejected result is drained from pending above. Raw
+            // or other collection failures still retain their actual value.
+            if (!observed.some((failure) => Object.is(failure.reason, error)))
+              errors.push(error)
           }
         }
       }
@@ -1846,7 +1907,8 @@ export function createCollector(
         if (
           config.observeSettledDeclarationCoverage === true &&
           settleCalls === 1 &&
-          rawSuites.length === 0 &&
+          rawSuites.every((state) => state.normal && state.manualCalls === 0) &&
+          ownedCollections.every((work) => work.completion.settled) &&
           occurrences.length === errors.length &&
           new Set(occurrences).size === occurrences.length
         )
@@ -1855,6 +1917,7 @@ export function createCollector(
             occurrences: Object.freeze(occurrences),
             pendingCount: pending.length,
             rawCount: rawSuites.length,
+            workCount: ownedCollections.length,
           })
         throw error
       }

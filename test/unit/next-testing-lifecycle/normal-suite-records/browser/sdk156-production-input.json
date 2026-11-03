@@ -1,0 +1,25 @@
+{
+  "args": [
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/vitest.mjs",
+    "run",
+    "--root",
+    "/private/tmp/suite-api-normal417/browser/genuine/sdk156/production/fixture",
+    "--mode",
+    "production",
+    "--config",
+    "/private/tmp/suite-api-normal417/browser/genuine/sdk156/production/fixture/vitest.config.mjs",
+    "--configLoader=native",
+    "--reporter=json",
+    "--reporter=/private/tmp/suite-api-normal417/browser/genuine/sdk156/production/fixture/reporter.mjs",
+    "--outputFile=/private/tmp/suite-api-normal417/browser/genuine/sdk156/production/report.json"
+  ],
+  "lane": "sdk156",
+  "mode": "production",
+  "sourceSHA256": "46be4ad3781eb2a15d95391e57502c0ff852efbe4eada7f9b544c12c2035550d",
+  "configSHA256": "993757d480130b1dfac21340725c482159287bc3c0ddb79c765ff365d26d15b1",
+  "executable": "/Users/timneutkens/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  "executableSHA256": "c8509aee32abd6977968e9999769980b7a420dea05402d90042d9e5b41db15ef",
+  "configuredUniquePort": 51084,
+  "actualNode": "v26.12.1",
+  "noProviderWrapperOrCanonicalWrites": true
+}

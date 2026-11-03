@@ -1,0 +1,22 @@
+{
+  "hook": "end",
+  "reason": "failed",
+  "errors": [],
+  "addresses": [
+    {
+      "name": "chromium",
+      "address": {
+        "address": "127.0.0.1",
+        "family": "IPv4",
+        "port": 53595
+      },
+      "resolvedUrls": {
+        "local": [
+          "http://127.0.0.1:53595/"
+        ],
+        "network": [],
+        "networkInterfaceNames": []
+      }
+    }
+  ]
+}

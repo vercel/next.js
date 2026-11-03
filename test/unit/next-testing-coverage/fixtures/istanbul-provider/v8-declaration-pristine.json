@@ -481,8 +481,8 @@
           "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
         },
         "setup.mjs": {
-          "source": "import {choose} from './subject.mjs'\nimport {describe} from 'vitest'\nimport {writeFileSync} from 'node:fs'\nwriteFileSync(process.cwd()+'/pending-load.txt','ACTUAL_PENDING_LOAD')\nconst failure=new Error('same actual load and collector-settle failure')\ndescribe('owned async suite',async()=>{await new Promise(()=>{});throw failure})\nchoose(false)\nthrow failure\n",
-          "sha256": "6ffea01f297127ee6b750bd49b95ffa67f366fd6bf24f616666a42f6ae2480ba"
+          "source": "import {choose} from './subject.mjs'\nimport {describe} from 'vitest'\nimport {writeFileSync} from 'node:fs'\nwriteFileSync(process.cwd()+'/pending-load.txt','ACTUAL_PENDING_LOAD')\nconst failure=new Error('same actual load and collector-settle failure')\nconst owned=describe('owned async suite',async()=>{await new Promise(()=>{});throw failure})\nvoid owned.collect(owned.file)\nchoose(false)\nthrow failure\n",
+          "sha256": "fec2946d931a6d2d875ca1de8ba94b10f8bf4ca5a25f54b54fe5f5f2e8aea79c"
         },
         "serializer.mjs": {
           "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",

@@ -42,12 +42,13 @@ export type {
   TestOptions,
   SuiteOptions,
   SuiteCollector,
+  SuiteAPI,
   TaskCustomOptions,
   OnTestFinishedHandler,
   OnTestFailedHandler,
 } from './runner/collector'
 export type SuiteFactory<ExtraContext = object> = (
-  test: TestDeclaration<ExtraContext & object>
+  test: TestDeclaration<ExtraContext>
 ) => void | PromiseLike<void>
 export type TestFunction<ExtraContext = object> = (
   context: TestContext & ExtraContext
@@ -74,8 +75,7 @@ export type {
   TestArtifactLocation,
   TestAnnotationLocation,
 } from './runner/tasks'
-export type TestAPI<ExtraContext extends object = {}> =
-  TestDeclaration<ExtraContext>
+export type TestAPI<ExtraContext = {}> = TestDeclaration<ExtraContext>
 export type TaskState = import('./runner/tasks').TaskResult['state']
 export type TestExecutionMethod = 'run' | 'collect'
 export interface TestTryOptions {
@@ -108,7 +108,7 @@ import {
   unsupported,
   testDeclarationMembers,
   type TestDeclaration,
-  type SuiteDeclaration,
+  type SuiteAPI,
   type TestBody,
   type TestContext,
   type OnTestFinishedHandler,
@@ -196,7 +196,7 @@ export const Snapshots = createSnapshotHelpers((method, state, args) =>
 
 export const test: TestDeclaration = declaration('test')
 export const it = test
-export const describe: SuiteDeclaration = declaration('describe')
+export const describe: SuiteAPI = declaration('describe')
 export const suite = describe
 registerTestSuiteAlias(describe)
 type TestHookBody<ExtraContext> = (

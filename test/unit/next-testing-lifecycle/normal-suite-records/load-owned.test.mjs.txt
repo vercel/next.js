@@ -1,0 +1,21 @@
+import fs from 'node:fs'
+import { describe } from 'vitest'
+const trace = []
+const loadFailure = new Error('actual original module load failure')
+const ownedFailure = new Error('actual already-started collect failure')
+const observedFD = fs.openSync(process.env.NEXT_SUITE_RETURN_OBSERVATION, 'w')
+process.once('exit', () => fs.writeSync(observedFD, JSON.stringify({ trace }) + '\n'))
+const owned = describe('explicitly started', async provided => {
+ trace.push('owned factory entered')
+ await new Promise(setImmediate)
+ trace.push('owned factory resumed')
+ provided('not an executed body', () => trace.push('body entered'))
+ throw ownedFailure
+})
+describe('not explicitly started', () => { trace.push('unstarted factory entered') })
+trace.push('before explicit collect')
+const pending = owned.collect(owned.file)
+pending.then(() => trace.push('owned fulfilled'), error => trace.push(['owned rejected', error === ownedFailure]))
+trace.push('after explicit collect')
+trace.push('before original load throw')
+throw loadFailure

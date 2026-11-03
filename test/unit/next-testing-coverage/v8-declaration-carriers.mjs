@@ -108,9 +108,11 @@ if (phase !== 'child') {
         )
       }
       if (mode === 'collector-multiple') {
-        assert(caught instanceof globalThis.AggregateError)
-        assert.deepEqual(caught.errors, [failure, failure])
-        assert.notEqual(observed.occurrences[0], observed.occurrences[1])
+        assert.equal(caught, failure)
+        assert.deepEqual(
+          observed.occurrences.map(({ reason }) => reason),
+          [failure]
+        )
       }
       if (mode === 'collector-repeat') {
         await assert.rejects(collector.settle(), (error) => error === failure)
@@ -120,7 +122,7 @@ if (phase !== 'child') {
         )
       }
     }
-    assert.equal(callbacks, mode === 'collector-multiple' ? 2 : 1)
+    assert.equal(callbacks, 1)
     collector.close()
   } else {
     const runner = load('next/dist/experimental/testing/runner')
@@ -164,24 +166,20 @@ if (phase !== 'child') {
       }
       assert.equal(disposeError, undefined)
       const observed = file.getCompletedCollectionCoverageFailure()
-      if (mode === 'file-omitted' || mode === 'file-assertion') {
+      if (mode === 'file-assertion') {
         assert.equal(observed, undefined)
         if (mode === 'file-assertion') {
           assert(caught instanceof globalThis.AggregateError)
-          assert.equal(caught.errors.length, 3)
+          assert.equal(caught.errors.length, 2)
           assert.equal(caught.errors[0], failure)
-          assert.equal(caught.errors[1], failure)
-          assert.notEqual(caught.errors[2], failure)
+          assert.notEqual(caught.errors[1], failure)
         }
       } else {
         assert(observed && Object.isFrozen(observed))
         assert.equal(observed.error, caught)
-        assert(caught instanceof globalThis.AggregateError)
-        assert.equal(caught.errors.length, 2)
-        if (mode !== 'file-assertion')
-          assert.deepEqual(caught.errors, [failure, failure])
+        assert.equal(caught, failure)
       }
-      assert.equal(callbacks, 1)
+      assert.equal(callbacks, 0)
       assert.equal(file.getOperationSettlement(), undefined)
       assert.equal(file.getNativeBodySettlement(), undefined)
       assert.equal(file.getCompletedCoverageFailures(), undefined)

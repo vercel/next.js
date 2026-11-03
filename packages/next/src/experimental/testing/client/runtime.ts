@@ -480,7 +480,13 @@ export async function startClientTest(
         browserContext.install()
         await moduleMocks?.register()
         await loadSetupModules?.()
-        return load()
+        try {
+          return await load()
+        } catch (cause) {
+          throw new Error(`Failed to import test file ${config.filePath}`, {
+            cause,
+          })
+        }
       })
       moduleFailurePhase = undefined
       const declarations = file.validateBrowserClient({
