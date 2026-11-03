@@ -10,13 +10,9 @@ import { turbopackAnalyze, type AnalyzeContext } from '../turbopack-analyze'
 import { durationToString } from '../duration-to-string'
 import { Lockfile } from '../lockfile'
 import { installBindings } from '../swc/install-bindings'
-import { cpSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
-import { discoverRoutes } from '../route-discovery'
-import { findPagesDir } from '../../lib/find-pages-dir'
-import loadCustomRoutes from '../../lib/load-custom-routes'
-import { generateRoutesManifest } from '../generate-routes-manifest'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { cpSync, mkdirSync, rmSync } from 'node:fs'
 import {
+  readAnalyzeRoutes,
   writeAnalyzeSnapshot,
   snapshotNameSchema,
   type SnapshotMetadata,
@@ -28,7 +24,6 @@ import serveHandler from 'next/dist/compiled/serve-handler'
 import { Telemetry } from '../../telemetry/storage'
 import { eventAnalyzeCompleted } from '../../telemetry/events'
 import { traceGlobals } from '../../trace/shared'
-import type { RoutesManifest } from '..'
 import { Bundler } from '../../lib/bundler'
 
 export type AnalyzeOptions = {
@@ -108,16 +103,11 @@ export default async function analyze({
 
     await shutdownPromise
 
-    const routes = await collectRoutesForAnalyze(dir, config, appDirOnly)
-
     cpSync(path.join(__dirname, '../../bundle-analyzer'), analyzeDir, {
       recursive: true,
     })
     mkdirSync(path.join(analyzeDir, 'data'), { recursive: true })
-    writeFileSync(
-      path.join(analyzeDir, 'data', 'routes.json'),
-      JSON.stringify(routes, null, 2)
-    )
+    const routes = readAnalyzeRoutes(path.join(analyzeDir, 'data'))
 
     // Capture this build alongside any prior builds so the analyzer UI can
     // offer it as a comparison baseline in the future.
@@ -162,80 +152,6 @@ export default async function analyze({
   } finally {
     await lockfile?.unlock()
   }
-}
-
-/**
- * Collects all routes from the project for the bundle analyzer.
- * Returns a list of route paths (both static and dynamic).
- */
-async function collectRoutesForAnalyze(
-  dir: string,
-  config: NextConfigComplete,
-  appDirOnly: boolean
-): Promise<string[]> {
-  const { pagesDir, appDir } = findPagesDir(dir)
-
-  let appType: RoutesManifest['appType']
-  if (pagesDir && appDir) {
-    appType = 'hybrid'
-  } else if (pagesDir) {
-    appType = 'pages'
-  } else if (appDir) {
-    appType = 'app'
-  } else {
-    throw new Error('No pages or app directory found.')
-  }
-
-  const discovery = await discoverRoutes({
-    appDir,
-    pagesDir,
-    pageExtensions: config.pageExtensions,
-    isDev: false,
-    baseDir: dir,
-    isSrcDir: path.relative(dir, pagesDir || appDir || '').startsWith('src'),
-    appDirOnly,
-  })
-
-  const pageKeys = {
-    pages: Object.keys(discovery.mappedPages || {}),
-    app: discovery.mappedAppPages
-      ? Object.keys(discovery.mappedAppPages).map((key) =>
-          normalizeAppPath(key)
-        )
-      : [],
-  }
-
-  // Load custom routes
-  const { redirects, headers, onMatchHeaders, rewrites } =
-    await loadCustomRoutes(config)
-
-  // Compute restricted redirect paths
-  const restrictedRedirectPaths = ['/_next'].map((pathPrefix) =>
-    config.basePath ? `${config.basePath}${pathPrefix}` : pathPrefix
-  )
-
-  const isAppPPREnabled = Boolean(config.cacheComponents)
-
-  // Generate routes manifest
-  const { routesManifest } = generateRoutesManifest({
-    appType,
-    pageKeys,
-    config,
-    redirects,
-    headers,
-    onMatchHeaders,
-    rewrites,
-    restrictedRedirectPaths,
-    isAppPPREnabled,
-  })
-
-  return Array.from(
-    new Set(
-      routesManifest.dynamicRoutes
-        .map((r) => r.page)
-        .concat(routesManifest.staticRoutes.map((r) => r.page))
-    )
-  )
 }
 
 function startServer(dir: string, port: number): Promise<void> {

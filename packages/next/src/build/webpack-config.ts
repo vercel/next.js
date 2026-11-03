@@ -19,6 +19,8 @@ import {
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
+  CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME,
+  CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
@@ -804,7 +806,7 @@ export default async function getBaseWebpackConfig(
     plugins: [
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
-    ...((isRspack && jsConfigPath
+    ...(isRspack && jsConfigPath
       ? {
           // Skip paths that are routed to a .d.ts file
           restrictions: [/^(?!.*\.d\.ts$).*$/],
@@ -812,7 +814,7 @@ export default async function getBaseWebpackConfig(
             configFile: jsConfigPath,
           },
         }
-      : {}) as any),
+      : {}),
   }
 
   // Resolve server-relative imports (e.g. `/styles/foo`) from the app
@@ -2171,6 +2173,29 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
+      isClient &&
+        hasAppDir &&
+        config.experimental.externalBrowserRuntime === true &&
+        new CopyFilePlugin({
+          // React only publishes this standalone runtime on the experimental
+          // channel, which `experimental.externalBrowserRuntime` opts into via
+          // `needsExperimentalReact`. Keep it small and independent of the
+          // framework bundle so it can reveal streamed Suspense boundaries
+          // before the framework loads or hydration begins.
+          filePath: require.resolve(
+            '../compiled/react-dom-experimental/unstable_server-external-runtime'
+          ),
+          cacheKey: process.env.__NEXT_VERSION as string,
+          name: `static/chunks/${CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME}${
+            dev ? '' : '-[hash]'
+          }.js`,
+          minimize: false,
+          info: {
+            [CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL]: 1,
+            // This file is already minified
+            minimized: true,
+          },
+        }),
       hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
@@ -2733,7 +2758,7 @@ export default async function getBaseWebpackConfig(
     }
 
     webpackConfig.module.rules = [
-      ...(topRules as any),
+      ...topRules,
       {
         oneOf: [...innerRules, fileLoader],
       },

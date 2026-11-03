@@ -693,7 +693,6 @@ pub enum Entrypoint {
     AppRoute {
         page: AppPage,
         path: FileSystemPath,
-        root_layouts: ResolvedVc<FileSystemPathVec>,
         root_params: ResolvedVc<RootParamVecOption>,
     },
     AppMetadata {
@@ -854,7 +853,6 @@ fn add_app_route(
     result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     path: FileSystemPath,
-    root_layouts: ResolvedVc<FileSystemPathVec>,
     root_params: ResolvedVc<RootParamVecOption>,
 ) {
     let e = match result.entry(page.clone().into()) {
@@ -863,7 +861,6 @@ fn add_app_route(
             e.insert(Entrypoint::AppRoute {
                 page,
                 path,
-                root_layouts,
                 root_params,
             });
             return;
@@ -2266,7 +2263,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             &mut result,
             app_page.complete(PageType::Route)?,
             route.clone(),
-            root_layouts,
             root_params,
         );
     }
@@ -2378,6 +2374,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     segment: rcstr!("/_not-found"),
                     parallel_routes: fxindexmap! {
                         rcstr!("children") => AppPageLoaderTree {
+                            // Keep the root identity so the synthetic leaf does not contribute
+                            // runtime or deployment config, matching webpack's layout inheritance.
                             page: app_page.clone(),
                             segment: rcstr!("__PAGE__"),
                             parallel_routes: FxIndexMap::default(),
@@ -2607,7 +2605,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 Entrypoint::AppRoute {
                     page,
                     path,
-                    root_layouts,
                     root_params,
                 } => {
                     add_app_route(
@@ -2615,7 +2612,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         &mut result,
                         page.clone(),
                         path.clone(),
-                        *root_layouts,
                         *root_params,
                     );
                 }

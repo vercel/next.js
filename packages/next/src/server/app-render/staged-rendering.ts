@@ -9,7 +9,6 @@ export enum RenderStage {
   PrefetchStatic_prefetchApi = 11,
   PrefetchStatic = 12,
   NavigationStatic = 13,
-  Static = 14,
   //
   ShellRuntime = 20,
   /** Discrimination-only stage: `prefetch()` in validation renders (runtime) */
@@ -31,7 +30,6 @@ export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
   RenderStage.PrefetchStatic_prefetchApi,
   RenderStage.PrefetchStatic,
   RenderStage.NavigationStatic,
-  RenderStage.Static,
   //
   RenderStage.ShellRuntime,
   RenderStage.PrefetchRuntime_prefetchApi,
@@ -139,7 +137,7 @@ export class StagedRenderingController {
         // Do not track it before the render, or in runtime/dynamic stages.
         return (
           currentStage > RenderStage.Before &&
-          currentStage <= RenderStage.Static
+          currentStage <= RenderStage.NavigationStatic
         )
       }
       case SyncIOMode.AllowedInDynamic: {

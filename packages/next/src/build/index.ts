@@ -79,7 +79,6 @@ import {
   MIDDLEWARE_MANIFEST,
   APP_PATHS_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
-  RSC_MODULE_TYPES,
   NEXT_FONT_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
@@ -132,7 +131,7 @@ import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner, { finishSpinner } from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
-import { writeAnalyzeSnapshot } from './analyze/snapshot'
+import { readAnalyzeRoutes, writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
@@ -236,7 +235,7 @@ import {
   sortPagesObject,
   sortSortableRouteObjects,
 } from '../shared/lib/router/utils/sortable-routes'
-import { cp, mkdir, writeFile } from 'fs/promises'
+import { cp, mkdir } from 'fs/promises'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -2469,6 +2468,23 @@ export default async function build(
           }
         }
 
+        // Reverse index of `appPathRoutes`: normalized pathname -> original app
+        // paths that have an entry in `mappedAppPages`. Built once up front so
+        // the per-page check below doesn't scan every route for every page.
+        const originalAppPathsByPage = new Map<string, string[]>()
+        if (mappedAppPages) {
+          for (const originalPath in appPathRoutes) {
+            if (!mappedAppPages[originalPath]) continue
+            const normalizedPath = appPathRoutes[originalPath]
+            const originalAppPaths = originalAppPathsByPage.get(normalizedPath)
+            if (originalAppPaths) {
+              originalAppPaths.push(originalPath)
+            } else {
+              originalAppPathsByPage.set(normalizedPath, [originalPath])
+            }
+          }
+        }
+
         await Promise.all(
           Object.entries(pageKeys)
             .reduce<Array<{ pageType: keyof typeof pageKeys; page: string }>>(
@@ -2498,7 +2514,6 @@ export default async function build(
                 let isEnsureStaticPage = false
                 let isSSG = false
                 let isStatic = false
-                let isServerComponent = false
                 let ssgPageRoutes: string[] | null = null
                 let pagePath = ''
 
@@ -2515,19 +2530,9 @@ export default async function build(
                 let originalAppPath: string | undefined
 
                 if (pageType === 'app' && mappedAppPages) {
-                  const originalAppPaths: string[] = []
-                  for (const [originalPath, normalizedPath] of Object.entries(
-                    appPathRoutes
-                  )) {
-                    if (
-                      normalizedPath === page &&
-                      mappedAppPages[originalPath]
-                    ) {
-                      originalAppPaths.push(originalPath)
-                    }
-                  }
+                  const originalAppPaths = originalAppPathsByPage.get(page)
 
-                  if (originalAppPaths.length > 0) {
+                  if (originalAppPaths) {
                     originalAppPath = selectAppPageEntry(page, originalAppPaths)
                     pagePath = mappedAppPages[originalAppPath].replace(
                       /^private-next-app-dir/,
@@ -2589,10 +2594,6 @@ export default async function build(
                   : staticInfo?.runtime
 
                 if (!isCompileMode) {
-                  isServerComponent =
-                    pageType === 'app' &&
-                    staticInfo?.rsc !== RSC_MODULE_TYPES.client
-
                   if (pageType === 'app' || !isReservedPage(page)) {
                     try {
                       let edgeInfo: any
@@ -2834,16 +2835,10 @@ export default async function build(
                           serverPropsPages.add(page)
                         } else if (
                           workerResult.isStatic &&
-                          !isServerComponent &&
                           (await customAppGetInitialPropsPromise) === false
                         ) {
                           staticPages.add(page)
                           isStatic = true
-                        } else if (isServerComponent) {
-                          // This is a static server component page that doesn't have
-                          // gSP or gSSP. We still treat it as a SSG page.
-                          ssgPages.add(page)
-                          isSSG = true
                         }
 
                         if (hasPages404 && page === '/404') {
@@ -4855,18 +4850,7 @@ export default async function build(
           recursive: true,
         })
 
-        // Write an index of routes for the route picker
-        const routes = Array.from(
-          new Set(
-            routesManifest.dynamicRoutes
-              .map((r) => r.page)
-              .concat(routesManifest.staticRoutes.map((r) => r.page))
-          )
-        )
-        await writeFile(
-          path.join(analyzeDir, 'data/routes.json'),
-          JSON.stringify(routes, null, 2)
-        )
+        const routes = readAnalyzeRoutes(path.join(analyzeDir, 'data'))
 
         // Capture this build alongside any prior builds so the analyzer UI
         // can offer it as a comparison baseline in the future.

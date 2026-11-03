@@ -1,3 +1,4 @@
+import { OpenInEditorButton } from '../open-in-editor-button'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 
 type EditorLinkProps = {
@@ -19,40 +20,28 @@ export function EditorLink({ file, location }: EditorLinkProps) {
     <div
       data-with-open-in-editor-link
       data-with-open-in-editor-link-import-trace
-      role={'link'}
-      onClick={open}
-      title={'Click to open in your editor'}
     >
-      {file}
-      {location ? `:${location.line}:${location.column}` : null}
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-        <polyline points="15 3 21 3 21 9"></polyline>
-        <line x1="10" y1="14" x2="21" y2="3"></line>
-      </svg>
+      <span>
+        {file}
+        {location ? `:${location.line}:${location.column}` : null}
+      </span>
+      <OpenInEditorButton
+        onClick={open}
+        aria-label={`Open ${file} in editor`}
+      />
     </div>
   )
 }
 
 export const EDITOR_LINK_STYLES = `
-  [data-with-open-in-editor-link] svg {
-    width: auto;
-    height: var(--size-14);
-    margin-left: 8px;
-  }
   [data-with-open-in-editor-link] {
-    cursor: pointer;
-  }
-  [data-with-open-in-editor-link]:hover {
-    text-decoration: underline dotted;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   [data-with-open-in-editor-link-import-trace] {
     margin-left: 16px;

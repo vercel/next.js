@@ -2,10 +2,7 @@
 
 import type { RouteTree } from '../../client/components/segment-cache/cache'
 
-import type {
-  ScrollHandlerRef,
-  PrefetchKind,
-} from '../../client/components/router-reducer/router-reducer-types'
+import type { ScrollHandlerRef } from '../../client/components/router-reducer/router-reducer-types'
 import type { Params } from '../../server/request/params'
 import type {
   FlightRouterState,
@@ -27,8 +24,25 @@ export interface NavigateOptions {
   transitionTypes?: string[]
 }
 
+/**
+ * A navigation started by `router.experimental_prepare()`. Call `push` or
+ * `replace` to commit it. A prepared navigation can only be committed once;
+ * later calls have no effect.
+ * @experimental
+ */
+export interface PreparedNavigation {
+  /**
+   * Commit the navigation, pushing a new history entry.
+   */
+  push(options?: NavigateOptions): void
+  /**
+   * Commit the navigation, replacing the current history entry.
+   */
+  replace(options?: NavigateOptions): void
+}
+
 export interface PrefetchOptions {
-  kind: PrefetchKind
+  kind?: 'auto' | 'full' | 'shell' | 'prefetch' | 'navigation'
   onInvalidate?: () => void
 }
 
@@ -71,6 +85,23 @@ export interface AppRouterInstance {
    */
   experimental_gesturePush?(href: string, options?: NavigateOptions): void
   /**
+   * Start a navigation without committing it. The navigation's data is
+   * requested immediately; calling `push` or `replace` on the result commits
+   * the navigation, reusing that data. For example, prepare on `pointerdown`
+   * and commit on `click`.
+   *
+   * Unlike `prefetch`, this issues the full dynamic request for the route, the
+   * same as a regular navigation.
+   *
+   * If the navigation is never committed, its data remains in the router's
+   * back/forward cache, where a back/forward navigation to an overlapping
+   * route may display it.
+   *
+   * Only available when experimental.prepareNavigation is enabled.
+   * @experimental
+   */
+  experimental_prepare?(href: string): PreparedNavigation
+  /**
    * An opaque string identifier scoped to the current route segment.
    *
    * Changes when the surrounding segment is freshly created by a push or
@@ -112,7 +143,7 @@ export const GlobalLayoutRouterContext = React.createContext<{
   previousNextUrl: string | null
 }>(null as any)
 
-export const TemplateContext = React.createContext<React.ReactNode>(null as any)
+export const TemplateContext = React.createContext<React.ReactNode>(null)
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'
