@@ -1578,6 +1578,12 @@ async fn parse_segment_config_from_loader_tree_internal(
     .into_iter()
     .flatten()
     {
+        // The synthetic global 404 uses global-not-found as its layout module, but it is not
+        // a route segment layout. Its exports do not select the entry's runtime or deployment
+        // configuration; webpack always builds this standalone entry for Node.js.
+        if modules.global_not_found.as_ref() == Some(&path) {
+            continue;
+        }
         let source = Vc::upcast(FileSource::new(path.clone()));
         config.apply_parent_config(
             &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?,
