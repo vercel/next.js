@@ -1,6 +1,6 @@
 // this must come first as it includes require hooks
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
-import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
+import type { DevBundler, ServerFields } from './router-utils/dev-bundler-types'
 import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 
 // This is required before other imports to ensure the require hook is setup.

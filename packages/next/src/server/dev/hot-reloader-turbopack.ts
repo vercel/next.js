@@ -79,11 +79,11 @@ import {
   normalizedPageToTurbopackStructureRoute,
   type StartChangeSubscription,
 } from './turbopack-utils'
-import {
-  propagateServerField,
-  type ServerFields,
-  type SetupOpts,
-} from '../lib/router-utils/setup-dev-bundler'
+import { propagateServerField } from '../lib/router-utils/dev-bundler-server-fields'
+import type {
+  ServerFields,
+  SetupOpts,
+} from '../lib/router-utils/dev-bundler-types'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { findPagePathData } from './on-demand-entry-handler'
 import type { RouteDefinition } from '../route-definitions/route-definition'
@@ -409,6 +409,10 @@ function getSourceMapURLFromTurbopack(
   return pathToFileURL(scriptPath + '.map').href
 }
 
+type TurbopackHotReloader = NextJsHotReloaderInterface & {
+  turbopackProject: Project
+}
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts & { isSrcDir: boolean },
   serverFields: ServerFields,
@@ -416,7 +420,7 @@ export async function createHotReloaderTurbopack(
   resetFetch: () => void,
   lockfile: Lockfile | undefined,
   serverFastRefresh?: boolean
-): Promise<NextJsHotReloaderInterface> {
+): Promise<TurbopackHotReloader> {
   const dev = true
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
@@ -1528,7 +1532,7 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  const hotReloader: NextJsHotReloaderInterface = {
+  const hotReloader: TurbopackHotReloader = {
     turbopackProject: project,
     onNativeRoutesChanged(listener) {
       nativeRouteListeners.add(listener)

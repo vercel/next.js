@@ -23,7 +23,7 @@ import {
 } from '../constants'
 import { join, posix } from 'path'
 import { readFileSync } from 'fs'
-import type { SetupOpts } from '../../../server/lib/router-utils/setup-dev-bundler'
+import type { SetupOpts } from '../../../server/lib/router-utils/dev-bundler-types'
 import { deleteCache } from '../../../server/dev/require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
