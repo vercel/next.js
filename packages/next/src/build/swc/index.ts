@@ -550,7 +550,7 @@ function bindingToApi(
         }[]
       }
     | {
-        type: 'app-route'
+        type: 'app-route' | 'app-route-go'
         originalName: string
         hasActionManifest: boolean
         endpoint: NapiEndpoint
@@ -1243,8 +1243,9 @@ function bindingToApi(
           }
           break
         case 'app-route':
+        case 'app-route-go':
           route = {
-            type: 'app-route',
+            type: nativeRoute.type,
             originalName: nativeRoute.originalName,
             hasActionManifest: nativeRoute.hasActionManifest,
             endpoint: new EndpointImpl(nativeRoute.endpoint),
