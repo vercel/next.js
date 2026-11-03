@@ -1950,6 +1950,18 @@ async fn directory_tree_to_loader_tree_internal(
                     missing_defaults.push((app_page.clone(), key.into()));
                 }
 
+                // An ordinary page and an explicit @children page share the same slot key.
+                // Keep the ordinary page, matching webpack, rather than replacing it with the
+                // slot's subtree. Both entry identities and their participating files are retained
+                // when the child entrypoints are combined.
+                if key == "children"
+                    && tree
+                        .parallel_routes
+                        .get("children")
+                        .is_some_and(|tree| &*tree.segment == "__PAGE__")
+                {
+                    continue;
+                }
                 tree.parallel_routes.insert(key.into(), subtree);
                 continue;
             }
