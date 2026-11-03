@@ -70,7 +70,7 @@ describe('special project paths', () => {
   describe('in "percent%20dir"', () => {
     const { next } = setup('percent%20dir')
 
-    it.failing('symbolicates thrown SSR errors', async () => {
+    it('symbolicates thrown SSR errors', async () => {
       await assertSymbolicatedSSRError(next)
     })
   })

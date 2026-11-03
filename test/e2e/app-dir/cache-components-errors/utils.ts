@@ -107,6 +107,41 @@ export function getDeterministicOutput(
       foundStartingLine &&
       !ignoredLines.some((ignoredLine) => line.includes(ignoredLine))
     ) {
+      // Node.js 22+ collapses runs of identical stack frames into
+      // "    ... collapsed 30 duplicate lines matching above 10 lines 3 times...".
+      // Node.js 20 prints every frame, so expand the run back to keep the
+      // output deterministic across versions.
+      const collapsedFrames =
+        /^\s*\.\.\. collapsed (\d+) duplicate lines matching above (\d+) lines (\d+) times\.\.\.$/.exec(
+          line
+        )
+      if (collapsedFrames !== null) {
+        const groupSize = Number(collapsedFrames[2])
+        const times = Number(collapsedFrames[3])
+        const group = lines.slice(lines.length - groupSize)
+        if (group.length === groupSize) {
+          for (let t = 0; t < times; t++) {
+            for (const groupLine of group) {
+              // Minified frames are lettered or numbered sequentially, so
+              // continue the sequence instead of repeating the group's values.
+              const lettered =
+                /^ {4}at [a-z] (\((?:<next-dist-dir>|<anonymous>)\))$/.exec(
+                  groupLine
+                )
+              const numeric = /^ {4}at \d+ (\(.*\))$/.exec(groupLine)
+              if (lettered !== null) {
+                lines.push(`    at ${abc[a++ % abc.length]} ${lettered[1]}`)
+              } else if (numeric !== null) {
+                lines.push(`    at ${n++} ${numeric[1]}`)
+              } else {
+                lines.push(groupLine)
+              }
+            }
+          }
+        }
+        continue
+      }
+
       if (
         !isCollapsingFrameworkFrames &&
         /^\s+at .*node_modules\/next\/dist\//.test(line)

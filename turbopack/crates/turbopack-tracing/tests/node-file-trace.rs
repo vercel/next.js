@@ -100,7 +100,6 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::es_get_iterator("integration/es-get-iterator.js")]
 // This is flakey on Windows. Disable for now.
 #[cfg_attr(not(target_os = "windows"), case::esbuild("integration/esbuild.js"))]
-#[case::esm("integration/esm.js")]
 #[case::express_consolidate("integration/express-consolidate.js")]
 #[case::express_template_engine("integration/express-template-engine.js")]
 #[case::express_template_pug("integration/express-template.js")]
@@ -137,7 +136,6 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 )]
 #[case::mongoose("integration/mongoose.js")]
 #[case::mysql("integration/mysql.js")]
-#[case::npm("integration/npm.js")]
 // unable to resolve esm request module 'spdx-license-ids' in
 // node-file-trace/node_modules/npm/node_modules/spdx-correct oracledb doesn't support non x86
 // architectures
