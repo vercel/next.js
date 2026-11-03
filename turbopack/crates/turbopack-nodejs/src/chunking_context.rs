@@ -82,6 +82,12 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    /// EXPERIMENTAL. See [`ChunkingContext::minify_before_chunking`].
+    pub fn minify_before_chunking(mut self, minify_before_chunking: bool) -> Self {
+        self.chunking_context.minify_before_chunking = minify_before_chunking;
+        self
+    }
+
     pub fn source_maps(mut self, source_maps: SourceMapsType) -> Self {
         self.chunking_context.source_maps_type = source_maps;
         self
@@ -230,6 +236,9 @@ pub struct NodeJsChunkingContext {
     enable_dynamic_chunk_content_loading: bool,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
+    /// EXPERIMENTAL: minify each chunk item before the chunk is assembled, rather than minifying
+    /// the finished chunk. See [`ChunkingContext::minify_before_chunking`].
+    minify_before_chunking: bool,
     /// Whether to generate source maps
     source_maps_type: SourceMapsType,
     /// Whether to use manifest chunks for lazy compilation
@@ -289,6 +298,7 @@ impl NodeJsChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
+                minify_before_chunking: false,
                 source_maps_type: SourceMapsType::Full,
                 manifest_chunks: false,
                 source_map_source_type: SourceMapSourceType::TurbopackUri,
@@ -436,6 +446,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn minify_before_chunking(&self) -> Vc<bool> {
+        Vc::cell(self.minify_before_chunking)
     }
 
     #[turbo_tasks::function]

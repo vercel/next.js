@@ -7,7 +7,9 @@ const nextConfig = {
     default:
       process.env.CACHE_HANDLER_THROW_ON === 'retry-get'
         ? require.resolve('./retrying-cache-handler.js')
-        : require.resolve('./throwing-cache-handler.js'),
+        : process.env.CACHE_HANDLER_THROW_ON === 'shared-write-failure'
+          ? require.resolve('./shared-write-failure-handler.js')
+          : require.resolve('./throwing-cache-handler.js'),
   },
 }
 

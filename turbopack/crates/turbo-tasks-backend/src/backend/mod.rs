@@ -34,7 +34,7 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, field::display, trace_span};
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{
-    CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
+    CellId, CellKey, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
     ReadConsistency, ReadOutcome, ReadOutputOptions, ReadTracking, SharedReference,
     TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId,
     TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
@@ -1052,15 +1052,18 @@ impl TurboTasksBackend {
             reader: Option<TaskId>,
             reader_task: Option<TaskGuard<'_>>,
             cell: CellId,
-            key: Option<u64>,
+            key: Option<CellKey>,
         ) {
             if let Some(mut reader_task) = reader_task {
                 let reader = reader.unwrap();
                 let reverse = CellRef { task: reader, cell };
-                if let Some(k) = key {
-                    let _ = task.add_cell_dependents_hashed((reverse, k));
-                } else {
-                    let _ = task.add_cell_dependents(reverse);
+                match key {
+                    None => {
+                        let _ = task.add_cell_dependents(reverse);
+                    }
+                    Some(key) => {
+                        let _ = task.add_cell_dependents_keyed((reverse, key));
+                    }
                 }
                 drop(task);
 
@@ -1073,12 +1076,17 @@ impl TurboTasksBackend {
                     task: task_id,
                     cell,
                 };
-                if let Some(k) = key {
-                    if !reader_task.remove_outdated_cell_dependencies_hashed(&(target, k)) {
-                        let _ = reader_task.add_cell_dependencies_hashed((target, k));
+                match key {
+                    None => {
+                        if !reader_task.remove_outdated_cell_dependencies(&target) {
+                            let _ = reader_task.add_cell_dependencies(target);
+                        }
                     }
-                } else if !reader_task.remove_outdated_cell_dependencies(&target) {
-                    let _ = reader_task.add_cell_dependencies(target);
+                    Some(key) => {
+                        if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
+                            let _ = reader_task.add_cell_dependencies_keyed((target, key));
+                        }
+                    }
                 }
                 drop(reader_task);
             }
@@ -1187,6 +1195,122 @@ impl TurboTasksBackend {
         ctx.schedule_task(&task, TaskPriority::Recomputation);
 
         Ok(ReadOutcome::Scheduled(listener))
+    }
+
+    fn drop_task_cell_content_hint(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        // Only drop the content, if it's there. A later read recomputes the task, exactly like
+        // after a `final_read_hint` read.
+        let _ = task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence);
+    }
+
+    /// Refines the [`CellKey::Provisional`] dependency of `reader` on `cell` of `task_id` (created
+    /// by a `Vc::keyed_reader()` or `Vc::lazy_reader()` read): it's replaced with
+    /// [`CellKey::Hash`] dependencies on `key_hashes`. With no `key_hashes` (an unaccessed
+    /// `LazyReadRef`), it's removed.
+    ///
+    /// When the cell content is currently missing (e.g. while `update_cell` invalidates its
+    /// dependents), the [`CellKey::Provisional`] dependency is kept, conservatively depending on
+    /// the whole cell.
+    fn refine_provisional_cell_dependency(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &mut dyn Iterator<Item = u64>,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        if !self.should_track_dependencies() || reader == task_id {
+            return;
+        }
+        let mut ctx = self.execute_context(turbo_tasks);
+        let (mut task, mut reader_task) = ctx.task_pair(task_id, reader, TaskDataCategory::All);
+        let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
+        if !immutable && !task.cell_data_contains(&cell) {
+            return;
+        }
+        let reverse = CellRef { task: reader, cell };
+        let target = CellRef {
+            task: task_id,
+            cell,
+        };
+        let provisional = CellKey::Provisional(id);
+        task.remove_cell_dependents_keyed(&(reverse, provisional));
+        reader_task.remove_cell_dependencies_keyed(&(target, provisional));
+        reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
+        // Immutable tasks never need dependency edges and can never be invalidated.
+        if immutable {
+            return;
+        }
+        for k in key_hashes {
+            let key = CellKey::Hash(k);
+            let _ = task.add_cell_dependents_keyed((reverse, key));
+            if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
+                let _ = reader_task.add_cell_dependencies_keyed((target, key));
+            }
+        }
+    }
+
+    /// Converts all [`CellKey::Provisional`] dependencies of `reader` that are still present into
+    /// normal (full) cell dependencies. Called when an execution of `reader` that made
+    /// `Vc::keyed_reader()` or `Vc::lazy_reader()` reads completes, as the ids are only meaningful
+    /// within that execution.
+    ///
+    /// They remain for accessed `LazyReadRef`s, when a `KeyedReadRef` or `LazyReadRef` wasn't
+    /// dropped within the execution (the manager then panics after the execution completed, but
+    /// the dependencies are still kept consistent), or when their refinement was refused (see
+    /// `refine_provisional_cell_dependency`).
+    ///
+    /// A concurrent `update_cell` that collected the [`CellKey::Provisional`] dependent before the
+    /// conversion still invalidates `reader`, as it always invalidates collected
+    /// [`CellKey::Provisional`] dependents.
+    ///
+    /// Unlike [`Self::refine_provisional_cell_dependency`], which narrows a dependency to
+    /// [`CellKey::Hash`] dependencies and refuses while the cell content is missing, this doesn't
+    /// depend on the cell content and converts to a full dependency (or just removes the edge when
+    /// the cell's task is immutable), so it can't reuse that method.
+    fn convert_remaining_provisional_cell_dependencies_at_task_completion(
+        &self,
+        ctx: &mut ExecuteContext<'_>,
+        reader: TaskId,
+    ) {
+        let remaining: SmallVec<[(CellRef, CellKey); 4]> = ctx
+            .task(reader, TaskDataCategory::Data)
+            .iter_cell_dependencies_keyed()
+            .filter(|(_, key)| matches!(key, CellKey::Provisional(_)))
+            .collect();
+        for (target, key) in remaining {
+            let reverse = CellRef {
+                task: reader,
+                cell: target.cell,
+            };
+            if target.task == reader {
+                // Not expected (reads of own cells aren't tracked), but don't leave it behind.
+                let mut reader_task = ctx.task(reader, TaskDataCategory::All);
+                reader_task.remove_cell_dependencies_keyed(&(target, key));
+                reader_task.remove_cell_dependents_keyed(&(reverse, key));
+                continue;
+            }
+            let (mut task, mut reader_task) =
+                ctx.task_pair(target.task, reader, TaskDataCategory::All);
+            task.remove_cell_dependents_keyed(&(reverse, key));
+            reader_task.remove_cell_dependencies_keyed(&(target, key));
+            // Immutable tasks never need dependency edges and can never be invalidated.
+            if task.immutable() && !cfg!(feature = "verify_immutable") {
+                continue;
+            }
+            let _ = task.add_cell_dependents(reverse);
+            if !reader_task.remove_outdated_cell_dependencies(&target) {
+                let _ = reader_task.add_cell_dependencies(target);
+            }
+        }
     }
 
     fn listen_to_cell(
@@ -2146,8 +2270,8 @@ impl TurboTasksBackend {
                 // dependency registration work if we re-read them
                 let cell_dependencies = task.iter_cell_dependencies().collect();
                 task.set_outdated_cell_dependencies(cell_dependencies);
-                let cell_dependencies_hashed = task.iter_cell_dependencies_hashed().collect();
-                task.set_outdated_cell_dependencies_hashed(cell_dependencies_hashed);
+                let cell_dependencies_keyed = task.iter_cell_dependencies_keyed().collect();
+                task.set_outdated_cell_dependencies_keyed(cell_dependencies_keyed);
 
                 let outdated_output_dependencies = task.iter_output_dependencies().collect();
                 task.set_outdated_output_dependencies(outdated_output_dependencies);
@@ -2201,6 +2325,7 @@ impl TurboTasksBackend {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        has_provisional_reads: bool,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
@@ -2245,6 +2370,29 @@ impl TurboTasksBackend {
         let is_error = result.is_err();
 
         let mut ctx = self.execute_context(turbo_tasks);
+
+        // Normally only the provisional dependencies of accessed `LazyReadRef`s remain here:
+        // dropping a `KeyedReadRef` or an unaccessed `LazyReadRef` within the execution already
+        // refined or removed its dependency. Others only remain when a ref leaked (the manager
+        // panics after this returns) or its refinement was refused because the cell content was
+        // missing (e.g. during a concurrent `update_cell`). Their ids are only meaningful within
+        // this execution, so convert them to normal dependencies first, before the outdated edges
+        // are cleaned up, to keep the dependency graph consistent.
+        if has_provisional_reads && self.should_track_dependencies() {
+            self.convert_remaining_provisional_cell_dependencies_at_task_completion(
+                &mut ctx, task_id,
+            );
+        }
+        // Only checked for executions with `keyed_reader()` or `lazy_reader()` reads, so other
+        // tasks don't pay for it.
+        debug_assert!(
+            !has_provisional_reads
+                || !ctx
+                    .task(task_id, TaskDataCategory::Data)
+                    .iter_cell_dependencies_keyed()
+                    .any(|(_, key)| matches!(key, CellKey::Provisional(_))),
+            "`CellKey::Provisional` dependencies must be converted when the execution completes"
+        );
 
         let TaskExecutionCompletePrepareResult {
             new_children,
@@ -2483,7 +2631,7 @@ impl TurboTasksBackend {
                 // Collect all dependencies on tasks to check if all dependencies are immutable.
                 task.iter_output_dependencies()
                     .chain(task.iter_cell_dependencies().map(|r| r.task))
-                    .chain(task.iter_cell_dependencies_hashed().map(|(r, _)| r.task))
+                    .chain(task.iter_cell_dependencies_keyed().map(|(r, _)| r.task))
                     .collect::<FxHashSet<_>>(),
             )
         } else {
@@ -2527,8 +2675,8 @@ impl TurboTasksBackend {
                 }
             }));
             old_edges.extend(
-                task.iter_outdated_cell_dependencies_hashed()
-                    .map(|(cell, key)| OutdatedEdge::HashedCellDependency {
+                task.iter_outdated_cell_dependencies_keyed()
+                    .map(|(cell, key)| OutdatedEdge::KeyedCellDependency {
                         dependent: task_id,
                         cell,
                         key,
@@ -3902,6 +4050,7 @@ impl Backend for TurboTasksBackend {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        has_provisional_reads: bool,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &TurboTasks<Self>,
@@ -3910,6 +4059,7 @@ impl Backend for TurboTasksBackend {
             task_id,
             result,
             cell_counters,
+            has_provisional_reads,
             #[cfg(feature = "verify_determinism")]
             stateful,
             has_invalidator,
@@ -3948,6 +4098,18 @@ impl Backend for TurboTasksBackend {
         self.try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
     }
 
+    fn refine_provisional_cell_dependency(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &mut dyn Iterator<Item = u64>,
+        turbo_tasks: &TurboTasks<Self>,
+    ) {
+        self.refine_provisional_cell_dependency(task_id, cell, reader, id, key_hashes, turbo_tasks)
+    }
+
     fn try_read_own_task_cell(
         &self,
         task_id: TaskId,
@@ -3955,6 +4117,15 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<TypedCellContent> {
         self.try_read_own_task_cell(task_id, cell, turbo_tasks)
+    }
+
+    fn drop_task_cell_content_hint(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        turbo_tasks: &TurboTasks<Self>,
+    ) {
+        self.drop_task_cell_content_hint(task_id, cell, turbo_tasks)
     }
 
     fn read_task_collectibles(

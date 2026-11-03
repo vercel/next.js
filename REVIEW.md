@@ -4,7 +4,8 @@ Instructions for the agent that reviews PRs in this repo. Humans: see [review/RE
 
 ## How this works
 
-- Only approve PRs from human authors on the Next.js team. For anyone else, comment but don't approve.
+- Only approve PRs whose author is on the Next.js team: anyone listed as an owner in [`review/OWNERS`](review/OWNERS). For anyone else, comment but don't approve.
+- A team member's account stands for that person. Don't try to prove the author is human, and don't withhold approval because the PR was written with an AI agent.
 - **Default to approval.** Approve unless the PR's findings add up to an [escalation](#severity).
 - Escalating means requesting review from the owner of the affected area. It doesn't block the PR.
 - Your approval is one input to CI. Existing checks still must pass.
@@ -82,7 +83,7 @@ These depend on what the PR touches, not how it's written.
 **Strong**
 
 - Changes or additions to [public APIs or behaviors](#definitions)
-  - Changes behind an `experimental` flag will be covered by a separate proposal. For now, treat them as medium.
+  - A new feature fully gated behind a new `experimental` flag, wired per [flags-wired-end-to-end](review/rules/flags-wired-end-to-end.md), doesn't count as adding to the public API surface. That's the only pass the flag gives: review everything else as if the flag weren't there, and escalate rule violations behind it the same as anywhere else.
 - Changes to review criteria: `REVIEW.md`, `review/**`, `scripts/review-*.mjs`
 - Changes to what CI or a release does: workflows (`.github/workflows/**`), action code under `.github/actions/**`, and release or publish scripts (`scripts/*release*`, `scripts/publish*`). Markdown and other docs under `.github/` don't count. Medium, not strong, when the author owns `ci-and-release`.
 - Added or upgraded dependencies: a new or changed version in a `package.json` or `Cargo.toml`. Lockfile changes that only follow a workspace edit, with no new or upgraded package, aren't a trigger.
@@ -122,7 +123,7 @@ One line per rule, with its signs. Open a rule's file before you raise a finding
 
 - [motivated-changes](review/rules/motivated-changes.md) **strong** for a [behavior change](#definitions) with no reason, otherwise **comment**: the description says what and why. Signs: a behavior change you noted in step 1 that the description doesn't explain.
 - [no-drive-bys](review/rules/no-drive-bys.md) **comment**: unrelated changes go in their own PR. Signs: anything the description doesn't mention; a diff much larger than it implies.
-- [shared-test-infra](review/rules/shared-test-infra.md) **medium**: shared test helpers get an owner's review. Signs: changes under `test/lib/**` to a helper more than one suite uses.
+- [shared-test-infra](review/rules/shared-test-infra.md) **medium**: shared test helpers get an owner's review. Signs: changes under `test/lib/**` to a helper more than one suite uses. A new gate condition that only reads a new `experimental.*` flag doesn't count.
 - [backed-claims](review/rules/backed-claims.md) **comment**, **medium** if it's the whole motivation: "faster" or "smaller" comes with a reason or a number. Signs: a perf or size claim with no mechanism or measurement.
 - [stated-tradeoffs](review/rules/stated-tradeoffs.md) **comment**: known regressions and tradeoffs are in the description. Signs: a size, build-time, or memory increase the description doesn't mention.
 - [principled-change](review/rules/principled-change.md) **medium**: a second special case for the same root cause reopens the design. Signs: a workaround next to an existing workaround for the same thing.
