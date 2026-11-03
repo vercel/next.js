@@ -278,8 +278,8 @@ describe('Vitest 5.0.4 public CLI conformance', () => {
     expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
     expect(actual.report.numTotalTests).toBe(0)
     expect(actual.report.testResults[0].message).toContain('collection failure')
-    expect(actual.report.testResults[0].message.split('\n')[0]).toBe(
-      'Error: collection failure'
+    expect(actual.report.testResults[0].message).toBe(
+      expected.report.testResults[0].message
     )
   }, 120000)
 
@@ -302,12 +302,22 @@ describe('Vitest 5.0.4 public CLI conformance', () => {
       pending: 1,
     })
     expect(counts(actual.report)).toEqual(counts(expected.report))
-    expect(actual.report.testResults[0].message).toContain(
-      'No test found in suite empty'
+    expect(actual.report.testResults[0].message).toBe(
+      expected.report.testResults[0].message
     )
-    expect(actual.report.testResults[0].message).toContain(
-      'nested cleanup failure'
-    )
+    const suiteErrors = (
+      actual.report as Report & {
+        next: {
+          events: { type: string; errors?: { message: string }[] }[]
+        }
+      }
+    ).next.events
+      .filter((event) => event.type === 'suite-end')
+      .flatMap((event) => event.errors ?? [])
+    expect(suiteErrors.map((error) => error.message)).toEqual([
+      'No test found in suite empty',
+      'nested cleanup failure',
+    ])
   }, 120000)
 
   it.each([
