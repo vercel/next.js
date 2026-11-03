@@ -20,7 +20,10 @@ use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128
 use crate::{
     debug_id::generate_debug_id,
     output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMap, SourceMapAsset, structured::StructuredSourceMap},
+    source_map::{
+        GenerateSourceMap, SourceMap, SourceMapAsset,
+        structured::{StructuredSourceMap, null_contents},
+    },
     source_pos::SourcePos,
 };
 
@@ -70,18 +73,41 @@ pub struct SharedMapPart {
     /// The part's segments, if it holds no text of its own (see above).
     reference_only: Option<CellRope>,
     bytes: Rope,
+    /// For a `sourcesContent` part, its number of entries (one per source); 0 otherwise.
+    entries: u32,
 }
 
 impl SharedMapPart {
-    /// Reads `cell`.
+    /// Reads a part that isn't a `sourcesContent` part.
     pub async fn read(cell: ResolvedVc<CellRope>) -> Result<Self> {
-        let rope = cell.await?;
-        let bytes = rope.read().await?;
         Ok(SharedMapPart {
             cell,
-            reference_only: is_reference_only_contents(&rope).then(|| (*rope).clone()),
-            bytes,
+            reference_only: None,
+            bytes: cell.await?.read().await?,
+            entries: 0,
         })
+    }
+
+    /// Reads a `sourcesContent` part (`,"sourcesContent":[...]`) with `entries` entries.
+    /// `reference_only` says whether every entry is a file reference or `null` (see above). The
+    /// part's creator knows both, so they don't have to be recovered from its bytes.
+    pub async fn read_contents(
+        cell: ResolvedVc<CellRope>,
+        entries: u32,
+        reference_only: bool,
+    ) -> Result<Self> {
+        let rope = cell.await?;
+        Ok(SharedMapPart {
+            cell,
+            bytes: rope.read().await?,
+            reference_only: reference_only.then(|| (*rope).clone()),
+            entries,
+        })
+    }
+
+    /// For a `sourcesContent` part, the number of entries (one per source).
+    pub fn entries(&self) -> u32 {
+        self.entries
     }
 
     /// Appends the part to `builder`: its segments if it holds no text of its own, otherwise a
@@ -100,28 +126,6 @@ impl SharedMapPart {
     pub fn bytes(&self) -> &Rope {
         &self.bytes
     }
-}
-
-/// Whether `rope` is a `sourcesContent` part (`,"sourcesContent":[...]`) whose entries are all
-/// file references or `null`: its inline bytes are only the JSON scaffolding around them.
-fn is_reference_only_contents(rope: &CellRope) -> bool {
-    let mut inline = Vec::new();
-    for part in rope.parts() {
-        match part {
-            CellRopePart::Inline(bytes) => inline.extend_from_slice(&bytes.to_bytes()),
-            CellRopePart::EscapedFileContent(_) => inline.push(b','),
-            CellRopePart::Cell { .. } | CellRopePart::Nested(_) => return false,
-        }
-    }
-    let Some(entries) = inline
-        .strip_prefix(b",\"sourcesContent\":[")
-        .and_then(|entries| entries.strip_suffix(b"]"))
-    else {
-        return false;
-    };
-    entries
-        .split(|byte| *byte == b',')
-        .all(|entry| entry.is_empty() || entry == b"null")
 }
 
 impl From<Rope> for SectionMap {
@@ -194,6 +198,9 @@ impl SectionMap {
     /// precede the part (see [`StructuredSourceMap::with_shared_contents`]), and the part. `None`
     /// if the map doesn't store its contents as a part of its own.
     fn without_shared_contents(&self) -> Option<(Rope, Rope, &SharedMapPart)> {
+        if !self.has_shared_contents() {
+            return None;
+        }
         let (prefix, contents, rest) = match self {
             SectionMap::Split {
                 head,
@@ -209,18 +216,24 @@ impl SectionMap {
                 return None;
             }
         };
-        let mut head = RopeBuilder::default();
-        head.concat(&prefix);
-        head += "}";
-        let placeholder = StructuredSourceMap::from_json(&head.build())
-            .ok()?
-            .contents_placeholder()?;
         let mut builder = RopeBuilder::default();
         builder.concat(&prefix);
         builder += ",\"sourcesContent\":";
-        builder.concat(&placeholder);
+        builder.concat(&null_contents(contents.entries as usize));
         builder.concat(&rest);
         Some((builder.build(), prefix, contents))
+    }
+
+    /// Whether the map stores its `sourcesContent` as a part of its own (see
+    /// [`SectionMap::without_shared_contents`]).
+    fn has_shared_contents(&self) -> bool {
+        matches!(
+            self,
+            SectionMap::Split {
+                contents: Some(_),
+                ..
+            } | SectionMap::SharedContents { .. }
+        )
     }
 
     /// The map as a [`CellRope`]: [`SectionMap::Split`] and [`SectionMap::SharedContents`] maps
@@ -865,32 +878,29 @@ impl Code {
     pub fn generate_source_map_ref_without_shared_contents(
         &self,
     ) -> Option<(Rope, Rope, SharedMapPart)> {
-        let mut shared = self.mappings.iter().filter_map(|(_, map)| {
-            map.as_ref()
-                .and_then(|map| map.without_shared_contents().map(|_| map))
-        });
-        let shared_map = shared.next()?;
+        let mut shared = self
+            .mappings
+            .iter()
+            .enumerate()
+            .filter(|(_, (_, map))| map.as_ref().is_some_and(SectionMap::has_shared_contents));
+        let (shared_index, (_, shared_map)) = shared.next()?;
         if shared.next().is_some() {
             return None;
         }
-        let (map_without_contents, prefix, contents) = shared_map.without_shared_contents()?;
+        let (map_without_contents, prefix, contents) =
+            shared_map.as_ref()?.without_shared_contents()?;
         let contents = contents.clone();
         let sections = self
             .source_map_sections(false)
             .into_iter()
             .map(|(pos, section)| {
                 let map = match section {
-                    Some(index) => {
-                        let map = self.mappings[index]
-                            .1
-                            .as_ref()
-                            .expect("sections only refer to maps");
-                        if std::ptr::eq(map, shared_map) {
-                            map_without_contents.clone()
-                        } else {
-                            map.to_rope()
-                        }
-                    }
+                    Some(index) if index == shared_index => map_without_contents.clone(),
+                    Some(index) => self.mappings[index]
+                        .1
+                        .as_ref()
+                        .expect("sections only refer to maps")
+                        .to_rope(),
                     None => SourceMap::empty_rope(),
                 };
                 (pos, map)
