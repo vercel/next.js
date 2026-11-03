@@ -62,9 +62,7 @@ function createIpc<TIncoming, TOutgoing>(
   socket.once('connect', () => {
     socket.off('error', onConnectError)
     socket.setNoDelay(true)
-    socket.on('data', (chunk) => {
-      reader.push(chunk)
-    })
+    socket.on('data', (chunk) => reader.push(chunk))
   })
   // When the socket is closed, this process is no longer needed.
   // This might happen e. g. when parent process is killed or

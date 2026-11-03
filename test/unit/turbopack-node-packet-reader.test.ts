@@ -94,30 +94,104 @@ describe('turbopack-node PacketReader', () => {
     expect(() => reader.push(frame(''))).toThrow(SyntaxError)
   })
 
-  it('does not slice chunks that are consumed whole', async () => {
+  it('decodes chunks that are consumed whole without slicing them', async () => {
     const payload = Buffer.from('{"exact":true}', 'utf8')
     const header = Buffer.alloc(4)
     header.writeUInt32BE(payload.length, 0)
     const reader = new PacketReader<unknown>()
     const subarray = jest.spyOn(Buffer.prototype, 'subarray')
+    // The payload chunk itself (not a copy or view of it) is what gets decoded.
+    const toString = jest.spyOn(payload, 'toString')
     try {
       reader.push(header)
       reader.push(payload)
       expect(subarray).not.toHaveBeenCalled()
+      expect(toString.mock.calls).toEqual([['utf8', 0, payload.length]])
     } finally {
       subarray.mockRestore()
-    }
-    // The payload chunk itself (not a copy or view of it) is what gets decoded.
-    const toString = jest.spyOn(payload, 'toString')
-    try {
-      expect(await reader.recv()).toEqual({ exact: true })
-      expect(toString).toHaveBeenCalledWith('utf8')
-    } finally {
       toString.mockRestore()
     }
+    expect(await reader.recv()).toEqual({ exact: true })
   })
 
-  it('copies each byte of a fragmented frame at most once', async () => {
+  describe('matches Buffer#toString decoding for every split point', () => {
+    // Captures the decoded strings by bypassing JSON.parse, so invalid JSON
+    // (e.g. a leading byte order mark) can be compared too. All payloads are
+    // sent as consecutive frames, so decoder state must not leak between them.
+    async function check(...payloads: Buffer[]) {
+      const stream = Buffer.concat(
+        payloads.map((payload) => {
+          const header = Buffer.alloc(4)
+          header.writeUInt32BE(payload.length, 0)
+          return Buffer.concat([header, payload])
+        })
+      )
+      const expected = payloads.map((payload) => payload.toString('utf8'))
+      for (let split = 1; split < stream.length; split++) {
+        const reader = new PacketReader<unknown>()
+        reader.push(stream.subarray(0, split))
+        reader.push(stream.subarray(split))
+        const parse = jest.spyOn(JSON, 'parse').mockImplementation((s) => s)
+        let decoded: unknown[]
+        try {
+          decoded = await receiveAll(reader, payloads.length)
+        } finally {
+          parse.mockRestore()
+        }
+        expect({ split, decoded }).toEqual({ split, decoded: expected })
+      }
+    }
+
+    it('multi-byte characters', async () => {
+      await check(Buffer.from(JSON.stringify('aé€😀bé€😀'), 'utf8'))
+    })
+
+    it('invalid UTF-8 sequences', async () => {
+      await check(
+        Buffer.from([
+          0x22, 0xff, 0x41, 0xe2, 0x82, 0x41, 0xf0, 0x9f, 0x98, 0x41, 0xc0,
+          0xaf, 0xed, 0xa0, 0x80, 0xf4, 0x90, 0x80, 0x80, 0x22,
+        ])
+      )
+    })
+
+    it('a leading byte order mark', async () => {
+      await check(Buffer.from([0xef, 0xbb, 0xbf, 0x22, 0x61, 0x22]))
+    })
+
+    it.each([
+      ['2-byte', [0xc3]],
+      ['3-byte', [0xe2, 0x82]],
+      ['4-byte', [0xf0, 0x9f, 0x98]],
+    ])(
+      'a truncated %s sequence at the end of a frame',
+      async (_name, truncated) => {
+        await check(
+          Buffer.from([0x22, 0x61, ...truncated]),
+          Buffer.from('"b"', 'utf8')
+        )
+      }
+    )
+  })
+
+  it('does not retain received chunks in queued packets', async () => {
+    const first = frame('"first"')
+    const second = frame('"second"')
+    const reader = new PacketReader<unknown>()
+    // One frame decoded from a single chunk, one spanning two chunks.
+    const chunks = [first, second.subarray(0, 6), second.subarray(6)].map(
+      (chunk) => Buffer.from(chunk)
+    )
+    for (const chunk of chunks) {
+      reader.push(chunk)
+    }
+    for (const chunk of chunks) {
+      chunk.fill(0x20)
+    }
+    expect(await receiveAll(reader, 2)).toEqual(['first', 'second'])
+  })
+
+  it('does not assemble fragmented payloads into a Buffer', async () => {
     const size = 4 * 1024 * 1024
     const payload = Buffer.alloc(size, 0x78)
     payload[0] = 0x22
@@ -126,33 +200,22 @@ describe('turbopack-node PacketReader', () => {
     header.writeUInt32BE(size, 0)
     const chunks = splitEvery(Buffer.concat([header, payload]), 64 * 1024)
 
-    let copied = 0
-    const originalCopy = Buffer.prototype.copy
-    const originalConcat = Buffer.concat
-    const copy = jest
-      .spyOn(Buffer.prototype, 'copy')
-      .mockImplementation(function (this: Buffer, ...args) {
-        const count = originalCopy.apply(this, args)
-        copied += count
-        return count
-      })
-    const concat = jest
-      .spyOn(Buffer, 'concat')
-      .mockImplementation((...args) => {
-        const result = originalConcat(...args)
-        copied += result.length
-        return result
-      })
+    const copy = jest.spyOn(Buffer.prototype, 'copy')
+    const concat = jest.spyOn(Buffer, 'concat')
+    const allocUnsafe = jest.spyOn(Buffer, 'allocUnsafe')
     const reader = new PacketReader<string>()
     try {
       for (const chunk of chunks) {
         reader.push(chunk)
       }
+      expect(copy).not.toHaveBeenCalled()
+      expect(concat).not.toHaveBeenCalled()
+      expect(allocUnsafe).not.toHaveBeenCalled()
     } finally {
       copy.mockRestore()
       concat.mockRestore()
+      allocUnsafe.mockRestore()
     }
-    expect(copied).toBeLessThanOrEqual(size + 4)
-    expect((await reader.recv()).length).toBe(size - 2)
+    expect(await reader.recv()).toBe('x'.repeat(size - 2))
   })
 })
