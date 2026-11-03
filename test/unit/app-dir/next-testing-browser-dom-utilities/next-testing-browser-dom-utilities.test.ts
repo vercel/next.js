@@ -219,3 +219,42 @@ it('publishes writable required errorFormat types through both Browser modules',
       await rm(temporary, { recursive: true, force: true })
   }
 }, 150000)
+it('preserves native optional-container Errors and formatting effects', async () => {
+  const retained = process.env.NEXT_TESTING_DOM_OPTIONAL_CONTAINERS_EVIDENCE
+  const temporary =
+    retained ?? (await mkdtemp(join(tmpdir(), 'next-dom-optional-containers-')))
+  let complete = false
+  try {
+    const evidence = retained ?? join(temporary, 'evidence')
+    await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'verify-optional-container.mjs'),
+        join(__dirname, '../../../..'),
+        evidence,
+      ],
+      { timeout: 270000, maxBuffer: 1024 * 1024 }
+    )
+    const result = JSON.parse(
+      await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+    )
+    expect(result.profiles).toBe(6)
+    expect(result.cases).toBe(42)
+    expect(result.rows).toBe(42)
+    expect(result.rawNativeStacks).toBe(42)
+    expect(result.completeModelsExact).toBe(true)
+    expect(result.fullNativeStacksRetainedOutsideSemanticProjection).toBe(true)
+    expect(result.allOwnersJoined).toBe(true)
+    complete = true
+  } catch (error) {
+    throw new Error(
+      `DOM optional-container evidence retained at ${temporary}`,
+      {
+        cause: error,
+      }
+    )
+  } finally {
+    if (complete && !retained)
+      await rm(temporary, { recursive: true, force: true })
+  }
+}, 300000)

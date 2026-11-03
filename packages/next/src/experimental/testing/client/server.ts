@@ -190,7 +190,10 @@ body {
   margin: 0;
   min-height: 100vh;
 }
-</style>${artifact.client.styles.map((file) => `<link rel="stylesheet" href="${assetURL(file)}">`).join('')}<link rel="icon" href="data:,"></head><body>${artifact.client.scripts.map((file) => `<script defer src="${assetURL(file)}"></script>`).join('')}</body></html>`
+</style>${artifact.client.styles.map((file) => `<link rel="stylesheet" href="${assetURL(file)}">`).join('')}<link rel="icon" href="data:,">${artifact.client.scripts.map((file) => `<script defer src="${assetURL(file)}"></script>`).join('')}</head><body>
+  </body>
+</html>
+`
         )
         return
       }

@@ -1,0 +1,34 @@
+import { test, expect, inject } from 'vitest'
+import { utils } from 'vitest/browser'
+const emit = value => console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify({format:inject('format'),...value}))
+const captureNativeErrorFields = error => ({instanceOfError:error instanceof Error,constructor:error?.constructor?.name,name:error?.name,message:error?.message,stack:error?.stack,ownKeys:Reflect.ownKeys(error).map(String),descriptors:Object.fromEntries(Object.getOwnPropertyNames(error).map(key=>{const d=Object.getOwnPropertyDescriptor(error,key);return[key,{enumerable:d.enumerable,configurable:d.configurable,writable:d.writable}]}))})
+const fields = error => {
+ const captured = captureNativeErrorFields(error)
+ const { stack, ...semantic } = captured
+ console.log('BROWSER_NATIVE_STACK:' + JSON.stringify({name:captured.name,message:captured.message,stack}))
+ return {...semantic,stackType:typeof stack}
+}
+const observe = callback => {try{return{kind:'returned',error:callback()}}catch(error){return{kind:'thrown',error}}}
+const create = () => { const host=document.createElement('section');host.innerHTML='<h2>Hello</h2><button aria-label="Save">go</button>';document.body.append(host);return host }
+for(const role of ['omitted','undefined','null','element'])test('native optional-container '+role,()=>{
+ const host=create(),calls=[],selector={asLocator(){calls.push({kind:'selector',receiver:this===selector});return'authored locator'}}
+ try{utils.configurePrettyDOM({highlight:false});const result=observe(()=>role==='omitted'?utils.getElementError(selector):utils.getElementError(selector,role==='element'?host:role==='null'?null:undefined));expect(result.error instanceof Error).toBe(true);emit({role,kind:result.kind,calls,error:fields(result.error)})}
+ finally{utils.configurePrettyDOM(undefined);host.remove()}
+})
+test('optional container preserves actual selector getter error',()=>{
+ const calls=[],authored=new Error('authored-selector-getter'),selector={get asLocator(){calls.push('selector');throw authored}}
+ try{utils.configurePrettyDOM({get maxLength(){calls.push('maxLength');return 50}});const result=observe(()=>utils.getElementError(selector));expect(result.error).toBe(authored);expect(calls).toEqual(['selector']);emit({role:'selector-getter',kind:result.kind,calls,sameError:result.error===authored,error:fields(result.error)})}
+ finally{utils.configurePrettyDOM(undefined)}
+})
+test('optional container records actual formatting default getter effects',()=>{
+ const calls=[],authored=new Error('authored-default-getter')
+ try{utils.configurePrettyDOM({get maxLength(){calls.push('maxLength');throw authored}});const result=observe(()=>utils.getElementError('css=.missing'));expect(result.error instanceof Error).toBe(true);emit({role:'default-getter',kind:result.kind,calls,sameError:result.error===authored,error:fields(result.error)})}
+ finally{utils.configurePrettyDOM(undefined)}
+})
+test('explicit element records native ARIA and HTML getter effects',()=>{
+ const host=create(),button=host.querySelector('button'),native=button.getAttribute,calls=[]
+ button.getAttribute=function(...args){calls.push('attribute:'+args[0]);return Reflect.apply(native,this,args)}
+ Object.defineProperty(host,'outerHTML',{configurable:true,get(){calls.push('outerHTML');return '<section>authored HTML getter</section>'}})
+ try{utils.configurePrettyDOM({highlight:false,get maxLength(){calls.push('maxLength');return 50}});const result=observe(()=>utils.getElementError('css=.missing',host));expect(result.error instanceof Error).toBe(true);emit({role:'element-getters',kind:result.kind,calls,error:fields(result.error)})}
+ finally{utils.configurePrettyDOM(undefined);host.remove()}
+})
