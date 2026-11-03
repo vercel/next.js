@@ -395,6 +395,26 @@ describe('app-root-param-getters - cache dedup with root params', () => {
     expect(french('#second').text()).toBe('fr')
   })
 
+  // Each outer entry must vary by the root param read by its inner cache. The
+  // outer functions return `early` while `tail` keeps the inner stream open.
+  it('should key an outer cache by root params of an inner cache with a delayed Flight tail', async () => {
+    const english = await next.render$('/ca/en/flight-tail')
+    expect(english('#value').text()).toBe('en')
+
+    const french = await next.render$('/ca/fr/flight-tail')
+    expect(french('#value').text()).toBe('fr')
+  })
+
+  it('should key outer caches that join an inner cache by root params with a delayed Flight tail', async () => {
+    const english = await next.render$('/ca/en/flight-tail-joined')
+    expect(english('#first').text()).toBe('en')
+    expect(english('#second').text()).toBe('en')
+
+    const french = await next.render$('/ca/fr/flight-tail-joined')
+    expect(french('#first').text()).toBe('fr')
+    expect(french('#second').text()).toBe('fr')
+  })
+
   // Cross-request deduplication requires a shared server process. Deployed
   // requests can reach different function instances.
   // @force-gate !deploy

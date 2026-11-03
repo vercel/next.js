@@ -607,6 +607,34 @@ function saveSharedCacheEntryToResumeDataCache(
 }
 
 /**
+ * Registers pending nested metadata with the outer cache store. The supplied
+ * promise must fulfill only after metadata propagation completes. Callers must
+ * register the promise before returning the nested value.
+ */
+function trackNestedCacheMetadata(
+  cacheContext: CacheContext,
+  pendingMetadata: Promise<unknown>
+): void {
+  const { outerWorkUnitStore } = cacheContext
+  if (
+    cacheContext.skipPropagation ||
+    (outerWorkUnitStore.type !== 'cache' &&
+      outerWorkUnitStore.type !== 'private-cache')
+  ) {
+    return
+  }
+
+  const pendingSet = outerWorkUnitStore.pendingNestedCacheMetadata
+  const tracked = pendingMetadata.finally(() => {
+    pendingSet.delete(tracked)
+  })
+  // This handler prevents an unhandled rejection if the promise rejects before
+  // `collectResult` waits for it.
+  tracked.catch(ignoreReject)
+  pendingSet.add(tracked)
+}
+
+/**
  * Completes a join onto another invocation's entry, whether that invocation is
  * still filling or has already finished: forks the stream, saves to this
  * invocation's RDC if the leader had none, and balances the cache signal read
@@ -638,10 +666,13 @@ function serveJoinedCacheEntry(
   // A failed collection or propagation must still end the read so it cannot
   // stall prerendering. The catch prevents an unhandled rejection after the
   // stream has been returned.
-  sharedCacheEntry.pendingMetadata
-    .then((metadata) => {
+  const pendingPropagation = sharedCacheEntry.pendingMetadata.then(
+    (metadata) => {
       maybePropagateCacheEntryMetadata(cacheContext, metadata)
-    })
+    }
+  )
+  trackNestedCacheMetadata(cacheContext, pendingPropagation)
+  pendingPropagation
     .finally(() => {
       cacheSignal?.endRead()
     })
@@ -818,6 +849,7 @@ function createUseCacheStore(
       ),
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: new Set<string>(),
+      pendingNestedCacheMetadata: new Set<Promise<unknown>>(),
       // Every private cache scope is its own work unit. Any cache keyed on
       // headers() or cookies() needs to be invalidated. Otherwise some
       // Next.js API semantics leak across render passes.
@@ -885,6 +917,7 @@ function createUseCacheStore(
       ),
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: new Set<string>(),
+      pendingNestedCacheMetadata: new Set<Promise<unknown>>(),
       outerOwnerStack: cacheContext.outerOwnerStack,
       dynamicNestedCacheError: undefined,
     }
@@ -1226,6 +1259,15 @@ async function collectResult(
     }
   } catch (error) {
     errors.push(error)
+  }
+
+  // Wait for nested metadata before collecting this entry's metadata. React
+  // Flight can resolve a nested root model while its referenced promises remain
+  // pending. The outer function can omit those promises from its result. Its
+  // stream can then finish before the nested metadata propagates. The loop
+  // includes promises registered while it waits.
+  while (innerCacheStore.pendingNestedCacheMetadata.size > 0) {
+    await Promise.allSettled(innerCacheStore.pendingNestedCacheMetadata)
   }
 
   let idx = 0
@@ -3571,6 +3613,10 @@ export async function cache(
           }
 
           const { stream: newStream, pendingCacheResult } = result
+
+          // `collectResult` propagates metadata before `pendingCacheResult`
+          // fulfills.
+          trackNestedCacheMetadata(cacheContext, pendingCacheResult)
 
           let pendingWrite: Promise<void> | undefined
 
