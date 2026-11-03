@@ -87,6 +87,33 @@ where
     });
 }
 
+/// Like [`for_each`], but calls `f` once per chunk instead of once per item. A slice too small to
+/// be chunked is passed to `f` as a whole on the calling thread, and an empty slice doesn't call
+/// `f`. Uses the same chunk sizing as [`for_each`].
+pub fn for_each_chunk<'l, T, F>(items: &'l [T], f: F)
+where
+    T: Sync,
+    F: Fn(&'l [T]) + Send + Sync,
+{
+    if items.is_empty() {
+        return;
+    }
+    let Some(Chunked {
+        chunk_size,
+        chunk_count,
+    }) = get_chunked(items.len())
+    else {
+        f(items);
+        return;
+    };
+    let f = &f;
+    let _results = scope_bounded(chunk_count, |scope| {
+        for chunk in items.chunks(chunk_size) {
+            scope.spawn(move || f(chunk))
+        }
+    });
+}
+
 pub fn for_each_owned<T>(items: Vec<T>, f: impl Fn(T) + Send + Sync)
 where
     T: Send + Sync,

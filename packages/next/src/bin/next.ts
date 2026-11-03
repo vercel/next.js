@@ -3,6 +3,7 @@
 import '../server/require-hook'
 
 import os from 'os'
+import path from 'path'
 import {
   Argument,
   Command,
@@ -110,7 +111,7 @@ class NextRootCommand extends Command {
       // production mode merely because they were launched through this CLI.
       if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
-        ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+        process.env.NEXT_RUNTIME = 'nodejs'
       }
 
       if (
@@ -207,7 +208,8 @@ program
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .option('--turbo', 'Builds using Turbopack.')
   .option('--turbopack', 'Builds using Turbopack.')
-  .option('--webpack', 'Builds using webpack.')
+  .option('--webpack', 'Builds using the bundled webpack.')
+  .option('--custom-webpack', 'Builds using your project-installed webpack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
@@ -251,6 +253,9 @@ program
     }
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+    }
+    if (options.customWebpack || process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+      process.env.NEXT_PRIVATE_LOCAL_WEBPACK = path.resolve(directory || '.')
     }
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
@@ -401,7 +406,11 @@ program
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
-  .option('--webpack', 'Starts development mode using webpack.')
+  .option('--webpack', 'Starts development mode using the bundled webpack.')
+  .option(
+    '--custom-webpack',
+    'Starts development mode using your project-installed webpack.'
+  )
   .addOption(
     new Option(
       '-p, --port <port>',
@@ -465,6 +474,11 @@ program
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
         process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+      }
+      if (options.customWebpack || process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+        process.env.NEXT_PRIVATE_LOCAL_WEBPACK = path.resolve(
+          process.env.NEXT_PRIVATE_DEV_DIR || directory || '.'
+        )
       }
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'
@@ -753,6 +767,19 @@ internal
       mod.agentFeedbackInstructionsCli(options)
     )
   )
+
+internal
+  .command('agent-feedback', { hidden: true })
+  .argument(
+    '[report]',
+    'An unpadded base64url-encoded schema version 5 report. Reads from standard input when omitted.'
+  )
+  .option('--dry-run', 'Print the review URL without opening a browser.')
+  .action((report: string | undefined, options: { dryRun?: boolean }) => {
+    return import('../cli/internal/agent-feedback.js').then((mod) =>
+      mod.nextFeedback(report, options)
+    )
+  })
 
 internal
   .command('trace')

@@ -13,9 +13,7 @@ function ensureHmrClientInitialized() {
   hmrClientInitialized = true
 
   // initializeServerHmr is from hmr-client.ts (embedded before this file)
-  // moduleFactories is from dev-runtime.ts
-  // devModuleCache is the HotModule-typed cache from dev-runtime.ts
-  initializeServerHmr(moduleFactories, devModuleCache)
+  initializeServerHmr()
 }
 
 function __turbopack_server_hmr_apply__(update: NodeJsHmrPayload): void {
