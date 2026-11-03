@@ -13,18 +13,20 @@ is recorded in the generated inventory and lockfile. The supported stable range
 is undecided, `stableReady` remains false, and no stable exception is approved.
 This is an implementation checkpoint, not graduation of the experiment.
 
-## Current recorded status — sixteen signed local steps, November 3, 2026
+## Current recorded status — twenty-one signed local implementation/control steps, November 3, 2026
 
-Qualified scoped implementation consists of baseline13
-`f43369758c4a5f14c72a7e72bb2e8a294a6d5eb6`, bounded V2
-`6502fc744c1c369d5e818a47d1c6c1b12e2144cb`, bounded AroundAll
-`f4004d4b7d6e63515911ac9be1ca215145068d3e`, and configured errorFormat
-`b04cb421898121d3857f5262aad0518261b506f1`: sixteen local signed steps.
-The authorized D25 signing retry succeeded for exactly 25 files; the bytes of all 78
-working paths and the unstaged inspector remainder were preserved. No push occurred.
-Root Source78/testing304/compiled9623/native45c8 remains the same mixed physical
-integration revision, not bare b04 or a wholly qualified batch. Last independently
-verified draft PR #98869 publication remains
+The latest local checkpoint is `735369be673c2be6767f49ca2ca0736f358aafa4`.
+The prior sixteen implementation steps through errorFormat `b04cb42189` are now
+followed by approved setup6 `c289d4822c`, type-only hook probe `c1ebd44eb6`,
+Browser document structure/Frame5 `bdf45493ea`, and File-message outer ownership
+`220a706220`, followed by bounded configured inspect `735369be`: twenty-one
+signed implementation/control steps. The separate prior
+metadata-only commit `075ecc4cb5dcce155d96ef7d1bb5c8ab1554f184` makes 22 local
+commits since the last verified pushed checkpoint. Setup/type/File2 corrections
+add no product functionality. Root testing304/compiled9623/native45c8
+remains a mixed physical integration revision with four unrelated dirty D1
+inputs, not bare HEAD or a wholly qualified batch. No push occurred. Last
+independently verified draft PR #98869 publication remains
 `1558a982296b23763d2174b27aa4cbd69e8e5455`. Metadata adds no functionality.
 
 All 776 original API names, surfaces, overloads and release classifications are
@@ -33,9 +35,10 @@ exports plus four runner data types. `RunnerTaskBase` is **partial** because its
 actual recursive Suite/File model still lacks genuine numeric worker/concurrency
 IDs; the other nine measured type rows are scoped. `snapshotFormat` remains
 partial. The existing `config.test.browser.locators` row becomes partial for
-`errorFormat` only; its other fields remain gaps. Counts are **102 scoped,
-275 partial, 379 missing, 20 unreviewed**; declarations **307 available,
-275 absent, 194 not applicable**. All other Browser configuration rows retain
+`errorFormat` only; its other fields remain gaps. Only `config.test.inspect` additionally becomes partial for the bounded one-shot
+Node role below. Counts are **102 scoped,
+276 partial, 378 missing, 20 unreviewed**; declarations **307 available,
+275 absent, 194 not applicable**. All other 775 complete API rows and Browser configuration rows retain
 their prior status, and release-compatible remains zero. Type presence
 qualifies no benchmark execution, runtime event/heap/log producer, full recursive
 Task alias, extra subpath or global bridge.
@@ -116,7 +119,7 @@ rows remain unchanged. testIdAttribute/exact, broader server/configuration,
 unmeasured serialization and wider engine/profile roles remain open. Raw native
 Error stacks are retained where recorded; raw stack-string parity is unqualified.
 
-Work1 epoch18 is a separate **Source308 / compiled9635 / native6c211** revision;
+The historical Work1 epoch18 is a separate **Source308 / compiled9635 / native6c211** revision;
 its SDK1ca and producer/core/types green results do not update Root45c8. Bounded
 new measurements are:
 
@@ -136,13 +139,76 @@ new measurements are:
   Existing `fields()` excludes Error.stack, so raw stack-string parity remains
   unqualified. No body, projector, reference or deadline changes are credited.
 
-C3's first Source gate remains blocked before collection on RunStart despite
-compiled API182. Resolver order/realm stays red despite five cases/62 measured
-fields and authored bytes passing. Chai84 raw-origin mismatches, public cross
-missing stacks and remaining D1 error/creator/Root replay contracts remain open.
-Browser absent defaults15s/30s and explicit-option presence/inheritance, EInspect
-Root integration, full aliases/producers and wider coverage/rendering profiles
-also remain required.
+Those epoch18 observations remain historical. The later separate Work1 JS
+correction revision is **Source312 / selected251 / compiled9647 / native6c211**;
+SDK5433 has **9,739 installed entries / 1,744 non-Next entries**. Its source/archive
+equality was proved at preparation and the Source read lease closed before the
+offline install; installed readers use SDK-only guards. Neither this dirty Work1
+revision nor its SDK qualifies signed Root220 or the whole carrier.
+
+- Chai options on Node26 development/production pass **48 cases / 120 authored
+  rows / 168 authored-frame obligations per Source/SDK lane**, under the accepted
+  bounded physical-origin classifier. Raw own fields/descriptors/headings,
+  authored frames, options and hook traces remain exact; the prior declared
+  report timing/Next-extension exclusions remain. Earlier production reds are
+  retained; no Source runtime rerun was used for the accepted classifier
+  correction. Full internal function labels/framework stack strings, other
+  Nodes, Browser/watch and multi-project `--no-cache` remain unqualified.
+- A separate C3 standard default+JSON probe passes **four development profiles /
+  eight cases / eight identity rows / 28 require-events per Source/SDK lane**
+  across all four Nodes, with the exact six-field models. The original full
+  custom11 callback/maintained1 gate remains open; no production/full-C3 claim.
+- SDK5433 strict **788 type programs** pass with **360 accepted / 428 rejected**,
+  including32 exact-optional programs, max two compiler workers and joined
+  children. This is declaration preservation, not runtime producer completion.
+- Actual SuiteEvents first Source/SDK pilots remain **red**: SDK observes three
+  case bodies but zero Suite callbacks/getter reads/ordered task events; the
+  strict model cannot build its hierarchy. Remaining15 SDK profiles never ran.
+  The identified missing capture flag has only a private unqualified fix;
+  passing bodies or diagnostics complete no Suite callback functionality.
+
+The latest signed followups are bounded independently:
+
+- Approved setup6/c289: **49 controls** (16 affected + 33 unchanged), preserving
+  original assertions/deadlines. Type-only c1eb keeps the entire emitted reporting
+  module byte-identical and passes the normal Root TypeScript check; original
+  type/format failures remain retained.
+- Frame5/bdf: **one normal wrapper / six Chromium profiles / 42 cases / 42 semantic
+  rows** on Root45c8, across aria/html/all and both modes. **42 nonempty raw native
+  stacks are retained; raw stack-string parity is unqualified.** One product
+  source file plus four fixture/helper/reference files are committed. Broader
+  optional-container/rendering/configuration profiles remain open.
+- Approved File2/220: **two normal controls** pass while both original actual Next
+  runs still exit1. Complete File messages equal the genuine File messages, and
+  nested errors remain required in their actual suite-end channel. This changes
+  only one outer test file;13 observed identities/five groups close,78 canonical
+  temp samples hold, and no Work1/SDK calls or product functionality are added.
+
+Signed configured inspect `735369be` passes **48 normal controls**, including
+one public loop of **28 CLI profiles / 24 actual passing cases / four reference
+refusals**, on current Root testing304/compiled9623/private45c8. The supported
+subset is configured root boolean/address resolution, its actual root realm and
+CLI disable/override precedence in serial one-shot isolated ordinary Node
+development/production. Earlier **112 Source / 112 installed profiles** across
+four Nodes each contain **96 actual cases / 16 refusals** and retain their own
+physical revisions; no fresh current Root112 rerun is claimed. All125 observed
+identities/107 groups close and port9229 is released. Passive capture retained
+27 of28 owner JSONs while all28 original helper ownership assertions passed;
+complete transient-process observation is not claimed.
+
+Only the existing `config.test.inspect` inventory row moves from missing to
+partial through a dedicated bounded group. Its eight former neighboring options
+remain missing. First-authored-line breaks, `inspectBrk`/`inspector`, long pauses,
+watch/Browser/RSC/shared debugging and full debugger compatibility remain open.
+
+Private C4+URL Native work passes **32 creator / 186 API controls** and its new
+attested candidate/bootstrap, with functional runtime/installed qualification
+still pending. Resolver realm/order, public cross missing stacks, remaining D1
+error/creator/Root replay, Browser absent defaults15s/30s and explicit option
+presence/inheritance, broader debugger contracts, full aliases/producers and wider
+coverage/rendering profiles remain required. Closed96a/29ac stays the qualified
+scoped fallback; obsolete unqualified1ca generated targets were retired under
+exact guards with raw evidence retained.
 
 The old frozen `0aeb157912`/D188 acceptance run **finished naturally and failed**:
 **243/264 regression** (21 failures) and **7,147/7,179 focused** (32 failures);
