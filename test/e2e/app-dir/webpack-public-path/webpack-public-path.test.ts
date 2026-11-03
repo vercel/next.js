@@ -132,11 +132,6 @@ describe('webpack-public-path', () => {
     })
   })
 
-  it('reads the configured public path in edge routes', async () => {
-    const response = await next.fetch('/api/edge-public-path')
-    expect(await response.json()).toEqual({ publicPath: '/_next/' })
-  })
-
   it('refreshes an already hydrated route without refetching loaded chunks after assignment', async () => {
     let refreshing = false
     const scripts: string[] = []

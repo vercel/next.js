@@ -564,7 +564,39 @@ contextPrototype.r = commonJsRequire;
 }
 /**
  * `require.context` and require/import expression runtime.
- */ function moduleContext(map) {
+ */ function moduleContextFactory(ids, mode = 0) {
+    const context = this;
+    const parentModule = this.m;
+    const map = {};
+    for(let i = 0; i < ids.length; i += 2){
+        const entry = ids[i + 1];
+        let id;
+        let module;
+        if (typeof entry === 'function') {
+            // A function is given for a module without an id to load it by: mostly a
+            // request that throws an error (e.g. one that can't be resolved), and also an
+            // external. As there is no id, `resolve` calls the function too, so that it
+            // throws the same error.
+            id = module = entry;
+        } else {
+            id = ()=>entry;
+            if (mode === 0) {
+                // inlined require implementation, which gives an ignored module empty exports
+                module = ()=>entry === undefined ? {} : getOrInstantiateModuleFromParent(entry, parentModule).exports;
+            } else if (entry === undefined) {
+                module = ()=>Promise.resolve({});
+            } else if (mode === 1) {
+                // Like `import()`, the module is evaluated asynchronously.
+                module = ()=>Promise.resolve().then(()=>esmImport.call(context, entry));
+            } else {
+                module = ()=>asyncLoader.call(context, entry);
+            }
+        }
+        map[ids[i]] = {
+            id,
+            module
+        };
+    }
     function moduleContext(id) {
         id = parseRequest(id);
         if (hasOwnProperty.call(map, id)) {
@@ -591,7 +623,7 @@ contextPrototype.r = commonJsRequire;
     };
     return moduleContext;
 }
-contextPrototype.f = moduleContext;
+contextPrototype.f = moduleContextFactory;
 /**
  * Returns the path of a chunk defined by its data.
  */ function getChunkPath(chunkData) {
@@ -869,6 +901,9 @@ const assignedChunkPaths = new Map();
 function getRuntimeChunkBasePath() {
     return publicPathAssigned ? runtimePublicPath : RUNTIME_CHUNK_BASE_PATH;
 }
+// The load caches below dedupe in-flight and successful loads. A failed load must not stay
+// cached, or every later load of the same chunk would reuse the rejection without requesting
+// the chunk again, so entries are added with `cacheLoadPromise`.
 const availableModules = new Map();
 const availableModuleChunks = new Map();
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
@@ -883,6 +918,20 @@ function registerComponentChunkSizes(componentChunks, sizes) {
             componentChunkSizes.set(componentChunks[i], size);
         }
     }
+}
+/**
+ * Caches `promise` under `key` and evicts it again if it rejects, so a later load retries
+ * instead of reusing the failure.
+ */ function cacheLoadPromise(cache, key, promise) {
+    cache.set(key, promise);
+    promise.catch(()=>{
+        // HMR's `disposeChunk` can delete the entry while this load is pending, and a later load
+        // can then cache a new promise under the same key. Only evict our own entry, or a late
+        // rejection here would drop the newer promise and cause a duplicate fetch.
+        if (cache.get(key) === promise) {
+            cache.delete(key);
+        }
+    });
 }
 // Memoizes the composite promise returned for a merged chunk loaded by URL, keyed by URL.
 const splitChunkPromises = new Map();
@@ -939,7 +988,7 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
         if (!availableModules.has(included)) {
             // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
             // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
-            availableModules.set(included, promise);
+            cacheLoadPromise(availableModules, included, promise);
         }
     }
     await promise;
@@ -988,7 +1037,7 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
         for (const componentChunk of componentChunks){
             if (!availableModuleChunks.has(componentChunk)) {
                 const promise = loadChunkPath(sourceType, sourceData, componentChunk);
-                availableModuleChunks.set(componentChunk, promise);
+                cacheLoadPromise(availableModuleChunks, componentChunk, promise);
                 componentChunkPromises.push(promise);
             }
         }
@@ -999,7 +1048,7 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
     const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl);
     for (const componentChunk of componentChunks){
         if (!availableModuleChunks.has(componentChunk)) {
-            availableModuleChunks.set(componentChunk, promise);
+            cacheLoadPromise(availableModuleChunks, componentChunk, promise);
         }
     }
     return promise;
@@ -1047,7 +1096,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
             let promise = splitChunkPromises.get(cacheKey);
             if (promise === undefined) {
                 promise = loadComponentChunksOrWhole(sourceType, sourceData, components, chunkUrl);
-                splitChunkPromises.set(cacheKey, promise);
+                cacheLoadPromise(splitChunkPromises, cacheKey, promise);
             }
             return promise;
         }
@@ -1059,7 +1108,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
             return existing === true ? loadedChunk : existing;
         }
         const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl);
-        availableModuleChunks.set(chunkPath, promise);
+        cacheLoadPromise(availableModuleChunks, chunkPath, promise);
         return promise;
     }
     // Component chunks are disabled, so the chunking context never emits merged arrays and every
