@@ -308,7 +308,7 @@ This is my project documentation.
     } finally {
       process.chdir(originalCwd)
     }
-  }) // Uses the default timeout (60s); the clone regularly exceeds 30s on CI
+  })
 
   describe('bundled docs (Next.js >= 16.2.0)', () => {
     // Simulate an install of a Next.js version that ships docs inside the
