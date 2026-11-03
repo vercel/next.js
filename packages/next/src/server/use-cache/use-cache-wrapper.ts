@@ -1873,14 +1873,14 @@ async function encodeFormData(formData: FormData): Promise<string> {
     // might contain that delimeter. We use the length of each field as the delimeter to avoid
     // escaping the values.
     result += key.length.toString(16) + ':' + key
-    let stringValue
     if (typeof value === 'string') {
-      stringValue = value
+      result += value.length.toString(16) + ':' + value
     } else {
       // The FormData might contain binary data that is not valid UTF-8 so this cache
       // key may generate a UCS-2 string. Passing this to another service needs to be
       // aware that the key might not be compatible.
       const arrayBuffer = await value.arrayBuffer()
+      let stringValue
       if (arrayBuffer.byteLength % 2 === 0) {
         stringValue = String.fromCodePoint(...new Uint16Array(arrayBuffer))
       } else {
@@ -1892,8 +1892,26 @@ async function encodeFormData(formData: FormData): Promise<string> {
             new Uint8Array(arrayBuffer, arrayBuffer.byteLength - 1, 1)[0]
           )
       }
+      // 'B' cannot appear in a string field's lowercase hex length prefix, so
+      // it unambiguously marks a binary field. The byte length keeps the field
+      // self-delimiting: n bytes occupy ceil(n/2) code units while a string
+      // field of length n occupies n, which would let a string value absorb
+      // the framing of subsequent fields.
+      // The name and type are part of the key because the cached function
+      // observes them. lastModified is excluded: it defaults to the
+      // construction time and does not survive multipart submission.
+      result +=
+        'B' +
+        value.name.length.toString(16) +
+        ':' +
+        value.name +
+        value.type.length.toString(16) +
+        ':' +
+        value.type +
+        arrayBuffer.byteLength.toString(16) +
+        ':' +
+        stringValue
     }
-    result += stringValue.length.toString(16) + ':' + stringValue
   }
   return result
 }
