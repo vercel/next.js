@@ -37,10 +37,23 @@ pub struct EntrypointsOperation {
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
-    let _ = entrypoints.resolve().strongly_consistent().await?;
-    entrypoints.drop_issues();
-    let _ = take_effects(entrypoints).await?;
-    Ok(entrypoints.connect())
+    // Dropping and taking the collectibles leaves the task that does it with a negative count for
+    // each of them. Many `pick_*` root operations connect to this operation, so doing it in this
+    // task would copy all of those collectibles into each of them. Doing it in an inner operation
+    // isolates the dropped collectibles, so this task has no (or very few) collectibles.
+    //
+    // The inner operation keeps its long name so it is easy to identify in traces.
+    #[turbo_tasks::function(operation, root)]
+    async fn inner_entrypoints_without_collectibles_operation(
+        entrypoints: OperationVc<Entrypoints>,
+    ) -> Result<Vc<Entrypoints>> {
+        let _ = entrypoints.resolve().strongly_consistent().await?;
+        entrypoints.drop_issues();
+        let _ = take_effects(entrypoints).await?;
+        Ok(entrypoints.connect())
+    }
+
+    Ok(inner_entrypoints_without_collectibles_operation(entrypoints).connect())
 }
 
 #[turbo_tasks::value_impl]

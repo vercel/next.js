@@ -5,7 +5,7 @@ import {
   getSharp,
   imageOptimizerTransform,
   type ImageOptimizerTransformConfig,
-} from 'next/dist/server/image-optimizer/transform'
+} from 'next/image-optimizer-transform'
 import type {
   CachedRouteKind,
   IncrementalResponseCacheEntry,

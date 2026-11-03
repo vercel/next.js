@@ -23,6 +23,7 @@ pub mod generated_code_source;
 pub mod ident;
 pub mod introspect;
 pub mod issue;
+pub mod json;
 pub mod loader;
 pub mod module;
 pub mod module_graph;
