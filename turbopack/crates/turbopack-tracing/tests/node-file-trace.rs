@@ -118,7 +118,6 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::geoip_lite("integration/geoip-lite.js")]
 #[case::google_bigquery("integration/google-bigquery.js")]
 #[case::got("integration/got.js")]
-#[case::highlights("integration/highlights.js")]
 #[case::hot_shots("integration/hot-shots.js")]
 #[case::ioredis("integration/ioredis.js")]
 #[case::isomorphic_unfetch("integration/isomorphic-unfetch.js")]

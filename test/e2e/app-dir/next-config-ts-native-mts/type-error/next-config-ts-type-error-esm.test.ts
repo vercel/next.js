@@ -3,8 +3,12 @@ import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 describe('next-config-ts-type-error-esm', () => {
   // Deploy builds use the fixture's Node version, not the test runner's.
   // TODO: Remove this local check once we bump minimum Node.js version to v22
-  if (!isNextDeploy && !(process.features as any).typescript) {
-    it.skip('requires `process.features.typescript` to feature detect Node.js native TS', () => {})
+  if (
+    !isNextDeploy &&
+    (!(process.features as any).typescript ||
+      process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED !== 'true')
+  ) {
+    it.skip('requires the Node.js native TS loader', () => {})
     return
   }
 
