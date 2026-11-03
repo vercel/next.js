@@ -1,0 +1,5 @@
+import type { RunnerTaskResultPack } from 'vitest'
+const empty: RunnerTaskResultPack = ['id', undefined, {}]
+const complete: RunnerTaskResultPack = ['id', { state: 'fail', heap: 12 }, { typecheck: true }]
+complete[1] = { state: 'pass', hooks: { aroundEach: 'pass' } }
+void [empty, complete]

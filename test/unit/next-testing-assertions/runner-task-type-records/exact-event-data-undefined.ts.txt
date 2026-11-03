@@ -1,0 +1,3 @@
+import type { RunnerTaskEventPack } from 'vitest'
+const value: RunnerTaskEventPack = ['id', 'test-annotation', { annotation: undefined, artifact: undefined }]
+void value

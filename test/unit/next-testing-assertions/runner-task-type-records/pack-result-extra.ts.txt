@@ -1,0 +1,3 @@
+import type { RunnerTaskResultPack } from 'vitest'
+const value: RunnerTaskResultPack = ['id', undefined, {}, 'extra']
+void value

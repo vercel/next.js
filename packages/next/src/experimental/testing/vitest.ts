@@ -657,3 +657,10 @@ export type {
   ExpectationResult as MatcherResult,
   SyncExpectationResult as SyncMatcherResult,
 } from '../../compiled/next-test-primitives'
+
+export type {
+  RunnerTaskBase,
+  RunnerTaskResult,
+  RunnerTaskResultPack,
+  RunnerTaskEventPack,
+} from './runner/public-task-types'

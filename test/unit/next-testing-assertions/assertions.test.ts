@@ -1615,3 +1615,30 @@ it('matches genuine public error metadata root types without controller dependen
     ],
   })
 }, 35000)
+
+it('matches genuine public runner task data and update pack types', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'runner-task-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toMatchObject({
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    actualNextTaskDataTypes: true,
+    noExternalVitestViteFormatterDeclarations: true,
+    typeOnlyImports: true,
+    declarationOnlyTaskPacks: true,
+    exactOptionalPrograms: 8,
+    programs: 45,
+    accepted: 18,
+    rejected: 27,
+    symbols: [
+      { name: 'RunnerTaskBase', exported: true, hasValueFlag: false },
+      { name: 'RunnerTaskResult', exported: true, hasValueFlag: false },
+      { name: 'RunnerTaskResultPack', exported: true, hasValueFlag: false },
+      { name: 'RunnerTaskEventPack', exported: true, hasValueFlag: false },
+    ],
+  })
+}, 35000)

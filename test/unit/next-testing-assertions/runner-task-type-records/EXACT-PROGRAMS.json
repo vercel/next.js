@@ -1,0 +1,10 @@
+[
+  "exact-base-retry-undefined.ts",
+  "exact-base-context-assignable.ts",
+  "exact-base-tags-undefined.ts",
+  "exact-event-data-undefined.ts",
+  "exact-result-heap-undefined.ts",
+  "exact-base-retry-options.ts",
+  "exact-base-log-origin-undefined.ts",
+  "exact-result-hooks-undefined.ts"
+]

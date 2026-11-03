@@ -131,7 +131,7 @@ export interface Test<ExtraContext = object> extends TaskBase {
   type: 'test'
   context: TestContext & ExtraContext
   timeout: number
-  retry?: TestOptions['retry']
+  retry?: Exclude<TestOptions['retry'], undefined>
   repeats?: number
   fails?: boolean
   annotations: TestAnnotation[]

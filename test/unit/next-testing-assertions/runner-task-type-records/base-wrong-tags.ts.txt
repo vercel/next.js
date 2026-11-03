@@ -1,0 +1,3 @@
+import type { RunnerTaskBase } from 'vitest'
+const value: RunnerTaskBase = { id: 'id', name: 'name', fullName: 'name', mode: 'run', meta: {}, tags: [1] }
+void value
