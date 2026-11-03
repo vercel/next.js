@@ -9,6 +9,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { parseStack } from '../../../server/lib/parse-stack'
 import { getSourceMappedStackFrames } from '../../../server/patch-error-inspect'
+import type { ModernSourceMapPayload } from '../../../server/lib/source-maps'
 import type { CompiledTestArtifact } from '../contracts'
 import type { TestArtifactLocation } from '../runner/tasks'
 import { createArtifactSourceMapLookup } from './source-maps'
@@ -30,6 +31,35 @@ type Mapping = {
 export type RegistrationOrigin = {
   location: TestArtifactLocation
   source: string
+}
+function collectMappings(payload: ModernSourceMapPayload): Mapping[] {
+  const mappings: Mapping[] = []
+  function visit(map: ModernSourceMapPayload, offset: Point) {
+    if ('sections' in map) {
+      for (const section of map.sections)
+        visit(section.map, {
+          line: offset.line + section.offset.line,
+          column:
+            section.offset.column +
+            (section.offset.line === 0 ? offset.column : 0),
+        })
+    } else {
+      // Enumerate each basic map through its public API. The indexed consumer's
+      // enumeration cannot retain an unmapped section in the pinned library.
+      const consumer = new SourceMapConsumer(map as unknown as RawSourceMap)
+      consumer.eachMapping((mapping: Mapping) =>
+        mappings.push({
+          ...mapping,
+          generatedLine: mapping.generatedLine + offset.line,
+          generatedColumn:
+            mapping.generatedColumn +
+            (mapping.generatedLine === 1 ? offset.column : 0),
+        })
+      )
+    }
+  }
+  visit(payload, { line: 0, column: 0 })
+  return mappings
 }
 const compare = (a: Point, b: Point) => a.line - b.line || a.column - b.column
 function filename(url: string): string | undefined {
@@ -74,14 +104,14 @@ function calls(source: string, file: string): Node[] {
 }
 
 /**
- * A case deadline retains its actual declaration Error. Resolve its generated
+ * A registration deadline retains its actual declaration Error. Resolve its generated
  * callee using this leased artifact's syntax, exact mappings and retained entry
  * bytes. In particular, coincident mappings cannot be selected by GLB alone.
  */
 export function createArtifactRegistrationOriginMapper(
   artifact: CompiledTestArtifact,
   entryFile: string
-): (error: Error) => RegistrationOrigin | undefined {
+): (error: Error | string) => RegistrationOrigin | undefined {
   if (
     artifact.kind !== 'node' ||
     artifact.profile.environment !== 'node' ||
@@ -136,8 +166,7 @@ export function createArtifactRegistrationOriginMapper(
           artifact.sourceHash
       )
         return
-      const mappings: Mapping[] = []
-      consumer.eachMapping((mapping: Mapping) => mappings.push(mapping))
+      const mappings = collectMappings(payload)
       result = {
         calls: calls(readFileSync(chunk, 'utf8'), chunk),
         original: calls(content, selected),
@@ -154,14 +183,15 @@ export function createArtifactRegistrationOriginMapper(
     return result
   }
   return (error) => {
+    const readStack = () => (typeof error === 'string' ? error : error.stack)
     try {
-      if (!error.stack) return
+      if (!readStack()) return
       // An imported registration helper must not borrow its caller's origin.
-      const first = getSourceMappedStackFrames(error.stack).find(
+      const first = getSourceMappedStackFrames(readStack()!).find(
         (frame) => frame.original && !frame.ignored
       )
       if (!first?.file || filename(first.file) !== selected) return
-      for (const frame of parseStack(error.stack)) {
+      for (const frame of parseStack(readStack()!)) {
         if (!frame.file || !frame.line1 || !frame.column1) continue
         const chunk = filename(frame.file)
         if (!chunk || !isAbsolute(chunk)) continue

@@ -1,0 +1,33 @@
+{
+  "args": [
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/vitest.mjs",
+    "run",
+    "--root",
+    "/private/tmp/b-aroundall-reference431/genuine/26-development-setup-suite-errors/fixture",
+    "--mode",
+    "development",
+    "--config",
+    "/private/tmp/b-aroundall-reference431/genuine/26-development-setup-suite-errors/fixture/vitest.config.mjs",
+    "--configLoader=native",
+    "--reporter=json",
+    "--reporter=/private/tmp/b-aroundall-reference431/genuine/26-development-setup-suite-errors/fixture/reporter.mjs",
+    "--outputFile=/private/tmp/b-aroundall-reference431/genuine/26-development-setup-suite-errors/report.json"
+  ],
+  "mode": "development",
+  "phase": "setup",
+  "actualNode": "v26.12.1",
+  "actualExecutable": "/usr/local/bin/node",
+  "bodySHA256": "76181d405e899a577815e1dac9e9980782408b661d76a3e1e24bf2880d6d8166",
+  "reporterSHA256": "80c6c938a729474af2b9f28cef1d2cea3a6bf6444755b568654301f33f785438",
+  "config": "export default {cacheDir:\"/private/tmp/b-aroundall-reference431/genuine/26-development-setup-suite-errors/cache\",test:{include:['suite.test.mjs'],maxWorkers:1,fileParallelism:false,testTimeout:5000,hookTimeout:5000,includeTaskLocation:false}}\n",
+  "configSHA256": "75088c58c436b750ca0d83e182ada7410e120847519f967e760f44bd49eb79b0",
+  "bounds": {
+    "cli": 60000,
+    "test": 5000,
+    "hook": 5000,
+    "around": 100,
+    "settle": 250
+  },
+  "unwrappedPinnedRuntimeAndPrivateCache": true,
+  "fixtureGate": "real bounded wrapper finally resolves sibling beforeAll gate"
+}

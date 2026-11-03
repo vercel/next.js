@@ -3,6 +3,7 @@ import type { File, Task, TaskLocation, Test, Suite } from '../runner/tasks'
 import {
   captureReporterTaskTree,
   type ReporterTaskSnapshot,
+  type ReporterTaskResultProjection,
 } from './live-tasks'
 
 // Capture before authored fake clocks can replace the execution realm's globals.
@@ -11,6 +12,8 @@ const realSetTimeout = globalThis.setTimeout.bind(globalThis)
 const realClearTimeout = globalThis.clearTimeout.bind(globalThis)
 
 export type ReporterTaskPack = [string, Pick<Task, 'result' | 'meta'>]
+
+export type { ReporterTaskResultProjection } from './live-tasks'
 
 export type ReporterTaskUpdate<Result = RunnerCaseResult> = {
   taskUpdateIds: string[]
@@ -79,8 +82,12 @@ export function createReporterTaskUpdates<
   const preparedSuites = new Set<string>()
   const pendingTasks = new Map<
     string,
-    Pick<Task, 'result' | 'meta'> & { task: Task }
+    Pick<Task, 'result' | 'meta'> & {
+      task: Task
+      projectResult?: ReporterTaskResultProjection
+    }
   >()
+  let hasResultProjections = false
   let caseResults: Result[] = []
   let timer: ReturnType<typeof setTimeout> | undefined
   let lastUpdate = 0
@@ -98,6 +105,22 @@ export function createReporterTaskUpdates<
     return retained.retry
   }
 
+  function captureCollectionFailurePacks(): ReporterTaskPack[] {
+    const captured = structuredClone(
+      [...pendingTasks].map(
+        ([id, pack]): ReporterTaskPack => [
+          id,
+          { result: pack.result, meta: pack.meta },
+        ]
+      )
+    )
+    if (hasResultProjections)
+      [...pendingTasks.values()].forEach((pack, index) => {
+        pack.projectResult?.(pack.task, captured[index][1].result)
+      })
+    return captured
+  }
+
   function flush() {
     if (timer !== undefined) realClearTimeout(timer)
     timer = undefined
@@ -108,14 +131,7 @@ export function createReporterTaskUpdates<
       const update: ReporterTaskUpdate<Result> = collectionFailure
         ? {
             kind: 'task-packs-after-collection-failure',
-            taskPacks: structuredClone(
-              [...pendingTasks].map(
-                ([id, pack]): ReporterTaskPack => [
-                  id,
-                  { result: pack.result, meta: pack.meta },
-                ]
-              )
-            ),
+            taskPacks: captureCollectionFailurePacks(),
             taskUpdateIds: [...pendingTasks.keys()],
             caseResults,
           }
@@ -130,12 +146,14 @@ export function createReporterTaskUpdates<
             caseResults,
           }
       pendingTasks.clear()
+      hasResultProjections = false
       caseResults = []
       const operation = options.onUpdate(update)
       if (operation === undefined) return
       send = operation
     } catch (error) {
       pendingTasks.clear()
+      hasResultProjections = false
       caseResults = []
       errors.push(error)
       return
@@ -159,9 +177,18 @@ export function createReporterTaskUpdates<
     if (tasks.get(task.id)?.task !== task)
       throw new Error('Reporter task update does not belong to its file.')
   }
-  function schedule(task: Task) {
+  function schedule(task: Task, projectResult?: ReporterTaskResultProjection) {
     assertOwned(task)
-    pendingTasks.set(task.id, { task, result: task.result, meta: task.meta })
+    if (projectResult) {
+      pendingTasks.set(task.id, {
+        task,
+        result: task.result,
+        meta: task.meta,
+        projectResult,
+      })
+      hasResultProjections = true
+    } else
+      pendingTasks.set(task.id, { task, result: task.result, meta: task.meta })
     // Match the actual task-update sender's leading and trailing 100ms throttle.
     const elapsed = realDateNow() - lastUpdate
     if (elapsed > 100) flush()
@@ -259,10 +286,10 @@ export function createReporterTaskUpdates<
       caseResults.push(result)
       schedule(task)
     },
-    suiteEnd(task: Suite) {
+    suiteEnd(task: Suite, projectResult?: ReporterTaskResultProjection) {
       if (options.captureModuleStart === true && !filePrepared)
         throw new Error('Reporter suite ended before actual File preparation.')
-      schedule(task)
+      schedule(task, projectResult)
     },
     async finish() {
       if (collectionFailure)
@@ -281,6 +308,7 @@ export function createReporterTaskUpdates<
       file = undefined
       tasks.clear()
       pendingTasks.clear()
+      hasResultProjections = false
       preparedSuites.clear()
       caseResults = []
     },

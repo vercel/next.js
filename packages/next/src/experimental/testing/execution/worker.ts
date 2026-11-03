@@ -14,6 +14,10 @@ import { captureProductionStaticMockClosure } from '../mocking/production-artifa
 import type { CustomCoverageCompletion } from '../coverage/custom-types'
 import '../../../server/require-hook'
 import '../../../server/node-environment'
+import {
+  createCapturedStackMapper,
+  createSuiteErrorResultProjection,
+} from './suite-error-projection'
 
 import {
   prepareCompiledRscEntry,
@@ -1364,6 +1368,20 @@ async function run({
                 index,
               })
           const serializedErrors = suiteResult.errors.map(runnerFailure)
+          const projectResult =
+            taskUpdates &&
+            artifact.kind === 'node' &&
+            artifact.profile.environment === 'node' &&
+            (!options.entry.executionEnvironment ||
+              options.entry.executionEnvironment.name === 'node') &&
+            suiteResult.errors.some((failure) => failure.phase === 'aroundAll')
+              ? createSuiteErrorResultProjection(
+                  task,
+                  createCapturedStackMapper((stack) =>
+                    registrationOrigin?.(stack)
+                  )
+                )
+              : undefined
           const reportedTask =
             options.captureJUnitSuiteTasks === true
               ? captureJUnitSuiteTask(task, {
@@ -1379,7 +1397,7 @@ async function run({
             ...(reportedTask ? { reportedTask } : {}),
           })
           return taskUpdates
-            ? completion.then(() => taskUpdates.suiteEnd(task))
+            ? completion.then(() => taskUpdates.suiteEnd(task, projectResult))
             : completion
         },
         onCaseResult: taskUpdates

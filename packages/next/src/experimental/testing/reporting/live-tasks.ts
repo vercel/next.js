@@ -10,6 +10,12 @@ import type {
 } from '../runner/tasks'
 import { getPublishedTaskLocation } from '../runner/tasks'
 
+/** Private projection of an already captured result from an actual producer pack. */
+export type ReporterTaskResultProjection = (
+  actualTask: Task,
+  capturedResult: Task['result']
+) => void
+
 /** Actual collected declarations and current producer state, without runtime contexts. */
 export interface ReporterTaskSnapshot {
   id: string
@@ -54,14 +60,29 @@ export function isTaskLocation(value: unknown): value is TaskLocation {
 /** Capture while the real logical-case or suite callback still owns its task tree. */
 export function captureReporterTaskTree(
   file: File,
-  packs?: ReadonlyMap<string, Pick<Task, 'result' | 'meta'>>,
+  packs?: ReadonlyMap<
+    string,
+    Pick<Task, 'result' | 'meta'> & {
+      projectResult?: ReporterTaskResultProjection
+    }
+  >,
   resolveLocation: typeof getPublishedTaskLocation = getPublishedTaskLocation,
   getRetry?: (task: Test) => Test['retry']
 ): ReporterTaskSnapshot {
+  let projections:
+    | Map<
+        ReporterTaskSnapshot,
+        {
+          task: Task
+          project: ReporterTaskResultProjection
+        }
+      >
+    | undefined
   function visit(task: Task): ReporterTaskSnapshot {
-    const pack = packs?.get(task.id) ?? task
+    const actualPack = packs?.get(task.id)
+    const pack = actualPack ?? task
     const location = resolveLocation(task)
-    return {
+    const snapshot: ReporterTaskSnapshot = {
       id: task.id,
       type: task.type,
       name: task.name,
@@ -91,8 +112,32 @@ export function captureReporterTaskTree(
         ? { filepath: file.filepath, projectName: file.projectName }
         : {}),
     }
+    if (actualPack?.projectResult)
+      (projections ??= new Map()).set(snapshot, {
+        task,
+        project: actualPack.projectResult,
+      })
+    return snapshot
   }
-  return structuredClone(visit(file))
+  const snapshot = visit(file)
+  const captured = structuredClone(snapshot)
+  if (projections) {
+    // Parallel owned paths relate actual snapshots to their captured copies.
+    function project(
+      original: ReporterTaskSnapshot,
+      copy: ReporterTaskSnapshot
+    ) {
+      const selected = projections!.get(original)
+      if (selected) {
+        selected.project(selected.task, copy.result)
+      }
+      original.tasks?.forEach((task, index) =>
+        project(task, copy.tasks![index])
+      )
+    }
+    project(snapshot, captured)
+  }
+  return captured
 }
 
 /** Check the actual task graph carried by a result envelope, without interpreting metadata. */

@@ -4294,15 +4294,20 @@ it('reports lexical parents without moving raw collector children or replacing t
   expect(result.errors).toEqual([])
   const module = store.get('lexical-file')!
   const [physical, lexical] = module.children!.array()
-  const [outside, cross, inside] = [...physical.children!.allTests()]
+  const [outside, inside] = [...physical.children!.allTests()]
+  const stagedCross = raw.tasks[2]
+  if (stagedCross?.type !== 'test')
+    throw new Error('Expected the staged raw test.')
   expect([...module.children!.allTests()]).toEqual(early)
-  expect([outside.name, cross.name, inside.name]).toEqual([
+  expect([outside.name, inside.name]).toEqual(['outside', 'inside'])
+  expect(raw.tasks.map((task) => task.name)).toEqual([
     'outside',
-    'cross',
     'inside',
+    'cross',
   ])
+  expect(stagedCross.suite?.name).toBe('later lexical suite')
+  expect(stagedCross.result?.state).toBeUndefined()
   expect(outside.parent).toBe(module)
-  expect(cross.parent).toBe(lexical)
   expect(inside.parent).toBe(physical)
   expect(lexical.children!.size).toBe(1)
   expect(lexical.children!.at(0)!.parent).toBe(lexical)
@@ -4310,7 +4315,6 @@ it('reports lexical parents without moving raw collector children or replacing t
   expect(tree.tasks![0].parentSuiteId).toBeNull()
   expect(tree.tasks![0].tasks!.map((task) => task.parentSuiteId)).toEqual([
     null,
-    tree.tasks![1].id,
     tree.tasks![0].id,
   ])
   const legacy = structuredClone(tree)
@@ -4325,7 +4329,7 @@ it('reports lexical parents without moving raw collector children or replacing t
     expect(task.parent).toBe(legacyPhysical)
   expect(() => store.update(legacy)).toThrow('declaration identity changed')
   expect(outside.result().state).toBe('passed')
-  expect(cross.result().state).toBe('passed')
+  expect(inside.result().state).toBe('passed')
   const assertTree: typeof assertReporterTaskTree = assertReporterTaskTree
   const entryId = tree.id
   for (const mutate of [
@@ -4358,7 +4362,7 @@ it('reports lexical parents without moving raw collector children or replacing t
     expect(() => store.update(changed)).toThrow(/reporter.*parent/)
     expect(store.get(entryId)).toBe(module)
     expect(outside.parent).toBe(module)
-    expect(cross.parent).toBe(lexical)
+    expect(inside.parent).toBe(physical)
     expect(outside.result().state).toBe('passed')
   }
 })

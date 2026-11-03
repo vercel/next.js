@@ -1,0 +1,326 @@
+{
+  "status": 1,
+  "rows": [
+    {
+      "event": "wrapper-entry",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 0,
+        "affectedBody": 0,
+        "affectedCleanup": 0,
+        "wrapper": 1,
+        "followingSetup": 0,
+        "followingBody": 0,
+        "followingCleanup": 0
+      }
+    },
+    {
+      "event": "run-before",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 0,
+        "affectedBody": 0,
+        "affectedCleanup": 0,
+        "wrapper": 1,
+        "followingSetup": 0,
+        "followingBody": 0,
+        "followingCleanup": 0
+      }
+    },
+    {
+      "event": "affected-beforeAll",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 0,
+        "affectedCleanup": 0,
+        "wrapper": 1,
+        "followingSetup": 0,
+        "followingBody": 0,
+        "followingCleanup": 0
+      }
+    },
+    {
+      "event": "affected-body-before",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 0,
+        "wrapper": 1,
+        "followingSetup": 0,
+        "followingBody": 0,
+        "followingCleanup": 0
+      },
+      "assertions": 0
+    },
+    {
+      "event": "affected-body-after",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 0,
+        "wrapper": 1,
+        "followingSetup": 0,
+        "followingBody": 0,
+        "followingCleanup": 0
+      },
+      "assertions": 1
+    },
+    {
+      "event": "affected-afterAll",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 1,
+        "wrapper": 1,
+        "followingSetup": 0,
+        "followingBody": 0,
+        "followingCleanup": 0
+      }
+    },
+    {
+      "event": "run-after",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 1,
+        "wrapper": 1,
+        "followingSetup": 0,
+        "followingBody": 0,
+        "followingCleanup": 0
+      }
+    },
+    {
+      "event": "bounded-wait-entry",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 1,
+        "wrapper": 1,
+        "followingSetup": 0,
+        "followingBody": 0,
+        "followingCleanup": 0
+      }
+    },
+    {
+      "event": "following-beforeAll-entry",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 1,
+        "wrapper": 1,
+        "followingSetup": 1,
+        "followingBody": 0,
+        "followingCleanup": 0
+      }
+    },
+    {
+      "event": "bounded-wait-settled",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 1,
+        "wrapper": 1,
+        "followingSetup": 1,
+        "followingBody": 0,
+        "followingCleanup": 0
+      }
+    },
+    {
+      "event": "wrapper-finally",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 1,
+        "wrapper": 1,
+        "followingSetup": 1,
+        "followingBody": 0,
+        "followingCleanup": 0
+      }
+    },
+    {
+      "event": "following-beforeAll-settled",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 1,
+        "wrapper": 1,
+        "followingSetup": 1,
+        "followingBody": 0,
+        "followingCleanup": 0
+      }
+    },
+    {
+      "event": "following-body-before",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 1,
+        "wrapper": 1,
+        "followingSetup": 1,
+        "followingBody": 1,
+        "followingCleanup": 0
+      },
+      "assertions": 0
+    },
+    {
+      "event": "following-body-after",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 1,
+        "wrapper": 1,
+        "followingSetup": 1,
+        "followingBody": 1,
+        "followingCleanup": 0
+      },
+      "assertions": 1
+    },
+    {
+      "event": "following-afterAll",
+      "phase": "teardown",
+      "counts": {
+        "affectedSetup": 1,
+        "affectedBody": 1,
+        "affectedCleanup": 1,
+        "wrapper": 1,
+        "followingSetup": 1,
+        "followingBody": 1,
+        "followingCleanup": 1
+      }
+    }
+  ],
+  "reporterRows": [
+    {
+      "hook": "end",
+      "reason": "failed",
+      "errors": [],
+      "modules": [
+        {
+          "state": "failed",
+          "errors": [],
+          "suites": [
+            {
+              "name": "affected",
+              "state": "failed",
+              "errors": [
+                {
+                  "name": "AroundHookTeardownError",
+                  "message": "The teardown phase of \"aroundAll\" hook timed out after 100ms.",
+                  "stack": "<runtime stack retained in raw records>",
+                  "constructor": "Function<AroundHookTeardownError>",
+                  "toString": "Function<toString>",
+                  "stacks": [
+                    {
+                      "method": "",
+                      "file": "suite.test.mjs",
+                      "line": 10,
+                      "column": 3
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "following",
+              "state": "passed",
+              "errors": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "name": "affected body",
+      "state": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "following body",
+      "state": "passed",
+      "failureMessages": []
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 3,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 2,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": false
+  },
+  "report": {
+    "numTotalTestSuites": 3,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 2,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "snapshot": {
+      "added": 0,
+      "failure": false,
+      "filesAdded": 0,
+      "filesRemoved": 0,
+      "filesRemovedList": [],
+      "filesUnmatched": 0,
+      "filesUpdated": 0,
+      "matched": 0,
+      "total": 0,
+      "unchecked": 0,
+      "uncheckedKeysByFile": [],
+      "unmatched": 0,
+      "updated": 0,
+      "didUpdate": false
+    },
+    "success": false,
+    "testResults": [
+      {
+        "status": "failed",
+        "message": "",
+        "name": "suite.test.mjs",
+        "assertionResults": [
+          {
+            "ancestorTitles": ["affected"],
+            "fullName": "affected body",
+            "status": "passed",
+            "title": "body",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": ["following"],
+            "fullName": "following body",
+            "status": "passed",
+            "title": "body",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      }
+    ]
+  }
+}
