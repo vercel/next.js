@@ -9,9 +9,10 @@ import {
   assertOwnedNodeCompleted,
 } from '../../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
 
-const [consumerArg, outputArg, compilerRootArg = consumerArg] =
+const [consumerArg, outputArg, compilerRootArg = consumerArg, kindArg] =
   process.argv.slice(2)
 assert(consumerArg && outputArg)
+assert(kindArg === undefined || kindArg === 'element-errors')
 const consumer = fs.realpathSync(consumerArg),
   output = path.resolve(outputArg),
   compilerRoot = fs.realpathSync(compilerRootArg),
@@ -25,10 +26,26 @@ const require = createRequire(path.join(consumer, 'package.json')),
   ),
   next = path.dirname(require.resolve('next/package.json')),
   entry = path.join(next, 'experimental/testing/vitest-browser.d.ts'),
-  base = fs.readFileSync(path.join(directory, 'consumer.mts.txt'), 'utf8'),
-  expected = JSON.parse(fs.readFileSync(path.join(directory, 'reference.json')))
+  base = fs.readFileSync(
+    path.join(
+      directory,
+      kindArg ? 'element-errors.consumer.mts.txt' : 'consumer.mts.txt'
+    ),
+    'utf8'
+  ),
+  expected = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        directory,
+        kindArg ? 'element-errors.reference.json' : 'reference.json'
+      )
+    )
+  )
 assert.equal(hash(base), expected.typeInput)
-assert.equal((base.match(/@ts-expect-error/g) || []).length, 3)
+assert.equal(
+  (base.match(/@ts-expect-error/g) || []).length,
+  kindArg ? expected.typeNegativeCases : 3
+)
 assert(
   JSON.parse(fs.readFileSync(path.join(next, 'package.json'))).files.includes(
     'experimental/testing/vitest-browser.d.ts'
@@ -210,7 +227,9 @@ for (const specifier of ['vitest/browser', '@vitest/browser/context']) {
     runs.push({
       specifier,
       status: owner.status,
-      threeNegativeAssertionsConsumed: true,
+      ...(kindArg
+        ? { negativeAssertionsConsumed: expected.typeNegativeCases }
+        : { threeNegativeAssertionsConsumed: true }),
       actualDOMUtilitySignatures: true,
       noPathsMapping: true,
       noSeparateVitestPackageInListedClosure:

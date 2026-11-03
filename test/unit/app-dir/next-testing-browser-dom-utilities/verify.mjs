@@ -10,7 +10,7 @@ import {
 } from '../../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
 import { projectCleanupReport } from '../../../e2e/app-dir/next-testing-package/browser-public-default-cleanup/project.mjs'
 
-const [consumerArg, outputArg, dependenciesArg = consumerArg] =
+const [consumerArg, outputArg, dependenciesArg = consumerArg, kindArg] =
   process.argv.slice(2)
 assert(
   consumerArg && outputArg,
@@ -22,8 +22,19 @@ const consumer = fs.realpathSync(consumerArg),
   directory = path.dirname(fileURLToPath(import.meta.url))
 fs.mkdirSync(path.dirname(output), { recursive: true })
 fs.mkdirSync(output)
+assert(
+  kindArg === undefined || kindArg === 'element-errors',
+  'Only the explicit element-errors verification kind may be selected'
+)
+const kinds = kindArg ? ['element-errors'] : ['formatting', 'env', 'effects']
 const expected = JSON.parse(
-    fs.readFileSync(path.join(directory, 'reference.json'), 'utf8')
+    fs.readFileSync(
+      path.join(
+        directory,
+        kindArg ? 'element-errors.reference.json' : 'reference.json'
+      ),
+      'utf8'
+    )
   ),
   hash = (value) => createHash('sha256').update(value).digest('hex'),
   save = (where, name, value) =>
@@ -75,7 +86,7 @@ for (const key of [
 ])
   delete env[key]
 const profiles = []
-for (const kind of ['formatting', 'env', 'effects'])
+for (const kind of kinds)
   for (const mode of ['development', 'production']) {
     const evidence = path.join(output, kind + '-' + mode)
     fs.mkdirSync(evidence)
@@ -220,5 +231,7 @@ save(output, 'VERIFIED.json', {
   graphPinsHeld: true,
   allOwnersJoined: true,
   allFixturesRemoved: true,
-  noOtherFramesWatchEnginesOrErrorFactoryParityClaim: true,
+  ...(kindArg
+    ? { noOtherFramesWatchEnginesOrErrorFormatsClaim: true }
+    : { noOtherFramesWatchEnginesOrErrorFactoryParityClaim: true }),
 })

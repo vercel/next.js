@@ -1511,7 +1511,23 @@ function prettyDOM(
 function configurePrettyDOM(options: BrowserStringifyOptions): void {
   defaultPrettyDOMOptions = options
 }
+function getElementError(
+  selector: string | ElementLocator,
+  container?: Element
+): Error {
+  const locator =
+    typeof selector === 'string'
+      ? locatorFormatter.asLocator(selector)
+      : selector.asLocator()
+  const formatted = `ARIA tree:\n${locatorFormatter.formatAriaTree(container as Element)}\n\nHTML:\n${prettyDOM(container)}`
+  const error = new Error(
+    `Cannot find element with locator: ${locator}\n\n${formatted}`
+  )
+  error.name = 'VitestBrowserElementError'
+  return error
+}
 export const utils = {
+  getElementError,
   getElementLocatorSelectors,
   prettyDOM,
   configurePrettyDOM,

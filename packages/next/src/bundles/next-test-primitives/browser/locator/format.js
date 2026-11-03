@@ -69,6 +69,9 @@ export function createBrowserLocatorFormatter() {
         elements
       )
     },
+    formatAriaTree(container) {
+      return renderAriaTree(generateAriaTree(container))
+    },
     missingError(selector, container) {
       const pretty = stringify(container, Infinity, {
         maxLength: 7000,

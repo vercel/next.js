@@ -66,3 +66,80 @@ it('publishes strict DOM utility signatures through both public Browser modules'
       await rm(temporary, { recursive: true, force: true })
   }
 }, 150000)
+
+it('formats real missing-element Errors after selector and ARIA effects', async () => {
+  const retained = process.env.NEXT_TESTING_DOM_ELEMENT_ERRORS_EVIDENCE
+  const temporary =
+    retained ?? (await mkdtemp(join(tmpdir(), 'next-dom-element-errors-')))
+  let complete = false
+  try {
+    const evidence = retained ?? join(temporary, 'evidence')
+    await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'verify.mjs'),
+        join(__dirname, '../../../..'),
+        evidence,
+        join(__dirname, '../../../..'),
+        'element-errors',
+      ],
+      { timeout: 270000, maxBuffer: 1024 * 1024 }
+    )
+    const result = JSON.parse(
+      await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+    )
+    expect(result.profiles).toBe(2)
+    expect(result.cases).toBe(10)
+    expect(result.completeGenuineDOMUtilityModelsExact).toBe(true)
+    expect(result.allOwnersJoined).toBe(true)
+    complete = true
+  } catch (error) {
+    throw new Error(`DOM element Error evidence retained at ${temporary}`, {
+      cause: error,
+    })
+  } finally {
+    if (complete && !retained)
+      await rm(temporary, { recursive: true, force: true })
+  }
+}, 300000)
+
+it('publishes strict missing-element Error signatures through both Browser modules', async () => {
+  const retained = process.env.NEXT_TESTING_DOM_ELEMENT_ERRORS_TYPES_EVIDENCE
+  const temporary =
+    retained ??
+    (await mkdtemp(join(tmpdir(), 'next-dom-element-errors-types-')))
+  let complete = false
+  try {
+    const evidence = retained ?? join(temporary, 'evidence')
+    await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'verify-types.mjs'),
+        join(__dirname, '../../../..'),
+        evidence,
+        join(__dirname, '../../../..'),
+        'element-errors',
+      ],
+      { timeout: 140000, maxBuffer: 1024 * 1024 }
+    )
+    const result = JSON.parse(
+      await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+    )
+    expect(result.profiles).toBe(2)
+    expect(result.runs[0].negativeAssertionsConsumed).toBe(5)
+    expect(result.runs[1].negativeAssertionsConsumed).toBe(5)
+    expect(result.actualShippedAmbientEntry).toBe(true)
+    expect(result.allOwnersJoined).toBe(true)
+    complete = true
+  } catch (error) {
+    throw new Error(
+      `DOM element Error type evidence retained at ${temporary}`,
+      {
+        cause: error,
+      }
+    )
+  } finally {
+    if (complete && !retained)
+      await rm(temporary, { recursive: true, force: true })
+  }
+}, 150000)

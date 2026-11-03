@@ -103,5 +103,6 @@ export declare function createBrowserLocatorFormatter(): {
   generateSelector(element: Element): string
   serializeElement(element: Element): { selector: string; locator: string }
   strictError(selector: string, elements: Element[]): Error
+  formatAriaTree(container: Element): string
   missingError(selector: string, container: Element): Error
 }
