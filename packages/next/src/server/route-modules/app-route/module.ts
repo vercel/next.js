@@ -68,7 +68,6 @@ import {
   getFirstDynamicReason,
 } from '../../app-render/dynamic-rendering'
 import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
-import type { RenderOptsPartial } from '../../app-render/types'
 import { CacheSignal } from '../../app-render/cache-signal'
 import { scheduleImmediate } from '../../../lib/scheduler'
 import { createServerParamsForRoute } from '../../request/params'
@@ -87,11 +86,14 @@ import {
 } from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
-import { executeRevalidates } from '../../revalidation-utils'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { LazyModule } from '../../lib/lazy-module'
 import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
+import {
+  createRouteHandlerRequestInUseCacheError,
+  createRouteHandlerRequestInUnstableCacheError,
+} from '../../use-cache/use-cache-messages'
 
 export class WrappedNextRouterError {
   constructor(
@@ -116,9 +118,7 @@ export type AppRouteSharedContext = {
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
-  renderOpts: WorkStoreContext['renderOpts'] &
-    Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
-    CollectedCacheInfo
+  renderOpts: WorkStoreContext['renderOpts'] & CollectedCacheInfo
   previewProps: DeepReadonly<__ApiPreviewProps>
   sharedContext: AppRouteSharedContext
 }
@@ -394,7 +394,8 @@ export class AppRouteRouteModule extends RouteModule<
     requestStore: RequestStore,
     context: AppRouteRouteHandlerContext
   ): void {
-    const maybeRevalidatesPromise = executeRevalidates(workStore)
+    const maybeRevalidatesPromise =
+      workStore.afterContext.executeRevalidations(workStore)
 
     if (maybeRevalidatesPromise !== false) {
       context.renderOpts.pendingWaitUntil = maybeRevalidatesPromise.finally(
@@ -559,7 +560,7 @@ export class AppRouteRouteModule extends RouteModule<
          */
         const prospectiveController = new AbortController()
         let prospectiveRenderIsDynamic = false
-        const cacheSignal = new CacheSignal()
+        const cacheSignal = new CacheSignal(null)
         let dynamicTracking = createDynamicTrackingState(undefined)
 
         // TODO: Route handlers are never resumed, so it's counter-intuitive
@@ -593,8 +594,8 @@ export class AppRouteRouteModule extends RouteModule<
             resumeDataCache: prerenderResumeDataCache,
             hmrRefreshHash: undefined,
             varyParamsAccumulator: null,
-            runtimeDataAccessed: null,
-            shouldAttemptStaticPrefetch: null,
+            ensureStaticLevel: null,
+            prerenderDataTracking: null,
             isFallbackUpgradeable: false,
           })
 
@@ -629,7 +630,7 @@ export class AppRouteRouteModule extends RouteModule<
         ) {
           // The handler returned a Thenable. We'll listen for rejections to determine
           // if the route is erroring for dynamic reasons.
-          ;(prospectiveResult as any as Promise<unknown>).then(
+          ;(prospectiveResult as Promise<unknown>).then(
             () => {},
             (err) => {
               if (prospectiveController.signal.aborted) {
@@ -692,8 +693,8 @@ export class AppRouteRouteModule extends RouteModule<
           resumeDataCache: prerenderResumeDataCache,
           hmrRefreshHash: undefined,
           varyParamsAccumulator: null,
-          runtimeDataAccessed: null,
-          shouldAttemptStaticPrefetch: null,
+          ensureStaticLevel: null,
+          prerenderDataTracking: null,
           isFallbackUpgradeable: false,
         })
 
@@ -718,20 +719,32 @@ export class AppRouteRouteModule extends RouteModule<
 
               responseHandled = true
 
-              let bodyHandled = false
-              result.arrayBuffer().then((body) => {
-                if (!bodyHandled) {
-                  bodyHandled = true
+              const init: ResponseInit = {
+                headers: result.headers,
+                status: result.status,
+                statusText: result.statusText,
+              }
 
-                  resolve(
-                    new Response(body, {
-                      headers: result.headers,
-                      status: result.status,
-                      statusText: result.statusText,
-                    })
-                  )
-                }
-              }, reject)
+              // There's nothing to buffer, and rebuilding with the empty buffer
+              // from `arrayBuffer()` would throw for null body statuses (e.g.
+              // the 204 from an auto-implemented OPTIONS handler).
+              if (result.body === null) {
+                resolve(new Response(null, init))
+                return
+              }
+
+              let bodyHandled = false
+              result
+                .arrayBuffer()
+                .then((body) => {
+                  if (!bodyHandled) {
+                    bodyHandled = true
+                    resolve(new Response(body, init))
+                  }
+                })
+                // Ensure anything thrown above rejects instead of becoming an
+                // unhandled rejection that leaves the prerender hanging.
+                .catch(reject)
               scheduleImmediate(() => {
                 if (!bodyHandled) {
                   bodyHandled = true
@@ -857,7 +870,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     // In Turbopack dev mode, fetch the live userland module on every request
     // via the synchronous require() getter so server HMR updates are reflected
-    // immediately. This is cheap — it is just a devModuleCache lookup.
+    // immediately. This is cheap — it is just a module cache lookup.
     // For routes with top-level await, require() may still return a Promise
     // (async module); in that case fall back to the already-resolved
     // userland module resolved by ensureUserland() above.
@@ -1041,7 +1054,7 @@ export class AppRouteRouteModule extends RouteModule<
                 break
               case 'error':
                 workStore.dynamicShouldError = true
-                request = new Proxy(req, requireStaticRequestHandlers)
+                request = new Proxy(req, ensureStaticRequestHandlers)
                 break
               case undefined:
               case 'auto':
@@ -1359,7 +1372,7 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
   return new Proxy(request, nextRequestHandlers)
 }
 
-const requireStaticRequestHandlers = {
+const ensureStaticRequestHandlers = {
   get(
     target: NextRequest & RequestSymbolTarget,
     prop: string | symbol,
@@ -1371,7 +1384,7 @@ const requireStaticRequestHandlers = {
           target[nextURLSymbol] ||
           (target[nextURLSymbol] = new Proxy(
             target.nextUrl,
-            requireStaticNextUrlHandlers
+            ensureStaticNextUrlHandlers
           ))
         )
       case 'headers':
@@ -1399,7 +1412,7 @@ const requireStaticRequestHandlers = {
               // to probably embed the static generation logic into the class itself removing the need
               // for any kind of proxying
               target.clone() as NextRequest,
-              requireStaticRequestHandlers
+              ensureStaticRequestHandlers
             ))
         )
       default:
@@ -1410,7 +1423,7 @@ const requireStaticRequestHandlers = {
   // and will be ignored
 }
 
-const requireStaticNextUrlHandlers = {
+const ensureStaticNextUrlHandlers = {
   get(
     target: NextURL & UrlSymbolTarget,
     prop: string | symbol,
@@ -1431,7 +1444,7 @@ const requireStaticNextUrlHandlers = {
         return (
           target[urlCloneSymbol] ||
           (target[urlCloneSymbol] = () =>
-            new Proxy(target.clone(), requireStaticNextUrlHandlers))
+            new Proxy(target.clone(), ensureStaticNextUrlHandlers))
         )
       default:
         return ReflectAdapter.get(target, prop, receiver)
@@ -1462,12 +1475,11 @@ function trackDynamic(
       case 'private-cache':
         // TODO: Should we allow reading cookies and search params from the
         // request for private caches in route handlers?
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-        )
+        throw createRouteHandlerRequestInUseCacheError(store.route, expression)
       case 'unstable-cache':
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        throw createRouteHandlerRequestInUnstableCacheError(
+          store.route,
+          expression
         )
       case 'prerender':
         const error = new Error(
@@ -1499,13 +1511,8 @@ function trackDynamic(
 
         throw err
       case 'request':
-        if (process.env.NODE_ENV !== 'production') {
-          // TODO: This is currently not really needed for route handlers, as it
-          // only controls the ISR status that's shown for pages.
-          workUnitStore.usedDynamic = true
-        }
         break
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never

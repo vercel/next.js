@@ -1,9 +1,17 @@
+// run deploy tests: v1
 import fs from 'fs-extra'
 import cookie from 'cookie'
 import cheerio from 'cheerio'
 import { join, sep } from 'path'
 import escapeRegex from 'escape-string-regexp'
-import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
+import {
+  FileRef,
+  isReact18,
+  nextTestSetup,
+  isNextStart,
+  isNextDev,
+  isNextDeploy,
+} from 'e2e-utils'
 import {
   waitForRedbox,
   check,
@@ -15,8 +23,10 @@ import {
   retry,
   waitFor,
   getCacheHeader,
+  expectDirectives,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 describe('Prerender', () => {
   const { next } = nextTestSetup({
@@ -57,10 +67,13 @@ describe('Prerender', () => {
       const lastRetry = i === retries - 1
       const jsonPath = join(
         next.testDir,
-        '.next',
-        'server',
-        'pages',
-        `${prerenderPath}.html`
+        next.getPrerenderFilePath(prerenderPath, '.html', {
+          router: 'pages',
+          route: {
+            kind: RouteKind.PAGES,
+            sourceRoute: '/blocking-fallback/[slug]',
+          },
+        })
       )
       try {
         const jsonStats = await fs.stat(jsonPath)
@@ -379,17 +392,21 @@ describe('Prerender', () => {
 
   const navigateTest = (isDev = false) => {
     it('should navigate between pages successfully', async () => {
-      // TODO: Compiling this many pages in parallel hits some race condition
-      // causing "SyntaxError: Unexpected non-whitespace character after JSON at position 614"
-      // which persists throughout Next.js Server instance lifetime.
-      // Compiling in batches to avoid that unknown bug.
-      const toBuildBatches = [
-        ['/', '/another', '/something', '/normal'],
-        ['/blog/post-1', '/blog/post-1/comment-1', '/catchall/first'],
+      // Parallel dev warmup has triggered JSON parsing failures that persist
+      // for the lifetime of the server. Warm these routes serially so this
+      // test can exercise navigation after compilation.
+      const toBuild = [
+        '/',
+        '/another',
+        '/something',
+        '/normal',
+        '/blog/post-1',
+        '/blog/post-1/comment-1',
+        '/catchall/first',
       ]
 
-      for (const toBuild of toBuildBatches) {
-        await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      for (const page of toBuild) {
+        await renderViaHTTP(next.url, page)
       }
 
       const browser = await next.browser('/')
@@ -683,20 +700,22 @@ describe('Prerender', () => {
     if (!isDev) {
       it('should use correct caching headers for a revalidate page', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/')
-        expect(initialRes.headers.get('cache-control')).toBe(
+        expectDirectives(
+          initialRes.headers.get('cache-control'),
           isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : ['s-maxage=2', 'stale-while-revalidate=31535998']
         )
       })
 
       it('should use correct caching headers for a fallback-true page (prerendered)', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/fallback-true/first')
         expect(initialRes.status).toBe(200)
-        expect(initialRes.headers.get('cache-control')).toBe(
+        expectDirectives(
+          initialRes.headers.get('cache-control'),
           isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : ['s-maxage=2', 'stale-while-revalidate=31535998']
         )
         expect(await initialRes.text()).not.toContain('hi fallback')
 
@@ -705,19 +724,21 @@ describe('Prerender', () => {
           `/_next/data/${next.buildId}/fallback-true/first.json`
         )
         expect(dataRes.status).toBe(200)
-        expect(dataRes.headers.get('cache-control')).toBe(
+        expectDirectives(
+          dataRes.headers.get('cache-control'),
           isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : ['s-maxage=2', 'stale-while-revalidate=31535998']
         )
 
         await retry(async () => {
           const finalRes = await fetchViaHTTP(next.url, `/fallback-true/first`)
           expect(finalRes.status).toBe(200)
-          expect(finalRes.headers.get('cache-control')).toBe(
+          expectDirectives(
+            finalRes.headers.get('cache-control'),
             isDeploy
-              ? 'public, max-age=0, must-revalidate'
-              : 's-maxage=2, stale-while-revalidate=31535998'
+              ? ['public', 'max-age=0', 'must-revalidate']
+              : ['s-maxage=2', 'stale-while-revalidate=31535998']
           )
           expect(await finalRes.text()).not.toContain('hi fallback')
         })
@@ -726,10 +747,17 @@ describe('Prerender', () => {
       it('should use correct caching headers for a fallback-true page (lazy)', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/fallback-true/second')
         expect(initialRes.status).toBe(200)
-        expect(initialRes.headers.get('cache-control')).toBe(
+        expectDirectives(
+          initialRes.headers.get('cache-control'),
           isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 'private, no-cache, no-store, max-age=0, must-revalidate'
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : [
+                'private',
+                'no-cache',
+                'no-store',
+                'max-age=0',
+                'must-revalidate',
+              ]
         )
         expect(await initialRes.text()).toContain('hi fallback')
 
@@ -738,19 +766,21 @@ describe('Prerender', () => {
           `/_next/data/${next.buildId}/fallback-true/second.json`
         )
         expect(dataRes.status).toBe(200)
-        expect(dataRes.headers.get('cache-control')).toBe(
+        expectDirectives(
+          dataRes.headers.get('cache-control'),
           isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : ['s-maxage=2', 'stale-while-revalidate=31535998']
         )
 
         await retry(async () => {
           const finalRes = await fetchViaHTTP(next.url, `/fallback-true/second`)
           expect(finalRes.status).toBe(200)
-          expect(finalRes.headers.get('cache-control')).toBe(
+          expectDirectives(
+            finalRes.headers.get('cache-control'),
             isDeploy
-              ? 'public, max-age=0, must-revalidate'
-              : 's-maxage=2, stale-while-revalidate=31535998'
+              ? ['public', 'max-age=0', 'must-revalidate']
+              : ['s-maxage=2', 'stale-while-revalidate=31535998']
           )
           expect(await finalRes.text()).not.toContain('hi fallback')
         })
@@ -902,7 +932,7 @@ describe('Prerender', () => {
       expect(value).toMatch(/Hi \[third\] \[fourth\]/)
     })
 
-    if ((global as any).isNextStart) {
+    if (isNextStart) {
       // TODO: dev currently renders this page as blocking, meaning it shows the
       // server error instead of continuously retrying. Do we want to change this?
       it.skip('should reload page on failed data request, and retry', async () => {
@@ -1126,7 +1156,7 @@ describe('Prerender', () => {
       )
     })
 
-    if ((global as any).isNextDev) {
+    if (isNextDev) {
       it('should show warning every time page with large amount of page data is returned', async () => {
         await renderViaHTTP(next.url, '/large-page-data-ssr')
         await check(
@@ -1143,7 +1173,7 @@ describe('Prerender', () => {
       })
     }
 
-    if ((global as any).isNextStart) {
+    if (isNextStart) {
       it('should only show warning once per page when large amount of page data is returned', async () => {
         await renderViaHTTP(next.url, '/large-page-data-ssr')
         await check(
@@ -1159,7 +1189,7 @@ describe('Prerender', () => {
       })
     }
 
-    if ((global as any).isNextDev) {
+    if (isNextDev) {
       it('should not show warning from url prop being returned', async () => {
         await next.patchFile(
           'pages/url-prop.js',
@@ -1384,8 +1414,11 @@ describe('Prerender', () => {
     } else {
       it('should use correct caching headers for a no-revalidate page', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/something')
-        expect(initialRes.headers.get('cache-control')).toBe(
-          isDeploy ? 'public, max-age=0, must-revalidate' : 's-maxage=31536000'
+        expectDirectives(
+          initialRes.headers.get('cache-control'),
+          isDeploy
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : ['s-maxage=31536000']
         )
         const initialHtml = await initialRes.text()
         expect(initialHtml).toMatch(/hello.*?world/)
@@ -1403,7 +1436,7 @@ describe('Prerender', () => {
         await check(() => getBrowserBodyText(browser), /hello /)
       })
 
-      if ((global as any).isNextStart && !isDeploy) {
+      if (isNextStart && !isDeploy) {
         it('outputs dataRoutes in routes-manifest correctly', async () => {
           const { dataRoutes } = JSON.parse(
             await next.readFile('.next/routes-manifest.json')
@@ -2245,7 +2278,7 @@ describe('Prerender', () => {
       })
     }
 
-    if ((global as any).isNextStart) {
+    if (isNextStart) {
       it('should of formatted build output correctly', () => {
         expect(next.cliOutput).toMatch(/○ \/normal/)
         expect(next.cliOutput).toMatch(/[├└] {3}\/blog\/\[post\]/)
@@ -2673,5 +2706,5 @@ describe('Prerender', () => {
       expect(next.cliOutput).not.toContain('argument entity must be string')
     })
   }
-  runTests((global as any).isNextDev, (global as any).isNextDeploy)
+  runTests(isNextDev, isNextDeploy)
 })

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 // `content` is a real children branch even though its route targets are all
-// below named slots. A match for only `sidebar` must therefore be incomplete.
+// below named slots.
 export default function Layout({
   children,
   sidebar,

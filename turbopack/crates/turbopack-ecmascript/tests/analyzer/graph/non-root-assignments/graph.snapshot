@@ -246,17 +246,9 @@
     ),
     (
         "v",
-        Unknown {
-            original_value: Some(
-                Variable(
-                    (
-                        "v",
-                        #11,
-                    ),
-                ),
-            ),
-            reason: "pattern without value",
-            has_side_effects: false,
-        },
+        Argument(
+            1260,
+            0,
+        ),
     ),
 ]

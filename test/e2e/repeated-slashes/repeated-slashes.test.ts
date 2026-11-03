@@ -5,9 +5,10 @@ import {
   stopApp,
   startStaticServer,
   fetchViaHTTP,
+  fetchViaRawHttp,
   retry,
 } from 'next-test-utils'
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 function runTests({
   next,
@@ -67,7 +68,7 @@ function runTests({
       )
 
       expect(res.status).toBe(307)
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(res.headers.get('location'), res.url)
 
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl.pathname).toBe('/test/google.com')
@@ -82,7 +83,7 @@ function runTests({
       )
 
       expect(res2.status).toBe(307)
-      const parsedUrl2 = new URL(res2.headers.get('location'))
+      const parsedUrl2 = new URL(res2.headers.get('location'), res2.url)
 
       expect(parsedUrl2.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl2.pathname).toBe('/test/google.com')
@@ -99,7 +100,7 @@ function runTests({
       })
       expect(res.status).toBe(308)
 
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(res.headers.get('location'), res.url)
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
@@ -127,7 +128,7 @@ function runTests({
         { redirect: 'manual' }
       )
       expect(res.status).toBe(308)
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(res.headers.get('location'), res.url)
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({
@@ -154,7 +155,7 @@ function runTests({
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(res.headers.get('location'), res.url)
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
@@ -240,11 +241,12 @@ function runTests({
   it('should handle backslashes correctly', async () => {
     const port = resolvePort()
     if (!isExport) {
-      const res = await fetchViaHTTP(port, '/\\google.com', undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaRawHttp(port, '/\\google.com')
       expect(res.status).toBe(308)
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(
+        res.headers.get('location'),
+        `http://localhost:${port}`
+      )
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
@@ -266,11 +268,12 @@ function runTests({
   it('should handle mixed backslashes/forward slashes correctly', async () => {
     const port = resolvePort()
     if (!isExport) {
-      const res = await fetchViaHTTP(port, '/\\/google.com', undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaRawHttp(port, '/\\/google.com')
       expect(res.status).toBe(308)
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(
+        res.headers.get('location'),
+        `http://localhost:${port}`
+      )
       expect(parsedUrl.pathname).toBe(isExport ? '//google.com' : '/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
@@ -418,22 +421,22 @@ function runTests({
 
 describe('404 handling', () => {
   describe('custom _error', () => {
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
+    // @force-gate !deploy
     describe('server mode', () => {
-      const { next, isNextDeploy } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
-        skipDeployment: true,
       })
-      if (isNextDeploy) return
 
       runTests({ next, isDev: isNextDev, isPages404: false })
     })
-    ;(isNextStart ? describe : describe.skip)('export mode', () => {
-      const { next, skipped } = nextTestSetup({
+    // @force-gate start
+    describe('export mode', () => {
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
-        skipDeployment: true,
       })
-      if (skipped) return
 
       let staticServer: any
       let staticPort: number
@@ -471,13 +474,14 @@ describe('404 handling', () => {
   })
 
   describe('pages/404', () => {
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
+    // @force-gate !deploy
     describe('server mode', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
-        skipDeployment: true,
       })
-      if (skipped) return
 
       beforeAll(async () => {
         await next.deleteFile('pages/_error.js')
@@ -501,13 +505,12 @@ describe('404 handling', () => {
 
       runTests({ next, isDev: isNextDev, isPages404: true })
     })
-    ;(isNextStart ? describe : describe.skip)('pages/404 export mode', () => {
-      const { next, skipped } = nextTestSetup({
+    // @force-gate start
+    describe('pages/404 export mode', () => {
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
-        skipDeployment: true,
       })
-      if (skipped) return
 
       let staticServer: any
       let staticPort: number

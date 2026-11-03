@@ -8,6 +8,7 @@ import {
 } from 'fs'
 import { inspect, promisify } from 'util'
 import http from 'http'
+import https from 'https'
 import path from 'path'
 
 import type cheerio from 'cheerio'
@@ -15,7 +16,6 @@ import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import { getRandomPort } from 'get-port-please'
-import fetch from 'node-fetch'
 import { nanoid } from 'nanoid'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
@@ -25,7 +25,6 @@ import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 
 import type { SpawnOptions, ChildProcess } from 'child_process'
-import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import type { Playwright } from './browsers/playwright'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
@@ -208,6 +207,76 @@ export function fetchViaHTTP(
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), opts)
+}
+
+/**
+ * Sends a request without any URL parsing or normalization and with full
+ * control over the Host header. Global fetch cannot be used for this: its
+ * WHATWG URL parser normalizes backslashes, dot-segments, and repeated
+ * slashes, and it derives the Host header from the URL authority. The
+ * response is returned verbatim, including a raw relative Location header.
+ */
+export function fetchViaRawHttp(
+  appPortOrUrl: string | number,
+  rawPath: string,
+  opts?: {
+    method?: string
+    headers?: Record<string, string>
+    /** Accepted for drop-in compatibility; raw requests never follow redirects. */
+    redirect?: 'manual'
+    /** Passed to the TLS connection for https URLs (e.g. self-signed servers). */
+    rejectUnauthorized?: boolean
+  }
+): Promise<Response> {
+  const baseUrl =
+    typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
+      ? new URL(appPortOrUrl)
+      : null
+  return new Promise((resolve, reject) => {
+    const req = (baseUrl?.protocol === 'https:' ? https : http).request(
+      {
+        hostname: baseUrl ? baseUrl.hostname : '127.0.0.1',
+        port: baseUrl ? baseUrl.port : appPortOrUrl,
+        path: rawPath,
+        method: opts?.method ?? 'GET',
+        headers: opts?.headers,
+        rejectUnauthorized: opts?.rejectUnauthorized,
+      },
+      (res) => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk) => chunks.push(chunk))
+        res.on('end', () => {
+          const status = res.statusCode ?? 200
+          const headers = new Headers()
+          for (const [key, value] of Object.entries(res.headers)) {
+            for (const item of Array.isArray(value) ? value : [value]) {
+              if (item !== undefined) {
+                headers.append(key, item)
+              }
+            }
+          }
+          const body = Buffer.concat(chunks)
+          resolve(
+            new Response(status === 204 || status === 304 ? null : body, {
+              status,
+              statusText: res.statusMessage,
+              headers,
+            })
+          )
+        })
+      }
+    )
+    req.on('error', reject)
+    req.end()
+  })
+}
+
+export function renderViaRawHTTP(
+  appPortOrUrl: string | number,
+  rawPath: string,
+  opts?: Parameters<typeof fetchViaRawHttp>[2]
+) {
+  return fetchViaRawHttp(appPortOrUrl, rawPath, opts).then((res) => res.text())
 }
 
 export function expectVaryHeaderToContain(
@@ -887,10 +956,13 @@ export async function retry<T>(
   }
 }
 
-export async function waitForRedbox(browser: Playwright) {
+export async function waitForRedbox(
+  browser: Playwright,
+  { waitInMs = 5000 } = {}
+) {
   const redbox = browser.locateRedbox()
   try {
-    await redbox.waitFor({ timeout: 5000 })
+    await redbox.waitFor({ timeout: waitInMs })
   } catch (errorCause) {
     const error = new Error('Expected Redbox but found no visible one.')
     Error.captureStackTrace(error, waitForRedbox)
@@ -1160,8 +1232,15 @@ export async function getRedboxTotalErrorCount(
   return parseInt(text || '-1')
 }
 
-export function getRedboxSource(browser: Playwright): Promise<string | null> {
-  return browser.eval(() => {
+// Editor controls are not part of the source code captured by error snapshots.
+function normalizeRedboxSource(source: string | null): string | null {
+  return source?.replace(/\nOpen in Editor(?=\n|$)/g, '') ?? null
+}
+
+export async function getRedboxSource(
+  browser: Playwright
+): Promise<string | null> {
+  const source = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) =>
@@ -1175,6 +1254,7 @@ export function getRedboxSource(browser: Playwright): Promise<string | null> {
         ?.innerText ?? null
     )
   })
+  return normalizeRedboxSource(source)
 }
 
 export function getRedboxTitle(browser: Playwright): Promise<string | null> {
@@ -1605,7 +1685,7 @@ export interface RedboxCauseEntry {
 export async function getRedboxCause(
   browser: Playwright
 ): Promise<RedboxCauseEntry[] | null> {
-  return browser.eval(() => {
+  const entries = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -1639,12 +1719,18 @@ export async function getRedboxCause(
     }
     return causes
   })
+  return (
+    entries?.map((entry) => ({
+      ...entry,
+      source: normalizeRedboxSource(entry.source),
+    })) ?? null
+  )
 }
 
 export async function getRedboxAggregateErrors(
   browser: Playwright
 ): Promise<RedboxCauseEntry[] | null> {
-  return browser.eval(() => {
+  const entries = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -1682,6 +1768,12 @@ export async function getRedboxAggregateErrors(
     }
     return entries
   })
+  return (
+    entries?.map((entry) => ({
+      ...entry,
+      source: normalizeRedboxSource(entry.source),
+    })) ?? null
+  )
 }
 
 export async function getRedboxCallStack(
@@ -2108,6 +2200,30 @@ export function getClientReferenceManifest(
 export const getCacheHeader = (curRes: Response) =>
   // favor generic header
   curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
+
+/**
+ * Asserts that the cache-control header consists of exactly these directives,
+ * in any order.
+ *
+ * @param header The cache-control header to check.
+ * @param directives The directives to expect.
+ */
+export const expectDirectives = (
+  header: string | null,
+  directives: Array<string | RegExp>
+) => {
+  const split = (header ?? '').split(',').map((directive) => directive.trim())
+  expect(split).toEqual(
+    expect.arrayContaining(
+      directives.map((directive) =>
+        directive instanceof RegExp
+          ? expect.stringMatching(directive)
+          : directive
+      )
+    )
+  )
+  expect(split).toHaveLength(directives.length)
+}
 
 export function getDeploymentId(appDir: string, isDev: boolean) {
   let requiredServerFiles: RequiredServerFilesManifest | undefined

@@ -118,6 +118,9 @@ export class Playwright<TCurrent = undefined> {
         `${path
           .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH!)
           .replace(/\//g, '-')}`,
+        ...(process.env.NEXT_TEST_RUN_NUMBER
+          ? [`run-${process.env.NEXT_TEST_RUN_NUMBER}`]
+          : []),
         `playwright-${this.activeTrace}-${Date.now()}.zip`
       )
 

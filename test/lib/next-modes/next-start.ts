@@ -76,12 +76,9 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  // When a previous test attempt was interrupted (typically by exceeding the
-  // per-test timeout) while `next build` was still running, the build process
-  // is still tracked here. Since `jest.retryTimes` re-runs the test body in the
-  // same process, stop the orphaned build so the caller can continue instead of
-  // failing the retry. If a server is genuinely running, throw
-  // `serverRunningError` instead.
+  // Stop a build left running after a test exceeded its timeout so subsequent
+  // tests can start or build the fixture. Throw `serverRunningError` if the
+  // process is serving requests instead.
   private async stopLeftoverBuildOrThrow(serverRunningError: string) {
     if (!this.childProcess) {
       return
@@ -103,6 +100,7 @@ export class NextStartInstance extends NextInstance {
     await this.stopLeftoverBuildOrThrow('next already started')
 
     this._cliOutput = ''
+    this.rustPanicCheckedLength = 0
     const spawnOpts = this.getSpawnOpts(options.env)
 
     let startArgs = ['pnpm', 'next', 'start']
@@ -126,7 +124,7 @@ export class NextStartInstance extends NextInstance {
       this._phase = 'building'
       const buildArgs = this.getBuildArgs()
       console.log('running', shellQuote(buildArgs))
-      await new Promise<void>((resolve, reject) => {
+      const buildPromise = new Promise<void>((resolve, reject) => {
         try {
           this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
           this.handleStdio(this.childProcess)
@@ -160,6 +158,14 @@ export class NextStartInstance extends NextInstance {
           setTimeout(() => process.exit(1), 0)
         }
       })
+      try {
+        await buildPromise
+      } catch (err) {
+        // Prefer reporting a panic over the generic build failure.
+        this.throwOnRustPanics('next build', err)
+        throw err
+      }
+      this.throwOnRustPanics('next build')
 
       this._buildId = (
         await fs
@@ -299,6 +305,7 @@ export class NextStartInstance extends NextInstance {
         })
       })
     })
+    this.throwOnRustPanics('next build')
 
     this._buildId = (
       await fs

@@ -15,16 +15,14 @@ import {
 import { logQueue } from '../../../../next-devtools/userspace/app/forward-logs'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
 import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
+import { assetPrefix } from './asset-prefix'
 
 let reconnections = 0
 let reloading = false
 let serverSessionId: number | null = null
 let mostRecentCompilationHash: string | null = null
 
-export function createWebSocket(
-  assetPrefix: string,
-  staticIndicatorState: StaticIndicatorState
-) {
+export function createWebSocket(staticIndicatorState: StaticIndicatorState) {
   if (!self.__next_r) {
     throw new InvariantError(
       `Expected a request ID to be defined for the document via self.__next_r.`
@@ -38,6 +36,16 @@ export function createWebSocket(
     if (webSocket && webSocket.readyState === webSocket.OPEN) {
       webSocket.send(data)
     }
+  }
+  let runtimeErrorStateReporter: ReturnType<
+    typeof import('../runtime-error-state').createRuntimeErrorStateReporter
+  > | null
+  if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+    const { createRuntimeErrorStateReporter } =
+      require('../runtime-error-state') as typeof import('../runtime-error-state')
+    runtimeErrorStateReporter = createRuntimeErrorStateReporter(sendMessage)
+  } else {
+    runtimeErrorStateReporter = null
   }
 
   const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
@@ -55,6 +63,7 @@ export function createWebSocket(
 
     function handleOnline() {
       logQueue.onSocketReady(newWebSocket)
+      runtimeErrorStateReporter?.reportCurrent()
 
       reconnections = 0
       window.console.log('[HMR] connected')
@@ -190,6 +199,7 @@ export function createProcessTurbopackMessage(
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
   ).then(({ connect }) => {
     connect({
+      initialHmrVersion: self.__nextHmrInitialVersion,
       addMessageListener(cb: (msg: TurbopackMessageSentToBrowser) => void) {
         callback = cb
 

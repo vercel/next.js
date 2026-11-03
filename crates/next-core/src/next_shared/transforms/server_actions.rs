@@ -2,11 +2,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use next_custom_transforms::transforms::server_actions::{
-    Config, ServerActionsMode, server_actions,
+    Config, HashSalt, ServerActionsMode, server_actions,
 };
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
@@ -14,7 +14,7 @@ use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 use crate::{mode::NextMode, next_config::CacheKinds};
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum ActionsTransform {
     /// Browser and SSR
     Client,
@@ -77,6 +77,9 @@ struct NextServerActions {
 impl CustomTransformer for NextServerActions {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "server_actions", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        // The hash salt (the encryption key) is only needed for modules with server functions.
+        // `lazy_reader` allows us to drop the dependency in the common case.
+        let encryption_key = self.encryption_key.lazy_reader().await?;
         let actions = server_actions(
             &FileName::Real(ctx.file_path_str.into()),
             Some(ctx.query_str.clone()),
@@ -84,7 +87,7 @@ impl CustomTransformer for NextServerActions {
                 is_react_server_layer: self.is_react_server_layer,
                 is_development: self.mode.is_development(),
                 use_cache_enabled: self.use_cache_enabled,
-                hash_salt: self.encryption_key.await?.to_string(),
+                hash_salt: HashSalt::lazy(move || encryption_key.get().clone()),
                 cache_kinds: self.cache_kinds.owned().await?,
             },
             ctx.comments.clone(),

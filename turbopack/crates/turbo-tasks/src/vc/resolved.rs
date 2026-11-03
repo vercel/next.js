@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
     RawVc, Upcast, UpcastStrict, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
-    trace::{TraceRawVcs, TraceRawVcsContext},
     vc::{Vc, into_future},
 };
 
@@ -323,15 +322,6 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("ResolvedVc").field(&self.node.node).finish()
-    }
-}
-
-impl<T> TraceRawVcs for ResolvedVc<T>
-where
-    T: ?Sized,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
     }
 }
 

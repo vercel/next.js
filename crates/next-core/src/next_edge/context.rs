@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
@@ -114,9 +114,7 @@ pub async fn get_edge_resolve_options_context(
             .await?;
 
     let after_resolve_plugins = vec![ResolvedVc::upcast(
-        NextSharedRuntimeResolvePlugin::new(project_path.clone())
-            .to_resolved()
-            .await?,
+        NextSharedRuntimeResolvePlugin::new().to_resolved().await?,
     )];
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
@@ -173,7 +171,7 @@ pub async fn get_edge_resolve_options_context(
 }
 
 #[turbo_tasks::task_input(contains_unresolved_vcs)]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct EdgeChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -187,6 +185,7 @@ pub struct EdgeChunkingContextOptions {
     pub turbo_source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub minify_before_chunking: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
     pub client_static_folder_name: RcStr,
@@ -215,6 +214,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        minify_before_chunking,
         nested_async_chunking,
         client_root,
         client_static_folder_name,
@@ -287,7 +287,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            .minify_before_chunking(*minify_before_chunking.await?);
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -311,6 +312,7 @@ pub async fn get_edge_chunking_context(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        minify_before_chunking,
         nested_async_chunking,
         client_root,
         client_static_folder_name,
@@ -400,7 +402,8 @@ pub async fn get_edge_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            .minify_before_chunking(*minify_before_chunking.await?);
     }
 
     Ok(Vc::upcast(builder.build()))

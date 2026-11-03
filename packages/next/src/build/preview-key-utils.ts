@@ -13,8 +13,6 @@ const EXPIRATION = 1000 * 60 * 60 * 24 * 14 // 14 days
 
 async function writeCache(distDir: string, config: __ApiPreviewProps) {
   const cacheBaseDir = getStorageDirectory(distDir)
-  if (!cacheBaseDir) return
-
   const configPath = path.join(cacheBaseDir, CONFIG_FILE)
   if (!fs.existsSync(cacheBaseDir)) {
     await fs.promises.mkdir(cacheBaseDir, { recursive: true })
@@ -51,13 +49,6 @@ export async function generatePreviewKeys({
   isBuild: boolean
 }): Promise<__ApiPreviewProps> {
   const cacheBaseDir = getStorageDirectory(distDir)
-
-  if (!cacheBaseDir) {
-    // There's no persistent storage available. We generate a new config.
-    // This also covers development time.
-    return generateConfig()
-  }
-
   const configPath = path.join(cacheBaseDir, CONFIG_FILE)
   async function tryReadCachedConfig(): Promise<false | __ApiPreviewProps> {
     if (!fs.existsSync(configPath)) return false

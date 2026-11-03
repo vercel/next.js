@@ -89,7 +89,7 @@ impl Visit for ReturnCollector {
 // an empty result can only have come from it. With other returns present we
 // can't tell which produced the empty result, so this returns None and the
 // caller falls back to the declaration.
-fn find_error_anchor_in_body(body: &BlockStmt) -> Option<Span> {
+fn find_error_anchor_in_body(body: &FunctionBody) -> Option<Span> {
     let mut returns = ReturnCollector::default();
     body.visit_with(&mut returns);
     if returns.count == 1 {
@@ -104,8 +104,8 @@ fn find_error_anchor_in_body(body: &BlockStmt) -> Option<Span> {
 fn find_error_anchor_in_initializer(initializer: &Expr) -> Option<Span> {
     match initializer {
         Expr::Arrow(arrow) => match &*arrow.body {
-            BlockStmtOrExpr::BlockStmt(body) => find_error_anchor_in_body(body),
-            BlockStmtOrExpr::Expr(expr) => match &**expr {
+            ArrowFunctionBody::FunctionBody(body) => find_error_anchor_in_body(body),
+            ArrowFunctionBody::Expr(expr) => match &**expr {
                 Expr::Array(array) if array.elems.is_empty() => Some(array.span()),
                 _ => None,
             },

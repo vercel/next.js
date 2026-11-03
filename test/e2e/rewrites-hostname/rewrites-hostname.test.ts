@@ -2,16 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { findPort } from 'next-test-utils'
 import createTargetServer from './target-server'
 
+// Deploy mode exclusion: This suite rewrites to a server on a local port and
+// asserts localhost host headers, which a deployment can't reach.
+// @force-gate !deploy
 describe('rewrites hostname', () => {
-  const { skipped, next } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   let targetPort: number | null = null
   let closeTargetServer: (() => Promise<void>) | null = null

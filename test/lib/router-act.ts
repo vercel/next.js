@@ -28,7 +28,8 @@ const APP_SHELL_PREFETCH_VALUE = '3'
 // - 'runtime': dynamic prefetch requests, issued by
 //   `fetchSegmentPrefetchesUsingRuntimeRequest` in the client. These carry a
 //   FlightRouterState request tree and a `next-router-prefetch` header value
-//   of '2' (FetchStrategy.PPRRuntime) or '3' (FetchStrategy.RuntimeShell).
+//   of '2' (up to the prefetch stage), '3' (the shell), or '4' (up to the
+//   navigation stage).
 //   The other strategies used by that path — LoadingBoundary ('1') and Full
 //   (no prefetch header) — send the same headers as plain prefetches and
 //   navigations respectively, so they cannot be demonstrably classified and
@@ -37,6 +38,7 @@ const APP_SHELL_PREFETCH_VALUE = '3'
 //   prefetches. Expectations that specify a `kind` never claim these.
 const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER = 'next-router-segment-prefetch'
 const PPR_RUNTIME_PREFETCH_VALUE = '2'
+const NAVIGATION_RUNTIME_PREFETCH_VALUE = '4'
 
 type ResponseKind = 'static' | 'runtime'
 
@@ -92,9 +94,9 @@ type ExpectedResponseConfig = {
  *   the kind of prefetch request that produced them: 'static' matches only
  *   per-segment static prefetches (those with a `next-router-segment-prefetch`
  *   request header), and 'runtime' matches only dynamic prefetch requests
- *   (those with a `next-router-prefetch` header value of '2' (PPRRuntime) or
- *   '3' (RuntimeShell)). If omitted, any router response can satisfy the
- *   expectation. Note that App Shell (RuntimeShell) responses are excluded
+ *   (those with a `next-router-prefetch` header value of '2' (up to the
+ *   prefetch stage), '3' (the shell), or '4' (up to the navigation stage)).
+ *   If omitted, any router response can satisfy the expectation. Note that App Shell (RuntimeShell) responses are excluded
  *   from assertion logic by default, so a `kind: 'runtime'` expectation that
  *   should match an App Shell response additionally requires passing
  *   `includeAppShellRequests: true` to `createRouterAct`.
@@ -117,6 +119,8 @@ type ActConfig =
   | 'block'
   | 'no-requests'
   | null
+
+export type RouterAct = ReturnType<typeof createRouterAct>
 
 export function createRouterAct(
   page: Playwright.Page,
@@ -339,7 +343,9 @@ export function createRouterAct(
           kind = 'static'
         } else if (
           headers[NEXT_ROUTER_PREFETCH_HEADER] === PPR_RUNTIME_PREFETCH_VALUE ||
-          headers[NEXT_ROUTER_PREFETCH_HEADER] === APP_SHELL_PREFETCH_VALUE
+          headers[NEXT_ROUTER_PREFETCH_HEADER] === APP_SHELL_PREFETCH_VALUE ||
+          headers[NEXT_ROUTER_PREFETCH_HEADER] ===
+            NAVIGATION_RUNTIME_PREFETCH_VALUE
         ) {
           kind = 'runtime'
         }
@@ -705,6 +711,79 @@ ${fulfilled.body}
           } else {
             if (route !== null) {
               const request = route.request()
+
+              // When fulfilling a redirect, for some reason, the page.route()
+              // handler installed earlier will not intercept the redirect
+              // request. Install an event listener to wait for the redirected
+              // request to finish. This works for this case because we don't
+              // need to modify or delay the response; we only need to observe
+              // when it has finished. The listener must be installed before
+              // fulfilling: the browser can issue the redirected request as
+              // soon as it receives the redirect, and a listener installed
+              // afterwards would miss it and latch onto whatever router
+              // request happens next — a request this act scope is itself
+              // holding, which would never receive a response.
+              // TODO: Because this request cannot be intercepted, it's
+              // incompatible with the "block" option. I haven't yet figured out
+              // a strategy to make that work. In the meantime, attempting to
+              // write a test that blocks a redirect will result in an error
+              // (see error above).
+              const redirectedRequestFinished =
+                fulfilled.status === 307 || fulfilled.status === 308
+                  ? new Promise<void>((resolve, reject) => {
+                      const handleRequest = (req: Playwright.Request) => {
+                        if (req.redirectedFrom()?.url() !== request.url()) {
+                          return
+                        }
+                        page.off('request', handleRequest)
+                        const handleResponse = (res: Playwright.Response) => {
+                          if (res.url() === req.url()) {
+                            batch.pendingRequests.add({
+                              url: req.url(),
+                              route: null,
+                              result: (async () => {
+                                return {
+                                  // For redirects, body may not be available,
+                                  // so catch the error and return an empty
+                                  // string.
+                                  text: await res.text().catch(() => ''),
+                                  body: await res
+                                    .body()
+                                    .catch(() => Buffer.from('')),
+                                  headers: res.headers(),
+                                  status: res.status(),
+                                }
+                              })(),
+                              didProcess: false,
+                              // The target of a redirect is a navigation, not
+                              // an App Shell prefetch.
+                              isAppShell: false,
+                              // Navigations have no prefetch kind.
+                              kind: undefined,
+                            })
+                            batch.didReceiveRouterRequest = true
+                            page.off('response', handleResponse)
+                            page.off('requestfailed', handleFailure)
+                            resolve()
+                          }
+                        }
+                        const handleFailure = (
+                          failedReq: Playwright.Request
+                        ) => {
+                          if (failedReq.url() === req.url()) {
+                            page.off('response', handleResponse)
+                            page.off('requestfailed', handleFailure)
+                            error.message = `Request failed: ${failedReq.failure()?.errorText || 'Unknown error'}\n\nURL: ${req.url()}`
+                            reject(error)
+                          }
+                        }
+                        page.on('response', handleResponse)
+                        page.on('requestfailed', handleFailure)
+                      }
+                      page.on('request', handleRequest)
+                    })
+                  : null
+
               await route.fulfill({
                 body: fulfilled.body,
                 headers: fulfilled.headers,
@@ -718,63 +797,11 @@ ${fulfilled.body}
                   await browserResponse.finished()
                 }
               }
-            }
-          }
 
-          if (fulfilled.status === 307 || fulfilled.status === 308) {
-            // When fulfilling a redirect, for some reason, the page.route()
-            // handler installed earlier will not intercept the
-            // redirect request. Install a one-off event listener to wait for
-            // the redirected request to finish. This works for this case
-            // because we don't need to modify to delay the response; we only
-            // need to observe when it has finished.
-            // TODO: Because this request cannot be intercepted, it's
-            // incompatible with the "block" option. I haven't yet figured out
-            // a strategy to make that work. In the meantime, attempting to
-            // write a test that blocks a redirect will result in an error
-            // (see error above).
-            await new Promise<void>((resolve, reject) => {
-              page.once('request', (req) => {
-                const handleResponse = (res: Playwright.Response) => {
-                  if (res.url() === req.url()) {
-                    batch.pendingRequests.add({
-                      url: req.url(),
-                      route: null,
-                      result: (async () => {
-                        return {
-                          // For redirects, body may not be available, so catch
-                          // the error and return an empty string.
-                          text: await res.text().catch(() => ''),
-                          body: await res.body().catch(() => Buffer.from('')),
-                          headers: res.headers(),
-                          status: res.status(),
-                        }
-                      })(),
-                      didProcess: false,
-                      // The target of a redirect is a navigation, not an App
-                      // Shell prefetch.
-                      isAppShell: false,
-                      // Navigations have no prefetch kind.
-                      kind: undefined,
-                    })
-                    batch.didReceiveRouterRequest = true
-                    page.off('response', handleResponse)
-                    page.off('requestfailed', handleFailure)
-                    resolve()
-                  }
-                }
-                const handleFailure = (failedReq: Playwright.Request) => {
-                  if (failedReq.url() === req.url()) {
-                    page.off('response', handleResponse)
-                    page.off('requestfailed', handleFailure)
-                    error.message = `Request failed: ${failedReq.failure()?.errorText || 'Unknown error'}\n\nURL: ${req.url()}`
-                    reject(error)
-                  }
-                }
-                page.on('response', handleResponse)
-                page.on('requestfailed', handleFailure)
-              })
-            })
+              if (redirectedRequestFinished !== null) {
+                await redirectedRequestFinished
+              }
+            }
           }
         }
 
@@ -802,10 +829,14 @@ ${fulfilled.body}
           // Print a helpful error message.
 
           if (expectedResponses.length === 1) {
+            const includes = expectedResponses[0].includes
             error.message =
               'Expected a response containing the given string:\n\n' +
-              expectedResponses[0].includes +
+              includes +
               '\n'
+            ;(error as ActMissingResponseError).code =
+              MISSING_RESPONSE_ERROR_CODE
+            ;(error as ActMissingResponseError).includes = includes
           } else {
             const expectedSubstrings = expectedResponses.map(
               (item) => item.includes
@@ -866,4 +897,84 @@ ${fulfilled.body}
   }
 
   return act
+}
+
+const MISSING_RESPONSE_ERROR_CODE = 'MISSING_RESPONSE'
+type ActMissingResponseError = Error & {
+  code: typeof MISSING_RESPONSE_ERROR_CODE
+  includes: string
+}
+
+export function isActMissingResponseError(
+  thrown: unknown,
+  expected: string
+): thrown is ActMissingResponseError {
+  if (
+    thrown &&
+    typeof thrown === 'object' &&
+    'message' in thrown &&
+    typeof thrown.message === 'string' &&
+    'code' in thrown &&
+    thrown.code === MISSING_RESPONSE_ERROR_CODE
+  ) {
+    const error = thrown as ActMissingResponseError
+    return error.includes === expected
+  }
+  return false
+}
+
+/**
+ * Waits for the ISR fallback retry loop to receive a concrete response.
+ *
+ * @param concretePrerenderAssertion - An `act()` assertion that matches the concrete prerender.
+ * If the response needs to be delayed (e.g. to assert that it's followed with a runtime prefetch),
+ * nest the call in an another `act()` and set `block: true`.
+ * */
+export async function waitForSuccessfulISRFallbackRetry(
+  act: RouterAct,
+  concretePrerenderAssertion: {
+    includes: string
+    kind: 'static'
+    block?: boolean
+  }
+) {
+  // The router retries ISR fallbacks in 2s intervals.
+  const interval = 2_000
+  const maxAttempts = 5
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await act(async () => {
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, interval + 100)
+        )
+      }, [
+        // The retried request eventually yields a concrete prerender.
+        concretePrerenderAssertion,
+        // NO Runtime prefetch to get the content
+        // or runtime requests of any kind
+        { includes: '', kind: 'runtime', block: 'reject' },
+      ])
+
+      // if act() succeeded, then we got a complete prerender, and can stop waiting
+      // for retries.
+      break
+    } catch (err) {
+      // act() threw. Check if it's because we still didn't get a slug in the response.
+      // This may happen if the concrete prerender hasn't finished yet.
+      if (isActMissingResponseError(err, concretePrerenderAssertion.includes)) {
+        // The router did a retry, but got an ISR fallback again.
+        if (attempt < maxAttempts) {
+          console.error(`Retry ${attempt} failed:`, err)
+        } else {
+          throw new Error(
+            `Did not receive a concrete prerender after ${maxAttempts} attempts`,
+            { cause: err }
+          )
+        }
+      } else {
+        // All other errors get reported as-is.
+        throw err
+      }
+    }
+  }
 }

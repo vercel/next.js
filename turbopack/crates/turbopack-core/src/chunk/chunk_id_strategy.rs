@@ -2,8 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-    turbobail,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, turbobail,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 
@@ -13,11 +12,10 @@ use crate::{chunk::ChunkItem, ident::AssetIdent, module::Module};
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct ModuleIds(FxHashMap<ResolvedVc<AssetIdent>, ModuleId>);
 
-#[derive(
-    Default, Clone, PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[derive(Default, Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum ModuleIdFallback {
     Error,
+    IdentWithoutLayer,
     #[default]
     Ident,
 }
@@ -27,6 +25,18 @@ pub enum ModuleIdFallback {
 pub struct ModuleIdStrategy {
     pub module_id_map: Option<ResolvedVc<ModuleIds>>,
     pub fallback: ModuleIdFallback,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleIdStrategy {
+    #[turbo_tasks::function]
+    pub fn new_ident_without_layer() -> Vc<Self> {
+        Self {
+            module_id_map: None,
+            fallback: ModuleIdFallback::IdentWithoutLayer,
+        }
+        .cell()
+    }
 }
 
 impl ModuleIdStrategy {
@@ -64,6 +74,9 @@ impl ModuleIdStrategy {
 
                 turbobail!("ModuleId not found for ident: {}", ident);
             }
+            ModuleIdFallback::IdentWithoutLayer => Ok(ModuleId::String(
+                ident.to_string_without_layer().owned().await?,
+            )),
             ModuleIdFallback::Ident => Ok(ModuleId::String(ident.to_string().owned().await?)),
         }
     }

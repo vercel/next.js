@@ -2,30 +2,36 @@ use std::{
     borrow::Cow,
     collections::VecDeque,
     io::{BufWriter, Write},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result};
 use byteorder::{BE, ByteOrder, WriteBytesExt};
+use either::Either;
 use fs_err::File;
 
 use crate::{
-    compression::{checksum_block, compress_into_buffer},
+    Compression,
+    compression::{Compressor, checksum_block},
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::MetaEntryFlags,
     static_sorted_file::{
-        BLOB_VALUE_REF_SIZE, BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH,
-        BLOCK_TYPE_INDEX, BLOCK_TYPE_KEY_NO_HASH, BLOCK_TYPE_KEY_WITH_HASH,
-        FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, KEY_BLOCK_ENTRY_TYPE_BLOB,
-        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
-        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
-        KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_DELETED_REF_SIZE, MEDIUM_VALUE_REF_SIZE,
-        SMALL_VALUE_REF_SIZE,
+        BLOB_VALUE_REF_SIZE, BLOCK_TYPE_INDEX, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions,
+        KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN,
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KEY_DELETED_REF_SIZE, KeyBlockLayout,
+        MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE, key_block_table_stride,
     },
 };
 
 /// Size of the per-block header on disk: 4 bytes uncompressed_size + 4 bytes CRC32 checksum.
 pub const BLOCK_HEADER_SIZE: usize = 8;
+
+/// Capacity of the buffered writer for SST files. Must be well above the typical block size, so
+/// that each block (8–12 KB small-value blocks, up to 16 KB key blocks) doesn't force its own
+/// `write` syscall.
+const FILE_WRITE_BUFFER_SIZE: usize = 256 * 1024;
 
 /// The maximum number of entries that should go into a single key block
 const MAX_KEY_BLOCK_ENTRIES: usize = MAX_KEY_BLOCK_SIZE / KEY_BLOCK_ENTRY_META_OVERHEAD;
@@ -56,9 +62,8 @@ const BLOCK_INDEX_CAPACITY_BUFFER: usize = 16;
 
 /// Minimum key size (in bytes) for attempting LZ4 compression on key blocks.
 ///
-/// Keys are sorted by hash, so we should not expect correlation in the data between nearby keys in
-/// a block. For small keys (below this threshold), compression is unlikely to be able to exploit
-/// patterns and only wastes CPU time. We skip the compression attempt entirely in this case.
+/// For small keys (below this threshold), compression is unlikely to find enough to work with and
+/// only wastes CPU time, so we skip the attempt entirely.
 const MIN_KEY_SIZE_FOR_COMPRESSION: usize = 16;
 
 /// Maximum key length that can use fixed-size key block layout.
@@ -142,11 +147,19 @@ impl KeyBlockFormat {
     }
 }
 
-/// Copy-able snapshot of the accumulator state needed by [`flush_key_block`].
+/// Copy-able snapshot of the accumulator state needed by [`StreamingSstWriter::flush_key_block`].
 #[derive(Clone, Copy)]
 struct KeyBlockFlushInfo {
     max_key_len: usize,
+    min_key_len: usize,
     format: KeyBlockFormat,
+}
+
+impl KeyBlockFlushInfo {
+    /// The shared key length when every entry in the block has the same one, else `None`.
+    fn uniform_key_len(&self) -> Option<usize> {
+        (self.min_key_len == self.max_key_len).then_some(self.max_key_len)
+    }
 }
 
 /// Tracks the accumulated state of the current incomplete key block.
@@ -161,6 +174,7 @@ struct KeyBlockAccumulator {
     entry_count: usize,
     /// Maximum key length among accumulated entries (determines whether hashes are stored).
     max_key_len: usize,
+    min_key_len: usize,
     /// Hash of the most recently added entry (used to avoid splitting entries with equal hashes
     /// across blocks).
     last_hash: u64,
@@ -174,6 +188,7 @@ impl KeyBlockAccumulator {
             size: 0,
             entry_count: 0,
             max_key_len: 0,
+            min_key_len: usize::MAX,
             last_hash: 0,
             format: KeyBlockFormat::Unknown,
         }
@@ -183,6 +198,7 @@ impl KeyBlockAccumulator {
     fn add(&mut self, key_len: usize, key_hash: u64, value_type: EntryType) {
         self.size += key_len + KEY_BLOCK_ENTRY_META_OVERHEAD;
         self.max_key_len = self.max_key_len.max(key_len);
+        self.min_key_len = self.min_key_len.min(key_len);
         self.entry_count += 1;
         self.last_hash = key_hash;
         self.format.update(key_len, value_type);
@@ -192,6 +208,7 @@ impl KeyBlockAccumulator {
     fn flush_info(&self) -> KeyBlockFlushInfo {
         KeyBlockFlushInfo {
             max_key_len: self.max_key_len,
+            min_key_len: self.min_key_len,
             format: self.format,
         }
     }
@@ -215,14 +232,31 @@ impl KeyBlockAccumulator {
         self.size = 0;
         self.entry_count = 0;
         self.max_key_len = 0;
+        self.min_key_len = usize::MAX;
         self.format = KeyBlockFormat::Unknown;
         // last_hash is intentionally not reset -- it is overwritten on the next add() call.
     }
 }
 
-/// Determines whether to store the hash per entry based on max key length.
-fn use_hash(max_key_len: usize) -> bool {
-    max_key_len > 32
+/// Chooses a key block's layout from the longest key it holds.
+fn choose_layout(max_key_len: usize) -> KeyBlockLayout {
+    // Short keys are cheap enough to compare directly that storing an 8-byte hash per entry costs
+    // more space than the comparison saves, so those blocks omit it and reorder entries by key.
+    if max_key_len > 32 {
+        KeyBlockLayout::HashThenKey
+    } else {
+        KeyBlockLayout::KeyOnly
+    }
+}
+
+#[inline]
+fn be_key_u32(key: &[u8]) -> u32 {
+    u32::from_be_bytes(key.try_into().expect("4-byte key"))
+}
+
+#[inline]
+fn be_key_u64(key: &[u8]) -> u64 {
+    u64::from_be_bytes(key.try_into().expect("8-byte key"))
 }
 
 /// Trait for entries from that SST files can be created
@@ -231,8 +265,12 @@ pub trait Entry {
     fn key_hash(&self) -> u64;
     /// Returns the length of the key
     fn key_len(&self) -> usize;
+    /// Returns the key's bytes.
+    fn key_bytes(&self) -> &[u8];
     /// Writes the key to a buffer
-    fn write_key_to(&self, buf: &mut Vec<u8>);
+    fn write_key_to(&self, buf: &mut Vec<u8>) {
+        buf.extend_from_slice(self.key_bytes());
+    }
 
     /// Returns the value
     fn value(&self) -> EntryValue<'_>;
@@ -245,8 +283,8 @@ impl<E: Entry> Entry for &E {
     fn key_len(&self) -> usize {
         (*self).key_len()
     }
-    fn write_key_to(&self, buf: &mut Vec<u8>) {
-        (*self).write_key_to(buf)
+    fn key_bytes(&self) -> &[u8] {
+        (*self).key_bytes()
     }
     fn value(&self) -> EntryValue<'_> {
         (*self).value()
@@ -297,9 +335,14 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub flags: MetaEntryFlags,
     /// The number of entries in the SST file
     pub entries: u64,
+    /// The number of tombstone entries (`KeyDeleted` and `KeyValueDeleted`) in the SST file.
+    pub tombstones: u64,
 }
 
 /// Writes an SST file from a pre-sorted slice of entries.
+///
+/// Entries must be sorted in (key-hash, key) order, the same contract as
+/// [`StreamingSstWriter::add`].
 ///
 /// This is a convenience wrapper around [`StreamingSstWriter`] for callers that already have all
 /// entries in memory.
@@ -309,11 +352,20 @@ pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
     file: &Path,
     flags: MetaEntryFlags,
+    compression: Compression,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
-    debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
-    let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64)?;
+    debug_assert!(
+        entries
+            .iter()
+            .map(|e| (e.key_hash(), e.key_bytes()))
+            .is_sorted()
+    );
+    let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64, compression)?;
     for entry in entries {
-        writer.add(entry)?;
+        if let Err(err) = writer.add(entry) {
+            writer.cancel();
+            return Err(err);
+        }
     }
     writer.close()
 }
@@ -363,12 +415,13 @@ fn write_block_to_file(
     block_offsets: &mut Vec<u32>,
     block: &[u8],
     try_compress: bool,
+    compressor: &mut Compressor,
 ) -> Result<u16> {
     let (uncompressed_size, data_to_write): (u32, &[u8]) = if try_compress {
-        compress_into_buffer(block, compress_buffer)?;
+        compressor.compress_into_buffer(block, compress_buffer)?;
         // Same threshold as LevelDB/RocksDB: require at least 12.5% savings.
         if compress_buffer.len() < block.len() - (block.len() / 8) {
-            (block.len().try_into().unwrap(), compress_buffer.as_slice())
+            (block.len().try_into().unwrap(), compress_buffer)
         } else {
             (0, block)
         }
@@ -379,15 +432,13 @@ fn write_block_to_file(
     // Checksum is computed on the on-disk data (after compression).
     let checksum = checksum_block(data_to_write);
 
-    let result = write_raw_block_to_file(
+    write_raw_block_to_file(
         file,
         block_offsets,
         uncompressed_size,
         checksum,
         data_to_write,
-    );
-    compress_buffer.clear();
-    result
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -503,8 +554,12 @@ pub struct StreamingSstWriter<E: Entry> {
     // File I/O. Wrapped in Option so close() can take ownership without a partial-move
     // compile error (partial moves are forbidden when the type has a Drop impl).
     file: Option<BufWriter<File>>,
+    file_path: PathBuf,
+    /// Whether close() successfully finalized the SST, so Drop must preserve the file.
+    preserve_file: bool,
     compress_buffer: Vec<u8>,
     block_offsets: Vec<u32>,
+    compressor: Compressor,
 
     /// Pending key entries waiting to be flushed as key blocks.
     ///
@@ -546,6 +601,10 @@ pub struct StreamingSstWriter<E: Entry> {
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
 
+    // Reusable buffer for the tail region of a key block: the key (when the search region holds
+    // hashes) and the value. Appended to `key_buffer` when the block is finished.
+    key_value_buffer: Vec<u8>,
+
     // Collected key hashes truncated to u32 for deferred AMQF construction via sorted Builder
     // in close(). Fingerprint size is always <32 bits, so the lower 32 bits suffice.
     collected_fingerprints: Vec<u32>,
@@ -557,6 +616,7 @@ pub struct StreamingSstWriter<E: Entry> {
     min_hash: u64,
     max_hash: u64,
     entry_count: u64,
+    tombstone_count: u64,
     flags: MetaEntryFlags,
 
     // Fullness tracking (for compaction callers)
@@ -569,7 +629,8 @@ pub struct StreamingSstWriter<E: Entry> {
     /// State of the current incomplete key block at the tail of the resolved prefix.
     current_key_block: KeyBlockAccumulator,
 
-    /// Set to `true` by `close()` so the Drop guard can detect writers dropped without closing.
+    /// Set to `true` by `close()` or `cancel()` so the Drop guard can detect writers dropped
+    /// without completing their lifecycle.
     #[cfg(debug_assertions)]
     finished: bool,
 }
@@ -578,8 +639,15 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// Creates a new streaming SST writer.
     ///
     /// `max_entry_count` is used to pre-allocate buffers and estimate block counts.
-    pub fn new(file: &Path, flags: MetaEntryFlags, max_entry_count: u64) -> Result<Self> {
-        let file = BufWriter::new(File::create(file)?);
+    pub fn new(
+        file: &Path,
+        flags: MetaEntryFlags,
+        max_entry_count: u64,
+        compression: Compression,
+    ) -> Result<Self> {
+        let file_path = file.to_owned();
+        let file = BufWriter::with_capacity(FILE_WRITE_BUFFER_SIZE, File::create(file)?);
+        let compressor = Compressor::new(compression)?;
 
         // Estimate number of key blocks based on max entry count.
         // Each key block holds up to MAX_KEY_BLOCK_ENTRIES entries.
@@ -596,8 +664,11 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         Ok(Self {
             file: Some(file),
+            file_path,
+            preserve_file: false,
             compress_buffer: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE),
             block_offsets: Vec::with_capacity(estimated_total_blocks),
+            compressor,
             pending_keys: VecDeque::with_capacity(entries_per_value_block),
             first_pending_small_index: 0,
             #[cfg(debug_assertions)]
@@ -605,12 +676,17 @@ impl<E: Entry> StreamingSstWriter<E> {
             pending_small_value_block: Vec::with_capacity(
                 MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE,
             ),
+            // `FixedKeyBlockBuilder::finish` appends the tail back into `key_buffer`, so it still
+            // holds a whole block. The tail buffer is only used by fixed-size blocks and is
+            // `reserve`d to the exact region size per block, so it starts empty.
             key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
+            key_value_buffer: Vec::new(),
             collected_fingerprints: Vec::with_capacity(max_entry_count as usize),
             key_block_boundaries: Vec::with_capacity(estimated_key_blocks),
             min_hash: u64::MAX,
             max_hash: 0,
             entry_count: 0,
+            tombstone_count: 0,
             flags,
             total_key_size: 0,
             total_value_size: 0,
@@ -681,6 +757,7 @@ impl<E: Entry> StreamingSstWriter<E> {
                     &mut self.block_offsets,
                     value,
                     true,
+                    &mut self.compressor,
                 )
                 .context("Failed to write value block")?;
                 ValueRef::Medium { block_index }
@@ -743,8 +820,12 @@ impl<E: Entry> StreamingSstWriter<E> {
                 }
             }
             EntryValue::Large { blob } => ValueRef::Blob { blob_id: blob },
-            EntryValue::KeyDeleted => ValueRef::KeyDeleted,
+            EntryValue::KeyDeleted => {
+                self.tombstone_count += 1;
+                ValueRef::KeyDeleted
+            }
             EntryValue::KeyValueDeleted { value } => {
+                self.tombstone_count += 1;
                 // Enforced by `WriteBatch::delete_value`, which rejects oversized values.
                 debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
                 let mut data = [0u8; MAX_INLINE_VALUE_SIZE];
@@ -760,6 +841,27 @@ impl<E: Entry> StreamingSstWriter<E> {
         self.try_flush_key_blocks()
     }
 
+    /// Abandons this writer without flushing buffered data or finalizing the SST file.
+    pub fn cancel(mut self) {
+        self.discard_partial_file();
+        #[cfg(debug_assertions)]
+        {
+            self.finished = true;
+        }
+    }
+
+    /// Closes the raw handle without flushing its buffer and best-effort removes the partial SST.
+    fn discard_partial_file(&mut self) {
+        if let Some(file) = self.file.take() {
+            // Unlike dropping BufWriter, into_parts() does not attempt to flush its buffer.
+            let (file, _) = file.into_parts();
+            drop(file);
+        }
+        // Startup recovery is the fallback if deletion itself fails (for example on Windows if
+        // another handle is still open). Never replace the error that caused cancellation.
+        let _ = fs_err::remove_file(&self.file_path);
+    }
+
     /// Appends a new entry to the pending-keys queue.
     fn push_pending_key_entry(&mut self, entry: E, value_ref: ValueRef) {
         self.pending_keys
@@ -769,7 +871,7 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// Advances `first_pending_small_index` past the just-pushed entry if it is resolved and
     /// sits right at the current boundary. Flushes complete key blocks incrementally.
     ///
-    /// Must be called immediately after [`push_pending_key_entry`] with a resolved
+    /// Must be called immediately after [`Self::push_pending_key_entry`] with a resolved
     /// (non-`PendingSmall`) entry.
     fn try_flush_key_blocks(&mut self) -> Result<()> {
         debug_assert!(!matches!(
@@ -838,6 +940,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             &mut self.block_offsets,
             &self.pending_small_value_block,
             true,
+            &mut self.compressor,
         )
         .context("Failed to write small value block")?;
 
@@ -884,12 +987,43 @@ impl<E: Entry> StreamingSstWriter<E> {
     }
 
     /// Flushes a single key block from `pending_keys[start..end]`.
+    ///
+    /// Potentially reorders the keys into key order if we are not storing hashes.
     fn flush_key_block(&mut self, start: usize, end: usize, info: KeyBlockFlushInfo) -> Result<()> {
         let entry_count = end - start;
-        let has_hash = use_hash(info.max_key_len);
+        let layout = choose_layout(info.max_key_len);
         let try_compress = info.max_key_len >= MIN_KEY_SIZE_FOR_COMPRESSION;
 
-        self.key_buffer.clear();
+        // Read the boundary hash before reordering, which would move a different entry to `start`.
+        // The index block must keep routing by the block's lowest hash.
+        let first_hash = self.pending_keys[start].entry.key_hash();
+        // Split the borrow of `self` so the block builders can hold `&mut key_buffer` while the
+        // loops read `pending_keys`.
+        let Self {
+            key_buffer,
+            key_value_buffer,
+            pending_keys,
+            ..
+        } = self;
+        key_buffer.clear();
+        // The layout fixes the order entries must be written in, the same way it fixes their
+        // encoding, so deriving the order from the same `layout` the builders encode by keeps the
+        // two from disagreeing. `KeyOnly` blocks are searched by key and need a re-sorted copy;
+        // `HashThenKey` blocks are already in the caller's `(hash, key)` order and are yielded
+        // straight from `pending_keys` with no allocation.
+        let block_entries = |start: usize, end: usize| {
+            if layout == KeyBlockLayout::HashThenKey {
+                return Either::Left(pending_keys.range(start..end));
+            }
+            let mut entries: Vec<&PendingEntry<E>> = pending_keys.range(start..end).collect();
+            // Stable sort is important to preserve relative order of tombstones
+            match info.uniform_key_len() {
+                Some(4) => entries.sort_by_key(|&e| be_key_u32(e.entry.key_bytes())),
+                Some(8) => entries.sort_by_key(|&e| be_key_u64(e.entry.key_bytes())),
+                _ => entries.sort_by_key(|&e| e.entry.key_bytes()),
+            }
+            Either::Right(entries.into_iter())
+        };
 
         if let KeyBlockFormat::Fixed {
             key_len: key_size,
@@ -898,38 +1032,33 @@ impl<E: Entry> StreamingSstWriter<E> {
         } = info.format
         {
             let mut builder = FixedKeyBlockBuilder::new(
-                &mut self.key_buffer,
+                key_buffer,
+                key_value_buffer,
                 entry_count as u32,
-                has_hash,
+                layout,
                 key_size,
                 val_size,
                 value_type,
             );
-            for i in start..end {
-                let pending = &self.pending_keys[i];
-                builder.put(&pending.entry, &pending.value_ref, has_hash);
+            for pending in block_entries(start, end) {
+                builder.put(&pending.entry, &pending.value_ref);
             }
             builder.finish();
         } else {
-            let mut builder =
-                KeyBlockBuilder::new(&mut self.key_buffer, entry_count as u32, has_hash);
-
-            for i in start..end {
-                let pending = &self.pending_keys[i];
-                builder.put(&pending.entry, &pending.value_ref, has_hash);
+            let mut builder = KeyBlockBuilder::new(key_buffer, entry_count as u32, layout);
+            for pending in block_entries(start, end) {
+                builder.put(&pending.entry, &pending.value_ref);
             }
-
             builder.finish();
         }
 
-        // Record boundary
-        let first_hash = self.pending_keys[start].entry.key_hash();
         let block_index = write_block_to_file(
             self.file.as_mut().unwrap(),
             &mut self.compress_buffer,
             &mut self.block_offsets,
             &self.key_buffer,
             try_compress,
+            &mut self.compressor,
         )
         .context("Failed to write key block")?;
         self.key_block_boundaries.push((first_hash, block_index));
@@ -1034,15 +1163,18 @@ impl<E: Entry> StreamingSstWriter<E> {
             size: file_size,
             flags: self.flags,
             entries: self.entry_count,
+            tombstones: self.tombstone_count,
         };
 
-        Ok((meta, file.into_inner()?))
+        let file = file.into_inner()?;
+        self.preserve_file = true;
+        Ok((meta, file))
     }
 
     /// Flushes all remaining entries as key blocks. Called from `close()` after all small value
     /// blocks have been flushed, so all PendingSmall entries are resolved.
     ///
-    /// This loop mirrors [`advance_boundary_to`], but uses a local accumulator (since the
+    /// This loop mirrors [`Self::advance_boundary_to`], but uses a local accumulator (since the
     /// `self.current_key_block` state is stale) and flushes the final incomplete block
     /// (unlike `advance_boundary_to`, which keeps it for more entries during streaming).
     fn flush_remaining_key_blocks(&mut self) -> Result<()> {
@@ -1090,14 +1222,18 @@ impl<E: Entry> StreamingSstWriter<E> {
     }
 }
 
-#[cfg(debug_assertions)]
 impl<E: Entry> Drop for StreamingSstWriter<E> {
     fn drop(&mut self) {
+        if !self.preserve_file {
+            self.discard_partial_file();
+        }
+
         // Skip assertion during panic unwinding to avoid a double-panic (which would abort).
+        #[cfg(debug_assertions)]
         if !std::thread::panicking() {
             assert!(
                 self.finished || self.entry_count == 0,
-                "StreamingSstWriter dropped without calling close()"
+                "StreamingSstWriter dropped without calling close() or cancel()"
             );
         }
     }
@@ -1109,11 +1245,16 @@ impl<E: Entry> Drop for StreamingSstWriter<E> {
 
 /// Builder for a single key block.
 ///
-/// Entries are added via `put_*` methods which write key data and value references into the buffer.
+/// Entries are added via [`Self::put`], which writes key data and value references into the buffer.
 /// The block format uses a fixed-size header table followed by variable-length entry data.
 struct KeyBlockBuilder<'l> {
     current_entry: usize,
     header_size: usize,
+    /// Whether entries hoist their hash into the table slot. Chosen at construction and consulted
+    /// by [`Self::put`], so a caller cannot pair a block with the wrong entry encoding.
+    layout: KeyBlockLayout,
+    /// Bytes per offset table entry, which is wider when the block stores hashes.
+    table_stride: usize,
     buffer: &'l mut Vec<u8>,
 }
 
@@ -1122,48 +1263,49 @@ const KEY_BLOCK_HEADER_SIZE: usize = 4;
 
 impl<'l> KeyBlockBuilder<'l> {
     /// Creates a new key block builder for the number of entries.
-    fn new(buffer: &'l mut Vec<u8>, entry_count: u32, has_hash: bool) -> Self {
+    fn new(buffer: &'l mut Vec<u8>, entry_count: u32, layout: KeyBlockLayout) -> Self {
         debug_assert!(entry_count < (1 << 24));
 
         const ESTIMATED_KEY_SIZE: usize = 16;
-        buffer.reserve(entry_count as usize * ESTIMATED_KEY_SIZE);
-        let block_type = if has_hash {
-            BLOCK_TYPE_KEY_WITH_HASH
-        } else {
-            BLOCK_TYPE_KEY_NO_HASH
-        };
+        let table_stride = key_block_table_stride(layout.hash_len());
+        buffer.reserve(entry_count as usize * (ESTIMATED_KEY_SIZE + table_stride));
+        let block_type = layout.block_type(false);
         buffer.write_u8(block_type).unwrap();
         buffer.write_u24::<BE>(entry_count).unwrap();
-        for _ in 0..entry_count {
-            buffer.write_u32::<BE>(0).unwrap();
-        }
+        // Reserve the offset table; each entry's slot is filled in as it is written.
+        buffer.resize(buffer.len() + entry_count as usize * table_stride, 0);
         Self {
             current_entry: 0,
             header_size: buffer.len(),
+            layout,
+            table_stride,
             buffer,
         }
     }
 
-    /// Writes the entry header (position + type) for the current entry.
+    /// Writes the type and payload position into the current entry's table slot.
+    ///
+    /// The word sits at the end of the slot, after the hash for a `HashThenKey` block.
     fn write_entry_header(&mut self, entry_type: EntryType) {
         let pos = self.buffer.len() - self.header_size;
-        let header_offset = KEY_BLOCK_HEADER_SIZE + self.current_entry * 4;
+        let slot = KEY_BLOCK_HEADER_SIZE + self.current_entry * self.table_stride;
+        let word_offset = slot + self.table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH;
         let header = (pos as u32) | ((entry_type.0 as u32) << 24);
-        BE::write_u32(&mut self.buffer[header_offset..header_offset + 4], header);
+        BE::write_u32(&mut self.buffer[word_offset..word_offset + 4], header);
     }
 
-    /// Writes a single entry (header + hash + key + value data) to the block.
-    fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef, has_hash: bool) {
+    /// Writes a single entry (table slot + maybe hash? + key + value data) to the block.
+    fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
         self.write_entry_header(value_ref.entry_type());
-        if has_hash {
-            self.buffer
-                .extend_from_slice(&entry.key_hash().to_be_bytes());
+        if self.layout == KeyBlockLayout::HashThenKey {
+            let slot = KEY_BLOCK_HEADER_SIZE + self.current_entry * self.table_stride;
+            self.buffer[slot..slot + size_of::<u64>()]
+                .copy_from_slice(&entry.key_hash().to_be_bytes());
         }
         entry.write_key_to(self.buffer);
         value_ref.write_value_to(self.buffer);
         self.current_entry += 1;
     }
-
     /// Returns the key block buffer.
     fn finish(self) -> &'l mut Vec<u8> {
         self.buffer
@@ -1183,31 +1325,60 @@ const FIXED_KEY_BLOCK_HEADER_SIZE: usize = 6;
 /// No offset table is written — entry positions are computed arithmetically from the stride. When
 /// entries share a value size but not a value type, the header records
 /// [`FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`] and each entry carries its own type byte before its value.
+///
+/// Entries are written as two regions rather than interleaved, so that the bytes a lookup's binary
+/// search probes are contiguous: the search region holds only what the lookup compares first (the
+/// hash for `HashThenKey`, the key for `KeyOnly`), and everything else follows in the tail region,
+/// addressed by the same entry index. [`FixedRegions`] derives that geometry for both this builder
+/// and the reader; see
+/// [`KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH`](crate::static_sorted_file::KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH)
+/// for why the compared bytes are hoisted out of the payload.
 struct FixedKeyBlockBuilder<'l> {
+    /// Receives the header and then the search region.
     buffer: &'l mut Vec<u8>,
+    /// Accumulates the tail region, appended to `buffer` by [`Self::finish`].
+    tail: &'l mut Vec<u8>,
     /// Whether each entry writes its own type byte (set for mixed-type blocks).
     per_entry_type: bool,
+    /// Which of the two regions the key goes in: the search region for `KeyOnly`, the tail for
+    /// `HashThenKey`. Also checks that callers pair the layout with the matching `put` method.
+    layout: KeyBlockLayout,
 }
 
 impl<'l> FixedKeyBlockBuilder<'l> {
     fn new(
         buffer: &'l mut Vec<u8>,
+        tail: &'l mut Vec<u8>,
         entry_count: u32,
-        has_hash: bool,
+        layout: KeyBlockLayout,
         key_size: u8,
         val_size: u8,
         value_type: Option<EntryType>,
     ) -> Self {
-        let hash_len: usize = if has_hash { 8 } else { 0 };
         let per_entry_type = value_type.is_none();
-        let stride = hash_len + key_size as usize + val_size as usize + usize::from(per_entry_type);
-        buffer.reserve(FIXED_KEY_BLOCK_HEADER_SIZE + entry_count as usize * stride);
+        // The two regions partition the entry bytes: the search region takes the bytes compared
+        // first, the tail takes the rest. `FixedRegions` owns that split for reader and writer
+        // alike, so the geometry is derived in one place. Its `val_size` includes the per-entry
+        // type byte, which the block header keeps separate from the value size.
+        let FixedRegions {
+            search_stride,
+            tail_stride,
+            ..
+        } = FixedRegions::new(
+            entry_count as usize,
+            layout,
+            key_size as usize,
+            val_size as usize + usize::from(per_entry_type),
+        );
+        // `finish` appends the tail back into `buffer`, so reserve room for the whole block here
+        // and the append never reallocates.
+        buffer.reserve(
+            FIXED_KEY_BLOCK_HEADER_SIZE + entry_count as usize * (search_stride + tail_stride),
+        );
+        tail.clear();
+        tail.reserve(entry_count as usize * tail_stride);
 
-        let block_type = if has_hash {
-            BLOCK_TYPE_FIXED_KEY_WITH_HASH
-        } else {
-            BLOCK_TYPE_FIXED_KEY_NO_HASH
-        };
+        let block_type = layout.block_type(true);
         buffer.extend_from_slice(&[
             block_type,
             (entry_count >> 16) as u8,
@@ -1224,24 +1395,37 @@ impl<'l> FixedKeyBlockBuilder<'l> {
 
         Self {
             buffer,
+            tail,
             per_entry_type,
+            layout,
         }
     }
 
-    /// Writes a single entry (hash + key + optional type byte + value data) to the block.
-    fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef, has_hash: bool) {
-        if has_hash {
-            self.buffer
-                .extend_from_slice(&entry.key_hash().to_be_bytes());
+    /// Writes a single entry, splitting it between the two regions according to the block's
+    /// layout: `HashThenKey` puts the hash in the search region and the key in the tail, `KeyOnly`
+    /// puts the key itself in the search region. The layout decides that, not the caller.
+    fn put<E: Entry>(&mut self, entry: &E, value_ref: &ValueRef) {
+        match self.layout {
+            KeyBlockLayout::HashThenKey => {
+                self.buffer
+                    .extend_from_slice(&entry.key_hash().to_be_bytes());
+                entry.write_key_to(self.tail);
+            }
+            KeyBlockLayout::KeyOnly => entry.write_key_to(self.buffer),
         }
-        entry.write_key_to(self.buffer);
+        self.put_tail(value_ref);
+    }
+
+    /// Appends the parts of an entry that the search never reads.
+    fn put_tail(&mut self, value_ref: &ValueRef) {
         if self.per_entry_type {
-            self.buffer.push(value_ref.entry_type().0);
+            self.tail.push(value_ref.entry_type().0);
         }
-        value_ref.write_value_to(self.buffer);
+        value_ref.write_value_to(self.tail);
     }
 
     fn finish(self) -> &'l mut Vec<u8> {
+        self.buffer.extend_from_slice(self.tail);
         self.buffer
     }
 }
@@ -1393,8 +1577,8 @@ mod tests {
             self.key.len()
         }
 
-        fn write_key_to(&self, buf: &mut Vec<u8>) {
-            buf.extend_from_slice(&self.key);
+        fn key_bytes(&self) -> &[u8] {
+            &self.key
         }
 
         fn value(&self) -> EntryValue<'_> {
@@ -1415,9 +1599,9 @@ mod tests {
         }
     }
 
-    /// Sort entries by hash (required by SST writer).
+    /// Sort entries by (hash, key) (required by SST writer).
     fn sort_entries(entries: &mut [TestEntry]) {
-        entries.sort_by_key(|e| e.hash);
+        entries.sort_by(|a, b| a.hash.cmp(&b.hash).then_with(|| a.key.cmp(&b.key)));
     }
 
     /// Open an SST file for lookup given a path and metadata.
@@ -1432,6 +1616,8 @@ mod tests {
                 sequence_number: seq,
                 block_count: meta.block_count,
             },
+            Compression::Lz4,
+            crate::mmap_access_mode(),
         )
     }
 
@@ -1443,9 +1629,13 @@ mod tests {
         flags: MetaEntryFlags,
     ) -> Result<StaticSortedFileBuilderMeta<'static>> {
         let sst_path = dir.join(format!("{seq:08}.sst"));
-        let mut writer = StreamingSstWriter::new(&sst_path, flags, entries.len() as u64)?;
+        let mut writer =
+            StreamingSstWriter::new(&sst_path, flags, entries.len() as u64, Compression::Lz4)?;
         for entry in entries {
-            writer.add(entry)?;
+            if let Err(err) = writer.add(entry) {
+                writer.cancel();
+                return Err(err);
+            }
         }
         let (meta, _file) = writer.close()?;
         Ok(meta)
@@ -1620,6 +1810,137 @@ mod tests {
         Ok(())
     }
 
+    /// Deterministic, incompressible bytes, so that blocks keep their size on disk.
+    #[cfg(all(feature = "mmap", unix))]
+    fn noise(seed: u64, len: usize) -> Vec<u8> {
+        let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+        (0..len)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                state as u8
+            })
+            .collect()
+    }
+
+    /// Small values in multi-page blocks plus a few medium values.
+    #[cfg(all(feature = "mmap", unix))]
+    fn will_need_entries() -> Vec<TestEntry> {
+        let mut entries: Vec<TestEntry> = (0..300)
+            .map(|i| TestEntry::small(format!("key-{i:04}").as_bytes(), &noise(i, 300)))
+            .chain((0..3).map(|i| {
+                TestEntry::medium(format!("med-{i}").as_bytes(), &noise(1000 + i, 20_000))
+            }))
+            .collect();
+        sort_entries(&mut entries);
+        entries
+    }
+
+    /// Lookup mappings carry `MADV_RANDOM` (`rr` in `VmFlags`) and no `MADV_SEQUENTIAL` (`sr`).
+    #[cfg(all(feature = "mmap", target_os = "linux", not(miri)))]
+    #[test]
+    fn lookup_mmap_has_random_advice() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let entries = will_need_entries();
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let path = dir.path().join("00000001.sst").canonicalize()?;
+        let path = path.to_str().unwrap();
+
+        let smaps = std::fs::read_to_string("/proc/self/smaps")?;
+        let mut lines = smaps.lines();
+        lines
+            .find(|line| line.ends_with(path))
+            .expect("SST mapping not found in /proc/self/smaps");
+        let flags = lines
+            .find_map(|line| line.strip_prefix("VmFlags:"))
+            .expect("VmFlags line not found");
+        let flags: Vec<&str> = flags.split_whitespace().collect();
+        assert!(flags.contains(&"rr"), "expected MADV_RANDOM, got {flags:?}");
+        assert!(
+            !flags.contains(&"sr"),
+            "unexpected MADV_SEQUENTIAL, got {flags:?}"
+        );
+        drop(sst);
+        Ok(())
+    }
+
+    /// `MADV_WILLNEED` covers only multi-page blocks: key and small value blocks on their first
+    /// read, medium value blocks on every read. The block-offset table and the index block are read
+    /// with `pread` at open, so they are never hinted.
+    #[cfg(all(feature = "mmap", unix))]
+    #[test]
+    fn will_need_hints_multi_page_blocks_on_first_read() -> Result<()> {
+        use std::ops::Range;
+
+        use crate::static_sorted_file::will_need_log;
+
+        // SAFETY: `sysconf` has no preconditions.
+        let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
+        let multi_page =
+            |range: &Range<usize>| range.start / page_size != (range.end - 1) / page_size;
+
+        let dir = tempfile::tempdir()?;
+        let entries = will_need_entries();
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        will_need_log::take();
+
+        // Open: nothing, since the table and the index block are read with `pread`.
+        let sst = open_sst(dir.path(), 1, &meta)?;
+        let opened = will_need_log::take();
+        assert!(opened.is_empty(), "{opened:?}");
+
+        // First pass: each multi-page key and small value block is hinted once.
+        let kc = make_cache();
+        let vc = make_cache();
+        let small = || {
+            entries
+                .iter()
+                .filter(|e| matches!(e.value_kind, TestValueKind::Small(_)))
+        };
+        for entry in small() {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        let first = will_need_log::take();
+        assert!(!first.is_empty(), "no multi-page block was hinted");
+        assert!(first.iter().all(multi_page), "{first:?}");
+        let mut unique = first.clone();
+        unique.sort_by_key(|range| range.start);
+        unique.dedup();
+        assert_eq!(
+            unique.len(),
+            first.len(),
+            "a block was hinted twice: {first:?}"
+        );
+
+        // Second pass, with empty caches: every block is verified already, so no hints.
+        let kc = make_cache();
+        let vc = make_cache();
+        for entry in small() {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        assert_eq!(will_need_log::take(), Vec::<Range<usize>>::new());
+
+        // Medium value blocks are hinted on every read.
+        let medium = entries
+            .iter()
+            .find(|e| matches!(e.value_kind, TestValueKind::Medium(_)))
+            .unwrap();
+        assert_lookup(&sst, medium, &kc, &vc)?;
+        let first_read = will_need_log::take();
+        assert_lookup(&sst, medium, &kc, &vc)?;
+        let second_read = will_need_log::take();
+        let value_block = second_read
+            .last()
+            .expect("medium value block was not hinted")
+            .clone();
+        assert!(multi_page(&value_block));
+        assert!(value_block.len() > 20_000, "{value_block:?}");
+        assert_eq!(first_read.last(), Some(&value_block));
+        Ok(())
+    }
+
     #[test]
     fn many_medium_values() -> Result<()> {
         let dir = tempfile::tempdir()?;
@@ -1675,11 +1996,60 @@ mod tests {
     }
 
     #[test]
+    #[cfg(debug_assertions)]
+    fn cancel_after_failed_add_does_not_trigger_drop_assertion() {
+        let dir = tempfile::tempdir().unwrap();
+        let sst_path = dir.path().join("test.sst");
+        let mut writer =
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 1, Compression::Lz4)
+                .unwrap();
+
+        // Replace the output with an unbuffered, read-only handle to force a deterministic write
+        // error without relying on the filesystem being full.
+        drop(writer.file.take());
+        writer.file = Some(BufWriter::with_capacity(0, File::open(&sst_path).unwrap()));
+        let error = writer
+            .add(TestEntry::medium(b"key", &[0; 8192]))
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("Failed to write value block"));
+
+        let cancel_result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| writer.cancel()));
+        assert!(
+            cancel_result.is_ok(),
+            "cancelling a writer after an add error must not trigger the lifecycle assertion"
+        );
+        assert!(!sst_path.exists(), "cancel should remove the partial SST");
+    }
+
+    #[test]
+    fn failed_close_removes_partial_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let sst_path = dir.path().join("test.sst");
+        let mut writer =
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 1, Compression::Lz4)
+                .unwrap();
+        writer.add(TestEntry::inline(b"key", b"value")).unwrap();
+
+        // Force close() to fail while flushing the pending key block.
+        drop(writer.file.take());
+        writer.file = Some(BufWriter::with_capacity(0, File::open(&sst_path).unwrap()));
+        let error = writer.close().unwrap_err();
+
+        assert!(format!("{error:#}").contains("Failed to write key block"));
+        assert!(
+            !sst_path.exists(),
+            "a failed close should remove the partial SST"
+        );
+    }
+
+    #[test]
     fn is_full_entry_count_limit() {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("test.sst");
         let mut writer =
-            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100).unwrap();
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100, Compression::Lz4)
+                .unwrap();
 
         let max_entries = 50;
         for i in 0..max_entries {
@@ -1705,7 +2075,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("test.sst");
         let mut writer =
-            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100).unwrap();
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100, Compression::Lz4)
+                .unwrap();
 
         let value = vec![0u8; 1000];
         for i in 0..10 {
@@ -1741,8 +2112,12 @@ mod tests {
 
         // Write via convenience function
         let batch_path = dir.path().join("00000001.sst");
-        let (meta1, _) =
-            write_static_stored_file(&entries, &batch_path, MetaEntryFlags::default())?;
+        let (meta1, _) = write_static_stored_file(
+            &entries,
+            &batch_path,
+            MetaEntryFlags::default(),
+            Compression::Lz4,
+        )?;
 
         // Write via streaming API
         let streaming_path = dir.path().join("00000002.sst");
@@ -1750,9 +2125,13 @@ mod tests {
             &streaming_path,
             MetaEntryFlags::default(),
             entries.len() as u64,
+            Compression::Lz4,
         )?;
         for entry in &entries {
-            writer.add(entry)?;
+            if let Err(err) = writer.add(entry) {
+                writer.cancel();
+                return Err(err);
+            }
         }
         let (meta2, _) = writer.close()?;
 
@@ -1769,6 +2148,8 @@ mod tests {
                 sequence_number: 1,
                 block_count: meta1.block_count,
             },
+            Compression::Lz4,
+            crate::mmap_access_mode(),
         )?;
         let sst2 = StaticSortedFile::open(
             dir.path(),
@@ -1776,6 +2157,8 @@ mod tests {
                 sequence_number: 2,
                 block_count: meta2.block_count,
             },
+            Compression::Lz4,
+            crate::mmap_access_mode(),
         )?;
         let kc = make_cache();
         let vc = make_cache();
@@ -1830,8 +2213,13 @@ mod tests {
     fn close_empty_writer_panics() {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("empty.sst");
-        let writer =
-            StreamingSstWriter::<TestEntry>::new(&sst_path, MetaEntryFlags::default(), 0).unwrap();
+        let writer = StreamingSstWriter::<TestEntry>::new(
+            &sst_path,
+            MetaEntryFlags::default(),
+            0,
+            Compression::Lz4,
+        )
+        .unwrap();
         writer.close().unwrap();
     }
 
@@ -1874,14 +2262,13 @@ mod tests {
         let raw = &data[..end];
         // Each block is prefixed by BLOCK_HEADER_SIZE bytes: 4B uncompressed size + 4B checksum.
         // An uncompressed size of 0 means the block is stored as-is.
-        let uncompressed_size = BE::read_u32(raw) as usize;
+        let uncompressed_size = BE::read_u32(raw);
         let body = &raw[BLOCK_HEADER_SIZE..];
         Ok(if uncompressed_size == 0 {
             body.to_vec()
         } else {
-            let mut out = vec![0u8; uncompressed_size];
-            lzzzz::lz4::decompress(body, &mut out)?;
-            out
+            crate::compression::decompress_into_arc(Compression::Lz4, uncompressed_size, body)?
+                .to_vec()
         })
     }
 
@@ -1913,8 +2300,9 @@ mod tests {
         let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
         let block = read_first_block(dir.path(), 1, meta.block_count)?;
 
-        assert!(
-            block[0] == BLOCK_TYPE_FIXED_KEY_WITH_HASH || block[0] == BLOCK_TYPE_FIXED_KEY_NO_HASH,
+        assert_eq!(
+            KeyBlockLayout::from_block_type(block[0]).map(|(_, fixed)| fixed),
+            Some(true),
             "mixed value types of equal size should stay in fixed layout, got block type {}",
             block[0]
         );
@@ -1951,8 +2339,9 @@ mod tests {
 
         let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
         let block = read_first_block(dir.path(), 1, meta.block_count)?;
-        assert!(
-            block[0] == BLOCK_TYPE_KEY_WITH_HASH || block[0] == BLOCK_TYPE_KEY_NO_HASH,
+        assert_eq!(
+            KeyBlockLayout::from_block_type(block[0]).map(|(_, fixed)| fixed),
+            Some(false),
             "differing value sizes should use variable layout, got block type {}",
             block[0]
         );
@@ -2047,5 +2436,71 @@ mod tests {
         // Corrupt a byte in the first block's data (after the 8-byte header)
         corrupt_sst_byte(dir.path(), 1, BLOCK_HEADER_SIZE as u64 + 1);
         assert_corruption_detected(dir.path(), 1, &meta, &entries);
+    }
+
+    #[test]
+    fn be_key_order_matches_byte_order() {
+        let keys4: Vec<[u8; 4]> = vec![
+            [0, 0, 0, 0],
+            [0, 0, 0, 1],
+            [0, 0, 1, 0],
+            [0x7f, 0xff, 0xff, 0xff],
+            [0x80, 0, 0, 0],
+            [0xff, 0xfe, 0, 0],
+            [0xff, 0xff, 0xff, 0xff],
+        ];
+        for a in &keys4 {
+            for b in &keys4 {
+                assert_eq!(
+                    be_key_u32(a).cmp(&be_key_u32(b)),
+                    a[..].cmp(&b[..]),
+                    "u32 order disagrees with byte order for {a:?} vs {b:?}"
+                );
+            }
+        }
+        let keys8: Vec<[u8; 8]> = vec![
+            [0; 8],
+            [0, 0, 0, 0, 0, 0, 0, 1],
+            [0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff],
+            [0x80, 0, 0, 0, 0, 0, 0, 0],
+            [0xff; 8],
+        ];
+        for a in &keys8 {
+            for b in &keys8 {
+                assert_eq!(
+                    be_key_u64(a).cmp(&be_key_u64(b)),
+                    a[..].cmp(&b[..]),
+                    "u64 order disagrees with byte order for {a:?} vs {b:?}"
+                );
+            }
+        }
+    }
+
+    /// `uniform_key_len` must only report a length when the block's keys really are all that long,
+    /// since the specialized sorts are unsound otherwise.
+    #[test]
+    fn uniform_key_len_requires_equal_lengths() {
+        let mut acc = KeyBlockAccumulator::new();
+        assert_eq!(acc.flush_info().uniform_key_len(), None, "empty block");
+
+        let ty = EntryType(KEY_BLOCK_ENTRY_TYPE_INLINE_MIN);
+        acc.add(8, 1, ty);
+        acc.add(8, 2, ty);
+        assert_eq!(acc.flush_info().uniform_key_len(), Some(8));
+
+        acc.add(4, 3, ty);
+        assert_eq!(
+            acc.flush_info().uniform_key_len(),
+            None,
+            "mixed lengths must not report a uniform length"
+        );
+
+        acc.reset();
+        acc.add(4, 4, ty);
+        assert_eq!(
+            acc.flush_info().uniform_key_len(),
+            Some(4),
+            "reset clears min"
+        );
     }
 }

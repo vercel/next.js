@@ -1469,7 +1469,12 @@ export function runTests(ctx: RunTestsCtx) {
     )
     await expectWidth(res1, ctx.w)
 
-    const opts2 = { headers: { accept: 'image/webp', 'if-none-match': etag } }
+    // undici injects Cache-Control: no-cache into requests with
+    // conditional headers, which would defeat the etag freshness check.
+    const opts2 = {
+      headers: { accept: 'image/webp', 'if-none-match': etag },
+      cache: 'force-cache' as const,
+    }
     const res2 = await next.fetch(`/_next/image?${toQueryString(query)}`, opts2)
     expect(res2.status).toBe(304)
     expect(res2.headers.get('Content-Type')).toBeFalsy()
@@ -1759,19 +1764,12 @@ export const setupTests = (ctx: SetupTestsCtx) => {
   if (!ctx.nextConfigImages) {
     maybeSkipTurbopackProd('w/o next.config.js', () => {
       const size = 384
-      const { next, isNextDeploy } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
         nextConfig: ctx.nextConfigExperimental
           ? { experimental: ctx.nextConfigExperimental }
           : undefined,
-        // The image optimizer suite asserts on the local Next.js image
-        // pipeline (custom upstream HTTP server, on-disk cache, response
-        // headers from `/_next/image`). Vercel's deploy serves images
-        // through its own image CDN with different headers, paths, and
-        // cache semantics, so these assertions don't apply.
-        skipDeployment: true,
       })
-      if (isNextDeploy) return
 
       runTests({
         next,
@@ -1800,7 +1798,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       ...ctx.nextConfigImages,
     }
 
-    const { next, isNextDeploy } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       nextConfig: {
         images: mergedImages,
@@ -1808,14 +1806,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
           ? { experimental: ctx.nextConfigExperimental }
           : {}),
       },
-      // The image optimizer suite asserts on the local Next.js image
-      // pipeline (custom upstream HTTP server, on-disk cache, response
-      // headers from `/_next/image`). Vercel's deploy serves images
-      // through its own image CDN with different headers, paths, and
-      // cache semantics, so these assertions don't apply.
-      skipDeployment: true,
     })
-    if (isNextDeploy) return
 
     runTests({
       next,

@@ -2,7 +2,7 @@ use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat,
 };
 use turbo_tasks_hash::HashAlgorithm;
 
@@ -191,23 +191,20 @@ pub enum Update {
 }
 
 /// A total update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, Debug, Clone, ValueDebugFormat, NonLocalValue)]
 pub struct TotalUpdate {
     /// The version this update will bring the object to.
     //
-    // TODO: This trace_ignore is wrong, and could cause problems if/when we add a GC. While
-    // `Version` assumes the implementation does not contain `Vc`, `EcmascriptDevChunkListVersion`
-    // is broken and violates this assumption.
-    #[turbo_tasks(trace_ignore)]
+    // TODO: Remove this exemption after `Version` guarantees `NonLocalValue`.
+    // `EcmascriptDevChunkListVersion` currently violates that assumption.
     pub to: TraitRef<Box<dyn Version>>,
 }
 
 /// A partial update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(PartialEq, Eq, Debug, Clone, ValueDebugFormat, NonLocalValue)]
 pub struct PartialUpdate {
     /// The version this update will bring the object to.
-    // TODO: This trace_ignore is *very* wrong, and could cause problems if/when we add a GC
-    #[turbo_tasks(trace_ignore)]
+    // TODO: Remove this exemption after `Version` guarantees `NonLocalValue`.
     pub to: TraitRef<Box<dyn Version>>,
     /// The instructions to be passed to a remote system in order to update the
     /// versioned object.
@@ -249,12 +246,12 @@ impl Version for FileHashVersion {
 
 /// This is a dummy wrapper type to (incorrectly) implement [`OperationValue`] (required by
 /// [`State`]), because the [`Version`] trait is not (yet?) a subtype of [`OperationValue`].
-#[derive(Debug, Eq, PartialEq, TraceRawVcs, NonLocalValue, OperationValue)]
+#[derive(Debug, Eq, PartialEq, NonLocalValue, OperationValue)]
 struct VersionRef(
-    // TODO: This trace_ignore is *very* wrong, and could cause problems if/when we add a GC.
-    // It also allows to `Version`s that don't implement `OperationValue`, which could lead to
-    // incorrect results when attempting to strongly resolve Vcs.
-    #[turbo_tasks(trace_ignore)] TraitRef<Box<dyn Version>>,
+    // TODO: Remove this exemption if `Version` becomes a subtype of `OperationValue`.
+    // It allows `Version`s that don't implement `OperationValue`, which could lead to incorrect
+    // results when attempting to strongly resolve Vcs.
+    #[turbo_tasks(unsafe_ignore)] TraitRef<Box<dyn Version>>,
 );
 
 #[turbo_tasks::value(serialization = "skip", evict = "never")]

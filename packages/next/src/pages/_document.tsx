@@ -910,6 +910,7 @@ export class NextScript extends React.Component<OriginProps> {
       assetQueryString,
       disableOptimizedLoading,
       crossOrigin,
+      initialHmrVersion,
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
 
@@ -929,6 +930,18 @@ export class NextScript extends React.Component<OriginProps> {
 
     return (
       <>
+        {!disableRuntimeJS &&
+        this.context.isDevelopment &&
+        // Only turbopack configures this.
+        initialHmrVersion !== undefined ? (
+          <script
+            nonce={this.props.nonce || this.context.nonce}
+            crossOrigin={this.props.crossOrigin || crossOrigin}
+            dangerouslySetInnerHTML={{
+              __html: `var __nextHmrInitialVersion=${htmlEscapeJsonString(JSON.stringify(initialHmrVersion))};`,
+            }}
+          />
+        ) : null}
         {!disableRuntimeJS && buildManifest.devFiles
           ? buildManifest.devFiles.map((file: string) => (
               <script

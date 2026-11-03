@@ -8,7 +8,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use bumpalo::boxed::Box as BumpBox;
 use num_bigint::BigInt;
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 use swc_core::ecma::{ast::Id, atoms::Atom};
 use turbo_rcstr::{RcStr, rcstr};
 use turbopack_core::compile_time_info::{
@@ -1257,6 +1257,8 @@ impl<'a> JsValue<'a> {
 
 // Definable name management
 impl JsValue<'_> {
+    // Clippy is wrong. It's not the same lifetime
+    #[allow(mismatched_lifetime_syntaxes)]
     /// When the value has a user-definable name, return it in segments. Otherwise
     /// returns None.
     /// It also returns a boolean whether the variable was potentially reassigned.
@@ -1265,65 +1267,76 @@ impl JsValue<'_> {
     /// - some well-known objects/functions have a user-definable names: ["import"]
     /// - member calls without arguments also have a user-definable name: ["foo", Call("func")]
     /// - typeof expressions add `typeof` after the argument's segments: ["foo", "typeof"]
-    pub fn get_definable_name(
-        &self,
+    pub fn get_definable_name<'v>(
+        &'v self,
         var_graph: Option<&VarGraph<'_>>,
-    ) -> Option<(DefinableNameSegmentRefs<'_>, bool)> {
-        let mut current = self;
-        let mut segments = SmallVec::new();
-        let mut potentially_reassigned = false;
-        loop {
-            match current {
-                JsValue::FreeVar(name) => {
-                    if var_graph.is_some_and(|var_graph| {
-                        var_graph
-                            .free_var_ids
-                            .get(name)
-                            .is_some_and(|id| var_graph.values.contains_key(id))
-                    }) {
-                        // `foo` was potentially reassigned
-                        potentially_reassigned = true;
+    ) -> SmallVec<[Option<(DefinableNameSegmentRefs<'_>, bool)>; 1]> {
+        let inner = |value: &'v JsValue| {
+            let mut current = value;
+            let mut segments = SmallVec::new();
+            let mut potentially_reassigned = false;
+            loop {
+                match current {
+                    JsValue::FreeVar(name) => {
+                        if var_graph.is_some_and(|var_graph| {
+                            var_graph
+                                .free_var_ids
+                                .get(name)
+                                .is_some_and(|id| var_graph.values.contains_key(id))
+                        }) {
+                            // `foo` was potentially reassigned
+                            potentially_reassigned = true;
+                        }
+                        segments.push(DefinableNameSegmentRef::Name(name));
+                        break;
                     }
-                    segments.push(DefinableNameSegmentRef::Name(name));
-                    break;
+                    JsValue::Member(_, obj, prop) => {
+                        segments.push(DefinableNameSegmentRef::Name(prop.as_str()?));
+                        current = obj;
+                    }
+                    JsValue::WellKnownObject(obj) => {
+                        segments.extend(
+                            obj.as_define_name()?
+                                .iter()
+                                .rev()
+                                .copied()
+                                .map(DefinableNameSegmentRef::Name),
+                        );
+                        break;
+                    }
+                    JsValue::WellKnownFunction(func) => {
+                        segments.extend(
+                            func.as_define_name()?
+                                .iter()
+                                .rev()
+                                .copied()
+                                .map(DefinableNameSegmentRef::Name),
+                        );
+                        break;
+                    }
+                    JsValue::MemberCall(_, call) if call.args().is_empty() => {
+                        let Some(call_prop) = call.prop().as_str() else {
+                            return Default::default();
+                        };
+                        segments.push(DefinableNameSegmentRef::Call(call_prop));
+                        current = call.obj();
+                    }
+                    JsValue::TypeOf(_, arg) => {
+                        segments.push(DefinableNameSegmentRef::TypeOf);
+                        current = arg;
+                    }
+                    _ => return None,
                 }
-                JsValue::Member(_, obj, prop) => {
-                    segments.push(DefinableNameSegmentRef::Name(prop.as_str()?));
-                    current = obj;
-                }
-                JsValue::WellKnownObject(obj) => {
-                    segments.extend(
-                        obj.as_define_name()?
-                            .iter()
-                            .rev()
-                            .copied()
-                            .map(DefinableNameSegmentRef::Name),
-                    );
-                    break;
-                }
-                JsValue::WellKnownFunction(func) => {
-                    segments.extend(
-                        func.as_define_name()?
-                            .iter()
-                            .rev()
-                            .copied()
-                            .map(DefinableNameSegmentRef::Name),
-                    );
-                    break;
-                }
-                JsValue::MemberCall(_, call) if call.args().is_empty() => {
-                    segments.push(DefinableNameSegmentRef::Call(call.prop().as_str()?));
-                    current = call.obj();
-                }
-                JsValue::TypeOf(_, arg) => {
-                    segments.push(DefinableNameSegmentRef::TypeOf);
-                    current = arg;
-                }
-                _ => return None,
             }
+            segments.reverse();
+            Some((DefinableNameSegmentRefs(segments), potentially_reassigned))
+        };
+
+        if let JsValue::Alternatives { values, .. } = self {
+            values.iter().map(inner).collect()
+        } else {
+            smallvec![inner(self)]
         }
-        segments.reverse();
-        Some((DefinableNameSegmentRefs(segments), potentially_reassigned))
     }
 }
 

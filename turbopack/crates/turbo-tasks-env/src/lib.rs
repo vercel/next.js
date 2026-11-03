@@ -20,7 +20,7 @@ pub use self::{
 /// Like [`EnvMap`], but with `serialization = "skip"` to avoid storing
 /// environment variables (which may contain secrets) in the persistent cache.
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct TransientEnvMap(#[turbo_tasks(trace_ignore)] FxIndexMap<RcStr, RcStr>);
+pub struct TransientEnvMap(FxIndexMap<RcStr, RcStr>);
 
 #[turbo_tasks::value_impl]
 impl TransientEnvMap {
@@ -30,12 +30,27 @@ impl TransientEnvMap {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct EnvMap(
-    #[turbo_tasks(trace_ignore)]
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<RcStr, RcStr>,
-);
+/// A map of environment variables.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct EnvMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+
+/// An [`EnvMap`] with uppercased keys, used for key-granular case-insensitive lookups.
+///
+/// Unlike [`TransientEnvMap`] this is persisted: it only contains values that are already
+/// persisted in the [`EnvMap`] it's derived from. Keyed comparison needs the previous content, so
+/// persisting it keeps a dirty recomputation after a warm restore from invalidating every reader.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+struct UppercaseEnvMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+
+#[turbo_tasks::function]
+async fn uppercase_env_map(map: Vc<EnvMap>) -> Result<Vc<UppercaseEnvMap>> {
+    let map = &*map.await?;
+    let mut new = FxIndexMap::with_capacity_and_hasher(map.len(), Default::default());
+    for (k, v) in map {
+        new.insert(k.to_uppercase().into(), v.clone());
+    }
+    Ok(Vc::cell(new))
+}
 
 #[turbo_tasks::value_impl]
 impl EnvMap {
@@ -52,9 +67,14 @@ impl ProcessEnv for EnvMap {
         Ok(Vc::cell((*self.await?).clone()))
     }
 
+    /// Reads a single env variable, ignoring casing. Only depends on the requested variable, so
+    /// it isn't invalidated when other variables change.
     #[turbo_tasks::function]
-    fn read(self: Vc<Self>, name: RcStr) -> Vc<Option<RcStr>> {
-        case_insensitive_read(self.read_all(), name)
+    async fn read(self: Vc<Self>, name: RcStr) -> Result<Vc<Option<RcStr>>> {
+        let value = uppercase_env_map(self)
+            .get(name.to_uppercase().as_str())
+            .await?;
+        Ok(Vc::cell(value.as_deref().cloned()))
     }
 }
 

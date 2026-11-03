@@ -58,7 +58,7 @@ export {
 } from '../request/params'
 export * as serverHooks from '../../client/components/hooks-server-context'
 export { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
-export { createMetadataComponents } from '../../lib/metadata/metadata'
+export { createMetadataComponents } from '../../lib/metadata'
 export { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
 export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'

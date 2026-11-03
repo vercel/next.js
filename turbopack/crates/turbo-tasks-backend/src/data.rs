@@ -334,7 +334,7 @@ impl InProgressState {
         (InProgressState::Scheduled { done_event, reason }, listener)
     }
 }
-/// Used by the [`get_mut`][crate::backend::storage::get_mut] macro to restrict mutable access to a
+/// Used by the `get_mut` macro to restrict mutable access to a
 /// subset of types. No mutable access should be allowed for persisted data, since that would break
 /// persisting.
 #[allow(non_upper_case_globals, dead_code)]

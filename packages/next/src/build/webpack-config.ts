@@ -19,6 +19,8 @@ import {
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
+  CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME,
+  CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
@@ -81,7 +83,7 @@ import {
   createNextApiEsmAliases,
   createAppRouterApiAliases,
 } from './create-compiler-aliases'
-import { hasCustomExportOutput } from '../export/utils'
+import { getBuildDistDir } from '../export/utils'
 import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
 import {
   getBabelLoader,
@@ -338,8 +340,6 @@ export default async function getBaseWebpackConfig(
     isDevFallback = false,
     pagesDir,
     rewrites,
-    originalRewrites,
-    originalRedirects,
     runWebpackSpan,
     appDir,
     middlewareMatchers,
@@ -366,8 +366,6 @@ export default async function getBaseWebpackConfig(
     isDevFallback?: boolean
     pagesDir: string | undefined
     rewrites: CustomRoutes['rewrites']
-    originalRewrites: CustomRoutes['rewrites'] | undefined
-    originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
     appDir: string | undefined
     middlewareMatchers?: ProxyMatcher[]
@@ -421,10 +419,8 @@ export default async function getBaseWebpackConfig(
 
   const babelConfigFile = getBabelConfigFile(dir)
 
-  if (!dev && hasCustomExportOutput(config)) {
-    config.distDir = '.next'
-  }
-  const distDir = path.join(dir, config.distDir)
+  const buildDistDir = dev ? config.distDir : getBuildDistDir(config)
+  const distDir = path.join(dir, buildDistDir)
 
   let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
   let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
@@ -548,12 +544,7 @@ export default async function getBaseWebpackConfig(
           hasReactRefresh: dev && isClient,
           transpilePackages: finalTranspilePackages,
           supportedBrowsers,
-          swcCacheDir: path.join(
-            dir,
-            config?.distDir ?? '.next',
-            'cache',
-            'swc'
-          ),
+          swcCacheDir: path.join(distDir, 'cache', 'swc'),
           serverReferenceHashSalt: encryptionKey,
 
           // rspack specific options
@@ -588,7 +579,7 @@ export default async function getBaseWebpackConfig(
         jsConfig,
         transpilePackages: finalTranspilePackages,
         supportedBrowsers,
-        swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
+        swcCacheDir: path.join(distDir, 'cache', 'swc'),
         serverReferenceHashSalt: encryptionKey,
         ...extraOptions,
       } satisfies SWCLoaderOptions,
@@ -815,7 +806,7 @@ export default async function getBaseWebpackConfig(
     plugins: [
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
-    ...((isRspack && jsConfigPath
+    ...(isRspack && jsConfigPath
       ? {
           // Skip paths that are routed to a .d.ts file
           restrictions: [/^(?!.*\.d\.ts$).*$/],
@@ -823,7 +814,7 @@ export default async function getBaseWebpackConfig(
             configFile: jsConfigPath,
           },
         }
-      : {}) as any),
+      : {}),
   }
 
   // Resolve server-relative imports (e.g. `/styles/foo`) from the app
@@ -1984,12 +1975,7 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-barrel-loader',
                 options: {
                   names,
-                  swcCacheDir: path.join(
-                    dir,
-                    config?.distDir ?? '.next',
-                    'cache',
-                    'swc'
-                  ),
+                  swcCacheDir: path.join(distDir, 'cache', 'swc'),
                 },
                 // This is part of the request value to serve as the module key.
                 // The barrel loader are no-op re-exported modules keyed by
@@ -2187,6 +2173,29 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
+      isClient &&
+        hasAppDir &&
+        config.experimental.externalBrowserRuntime === true &&
+        new CopyFilePlugin({
+          // React only publishes this standalone runtime on the experimental
+          // channel, which `experimental.externalBrowserRuntime` opts into via
+          // `needsExperimentalReact`. Keep it small and independent of the
+          // framework bundle so it can reveal streamed Suspense boundaries
+          // before the framework loads or hydration begins.
+          filePath: require.resolve(
+            '../compiled/react-dom-experimental/unstable_server-external-runtime'
+          ),
+          cacheKey: process.env.__NEXT_VERSION as string,
+          name: `static/chunks/${CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME}${
+            dev ? '' : '-[hash]'
+          }.js`,
+          minimize: false,
+          info: {
+            [CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL]: 1,
+            // This file is already minified
+            minimized: true,
+          },
+        }),
       hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
@@ -2204,13 +2213,11 @@ export default async function getBaseWebpackConfig(
         !isClient &&
         new NextTypesPlugin({
           dir,
-          distDir: config.distDir,
+          distDir: buildDistDir,
           appDir,
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          originalRewrites,
-          originalRedirects,
         }),
       !dev &&
         isClient &&
@@ -2751,7 +2758,7 @@ export default async function getBaseWebpackConfig(
     }
 
     webpackConfig.module.rules = [
-      ...(topRules as any),
+      ...topRules,
       {
         oneOf: [...innerRules, fileLoader],
       },

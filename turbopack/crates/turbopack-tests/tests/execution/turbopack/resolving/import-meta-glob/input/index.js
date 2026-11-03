@@ -63,6 +63,16 @@ it('should support multiple patterns across directories', () => {
   expect(multiModules['./other/baz.js'].default).toBe('baz')
 })
 
+// The result keys stay logical while module resolution follows the directory symlink.
+const symlinkModules = import.meta.glob('./linked/*.js', { eager: true })
+
+it('should resolve modules through a symlink while preserving logical keys', () => {
+  const keys = Object.keys(symlinkModules).sort()
+  expect(keys).toEqual(['./linked/bar.js', './linked/foo.js'])
+  expect(symlinkModules['./linked/foo.js'].default).toBe('foo')
+  expect(symlinkModules['./linked/bar.js'].default).toBe('bar')
+})
+
 // import: '*' (namespace import) — should return the whole module namespace
 // Uses ./other/*.js to avoid colliding with the eager test above (same pattern + eager + no import)
 const namespaceModules = import.meta.glob('./other/*.js', {
@@ -116,6 +126,8 @@ it('should include dotfile directories with wildcard patterns', () => {
     './CaseDir/module-lower.js',
     './dir/bar.js',
     './dir/foo.js',
+    './linked/bar.js',
+    './linked/foo.js',
     './other/baz.js',
   ])
 })

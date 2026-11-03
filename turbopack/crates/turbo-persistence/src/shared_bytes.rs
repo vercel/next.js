@@ -1,6 +1,28 @@
-use std::ops::{Deref, Range};
+use std::{
+    io::{self, BorrowedBuf, BorrowedCursor},
+    mem::MaybeUninit,
+    ops::{Deref, Range},
+};
 
+#[cfg(feature = "mmap")]
 use memmap2::Mmap;
+
+use crate::Compression;
+/// Bytes that fit in this many bytes are stored directly inside an `ArcBytes`/`RcBytes` rather
+/// than as a pointer into ref-counted backing storage.
+///
+/// Sized to hold any inline value or key-value tombstone payload, which the writer caps at
+/// [`MAX_INLINE_VALUE_SIZE`][crate::constants::MAX_INLINE_VALUE_SIZE]. Those are the only values
+/// that live in a key block, so covering them means a lookup that returns one does not have to
+/// keep the whole block alive.
+pub(crate) const INLINE_CAPACITY: usize = 8;
+
+// Anything the writer can place in a key block must fit, or the common case would silently fall
+// back to the pointer path.
+const _: () = assert!(
+    INLINE_CAPACITY >= crate::constants::MAX_INLINE_VALUE_SIZE,
+    "INLINE_CAPACITY must cover every inline value the writer can emit"
+);
 
 /// Trait abstracting over `ArcBytes` and `RcBytes`.
 ///
@@ -13,6 +35,7 @@ use memmap2::Mmap;
 /// once and used for both lookup (ArcBytes) and iteration (RcBytes) paths.
 pub trait SharedBytes: Clone + Deref<Target = [u8]> + Sized {
     /// The ref-counted handle to the memory-mapped file.
+    #[cfg(feature = "mmap")]
     type MmapHandle: Deref<Target = Mmap>;
 
     /// Returns a new instance that points to a sub-range of the current slice.
@@ -33,10 +56,48 @@ pub trait SharedBytes: Clone + Deref<Target = [u8]> + Sized {
     ///
     /// The caller must ensure that `subslice` points to memory within the
     /// given `mmap`.
+    #[cfg(feature = "mmap")]
     unsafe fn from_mmap(mmap: &Self::MmapHandle, subslice: &[u8]) -> Self;
 
     /// Creates an instance from a decompressed block.
-    fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self>;
+    fn from_decompressed(
+        compression: Compression,
+        uncompressed_length: u32,
+        block: &[u8],
+    ) -> anyhow::Result<Self>;
+
+    /// Allocates `len` uninitialized bytes, lets `fill` write all of them (e.g. by reading from a
+    /// file) and returns them. The bytes are written in place, so they are neither zeroed before
+    /// `fill` nor copied after it. Fails if `fill` leaves any of them unwritten.
+    fn read_filled(
+        len: usize,
+        fill: impl FnOnce(BorrowedCursor<'_, u8>) -> io::Result<()>,
+    ) -> io::Result<Self>;
+
+    /// Copies `bytes` into an inline buffer, so the result owns them and borrows nothing.
+    ///
+    /// # Panics
+    ///
+    /// If `bytes.len() > INLINE_CAPACITY`. Callers reading a length off disk must bound it first —
+    /// [`entry_val_size`][crate::static_sorted_file] does this for key block entries.
+    fn from_inline(block: &[u8]) -> Self;
+}
+
+/// Lets `fill` write into `buf` through a [`BorrowedCursor`], which tracks the bytes it wrote.
+/// Returns `Ok` only if all of `buf` was written, so the caller may then assume it is initialized.
+pub(crate) fn fill_uninit(
+    buf: &mut [MaybeUninit<u8>],
+    fill: impl FnOnce(BorrowedCursor<'_, u8>) -> io::Result<()>,
+) -> io::Result<()> {
+    let mut buf = BorrowedBuf::from(buf);
+    fill(buf.unfilled())?;
+    if buf.len() != buf.capacity() {
+        return Err(io::Error::new(
+            io::ErrorKind::UnexpectedEof,
+            format!("only {} of {} bytes were read", buf.len(), buf.capacity()),
+        ));
+    }
+    Ok(())
 }
 
 /// Returns `true` if `subslice` lies entirely within `backing`.
