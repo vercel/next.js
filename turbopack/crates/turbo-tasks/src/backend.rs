@@ -626,7 +626,8 @@ pub trait Backend: Sized + Sync + Send {
     /// Called when a task's execution finishes.
     ///
     /// `has_keyed_reads` is true when the execution made
-    /// [`Vc::keyed_reader`][crate::Vc::keyed_reader] reads.
+    /// [`Vc::keyed_reader`][crate::Vc::keyed_reader] or
+    /// [`Vc::lazy_reader`][crate::Vc::lazy_reader] reads.
     /// The backend must then convert all [`CellKey::Keyed`][crate::CellKey::Keyed] dependencies of
     /// the task that are still present into normal (full) cell dependencies, as their ids are only
     /// meaningful within this execution.
@@ -676,9 +677,10 @@ pub trait Backend: Sized + Sync + Send {
 
     /// Replaces the [`CellKey::Keyed(id)`][crate::CellKey::Keyed] dependency of `reader` on the
     /// cell `index` of `task`, which was created by a
-    /// [`Vc::keyed_reader`][crate::Vc::keyed_reader] read, with
+    /// [`Vc::keyed_reader`][crate::Vc::keyed_reader] or
+    /// [`Vc::lazy_reader`][crate::Vc::lazy_reader] read, with
     /// [`CellKey::Hash`][crate::CellKey::Hash] dependencies on each of the `key_hashes`, in a
-    /// single operation.
+    /// single operation. With no `key_hashes`, the dependency is removed.
     ///
     /// Must only be called from within the same execution of `reader` that created the
     /// dependency.

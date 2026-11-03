@@ -142,8 +142,8 @@ pub fn update_cell(
                     CellKey::Hash(key_hash) => updated_key_hashes_set
                         .as_ref()
                         .is_none_or(|set| set.contains(&key_hash)),
-                    // `keyed_reader()` read dependents: always invalidate, like keyless
-                    // dependents.
+                    // `keyed_reader()` / `lazy_reader()` read dependents: always invalidate,
+                    // like keyless dependents.
                     CellKey::Keyed(_) => true,
                 };
                 if affected {
@@ -271,8 +271,9 @@ fn invalidate_cell_dependents(
                 }
                 Some(CellKey::Keyed(_)) => {
                     // The `Keyed` dependency might have been converted in the meantime (to a
-                    // full dependency when the execution of the dependent completed, or to
-                    // `CellKey::Hash` dependencies when its `KeyedReadRef` was dropped). Assume
+                    // full dependency when the execution of the dependent completed, to
+                    // `CellKey::Hash` dependencies when its `KeyedReadRef` was dropped, or removed
+                    // when its unaccessed `LazyReadRef` was dropped). Assume
                     // the worst case and always invalidate.
                     (false, true)
                 }

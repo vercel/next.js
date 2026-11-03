@@ -776,7 +776,8 @@ impl ReadRawVcFuture {
     }
 
     /// Track the value as a [`CellKey::Keyed`] dependency of a
-    /// [`Vc::keyed_reader`](crate::Vc::keyed_reader) read. Like
+    /// [`Vc::keyed_reader`](crate::Vc::keyed_reader) or
+    /// [`Vc::lazy_reader`](crate::Vc::lazy_reader) read. Like
     /// [`ReadRawVcFuture::track_with_key`], this also tracks the reads of task outputs while
     /// resolving the [`RawVc`].
     ///

@@ -1211,7 +1211,8 @@ impl TurboTasksBackend {
     }
 
     /// Replaces the [`CellKey::Keyed`] dependency of `reader` on `cell` of `task_id` (created by a
-    /// `Vc::keyed_reader()` read) with [`CellKey::Hash`] dependencies on `key_hashes`.
+    /// `Vc::keyed_reader()` or `Vc::lazy_reader()` read) with [`CellKey::Hash`] dependencies on
+    /// `key_hashes`. With no `key_hashes` (an unaccessed `LazyReadRef`), it's removed.
     ///
     /// When the cell content is currently missing (e.g. while `update_cell` invalidates its
     /// dependents), the [`CellKey::Keyed`] dependency is kept, conservatively depending on the
@@ -1258,11 +1259,13 @@ impl TurboTasksBackend {
 
     /// Converts all [`CellKey::Keyed`] dependencies of `reader` that are still present into normal
     /// (full) cell dependencies. Called when an execution of `reader` that made
-    /// `Vc::keyed_reader()` reads completes, as the ids are only meaningful within that execution.
+    /// `Vc::keyed_reader()` or `Vc::lazy_reader()` reads completes, as the ids are only meaningful
+    /// within that execution.
     ///
-    /// They remain when a `KeyedReadRef` wasn't dropped within the execution (the manager then
-    /// panics after the execution completed, but the dependencies are still kept consistent), or
-    /// when its conversion was refused (see `convert_keyed_cell_dependency`).
+    /// They remain for accessed `LazyReadRef`s, when a `KeyedReadRef` or `LazyReadRef` wasn't
+    /// dropped within the execution (the manager then panics after the execution completed, but
+    /// the dependencies are still kept consistent), or when its conversion was refused (see
+    /// `convert_keyed_cell_dependency`).
     ///
     /// A concurrent `update_cell` that collected the [`CellKey::Keyed`] dependent before the
     /// conversion still invalidates `reader`, as it always invalidates collected
@@ -2367,16 +2370,18 @@ impl TurboTasksBackend {
 
         let mut ctx = self.execute_context(turbo_tasks);
 
-        // Normally no `CellKey::Keyed` dependencies remain here: dropping a `KeyedReadRef` within
-        // the execution already converted its dependency. They only remain when a `KeyedReadRef`
-        // leaked (the manager panics after this returns) or its conversion was refused because
-        // the cell content was missing (e.g. during a concurrent `update_cell`). Their ids are only
-        // meaningful within this execution, so convert them to normal dependencies first, before
-        // the outdated edges are cleaned up, to keep the dependency graph consistent.
+        // Normally only the dependencies of accessed `LazyReadRef`s remain here: dropping a
+        // `KeyedReadRef` or an unaccessed `LazyReadRef` within the execution already converted or
+        // removed its dependency. Others only remain when a ref leaked (the manager panics after
+        // this returns) or its conversion was refused because the cell content was missing (e.g.
+        // during a concurrent `update_cell`). Their ids are only meaningful within this execution,
+        // so convert them to normal dependencies first, before the outdated edges are cleaned up,
+        // to keep the dependency graph consistent.
         if has_keyed_reads && self.should_track_dependencies() {
             self.convert_remaining_keyed_cell_dependencies_at_task_completion(&mut ctx, task_id);
         }
-        // Only checked for executions with `keyed_reader()` reads, so other tasks don't pay for it.
+        // Only checked for executions with `keyed_reader()` or `lazy_reader()` reads, so other
+        // tasks don't pay for it.
         debug_assert!(
             !has_keyed_reads
                 || !ctx
