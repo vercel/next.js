@@ -1,0 +1,85 @@
+import { test, expect } from 'vitest'
+import { page, locators, utils } from 'vitest/browser'
+
+const emit = value => console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value))
+const factsOf = fn => ({ name: fn.name, length: fn.length, hasOwnPrototype: Object.hasOwn(fn, 'prototype') })
+
+test('extends page and retained locators with real scoped native actions', async () => {
+  const host = document.createElement('main'), events = [], calls = []
+  host.innerHTML = '<section data-testid="extension-group"><button data-custom="target">inside</button></section><button data-custom="target">outside</button>'
+  document.body.append(host)
+  const section = host.querySelector('section'), button = section.querySelector('button')
+  const retained = page.getByTestId('extension-group')
+  button.addEventListener('click', event => events.push({ trusted:event.isTrusted, sameTarget:event.target === button, text:event.target.textContent }))
+  try {
+    const callback = function(selector) { calls.push({ receiver:this === page ? 'page' : this === retained ? 'retained' : 'other', args:[...arguments] }); return 'css=' + selector }
+    const returned = locators.extend({ getByCustomCSS: callback })
+    const scoped = retained.getByCustomCSS('[data-custom="target"]')
+    const atPage = page.getByCustomCSS('[data-testid="extension-group"]')
+    const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(retained), 'getByCustomCSS')
+    const pageDescriptor = Object.getOwnPropertyDescriptor(page, 'getByCustomCSS')
+    const facts = { returnedUndefined:returned === undefined, retainedPrototypeOwn:Object.hasOwn(Object.getPrototypeOf(retained), 'getByCustomCSS'), prototypeDescriptor:{ enumerable:descriptor.enumerable, configurable:descriptor.configurable, writable:descriptor.writable }, pageDescriptor:{ enumerable:pageDescriptor.enumerable, configurable:pageDescriptor.configurable, writable:pageDescriptor.writable }, prototypeMethod:factsOf(descriptor.value), pageMethod:factsOf(pageDescriptor.value), callbackWrapped:descriptor.value !== callback && pageDescriptor.value !== callback, sameScopedNode:scoped.element() === button, samePageNode:atPage.element() === section, selectors:[scoped.selector,atPage.selector] }
+    await expect.element(scoped).toHaveTextContent('inside')
+    await scoped.click()
+    expect(events).toEqual([{ trusted:true,sameTarget:true,text:'inside' }])
+    expect(calls).toEqual([{ receiver:'retained',args:['[data-custom="target"]'] },{ receiver:'page',args:['[data-testid="extension-group"]'] }])
+    emit({ facts,calls,events })
+  } finally { host.remove() }
+})
+
+test('preserves callback receiver, call getter and returned locator identity', async () => {
+  const host = document.createElement('section'), calls = []
+  host.dataset.testid = 'identity-group'; host.innerHTML = '<button>kept</button>'; document.body.append(host)
+  const retained = page.getByTestId('identity-group'), target = retained.getByRole('button', { name:'kept' })
+  let reads = 0
+  const callback = function(value) { calls.push({ receiver:this === page ? 'page' : this === retained ? 'retained' : 'other', sameValue:value === target, count:arguments.length }); return value }
+  Object.defineProperty(callback, 'call', { get() { reads++; return function(receiver, ...args) { calls.push({ ownCallReceiver:this === callback, passedReceiver:receiver === page ? 'page' : receiver === retained ? 'retained' : 'other' }); return Reflect.apply(callback, receiver, args) } } })
+  try {
+    locators.extend({ getByExactLocator:callback })
+    const fromPage = page.getByExactLocator(target), fromLocator = retained.getByExactLocator(target)
+    expect(fromPage).toBe(target); expect(fromLocator).toBe(target)
+    await expect.element(fromPage).toHaveTextContent('kept')
+    emit({ reads,calls,fromPageSame:fromPage === target,fromLocatorSame:fromLocator === target,sameRealNode:target.element() === host.querySelector('button') })
+    expect(reads).toBe(2)
+  } finally { host.remove() }
+})
+
+test('creates element selector snapshots with registered and inherited extensions', async () => {
+  const host = document.createElement('section'), calls = []
+  host.innerHTML = '<button data-late="yes">local</button>'; document.body.append(host)
+  try {
+    const before = locators.createElementLocators(host)
+    const inherited = { getByInheritedCSS(selector) { calls.push({ method:'inherited',hasLocator:typeof this.locator === 'function',args:[...arguments] }); return 'css=' + selector } }
+    const methods = Object.create(inherited)
+    Object.defineProperty(methods, 'getByLateCSS', { enumerable:true,get() { calls.push({ method:'get-late' }); return function(selector) { calls.push({ method:'late',hasLocator:typeof this.locator === 'function',args:[...arguments] }); return 'css=' + selector } } })
+    Object.defineProperty(methods, 'nonEnumerableExtension', { value() { return 'css=button' } })
+    methods[Symbol('symbolExtension')] = () => 'css=button'
+    const returned = locators.extend(methods)
+    const after = locators.createElementLocators(host), target = after.getByLateCSS('[data-late="yes"]'), inheritedTarget = after.getByInheritedCSS('button')
+    await expect.element(target).toHaveTextContent('local')
+    expect(target.element()).toBe(host.querySelector('button')); expect(inheritedTarget.element()).toBe(target.element())
+    const facts = { sameUtilityFunction:locators.createElementLocators === utils.getElementLocatorSelectors, returnedUndefined:returned === undefined, ordinaryPrototype:Object.getPrototypeOf(after) === Object.prototype, beforeKeys:Object.keys(before), afterKeys:Object.keys(after), oldSnapshotHasLate:Object.hasOwn(before,'getByLateCSS'), nonEnumerableIgnored:!Object.hasOwn(page,'nonEnumerableExtension'), symbolKeys:Object.getOwnPropertySymbols(after).length, sameTarget:target.element() === host.querySelector('button') }
+    emit({ facts,calls })
+    expect(facts.oldSnapshotHasLate).toBe(false); expect(facts.nonEnumerableIgnored).toBe(true)
+  } finally { host.remove() }
+})
+
+test('uses the live open shadow node for custom query actions and assertions', async () => {
+  const host = document.createElement('section'), events = []
+  host.dataset.testid = 'shadow-extension-group'; document.body.append(host)
+  const shadow = host.attachShadow({ mode:'open' }); shadow.innerHTML = '<button data-current="yes">old</button>'
+  try {
+    const scoped = page.getByTestId('shadow-extension-group').getByCustomCSS('[data-current="yes"]')
+    const first = scoped.element()
+    shadow.innerHTML = '<button data-current="yes">replacement</button>'
+    const replacement = shadow.querySelector('button')
+    replacement.addEventListener('click', event => events.push({ trusted:event.isTrusted,sameTarget:event.target === replacement,text:event.target.textContent }))
+    await expect.element(scoped).toHaveTextContent('replacement')
+    await scoped.click()
+    const facade = locators.createElementLocators(host), viaFacade = facade.getByCustomCSS('[data-current="yes"]')
+    const facts = { firstDisconnected:!first.isConnected,replacedNode:scoped.element() === replacement,facadeSameNode:viaFacade.element() === replacement,shadowOwner:replacement.getRootNode() === shadow }
+    expect(facts).toEqual({ firstDisconnected:true,replacedNode:true,facadeSameNode:true,shadowOwner:true })
+    expect(events).toEqual([{ trusted:true,sameTarget:true,text:'replacement' }])
+    emit({ facts,events })
+  } finally { host.remove() }
+})

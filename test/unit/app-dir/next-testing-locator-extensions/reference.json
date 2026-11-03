@@ -1,0 +1,1212 @@
+{
+  "inputs": {
+    "extensions": "bed590b57667215e0cb23612b9897224e87ffd1adaca70d3024adf6cb7e1cd0e",
+    "effects": "eeb7c303ece1ea1b51c06bd6927e6fb728d39a1ddcd79cbe67ed45d421be1839",
+    "module": "650e3c994db5e3e1194381f494b58d607bd2a8c4a5c8853d1e911a2107cf0017"
+  },
+  "models": {
+    "extensions": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "facts": {
+                "returnedUndefined": true,
+                "retainedPrototypeOwn": true,
+                "prototypeDescriptor": {
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true
+                },
+                "pageDescriptor": {
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true
+                },
+                "prototypeMethod": {
+                  "name": "",
+                  "length": 0,
+                  "hasOwnPrototype": true
+                },
+                "pageMethod": {
+                  "name": "",
+                  "length": 0,
+                  "hasOwnPrototype": true
+                },
+                "callbackWrapped": true,
+                "sameScopedNode": true,
+                "samePageNode": true,
+                "selectors": [
+                  "internal:testid=[data-testid=\"extension-group\"s] >> css=[data-custom=\"target\"]",
+                  "css=[data-testid=\"extension-group\"]"
+                ]
+              },
+              "calls": [
+                {
+                  "receiver": "retained",
+                  "args": ["[data-custom=\"target\"]"]
+                },
+                {
+                  "receiver": "page",
+                  "args": ["[data-testid=\"extension-group\"]"]
+                }
+              ],
+              "events": [
+                {
+                  "trusted": true,
+                  "sameTarget": true,
+                  "text": "inside"
+                }
+              ]
+            },
+            "task": "extends page and retained locators with real scoped native actions"
+          },
+          {
+            "value": {
+              "reads": 2,
+              "calls": [
+                {
+                  "ownCallReceiver": true,
+                  "passedReceiver": "page"
+                },
+                {
+                  "receiver": "page",
+                  "sameValue": true,
+                  "count": 1
+                },
+                {
+                  "ownCallReceiver": true,
+                  "passedReceiver": "retained"
+                },
+                {
+                  "receiver": "retained",
+                  "sameValue": true,
+                  "count": 1
+                }
+              ],
+              "fromPageSame": true,
+              "fromLocatorSame": true,
+              "sameRealNode": true
+            },
+            "task": "preserves callback receiver, call getter and returned locator identity"
+          },
+          {
+            "value": {
+              "facts": {
+                "sameUtilityFunction": true,
+                "returnedUndefined": true,
+                "ordinaryPrototype": true,
+                "beforeKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByCustomCSS",
+                  "getByExactLocator"
+                ],
+                "afterKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByCustomCSS",
+                  "getByExactLocator",
+                  "getByLateCSS",
+                  "getByInheritedCSS"
+                ],
+                "oldSnapshotHasLate": false,
+                "nonEnumerableIgnored": true,
+                "symbolKeys": 0,
+                "sameTarget": true
+              },
+              "calls": [
+                {
+                  "method": "get-late"
+                },
+                {
+                  "method": "late",
+                  "hasLocator": true,
+                  "args": ["[data-late=\"yes\"]"]
+                },
+                {
+                  "method": "inherited",
+                  "hasLocator": true,
+                  "args": ["button"]
+                }
+              ]
+            },
+            "task": "creates element selector snapshots with registered and inherited extensions"
+          },
+          {
+            "value": {
+              "facts": {
+                "firstDisconnected": true,
+                "replacedNode": true,
+                "facadeSameNode": true,
+                "shadowOwner": true
+              },
+              "events": [
+                {
+                  "trusted": true,
+                  "sameTarget": true,
+                  "text": "replacement"
+                }
+              ]
+            },
+            "task": "uses the live open shadow node for custom query actions and assertions"
+          }
+        ],
+        "cases": [
+          {
+            "name": "extends page and retained locators with real scoped native actions",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "preserves callback receiver, call getter and returned locator identity",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "creates element selector snapshots with registered and inherited extensions",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "uses the live open shadow node for custom query actions and assertions",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "extends page and retained locators with real scoped native actions",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "preserves callback receiver, call getter and returned locator identity",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "creates element selector snapshots with registered and inherited extensions",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "uses the live open shadow node for custom query actions and assertions",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "extends page and retained locators with real scoped native actions",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "preserves callback receiver, call getter and returned locator identity",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "creates element selector snapshots with registered and inherited extensions",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "uses the live open shadow node for custom query actions and assertions",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 4,
+          "numPassedTests": 4,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "facts": {
+                "returnedUndefined": true,
+                "retainedPrototypeOwn": true,
+                "prototypeDescriptor": {
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true
+                },
+                "pageDescriptor": {
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true
+                },
+                "prototypeMethod": {
+                  "name": "",
+                  "length": 0,
+                  "hasOwnPrototype": true
+                },
+                "pageMethod": {
+                  "name": "",
+                  "length": 0,
+                  "hasOwnPrototype": true
+                },
+                "callbackWrapped": true,
+                "sameScopedNode": true,
+                "samePageNode": true,
+                "selectors": [
+                  "internal:testid=[data-testid=\"extension-group\"s] >> css=[data-custom=\"target\"]",
+                  "css=[data-testid=\"extension-group\"]"
+                ]
+              },
+              "calls": [
+                {
+                  "receiver": "retained",
+                  "args": ["[data-custom=\"target\"]"]
+                },
+                {
+                  "receiver": "page",
+                  "args": ["[data-testid=\"extension-group\"]"]
+                }
+              ],
+              "events": [
+                {
+                  "trusted": true,
+                  "sameTarget": true,
+                  "text": "inside"
+                }
+              ]
+            },
+            "task": "extends page and retained locators with real scoped native actions"
+          },
+          {
+            "value": {
+              "reads": 2,
+              "calls": [
+                {
+                  "ownCallReceiver": true,
+                  "passedReceiver": "page"
+                },
+                {
+                  "receiver": "page",
+                  "sameValue": true,
+                  "count": 1
+                },
+                {
+                  "ownCallReceiver": true,
+                  "passedReceiver": "retained"
+                },
+                {
+                  "receiver": "retained",
+                  "sameValue": true,
+                  "count": 1
+                }
+              ],
+              "fromPageSame": true,
+              "fromLocatorSame": true,
+              "sameRealNode": true
+            },
+            "task": "preserves callback receiver, call getter and returned locator identity"
+          },
+          {
+            "value": {
+              "facts": {
+                "sameUtilityFunction": true,
+                "returnedUndefined": true,
+                "ordinaryPrototype": true,
+                "beforeKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByCustomCSS",
+                  "getByExactLocator"
+                ],
+                "afterKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByCustomCSS",
+                  "getByExactLocator",
+                  "getByLateCSS",
+                  "getByInheritedCSS"
+                ],
+                "oldSnapshotHasLate": false,
+                "nonEnumerableIgnored": true,
+                "symbolKeys": 0,
+                "sameTarget": true
+              },
+              "calls": [
+                {
+                  "method": "get-late"
+                },
+                {
+                  "method": "late",
+                  "hasLocator": true,
+                  "args": ["[data-late=\"yes\"]"]
+                },
+                {
+                  "method": "inherited",
+                  "hasLocator": true,
+                  "args": ["button"]
+                }
+              ]
+            },
+            "task": "creates element selector snapshots with registered and inherited extensions"
+          },
+          {
+            "value": {
+              "facts": {
+                "firstDisconnected": true,
+                "replacedNode": true,
+                "facadeSameNode": true,
+                "shadowOwner": true
+              },
+              "events": [
+                {
+                  "trusted": true,
+                  "sameTarget": true,
+                  "text": "replacement"
+                }
+              ]
+            },
+            "task": "uses the live open shadow node for custom query actions and assertions"
+          }
+        ],
+        "cases": [
+          {
+            "name": "extends page and retained locators with real scoped native actions",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "preserves callback receiver, call getter and returned locator identity",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "creates element selector snapshots with registered and inherited extensions",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "uses the live open shadow node for custom query actions and assertions",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "extends page and retained locators with real scoped native actions",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "preserves callback receiver, call getter and returned locator identity",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "creates element selector snapshots with registered and inherited extensions",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "uses the live open shadow node for custom query actions and assertions",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "extends page and retained locators with real scoped native actions",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "preserves callback receiver, call getter and returned locator identity",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "creates element selector snapshots with registered and inherited extensions",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "uses the live open shadow node for custom query actions and assertions",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 4,
+          "numPassedTests": 4,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "effects": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "facts": {
+                "returnedUndefined": true,
+                "oldPageMethodReplaced": true,
+                "oldLocatorMethodReplaced": true,
+                "currentText": "new",
+                "retainedOldText": "old",
+                "retainedScopedText": "old",
+                "oldFacadeUsesCurrent": true,
+                "inheritedText": "old",
+                "oldKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByOverrideChoice"
+                ],
+                "afterKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByOverrideChoice",
+                  "getByInheritedChoice"
+                ],
+                "singleDuplicateName": 1
+              },
+              "calls": ["new", "old", "old", "new", "inherited-choice"]
+            },
+            "task": "preserves duplicate replacement, inherited enumeration and retained extension functions"
+          },
+          {
+            "value": {
+              "facts": {
+                "registrationReturnedUndefined": true,
+                "registrationReadEachOnce": true,
+                "gettersOnlyAtRegistration": true,
+                "objectIdentity": true,
+                "undefinedReturn": true,
+                "nanReturn": true,
+                "thrownIdentity": true,
+                "facadeHasInvalid": true
+              },
+              "keys": [
+                "getByInvalidUndefined",
+                "getByInvalidNull",
+                "getByInvalidNumber",
+                "getByPlainResult",
+                "getByThrownError"
+              ],
+              "failures": [
+                {
+                  "name": "getByInvalidUndefined",
+                  "type": "TypeError",
+                  "message": "Cannot read properties of undefined (reading 'call')",
+                  "actualTypeError": true
+                },
+                {
+                  "name": "getByInvalidNull",
+                  "type": "TypeError",
+                  "message": "Cannot read properties of null (reading 'call')",
+                  "actualTypeError": true
+                },
+                {
+                  "name": "getByInvalidNumber",
+                  "type": "TypeError",
+                  "message": "cb.call is not a function",
+                  "actualTypeError": true
+                }
+              ]
+            },
+            "task": "retains delayed invalid callback errors and arbitrary real callback returns"
+          }
+        ],
+        "cases": [
+          {
+            "name": "preserves duplicate replacement, inherited enumeration and retained extension functions",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains delayed invalid callback errors and arbitrary real callback returns",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "preserves duplicate replacement, inherited enumeration and retained extension functions",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains delayed invalid callback errors and arbitrary real callback returns",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "preserves duplicate replacement, inherited enumeration and retained extension functions",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains delayed invalid callback errors and arbitrary real callback returns",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 2,
+          "numPassedTests": 2,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "facts": {
+                "returnedUndefined": true,
+                "oldPageMethodReplaced": true,
+                "oldLocatorMethodReplaced": true,
+                "currentText": "new",
+                "retainedOldText": "old",
+                "retainedScopedText": "old",
+                "oldFacadeUsesCurrent": true,
+                "inheritedText": "old",
+                "oldKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByOverrideChoice"
+                ],
+                "afterKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByOverrideChoice",
+                  "getByInheritedChoice"
+                ],
+                "singleDuplicateName": 1
+              },
+              "calls": ["new", "old", "old", "new", "inherited-choice"]
+            },
+            "task": "preserves duplicate replacement, inherited enumeration and retained extension functions"
+          },
+          {
+            "value": {
+              "facts": {
+                "registrationReturnedUndefined": true,
+                "registrationReadEachOnce": true,
+                "gettersOnlyAtRegistration": true,
+                "objectIdentity": true,
+                "undefinedReturn": true,
+                "nanReturn": true,
+                "thrownIdentity": true,
+                "facadeHasInvalid": true
+              },
+              "keys": [
+                "getByInvalidUndefined",
+                "getByInvalidNull",
+                "getByInvalidNumber",
+                "getByPlainResult",
+                "getByThrownError"
+              ],
+              "failures": [
+                {
+                  "name": "getByInvalidUndefined",
+                  "type": "TypeError",
+                  "message": "Cannot read properties of undefined (reading 'call')",
+                  "actualTypeError": true
+                },
+                {
+                  "name": "getByInvalidNull",
+                  "type": "TypeError",
+                  "message": "Cannot read properties of null (reading 'call')",
+                  "actualTypeError": true
+                },
+                {
+                  "name": "getByInvalidNumber",
+                  "type": "TypeError",
+                  "message": "cb.call is not a function",
+                  "actualTypeError": true
+                }
+              ]
+            },
+            "task": "retains delayed invalid callback errors and arbitrary real callback returns"
+          }
+        ],
+        "cases": [
+          {
+            "name": "preserves duplicate replacement, inherited enumeration and retained extension functions",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains delayed invalid callback errors and arbitrary real callback returns",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "preserves duplicate replacement, inherited enumeration and retained extension functions",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains delayed invalid callback errors and arbitrary real callback returns",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "preserves duplicate replacement, inherited enumeration and retained extension functions",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains delayed invalid callback errors and arbitrary real callback returns",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 2,
+          "numPassedTests": 2,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    },
+    "module": {
+      "development": {
+        "rows": [
+          {
+            "value": {
+              "facts": {
+                "registrationUndefined": true,
+                "moduleKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByModuleCSS"
+                ],
+                "sameUtilityFunction": true,
+                "retainedSameNode": true,
+                "facadeSameNode": true,
+                "selector": "css=[data-module=\"target\"]"
+              },
+              "calls": [
+                {
+                  "receiver": "page",
+                  "selector": "[data-module=\"target\"]"
+                },
+                {
+                  "receiver": "locator",
+                  "selector": "[data-module=\"target\"]"
+                }
+              ],
+              "events": [
+                {
+                  "trusted": true,
+                  "sameTarget": true
+                }
+              ]
+            },
+            "task": "uses locator extensions and facade created during module evaluation"
+          },
+          {
+            "value": {
+              "facts": {
+                "sameSnapshotKeys": true,
+                "dynamicCurrentNode": true,
+                "retainedOriginalQueryAbsent": true,
+                "afterKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByModuleCSS"
+                ]
+              },
+              "calls": [
+                {
+                  "receiver": "page",
+                  "selector": "[data-module=\"target\"]"
+                },
+                {
+                  "receiver": "locator",
+                  "selector": "[data-module=\"target\"]"
+                },
+                {
+                  "receiver": "replacement-locator",
+                  "selector": "ignored"
+                }
+              ]
+            },
+            "task": "retains module facade dispatch through a later body registration"
+          }
+        ],
+        "cases": [
+          {
+            "name": "uses locator extensions and facade created during module evaluation",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains module facade dispatch through a later body registration",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "uses locator extensions and facade created during module evaluation",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains module facade dispatch through a later body registration",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "uses locator extensions and facade created during module evaluation",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains module facade dispatch through a later body registration",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 2,
+          "numPassedTests": 2,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      },
+      "production": {
+        "rows": [
+          {
+            "value": {
+              "facts": {
+                "registrationUndefined": true,
+                "moduleKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByModuleCSS"
+                ],
+                "sameUtilityFunction": true,
+                "retainedSameNode": true,
+                "facadeSameNode": true,
+                "selector": "css=[data-module=\"target\"]"
+              },
+              "calls": [
+                {
+                  "receiver": "page",
+                  "selector": "[data-module=\"target\"]"
+                },
+                {
+                  "receiver": "locator",
+                  "selector": "[data-module=\"target\"]"
+                }
+              ],
+              "events": [
+                {
+                  "trusted": true,
+                  "sameTarget": true
+                }
+              ]
+            },
+            "task": "uses locator extensions and facade created during module evaluation"
+          },
+          {
+            "value": {
+              "facts": {
+                "sameSnapshotKeys": true,
+                "dynamicCurrentNode": true,
+                "retainedOriginalQueryAbsent": true,
+                "afterKeys": [
+                  "getByAltText",
+                  "getByLabelText",
+                  "getByPlaceholder",
+                  "getByRole",
+                  "getByTestId",
+                  "getByText",
+                  "getByTitle",
+                  "getByModuleCSS"
+                ]
+              },
+              "calls": [
+                {
+                  "receiver": "page",
+                  "selector": "[data-module=\"target\"]"
+                },
+                {
+                  "receiver": "locator",
+                  "selector": "[data-module=\"target\"]"
+                },
+                {
+                  "receiver": "replacement-locator",
+                  "selector": "ignored"
+                }
+              ]
+            },
+            "task": "retains module facade dispatch through a later body registration"
+          }
+        ],
+        "cases": [
+          {
+            "name": "uses locator extensions and facade created during module evaluation",
+            "status": "passed",
+            "failureMessages": []
+          },
+          {
+            "name": "retains module facade dispatch through a later body registration",
+            "status": "passed",
+            "failureMessages": []
+          }
+        ],
+        "caseFinals": [
+          {
+            "name": "uses locator extensions and facade created during module evaluation",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          },
+          {
+            "name": "retains module facade dispatch through a later body registration",
+            "result": {
+              "state": "passed",
+              "errors": []
+            }
+          }
+        ],
+        "moduleFinals": [
+          {
+            "state": "passed",
+            "errors": []
+          }
+        ],
+        "runFinals": [
+          {
+            "reason": "passed",
+            "errors": [],
+            "rawUnhandled": [],
+            "files": [
+              {
+                "state": "passed",
+                "tests": [
+                  {
+                    "name": "uses locator extensions and facade created during module evaluation",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  },
+                  {
+                    "name": "retains module facade dispatch through a later body registration",
+                    "result": {
+                      "state": "passed",
+                      "errors": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "standardFiles": [
+          {
+            "status": "passed",
+            "message": ""
+          }
+        ],
+        "counts": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 2,
+          "numPassedTests": 2,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0
+        },
+        "success": true,
+        "exit": 0
+      }
+    }
+  },
+  "typeInput": "f55621eb4e59c299766aeb612fc324885373a404928116839258649c2c290ad6"
+}

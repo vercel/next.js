@@ -1,0 +1,34 @@
+import { test, expect } from 'vitest'
+import { page, locators } from 'vitest/browser'
+const emit = value => console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value))
+
+test('preserves duplicate replacement, inherited enumeration and retained extension functions', async () => {
+  const host = document.createElement('section'); host.dataset.testid='override-host'; host.innerHTML='<button data-choice="old">old</button><button data-choice="new">new</button>'; document.body.append(host)
+  try {
+    const scoped=page.getByTestId('override-host'), calls=[]
+    locators.extend({ getByOverrideChoice() { calls.push('old'); return 'css=[data-choice="old"]' } })
+    const oldPageMethod=page.getByOverrideChoice, oldLocatorMethod=scoped.getByOverrideChoice, oldFacade=locators.createElementLocators(host), oldKeys=Object.keys(oldFacade)
+    const inherited={ getByOverrideChoice() { calls.push('inherited'); return 'css=[data-choice="old"]' }, getByInheritedChoice() { calls.push('inherited-choice'); return 'css=[data-choice="old"]' } }
+    const replacement=Object.create(inherited); replacement.getByOverrideChoice=function() { calls.push('new'); return 'css=[data-choice="new"]' }
+    const returned=locators.extend(replacement)
+    const current=page.getByOverrideChoice(), retainedOld=oldPageMethod.call(page), retainedScoped=oldLocatorMethod.call(scoped), dynamicOldFacade=oldFacade.getByOverrideChoice(), inheritedTarget=scoped.getByInheritedChoice(), after=locators.createElementLocators(host)
+    const facts={ returnedUndefined:returned===undefined, oldPageMethodReplaced:oldPageMethod!==page.getByOverrideChoice, oldLocatorMethodReplaced:oldLocatorMethod!==scoped.getByOverrideChoice, currentText:current.element().textContent, retainedOldText:retainedOld.element().textContent, retainedScopedText:retainedScoped.element().textContent, oldFacadeUsesCurrent:dynamicOldFacade.element()===host.querySelector('[data-choice="new"]'), inheritedText:inheritedTarget.element().textContent, oldKeys, afterKeys:Object.keys(after), singleDuplicateName:Object.keys(after).filter(key=>key==='getByOverrideChoice').length }
+    expect(facts.currentText).toBe('new'); expect(facts.retainedOldText).toBe('old'); expect(facts.retainedScopedText).toBe('old'); expect(facts.oldFacadeUsesCurrent).toBe(true)
+    emit({facts,calls})
+  } finally { host.remove() }
+})
+
+test('retains delayed invalid callback errors and arbitrary real callback returns', () => {
+  const original=new Error('authored callback identity'), sentinel={ marker:'original-object' }, keys=[], failures=[]
+  const methods={}
+  for(const [name,value]of [['getByInvalidUndefined',undefined],['getByInvalidNull',null],['getByInvalidNumber',1],['getByPlainResult',function(value){return value}],['getByThrownError',function(){throw original}]])Object.defineProperty(methods,name,{enumerable:true,get(){keys.push(name);return value}})
+  const result=locators.extend(methods), beforeCallKeys=[...keys]
+  for(const name of ['getByInvalidUndefined','getByInvalidNull','getByInvalidNumber']) {
+    try { page[name]() } catch(error) { failures.push({ name, type:error.name, message:error.message, actualTypeError:error instanceof TypeError }) }
+  }
+  let caught
+  try{page.getByThrownError()}catch(error){caught=error}
+  const facts={ registrationReturnedUndefined:result===undefined, registrationReadEachOnce:keys.length===5, gettersOnlyAtRegistration:JSON.stringify(keys)===JSON.stringify(beforeCallKeys), objectIdentity:page.getByPlainResult(sentinel)===sentinel, undefinedReturn:page.getByPlainResult(undefined)===undefined, nanReturn:Object.is(page.getByPlainResult(NaN),NaN), thrownIdentity:caught===original, facadeHasInvalid:Object.hasOwn(locators.createElementLocators(document.body),'getByInvalidNumber') }
+  expect(failures).toHaveLength(3);expect(failures.every(x=>x.actualTypeError)).toBe(true);expect(facts.thrownIdentity).toBe(true)
+  emit({facts,keys,failures})
+})

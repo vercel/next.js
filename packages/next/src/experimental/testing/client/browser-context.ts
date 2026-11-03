@@ -20,21 +20,42 @@ import type {
 } from './protocol'
 import { createClientNativePromise } from './native-promise-allocation'
 import type { Task } from '../runner/tasks'
-import type { Locator, Page } from 'playwright'
+import type { Locator as PlaywrightLocator, Page } from 'playwright'
 import {
   registerBrowserActionIdentity,
   type BrowserActionIdentity,
 } from './browser-action-identity'
 
+export interface LocatorSelectors {
+  getByRole(...args: unknown[]): ElementLocator
+  getByText(...args: unknown[]): ElementLocator
+  getByLabelText(...args: unknown[]): ElementLocator
+  getByPlaceholder(...args: unknown[]): ElementLocator
+  getByAltText(...args: unknown[]): ElementLocator
+  getByTitle(...args: unknown[]): ElementLocator
+  getByTestId(...args: unknown[]): ElementLocator
+}
+export type Locator = ElementLocator
+export type BrowserPage = typeof page
+export interface BrowserLocators {
+  createElementLocators(element: Element): LocatorSelectors
+  extend(methods: {
+    [K in keyof LocatorSelectors]?: (
+      this: BrowserPage | Locator,
+      ...args: Parameters<LocatorSelectors[K]>
+    ) => ReturnType<LocatorSelectors[K]> | string
+  }): void
+}
+
 type Query = (...args: any[]) => Element[]
 type ElementCommandMethod = Exclude<ClientBrowserCommand['method'], 'viewport'>
 type DragOptions = Parameters<Page['dragAndDrop']>[2]
-type ClickOptions = Parameters<Locator['click']>[0]
-type DoubleClickOptions = Parameters<Locator['dblclick']>[0]
-type HoverOptions = Parameters<Locator['hover']>[0]
-type FillOptions = Parameters<Locator['fill']>[1]
-type ClearOptions = Parameters<Locator['clear']>[0]
-type SelectOptions = Parameters<Locator['selectOption']>[1]
+type ClickOptions = Parameters<PlaywrightLocator['click']>[0]
+type DoubleClickOptions = Parameters<PlaywrightLocator['dblclick']>[0]
+type HoverOptions = Parameters<PlaywrightLocator['hover']>[0]
+type FillOptions = Parameters<PlaywrightLocator['fill']>[1]
+type ClearOptions = Parameters<PlaywrightLocator['clear']>[0]
+type SelectOptions = Parameters<PlaywrightLocator['selectOption']>[1]
 type SelectValues =
   | string
   | string[]
@@ -42,7 +63,7 @@ type SelectValues =
   | HTMLElement[]
   | ElementLocator
   | ElementLocator[]
-type UploadOptions = Parameters<Locator['setInputFiles']>[1]
+type UploadOptions = Parameters<PlaywrightLocator['setInputFiles']>[1]
 type UploadFiles = string | string[] | File | File[]
 interface ScreenshotOptions
   extends Omit<NonNullable<Parameters<Page['screenshot']>[0]>, 'mask'> {
@@ -584,6 +605,9 @@ export interface LocatorFilterOptions {
 const locatorBrand = Symbol.for('$$vitest:locator')
 
 /** Queries execute in the actual document. Input commands stay Playwright-owned. */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging -- locators.extend installs augmented methods on this prototype.
+interface ElementLocator extends LocatorSelectors {}
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging -- The private class intentionally retains declared selector augmentation.
 class ElementLocator {
   #nativeElements: () => Element[]
 
@@ -1075,38 +1099,83 @@ function selectors(root: Element | ElementLocator) {
       createQueryLocator(root, 'TestId', args),
   }
 }
+function createCustomQueryLocator(selector: string): ElementLocator {
+  let locator: ElementLocator
+  locator = new ElementLocator(
+    locatorFormatter.createQuery(() => {
+      const cache = locator as ElementLocator & LocatorCache
+      return cache._pwSelector || locator.selector
+    }),
+    selector
+  )
+  return locator
+}
+const extendedLocatorMethods = new Set<string>()
 const root = new ElementLocator(() => [document.body], '')
-export const page = Object.assign(selectors(root), {
-  viewport(width: number, height: number): Promise<void> {
-    const operation = dispatchViewportCommand(width, height)
-    return createClientNativePromise(Promise, (resolve, reject) => {
-      void operation.then(resolve, reject)
-    })
+export const page = Object.assign(
+  selectors(root) as ReturnType<typeof selectors> & LocatorSelectors,
+  {
+    viewport(width: number, height: number): Promise<void> {
+      const operation = dispatchViewportCommand(width, height)
+      return createClientNativePromise(Promise, (resolve, reject) => {
+        void operation.then(resolve, reject)
+      })
+    },
+    screenshot,
+    elementLocator(element: Element) {
+      assertBrowserApiScope('browser-native')
+      if (!(element instanceof Element) || element.ownerDocument !== document)
+        throw new Error('Browser locator must belong to its owned document.')
+      return new ElementLocator(
+        () => (element.isConnected ? [element] : []),
+        serializedClickTargets || element.isConnected
+          ? locatorFormatter.generateSelector(element)
+          : () => locatorFormatter.generateSelector(element),
+        element,
+        element
+      )
+    },
+    extend(values: Record<PropertyKey, unknown>): typeof page {
+      assertBrowserApiScope('declaration')
+      const extended = page as unknown as Record<string, unknown>
+      for (const key in values)
+        extended[key] = (
+          values[key] as { bind(receiver: unknown): unknown }
+        ).bind(page)
+      return page
+    },
+  }
+)
+export const locators: BrowserLocators = {
+  createElementLocators: getElementLocatorSelectors,
+  extend(methods) {
+    const Locator = createCustomQueryLocator('css=body').constructor as {
+      prototype: Record<string, unknown>
+    }
+    for (const method in methods) {
+      extendedLocatorMethods.add(method)
+      const cb = (methods as Record<string, (...args: any[]) => any>)[method]
+      Locator.prototype[method] = function (
+        this: { locator(selector: string): ElementLocator },
+        ...args: unknown[]
+      ) {
+        const selectorOrLocator = cb.call(this, ...args)
+        if (typeof selectorOrLocator === 'string')
+          return this.locator(selectorOrLocator)
+        return selectorOrLocator
+      }
+      ;(page as unknown as Record<string, unknown>)[method] = function (
+        this: unknown,
+        ...args: unknown[]
+      ) {
+        const selectorOrLocator = cb.call(this, ...args)
+        if (typeof selectorOrLocator === 'string')
+          return createCustomQueryLocator(selectorOrLocator)
+        return selectorOrLocator
+      }
+    }
   },
-  screenshot,
-  elementLocator(element: Element) {
-    assertBrowserApiScope('browser-native')
-    if (!(element instanceof Element) || element.ownerDocument !== document)
-      throw new Error('Browser locator must belong to its owned document.')
-    return new ElementLocator(
-      () => (element.isConnected ? [element] : []),
-      serializedClickTargets || element.isConnected
-        ? locatorFormatter.generateSelector(element)
-        : () => locatorFormatter.generateSelector(element),
-      element,
-      element
-    )
-  },
-  extend(values: Record<PropertyKey, unknown>): typeof page {
-    assertBrowserApiScope('declaration')
-    const extended = page as Record<string, unknown>
-    for (const key in values)
-      extended[key] = (
-        values[key] as { bind(receiver: unknown): unknown }
-      ).bind(page)
-    return page
-  },
-})
+}
 function eventLocator(element: Element | ElementLocator) {
   return element instanceof ElementLocator
     ? element
@@ -1373,28 +1442,41 @@ export async function cleanupBrowserKeyboard<T>(
 export const server = {
   config: { browser: { locators: { testIdAttribute: 'data-testid' } } },
 }
+function getElementLocatorSelectors(
+  element: Element | ElementLocator
+): LocatorSelectors {
+  if (!serializedClickTargets) return selectors(element)
+  const locator = page.elementLocator(element as Element)
+  return {
+    getByAltText: (altText: unknown, options?: unknown) =>
+      locator.getByAltText(altText, options),
+    getByLabelText: (labelText: unknown, options?: unknown) =>
+      locator.getByLabelText(labelText, options),
+    getByPlaceholder: (placeholderText: unknown, options?: unknown) =>
+      locator.getByPlaceholder(placeholderText, options),
+    getByRole: (role: unknown, options?: unknown) =>
+      locator.getByRole(role, options),
+    getByTestId: (testId: unknown) => locator.getByTestId(testId),
+    getByText: (text: unknown, options?: unknown) =>
+      locator.getByText(text, options),
+    getByTitle: (title: unknown, options?: unknown) =>
+      locator.getByTitle(title, options),
+    ...Array.from(extendedLocatorMethods).reduce<
+      Record<string, (...args: unknown[]) => ElementLocator>
+    >((methods, method) => {
+      methods[method] = (...args) =>
+        (
+          locator as unknown as Record<
+            string,
+            (...args: unknown[]) => ElementLocator
+          >
+        )[method](...args)
+      return methods
+    }, {}),
+  }
+}
 export const utils = {
-  getElementLocatorSelectors: function getElementLocatorSelectors(
-    element: Element | ElementLocator
-  ) {
-    if (!serializedClickTargets) return selectors(element)
-    const locator = page.elementLocator(element as Element)
-    return {
-      getByAltText: (altText: unknown, options?: unknown) =>
-        locator.getByAltText(altText, options),
-      getByLabelText: (labelText: unknown, options?: unknown) =>
-        locator.getByLabelText(labelText, options),
-      getByPlaceholder: (placeholderText: unknown, options?: unknown) =>
-        locator.getByPlaceholder(placeholderText, options),
-      getByRole: (role: unknown, options?: unknown) =>
-        locator.getByRole(role, options),
-      getByTestId: (testId: unknown) => locator.getByTestId(testId),
-      getByText: (text: unknown, options?: unknown) =>
-        locator.getByText(text, options),
-      getByTitle: (title: unknown, options?: unknown) =>
-        locator.getByTitle(title, options),
-    }
-  },
+  getElementLocatorSelectors,
   debug(
     element: Element = document.body,
     maxLength?: number,
