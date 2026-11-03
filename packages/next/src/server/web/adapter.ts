@@ -236,12 +236,11 @@ export async function adapter(
   })
   let response
   let cookiesFromResponse
+  const isMiddleware =
+    params.page === '/middleware' || params.page === '/src/middleware'
 
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
-    const isMiddleware =
-      params.page === '/middleware' || params.page === '/src/middleware'
-
     if (isMiddleware) {
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
       // so we have to inject it via DefinePlugin.
@@ -330,6 +329,15 @@ export async function adapter(
   // check if response is a Response object
   if (response && !(response instanceof Response)) {
     throw new TypeError('Expected an instance of Response to be returned')
+  }
+
+  if (
+    response &&
+    !isMiddleware &&
+    response.headers.has('x-middleware-set-cookie')
+  ) {
+    response = new Response(response.body, response)
+    response.headers.delete('x-middleware-set-cookie')
   }
 
   if (response && cookiesFromResponse) {
