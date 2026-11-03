@@ -39,7 +39,6 @@ pub struct MergedModuleGroups(
     FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<MergedModuleGroup>>,
 );
 
-/// `None` disables merging; `Some` enables it even when there are no groups.
 #[turbo_tasks::value(transparent)]
 pub struct OptionMergedModuleGroups(pub Option<ResolvedVc<MergedModuleGroups>>);
 

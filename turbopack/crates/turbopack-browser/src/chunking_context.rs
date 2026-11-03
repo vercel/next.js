@@ -399,6 +399,7 @@ pub struct BrowserChunkingContext {
     export_usage: Option<ResolvedVc<BindingUsageInfo>>,
     /// Which references are unused and should be skipped (e.g. during codegen).
     unused_references: Option<ResolvedVc<UnusedReferences>>,
+    /// Scope-hoisting groups keyed by source module. `None` if module merging is disabled.
     merged_modules: Option<ResolvedVc<MergedModuleGroups>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
