@@ -58,6 +58,7 @@ import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 import { Bundler } from '../lib/bundler'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
@@ -67,12 +68,23 @@ export { normalizeConfig } from './config-shared'
 import { verifyDistDir } from '../lib/dist-dir'
 export type { DomainLocale, NextConfig } from './config-shared'
 
-// In tests, deeply freeze the shared defaults (this also covers
-// `imageConfigDefault`, which `defaultConfig.images` points to). A write to
-// them would leak into every later `loadConfig` in the process, so make it
-// throw instead. `defaultConfig` itself is already shallowly frozen, which
-// makes `deepFreeze` stop at the top level, so freeze what it contains.
-if (process.env.__NEXT_TEST_MODE) {
+/**
+ * Outside stable releases, deeply freezes the shared defaults (this also
+ * covers `imageConfigDefault`, which `defaultConfig.images` points to). A write
+ * to them would leak into every later `loadConfig` in the process, so make it
+ * throw instead. `NEXT_DISABLE_DEFAULT_CONFIG_FREEZE` turns this off, for
+ * anyone who hits a write we haven't found yet.
+ *
+ * Runs after `.env` files are loaded so the opt-out can be set there too.
+ */
+function freezeSharedDefaults(phase: PHASE_TYPE): void {
+  if (isStableBuild() || process.env.NEXT_DISABLE_DEFAULT_CONFIG_FREEZE) return
+  // Production servers are not frozen yet, except in tests.
+  if (phase === PHASE_PRODUCTION_SERVER && !process.env.__NEXT_TEST_MODE) return
+
+  // `defaultConfig` itself is already shallowly frozen, which makes
+  // `deepFreeze` stop at the top level, so freeze what it contains. Values that
+  // are already frozen return immediately, so later calls are cheap.
   for (const value of Object.values(defaultConfig)) {
     if (value && typeof value === 'object') deepFreeze(value)
   }
@@ -2072,6 +2084,9 @@ async function loadConfigImpl(
     if (process.env.__NEXT_TEST_MODE) {
       deepFreeze(standaloneConfig)
     }
+    // `.env` files are not loaded on this path, so only the process
+    // environment can opt out here.
+    freezeSharedDefaults(phase)
 
     // Cache the standalone config
     configCache.set(cacheKey, {
@@ -2092,6 +2107,7 @@ async function loadConfigImpl(
     : Log
 
   loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
+  freezeSharedDefaults(phase)
 
   let configFileName = 'next.config.js'
   const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []

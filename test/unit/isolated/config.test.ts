@@ -1,6 +1,11 @@
 /* eslint-env jest */
 import { join } from 'path'
-import { PHASE_DEVELOPMENT_SERVER, PHASE_TEST } from 'next/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_SERVER,
+  PHASE_TEST,
+  type PHASE_TYPE,
+} from 'next/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
@@ -127,6 +132,60 @@ describe('config', () => {
     const [loadedIgnore] = (config.logging as any).incomingRequests.ignore
     expect(Object.isFrozen(loadedIgnore)).toBe(false)
     expect(loadedIgnore.test('/healthz')).toBe(true)
+  })
+
+  describe('shared defaults outside test mode', () => {
+    // The built `next` has a canary version, so without test mode these load
+    // config the way a canary user does. They use `customConfig` because
+    // loading a config file in jest relies on test mode.
+    const originalEnv = {
+      __NEXT_TEST_MODE: process.env.__NEXT_TEST_MODE,
+      NEXT_DISABLE_DEFAULT_CONFIG_FREEZE:
+        process.env.NEXT_DISABLE_DEFAULT_CONFIG_FREEZE,
+    }
+
+    beforeEach(() => {
+      delete process.env.__NEXT_TEST_MODE
+      delete process.env.NEXT_DISABLE_DEFAULT_CONFIG_FREEZE
+    })
+
+    afterEach(() => {
+      for (const [key, value] of Object.entries(originalEnv)) {
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+      }
+    })
+
+    async function areDefaultsFrozen(phase: PHASE_TYPE): Promise<boolean> {
+      await loadConfig(phase, '<rootDir>', {
+        customConfig: { basePath: '/docs' },
+      })
+      const { defaultConfig } = await import('next/dist/server/config-shared')
+      const { imageConfigDefault } = await import(
+        'next/dist/shared/lib/image-config'
+      )
+      const frozen = [
+        defaultConfig.experimental,
+        imageConfigDefault,
+        imageConfigDefault.deviceSizes,
+      ].map((value) => Object.isFrozen(value))
+      // Either everything is frozen or nothing is.
+      expect(new Set(frozen).size).toBe(1)
+      return frozen[0]
+    }
+
+    it('Should freeze them in canary releases when loading for dev', async () => {
+      expect(await areDefaultsFrozen(PHASE_DEVELOPMENT_SERVER)).toBe(true)
+    })
+
+    it('Should not freeze them in canary releases when loading for a production server', async () => {
+      expect(await areDefaultsFrozen(PHASE_PRODUCTION_SERVER)).toBe(false)
+    })
+
+    it('Should not freeze them when NEXT_DISABLE_DEFAULT_CONFIG_FREEZE is set', async () => {
+      process.env.NEXT_DISABLE_DEFAULT_CONFIG_FREEZE = '1'
+      expect(await areDefaultsFrozen(PHASE_DEVELOPMENT_SERVER)).toBe(false)
+    })
   })
 
   it('Should enable the TypeScript CLI by default and allow opting out', async () => {
