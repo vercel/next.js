@@ -403,39 +403,22 @@ When a file must go through your server, stream [`request.body`](https://develop
 
 ```ts filename="app/api/upload/route.ts" switcher
 import { createWriteStream } from 'node:fs'
-import { rm } from 'node:fs/promises'
-import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ReadableStream } from 'node:stream/web'
 import { auth } from '@/lib/auth'
-import { createUpload } from '@/lib/uploads'
 
 export async function POST(request: Request) {
   const session = await auth()
   if (!session?.user) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  if (!request.body) {
-    return Response.json({ error: 'Missing file' }, { status: 400 })
+    return new Response('Unauthorized', { status: 401 })
   }
 
-  // Generate the name on the server instead of trusting the client
   const id = crypto.randomUUID()
-  const filePath = path.join(process.cwd(), 'uploads', id)
-  try {
-    await pipeline(
-      Readable.fromWeb(request.body as ReadableStream),
-      createWriteStream(filePath)
-    )
-  } catch (error) {
-    // Remove the partial file if the upload was interrupted
-    await rm(filePath, { force: true })
-    throw error
-  }
-
-  // Record who owns the file, so it can be checked before serving it
-  await createUpload({ id, ownerId: session.user.id })
+  await pipeline(
+    Readable.fromWeb(request.body as ReadableStream),
+    createWriteStream(`uploads/${id}`)
+  )
 
   return Response.json({ id })
 }
@@ -443,39 +426,27 @@ export async function POST(request: Request) {
 
 ```js filename="app/api/upload/route.js" switcher
 import { createWriteStream } from 'node:fs'
-import { rm } from 'node:fs/promises'
-import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { auth } from '@/lib/auth'
-import { createUpload } from '@/lib/uploads'
 
 export async function POST(request) {
   const session = await auth()
   if (!session?.user) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  if (!request.body) {
-    return Response.json({ error: 'Missing file' }, { status: 400 })
+    return new Response('Unauthorized', { status: 401 })
   }
 
-  // Generate the name on the server instead of trusting the client
   const id = crypto.randomUUID()
-  const filePath = path.join(process.cwd(), 'uploads', id)
-  try {
-    await pipeline(Readable.fromWeb(request.body), createWriteStream(filePath))
-  } catch (error) {
-    // Remove the partial file if the upload was interrupted
-    await rm(filePath, { force: true })
-    throw error
-  }
-
-  // Record who owns the file, so it can be checked before serving it
-  await createUpload({ id, ownerId: session.user.id })
+  await pipeline(
+    Readable.fromWeb(request.body),
+    createWriteStream(`uploads/${id}`)
+  )
 
   return Response.json({ id })
 }
 ```
+
+The file name is generated on the server instead of trusting the client. In your app, also record who owns the file, so it can be checked before serving it, and remove the partial file if the upload is interrupted.
 
 This example writes to an existing `uploads` directory on the local file system, so it needs the Node.js runtime and a persistent disk. To keep files in a storage service, pipe the stream to its upload API instead. It also doesn't cap the upload size: reject requests above your limit, for example by counting the bytes as they arrive, so a client can't fill your disk.
 
@@ -521,40 +492,24 @@ export async function uploadAvatar(formData) {
 
 ### Serve files
 
-Files in the `public` folder are served for you. Use a Route Handler for files that need an access check or are created after the build, such as user uploads. Verify that the user is allowed to access the file before sending it: the ownership check is what protects the file, not a hard-to-guess name. In this example, `getUpload` reads the record your app stored when the file was uploaded, including its owner, and the file is streamed instead of read into memory with `fs.readFile()`:
+Files in the `public` folder are served for you. Use a Route Handler for files that need an access check or are created after the build, such as user uploads. Verify that the user is allowed to access the file before sending it: the ownership check is what protects the file, not a hard-to-guess name. In this example, `getAuthorizedUpload` returns the upload only if the current user owns it, and returns nothing otherwise, so a `404` doesn't reveal whether the file exists. The file is streamed instead of read into memory with `fs.readFile()`:
 
 ```ts filename="app/api/files/[id]/route.ts" switcher
 import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
-import path from 'node:path'
 import { Readable } from 'node:stream'
-import { auth } from '@/lib/auth'
-import { getUpload } from '@/lib/uploads'
+import { getAuthorizedUpload } from '@/lib/uploads'
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth()
-  if (!session?.user) {
-    return new Response('Unauthorized', { status: 401 })
-  }
-
-  const { id } = await params
-  const upload = await getUpload(id)
-  // A 404 doesn't reveal whether a file the user can't access exists
-  if (!upload || upload.ownerId !== session.user.id) {
+export async function GET(_: Request, ctx: RouteContext<'/api/files/[id]'>) {
+  const { id } = await ctx.params
+  const upload = await getAuthorizedUpload(id)
+  if (!upload) {
     return new Response('Not found', { status: 404 })
   }
 
-  const filePath = path.join(process.cwd(), 'uploads', upload.id)
-  const stats = await stat(filePath)
-  const data = Readable.toWeb(createReadStream(filePath)) as ReadableStream
-
-  return new Response(data, {
+  const file = Readable.toWeb(createReadStream(upload.path)) as ReadableStream
+  return new Response(file, {
     headers: {
       'Content-Type': 'application/octet-stream',
-      'Content-Length': stats.size.toString(),
       'Content-Disposition': 'attachment',
     },
   })
@@ -563,33 +518,20 @@ export async function GET(
 
 ```js filename="app/api/files/[id]/route.js" switcher
 import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
-import path from 'node:path'
 import { Readable } from 'node:stream'
-import { auth } from '@/lib/auth'
-import { getUpload } from '@/lib/uploads'
+import { getAuthorizedUpload } from '@/lib/uploads'
 
-export async function GET(request, { params }) {
-  const session = await auth()
-  if (!session?.user) {
-    return new Response('Unauthorized', { status: 401 })
-  }
-
-  const { id } = await params
-  const upload = await getUpload(id)
-  // A 404 doesn't reveal whether a file the user can't access exists
-  if (!upload || upload.ownerId !== session.user.id) {
+export async function GET(_, ctx) {
+  const { id } = await ctx.params
+  const upload = await getAuthorizedUpload(id)
+  if (!upload) {
     return new Response('Not found', { status: 404 })
   }
 
-  const filePath = path.join(process.cwd(), 'uploads', upload.id)
-  const stats = await stat(filePath)
-  const data = Readable.toWeb(createReadStream(filePath))
-
-  return new Response(data, {
+  const file = Readable.toWeb(createReadStream(upload.path))
+  return new Response(file, {
     headers: {
       'Content-Type': 'application/octet-stream',
-      'Content-Length': stats.size.toString(),
       'Content-Disposition': 'attachment',
     },
   })
@@ -1067,9 +1009,7 @@ Community libraries often use the factory pattern for Route Handlers.
 ```ts filename="/app/api/[...path]/route.ts"
 import { createHandler } from 'third-party-library'
 
-const handler = createHandler({
-  /* library-specific options */
-})
+const handler = createHandler({/* library-specific options */})
 
 export const GET = handler
 // or
