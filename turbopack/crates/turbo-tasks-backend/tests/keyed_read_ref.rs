@@ -429,7 +429,8 @@ fn create_executions_operation() -> Vc<Executions> {
 // --- A `KeyedReadRef` or `keyed_reader()` future that isn't dropped within its task execution
 // panics when the execution completes, which aborts the process. ---
 
-const LEAK_MESSAGE: &str = "`KeyedReadRef` was not dropped within the task execution";
+const LEAK_MESSAGE: &str =
+    "`KeyedReadRef` or `LazyReadRef` was not dropped within the task execution";
 const ORIGINAL_ERROR: &str = "original task error";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

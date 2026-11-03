@@ -14,11 +14,11 @@ use rustc_hash::FxBuildHasher;
 
 use super::traits::VcValueType;
 use crate::{
-    MappedReadRef, ReadRawVcFuture, ReadRef, VcCast, VcValueTrait, VcValueTraitCast,
-    VcValueTypeCast,
+    CellId, MappedReadRef, ReadRawVcFuture, ReadRef, TaskId, VcCast, VcValueTrait,
+    VcValueTraitCast, VcValueTypeCast,
     keyed::{KeyedAccess, KeyedEq},
-    manager::KeyedReadDependency,
-    vc::keyed_read_ref::KeyedReadRef,
+    manager::ProvisionalReadDependency,
+    vc::{keyed_read_ref::KeyedReadRef, lazy_read_ref::LazyReadRef},
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -227,23 +227,30 @@ where
     }
 
     /// Read the value once for many synchronous keyed accesses via the returned
-    /// [`KeyedReadRef`]. Once that is dropped, the task only depends on the accessed keys instead
-    /// of the full value. See [`KeyedReadRef`] for details.
+    /// [`KeyedReadRef`]. See [`Vc::keyed_reader`](crate::Vc::keyed_reader).
     ///
-    /// The keyed dependency belongs to the task execution that calls this method. The returned
-    /// future and the [`KeyedReadRef`] must not outlive that execution.
-    pub fn keyed_reader(self) -> ReadKeyedReaderVcFuture<T> {
-        let mut raw = self.raw;
-        let dependency = KeyedReadDependency::new_for_current_task();
-        if let Some(dependency) = &dependency {
-            raw.set_track_keyed(dependency.id);
-            // Counted until the `KeyedReadRef` (or this future, when it doesn't complete) is
-            // dropped within this execution.
-            dependency.register_alive_ref();
-        }
+    /// Only exposed as `Vc::keyed_reader`, so it can't be combined with builder options like
+    /// `untracked()` that conflict with the dependency it registers.
+    pub(crate) fn read_keyed_reader(self) -> ReadKeyedReaderVcFuture<T> {
         ReadKeyedReaderVcFuture {
-            raw,
-            dependency,
+            read: CancelableDependencyRead::new(self.raw),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<T> ReadVcFuture<T, VcValueTypeCast<T>>
+where
+    T: VcValueType,
+{
+    /// Read the value via the returned [`LazyReadRef`]. See
+    /// [`Vc::lazy_reader`](crate::Vc::lazy_reader).
+    ///
+    /// Only exposed as `Vc::lazy_reader`, so it can't be combined with builder options like
+    /// `untracked()`: an untracked read has no dependency to cancel.
+    pub(crate) fn read_lazy_reader(self) -> ReadLazyReaderVcFuture<T> {
+        ReadLazyReaderVcFuture {
+            read: CancelableDependencyRead::new(self.raw),
             _phantom: PhantomData,
         }
     }
@@ -315,6 +322,96 @@ where
     }
 }
 
+/// The dependency a successful [`CancelableDependencyRead`] hands over: the cell that was read and
+/// its registered [`ProvisionalReadDependency`].
+type HandedOverDependency = (TaskId, CellId, ProvisionalReadDependency);
+
+/// The shared read of [`ReadKeyedReaderVcFuture`] and [`ReadLazyReaderVcFuture`]: reads the cell
+/// with a separate provisional ([`CellKey::Provisional`](crate::CellKey::Provisional)) dependency
+/// that the resulting [`KeyedReadRef`] narrows, or the resulting [`LazyReadRef`] cancels, when
+/// it's dropped.
+struct CancelableDependencyRead {
+    raw: ReadRawVcFuture,
+    /// The [`CellKey::Provisional`](crate::CellKey::Provisional) dependency, registered as alive
+    /// in the execution that created this. `None` if the read isn't tracked that way (no current
+    /// task), once it was handed to the resulting ref, or once this was polled in a different
+    /// execution (then the registration is never released).
+    dependency: Option<ProvisionalReadDependency>,
+}
+
+impl CancelableDependencyRead {
+    fn new(mut raw: ReadRawVcFuture) -> Self {
+        let dependency = ProvisionalReadDependency::new_for_current_task();
+        if let Some(dependency) = &dependency {
+            raw.set_track_provisional(dependency.id);
+            // Counted until the resulting ref (or the future, when it doesn't complete) is
+            // dropped within this execution.
+            dependency.register_alive_ref();
+        }
+        Self { raw, dependency }
+    }
+
+    /// On success, hands the registered dependency (with the cell that was read) over to the
+    /// caller, which must release it.
+    fn poll<T: VcValueType>(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(ReadRef<T>, Option<HandedOverDependency>)>> {
+        let in_creating_execution = self
+            .dependency
+            .as_ref()
+            .is_some_and(|dependency| dependency.is_current_execution());
+        if self.dependency.is_some() && !in_creating_execution {
+            // Polled in a different task execution than the one that created it. That's a leak:
+            // the creating execution keeps counting this future as alive (the registration is
+            // never released, even when this is moved back later) and panics when it completes.
+            // The id belongs to the creating execution and could collide with an id of this one,
+            // so this read is tracked as a normal full dependency and never narrowed or canceled.
+            self.raw.set_track_full();
+            self.dependency = None;
+        }
+        let content = match std::task::ready!(Pin::new(&mut self.raw).poll(cx)) {
+            Ok(content) => content,
+            Err(err) => {
+                // Only `Some` in the creating execution.
+                if let Some(dependency) = self.dependency.take() {
+                    dependency.release_alive_ref();
+                }
+                return Poll::Ready(Err(err));
+            }
+        };
+        let dependency = self.dependency.take().map(|dependency| {
+            let Some((task, index)) = self.raw.resolved_cell() else {
+                unreachable!("a successful read is always resolved to a cell")
+            };
+            (task, index, dependency)
+        });
+        match VcValueTypeCast::<T>::cast(content) {
+            Ok(read_ref) => Poll::Ready(Ok((read_ref, dependency))),
+            Err(err) => {
+                if let Some((_, _, dependency)) = dependency {
+                    dependency.release_alive_ref();
+                }
+                Poll::Ready(Err(err))
+            }
+        }
+    }
+}
+
+impl Drop for CancelableDependencyRead {
+    fn drop(&mut self) {
+        // Not completed (e.g. never awaited or cancelled). Dropping it within the creating
+        // execution is fine. A `CellKey::Provisional` dependency it might have registered is
+        // converted to a normal dependency when the execution completes. Dropping it elsewhere
+        // keeps it counted as leaked.
+        if let Some(dependency) = self.dependency.take()
+            && dependency.is_current_execution()
+        {
+            dependency.release_alive_ref();
+        }
+    }
+}
+
 /// A future returned by [`Vc::keyed_reader`](crate::Vc::keyed_reader).
 #[must_use]
 pub struct ReadKeyedReaderVcFuture<T>
@@ -322,12 +419,7 @@ where
     T: VcValueType,
     VcReadTarget<T>: KeyedEq,
 {
-    raw: ReadRawVcFuture,
-    /// The [`CellKey::Keyed`](crate::CellKey::Keyed) dependency, registered as alive in the
-    /// execution that created this future. `None` if the read isn't a keyed read (no current
-    /// task), once it was handed to the [`KeyedReadRef`], or once the future was polled in a
-    /// different execution (then the registration is never released).
-    dependency: Option<KeyedReadDependency>,
+    read: CancelableDependencyRead,
     _phantom: PhantomData<fn() -> T>,
 }
 
@@ -339,65 +431,30 @@ where
     type Output = Result<KeyedReadRef<T>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        let this = self.get_mut();
-        let in_creating_execution = this
-            .dependency
-            .as_ref()
-            .is_some_and(|dependency| dependency.is_current_execution());
-        if this.dependency.is_some() && !in_creating_execution {
-            // Polled in a different task execution than the one that created it. That's a leak:
-            // the creating execution keeps counting this future as alive (the registration is
-            // never released, even when this is moved back later) and panics when it completes.
-            // The id belongs to the creating execution and could collide with an id of this one,
-            // so this read is tracked as a normal full dependency and never narrowed.
-            this.raw.set_track_full();
-            this.dependency = None;
-        }
-        let content = match std::task::ready!(Pin::new(&mut this.raw).poll(cx)) {
-            Ok(content) => content,
-            Err(err) => {
-                // Only `Some` in the creating execution.
-                if let Some(dependency) = this.dependency.take() {
-                    dependency.release_alive_ref();
-                }
-                return Poll::Ready(Err(err));
-            }
-        };
-        let dependency = this.dependency.take().map(|dependency| {
-            // Hand the registration over to the `KeyedReadRef`.
-            let Some((task, index)) = this.raw.resolved_cell() else {
-                unreachable!("a successful read is always resolved to a cell")
-            };
-            (task, index, dependency)
-        });
-        let read_ref = match VcValueTypeCast::<T>::cast(content) {
-            Ok(read_ref) => read_ref,
-            Err(err) => {
-                if let Some((_, _, dependency)) = dependency {
-                    dependency.release_alive_ref();
-                }
-                return Poll::Ready(Err(err));
-            }
-        };
+        let (read_ref, dependency) = std::task::ready!(self.get_mut().read.poll(cx))?;
         Poll::Ready(Ok(KeyedReadRef::new(read_ref, dependency)))
     }
 }
 
-impl<T> Drop for ReadKeyedReaderVcFuture<T>
+/// A future returned by [`Vc::lazy_reader`](crate::Vc::lazy_reader).
+#[must_use]
+pub struct ReadLazyReaderVcFuture<T>
 where
     T: VcValueType,
-    VcReadTarget<T>: KeyedEq,
 {
-    fn drop(&mut self) {
-        // Not completed (e.g. never awaited or cancelled). Dropping it within the creating
-        // execution is fine. A `CellKey::Keyed` dependency it might have registered is converted
-        // to a normal dependency when the execution completes. Dropping it elsewhere keeps it
-        // counted as leaked.
-        if let Some(dependency) = self.dependency.take()
-            && dependency.is_current_execution()
-        {
-            dependency.release_alive_ref();
-        }
+    read: CancelableDependencyRead,
+    _phantom: PhantomData<fn() -> T>,
+}
+
+impl<T> Future for ReadLazyReaderVcFuture<T>
+where
+    T: VcValueType,
+{
+    type Output = Result<LazyReadRef<T>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        let (read_ref, dependency) = std::task::ready!(self.get_mut().read.poll(cx))?;
+        Poll::Ready(Ok(LazyReadRef::new(read_ref, dependency)))
     }
 }
 
