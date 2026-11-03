@@ -83,7 +83,8 @@ pub enum ReferencedAssetIdent {
         ctxt: SyntaxContext,
         liveness: Liveness,
     },
-    /// The given export (or namespace) should be imported and will be assigned to a new variable.
+    /// The given export (or namespace) should be imported accessed from the `export` on the
+    /// `import_source.namespace_ident()` variable.
     Module {
         ctxt: Option<SyntaxContext>,
         export: Option<RcStr>,
@@ -91,8 +92,7 @@ pub enum ReferencedAssetIdent {
         ///
         /// When the ident was resolved through a re-export chain (e.g. `export * as X from
         /// './inner'`), this is the final module in that chain, not the directly referenced
-        /// asset — so the `.i(...)` call that initializes the variable loads the module whose
-        /// namespace `namespace_ident` claims to hold.
+        /// asset.
         import_source: ImportSource,
     },
 }
