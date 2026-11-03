@@ -288,7 +288,7 @@ const withoutTests = import.meta.glob(['./src/**/*.js', '!**/*.test.js'])
 Use the `base` option to resolve the patterns against a different directory. The keys of the result are then relative to `base` rather than to the importing file:
 
 ```js
-const modules = import.meta.glob('*.md', { base: '../../content' })
+const modules = import.meta.glob('**/*.md', { base: '../../content' })
 // {
 //   './alpha.md': () => import('../../content/alpha.md'),
 //   './nested/deep.md': () => import('../../content/nested/deep.md'),
