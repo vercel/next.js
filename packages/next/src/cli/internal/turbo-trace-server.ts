@@ -288,22 +288,25 @@ function renderMemoryTimelineMarkdown(
 ): string {
   const scope = parent ? `span ID \`${parent}\`` : 'whole trace'
   let md = `## Memory timeline of ${scope}: ${formatTimestamp(timeline.start)} – ${formatTimestamp(timeline.end)}\n\n`
+  // Without samples in the range there are no peaks or rows to show, but
+  // phases still carry readings interpolated from the samples around them.
   if (timeline.rawSampleCount === 0) {
-    return md + '_No memory samples in this range._\n'
+    md += '_No memory samples in this range._\n'
+  } else {
+    const reading = (r: TraceMemoryTimeline['peakBytes']) =>
+      r
+        ? `at ${formatTimestamp(r.ts)}: ${formatMemoryPoint({ bytes: r.bytes, footprint: r.footprint })}`
+        : 'n/a'
+    md += `- **Peak committed:** ${reading(timeline.peakBytes)}\n`
+    if (timeline.peakFootprint) {
+      md += `- **Peak RSS:** ${reading(timeline.peakFootprint)}\n`
+    }
+    if (timeline.maxGap) {
+      const gap = timeline.maxGap.footprint - timeline.maxGap.bytes
+      md += `- **Largest RSS − committed gap:** ${gap >= 0 ? '' : '-'}${formatBytes(Math.abs(gap))} ${reading(timeline.maxGap)}\n`
+    }
+    md += `- **Samples:** ${timeline.samples.length} shown of ${timeline.rawSampleCount} (each row is a whole sample: the one with the most committed bytes in its group, so its columns belong together; the peaks above use every sample)\n`
   }
-  const reading = (r: TraceMemoryTimeline['peakBytes']) =>
-    r
-      ? `at ${formatTimestamp(r.ts)}: ${formatMemoryPoint({ bytes: r.bytes, footprint: r.footprint })}`
-      : 'n/a'
-  md += `- **Peak committed:** ${reading(timeline.peakBytes)}\n`
-  if (timeline.peakFootprint) {
-    md += `- **Peak RSS:** ${reading(timeline.peakFootprint)}\n`
-  }
-  if (timeline.maxGap) {
-    const gap = timeline.maxGap.footprint - timeline.maxGap.bytes
-    md += `- **Largest RSS − committed gap:** ${gap >= 0 ? '' : '-'}${formatBytes(Math.abs(gap))} ${reading(timeline.maxGap)}\n`
-  }
-  md += `- **Samples:** ${timeline.samples.length} shown of ${timeline.rawSampleCount} (each row is a whole sample: the one with the most committed bytes in its group, so its columns belong together; the peaks above use every sample)\n`
 
   if (timeline.phases.length > 0) {
     md += `\n### Phases (${timeline.phases.length} with the largest corrected duration, in start order)\n\n`
@@ -320,6 +323,9 @@ function renderMemoryTimelineMarkdown(
     }
   }
 
+  if (timeline.samples.length === 0) {
+    return md
+  }
   md += `\n### Samples\n\n`
   md += '| Time | Committed | RSS | RSS − committed | Pressure | Workers |\n'
   md += '|---:|---:|---:|---:|---:|---:|\n'

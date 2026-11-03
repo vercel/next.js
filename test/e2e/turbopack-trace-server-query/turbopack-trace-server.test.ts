@@ -755,6 +755,45 @@ describe('turbopack-trace-server', () => {
     expect(md).toContain('## Memory timeline of whole trace')
   })
 
+  it('should show phases for a range without samples, and survive an inverted range', async () => {
+    const all = await callToolJson<MemoryTimelineResult>(
+      mcpPort,
+      'memory_timeline',
+      { maxSamples: 2000 }
+    )
+    // An inverted range is clamped to the point at its start, not a crash.
+    const inverted = await callToolJson<MemoryTimelineResult>(
+      mcpPort,
+      'memory_timeline',
+      { start: all.end, end: all.start }
+    )
+    expect(inverted.start).toBe(all.end)
+    expect(inverted.end).toBe(all.end)
+    expect(inverted.rawSampleCount).toBeLessThanOrEqual(1)
+
+    // A point between two samples holds none, but the spans running then are
+    // still listed, with interpolated readings.
+    const index = all.samples.findIndex(
+      ([ts], i) => i > 0 && ts - all.samples[i - 1][0] > 2
+    )
+    if (index === -1) return
+    const between = all.samples[index - 1][0] + 1
+    const point = await callToolJson<MemoryTimelineResult>(
+      mcpPort,
+      'memory_timeline',
+      { start: between, end: between }
+    )
+    expect(point.rawSampleCount).toBe(0)
+    if (point.phases.length === 0) return
+    const md = await callMcpTool(mcpPort, 'memory_timeline', {
+      start: between,
+      end: between,
+    })
+    expect(md).toContain('No memory samples in this range')
+    expect(md).toContain('### Phases')
+    expect(md).toContain(point.phases[0].id)
+  })
+
   it('should downsample the memory timeline to whole samples', async () => {
     const all = await callToolJson<MemoryTimelineResult>(
       mcpPort,

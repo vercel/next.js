@@ -117,7 +117,12 @@ pub fn memory_timeline(store: &StoreContainer, options: MemoryTimelineOptions) -
             .unwrap_or_else(|| (Timestamp::ZERO, store_ref.root_span().end())),
     };
     let start = options.start.map_or(default_start, Timestamp::from_value);
-    let end = options.end.map_or(default_end, Timestamp::from_value);
+    // An `end` before `start` is clamped to it, the point at `start`, rather
+    // than an inverted range.
+    let end = options
+        .end
+        .map_or(default_end, Timestamp::from_value)
+        .max(start);
 
     let raw = store_ref.memory_samples_slice(start, end);
     let reading = |&(ts, bytes, _, footprint, _): &(Timestamp, u64, u8, u64, u64)| MemoryReading {

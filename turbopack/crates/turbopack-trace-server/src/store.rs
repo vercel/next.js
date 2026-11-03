@@ -589,7 +589,9 @@ impl Store {
         let lo = self.memory_samples.partition_point(|(ts, ..)| *ts < start);
         // Binary search for the first sample > end
         let hi = self.memory_samples.partition_point(|(ts, ..)| *ts <= end);
-        &self.memory_samples[lo..hi]
+        // An `end` before `start` (e.g. a caller-supplied range) is empty
+        // rather than an inverted slice.
+        &self.memory_samples[lo..hi.max(lo)]
     }
 
     pub fn complete_span(&mut self, span_index: SpanIndex) {
@@ -804,6 +806,22 @@ mod tests {
             store.memory_at(Timestamp::from_micros(25)),
             Some((100, 1500))
         );
+    }
+
+    #[test]
+    fn inverted_ranges_are_empty() {
+        let mut store = Store::new();
+        for i in 0..3 {
+            store.add_memory_sample(Timestamp::from_micros(i * 10), i, 0, 0, 1);
+        }
+        let (start, end) = (Timestamp::from_micros(20), Timestamp::from_micros(0));
+        assert!(store.memory_samples_slice(start, end).is_empty());
+        assert!(
+            store
+                .memory_samples_for_range_with_ts(start, end)
+                .is_empty()
+        );
+        assert!(store.memory_sample_rows_for_range(start, end, 1).is_empty());
     }
 
     #[test]
