@@ -447,8 +447,15 @@ Object.defineProperty(mocked, 'name', {
   configurable: true,
 })
 const spyCalls = new Map<string, Function>()
-export const vi: VitestUtils = new Proxy({} as VitestUtils, {
-  get(_target, key) {
+const viTarget = {
+  resetModules() {
+    getAssertionRuntime()
+    resetModules()
+    return vi
+  },
+}
+export const vi: VitestUtils = new Proxy(viTarget as VitestUtils, {
+  get(target, key, receiver) {
     // Promise-returning utilities resolve to this ordinary, non-thenable facade.
     if (key === 'then' || key === 'recordArtifact') return undefined
     if (key === 'mocked') return mocked
@@ -460,12 +467,7 @@ export const vi: VitestUtils = new Proxy({} as VitestUtils, {
     if (key === 'hoisted') return hoisted
     if (key === 'doMock') return doMock
     if (key === 'doUnmock') return doUnmock
-    if (key === 'resetModules')
-      return () => {
-        getAssertionRuntime()
-        resetModules()
-        return vi
-      }
+    if (key === 'resetModules') return Reflect.get(target, key, receiver)
     if (key === 'importActual' || key === 'importMock' || key === 'unmock') {
       throw new Error(
         `vi.${key} requires a direct literal request in a supported Next-compiled test entry.`

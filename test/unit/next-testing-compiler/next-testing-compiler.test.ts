@@ -10254,3 +10254,64 @@ if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
     }
   }, 130000)
 }
+it.each([
+  ['development', 'v1'],
+  ['production', 'v1'],
+  ['development', 'literal-forms'],
+  ['production', 'literal-forms'],
+] as const)(
+  'preserves real reset utility identity and module cache ownership in %s %s',
+  (mode, variant) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const temporary = mkdtempSync(join(tmpdir(), 'next-reset-utility-'))
+    const output = join(temporary, 'run')
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'module-reset-utility.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          variant,
+          'source',
+        ],
+        { encoding: 'utf8', timeout: 125000, maxBuffer: 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+      ).toEqual({
+        passed: true,
+        kind: 'source',
+        engine: process.versions.node.split('.')[0],
+        actualNodeVersion: process.version,
+        mode,
+        variant,
+        cases: variant === 'v1' ? 4 : 6,
+        rows: variant === 'v1' ? 4 : 8,
+        callbacks: variant === 'v1' ? 5 : 9,
+        completeStandardReportExact: true,
+        completeReporterCallbacksExact: true,
+        completeRowsAndTerminalExact: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+      })
+      expect(
+        JSON.parse(readFileSync(join(output, 'CLOSED.json'), 'utf8'))
+      ).toEqual({
+        allActualProcessesJoined: true,
+        fixtureRetired: true,
+      })
+      complete = true
+    } catch (cause) {
+      throw new Error(`Reset utility evidence retained at ${temporary}`, {
+        cause,
+      })
+    } finally {
+      if (complete) rmSync(temporary, { recursive: true, force: true })
+    }
+  },
+  130000
+)

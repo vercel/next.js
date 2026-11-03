@@ -687,15 +687,17 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         mock_import_calls: Vec::new(),
         unmock_calls: Vec::new(),
         reset_calls: Vec::new(),
+        reset_method_reference: false,
         runtime_calls: Vec::new(),
         allow_runtime,
         invalid: false,
         value_alias: false,
     };
     module.visit_with(&mut calls);
+    let reset_required = !calls.reset_calls.is_empty() || calls.reset_method_reference;
     if (calls.identity_observation || calls.strict_identity_observation)
         && calls.runtime_calls.is_empty()
-        && calls.reset_calls.is_empty()
+        && !reset_required
     {
         // Keep ordinary files and the existing static-only admission unchanged.
         // Without a reset/runtime call, this is still a generic API value read.
@@ -722,7 +724,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
                 || !calls.actual_calls.is_empty()
                 || !calls.mock_import_calls.is_empty()
                 || !calls.unmock_calls.is_empty()
-                || !calls.reset_calls.is_empty()
+                || reset_required
                 || !calls.runtime_calls.is_empty()))
     {
         bail!(
@@ -732,6 +734,20 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     }
     if calls.reset_calls.iter().any(|call| !call.args.is_empty()) {
         bail!("vi.resetModules currently requires no arguments ({filename}).");
+    }
+    // Member references demand the real cache, but certify no mock/helper combination.
+    if calls.reset_method_reference
+        && (!calls.calls.is_empty()
+            || !calls.hoisted_calls.is_empty()
+            || !calls.actual_calls.is_empty()
+            || !calls.mock_import_calls.is_empty()
+            || !calls.unmock_calls.is_empty()
+            || !calls.runtime_calls.is_empty())
+    {
+        bail!(
+            "Reset method references cannot currently combine with module mock or helper plans \
+             ({filename})."
+        );
     }
     // Each direct literal target owns factories, cuts, runtime registration and
     // an actual helper. Canonical identities remain independently certified.
@@ -940,13 +956,13 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
                 mock_imports: Vec::new(),
                 unmocks: Vec::new(),
                 api_bindings,
-                reset_modules: !calls.reset_calls.is_empty(),
+                reset_modules: reset_required,
                 runtime_requests,
                 throw_only_runtime_requests,
             });
         }
     }
-    let reset_modules = !calls.reset_calls.is_empty();
+    let reset_modules = reset_required;
     // SWC removes the leading UTF-8 BOM before assigning byte spans. Until
     // extraction and both composed maps account for that normalization, fail
     // explicitly rather than slicing a factory at the wrong source offset.
@@ -1628,6 +1644,8 @@ struct MockCalls<'a> {
     mock_import_calls: Vec<CallExpr>,
     unmock_calls: Vec<CallExpr>,
     reset_calls: Vec<CallExpr>,
+    /// A real member value use demands a cache without certifying a direct call.
+    reset_method_reference: bool,
     runtime_calls: Vec<(bool, CallExpr)>,
     allow_runtime: bool,
     invalid: bool,
@@ -1809,6 +1827,10 @@ impl Visit for MockCalls<'_> {
                 }
             }
             if self.bindings.contains(&object.to_id()) {
+                if matches!(&member.prop, MemberProp::Ident(name) if name.sym == "resetModules") {
+                    self.reset_method_reference = true;
+                    return;
+                }
                 if !matches!(&member.prop, MemberProp::Ident(name) if !matches!(name.sym.as_ref(), "mock" | "doMock" | "unmock" | "doUnmock" | "hoisted" | "importActual" | "importMock" | "resetModules"))
                 {
                     self.invalid = true;
@@ -2949,6 +2971,64 @@ mod tests {
         let plan = extract_static_mocks(source, "spec.mjs").unwrap();
         assert!(plan.reset_modules);
         assert_eq!(plan.source, source);
+        let body = "const reset = vi.resetModules; reset()";
+        let source = format!("import {{vi}} from 'vitest';{body}");
+        let plan = extract_static_mocks(&source, "spec.mjs").unwrap();
+        assert!(plan.reset_modules);
+        assert_eq!(plan.source.as_bytes(), source.as_bytes());
+        assert!(
+            plan.declarations.is_empty()
+                && plan.hoisted.is_empty()
+                && plan.actual_imports.is_empty()
+                && plan.mock_imports.is_empty()
+                && plan.unmocks.is_empty()
+                && plan.runtime_requests.is_empty()
+        );
+    }
+
+    #[test]
+    fn retains_literal_reset_member_references_as_real_cache_demand() {
+        for source in [
+            "import {vi} from 'vitest';const reset = vi.resetModules; reset()",
+            "import {vi} from 'vitest';const reset=vi.resetModules;test('fresh',()=>reset())",
+            "import {vitest as tools} from 'vitest';const reset=tools.resetModules;reset()",
+            "import {vi} from 'vitest';const reset=vi.resetModules;vi.resetModules();reset()",
+        ] {
+            for extract in [extract_static_mocks, extract_test_mocks] {
+                let plan = extract(source, "reset-reference.mjs").unwrap();
+                assert!(plan.reset_modules);
+                assert!(!plan.is_empty());
+                assert!(plan.declarations.is_empty());
+                assert!(plan.hoisted.is_empty());
+                assert!(plan.actual_imports.is_empty());
+                assert!(plan.mock_imports.is_empty());
+                assert!(plan.unmocks.is_empty());
+                assert!(plan.runtime_requests.is_empty());
+                assert_eq!(plan.source.as_bytes(), source.as_bytes());
+            }
+        }
+        let source = "import {vi} from 'vitest';function foreign(vi){return vi.resetModules}";
+        let plan = extract_test_mocks(source, "shadowed.mjs").unwrap();
+        assert!(plan.is_empty());
+        assert!(!plan.reset_modules);
+    }
+
+    #[test]
+    fn reset_member_references_do_not_certify_calls_aliases_or_mock_combinations() {
+        for body in [
+            "const reset=vi.resetModules;vi.resetModules('unused')",
+            "const reset=vi.resetModules;consume(vi)",
+            "const reset=vi.resetModules;const api=vi",
+            "const reset=vi.resetModules;const mock=vi.mock",
+            "const reset=vi.resetModules;vi.mock('./dep',()=>({value:1}))",
+            "const reset=vi.resetModules;vi.hoisted(()=>({value:1}))",
+            "const reset=vi.resetModules;vi.importActual('./dep')",
+            "const reset=vi.resetModules;vi.doMock('package',()=>({value:1}))",
+            "const reset=vi.resetModules;Object.getOwnPropertyDescriptor(vi,'resetModules')",
+        ] {
+            let source = format!("import {{vi}} from 'vitest';{body}");
+            assert!(extract_test_mocks(&source, "reset-reference-negative.mjs").is_err());
+        }
     }
 
     #[test]
@@ -2956,7 +3036,6 @@ mod tests {
         for body in [
             "vi.resetModules('unused')",
             "vi['resetModules']()",
-            "const reset = vi.resetModules; reset()",
             "const {resetModules} = vi; resetModules()",
             "const tools = vi; tools.resetModules(); vi.resetModules()",
             "vi.resetModules(); vi.mock('./dep', () => ({value: 1}))",
