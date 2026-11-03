@@ -1017,6 +1017,7 @@ async function run({
       collectOnly: options.collectOnly,
       updateSnapshots: options.updateSnapshots,
       snapshotUpdateMode: options.snapshotUpdateMode,
+      snapshotFormat: options.snapshotFormat,
       mapSnapshotLocation,
       tags: options.tags,
       strictTags: options.strictTags,

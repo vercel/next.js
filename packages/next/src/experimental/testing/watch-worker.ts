@@ -184,6 +184,7 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       bailFailures: request.bailFailures,
       updateSnapshots: request.updateSnapshots,
       snapshotUpdateMode: request.snapshotUpdateMode,
+      snapshotFormat: request.snapshotFormat,
       maxWorkers: request.maxWorkers,
       coverage: request.coverage,
       standardCoverageOptions: request.standardCoverageOptions,

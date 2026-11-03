@@ -3,6 +3,7 @@ import { availableParallelism } from 'node:os'
 import { basename, extname } from 'node:path'
 import type { FakeTimerConfig } from '../../compiled/next-test-primitives/timers'
 import type { ResultOutputFile } from './reporting/options'
+import type { SnapshotFormat } from './snapshot-format'
 
 /** Inert configuration helpers. This module never imports Vitest or Vite. */
 export interface ConfigEnv {
@@ -24,6 +25,7 @@ export interface TestWatchTriggerPattern {
 
 /** Public test settings modeled by the configuration facade. */
 export interface TestUserConfig {
+  snapshotFormat?: SnapshotFormat
   reporters?: string | string[]
   outputFile?: ResultOutputFile
   mode?: string
@@ -84,6 +86,7 @@ type ProjectTestSettings = Omit<
   | 'projects'
   | 'reporters'
   | 'outputFile'
+  | 'snapshotFormat'
   | 'sequence'
   | 'watch'
   | 'watchTriggerPatterns'

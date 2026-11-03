@@ -8,6 +8,7 @@ import globOriginal from 'next/dist/compiled/glob'
 import type { TestConfig, TestProjectConfig } from './config'
 import { assignBrowserInstanceIds } from './browser-instances'
 import { inheritGlobalTestSequence } from './runner/sequence'
+import { preflightProjectSnapshotFormat } from './snapshot-format'
 import { randomUUID } from 'node:crypto'
 import { openCompilerTransformBroker } from './compiler/transform-broker'
 import type {
@@ -666,7 +667,7 @@ export async function openTestProjectModules(
         )
       }
       const { root, ...compilerOptions } = child
-      const { root: testRoot, ...settings } = child.test
+      const { root: testRoot, snapshotFormat, ...settings } = child.test
       const configuredRoot = testRoot ?? root
       if (configuredRoot !== undefined && typeof configuredRoot !== 'string') {
         throw new TypeError(
@@ -704,6 +705,7 @@ export async function openTestProjectModules(
         if (typeof name !== 'string' || !name)
           name = path.basename(path.dirname(file))
       }
+      preflightProjectSnapshotFormat(snapshotFormat)
       const config = normalize({
         ...compilerOptions,
         test: { ...settings, name },

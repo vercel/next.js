@@ -76,6 +76,7 @@ interface Discovery extends WatchDiscovery {
   directories: WatchDirectories
   updateSnapshots?: boolean
   snapshotUpdateMode?: SnapshotUpdateMode
+  snapshotFormat?: import('./snapshot-format').SnapshotFormat
   testNamePattern?: string | RegExp
   maxWorkers: number
   coverage: ReturnType<typeof resolveProjectStandardCoverage>
@@ -597,6 +598,7 @@ export async function watchTests(
     const discovery: Discovery = {
       projects,
       registry,
+      snapshotFormat: config.snapshotFormat,
       coverage,
       ...(customCoverageDisabled ? { customCoverageDisabled: true } : {}),
       coverageInputs,
@@ -1667,6 +1669,7 @@ export async function watchTests(
                 : {}),
               updateSnapshots: discovery.updateSnapshots,
               snapshotUpdateMode: discovery.snapshotUpdateMode,
+              snapshotFormat: discovery.snapshotFormat,
               passWithNoTests: projects.every((project) =>
                 initialEmptySelection
                   ? !!coverageConfig || project.passWithNoTests !== false

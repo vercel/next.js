@@ -1,3 +1,8 @@
+import {
+  parseSnapshotFormat,
+  preflightProjectSnapshotFormat,
+  type SnapshotFormat,
+} from './snapshot-format'
 import type { CompilerAliases } from './compiler/aliases'
 import { parseCustomCoverageConfig } from './coverage/custom-options'
 import {
@@ -85,6 +90,7 @@ export interface TestProjectConfig {
 }
 
 export interface TestConfig {
+  snapshotFormat?: SnapshotFormat
   reporters?: string[]
   outputFile?: ResultOutputFile
   compatibility: 'vitest'
@@ -249,6 +255,7 @@ export function parseTestConfig(
       'compatibility',
       'reporters',
       'outputFile',
+      'snapshotFormat',
       'projects',
       'maxWorkers',
       'fileParallelism',
@@ -312,6 +319,9 @@ export function parseTestConfig(
   const normalized: TestConfig = {
     ...parseConfiguredReporters(config.reporters),
     ...parseConfiguredOutputFile(config.outputFile),
+    ...(config.snapshotFormat === undefined
+      ? {}
+      : { snapshotFormat: parseSnapshotFormat(config.snapshotFormat) }),
     compatibility: 'vitest',
     ...(config.watch === undefined ? {} : { watch: config.watch as boolean }),
     ...(cache === undefined ? {} : { cache }),
@@ -337,6 +347,8 @@ export function parseTestConfig(
           'route',
           'setupFiles',
           'snapshotSerializers',
+          // Vitest ignores this root-owned option in child configurations.
+          'snapshotFormat',
           'globalSetup',
           'globals',
           'includeTaskLocation',
@@ -369,6 +381,7 @@ export function parseTestConfig(
         ],
         label
       )
+      preflightProjectSnapshotFormat(project.snapshotFormat)
       if (project.isolate !== undefined && typeof project.isolate !== 'boolean')
         invalid(`${label}.isolate must be a boolean.`)
       const standardCoverage = parseProjectStandardCoverage(project.coverage)
@@ -926,6 +939,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
     cache,
     reporters,
     outputFile,
+    snapshotFormat,
     ...defaults
   } = test
   const rootSequence = object(test.sequence ?? {}, 'test.sequence')
@@ -940,6 +954,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
         cache,
         reporters,
         outputFile,
+        snapshotFormat,
         projects: [{ name: name ?? 'default', ...defaults }],
       },
       [name as string | undefined]
@@ -958,6 +973,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
       cache,
       reporters,
       outputFile,
+      snapshotFormat,
       projects: projects.map((projectValue, index) => {
         const project = object(projectValue, `test.projects[${index}]`)
         const settings =

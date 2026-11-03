@@ -11,6 +11,7 @@ import { configureBrowserEnv } from './env'
 import { getFinalCaseResults } from '../reporting/final-cases'
 import { processError } from '../../../compiled/next-test-primitives/error'
 import { installBrowserSnapshotBridge } from './snapshot-environment'
+import { decodeSnapshotFormat } from '../snapshot-format'
 import { createClientSourceMapResolver } from './source-maps'
 import type { ClientConfiguration, ClientPayload } from './protocol'
 import { clientCaseFinal } from './protocol'
@@ -457,6 +458,7 @@ export async function startClientTest(
             }
           : {}),
         snapshotUpdateMode: config.snapshotUpdateMode,
+        snapshotFormat: decodeSnapshotFormat(config.snapshotFormat),
         resourceLifetime: 'file',
         waitForImports: imports?.waitForImports,
         retry: config.retry,

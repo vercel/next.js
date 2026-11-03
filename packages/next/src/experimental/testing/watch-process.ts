@@ -98,6 +98,7 @@ export type WatchProcessRequest =
       bailFailures?: number
       updateSnapshots?: boolean
       snapshotUpdateMode?: SnapshotUpdateMode
+      snapshotFormat?: import('./snapshot-format').SnapshotFormat
       maxWorkers?: number
       coverage?: boolean
       standardCoverageOptions?: StandardCoverageOptions

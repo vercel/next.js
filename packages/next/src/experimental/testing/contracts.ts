@@ -489,6 +489,7 @@ export interface ExecuteTestOptions {
   /** Legacy explicit-all request. A mode, when supplied, owns this run's policy. */
   updateSnapshots?: boolean
   snapshotUpdateMode?: SnapshotUpdateMode
+  snapshotFormat?: import('./snapshot-format').SnapshotFormat
   /** Parent-only staging callback; the outer resource owner authorizes commit. */
   onSnapshotUpdates?: (file: string, updates: SnapshotUpdate[]) => Promise<void>
   testNamePattern?: string | RegExp

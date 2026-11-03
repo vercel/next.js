@@ -37,6 +37,8 @@ import {
   type TestContext,
 } from './collector'
 import { createAssertionRuntime } from '../assertions'
+import { VitestSnapshotEnvironment } from '../assertions/snapshot-environment'
+import type { SnapshotFormat } from '../snapshot-format'
 import {
   assertAssertionRuntimeAccess,
   fileAssertionLifetime,
@@ -205,6 +207,7 @@ export interface TestFileOptions {
   nativeBeforeEachCleanupAssertions?: boolean
   collectOnly?: boolean
   snapshotUpdateMode?: SnapshotUpdateMode
+  snapshotFormat?: SnapshotFormat
   mapSnapshotLocation?: Parameters<
     typeof createAssertionRuntime
   >[0]['mapSnapshotLocation']
@@ -350,6 +353,7 @@ function initializeFile(
     nativeAfterEachAssertions = false,
     nativeBeforeEachCleanupAssertions = false,
     snapshotUpdateMode,
+    snapshotFormat,
     collectOnly = false,
     mapSnapshotLocation,
     tags,
@@ -748,6 +752,15 @@ function initializeFile(
           unstubEnvs,
           updateSnapshots,
           snapshotUpdateMode: updateMode,
+          ...(snapshotFormat === undefined
+            ? {}
+            : {
+                snapshotOptions: {
+                  updateSnapshot: updateMode,
+                  snapshotEnvironment: new VitestSnapshotEnvironment(),
+                  snapshotFormat,
+                },
+              }),
           mapSnapshotLocation,
           getCurrentAttempt: getActiveAttempt,
           ...(publicTaskSelection ? { getCurrentTest } : {}),

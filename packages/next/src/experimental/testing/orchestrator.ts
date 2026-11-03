@@ -144,6 +144,7 @@ export interface RunTestsOptions {
   inspectBrk?: boolean
   updateSnapshots?: boolean
   snapshotUpdateMode?: SnapshotUpdateMode
+  snapshotFormat?: import('./snapshot-format').SnapshotFormat
   testNamePattern?: string | RegExp
   passWithNoTests?: boolean
   /** Selected specification IDs before CLI sharding/file sequencing. */
@@ -1053,6 +1054,7 @@ export async function runTests(
         snapshotSerializers: project.snapshotSerializers,
         updateSnapshots: options.updateSnapshots ?? false,
         snapshotUpdateMode,
+        snapshotFormat: options.snapshotFormat,
         ...(project.profile.environment === 'browser' && options.updateSnapshots
           ? {
               onSnapshotUpdates: async (
@@ -1515,6 +1517,7 @@ export async function runTests(
           inspectBrk: options.inspectBrk,
           updateSnapshots: options.updateSnapshots,
           snapshotUpdateMode,
+          snapshotFormat: options.snapshotFormat,
           coverage: options.coverage,
           standardCoverageOptions: options.standardCoverageOptions,
           customCoverageDisabled: options.customCoverageDisabled,

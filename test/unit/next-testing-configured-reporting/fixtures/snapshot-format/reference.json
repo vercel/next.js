@@ -1,0 +1,3367 @@
+{
+  "reference": "vitest@5.0.4",
+  "bodySHA256": "7f0489164f5f8cf442ec3b905826e1f707572545ccdba169ff48d83a96c82c56",
+  "profiles": {
+    "default": {
+      "format": "undefined",
+      "modes": {
+        "development": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\n{\n  \"nested\": {\n    \"a\": 1,\n    \"z\": 2,\n  },\n  \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\n{\n  \"custom\": {\n    \"json\": true,\n  },\n  \"fn\": [Function],\n  \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\n{\n  \"a\": {\n    \"nested\": {\n      \"value\": \"leaf\",\n    },\n  },\n  \"text\": \"line\nquote\"\",\n  \"z\": [\n    1,\n    2,\n    3,\n  ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  {\n    \"a\": {\n      \"nested\": {\n        \"value\": \"leaf\",\n      },\n    },\n    \"text\": \"line\n  quote\"\",\n    \"z\": [\n      1,\n      2,\n      3,\n    ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        },
+        "production": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\n{\n  \"nested\": {\n    \"a\": 1,\n    \"z\": 2,\n  },\n  \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\n{\n  \"custom\": {\n    \"json\": true,\n  },\n  \"fn\": [Function],\n  \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\n{\n  \"a\": {\n    \"nested\": {\n      \"value\": \"leaf\",\n    },\n  },\n  \"text\": \"line\nquote\"\",\n  \"z\": [\n    1,\n    2,\n    3,\n  ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  {\n    \"a\": {\n      \"nested\": {\n        \"value\": \"leaf\",\n      },\n    },\n    \"text\": \"line\n  quote\"\",\n    \"z\": [\n      1,\n      2,\n      3,\n    ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "expanded": {
+      "format": "{ indent: 4, escapeString: false, printBasicPrototype: true }",
+      "modes": {
+        "development": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\nObject {\n    \"nested\": Object {\n        \"a\": 1,\n        \"z\": 2,\n    },\n    \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\nObject {\n    \"custom\": Object {\n        \"json\": true,\n    },\n    \"fn\": [Function],\n    \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\nObject {\n    \"a\": Object {\n        \"nested\": Object {\n            \"value\": \"leaf\",\n        },\n    },\n    \"text\": \"line\nquote\"\",\n    \"z\": Array [\n        1,\n        2,\n        3,\n    ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  Object {\n      \"a\": Object {\n          \"nested\": Object {\n              \"value\": \"leaf\",\n          },\n      },\n      \"text\": \"line\n  quote\"\",\n      \"z\": Array [\n          1,\n          2,\n          3,\n      ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        },
+        "production": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\nObject {\n    \"nested\": Object {\n        \"a\": 1,\n        \"z\": 2,\n    },\n    \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\nObject {\n    \"custom\": Object {\n        \"json\": true,\n    },\n    \"fn\": [Function],\n    \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\nObject {\n    \"a\": Object {\n        \"nested\": Object {\n            \"value\": \"leaf\",\n        },\n    },\n    \"text\": \"line\nquote\"\",\n    \"z\": Array [\n        1,\n        2,\n        3,\n    ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  Object {\n      \"a\": Object {\n          \"nested\": Object {\n              \"value\": \"leaf\",\n          },\n      },\n      \"text\": \"line\n  quote\"\",\n      \"z\": Array [\n          1,\n          2,\n          3,\n      ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "compact-unsorted": {
+      "format": "{ min: true, indent: 0, compareKeys: null }",
+      "modes": {
+        "development": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `{\"number\": Any<Number>, \"nested\": {\"z\": 2, \"a\": 1}}`;\n\nexports[`special values 1`] = `{\"fn\": [Function], \"regex\": /a\\\\.b/i, \"custom\": {\"json\": true}}`;\n\nexports[`tree 1`] = `\n{\"z\": [1, 2, 3], \"a\": {\"nested\": {\"value\": \"leaf\"}}, \"text\": \"line\nquote\"\"}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  {\"z\": [1, 2, 3], \"a\": {\"nested\": {\"value\": \"leaf\"}}, \"text\": \"line\n  quote\"\"}\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        },
+        "production": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `{\"number\": Any<Number>, \"nested\": {\"z\": 2, \"a\": 1}}`;\n\nexports[`special values 1`] = `{\"fn\": [Function], \"regex\": /a\\\\.b/i, \"custom\": {\"json\": true}}`;\n\nexports[`tree 1`] = `\n{\"z\": [1, 2, 3], \"a\": {\"nested\": {\"value\": \"leaf\"}}, \"text\": \"line\nquote\"\"}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  {\"z\": [1, 2, 3], \"a\": {\"nested\": {\"value\": \"leaf\"}}, \"text\": \"line\n  quote\"\"}\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "bounded": {
+      "format": "{ maxDepth: 1, maxWidth: 1, callToJSON: false, printFunctionName: false }",
+      "modes": {
+        "development": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\n{\n  \"nested\": [Object],\n  \u2026(1)\n}\n`;\n\nexports[`special values 1`] = `\n{\n  \"custom\": [Object],\n  \u2026(2)\n}\n`;\n\nexports[`tree 1`] = `\n{\n  \"a\": [Object],\n  \u2026(2)\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  {\n    \"a\": [Object],\n    \u2026(2)\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        },
+        "production": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\n{\n  \"nested\": [Object],\n  \u2026(1)\n}\n`;\n\nexports[`special values 1`] = `\n{\n  \"custom\": [Object],\n  \u2026(2)\n}\n`;\n\nexports[`tree 1`] = `\n{\n  \"a\": [Object],\n  \u2026(2)\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  {\n    \"a\": [Object],\n    \u2026(2)\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "unlimited": {
+      "format": "{ maxDepth: Infinity, maxWidth: Infinity, maxOutputLength: Infinity }",
+      "modes": {
+        "development": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\n{\n  \"nested\": {\n    \"a\": 1,\n    \"z\": 2,\n  },\n  \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\n{\n  \"custom\": {\n    \"json\": true,\n  },\n  \"fn\": [Function],\n  \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\n{\n  \"a\": {\n    \"nested\": {\n      \"value\": \"leaf\",\n    },\n  },\n  \"text\": \"line\nquote\"\",\n  \"z\": [\n    1,\n    2,\n    3,\n  ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  {\n    \"a\": {\n      \"nested\": {\n        \"value\": \"leaf\",\n      },\n    },\n    \"text\": \"line\n  quote\"\",\n    \"z\": [\n      1,\n      2,\n      3,\n    ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        },
+        "production": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\n{\n  \"nested\": {\n    \"a\": 1,\n    \"z\": 2,\n  },\n  \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\n{\n  \"custom\": {\n    \"json\": true,\n  },\n  \"fn\": [Function],\n  \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\n{\n  \"a\": {\n    \"nested\": {\n      \"value\": \"leaf\",\n    },\n  },\n  \"text\": \"line\nquote\"\",\n  \"z\": [\n    1,\n    2,\n    3,\n  ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  {\n    \"a\": {\n      \"nested\": {\n        \"value\": \"leaf\",\n      },\n    },\n    \"text\": \"line\n  quote\"\",\n    \"z\": [\n      1,\n      2,\n      3,\n    ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "root-global-extends-false": {
+      "format": "{ indent: 4, escapeString: false, printBasicPrototype: true }",
+      "modes": {
+        "development": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\nObject {\n    \"nested\": Object {\n        \"a\": 1,\n        \"z\": 2,\n    },\n    \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\nObject {\n    \"custom\": Object {\n        \"json\": true,\n    },\n    \"fn\": [Function],\n    \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\nObject {\n    \"a\": Object {\n        \"nested\": Object {\n            \"value\": \"leaf\",\n        },\n    },\n    \"text\": \"line\nquote\"\",\n    \"z\": Array [\n        1,\n        2,\n        3,\n    ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  Object {\n      \"a\": Object {\n          \"nested\": Object {\n              \"value\": \"leaf\",\n          },\n      },\n      \"text\": \"line\n  quote\"\",\n      \"z\": Array [\n          1,\n          2,\n          3,\n      ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        },
+        "production": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\nObject {\n    \"nested\": Object {\n        \"a\": 1,\n        \"z\": 2,\n    },\n    \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\nObject {\n    \"custom\": Object {\n        \"json\": true,\n    },\n    \"fn\": [Function],\n    \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\nObject {\n    \"a\": Object {\n        \"nested\": Object {\n            \"value\": \"leaf\",\n        },\n    },\n    \"text\": \"line\nquote\"\",\n    \"z\": Array [\n        1,\n        2,\n        3,\n    ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  Object {\n      \"a\": Object {\n          \"nested\": Object {\n              \"value\": \"leaf\",\n          },\n      },\n      \"text\": \"line\n  quote\"\",\n      \"z\": Array [\n          1,\n          2,\n          3,\n      ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "projects": [
+        {
+          "extends": false,
+          "test": {
+            "name": "independent",
+            "include": ["format.case.mjs"]
+          }
+        }
+      ]
+    },
+    "root-child-ignored": {
+      "format": "{ indent: 4, escapeString: false, printBasicPrototype: true }",
+      "modes": {
+        "development": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\nObject {\n    \"nested\": Object {\n        \"a\": 1,\n        \"z\": 2,\n    },\n    \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\nObject {\n    \"custom\": Object {\n        \"json\": true,\n    },\n    \"fn\": [Function],\n    \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\nObject {\n    \"a\": Object {\n        \"nested\": Object {\n            \"value\": \"leaf\",\n        },\n    },\n    \"text\": \"line\nquote\"\",\n    \"z\": Array [\n        1,\n        2,\n        3,\n    ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  Object {\n      \"a\": Object {\n          \"nested\": Object {\n              \"value\": \"leaf\",\n          },\n      },\n      \"text\": \"line\n  quote\"\",\n      \"z\": Array [\n          1,\n          2,\n          3,\n      ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        },
+        "production": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\nObject {\n    \"nested\": Object {\n        \"a\": 1,\n        \"z\": 2,\n    },\n    \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\nObject {\n    \"custom\": Object {\n        \"json\": true,\n    },\n    \"fn\": [Function],\n    \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\nObject {\n    \"a\": Object {\n        \"nested\": Object {\n            \"value\": \"leaf\",\n        },\n    },\n    \"text\": \"line\nquote\"\",\n    \"z\": Array [\n        1,\n        2,\n        3,\n    ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  Object {\n      \"a\": Object {\n          \"nested\": Object {\n              \"value\": \"leaf\",\n          },\n      },\n      \"text\": \"line\n  quote\"\",\n      \"z\": Array [\n          1,\n          2,\n          3,\n      ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "projects": [
+        {
+          "extends": false,
+          "test": {
+            "name": "independent",
+            "include": ["format.case.mjs"],
+            "snapshotFormat": {
+              "min": true,
+              "indent": 0
+            }
+          }
+        }
+      ]
+    },
+    "explicit-undefined": {
+      "format": "{ printBasicPrototype: undefined, escapeString: undefined }",
+      "modes": {
+        "development": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\nObject {\n  \"nested\": Object {\n    \"a\": 1,\n    \"z\": 2,\n  },\n  \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\nObject {\n  \"custom\": Object {\n    \"json\": true,\n  },\n  \"fn\": [Function],\n  \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\nObject {\n  \"a\": Object {\n    \"nested\": Object {\n      \"value\": \"leaf\",\n    },\n  },\n  \"text\": \"line\nquote\\\\\"\",\n  \"z\": Array [\n    1,\n    2,\n    3,\n  ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  Object {\n    \"a\": Object {\n      \"nested\": Object {\n        \"value\": \"leaf\",\n      },\n    },\n    \"text\": \"line\n  quote\\\\\"\",\n    \"z\": Array [\n      1,\n      2,\n      3,\n    ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        },
+        "production": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `\nObject {\n  \"nested\": Object {\n    \"a\": 1,\n    \"z\": 2,\n  },\n  \"number\": Any<Number>,\n}\n`;\n\nexports[`special values 1`] = `\nObject {\n  \"custom\": Object {\n    \"json\": true,\n  },\n  \"fn\": [Function],\n  \"regex\": /a\\\\.b/i,\n}\n`;\n\nexports[`tree 1`] = `\nObject {\n  \"a\": Object {\n    \"nested\": Object {\n      \"value\": \"leaf\",\n    },\n  },\n  \"text\": \"line\nquote\\\\\"\",\n  \"z\": Array [\n    1,\n    2,\n    3,\n  ],\n}\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  Object {\n    \"a\": Object {\n      \"nested\": Object {\n        \"value\": \"leaf\",\n      },\n    },\n    \"text\": \"line\n  quote\\\\\"\",\n    \"z\": Array [\n      1,\n      2,\n      3,\n    ],\n  }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "spacequotes": {
+      "format": "{ quoteKeys: false, singleQuote: true, spacingInner: ' ', spacingOuter: ' ', escapeRegex: true, printFunctionName: false, callToJSON: false }",
+      "modes": {
+        "development": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `{   nested: {     a: 1,     z: 2,   },   number: Any<Number>, }`;\n\nexports[`special values 1`] = `{   custom: {     toJSON: [Function],     value: 1,   },   fn: [Function],   regex: /a\\\\.b/i, }`;\n\nexports[`tree 1`] = `\n{   a: {     nested: {       value: 'leaf',     },   },   text: 'line\nquote\"',   z: [     1,     2,     3,   ], }\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  {   a: {     nested: {       value: 'leaf',     },   },   text: 'line\n  quote\"',   z: [     1,     2,     3,   ], }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        },
+        "production": {
+          "files": {
+            "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`property matcher 1`] = `{   nested: {     a: 1,     z: 2,   },   number: Any<Number>, }`;\n\nexports[`special values 1`] = `{   custom: {     toJSON: [Function],     value: 1,   },   fn: [Function],   regex: /a\\\\.b/i, }`;\n\nexports[`tree 1`] = `\n{   a: {     nested: {       value: 'leaf',     },   },   text: 'line\nquote\"',   z: [     1,     2,     3,   ], }\n`;\n",
+            "source": "import { test, expect } from 'vitest'\nconst tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\\nquote\"' }\ntest('tree', () => expect(tree).toMatchSnapshot())\ntest('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())\ntest('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))\ntest('inline', () => expect(tree).toMatchInlineSnapshot(`\n  {   a: {     nested: {       value: 'leaf',     },   },   text: 'line\n  quote\"',   z: [     1,     2,     3,   ], }\n`))\ntest('raw file', async () => expect('raw\\nbytes').toMatchFileSnapshot('raw.txt'))\n",
+            "raw": "raw\nbytes"
+          },
+          "reports": {
+            "update": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 5,
+                "failure": false,
+                "filesAdded": 1,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 0,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": true
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            },
+            "read": {
+              "numTotalTestSuites": 1,
+              "numPassedTestSuites": 1,
+              "numFailedTestSuites": 0,
+              "numPendingTestSuites": 0,
+              "numTotalTests": 5,
+              "numPassedTests": 5,
+              "numFailedTests": 0,
+              "numPendingTests": 0,
+              "numTodoTests": 0,
+              "snapshot": {
+                "added": 0,
+                "failure": false,
+                "filesAdded": 0,
+                "filesRemoved": 0,
+                "filesRemovedList": [],
+                "filesUnmatched": 0,
+                "filesUpdated": 0,
+                "matched": 5,
+                "total": 5,
+                "unchecked": 0,
+                "uncheckedKeysByFile": [],
+                "unmatched": 0,
+                "updated": 0,
+                "didUpdate": false
+              },
+              "success": true,
+              "testResults": [
+                {
+                  "assertionResults": [
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "tree",
+                      "status": "passed",
+                      "title": "tree",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "special values",
+                      "status": "passed",
+                      "title": "special values",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "property matcher",
+                      "status": "passed",
+                      "title": "property matcher",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "inline",
+                      "status": "passed",
+                      "title": "inline",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    },
+                    {
+                      "ancestorTitles": [],
+                      "fullName": "raw file",
+                      "status": "passed",
+                      "title": "raw file",
+                      "failureMessages": [],
+                      "meta": {},
+                      "tags": [],
+                      "benchmarks": []
+                    }
+                  ],
+                  "status": "passed",
+                  "message": "",
+                  "name": "format.case.mjs"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

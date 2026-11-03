@@ -898,6 +898,7 @@ export async function nextTestRunner(
           '../experimental/testing/orchestrator.js'
         )
         summary = await runTests(projectDir, projects, {
+          snapshotFormat: config.snapshotFormat,
           ...(configuration.compilerTransformNames.length
             ? { compilerTransforms: configuration.compilerTransforms(projects) }
             : {}),
@@ -1225,6 +1226,7 @@ export async function nextTestRunner(
       oneShotExecutionActive = true
       try {
         summary = await runTests(projectDir, projects, {
+          snapshotFormat: config.snapshotFormat,
           ...(captureJUnitSuiteTasks
             ? { captureJUnitSuiteTasks: true as const }
             : {}),

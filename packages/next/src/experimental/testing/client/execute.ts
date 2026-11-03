@@ -1,5 +1,6 @@
 import type { WebKitPageOwner } from '../browser/webkit-host'
 import { isTestCI } from '../config-environment'
+import { encodeSnapshotFormat } from '../snapshot-format'
 import { cleanupClientKeyboard, runClientKeyboard } from './keyboard'
 import { captureProductionStaticMockClosure } from '../mocking/production-artifact'
 import { randomBytes } from 'node:crypto'
@@ -300,6 +301,7 @@ export async function executeClient(
         sourceHash: artifact.sourceHash,
         projectDir: options.projectDir,
         snapshotUpdateMode,
+        snapshotFormat: encodeSnapshotFormat(options.snapshotFormat),
         ...(options.captureTaskResults ? { captureTaskResults: true } : {}),
         ...(options.captureCompletedModuleResult
           ? { captureCompletedModuleResult: true as const }
