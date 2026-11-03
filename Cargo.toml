@@ -344,6 +344,7 @@ serde_path_to_error = "0.1.20"
 serde_qs = "1.1.1"
 serde_with = "3.18.0"
 sha2 = "0.10.2"
+simd-utf16-len = "0.3.1"
 smallvec = { version = "1.15.1", features = [
   "const_generics",
   "union",

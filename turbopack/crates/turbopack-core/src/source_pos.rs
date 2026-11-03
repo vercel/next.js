@@ -99,15 +99,20 @@ impl SourcePos {
 /// Every byte is counted on its own: continuation bytes (`10xxxxxx`) count 0, the leading byte
 /// of a 4-byte sequence (a non-BMP char, which UTF-16 encodes as a surrogate pair) counts 2, and
 /// all other bytes count 1. This is exact for valid UTF-8 and, as it doesn't decode chars, it is
-/// safe for arbitrary bytes and adds up across arbitrary splits of the input.
+/// safe for arbitrary bytes and adds up across arbitrary splits of the input. The count is done
+/// with the SIMD kernels of `simd-utf16-len`.
 //
-// TODO: Use the SIMD implementation of `simd-utf16-len` once it supports byte slices
-// (https://github.com/SyMind/simd-utf16-len/pull/22).
+// TODO: Switch to the byte-slice API of `simd-utf16-len` once
+// https://github.com/SyMind/simd-utf16-len/pull/22 lands, and remove the `unsafe` below.
 pub(crate) fn utf16_len(bytes: &[u8]) -> usize {
-    bytes
-        .iter()
-        .map(|&b| 1 + (b >= 0xF0) as usize - ((b & 0xC0) == 0x80) as usize)
-        .sum()
+    // SAFETY: `simd_utf16_len::utf16_len` does not depend on UTF-8 validity for memory safety: it
+    // applies the per-byte formula above and only reads within the slice. Despite the safety
+    // comments inside the crate saying that `utf16_len` requires UTF-8 for safety, that is not
+    // true, it is only needed for correctness (confirmed by the crate's maintainer). The same
+    // holds for its scalar fallback, `str::encode_utf16().count()`, which std implements as a
+    // byte-wise fold. This was checked for `simd-utf16-len` 0.3.1 and the pinned Rust toolchain;
+    // re-check before upgrading either.
+    simd_utf16_len::utf16_len(unsafe { std::str::from_utf8_unchecked(bytes) })
 }
 
 impl std::cmp::PartialEq<(u32, u32)> for SourcePos {
@@ -137,6 +142,32 @@ mod tests {
             "\u{0}\u{7f}\u{80}\u{7ff}\u{800}\u{ffff}\u{10000}\u{10ffff}",
         ] {
             assert_eq!(utf16_len(s.as_bytes()), s.encode_utf16().count(), "{s:?}");
+        }
+    }
+
+    #[test]
+    fn utf16_len_counts_invalid_utf8_per_byte() {
+        fn per_byte(bytes: &[u8]) -> usize {
+            bytes
+                .iter()
+                .map(|&b| 1 + (b >= 0xF0) as usize - ((b & 0xC0) == 0x80) as usize)
+                .sum()
+        }
+
+        // Lone continuation bytes, truncated sequences and bytes that never appear in UTF-8,
+        // both short and long enough to go through the vectorized loops.
+        let long = [b"x\x80\xC3\xE2\x80\xF0\x9F\xA6\xFF\xFE".as_slice(); 32].concat();
+        for bytes in [
+            b"\x80".as_slice(),
+            b"\xC3",
+            b"\xE2\x80",
+            b"\xF0\x9F\xA6",
+            b"\xFF\xFE",
+            b"abc\xF0",
+            &long,
+            &long[1..],
+        ] {
+            assert_eq!(utf16_len(bytes), per_byte(bytes), "{bytes:?}");
         }
     }
 
