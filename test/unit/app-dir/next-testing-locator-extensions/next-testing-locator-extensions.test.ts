@@ -102,3 +102,46 @@ it('retains real locator registration and facade use across collection and test 
       await rm(temporary, { recursive: true, force: true })
   }
 }, 300000)
+
+it('preserves complete native locator callback errors in production test graphs', async () => {
+  const retained = process.env.NEXT_TESTING_LOCATOR_NATIVE_ERRORS_EVIDENCE
+  const temporary =
+    retained ?? (await mkdtemp(join(tmpdir(), 'next-locator-native-errors-')))
+  let complete = false
+  try {
+    const evidence = retained ?? join(temporary, 'evidence')
+    await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'verify.mjs'), join(__dirname, '../../../..'), evidence],
+      { timeout: 510000, maxBuffer: 1024 * 1024 }
+    )
+    const result = JSON.parse(
+      await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+    )
+    expect(result.profiles).toBe(4)
+    expect(result.cases).toBe(12)
+    expect(result.completeGenuineLocatorExtensionModelsExact).toBe(true)
+    expect(result.allOwnersJoined).toBe(true)
+    const reference = JSON.parse(
+      await readFile(join(__dirname, 'reference.json'), 'utf8')
+    )
+    for (const kind of ['extensions', 'effects'])
+      for (const mode of ['development', 'production']) {
+        const actual = JSON.parse(
+          await readFile(
+            join(evidence, kind + '-' + mode, 'projection.json'),
+            'utf8'
+          )
+        )
+        expect(actual).toEqual(reference.models[kind][mode])
+      }
+    complete = true
+  } catch (error) {
+    throw new Error(`Native Locator error evidence retained at ${temporary}`, {
+      cause: error,
+    })
+  } finally {
+    if (complete && !retained)
+      await rm(temporary, { recursive: true, force: true })
+  }
+}, 540000)

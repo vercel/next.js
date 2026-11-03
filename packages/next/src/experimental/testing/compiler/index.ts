@@ -1098,8 +1098,10 @@ export async function createTestCompilerSession(
               previewProps: fsChecker.previewProps,
               rewrites: fsChecker.rewrites,
               clientRouterFilters: undefined,
-              // Node test bodies observe function names and native error text.
-              noMangling: profile.environment === 'node',
+              // Test bodies observe function names and native error text.
+              noMangling:
+                profile.environment === 'node' ||
+                profile.environment === 'browser',
               ...(configuredTestingDefaultConfiguration === undefined
                 ? {}
                 : {
