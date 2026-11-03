@@ -2009,7 +2009,15 @@ export default class NextNodeServer extends BaseServer<
         for (const [key, value] of Object.entries(
           toNodeOutgoingHttpHeaders(result.response.headers)
         )) {
-          if (key !== 'content-encoding' && value !== undefined) {
+          // The body may have been transparently decoded, so the framing
+          // headers of the encoded body no longer apply. Matches
+          // FORBIDDEN_HEADERS in send-response.ts.
+          if (
+            key !== 'content-length' &&
+            key !== 'content-encoding' &&
+            key !== 'transfer-encoding' &&
+            value !== undefined
+          ) {
             res.setHeader(key, value as string | string[])
           }
         }
