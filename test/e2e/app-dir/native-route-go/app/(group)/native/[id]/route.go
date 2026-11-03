@@ -54,7 +54,8 @@ func serveNative(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]any{
 		"id": r.PathValue("id"), "method": r.Method, "query": r.URL.RawQuery,
 		"body": string(body), "sibling": sibling(), "dependency": message.Text(),
-		"embedded": strings.TrimSpace(string(asset)), "assetCount": len(entries),
+		"contentLength": r.ContentLength,
+		"embedded":      strings.TrimSpace(string(asset)), "assetCount": len(entries),
 		"proxy": r.Header.Get("X-Proxy-Count"), "pid": os.Getpid(),
 		"repeated": r.Header.Values("X-Repeated"),
 		"path":     r.URL.EscapedPath(), "requestURI": r.RequestURI,

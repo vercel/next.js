@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   watchOptions: { pollIntervalMs: 50 },
   experimental: {
     goRoutes: true,
+    proxyClientMaxBodySize: 64 * 1024,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
   },

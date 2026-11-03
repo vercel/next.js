@@ -188,6 +188,18 @@ describe('native-route-go', () => {
       (await next.fetch('/native/method', { method: 'DELETE' })).status
     ).toBe(405)
   })
+  it('finishes oversized proxied uploads when proxy copies the original Content-Length', async () => {
+    const response = await next.fetch('/native/upload', {
+      method: 'POST',
+      body: 'x'.repeat(128 * 1024),
+      signal: AbortSignal.timeout(10_000),
+    })
+    expect(response.status).toBe(201)
+    const result = await response.json()
+    expect(result.body.length).toBeLessThanOrEqual(64 * 1024)
+    expect(result.contentLength).toBe(result.body.length)
+    expect(result.proxy).toBe('1')
+  })
   it('dispatches every declared method and automatically implements HEAD and sorted OPTIONS', async () => {
     await expectAutomaticMethods((method) => next.fetch('/methods', { method }))
   })
