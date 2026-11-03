@@ -491,10 +491,16 @@ pub trait EcmascriptAnalyzable: Module {
     ) -> Result<Vc<EcmascriptModuleContentOptions>>;
 }
 
+/// Existing scope-hoisting results, passed explicitly to code generation. Each consumer reads
+/// only its target modules through the keyed map; `None` means module merging is disabled.
+pub type ModuleMergingAnalysis =
+    Option<ResolvedVc<turbopack_core::module_graph::merged_modules::MergedModuleGroups>>;
+
 pub trait EcmascriptAnalyzableExt {
     fn module_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_merging: ModuleMergingAnalysis,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<EcmascriptModuleContent>;
 }
@@ -506,11 +512,12 @@ where
     fn module_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_merging: ModuleMergingAnalysis,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<EcmascriptModuleContent> {
         let analyzable = Vc::upcast_non_strict::<Box<dyn EcmascriptAnalyzable>>(self);
         let own_options = analyzable.module_content_options(chunking_context, async_module_info);
-        EcmascriptModuleContent::new(own_options)
+        EcmascriptModuleContent::new(own_options, module_merging)
     }
 }
 
@@ -982,7 +989,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     async fn chunk_item_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
@@ -992,7 +999,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
         );
         async {
             let async_module_options = self.get_async_module().module_options(async_module_info);
-            let content = self.module_content(chunking_context, async_module_info);
+            let module_merging =
+                references::esm::mangle::module_merging_analysis(module_graph, chunking_context)
+                    .await?;
+            let content = self.module_content(chunking_context, module_merging, async_module_info);
             EcmascriptChunkItemContent::new(content, chunking_context, async_module_options)
                 .to_resolved()
                 .await
@@ -1089,6 +1099,7 @@ pub async fn chunk_item_content_with_code_from(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     code_source: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: Vc<ModuleGraph>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<EcmascriptChunkItemContent>> {
     let Some(analyzable) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(code_source)
@@ -1100,7 +1111,9 @@ pub async fn chunk_item_content_with_code_from(
         .await?;
     let mut options = (*source_options).clone();
     options.module = module;
-    let content = EcmascriptModuleContent::new(options.cell());
+    let module_merging =
+        references::esm::mangle::module_merging_analysis(module_graph, *chunking_context).await?;
+    let content = EcmascriptModuleContent::new(options.cell(), module_merging);
     let async_module_options = code_source
         .get_async_module()
         .module_options(async_module_info);
@@ -1115,6 +1128,7 @@ impl EcmascriptModuleContentOptions {
     async fn merged_code_gens(
         &self,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        module_merging: ModuleMergingAnalysis,
         eval_context: &EvalContext,
     ) -> Result<(Vec<CodeGeneration>, ReadRef<CodeGens>)> {
         // Don't read `parsed` here again, it will cause a recomputation as `process_parse_result`
@@ -1144,6 +1158,7 @@ impl EcmascriptModuleContentOptions {
                     let (code_gen, subsumed) = exports
                         .code_generation(
                             **chunking_context,
+                            module_merging,
                             scope_hoisting_context,
                             eval_context,
                             *module,
@@ -1167,6 +1182,7 @@ impl EcmascriptModuleContentOptions {
                                 async_module_info.map(|info| *info),
                                 **references,
                                 **chunking_context,
+                                module_merging,
                             )
                             .await?,
                     )
@@ -1181,6 +1197,7 @@ impl EcmascriptModuleContentOptions {
                 .map(|r| {
                     r.code_generation(
                         **chunking_context,
+                        module_merging,
                         scope_hoisting_context,
                         &subsumed_imports.namespaces,
                     )
@@ -1193,6 +1210,7 @@ impl EcmascriptModuleContentOptions {
                 .map(|r| {
                     r.code_generation(
                         **chunking_context,
+                        module_merging,
                         scope_hoisting_context,
                         &subsumed_imports,
                     )
@@ -1208,6 +1226,7 @@ impl EcmascriptModuleContentOptions {
                     c.code_generation(
                         &code_generation.ast_paths,
                         **chunking_context,
+                        module_merging,
                         scope_hoisting_context,
                         *module,
                         *exports,
@@ -1235,7 +1254,10 @@ impl EcmascriptModuleContentOptions {
 impl EcmascriptModuleContent {
     /// Creates a new [`Vc<EcmascriptModuleContent>`].
     #[turbo_tasks::function]
-    pub async fn new(input: Vc<EcmascriptModuleContentOptions>) -> Result<Vc<Self>> {
+    pub async fn new(
+        input: Vc<EcmascriptModuleContentOptions>,
+        module_merging: ModuleMergingAnalysis,
+    ) -> Result<Vc<Self>> {
         let input = input.await?;
         let EcmascriptModuleContentOptions {
             parsed,
@@ -1257,6 +1279,7 @@ impl EcmascriptModuleContent {
             *original_source_map,
             *minify,
             Some(&*input),
+            module_merging,
             None,
         )
         .await?;
@@ -1280,6 +1303,7 @@ impl EcmascriptModuleContent {
             MinifyType::NoMinify,
             None,
             None,
+            None,
         )
         .await?;
         emit_content(content, Default::default()).await
@@ -1299,6 +1323,7 @@ impl EcmascriptModuleContent {
         )>,
         module_options: Vec<Vc<EcmascriptModuleContentOptions>>,
         entry_points: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
+        module_merging: ModuleMergingAnalysis,
     ) -> Result<Vc<Self>> {
         async {
             let modules = modules
@@ -1343,6 +1368,7 @@ impl EcmascriptModuleContent {
                         *original_source_map,
                         *chunking_context.minify_type().await?,
                         Some(&*options),
+                        module_merging,
                         Some(ScopeHoistingOptions {
                             module: *module,
                             modules: &modules,
@@ -1361,6 +1387,7 @@ impl EcmascriptModuleContent {
             let flat_group = *references::esm::mangle::flat_export_group(
                 *entry_points[0].0,
                 *options.chunking_context,
+                module_merging,
             )
             .await?;
             let flat_exports = flat_group.is_some();
@@ -2009,6 +2036,7 @@ async fn process_parse_result(
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     minify: MinifyType,
     options: Option<&EcmascriptModuleContentOptions>,
+    module_merging: ModuleMergingAnalysis,
     scope_hoisting_options: Option<ScopeHoistingOptions<'_>>,
 ) -> Result<CodeGenResult> {
     with_consumed_parse_result(
@@ -2050,6 +2078,7 @@ async fn process_parse_result(
                         .unwrap()
                         .merged_code_gens(
                             ctx,
+                            module_merging,
                             match &eval_context {
                                 Either::Left(e) => e,
                                 Either::Right(e) => e,
@@ -2106,6 +2135,7 @@ async fn process_parse_result(
                     let (code_gens, ast_paths) = options
                         .merged_code_gens(
                             ScopeHoistingContext::None,
+                            module_merging,
                             match &eval_context {
                                 Either::Left(e) => e,
                                 Either::Right(e) => e,

@@ -24,6 +24,7 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
+    ModuleMergingAnalysis,
     analyzer::imports::ImportAnnotations,
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
@@ -248,6 +249,7 @@ impl CollectReferenceCodeGen {
         &self,
         trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_merging: ModuleMergingAnalysis,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
 
@@ -269,7 +271,13 @@ impl CollectReferenceCodeGen {
         let export =
             match ReferencedAsset::from_resolve_result(self.reference.resolve_reference()).await? {
                 ReferencedAsset::Some(module) => {
-                    generated_export_key(module, chunking_context, &COLLECT_LIST_EXPORT).await?
+                    generated_export_key(
+                        module,
+                        chunking_context,
+                        module_merging,
+                        &COLLECT_LIST_EXPORT,
+                    )
+                    .await?
                 }
                 _ => COLLECT_LIST_EXPORT,
             };

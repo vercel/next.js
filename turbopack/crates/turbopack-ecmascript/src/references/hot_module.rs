@@ -23,7 +23,7 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::{cjs_resolve, esm_resolve};
 
 use crate::{
-    ScopeHoistingContext,
+    ModuleMergingAnalysis, ScopeHoistingContext,
     ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
@@ -128,6 +128,7 @@ impl ModuleHotReferenceCodeGen {
         &self,
         trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_merging: ModuleMergingAnalysis,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let resolved_ids: Vec<ReadRef<PatternMapping>> = self
@@ -162,7 +163,12 @@ impl ModuleHotReferenceCodeGen {
                 match &referenced_asset {
                     ReferencedAsset::Some(asset) => {
                         let ident = referenced_asset
-                            .get_ident(chunking_context, None, scope_hoisting_context)
+                            .get_ident(
+                                chunking_context,
+                                module_merging,
+                                None,
+                                scope_hoisting_context,
+                            )
                             .await?;
                         if let Some((namespace_ident, ctxt)) =
                             ident.and_then(|i| i.into_module_namespace_ident())

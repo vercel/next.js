@@ -10,7 +10,7 @@ use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
-    ScopeHoistingContext,
+    ModuleMergingAnalysis, ScopeHoistingContext,
     ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::CodeGeneration,
     create_visitor,
@@ -92,6 +92,7 @@ impl EsmBindings {
         &self,
         trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_merging: ModuleMergingAnalysis,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
@@ -136,7 +137,12 @@ impl EsmBindings {
                     imported_module => match exports_cache.entry(export.clone()) {
                         std::collections::hash_map::Entry::Vacant(entry) => {
                             let ident: ImportedIdent = imported_module
-                                .get_ident(chunking_context, export.clone(), scope_hoisting_context)
+                                .get_ident(
+                                    chunking_context,
+                                    module_merging,
+                                    export.clone(),
+                                    scope_hoisting_context,
+                                )
                                 .await?
                                 .map_or(ImportedIdent::Unresolvable, ImportedIdent::Module);
                             entry.insert(ident.clone());

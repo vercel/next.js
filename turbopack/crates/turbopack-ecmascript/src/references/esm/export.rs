@@ -26,7 +26,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    EcmascriptModuleAsset, ScopeHoistingContext,
+    EcmascriptModuleAsset, ModuleMergingAnalysis, ScopeHoistingContext,
     analyzer::{
         graph::EvalContext,
         imports::{Export, ExportRegistrationMode},
@@ -649,6 +649,7 @@ impl EsmExports {
 async fn compact_reference_target(
     reference: ResolvedVc<Box<dyn ModuleReference>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module_merging: ModuleMergingAnalysis,
     scope_hoisting_context: ScopeHoistingContext<'_>,
 ) -> Result<Option<(NamespaceKey, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>)>> {
     let referenced_asset =
@@ -662,7 +663,12 @@ async fn compact_reference_target(
             },
         ..
     }) = referenced_asset
-        .get_ident(chunking_context, None, scope_hoisting_context)
+        .get_ident(
+            chunking_context,
+            module_merging,
+            None,
+            scope_hoisting_context,
+        )
         .await?
     else {
         return Ok(None);
@@ -680,6 +686,7 @@ async fn build_compact_reexports(
     mode: ExportRegistrationMode,
     synthetic_references: Option<SyntheticReexportReferences<'_>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module_merging: ModuleMergingAnalysis,
     scope_hoisting_context: ScopeHoistingContext<'_>,
 ) -> Result<Option<CompactReexports>> {
     let unused_references = chunking_context.unused_references().await?;
@@ -708,6 +715,7 @@ async fn build_compact_reexports(
             if let Some((key, asset)) = compact_reference_target(
                 ResolvedVc::upcast(*reference),
                 chunking_context,
+                module_merging,
                 scope_hoisting_context,
             )
             .await?
@@ -742,6 +750,7 @@ async fn build_compact_reexports(
             if let Some((key, _)) = compact_reference_target(
                 ResolvedVc::upcast(*reference),
                 chunking_context,
+                module_merging,
                 scope_hoisting_context,
             )
             .await?
@@ -787,6 +796,7 @@ async fn build_compact_reexports(
         }) = referenced_asset
             .get_ident(
                 chunking_context,
+                module_merging,
                 Some(imported_name.clone()),
                 scope_hoisting_context,
             )
@@ -1007,6 +1017,7 @@ impl EsmExports {
     pub(crate) async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_merging: ModuleMergingAnalysis,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         eval_context: &EvalContext,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
@@ -1074,9 +1085,9 @@ impl EsmExports {
         let mut getters = Vec::new();
         // The keys this module's exports are emitted under. Consumers resolve the same map for this
         // module (see `ReferencedAsset::get_ident_inner`), so both sides always agree.
-        let mangled_names = mangled_export_names(*module, chunking_context).await?;
+        let mangled_names = mangled_export_names(*module, chunking_context, module_merging).await?;
         let flat_group = if scope_hoisting_context.module().is_some() {
-            *flat_export_group(*module, chunking_context).await?
+            *flat_export_group(*module, chunking_context, module_merging).await?
         } else {
             None
         };
@@ -1105,6 +1116,7 @@ impl EsmExports {
                 export_registration_mode,
                 synthetic_references,
                 chunking_context,
+                module_merging,
                 scope_hoisting_context,
             )
             .await?
@@ -1179,7 +1191,7 @@ impl EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
-                        .get_ident(chunking_context, Some(name.clone()), scope_hoisting_context)
+                        .get_ident(chunking_context, module_merging, Some(name.clone()), scope_hoisting_context)
                         .await?
                         .map(|ident| {
                             let expr = ident.as_expr_individual(DUMMY_SP);
@@ -1244,7 +1256,12 @@ impl EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
-                        .get_ident(chunking_context, None, scope_hoisting_context)
+                        .get_ident(
+                            chunking_context,
+                            module_merging,
+                            None,
+                            scope_hoisting_context,
+                        )
                         .await?
                         .map(|ident| {
                             let imported = ident.as_expr(DUMMY_SP, false);
