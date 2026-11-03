@@ -4179,6 +4179,7 @@ dependencies = [
  "turbopack-core",
  "turbopack-css",
  "turbopack-ecmascript",
+ "turbopack-go",
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-resolve",
@@ -6663,6 +6664,12 @@ name = "simd-adler32"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
+
+[[package]]
+name = "simd-utf16-len"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81f345b6e806b8bb12f2c0a8a6cf64eb9edff7a1d4c09d1e1d402955912396a2"
 
 [[package]]
 name = "simd_helpers"
@@ -9626,6 +9633,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "swc_core 82.2.0",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -9646,6 +9654,7 @@ dependencies = [
  "turbopack-ecmascript",
  "turbopack-ecmascript-runtime",
  "turbopack-env",
+ "turbopack-go",
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-resolve",
@@ -9698,6 +9707,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
+ "simd-utf16-len",
  "smallvec",
  "swc_core 82.2.0",
  "swc_sourcemap",
@@ -9919,6 +9929,28 @@ dependencies = [
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
+]
+
+[[package]]
+name = "turbopack-go"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "libc",
+ "regex",
+ "same-file",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-fs",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

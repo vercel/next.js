@@ -29,8 +29,8 @@ pub enum OutdatedEdge {
         dependent: TaskId,
         cell: CellRef,
     },
-    /// `dependent` reads `cell` with a [`CellKey`] (a hashed sub-value or a `Vc::keyed_reader()`
-    /// read).
+    /// `dependent` reads `cell` with a [`CellKey`] (a hashed sub-value, or a `Vc::keyed_reader()`
+    /// or `Vc::lazy_reader()` read).
     KeyedCellDependency {
         dependent: TaskId,
         cell: CellRef,

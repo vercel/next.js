@@ -2280,6 +2280,7 @@ export default async function build(
       const buildManifest = await readManifest<BuildManifest>(buildManifestPath)
 
       const appPathRoutes: Record<string, string> = {}
+      const nativeAppPaths = new Set<string>()
 
       if (appDir) {
         const appPathsManifest = await readManifest<Record<string, string>>(
@@ -2296,6 +2297,12 @@ export default async function build(
 
         const appPathsByPathname = new Map<string, string[]>()
         for (const key in appPathsManifest) {
+          if (
+            config.experimental.goRoutes &&
+            appPathsManifest[key].endsWith('.native.json')
+          ) {
+            nativeAppPaths.add(key)
+          }
           const pathname = normalizeAppPath(key)
           const routeAppPaths = appPathsByPathname.get(pathname)
           if (routeAppPaths) {
@@ -2619,6 +2626,9 @@ export default async function build(
                             dir,
                             page,
                             originalAppPath,
+                            isNativeRoute: nativeAppPaths.has(
+                              originalAppPath || page
+                            ),
                             distDir,
                             configFileName,
                             httpAgentOptions: config.httpAgentOptions,

@@ -350,6 +350,9 @@ export interface NextJsHotReloaderInterface {
   getServerComponentsHmrRefreshHash(): string
   /** The client HMR baseline, available only with Turbopack HMR. */
   getClientHmrVersion?(): string
+  onNativeRoutesChanged?(
+    listener: (pages: ReadonlySet<string>) => void
+  ): () => void
   setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,

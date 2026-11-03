@@ -189,6 +189,12 @@ export default class DevServer extends Server {
     super({ ...options, dev: true })
     this.nextConfig = options.conf
     this.bundlerService = options.bundlerService
+    const unsubscribeNativeRoutes = this.bundlerService.onNativeRoutesChanged(
+      (pages) => this.reconcileNativeRoutes(pages)
+    )
+    this.onServerClose(async () => {
+      unsubscribeNativeRoutes()
+    })
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
     this.renderOpts.ErrorDebug = ReactDevOverlay
@@ -950,7 +956,7 @@ export default class DevServer extends Server {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
-    definition: RouteIdentity | undefined
+    definition?: RouteIdentity | undefined
     url?: string
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)

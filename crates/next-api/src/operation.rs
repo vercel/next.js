@@ -124,6 +124,10 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
                 })
                 .collect(),
         },
+        Route::AppGoRoute { original_name, .. } => RouteOperation::AppGoRoute {
+            original_name: original_name.clone(),
+            endpoint: pick_endpoint(entrypoints, EndpointSelector::RouteAppRoute(key)),
+        },
         Route::AppRoute {
             original_name,
             runtime_page,
@@ -217,7 +221,9 @@ async fn pick_endpoint(
             }
         }
         EndpointSelector::RouteAppRoute(name) => {
-            if let Some(Route::AppRoute { endpoint, .. }) = endpoints.routes.get(&name) {
+            if let Some(Route::AppRoute { endpoint, .. } | Route::AppGoRoute { endpoint, .. }) =
+                endpoints.routes.get(&name)
+            {
                 Some(*endpoint)
             } else {
                 None
@@ -254,6 +260,10 @@ pub enum RouteOperation {
         pages: Vec<AppPageRouteOperation>,
         app_paths: Vec<RcStr>,
         is_internal: bool,
+    },
+    AppGoRoute {
+        original_name: RcStr,
+        endpoint: OperationVc<OptionEndpoint>,
     },
     AppRoute {
         original_name: RcStr,

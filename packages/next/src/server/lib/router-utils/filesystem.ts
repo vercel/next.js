@@ -491,7 +491,9 @@ export async function setupFsCheck(opts: {
     for (const page of appRouteHandlers) {
       const pathname = appNormalizers.pathname.normalize(page)
       setRouteDefinition('appFile', pathname, {
-        kind: RouteKind.APP_ROUTE,
+        kind: appPathsManifest[page].endsWith('.native.json')
+          ? RouteKind.APP_ROUTE_GO
+          : RouteKind.APP_ROUTE,
         pathname,
         page,
         bundlePath: appNormalizers.bundlePath.normalize(page),

@@ -455,7 +455,7 @@ export type Route =
       }[]
     }
   | {
-      type: 'app-route'
+      type: 'app-route' | 'app-route-go'
       originalName: string
       runtimePage: string
       runtimePathname: string
@@ -516,6 +516,15 @@ export type ServerPath = {
 }
 
 export type WrittenEndpoint =
+  | {
+      type: 'native'
+      /** Absent when native compilation failed before publishing an executable. */
+      entryPath?: string
+      serverHmrEntryPaths: []
+      clientPaths: []
+      serverPaths: []
+      config: EndpointConfig
+    }
   | {
       type: 'nodejs'
       /** The entry path for the endpoint. */
@@ -606,7 +615,7 @@ export type AppRoute =
       rscHmrEndpoint: Endpoint
     }
   | {
-      type: 'app-route'
+      type: 'app-route' | 'app-route-go'
       hasActionManifest: boolean
       endpoint: Endpoint
     }

@@ -1,0 +1,475 @@
+---
+title: route.go
+description: API reference for building experimental Go API endpoints with the route.go file convention.
+version: experimental
+---
+
+`route.go` defines a Go Route Handler (API endpoint) in the App Router using Go's `net/http` request and response APIs.
+
+```go filename="app/api/hello/route.go" highlight={10}
+package main
+
+import (
+  "encoding/json"
+  "net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(map[string]string{"message": "Hello from Go!"})
+}
+```
+
+> **Good to know**:
+>
+> - Go Route Handlers require `experimental.goRoutes` and Turbopack. Webpack is unsupported.
+> - Go Route Handlers always execute dynamically. JavaScript route segment configuration, ISR, and `generateStaticParams` do not apply.
+> - Go handlers run as compiled executables. JavaScript and TypeScript handlers, React rendering, and Pages Router pages continue to use Node.js.
+
+## Setup
+
+Enable the experiment in your Next.js configuration:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: { goRoutes: true },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  experimental: { goRoutes: true },
+}
+```
+
+Install Go 1.24 or newer on `PATH`, or set `TURBOPACK_GO` to its executable path. Go is required for `next dev` and `next build`. `next start` runs the compiled executables without the Go compiler. Applications without Go handlers do not require Go.
+
+## Reference
+
+### HTTP Methods
+
+Define top-level functions named `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, or `OPTIONS`. Each function handles the corresponding HTTP method, following the same method conventions as [`route.ts`](/docs/app/api-reference/file-conventions/route#http-methods).
+
+Each function must accept `http.ResponseWriter` and `*http.Request`, in that order, and return no value. The Go compiler validates the signatures when compiling the route.
+
+| Method                                    | Behavior                                                                                                                                                |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A method with a matching function         | Invoke that function.                                                                                                                                   |
+| `HEAD` without a `HEAD` function          | Invoke `GET` if defined, with `r.Method == "HEAD"`. The HTTP server suppresses response body bytes. Otherwise, return `405`.                            |
+| `OPTIONS` without an `OPTIONS` function   | Return `204` with an alphabetically sorted `Allow` header listing supported methods, including `OPTIONS` and the `HEAD` fallback when `GET` is defined. |
+| Other methods without a matching function | Return `405`.                                                                                                                                           |
+
+For example, a route defining `GET` and `POST` automatically responds to `OPTIONS` with `Allow: GET, HEAD, OPTIONS, POST`. Define `HEAD` or `OPTIONS` to override their automatic implementations.
+
+### Parameters
+
+#### `w http.ResponseWriter`
+
+Use `w` to write the response with Go's `net/http` APIs:
+
+- `w.Header()` sets response headers, including `Content-Type` and `Set-Cookie`.
+- `w.WriteHeader(status)` sets the HTTP status. Without an explicit status, the first body write sends `200`.
+- `w.Write(body)` writes response body bytes.
+
+Set headers before calling `WriteHeader` or writing the body. Use `http.Flusher` for [streaming](#streaming).
+
+#### `r *http.Request`
+
+Use `r` to read the incoming request:
+
+| API                      | Behavior                                                                  |
+| ------------------------ | ------------------------------------------------------------------------- |
+| `r.Method`               | Read the HTTP method.                                                     |
+| `r.PathValue("id")`      | Read a decoded dynamic parameter. Catch-all segments are joined with `/`. |
+| `r.URL.Query()`          | Read query parameters, including repeated values.                         |
+| `r.Header`, `r.Cookie()` | Read incoming headers and cookies after Next.js proxy processing.         |
+| `r.Body`                 | Read the streamed request body.                                           |
+| `r.Context().Done()`     | Observe cancellation when the client disconnects.                         |
+
+In development and self-hosted deployments, Next.js selects the handler after routing, rewrites, and [`proxy.ts`](/docs/app/api-reference/file-conventions/proxy) processing. The handler receives the final destination URL, including its query and any `basePath`. For example, `/alias?sort=asc` rewritten to `/users/123` reaches Go as `/users/123?sort=asc`. `r.URL`, `r.RequestURI`, and dynamic parameters reflect that destination.
+
+### `ParamValues`
+
+Next.js generates a helper in the route package for reading individual decoded parameter values:
+
+```go filename="app/blog/[...slug]/route.go" highlight={10}
+package main
+
+import (
+  "encoding/json"
+  "net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(ParamValues(r, "slug"))
+}
+```
+
+`ParamValues(r, name)` returns a `[]string`. It returns one value for a single dynamic segment, individual values for a catch-all segment, and `nil` for an absent parameter.
+
+| Route                           | URL             | `r.PathValue("slug")` | `ParamValues(r, "slug")` |
+| ------------------------------- | --------------- | --------------------- | ------------------------ |
+| `app/items/[slug]/route.go`     | `/items/a`      | `"a"`                 | `[]string{"a"}`          |
+| `app/blog/[...slug]/route.go`   | `/blog/a/b`     | `"a/b"`               | `[]string{"a", "b"}`     |
+| `app/blog/[...slug]/route.go`   | `/blog/a%2Fb/c` | `"a/b/c"`             | `[]string{"a/b", "c"}`   |
+| `app/blog/[[...slug]]/route.go` | `/blog`         | `""`                  | `nil`                    |
+
+Use `ParamValues` when you need to distinguish an encoded slash within a segment from the separator between catch-all segments.
+
+### Handler Convention
+
+Each route directory is an executable `package main`. Method functions can be declared in `route.go` or a compiled sibling `.go` file. Next.js generates method dispatch and the `main` function. Do not define `main` yourself or create `zz_next_route_*.go` files, which are reserved for generated code.
+
+All sibling `.go` files except `_test.go` compile together with `route.go` and must use `package main`. Platform filename suffixes and build constraints do not select these sibling files. Put platform-dependent implementations in imported packages, where Go applies its normal selection rules. Shared packages can use ordinary module imports, including `internal` packages.
+
+Direct `go run` and `go test` do not inject the generated wrapper or `ParamValues` helper. Run the route through Next.js to test its integration. Brackets and parentheses in route directory names do not need Go import paths.
+
+Go routes support `app`, `src/app`, [route groups](/docs/app/api-reference/file-conventions/route-groups), and [dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes). A Go handler cannot share its URL with another Route Handler or page.
+
+### Development and Errors
+
+Turbopack tracks route sources, sibling files, local imported packages, module metadata, and embedded assets. Edits trigger recompilation. Compiler failures produce errors instead of serving the previous successful executable. Fixing the source allows later requests to recover.
+
+Unchanged requests reuse the compiled process. After a rebuild, new requests use the replacement while in-flight requests can finish on the previous process for a limited time. If a process exits unexpectedly, active requests fail and later requests restart it. In development, a startup failure remains cached until the source changes or the server restarts. In production, a later request retries a failed startup.
+
+A handler panic aborts its HTTP connection. An error response can be sent only if response headers have not already been sent.
+
+## Examples
+
+### Cookies
+
+Read cookies with `r.Cookie` and set them with `http.SetCookie` before writing the response:
+
+```go filename="app/api/cookies/route.go" highlight={10,17}
+package main
+
+import (
+  "fmt"
+  "net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  theme := "light"
+  if cookie, err := r.Cookie("theme"); err == nil {
+    theme = cookie.Value
+  }
+  fmt.Fprint(w, theme)
+}
+
+func POST(w http.ResponseWriter, r *http.Request) {
+  http.SetCookie(w, &http.Cookie{
+    Name: "theme",
+    Value: "dark",
+    Path: "/",
+    HttpOnly: true,
+    SameSite: http.SameSiteLaxMode,
+  })
+  w.WriteHeader(http.StatusNoContent)
+}
+```
+
+To delete a cookie, set a cookie with the same name and path and a negative `MaxAge`.
+
+### Headers
+
+Read request headers with `r.Header.Get` and set response headers with `w.Header().Set`:
+
+```go filename="app/api/headers/route.go" highlight={10,11}
+package main
+
+import (
+  "fmt"
+  "net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+  w.Header().Set("Vary", "Accept-Language")
+  fmt.Fprint(w, r.Header.Get("Accept-Language"))
+}
+```
+
+Use `w.Header().Add` to append multiple values, including multiple `Set-Cookie` headers.
+
+### Redirects
+
+Use `http.Redirect` with the destination and status:
+
+```go filename="app/api/redirect/route.go" highlight={6}
+package main
+
+import "net/http"
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+}
+```
+
+### Dynamic Route Segments
+
+Use `r.PathValue` to read a [dynamic segment](/docs/app/api-reference/file-conventions/dynamic-routes):
+
+```go filename="app/items/[slug]/route.go" highlight={9}
+package main
+
+import (
+  "fmt"
+  "net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  fmt.Fprintf(w, "Item %s", r.PathValue("slug"))
+}
+```
+
+For `/items/a`, `r.PathValue("slug")` returns `"a"`. For catch-all and optional catch-all routes, see [`ParamValues`](#paramvalues).
+
+### URL Query Parameters
+
+Use `r.URL.Query()` to read query parameters. `Get` returns the first value; indexing the map returns all values for that key.
+
+```go filename="app/api/search/route.go" highlight={9,12,13}
+package main
+
+import (
+  "encoding/json"
+  "net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  query := r.URL.Query()
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(map[string]any{
+    "query": query.Get("query"),
+    "tags": query["tag"],
+  })
+}
+```
+
+For `/api/search?query=hello&tag=go&tag=next`, the response contains `"query": "hello"` and `"tags": ["go", "next"]`.
+
+### Streaming
+
+Write and flush each response chunk with `http.Flusher`. Observe the request context to stop work when the client disconnects:
+
+```go filename="app/api/stream/route.go" highlight={10,22,28}
+package main
+
+import (
+  "fmt"
+  "net/http"
+  "time"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  flusher, ok := w.(http.Flusher)
+  if !ok {
+    http.Error(w, "Streaming unavailable", http.StatusInternalServerError)
+    return
+  }
+
+  w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+  ticker := time.NewTicker(200 * time.Millisecond)
+  defer ticker.Stop()
+
+  for i := 0; i < 3; i++ {
+    select {
+    case <-r.Context().Done():
+      return
+    case <-ticker.C:
+      if _, err := fmt.Fprintf(w, "Chunk %d\n", i+1); err != nil {
+        return
+      }
+      flusher.Flush()
+    }
+  }
+}
+```
+
+Deployment platforms may apply their own buffering and timeout limits.
+
+### Request Body
+
+Decode a JSON request body with `json.NewDecoder`:
+
+```go filename="app/items/route.go" highlight={13}
+package main
+
+import (
+  "encoding/json"
+  "net/http"
+)
+
+func POST(w http.ResponseWriter, r *http.Request) {
+  var item struct {
+    Name string `json:"name"`
+  }
+  r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+  if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+    http.Error(w, "Invalid request body", http.StatusBadRequest)
+    return
+  }
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(item)
+}
+```
+
+`http.MaxBytesReader` limits the number of request body bytes read by the handler.
+
+### Request Body FormData
+
+Use `r.ParseMultipartForm` to read multipart form data. Its argument limits the file data held in memory; use `http.MaxBytesReader` to limit the total request body size.
+
+```go filename="app/api/form/route.go" highlight={7,12}
+package main
+
+import "net/http"
+
+func POST(w http.ResponseWriter, r *http.Request) {
+  r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+  if err := r.ParseMultipartForm(1 << 20); err != nil {
+    http.Error(w, "Invalid form data", http.StatusBadRequest)
+    return
+  }
+  defer r.MultipartForm.RemoveAll()
+  name := r.FormValue("name")
+  w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+  w.Write([]byte(name))
+}
+```
+
+For URL-encoded forms, use `r.ParseForm` instead.
+
+### CORS
+
+Set CORS headers on the response. Define `OPTIONS` explicitly when a preflight response needs these headers; the automatic `OPTIONS` response only supplies `Allow`.
+
+```go filename="app/api/cors/route.go" highlight={9,14}
+package main
+
+import (
+  "fmt"
+  "net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  setCORSHeaders(w)
+  fmt.Fprint(w, "Hello from Go!")
+}
+
+func OPTIONS(w http.ResponseWriter, r *http.Request) {
+  setCORSHeaders(w)
+  w.WriteHeader(http.StatusNoContent)
+}
+
+func setCORSHeaders(w http.ResponseWriter) {
+  w.Header().Set("Access-Control-Allow-Origin", "*")
+  w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+  w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+}
+```
+
+To set CORS headers for multiple routes, use [Proxy](/docs/app/api-reference/file-conventions/proxy#cors) or [`next.config` headers](/docs/app/api-reference/config/next-config-js/headers#cors).
+
+### Webhooks
+
+Read the raw request body before verifying a webhook signature. JSON decoding can change the representation a provider signed.
+
+```go filename="app/api/webhook/route.go" highlight={10}
+package main
+
+import (
+  "io"
+  "net/http"
+)
+
+func POST(w http.ResponseWriter, r *http.Request) {
+  r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+  body, err := io.ReadAll(r.Body)
+  if err != nil {
+    http.Error(w, "Invalid webhook body", http.StatusBadRequest)
+    return
+  }
+  // Verify the provider's signature against body before processing the event.
+  _ = body
+  w.WriteHeader(http.StatusNoContent)
+}
+```
+
+Go handlers read `r.Body` directly and do not use the Pages Router `bodyParser` configuration.
+
+### Non-UI Responses
+
+Set the content type and write the response body to return XML or other non-UI content:
+
+```go filename="app/rss.xml/route.go" highlight={9}
+package main
+
+import (
+  "fmt"
+  "net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
+  fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+  <title>My Blog</title>
+  <link>https://example.com</link>
+  <description>Latest posts</description>
+</channel></rss>`)
+}
+```
+
+### Sharing Response Logic
+
+Method functions can call an unexported helper while setting different response statuses:
+
+```go filename="app/users/[id]/route.go" highlight={9,13}
+package main
+
+import (
+  "fmt"
+  "net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  writeUser(w, r, http.StatusOK)
+}
+
+func POST(w http.ResponseWriter, r *http.Request) {
+  writeUser(w, r, http.StatusCreated)
+}
+
+func writeUser(w http.ResponseWriter, r *http.Request, status int) {
+  w.WriteHeader(status)
+  fmt.Fprintf(w, "User %s", r.PathValue("id"))
+}
+```
+
+### Segment Config Options
+
+Go Route Handlers always execute dynamically. JavaScript exports such as `dynamic`, `revalidate`, `fetchCache`, and `runtime` do not configure Go handlers. ISR, `generateStaticParams`, Server Actions, and React execution are unsupported for Go routes.
+
+## Deployment
+
+For self-hosting, use Turbopack `next build` and `next start`. Copy the complete `.next` output when relocating a build on the same operating system and architecture, preserving executable permissions under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable. Static export and `output: 'standalone'` are unsupported.
+
+Adapter deployments require an adapter that supports `runtime: 'go'`. See [Go adapter outputs](/docs/app/api-reference/adapters/output-types#app-routes-outputsapproutes) and [invoking Go entrypoints](/docs/app/api-reference/adapters/invoking-entrypoints#go-runtime-runtime-go) for packaging and the HTTP server contract. Deployment platforms own routing, rewrites, and proxy execution. Work after the response completes has no completion guarantee.
+
+## Build and Runtime Limitations
+
+- WebSocket upgrades and HTTP trailers are unsupported.
+- Runtime file reads are not traced. Use `go:embed` for assets shipped with Go handlers.
+- Go handlers read the process environment. `next.config` environment inlining does not apply.
+- Go builds target the build host operating system and architecture with CGO disabled. The build environment must match the deployment runtime.
+- Dependencies must build with CGO disabled and already be downloaded into the selected toolchain's module cache. Builds do not download dependencies or modify `go.mod` or `go.sum`.
+- Go workspaces, module replacements, vendoring, source symlinks, and cross-compilation are unsupported.
+- The experiment does not add `proxy.go`, Go Pages API routes, `page.go`, or `layout.go`.
+
+Go routes support Turbopack's filesystem cache and Go's build cache. Unchanged executables can be reused across server or build processes. Source files, dependencies, embedded assets, generated wrappers, toolchain settings, and compilation targets participate in invalidation.

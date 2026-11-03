@@ -462,6 +462,56 @@ describe('app-root-param-getters - cache dedup with root params', () => {
     expect(french('#second').text()).toBe('fr')
   })
 
+  // Each outer entry must vary by the root param read by its inner cache. The
+  // outer functions return `early` while `tail` keeps the inner stream open.
+  it('should key an outer cache by root params of an inner cache with a delayed Flight tail', async () => {
+    const english = await next.render$('/ca/en/flight-tail')
+    expect(english('#value').text()).toBe('en')
+
+    const french = await next.render$('/ca/fr/flight-tail')
+    expect(french('#value').text()).toBe('fr')
+  })
+
+  it('should key outer caches that join an inner cache by root params with a delayed Flight tail', async () => {
+    const english = await next.render$('/ca/en/flight-tail-joined')
+    expect(english('#first').text()).toBe('en')
+    expect(english('#second').text()).toBe('en')
+
+    const french = await next.render$('/ca/fr/flight-tail-joined')
+    expect(french('#first').text()).toBe('fr')
+    expect(french('#second').text()).toBe('fr')
+  })
+
+  // Cross-request deduplication requires a shared server process, and the
+  // cold-fill join window is only deterministic with prebuilt routes.
+  // @force-gate start
+  it('should not fork a cold root-param fill into unstable_cache', async () => {
+    // The direct request becomes the leader of the cold fill, registered under
+    // the coarse key because no root param reads are known yet.
+    const directPromise = next.render$('/ca/en/cold-join/direct')
+
+    // Give the leader a head start so the mixed request joins its fill instead
+    // of becoming the leader itself.
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // unstable_cache joins under the same coarse key with rootParams undefined.
+    // It must not fork the leader's root-param-specific entry.
+    const mixed = await next.render$('/ca/fr/cold-join/mixed')
+    const direct = await directPromise
+
+    expect(JSON.parse(direct('#value').text())).toMatchObject({ lang: 'en' })
+
+    // The join must fail closed: no forked value is served, and nothing is
+    // persisted for later unstable_cache calls.
+    expect(mixed('#value')).toHaveLength(0)
+    expect(next.cliOutput).toContain(
+      'Error: Route /[countryCode]/[lang]/cold-join/mixed used root params (lang) inside `"use cache"` nested within `unstable_cache`. Root params are not available in this context.'
+    )
+
+    const mixedAgain = await next.render$('/ca/fr/cold-join/mixed')
+    expect(mixedAgain('#value')).toHaveLength(0)
+  })
+
   // Cross-request deduplication requires a shared server process. Deployed
   // requests can reach different function instances.
   // @force-gate !deploy

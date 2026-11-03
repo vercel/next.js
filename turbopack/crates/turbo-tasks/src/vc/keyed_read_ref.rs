@@ -9,7 +9,7 @@ use rustc_hash::{FxBuildHasher, FxHashSet};
 use crate::{
     CellId, ReadRef, TaskId,
     keyed::{KeyedAccess, KeyedEq},
-    manager::{KeyedReadDependency, with_turbo_tasks},
+    manager::{ProvisionalReadDependency, with_turbo_tasks},
     vc::{VcReadTarget, VcValueType},
 };
 
@@ -45,7 +45,7 @@ where
 {
     read_ref: ReadRef<T>,
     /// `None` if the read wasn't tracked (e.g. a read outside of a task execution).
-    dependency: Option<(TaskId, CellId, KeyedReadDependency)>,
+    dependency: Option<(TaskId, CellId, ProvisionalReadDependency)>,
     accessed_key_hashes: Mutex<FxHashSet<u64>>,
 }
 
@@ -55,11 +55,11 @@ where
     VcReadTarget<T>: KeyedEq,
 {
     /// `dependency` must only be `Some` within the task execution that created it, and must
-    /// already be registered as alive ([`KeyedReadDependency::register_alive_ref`]). The
+    /// already be registered as alive ([`ProvisionalReadDependency::register_alive_ref`]). The
     /// registration is released when this is dropped within that execution.
     pub(crate) fn new(
         read_ref: ReadRef<T>,
-        dependency: Option<(TaskId, CellId, KeyedReadDependency)>,
+        dependency: Option<(TaskId, CellId, ProvisionalReadDependency)>,
     ) -> Self {
         Self {
             read_ref,
@@ -119,7 +119,7 @@ where
         dependency.release_alive_ref();
         let key_hashes = std::mem::take(self.accessed_key_hashes.get_mut());
         with_turbo_tasks(|tt| {
-            tt.convert_keyed_cell_dependency(
+            tt.refine_provisional_cell_dependency(
                 task,
                 index,
                 dependency.reader,

@@ -468,6 +468,14 @@ function assignDefaultsAndValidate(
     result.experimental.strictRouteMatching = false
   }
 
+  if (result.experimental.goRoutes) {
+    if (result.output) {
+      throw new Error(
+        'experimental.goRoutes does not support standalone or static export output'
+      )
+    }
+  }
+
   // Normalize prefetchInlining: true | { maxSize?, maxBundleSize? } into a
   // resolved object with concrete defaults, so consumers don't have to
   // resolve the values themselves.

@@ -715,17 +715,17 @@ export declare function projectNew(
 ): Promise<TurbopackResult<{ project: { __napiType: 'Project' } }>>
 
 /**
- * Runs exit handlers for the project registered using the [`ExitHandler`] API.
+ * Runs resource cleanup and exit handlers for the project registered using the [`ExitHandler`]
+ * API.
  *
- * This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
- * one.
+ * This cleanup is included in `project_shutdown`, so callers should normally use only one API.
  */
 export declare function projectOnExit(project: {
   __napiType: 'Project'
 }): Promise<void>
 
 /**
- * Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
+ * Runs resource cleanup, stops Turbo Tasks, and then flushes the project's exit handlers.
  *
  * This is used in builds where it's important that we completely persist turbo-tasks to disk, but
  * it's skipped in the development server (`project_on_exit` is used instead with a short timeout),

@@ -1210,13 +1210,15 @@ impl TurboTasksBackend {
         let _ = task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence);
     }
 
-    /// Replaces the [`CellKey::Keyed`] dependency of `reader` on `cell` of `task_id` (created by a
-    /// `Vc::keyed_reader()` read) with [`CellKey::Hash`] dependencies on `key_hashes`.
+    /// Refines the [`CellKey::Provisional`] dependency of `reader` on `cell` of `task_id` (created
+    /// by a `Vc::keyed_reader()` or `Vc::lazy_reader()` read): it's replaced with
+    /// [`CellKey::Hash`] dependencies on `key_hashes`. With no `key_hashes` (an unaccessed
+    /// `LazyReadRef`), it's removed.
     ///
     /// When the cell content is currently missing (e.g. while `update_cell` invalidates its
-    /// dependents), the [`CellKey::Keyed`] dependency is kept, conservatively depending on the
-    /// whole cell.
-    fn convert_keyed_cell_dependency(
+    /// dependents), the [`CellKey::Provisional`] dependency is kept, conservatively depending on
+    /// the whole cell.
+    fn refine_provisional_cell_dependency(
         &self,
         task_id: TaskId,
         cell: CellId,
@@ -1239,10 +1241,10 @@ impl TurboTasksBackend {
             task: task_id,
             cell,
         };
-        let keyed = CellKey::Keyed(id);
-        task.remove_cell_dependents_keyed(&(reverse, keyed));
-        reader_task.remove_cell_dependencies_keyed(&(target, keyed));
-        reader_task.remove_outdated_cell_dependencies_keyed(&(target, keyed));
+        let provisional = CellKey::Provisional(id);
+        task.remove_cell_dependents_keyed(&(reverse, provisional));
+        reader_task.remove_cell_dependencies_keyed(&(target, provisional));
+        reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
         // Immutable tasks never need dependency edges and can never be invalidated.
         if immutable {
             return;
@@ -1256,23 +1258,25 @@ impl TurboTasksBackend {
         }
     }
 
-    /// Converts all [`CellKey::Keyed`] dependencies of `reader` that are still present into normal
-    /// (full) cell dependencies. Called when an execution of `reader` that made
-    /// `Vc::keyed_reader()` reads completes, as the ids are only meaningful within that execution.
+    /// Converts all [`CellKey::Provisional`] dependencies of `reader` that are still present into
+    /// normal (full) cell dependencies. Called when an execution of `reader` that made
+    /// `Vc::keyed_reader()` or `Vc::lazy_reader()` reads completes, as the ids are only meaningful
+    /// within that execution.
     ///
-    /// They remain when a `KeyedReadRef` wasn't dropped within the execution (the manager then
-    /// panics after the execution completed, but the dependencies are still kept consistent), or
-    /// when its conversion was refused (see `convert_keyed_cell_dependency`).
+    /// They remain for accessed `LazyReadRef`s, when a `KeyedReadRef` or `LazyReadRef` wasn't
+    /// dropped within the execution (the manager then panics after the execution completed, but
+    /// the dependencies are still kept consistent), or when their refinement was refused (see
+    /// `refine_provisional_cell_dependency`).
     ///
-    /// A concurrent `update_cell` that collected the [`CellKey::Keyed`] dependent before the
+    /// A concurrent `update_cell` that collected the [`CellKey::Provisional`] dependent before the
     /// conversion still invalidates `reader`, as it always invalidates collected
-    /// [`CellKey::Keyed`] dependents.
+    /// [`CellKey::Provisional`] dependents.
     ///
-    /// Unlike [`Self::convert_keyed_cell_dependency`], which narrows a dependency to
+    /// Unlike [`Self::refine_provisional_cell_dependency`], which narrows a dependency to
     /// [`CellKey::Hash`] dependencies and refuses while the cell content is missing, this doesn't
     /// depend on the cell content and converts to a full dependency (or just removes the edge when
     /// the cell's task is immutable), so it can't reuse that method.
-    fn convert_remaining_keyed_cell_dependencies_at_task_completion(
+    fn convert_remaining_provisional_cell_dependencies_at_task_completion(
         &self,
         ctx: &mut ExecuteContext<'_>,
         reader: TaskId,
@@ -1280,7 +1284,7 @@ impl TurboTasksBackend {
         let remaining: SmallVec<[(CellRef, CellKey); 4]> = ctx
             .task(reader, TaskDataCategory::Data)
             .iter_cell_dependencies_keyed()
-            .filter(|(_, key)| matches!(key, CellKey::Keyed(_)))
+            .filter(|(_, key)| matches!(key, CellKey::Provisional(_)))
             .collect();
         for (target, key) in remaining {
             let reverse = CellRef {
@@ -2321,7 +2325,7 @@ impl TurboTasksBackend {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
-        has_keyed_reads: bool,
+        has_provisional_reads: bool,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
@@ -2367,23 +2371,27 @@ impl TurboTasksBackend {
 
         let mut ctx = self.execute_context(turbo_tasks);
 
-        // Normally no `CellKey::Keyed` dependencies remain here: dropping a `KeyedReadRef` within
-        // the execution already converted its dependency. They only remain when a `KeyedReadRef`
-        // leaked (the manager panics after this returns) or its conversion was refused because
-        // the cell content was missing (e.g. during a concurrent `update_cell`). Their ids are only
-        // meaningful within this execution, so convert them to normal dependencies first, before
-        // the outdated edges are cleaned up, to keep the dependency graph consistent.
-        if has_keyed_reads && self.should_track_dependencies() {
-            self.convert_remaining_keyed_cell_dependencies_at_task_completion(&mut ctx, task_id);
+        // Normally only the provisional dependencies of accessed `LazyReadRef`s remain here:
+        // dropping a `KeyedReadRef` or an unaccessed `LazyReadRef` within the execution already
+        // refined or removed its dependency. Others only remain when a ref leaked (the manager
+        // panics after this returns) or its refinement was refused because the cell content was
+        // missing (e.g. during a concurrent `update_cell`). Their ids are only meaningful within
+        // this execution, so convert them to normal dependencies first, before the outdated edges
+        // are cleaned up, to keep the dependency graph consistent.
+        if has_provisional_reads && self.should_track_dependencies() {
+            self.convert_remaining_provisional_cell_dependencies_at_task_completion(
+                &mut ctx, task_id,
+            );
         }
-        // Only checked for executions with `keyed_reader()` reads, so other tasks don't pay for it.
+        // Only checked for executions with `keyed_reader()` or `lazy_reader()` reads, so other
+        // tasks don't pay for it.
         debug_assert!(
-            !has_keyed_reads
+            !has_provisional_reads
                 || !ctx
                     .task(task_id, TaskDataCategory::Data)
                     .iter_cell_dependencies_keyed()
-                    .any(|(_, key)| matches!(key, CellKey::Keyed(_))),
-            "`CellKey::Keyed` dependencies must be converted when the execution completes"
+                    .any(|(_, key)| matches!(key, CellKey::Provisional(_))),
+            "`CellKey::Provisional` dependencies must be converted when the execution completes"
         );
 
         let TaskExecutionCompletePrepareResult {
@@ -4042,7 +4050,7 @@ impl Backend for TurboTasksBackend {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
-        has_keyed_reads: bool,
+        has_provisional_reads: bool,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &TurboTasks<Self>,
@@ -4051,7 +4059,7 @@ impl Backend for TurboTasksBackend {
             task_id,
             result,
             cell_counters,
-            has_keyed_reads,
+            has_provisional_reads,
             #[cfg(feature = "verify_determinism")]
             stateful,
             has_invalidator,
@@ -4090,7 +4098,7 @@ impl Backend for TurboTasksBackend {
         self.try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
     }
 
-    fn convert_keyed_cell_dependency(
+    fn refine_provisional_cell_dependency(
         &self,
         task_id: TaskId,
         cell: CellId,
@@ -4099,7 +4107,7 @@ impl Backend for TurboTasksBackend {
         key_hashes: &mut dyn Iterator<Item = u64>,
         turbo_tasks: &TurboTasks<Self>,
     ) {
-        self.convert_keyed_cell_dependency(task_id, cell, reader, id, key_hashes, turbo_tasks)
+        self.refine_provisional_cell_dependency(task_id, cell, reader, id, key_hashes, turbo_tasks)
     }
 
     fn try_read_own_task_cell(

@@ -89,10 +89,10 @@ import type { RouteIdentity } from '../route-definitions/route-definition'
 import type { TurbopackRoutePublisher } from '../lib/router-utils/turbopack-dev-routes'
 import {
   hasTurbopackPage,
+  isAppRouteKind,
   lookupTurbopackRoute,
   lookupTurbopackRouteByPathname,
 } from '../lib/router-utils/dev-route-snapshot'
-import { RouteKind } from '../route-kind'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
   type EntryKey,
@@ -725,7 +725,8 @@ export async function createHotReloaderTurbopack(
     return (
       !!serverFastRefresh &&
       splitEntryKey(key).type === 'app' &&
-      writtenEndpoint.type !== 'edge'
+      writtenEndpoint.type !== 'edge' &&
+      writtenEndpoint.type !== 'native'
     )
   }
 
@@ -739,6 +740,7 @@ export async function createHotReloaderTurbopack(
       force?: boolean
     } = {}
   ): boolean {
+    if (writtenEndpoint.type === 'native') return false
     if (force) {
       for (const { path, contentHash } of writtenEndpoint.serverPaths) {
         // We ignore source maps
@@ -1239,6 +1241,9 @@ export async function createHotReloaderTurbopack(
     })
   }
 
+  let nativeRoutePages: ReadonlySet<string> | undefined
+  const nativeRouteListeners = new Set<(pages: ReadonlySet<string>) => void>()
+
   async function handleEntrypointsSubscription() {
     for await (const entrypoints of entrypointsSubscription) {
       if (!currentEntriesHandlingResolve) {
@@ -1278,6 +1283,14 @@ export async function createHotReloaderTurbopack(
         currentEntriesHandlingResolve = undefined
         continue
       }
+      // Only valid Rust entrypoint snapshots replace the active Go route set.
+      // Original names retain route groups and distinguish Go-to-JS replacement.
+      nativeRoutePages = new Set(
+        [...entrypoints.value.routes.values()].flatMap((route) =>
+          route.type === 'app-route-go' ? [route.originalName] : []
+        )
+      )
+      for (const listener of nativeRouteListeners) listener(nativeRoutePages)
       routeGeneration++
       const routes = new Set(routeSnapshot.sortedRoutes)
       const prevRouteKeys = previousRouteKeys
@@ -1556,6 +1569,13 @@ export async function createHotReloaderTurbopack(
 
   const hotReloader: NextJsHotReloaderInterface = {
     turbopackProject: project,
+    onNativeRoutesChanged(listener) {
+      nativeRouteListeners.add(listener)
+      if (nativeRoutePages) listener(nativeRoutePages)
+      return () => {
+        nativeRouteListeners.delete(listener)
+      }
+    },
     activeWebpackConfigs: undefined,
     serverStats: null,
     edgeServerStats: null,
@@ -2119,10 +2139,7 @@ export async function createHotReloaderTurbopack(
 
             if (closed) throw new Error('The development server has closed')
             const generation = routeGeneration
-            const appHint = definition
-              ? definition.kind === RouteKind.APP_PAGE ||
-                definition.kind === RouteKind.APP_ROUTE
-              : isApp
+            const appHint = definition ? isAppRouteKind(definition.kind) : isApp
             const routeDef: RouteIdentity | undefined = routeSnapshot
               ? definition
                 ? lookupTurbopackRouteByPathname(
@@ -2211,9 +2228,7 @@ export async function createHotReloaderTurbopack(
               return
             }
 
-            const isInsideAppDir =
-              routeDef!.kind === RouteKind.APP_PAGE ||
-              routeDef!.kind === RouteKind.APP_ROUTE
+            const isInsideAppDir = isAppRouteKind(routeDef!.kind)
             const compilerPage = routeSnapshot!.appRouteKeys.get(page) ?? page
             const route = isInsideAppDir
               ? currentEntrypoints.app.get(compilerPage)

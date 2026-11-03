@@ -2,6 +2,7 @@ import type { RawEntrypoints } from '../../../build/swc/types'
 import type { NextConfigComplete } from '../../config-shared'
 import type { AppPageRouteIdentity } from '../../route-definitions/app-page-route-definition'
 import type { AppRouteRouteIdentity } from '../../route-definitions/app-route-route-definition'
+import type { AppGoRouteRouteIdentity } from '../../route-definitions/app-go-route-route-definition'
 import type { LocaleRouteIdentity } from '../../route-definitions/locale-route-definition'
 import type { RouteIdentity } from '../../route-definitions/route-definition'
 import type { DevRoutesSnapshot, FilesystemDynamicRoute } from './filesystem'
@@ -49,7 +50,9 @@ export function createTurbopackDevRouteSnapshot(
     'i18n' | 'useFileSystemPublicRoutes' | 'output'
   >
 ): TurbopackDevRouteSnapshot {
-  const appRoutes: Array<AppPageRouteIdentity | AppRouteRouteIdentity> = []
+  const appRoutes: Array<
+    AppPageRouteIdentity | AppRouteRouteIdentity | AppGoRouteRouteIdentity
+  > = []
   const pageRoutes: LocaleRouteIdentity[] = []
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
@@ -126,9 +129,13 @@ export function createTurbopackDevRouteSnapshot(
         if (publicRoutes) appFiles.add(pathname)
         break
       }
-      case 'app-route': {
-        const definition: AppRouteRouteIdentity = {
-          kind: RouteKind.APP_ROUTE,
+      case 'app-route':
+      case 'app-route-go': {
+        const definition: AppRouteRouteIdentity | AppGoRouteRouteIdentity = {
+          kind:
+            route.type === 'app-route-go'
+              ? RouteKind.APP_ROUTE_GO
+              : RouteKind.APP_ROUTE,
           pathname: route.runtimePathname,
           page: route.runtimePage,
           bundlePath: path.posix.join(
@@ -281,6 +288,15 @@ export function lookupTurbopackRoute(
   return pagesRoute?.kind === RouteKind.PAGES_API ? pagesRoute : undefined
 }
 
+/** App Router identities, including Go route handlers, which live under `app/`. */
+export function isAppRouteKind(kind: RouteKind): boolean {
+  return (
+    kind === RouteKind.APP_PAGE ||
+    kind === RouteKind.APP_ROUTE ||
+    kind === RouteKind.APP_ROUTE_GO
+  )
+}
+
 /** Resolves a stale route hint by its URL pattern, never by a structural key. */
 export function lookupTurbopackRouteByPathname(
   snapshot: TurbopackDevRouteSnapshot,
@@ -290,9 +306,7 @@ export function lookupTurbopackRouteByPathname(
   const definition = snapshot.identitiesByPathname.get(pathname)
   if (!definition || isApp === undefined) return definition
 
-  const appRoute =
-    definition.kind === RouteKind.APP_PAGE ||
-    definition.kind === RouteKind.APP_ROUTE
+  const appRoute = isAppRouteKind(definition.kind)
   if (isApp) {
     return appRoute || definition.kind === RouteKind.PAGES_API
       ? definition

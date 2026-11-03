@@ -556,7 +556,7 @@ function bindingToApi(
         }[]
       }
     | {
-        type: 'app-route'
+        type: 'app-route' | 'app-route-go'
         originalName: string
         runtimePage: string
         runtimePathname: string
@@ -1260,8 +1260,9 @@ function bindingToApi(
           }
           break
         case 'app-route':
+        case 'app-route-go':
           route = {
-            type: 'app-route',
+            type: nativeRoute.type,
             originalName: nativeRoute.originalName,
             runtimePage: nativeRoute.runtimePage,
             runtimePathname: nativeRoute.runtimePathname,

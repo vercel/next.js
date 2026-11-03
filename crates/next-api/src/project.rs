@@ -432,6 +432,7 @@ struct ProjectFileSystemState {
 #[turbo_tasks::value(evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
+    go_sessions: ResolvedVc<turbopack_go::GoSessionPool>,
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
@@ -445,8 +446,10 @@ pub struct ProjectContainer {
 impl ProjectContainer {
     #[turbo_tasks::function(operation, root)]
     pub fn new_operation(name: RcStr, dev: bool) -> Result<Vc<Self>> {
+        let go_sessions = turbopack_go::GoSessionPool::new();
         Ok(ProjectContainer {
             name,
+            go_sessions,
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
@@ -460,6 +463,22 @@ impl ProjectContainer {
             fs_map_init_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
+    }
+}
+
+impl ProjectContainer {
+    /// Attach process-local cleanup after resolving the container. Shutdown hooks must not be
+    /// task inputs: making the container transient also prevents its project graph from persisting.
+    pub fn register_shutdown_hooks(&self, shutdown: &crate::shutdown::ShutdownHooks) {
+        shutdown.on_shutdown(self.go_sessions, |sessions| {
+            Box::pin(async move {
+                sessions
+                    .await?
+                    .shutdown()
+                    .await
+                    .context("shutting down Go compiler sessions")
+            })
+        });
     }
 }
 
@@ -974,6 +993,11 @@ impl ProjectContainer {
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
+            go_sessions: if *next_config.go_routes().await? {
+                Some(self.go_sessions)
+            } else {
+                None
+            },
             root_path,
             project_path,
             watch,
@@ -989,8 +1013,8 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
-            build_id,
-            encryption_key,
+            build_id: ResolvedVc::cell(build_id),
+            encryption_key: ResolvedVc::cell(encryption_key),
             preview_props: ResolvedVc::cell(preview_props),
             no_mangling,
             write_routes_hashes_manifest,
@@ -1043,6 +1067,7 @@ impl ProjectContainer {
 #[derive(Clone)]
 #[turbo_tasks::value]
 pub struct Project {
+    pub(crate) go_sessions: Option<ResolvedVc<turbopack_go::GoSessionPool>>,
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
@@ -1083,9 +1108,14 @@ pub struct Project {
 
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 
-    build_id: RcStr,
+    /// Stored in a separate cell, as it can change between builds. Keeping it out of the
+    /// [`Project`] value avoids invalidating every task that reads the [`Project`].
+    build_id: ResolvedVc<RcStr>,
 
-    encryption_key: RcStr,
+    /// Stored in a separate cell, as it can change between builds (e.g. key rotation or a
+    /// per-build `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`). Keeping it out of the [`Project`] value
+    /// avoids invalidating every task that reads the [`Project`].
+    encryption_key: ResolvedVc<RcStr>,
 
     preview_props: ResolvedVc<DraftModeOptionsValue>,
 
@@ -1361,6 +1391,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn watch_poll_interval_ms(&self) -> Vc<Option<u64>> {
+        Vc::cell(
+            self.watch
+                .poll_interval
+                .map(|interval| interval.as_millis().try_into().unwrap_or(u64::MAX)),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn should_write_routes_hashes_manifest(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.write_routes_hashes_manifest))
     }
@@ -1385,7 +1424,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn encryption_key(&self) -> Vc<RcStr> {
-        Vc::cell(self.encryption_key.clone())
+        *self.encryption_key
     }
 
     #[turbo_tasks::function]
@@ -1540,7 +1579,8 @@ impl Project {
                         },
                     ));
                 }
-                Route::AppRoute {
+                Route::AppGoRoute { endpoint, .. }
+                | Route::AppRoute {
                     original_name: _,
                     endpoint,
                     ..
@@ -1744,8 +1784,8 @@ impl Project {
     pub(super) async fn edge_env(&self) -> Result<Vc<EnvMap>> {
         let preview_props = self.preview_props.await?;
         let edge_env = fxindexmap! {
-            rcstr!("__NEXT_BUILD_ID") => self.build_id.clone(),
-            rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.clone(),
+            rcstr!("__NEXT_BUILD_ID") => self.build_id.owned().await?,
+            rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.owned().await?,
             rcstr!("__NEXT_PREVIEW_MODE_ID") => preview_props.preview_mode_id.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => preview_props.preview_mode_encryption_key.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => preview_props.preview_mode_signing_key.clone(),

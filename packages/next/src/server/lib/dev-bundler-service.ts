@@ -70,6 +70,12 @@ export class DevBundlerService {
     )
   }
 
+  public onNativeRoutesChanged(listener: (pages: ReadonlySet<string>) => void) {
+    return (
+      this.bundler.hotReloader.onNativeRoutesChanged?.(listener) ?? (() => {})
+    )
+  }
+
   public getClientHmrVersion(): string | undefined {
     return this.bundler.hotReloader.getClientHmrVersion?.()
   }
