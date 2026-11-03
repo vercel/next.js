@@ -13,7 +13,156 @@ is recorded in the generated inventory and lockfile. The supported stable range
 is undecided, `stableReady` remains false, and no stable exception is approved.
 This is an implementation checkpoint, not graduation of the experiment.
 
-## Current recorded status — A1–A4 integration, November 3, 2026
+## Current recorded status — sixteen signed local steps, November 3, 2026
+
+Qualified scoped implementation consists of baseline13
+`f43369758c4a5f14c72a7e72bb2e8a294a6d5eb6`, bounded V2
+`6502fc744c1c369d5e818a47d1c6c1b12e2144cb`, bounded AroundAll
+`f4004d4b7d6e63515911ac9be1ca215145068d3e`, and configured errorFormat
+`b04cb421898121d3857f5262aad0518261b506f1`: sixteen local signed steps.
+The authorized D25 signing retry succeeded for exactly 25 files; the bytes of all 78
+working paths and the unstaged inspector remainder were preserved. No push occurred.
+Root Source78/testing304/compiled9623/native45c8 remains the same mixed physical
+integration revision, not bare b04 or a wholly qualified batch. Last independently
+verified draft PR #98869 publication remains
+`1558a982296b23763d2174b27aa4cbd69e8e5455`. Metadata adds no functionality.
+
+All 776 original API names, surfaces, overloads and release classifications are
+retained. Ten root types are newly available: the six benchmark/error metadata
+exports plus four runner data types. `RunnerTaskBase` is **partial** because its
+actual recursive Suite/File model still lacks genuine numeric worker/concurrency
+IDs; the other nine measured type rows are scoped. `snapshotFormat` remains
+partial. The existing `config.test.browser.locators` row becomes partial for
+`errorFormat` only; its other fields remain gaps. Counts are **102 scoped,
+275 partial, 379 missing, 20 unreviewed**; declarations **307 available,
+275 absent, 194 not applicable**. All other Browser configuration rows retain
+their prior status, and release-compatible remains zero. Type presence
+qualifies no benchmark execution, runtime event/heap/log producer, full recursive
+Task alias, extra subpath or global bridge.
+
+Closed scoped results:
+
+- SDK442 was prepared from dirty Root764 physical **Source318 / compiled9620**,
+  including the later committed bytes, rather than bare HEAD. Its immutable
+  archive is `96aed8a10a1dd1a7`; **9,712 installed entries, 1,744 non-Next entries**
+  and its separate private native `29ac20213e` held through every reader. Live
+  Root source/native/index were independent; all SDK owners/readers closed.
+- Strict types: **788 programs** (608 preservation + 180 runner data), **360
+  accepted / 428 rejected**, including 32 new exact-optional programs. Source
+  also passes the 180 new programs. Runtime JavaScript is preserved; recursive
+  Base IDs and full diagnostic-message strings remain outside the exact proof.
+- C126 development original-require reset composition and C2 utility identity/
+  references are integrated within their bounded roles. C2 Source and SDK each
+  pass **16 profiles / 80 cases / 96 rows / 112 callbacks**, **42 preservation
+  profiles / 66 cases** and **9 controls / 32 authored cases**. Signed V2
+  `6502fc744c` adds exact literal `Object.getOwnPropertyDescriptor`,
+  `Object.defineProperty` and `Reflect.deleteProperty` reset metadata demand.
+  Source and SDK01d each pass **24 profiles / 64 cases / 64 rows / 88 callbacks**,
+  **four old profiles / 20 cases / 24 rows / 28 callbacks**, and **11 maintained
+  controls / 28 authored cases**. The existing real method runtime, bodies and
+  approved 104-byte negative-to-positive literal remain exact. Both resetModules
+  rows stay partial; broad aliases/intrinsic mutation, static-mock reference/C3,
+  production CommonJS original-require resets with mocking and wider compositions remain open.
+- Browser creator capture and raw snapshots are separate commits `c63b1423b3`
+  and `31d1f801b9`. The unchanged original five-case snapshot fixture matches
+  full standard JSON and exact external/inline/raw bytes in **12 Source and
+  12 serial SDK profiles / 60 cases per lane**, on Chromium/Node26, three formats,
+  both modes and update/read. Source's initial three simultaneous same-root
+  owners remain an explicit caveat; SDK Native concurrency is one. The normal
+  Source server suite passes **490 controls**. Outside-directory raw paths,
+  nondefault-managed directories, failed-sibling publication vetoes and wider
+  engine/profile combinations remain open.
+- Empty suites now execute eligible lifecycles before local no-test failures.
+  Source and SDK each pass **24 public profiles** across all four Node engines
+  and both modes, with exact standard reports/traces. **64 pure scenarios,
+  24 lower-level Browser-path checks and five Jest controls** are separate;
+  four original Source focused-owner controls also pass without native projects.
+  The approved outer corrections and original around behavior are retained.
+  Around ancestry, public Browser empty suites and full custom reporters remain
+  outside this qualification.
+- Worker hard assertion/getState/Task-flag **72 profiles / 144 cases / 808 rows**,
+  Node snapshot formatting **144 runs / 720 cases**, and earlier DOM/Locator/
+  WebKit results retain their separate Source/SDK439 qualification. SDK442 adds
+  **32 worker components + four original-none profiles at 19 constructors each**.
+  Its ordinary Chromium worker supplement is only **1 profile / 2 cases /
+  6 authored projected rows**: no Browser assertion or full raw/custom Error/Ready
+  report equality is claimed. Cleanup-reference and internal retry-stack gaps
+  remain explicit.
+
+Signed AroundAll `f4004d4b7d` qualifies **32 Source and 32 SDK profiles**,
+**64 cases / 464 authored rows per lane**, across four Nodes, both modes,
+setup/teardown and gated/root-gated settlement. Phase Error fields and authentic
+mapped 10:3/11:3 origins match. **256 audited runtime owners, 64 helpers and
+64 fixtures** close across both lanes; Source **100 pure capture** and **56 normal
+preservation** controls are separate. Cross/precollection, ungated disposal,
+Browser/shared/cohorts, raw internal stacks, quiet URI and wider ancestry remain
+open. SDK01d actual readers are now all physically closed, but its planned
+carrier qualification is incomplete: cross8 never ran in SDK, and Root v3
+terminal capture is blocked by unsupported reporter `.task`. The separate Work1
+public cross probe still lacks required `Error.stacks` arrays. These diagnostics
+complete no functionality. Closed96a/29ac remains the qualified scoped fallback.
+
+Signed D25 `b04cb42189` implements the measured root/project/instance
+`locators.errorFormat` path and canonical per-file writable `server.config`
+alias/getter/mutation behavior. Earlier **72 Source option profiles + 16 state
+cases** and **82 private installed profiles / 114 cases** retain their distinct
+recorded physical revisions. Actual merged Root composition passes exactly
+**two normal tests**, including **16 state cases/rows** and **six exact strict
+diagnostics** through both actual Next aliases; no redundant72 rerun is claimed.
+Public errorFormat is required/writable `html | aria | all`; runtime permissive
+values stay bounded to the twelve measured inputs. Only the existing locator
+configuration row becomes partial; all fourteen other Browser configuration
+rows remain unchanged. testIdAttribute/exact, broader server/configuration,
+unmeasured serialization and wider engine/profile roles remain open. Raw native
+Error stacks are retained where recorded; raw stack-string parity is unqualified.
+
+Work1 epoch18 is a separate **Source308 / compiled9635 / native6c211** revision;
+its SDK1ca and producer/core/types green results do not update Root45c8. Bounded
+new measurements are:
+
+- SuiteArg v2: **two Source models / two cases / ten rows** match, alongside the
+  older SDK's same two models. Actual fresh first objects, actual public Suite
+  second arguments and reflection use only observed public allSuites ownership;
+  unknown IDs stay raw and old strict v1 reds remain retained. This is no full
+  D1 or current Root replay claim.
+- Production shared RSC Node26: **two files / two cases / two whole HTTP rows**
+  per Source/SDK lane match unchanged ordinary Next authority, including shared
+  counter1→2 and route/layout/header/cookie/query/params. Four actual external
+  tracing warnings remain recorded; warning parity or fabricated Vitest report
+  parity is not claimed. Other Nodes/cohorts/shared watch remain open.
+- Frame5: **six profiles / 42 cases / 42 rows** per Work1 Source/SDK lane match
+  the existing complete semantic projected models. Each profile also requires
+  seven nonempty native stack strings; **42 full stacks per lane are retained**.
+  Existing `fields()` excludes Error.stack, so raw stack-string parity remains
+  unqualified. No body, projector, reference or deadline changes are credited.
+
+C3's first Source gate remains blocked before collection on RunStart despite
+compiled API182. Resolver order/realm stays red despite five cases/62 measured
+fields and authored bytes passing. Chai84 raw-origin mismatches, public cross
+missing stacks and remaining D1 error/creator/Root replay contracts remain open.
+Browser absent defaults15s/30s and explicit-option presence/inheritance, EInspect
+Root integration, full aliases/producers and wider coverage/rendering profiles
+also remain required.
+
+The old frozen `0aeb157912`/D188 acceptance run **finished naturally and failed**:
+**243/264 regression** (21 failures) and **7,147/7,179 focused** (32 failures);
+the focused run has **60/64 suites** (four failures). The resumed coordinator exits1, and a fresh
+census finds no original coordinator/Jest groups. Full acceptance is still false:
+original incremental36 JSON lacks its matching exit; c6 late-closure, historical
+final-sample and unsampled reparented-descendant limitations remain. The fresh
+empty census proves no historical descendant absence. Initial143 early passes
+are historical observations, not the final result or a green checkpoint.
+
+Completed failed checkpoint 421 stays unchanged: **7,051/7,068 focused,
+240/264 regression, 35/36 incremental**, all six historical title-proof fields,
+and incomplete original47 Browser authority replay. Historical lifecycle
+**369/372 plus three original helper timeouts** also remains unchanged. Later
+scoped results replace none of those failures or retention requirements.
+
+Stable readiness remains false, supported range null and exceptions empty.
+Documentation/migrations remain last; Linux and performance work stay deferred.
+
+## Historical A1–A4 integration record, November 3, 2026
 
 Implementation `a13626a8624faaa6fff9afd5bd2994cceb5af5d1` integrates only the existing A1–A4
 packets: BenchFn, the three ordered fixture patches, Browser clock evidence,
