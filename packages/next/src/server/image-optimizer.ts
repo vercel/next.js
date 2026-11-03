@@ -51,7 +51,11 @@ import {
   imageOptimizerTransform,
   type ImageUpstream,
 } from './image-optimizer/transform'
-import { extractEtag, getHash } from './image-optimizer/extract-etag'
+import {
+  extractEtag,
+  getHash,
+  getImageEtag,
+} from './image-optimizer/extract-etag'
 import { getMaxAge } from './image-optimizer/get-max-age'
 import { getPreviouslyCachedImageOrNull } from './image-optimizer/get-previously-cached-image-or-null'
 import { getImageSize } from './image-optimizer/get-image-size'
@@ -99,6 +103,11 @@ export interface ImageParamsResult {
   mimeType: string
   sizes: number[]
   minimumCacheTTL: number
+  /**
+   * A dev-only blur placeholder request (`blur=1`) emitted by
+   * `next-image-loader`. The response is an SVG that blurs the optimized image.
+   */
+  isBlurPlaceholder: boolean
 }
 
 function getSupportedMimeType(options: string[], accept = ''): string {
@@ -193,7 +202,8 @@ export class ImageOptimizerCache {
     const remotePatterns = nextConfig.images?.remotePatterns || []
     const localPatterns = nextConfig.images?.localPatterns
     const qualities = nextConfig.images?.qualities
-    const { url, w, q } = query
+    const { url, w, q, blur } = query
+    const isBlurPlaceholder = isDev && blur === '1'
     let href: string
 
     if (domains.length > 0) {
@@ -286,12 +296,8 @@ export class ImageOptimizerCache {
 
     const sizes = [...(deviceSizes || []), ...(imageSizes || [])]
 
-    if (isDev) {
-      sizes.push(BLUR_IMG_SIZE)
-    }
-
     const isValidSize =
-      sizes.includes(width) || (isDev && width <= BLUR_IMG_SIZE)
+      sizes.includes(width) || (isBlurPlaceholder && width <= BLUR_IMG_SIZE)
 
     if (!isValidSize) {
       return {
@@ -311,7 +317,7 @@ export class ImageOptimizerCache {
     if (
       qualities &&
       !qualities.includes(quality) &&
-      !(isDev && quality === BLUR_QUALITY)
+      !(isBlurPlaceholder && quality === BLUR_QUALITY)
     ) {
       return {
         errorMessage: `"q" parameter (quality) of ${q} is not allowed`,
@@ -335,6 +341,7 @@ export class ImageOptimizerCache {
       quality,
       mimeType,
       minimumCacheTTL,
+      isBlurPlaceholder,
     }
   }
 
@@ -343,13 +350,23 @@ export class ImageOptimizerCache {
     width,
     quality,
     mimeType,
+    isBlurPlaceholder,
   }: {
     href: string
     width: number
     quality: number
     mimeType: string
+    isBlurPlaceholder?: boolean
   }): string {
-    return getHash([CACHE_VERSION, href, width, quality, mimeType])
+    // Only appended for placeholders so other cache keys stay unchanged.
+    return getHash([
+      CACHE_VERSION,
+      href,
+      width,
+      quality,
+      mimeType,
+      ...(isBlurPlaceholder ? ['blur'] : []),
+    ])
   }
 
   constructor({
@@ -1032,7 +1049,7 @@ export async function fetchInternalImage(
 async function makeBlurPlaceholder(buffer: Buffer, contentType: string) {
   // During `next dev`, we don't want to generate blur placeholders with webpack
   // because it can delay starting the dev server. Instead, `next-image-loader.js`
-  // will inline a special url to lazily generate the blur placeholder at request time.
+  // will inline a `blur=1` url to lazily generate the blur placeholder at request time.
   const meta = await getImageSize(buffer)
   const blurOpts = {
     blurWidth: meta.width,
@@ -1049,7 +1066,7 @@ export async function imageOptimizer(
   imageUpstream: ImageUpstream,
   paramsResult: Pick<
     ImageParamsResult,
-    'href' | 'width' | 'quality' | 'mimeType'
+    'href' | 'width' | 'quality' | 'mimeType' | 'isBlurPlaceholder'
   >,
   nextConfig: {
     experimental: Pick<
@@ -1067,7 +1084,6 @@ export async function imageOptimizer(
     >
   },
   opts: {
-    isDev?: boolean
     silent?: boolean
     previousCacheEntry?: IncrementalResponseCacheEntry | null
   }
@@ -1102,15 +1118,29 @@ export async function imageOptimizer(
     }
   }
 
-  return imageOptimizerTransform(imageUpstream, paramsResult, nextConfig, {
-    logger: opts.silent ? undefined : Log,
-    handleDevOutput:
-      opts.isDev &&
-      paramsResult.width <= BLUR_IMG_SIZE &&
-      paramsResult.quality === BLUR_QUALITY
-        ? makeBlurPlaceholder
-        : undefined,
-  })
+  const result = await imageOptimizerTransform(
+    imageUpstream,
+    paramsResult,
+    nextConfig,
+    { logger: opts.silent ? undefined : Log }
+  )
+
+  // The transform keeps the upstream etag for images it passes through
+  // unoptimized (SVG, animated, or failed). Those are served as-is.
+  if (paramsResult.isBlurPlaceholder && result.etag !== result.upstreamEtag) {
+    const placeholder = await makeBlurPlaceholder(
+      result.buffer,
+      result.contentType
+    )
+    return {
+      ...result,
+      buffer: placeholder.buffer,
+      contentType: placeholder.contentType,
+      etag: getImageEtag(placeholder.buffer),
+    }
+  }
+
+  return result
 }
 
 function getFileNameWithExtension(

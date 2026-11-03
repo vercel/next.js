@@ -107,10 +107,9 @@ See [`images` configuration](/docs/app/api-reference/config/next-config-js/image
 
 #### opts
 
-| Field             | Type       | Description                                                                                                 |
-| ----------------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
-| `logger`          | `object`   | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs.                    |
-| `handleDevOutput` | `function` | An async hook `(buffer, contentType) => ({ buffer, contentType })` that post-processes the optimized image. |
+| Field    | Type     | Description                                                                              |
+| -------- | -------- | ---------------------------------------------------------------------------------------- |
+| `logger` | `object` | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs. |
 
 #### Returns
 
@@ -133,7 +132,7 @@ The function runs the following steps in order:
 4. Returns animated WebP, PNG, and GIF sources unoptimized, and calls `logger.warnOnce`.
 5. Returns SVG, ICO, ICNS, BMP, JXL, and HEIC sources unmodified.
 6. Selects the output type: `paramsResult.mimeType` when non-empty, `image/jpeg` for WebP or AVIF sources when no type is requested, otherwise the detected source type.
-7. Optimizes with [`optimizeImage`](#optimizeimage) using the `experimental.imgOpt*` values, then applies `opts.handleDevOutput` when provided.
+7. Optimizes with [`optimizeImage`](#optimizeimage) using the `experimental.imgOpt*` values.
 8. On failure, returns the upstream buffer and content type with `maxAge` set to `images.minimumCacheTTL` and the caught value on `result.error`. The failure does not throw.
 
 ### optimizeImage

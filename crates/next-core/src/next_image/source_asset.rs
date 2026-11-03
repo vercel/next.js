@@ -90,8 +90,9 @@ impl Asset for StructuredImageFileSource {
                 writeln!(
                     result,
                     "export default {{ src, width: {width}, height: {height}, blurDataURL: \
-                     `/_next/image?w={blur_width}&q={quality}&url=${{encodeURIComponent(src)}}`, \
-                     blurWidth: {blur_width}, blurHeight: {blur_height} }}",
+                     `/_next/image?w={blur_width}&q={quality}&blur=1&\
+                     url=${{encodeURIComponent(src)}}`, blurWidth: {blur_width}, blurHeight: \
+                     {blur_height} }}",
                     width = StringifyJs(&info.width),
                     height = StringifyJs(&info.height),
                     quality = StringifyJs(&blur_options.quality),

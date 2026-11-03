@@ -110,7 +110,7 @@ describe('Static Image Component Tests for basePath', () => {
       expect(html).toContain(
         `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url(${
           isNextDev
-            ? '&quot;/docs/_next/image?url=%2Fdocs%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&amp;w=8&amp;q=70&quot;'
+            ? '&quot;/docs/_next/image?url=%2Fdocs%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&amp;w=8&amp;q=70&amp;blur=1&quot;'
             : '&quot;data:image/jpeg;base64,/9j/2wBDAAoKCgoKCgsMDAsPEA4QDxYUExMUFiIYGhgaGCIzICUgICUgMy03LCksNy1RQDg4QFFeT0pPXnFlZXGPiI+7u/v/2wBDAQoKCgoKCgsMDAsPEA4QDxYUExMUFiIYGhgaGCIzICUgICUgMy03LCksNy1RQDg4QFFeT0pPXnFlZXGPiI+7u/v/wgARCAAGAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAACUg//EABwQAAICAgMAAAAAAAAAAAAAABITERQAAwUVIv/aAAgBAQABPwB3H9YmrsuvN5+VxADn/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwB//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwB//9k=&quot;'
         })`
       )
@@ -126,7 +126,7 @@ describe('Static Image Component Tests for basePath', () => {
       expect(html).toContain(
         `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url(${
           isNextDev
-            ? '&quot;/docs/_next/image?url=%2Fdocs%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&amp;w=8&amp;q=70&quot;'
+            ? '&quot;/docs/_next/image?url=%2Fdocs%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&amp;w=8&amp;q=70&amp;blur=1&quot;'
             : '&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAMAAADz0U65AAAAElBMVEUAAAA6OjolJSWwsLAfHx/9/f2oxsg2AAAACXBIWXMAAAsSAAALEgHS3X78AAAAH0lEQVQImWNgwAaYmKAMZmYIzcjKyghmsDAysmDTAQAEXAAh8CaqOAAAAABJRU5ErkJggg==&quot;'
         })`
       )

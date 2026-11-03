@@ -16,7 +16,7 @@ describe('Legacy Image Component assetPrefix Tests', () => {
       expect(bgImage).toContain('data:image/jpeg;')
     } else {
       expect(bgImage).toMatch(
-        /\/_next\/image\?url=https%3A%2F%2Fexample.com%2Fpre%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=8&q=70/
+        /\/_next\/image\?url=https%3A%2F%2Fexample.com%2Fpre%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=8&q=70&blur=1/
       )
     }
   })

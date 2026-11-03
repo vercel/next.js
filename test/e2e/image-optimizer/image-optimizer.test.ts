@@ -453,7 +453,7 @@ describe('Image Optimizer', () => {
     })
   })
 
-  // Only development accepts the implicit blur-placeholder width and quality.
+  // Only development accepts blur placeholder requests.
   // @gate dev
   describe('dev support for dynamic blur placeholder', () => {
     const { next, skipped } = nextTestSetup({
@@ -462,17 +462,40 @@ describe('Image Optimizer', () => {
         images: {
           deviceSizes: [largeSize],
           imageSizes: [],
+          qualities: [75],
         },
       },
     })
     if (skipped) return
 
     it('should support width 8 per BLUR_IMG_SIZE with next dev', async () => {
-      const query = { url: '/test.png', w: 8, q: 70 }
+      const query = { url: '/test.png', w: 8, q: 70, blur: 1 }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
       expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toBe('image/svg+xml')
       await expectWidth(res, 320)
+    })
+
+    it('should not allow the blur placeholder width and quality without the blur marker', async () => {
+      const opts = { headers: { accept: 'image/webp' } }
+      const widthRes = await next.fetch(
+        `/_next/image?${toQueryString({ url: '/test.png', w: 8, q: 75 })}`,
+        opts
+      )
+      expect(widthRes.status).toBe(400)
+      expect(await widthRes.text()).toBe(
+        `"w" parameter (width) of 8 is not allowed`
+      )
+
+      const qualityRes = await next.fetch(
+        `/_next/image?${toQueryString({ url: '/test.png', w: largeSize, q: 70 })}`,
+        opts
+      )
+      expect(qualityRes.status).toBe(400)
+      expect(await qualityRes.text()).toBe(
+        `"q" parameter (quality) of 70 is not allowed`
+      )
     })
   })
 })
