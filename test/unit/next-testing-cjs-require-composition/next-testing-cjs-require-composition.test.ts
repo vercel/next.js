@@ -10,6 +10,11 @@ it.each([
   'missing-fields',
   'production-base',
   'production-lazy',
+  'reset',
+  'reset-async-arrow',
+  'reset-async-function',
+  'reset-consumer-cycle',
+  'reset-multiple-consumers',
 ])(
   'preserves original CommonJS require alongside an ESM factory: %s',
   async (variant) => {
@@ -34,7 +39,15 @@ it.each([
       expect(result).toMatchObject({
         passed: true,
         variant,
-        cases: 1,
+        cases:
+          variant === 'reset-consumer-cycle' ||
+          variant === 'reset-multiple-consumers'
+            ? 3
+            : variant === 'reset' ||
+                variant === 'reset-async-arrow' ||
+                variant === 'reset-async-function'
+              ? 2
+              : 1,
         wholeAuthoredRowExact: true,
         wholeRequireEventsExact: true,
         semanticCaseFieldsExact: true,

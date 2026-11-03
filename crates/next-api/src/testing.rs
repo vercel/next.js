@@ -1037,7 +1037,7 @@ pub(crate) async fn registration_module_resolve_options(
     Ok(options.cell())
 }
 
-fn builtin_factory_name(request: &str) -> Option<&str> {
+pub(crate) fn builtin_factory_name(request: &str) -> Option<&str> {
     let name = request.strip_prefix("node:").unwrap_or(request);
     NODE_EXTERNALS.binary_search(&name).is_ok().then_some(name)
 }
@@ -1247,6 +1247,7 @@ async fn module_reset_manifest(
     native_modules: &[crate::testing_external_modules::NativeExternalCertificate],
     native_protected: &[crate::testing_external_modules::NativeExternalCertificate],
     compiled_modules: &[ResolvedVc<Box<dyn Module>>],
+    original_require_protected: &[ResolvedVc<Box<dyn Module>>],
     static_pairs: &[crate::testing_static_runtime::StaticMockPair],
     original_initials: &[crate::testing_static_runtime::NativeOriginalInitial],
     commonjs_reset: Option<&crate::testing_cjs_reset::CommonJsResetPreparation>,
@@ -1265,8 +1266,10 @@ async fn module_reset_manifest(
             .flat_map(|known| [known.module, known.native]),
     );
     queue.extend(compiled_modules.iter().copied());
+    queue.extend(original_require_protected.iter().copied());
     if let Some(commonjs) = commonjs_reset {
         queue.extend(commonjs.protected.iter().copied());
+        queue.extend(commonjs.mock_protected.iter().copied());
         queue.extend(commonjs.actual_seeds());
         queue.extend(commonjs.runtime_seeds());
     }
@@ -1316,12 +1319,15 @@ async fn module_reset_manifest(
             continue;
         }
         let ident = module.ident().await?;
-        if static_protected.contains(&module) || next_package.get_path_to(&ident.path).is_some() {
+        if original_require_protected.contains(&module)
+            || static_protected.contains(&module)
+            || next_package.get_path_to(&ident.path).is_some()
+        {
             protected.push(module);
             continue;
         }
         if let Some(commonjs) = commonjs_reset {
-            if commonjs.protected.contains(&module) {
+            if commonjs.protected.contains(&module) || commonjs.mock_protected.contains(&module) {
                 protected.push(module);
                 continue;
             }
@@ -1489,6 +1495,12 @@ async fn module_reset_manifest(
         resettable.push(module);
         queue.extend(primary_referenced_modules(*module).await?.iter().copied());
     }
+    if !original_require_protected.is_empty() {
+        anyhow::ensure!(
+            resettable.contains(&root_module) && !protected.contains(&root_module),
+            "Original reset must leave the actual authored entry resettable"
+        );
+    }
     let mut code = String::new();
     let mut assets = fxindexmap! {};
     for (kind, modules) in [("resettable", &resettable), ("protected", &protected)] {
@@ -1499,7 +1511,9 @@ async fn module_reset_manifest(
                 .iter()
                 .any(|pair| pair.initial == *module || pair.provider == *module)
                 || commonjs_reset.is_some_and(|commonjs| {
-                    commonjs.protected.contains(module) || commonjs.contains_resettable(*module)
+                    commonjs.protected.contains(module)
+                        || commonjs.mock_protected.contains(module)
+                        || commonjs.contains_resettable(*module)
                 })
             {
                 // require.resolve emits this exact ID and a Parallel factory
@@ -1587,6 +1601,8 @@ pub(crate) struct PreparedTestModule {
     pub cjs_named_spy: bool,
     pub mock_wrappers: Vec<ResolvedVc<Box<dyn Source>>>,
     pub callable_originals: Vec<(String, ResolvedVc<EcmascriptModuleAsset>, bool)>,
+    /// Actual issued leaf owner, never an inferred module ID or native certificate.
+    pub commonjs_original_require: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
 async fn prepare_node_test(
@@ -1837,7 +1853,7 @@ async fn commonjs_full_owner(
 
 /// This bridge retains an actual unspecialized local CommonJS leaf module.
 /// It never derives module identity from an emitted ID or evaluates an original.
-async fn commonjs_original_require_module(
+pub(crate) async fn commonjs_original_require_module(
     root: &FileSystemPath,
     path: &FileSystemPath,
     original: ResolvedVc<Box<dyn Module>>,
@@ -2267,6 +2283,7 @@ async fn prepare_test_module_with_loading(
     loading: MockImportLoading,
 ) -> Result<PreparedTestModule> {
     let plan = static_mock_plan(path).await?;
+    let original_require_reset = plan.commonjs_original_reset_candidate();
     let mut earlier_plans = Vec::new();
     for input_path in inherited {
         let input_plan = static_mock_plan(input_path).await?;
@@ -2315,7 +2332,9 @@ async fn prepare_test_module_with_loading(
     };
     let static_runtime_origin = static_runtime.then_some(context);
     if (plan.is_empty() && !has_inherited)
-        || (!static_runtime && (plan.reset_modules || !plan.runtime_requests.is_empty()))
+        || (!static_runtime
+            && !original_require_reset
+            && (plan.reset_modules || !plan.runtime_requests.is_empty()))
     {
         return Ok(PreparedTestModule {
             context,
@@ -2330,6 +2349,7 @@ async fn prepare_test_module_with_loading(
             cjs_named_spy: false,
             mock_wrappers: Vec::new(),
             callable_originals: Vec::new(),
+            commonjs_original_require: Vec::new(),
         });
     }
     // Node setup files retain the supplied context's unmocked graph while the
@@ -2407,7 +2427,7 @@ async fn prepare_test_module_with_loading(
     let allow_commonjs_original_require = if allow_cjs_named_spy
         && inherited.is_empty()
         && !layered_inputs
-        && !plan.reset_modules
+        && (!plan.reset_modules || original_require_reset)
         && plan.runtime_requests.is_empty()
         && plan.declarations.len() == 1
         && crate::testing_mock_graph::is_commonjs_original_require_request(
@@ -2421,7 +2441,9 @@ async fn prepare_test_module_with_loading(
         && plan.mock_imports.is_empty()
         && plan.unmocks.is_empty()
         && (project.next_mode().await?.is_development()
-            || (project.next_mode().await?.is_production() && production_factory_plan(&plan)))
+            || (!plan.reset_modules
+                && project.next_mode().await?.is_production()
+                && production_factory_plan(&plan)))
         && let Some(entry) = project.await?.test_entry
     {
         let entry = entry.await?;
@@ -2437,6 +2459,12 @@ async fn prepare_test_module_with_loading(
     } else {
         false
     };
+    if original_require_reset && !allow_commonjs_original_require {
+        return Err(test_input_error(
+            path.clone(),
+            "Original CommonJS require resets require one isolated development Node leaf factory",
+        ));
+    }
     let cache_actual_imports = allow_cjs_named_spy && inherited.is_empty();
     let paired_native_actual_candidate = static_runtime && !plan.actual_imports.is_empty();
     let allow_native_actual_imports = if cache_actual_imports
@@ -3486,6 +3514,7 @@ async fn prepare_test_module_with_loading(
     let mut coverage_sources = Vec::new();
     let mut mock_wrappers = Vec::new();
     let mut commonjs_original_require_rules = Vec::new();
+    let mut commonjs_original_require = Vec::new();
     for (target_path, (key, original_request, original, exports, mocked_exports)) in targets {
         let commonjs_original_require_source = if allow_commonjs_original_require
             && let Some(original) =
@@ -3497,6 +3526,9 @@ async fn prepare_test_module_with_loading(
             )
             .await?;
             commonjs_original_require_rules.push(rule);
+            if original_require_reset {
+                commonjs_original_require.push(original);
+            }
             Some(source)
         } else {
             None
@@ -3602,7 +3634,7 @@ async fn prepare_test_module_with_loading(
             } else {
                 virtual_test_source(wrapper_path, code.clone()).await?
             };
-            if layered_inputs {
+            if layered_inputs || original_require_reset {
                 mock_wrappers.push(wrapper_source);
             }
             if project.next_mode().await?.is_development() {
@@ -3676,6 +3708,12 @@ async fn prepare_test_module_with_loading(
                 },
             ));
         }
+    }
+    if original_require_reset && commonjs_original_require.len() != 1 {
+        return Err(test_input_error(
+            path.clone(),
+            "Original CommonJS require resets need the actual captured local leaf module",
+        ));
     }
     let registration_source = test_source(
         path.clone(),
@@ -3819,7 +3857,8 @@ async fn prepare_test_module_with_loading(
     )
     .to_resolved()
     .await?;
-    let has_native_registration = static_runtime
+    let has_native_registration = original_require_reset
+        || static_runtime
         || !external_originals.is_empty()
         || !native_unmock_cuts.is_empty()
         || !builtin_unmock_cuts.is_empty();
@@ -3933,6 +3972,7 @@ async fn prepare_test_module_with_loading(
         cjs_named_spy,
         mock_wrappers,
         callable_originals,
+        commonjs_original_require,
     })
 }
 
@@ -3957,6 +3997,7 @@ struct PreparedNodeTestEntry {
     module: ResolvedVc<Box<dyn Module>>,
     demand_graph: Option<ResolvedVc<RuntimeImportDemandGraph>>,
     harness_coverage: Option<RcStr>,
+    original_require_registration: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -4025,6 +4066,7 @@ impl NodeTestEndpoint {
                 module,
                 demand_graph: None,
                 harness_coverage: None,
+                original_require_registration: None,
             }
             .cell());
         }
@@ -4045,6 +4087,7 @@ impl NodeTestEndpoint {
                 module,
                 demand_graph: None,
                 harness_coverage: None,
+                original_require_registration: None,
             }
             .cell());
         }
@@ -4203,6 +4246,28 @@ impl NodeTestEndpoint {
             && production_reset_plan(&plan);
         let commonjs_reset = if commonjs_runtime.is_some() {
             commonjs_runtime
+        } else if !prepared.commonjs_original_require.is_empty() {
+            if !isolated_node_runtime
+                || !self.runtime_env
+                || !self.project.next_mode().await?.is_development()
+            {
+                return Err(test_input_error(
+                    self.path.clone(),
+                    "Original CommonJS require resets require isolated development Node execution",
+                ));
+            }
+            crate::testing_cjs_reset::prepare_original_require(
+                self.project,
+                context,
+                prepared.source,
+                &self.id,
+                &prepared.commonjs_original_require,
+                prepared
+                    .registration
+                    .context("Original reset requires its actual registration")?,
+                &prepared.mock_wrappers,
+            )
+            .await?
         } else if prepared.module_reset
             && prepared.runtime_requests.is_empty()
             && prepared.registration.is_none()
@@ -4304,6 +4369,7 @@ impl NodeTestEndpoint {
                 dynamic_manifest
                     .as_ref()
                     .map_or(&[][..], |manifest| manifest.compiled_resettable.as_slice()),
+                &prepared.commonjs_original_require,
                 static_pairs,
                 original_initials,
                 commonjs_reset.as_ref(),
@@ -4489,6 +4555,7 @@ impl NodeTestEndpoint {
         )
         .await?;
         let source = test_entry_source(source).await?;
+        let authored_entry = module;
         let module = context
             .process(
                 source,
@@ -4497,6 +4564,11 @@ impl NodeTestEndpoint {
             .module()
             .to_resolved()
             .await?;
+        if let Some(commonjs) = &commonjs_reset {
+            commonjs
+                .validate_harness_owners(module, authored_entry)
+                .await?;
+        }
         let harness_coverage = if harness_sources.is_empty() {
             None
         } else {
@@ -4515,6 +4587,9 @@ impl NodeTestEndpoint {
             module,
             demand_graph,
             harness_coverage,
+            original_require_registration: commonjs_reset
+                .as_ref()
+                .and_then(|commonjs| commonjs.original_require_registration()),
         }
         .cell())
     }
@@ -4739,7 +4814,11 @@ impl NodeTestEndpoint {
                                 }
                             }
                         } else if plan.reset_modules {
-                            "{\"moduleCache\":{\"version\":1}}".to_string()
+                            if prepared.original_require_registration.is_some() {
+                                "{\"moduleCache\":{\"version\":1},\"moduleMocking\":{\"version\":1,\"originalCommonJsRequireReset\":1}}".to_string()
+                            } else {
+                                "{\"moduleCache\":{\"version\":1}}".to_string()
+                            }
                         } else {
                             if this.project.next_mode().await?.is_production() {
                                 // No synthetic coverage inventory is claimed for production.

@@ -7644,3 +7644,204 @@ describe('public pinned Edge environment option execution', () => {
     180000
   )
 })
+
+describe('original CommonJS require reset activation in the real file worker', () => {
+  it.each([
+    'valid',
+    'version',
+    'missing-cache',
+    'extra-cache',
+    'extra-mock',
+    'dynamic',
+    'production',
+    'rsc',
+    'browser',
+    'route',
+    'setup',
+    'serializers',
+    'coverage',
+    'realm',
+    'in-source',
+    'collect',
+    'inspector',
+    'cohort',
+  ] as const)(
+    'validates the original-require role before entry evaluation: %s',
+    async (mode) => {
+      const rootDir = mkdtempSync(
+        path.join(tmpdir(), 'next-original-require-reset-role-')
+      )
+      try {
+        copyFileSync(
+          path.join(__dirname, 'original-require-reset-marker-entry.cjs'),
+          path.join(rootDir, 'entry.cjs')
+        )
+        const trace = path.join(rootDir, 'trace.txt')
+        writeFileSync(
+          path.join(rootDir, 'runtime-paths.json'),
+          JSON.stringify({
+            runner: require.resolve('next/dist/experimental/testing/runner'),
+            mocking: require.resolve(
+              'next/dist/experimental/testing/mocking/runtime'
+            ),
+            moduleCache: require.resolve(
+              'next/dist/experimental/testing/mocking/module-cache'
+            ),
+            vitest: require.resolve('next/dist/experimental/testing/vitest'),
+            imports: require.resolve(
+              'next/dist/experimental/testing/runner/imports'
+            ),
+            trace,
+          })
+        )
+        const profile = {
+          id: 'original-require-reset',
+          environment:
+            mode === 'rsc'
+              ? ('rsc' as const)
+              : mode === 'browser'
+                ? ('browser' as const)
+                : ('node' as const),
+          mode:
+            mode === 'production'
+              ? ('production' as const)
+              : ('development' as const),
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+          ...(mode === 'route' ? { route: '/unsupported' } : {}),
+        }
+        const setup = mode === 'setup' ? [path.join(rootDir, 'setup.ts')] : []
+        const serializers =
+          mode === 'serializers' ? [path.join(rootDir, 'serializer.ts')] : []
+        const entry = {
+          id: 'original-require-reset:role',
+          file: path.join(rootDir, 'spec.ts'),
+          profile,
+          ...(mode === 'realm'
+            ? { executionEnvironment: { name: 'node' } }
+            : {}),
+          ...(mode === 'in-source' ? { inSource: true as const } : {}),
+        }
+        const artifact: any = {
+          version: 2,
+          kind: 'node',
+          entryId: entry.id,
+          profile,
+          revision: 'role-protocol',
+          rootDir,
+          entryPath: 'entry.cjs',
+          files: ['entry.cjs', 'runtime-paths.json'],
+          diagnostics: [],
+          setupFiles: setup,
+          snapshotSerializers: serializers,
+          moduleCache: {
+            version: 1,
+            ...(mode === 'extra-cache' ? { extra: 1 } : {}),
+          },
+          moduleMocking: {
+            version: 1,
+            originalCommonJsRequireReset: mode === 'version' ? 2 : 1,
+            ...(mode === 'extra-mock' ? { cjsNamedSpy: 1 } : {}),
+          },
+          ...(mode === 'dynamic'
+            ? { dynamicModuleMocking: { version: 1, staticMocks: 1 } }
+            : {}),
+          ...(mode === 'cohort' ? { cohort: { version: 1, entries: [] } } : {}),
+        }
+        if (mode === 'missing-cache') delete artifact.moduleCache
+        const input: WorkerInput = {
+          artifact,
+          options: {
+            runId: 'original-require-role',
+            projectDir: rootDir,
+            entry,
+            setupFiles: setup,
+            snapshotSerializers: serializers,
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+            ...(mode === 'coverage'
+              ? {
+                  coverage: { version: 1 as const, kind: 'node-line' as const },
+                }
+              : {}),
+            ...(mode === 'collect' ? { collectOnly: true } : {}),
+            ...(mode === 'inspector' ? { inspect: '127.0.0.1:0' } : {}),
+          },
+          cacheScope: { type: 'file', directory: path.join(rootDir, 'cache') },
+        }
+        const messages: WorkerMessage[] = []
+        const exit = await runTestProcess(
+          require.resolve('next/dist/experimental/testing/execution/worker'),
+          {
+            ...options,
+            cwd: rootDir,
+            env: { ...process.env, NODE_ENV: profile.mode },
+            input,
+            onMessage(message) {
+              messages.push(message as WorkerMessage)
+            },
+          }
+        )
+        expect(exit.code).toBe(0)
+        expect(messages.find((message) => message.type === 'complete')).toEqual(
+          {
+            type: 'complete',
+            result: expect.objectContaining({
+              status: mode === 'valid' ? 'passed' : 'failed',
+            }),
+            ...(mode === 'coverage'
+              ? {
+                  coverage: expect.objectContaining({
+                    version: 1,
+                    entryId: entry.id,
+                    runId: input.options.runId,
+                    complete: false,
+                    error: expect.objectContaining({
+                      message: 'Test coverage collection did not start',
+                    }),
+                  }),
+                }
+              : {}),
+          }
+        )
+        const phases = existsSync(trace)
+          ? readFileSync(trace, 'utf8').trim().split('\n')
+          : []
+        if (mode === 'valid') {
+          expect(phases).toEqual([
+            'bootstrap',
+            'cache-initialize',
+            'mock-initialize',
+            'collect',
+            'mock-case',
+            'reset-case',
+            'mock-dispose',
+            'cache-dispose',
+            'imports-dispose',
+          ])
+          const cases = messages.filter(
+            (message) =>
+              message.type === 'event' && message.event.type === 'case-end'
+          )
+          expect(cases).toHaveLength(2)
+          expect(
+            cases.every(
+              (message) =>
+                message.type === 'event' &&
+                message.event.type === 'case-end' &&
+                message.event.status === 'passed'
+            )
+          ).toBe(true)
+        } else {
+          expect(phases).toEqual([])
+          expect(JSON.stringify(messages)).toContain(
+            'Unsupported original CommonJS require reset activation'
+          )
+        }
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
+    }
+  )
+})

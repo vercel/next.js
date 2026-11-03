@@ -25,6 +25,7 @@ use turbopack::{
 };
 use turbopack_core::{
     asset::AssetContent,
+    chunk::ChunkingType,
     context::{AssetContext, ProcessResult},
     ident::Layer,
     module::Module,
@@ -91,6 +92,9 @@ pub(crate) struct CommonJsResetPreparation {
     pub source: TestSource,
     pub roots: Vec<CommonJsResetRoot>,
     pub protected: Vec<TestModule>,
+    pub mock_protected: Vec<TestModule>,
+    mock_registration: Option<TestModule>,
+    original_require_protected: Vec<TestModule>,
     actual_helper: Option<CommonJsActualResetHelper>,
     runtime_targets: Vec<CommonJsRuntimeTarget>,
 }
@@ -210,6 +214,14 @@ async fn require_closure(
     root: &FileSystemPath,
     entries: &[TestModule],
 ) -> Result<(Vec<TestModule>, Vec<CommonJsRequireEdge>)> {
+    require_closure_with_originals(root, entries, &[]).await
+}
+
+async fn require_closure_with_originals(
+    root: &FileSystemPath,
+    entries: &[TestModule],
+    protected_originals: &[TestModule],
+) -> Result<(Vec<TestModule>, Vec<CommonJsRequireEdge>)> {
     let mut queue = entries.to_vec();
     let mut seen = HashSet::new();
     let mut modules = Vec::new();
@@ -220,6 +232,9 @@ async fn require_closure(
         }
         authored_source(root, module).await?;
         modules.push(module);
+        if protected_originals.contains(&module) {
+            continue;
+        }
         for (reference, resolved) in primary_chunkable_referenced_modules(*module, false, false)
             .await?
             .iter()
@@ -238,6 +253,9 @@ async fn require_closure(
                     "CommonJS reset require edges must resolve exactly one compiled target",
                 ));
             };
+            if !protected_originals.is_empty() && original_require_builtin(*target).await? {
+                continue;
+            }
             authored_source(root, *target).await?;
             edges.push(CommonJsRequireEdge {
                 owner: module,
@@ -248,6 +266,15 @@ async fn require_closure(
         }
     }
     Ok((modules, edges))
+}
+
+/// Only the new original-require role can retain native builtin boundaries.
+/// Ordinary external packages never become protected through this predicate.
+async fn original_require_builtin(module: TestModule) -> Result<bool> {
+    let Some(external) = ResolvedVc::try_downcast_type::<CachedExternalModule>(module) else {
+        return Ok(false);
+    };
+    Ok(crate::testing::builtin_factory_name(&external.await?.request()).is_some())
 }
 
 #[turbo_tasks::value(shared)]
@@ -599,7 +626,17 @@ pub(crate) async fn prepare(
     source: TestSource,
     id: &RcStr,
 ) -> Result<Option<CommonJsResetPreparation>> {
-    prepare_commonjs(project, context, source, id, Vec::new()).await
+    prepare_commonjs(
+        project,
+        context,
+        source,
+        id,
+        Vec::new(),
+        &[],
+        Vec::new(),
+        None,
+    )
+    .await
 }
 
 /// Inspect through the actual entry's resolver before deriving any new context.
@@ -700,7 +737,17 @@ pub(crate) async fn prepare_runtime(
             "Throw-only runtime factories require an actual certified native target",
         ));
     }
-    prepare_commonjs(project, context, source, id, originals).await
+    prepare_commonjs(
+        project,
+        context,
+        source,
+        id,
+        originals,
+        &[],
+        Vec::new(),
+        None,
+    )
+    .await
 }
 
 async fn provider_original_reference(
@@ -728,12 +775,124 @@ async fn provider_original_reference(
     Ok(*reference)
 }
 
+pub(crate) async fn prepare_original_require(
+    project: ResolvedVc<Project>,
+    context: ResolvedVc<ModuleAssetContext>,
+    source: TestSource,
+    id: &RcStr,
+    protected_originals: &[TestModule],
+    registration: TestModule,
+    wrapper_sources: &[TestSource],
+) -> Result<Option<CommonJsResetPreparation>> {
+    let root = project.project_path().owned().await?;
+    anyhow::ensure!(
+        protected_originals.len() == 1,
+        "One captured original is required"
+    );
+    for original in protected_originals {
+        let path = original.ident().await?.path.clone();
+        anyhow::ensure!(
+            crate::testing::commonjs_original_require_module(&root, &path, *original).await?
+                == Some(*original),
+            "CommonJS reset must retain its actual captured local leaf owner"
+        );
+    }
+    let source_path = source.ident().await?.path.clone();
+    let registration_source = (*registration.source().await?).ok_or_else(|| {
+        test_input_error(
+            source_path.clone(),
+            "Registration must retain its actual source",
+        )
+    })?;
+    let authored_entry = context
+        .process(
+            *source,
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+        )
+        .module()
+        .to_resolved()
+        .await?;
+    anyhow::ensure!(
+        registration != authored_entry && registration_source != source,
+        "Registration and authored entry must retain distinct actual Module and Source identities"
+    );
+    anyhow::ensure!(
+        wrapper_sources.len() == 1,
+        "One issued mock namespace is required"
+    );
+    let mut mock_protected = vec![registration];
+    let mut rules = Vec::new();
+    for wrapper_source in wrapper_sources {
+        let wrapper = context
+            .process(
+                **wrapper_source,
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        anyhow::ensure!(
+            (*wrapper.source().await?) == Some(*wrapper_source)
+                && wrapper != authored_entry
+                && wrapper != registration
+                && *wrapper_source != source,
+            "Mock namespace must retain its exact issued Source and distinct Module owner"
+        );
+        let wrapper_path = wrapper_source.ident().await?.path.clone();
+        let placeable = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(wrapper)
+            .ok_or_else(|| {
+                test_input_error(
+                    wrapper_path.clone(),
+                    "Mock namespace must be an actual chunk-placeable Module",
+                )
+            })?;
+        anyhow::ensure!(
+            matches!(
+                *placeable.get_exports().await?,
+                EcmascriptExports::DynamicNamespace
+            ),
+            "Mock namespace must retain its actual DynamicNamespace exports"
+        );
+        let transition = NamespaceTransition {
+            source: *wrapper_source,
+            module: wrapper,
+        }
+        .resolved_cell();
+        rules.push(TransitionRule::new_all(
+            RuleCondition::ResourcePathEquals(wrapper_source.ident().await?.path.clone()),
+            ResolvedVc::upcast(transition),
+        ));
+        mock_protected.push(wrapper);
+    }
+    let layer = context.await?.layer.clone();
+    let context = with_rules(context, rules, layer).await?;
+    let prepared = prepare_commonjs(
+        project,
+        context,
+        source,
+        id,
+        Vec::new(),
+        protected_originals,
+        mock_protected,
+        Some(registration),
+    )
+    .await?;
+    anyhow::ensure!(
+        prepared.is_some(),
+        "Original require resets need an actual compiled consumer"
+    );
+    Ok(prepared)
+}
+
 async fn prepare_commonjs(
     project: ResolvedVc<Project>,
     context: ResolvedVc<ModuleAssetContext>,
     source: TestSource,
     id: &RcStr,
     runtime_originals: Vec<RuntimeOriginal>,
+    protected_originals: &[TestModule],
+    mock_protected: Vec<TestModule>,
+    mock_registration: Option<TestModule>,
 ) -> Result<Option<CommonJsResetPreparation>> {
     let root = project.project_path().owned().await?;
     let actual_targets = actual_reset_targets(context, source).await?;
@@ -759,6 +918,9 @@ async fn prepare_commonjs(
         {
             continue;
         }
+        if protected_originals.contains(&module) || mock_protected.contains(&module) {
+            continue;
+        }
         if commonjs(module).await? {
             authored_source(&root, module).await?;
             inspected.push(module);
@@ -780,7 +942,17 @@ async fn prepare_commonjs(
     if inspected.is_empty() {
         return Ok(None);
     }
-    let (original_modules, original_edges) = require_closure(&root, &inspected).await?;
+    let (original_modules, original_edges) = if protected_originals.is_empty() {
+        require_closure(&root, &inspected).await?
+    } else {
+        require_closure_with_originals(&root, &inspected, protected_originals).await?
+    };
+    anyhow::ensure!(
+        protected_originals
+            .iter()
+            .all(|original| original_modules.contains(original)),
+        "CommonJS consumer must retain every actual captured original edge"
+    );
     // Preserve ordinary leaf-only compilation, including every existing raw format.
     // Actual-import resets still need the certified direct-root namespace when
     // that root has no require descendants to retain.
@@ -832,6 +1004,9 @@ async fn prepare_commonjs(
     );
     let mut require_rules = Vec::new();
     for edge in &original_edges {
+        if protected_originals.contains(&edge.target) {
+            continue;
+        }
         // Only concrete targets of certified evaluation edges enter the held layer.
         let path = authored_source(&root, edge.target)
             .await?
@@ -890,8 +1065,11 @@ async fn prepare_commonjs(
         compiled.push(module);
     }
     // Re-certify the complete actual derived require closure, including cycle backedges.
-    let mut protected = Vec::new();
+    let mut protected = protected_originals.to_vec();
     for edge in &original_edges {
+        if protected_originals.contains(&edge.target) {
+            continue;
+        }
         let source = authored_source(&root, edge.target).await?;
         let target = require_context
             .process(
@@ -909,10 +1087,12 @@ async fn prepare_commonjs(
         }
         protected.push(target);
     }
-    let (protected, _) = require_closure(&root, &protected).await?;
+    let (protected, _) =
+        require_closure_with_originals(&root, &protected, protected_originals).await?;
     let mut all_compiled = compiled.clone();
     all_compiled.extend(protected.iter().copied());
-    let (all_derived, derived_edges) = require_closure(&root, &all_compiled).await?;
+    let (all_derived, derived_edges) =
+        require_closure_with_originals(&root, &all_compiled, protected_originals).await?;
     if all_derived
         .iter()
         .any(|module| !compiled.contains(module) && !protected.contains(module))
@@ -1119,12 +1299,80 @@ async fn prepare_commonjs(
         source,
         roots,
         protected,
+        mock_protected,
+        mock_registration,
+        original_require_protected: protected_originals.to_vec(),
         actual_helper,
         runtime_targets,
     }))
 }
 
+/// Require the actual final harness's shared CommonJS edge, never a supplied graph root.
+async fn actual_shared_harness_owner(
+    harness: TestModule,
+    request: &str,
+    expected: TestModule,
+) -> Result<bool> {
+    let request = Request::parse(RcStr::from(request).into())
+        .to_resolved()
+        .await?;
+    let mut matches = 0;
+    for (reference, resolved) in primary_chunkable_referenced_modules(*harness, false, false)
+        .await?
+        .iter()
+    {
+        let Some(reference) = ResolvedVc::try_downcast_type::<CjsRequireAssetReference>(*reference)
+        else {
+            continue;
+        };
+        if reference.await?.request() != request {
+            continue;
+        }
+        if !matches!(resolved.chunking_type, ChunkingType::Shared { .. })
+            || resolved.modules.as_slice() != [expected]
+            || reference
+                .resolve_reference()
+                .await?
+                .primary_modules()
+                .await?
+                .as_slice()
+                != [expected]
+        {
+            return Ok(false);
+        }
+        matches += 1;
+    }
+    Ok(matches == 1)
+}
+
 impl CommonJsResetPreparation {
+    pub(crate) fn original_require_registration(&self) -> Option<TestModule> {
+        self.mock_registration
+    }
+
+    /// Registration and the authored spec are distinct shared loads of the actual Node harness.
+    pub(crate) async fn validate_harness_owners(
+        &self,
+        harness: TestModule,
+        authored_entry: TestModule,
+    ) -> Result<()> {
+        if let Some(registration) = self.mock_registration {
+            anyhow::ensure!(
+                harness != registration
+                    && harness != authored_entry
+                    && registration != authored_entry
+                    && self.mock_protected.contains(&registration)
+                    && *authored_entry.source().await? == Some(self.source)
+                    && actual_shared_harness_owner(harness, "INNER_TEST_MOCKS", registration)
+                        .await?
+                    && actual_shared_harness_owner(harness, "INNER_TEST_MODULE", authored_entry)
+                        .await?,
+                "Original CommonJS resets must retain their exact shared registration and \
+                 authored entry loads in the actual Node harness"
+            );
+        }
+        Ok(())
+    }
     pub(crate) async fn runtime_target(
         &self,
         request: &str,
@@ -1183,7 +1431,10 @@ impl CommonJsResetPreparation {
         let mut queue = vec![entry];
         let mut seen = HashSet::new();
         while let Some(module) = queue.pop() {
-            if !seen.insert(module) || self.protected.contains(&module) {
+            if !seen.insert(module)
+                || self.protected.contains(&module)
+                || self.mock_protected.contains(&module)
+            {
                 continue;
             }
             for (reference, resolved) in primary_chunkable_referenced_modules(*module, false, false)
@@ -1195,6 +1446,10 @@ impl CommonJsResetPreparation {
                         .modules
                         .iter()
                         .any(|target| self.protected.contains(target))
+                    && !resolved
+                        .modules
+                        .iter()
+                        .all(|target| self.original_require_protected.contains(target))
                     && !self.roots.iter().any(|root| root.compiled == module)
                 {
                     return Err(test_input_error(
@@ -1203,6 +1458,22 @@ impl CommonJsResetPreparation {
                     ));
                 }
                 queue.extend(resolved.modules.iter().copied());
+            }
+        }
+        if !self.mock_protected.is_empty() {
+            let entry_source = *entry.source().await?;
+            anyhow::ensure!(
+                entry_source == Some(self.source),
+                "Resettable authored entry must retain its actual Source"
+            );
+            for mock_owner in &self.mock_protected {
+                anyhow::ensure!(
+                    (self.mock_registration == Some(*mock_owner) || seen.contains(mock_owner))
+                        && *mock_owner != entry
+                        && (*mock_owner.source().await?) != entry_source,
+                    "Protected mock owner must be actually reachable and distinct from authored \
+                     entry"
+                );
             }
         }
         if let Some(helper) = &self.actual_helper {
@@ -1276,10 +1547,13 @@ mod tests {
         environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
         file_source::FileSource,
         ident::Layer,
-        reference::primary_chunkable_referenced_modules,
+        module::Module,
+        reference::{ModuleReference, primary_chunkable_referenced_modules},
         reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     };
-    use turbopack_ecmascript::references::cjs::CjsRequireAssetReference;
+    use turbopack_ecmascript::{
+        chunk::EcmascriptChunkPlaceable, references::cjs::CjsRequireAssetReference,
+    };
     use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
     use crate::testing_cjs_reset::{
@@ -1335,6 +1609,224 @@ mod tests {
                 .await?;
             modules.insert(name, module);
         }
+        // The actual registration can share the authored path while retaining a
+        // distinct Source/Module. Its issued bridge must never select the spec.
+        let authored_source = Vc::upcast::<Box<dyn turbopack_core::source::Source>>(
+            FileSource::new(directory.join("acyclic.cjs")?),
+        )
+        .to_resolved()
+        .await?;
+        let registration_source = crate::testing::test_source(
+            directory.join("acyclic.cjs")?,
+            Some(rcstr!("registration-owner-control")),
+            "export const registration = 1".into(),
+        )
+        .await?;
+        let registration = context
+            .process(
+                *registration_source,
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        assert_eq!(
+            registration.ident().await?.path,
+            modules["acyclic.cjs"].ident().await?.path
+        );
+        assert_ne!(registration_source, authored_source);
+        assert_ne!(registration, modules["acyclic.cjs"]);
+        assert_eq!(*registration.source().await?, Some(registration_source));
+        assert_eq!(
+            *modules["acyclic.cjs"].source().await?,
+            Some(authored_source)
+        );
+        let (bridge, rule) = crate::testing_external_modules::resolved_module_bridge(
+            registration,
+            "original-reset-registration-control.mjs",
+        )
+        .await?;
+        let original_layer = context.await?.layer.clone();
+        let bridged = with_rules(context, vec![rule], original_layer.clone()).await?;
+        assert_eq!(
+            bridged
+                .process(
+                    *bridge,
+                    ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
+                )
+                .module()
+                .to_resolved()
+                .await?,
+            registration
+        );
+        let bridged_authored = bridged
+            .process(
+                *authored_source,
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        assert_ne!(bridged_authored, registration);
+        assert_eq!(*bridged_authored.source().await?, Some(authored_source));
+        // The no-hoisted spec has no registration import. Its actual harness
+        // loads the separate registration Module before the authored Module.
+        assert!(
+            !crate::testing_cjs_reset::actual_shared_harness_owner(
+                modules["acyclic.cjs"],
+                "INNER_TEST_MOCKS",
+                registration
+            )
+            .await?
+        );
+        let harness_source = crate::testing::test_source(
+            directory.join("actual-node-harness.mjs")?,
+            None,
+            "export async function loadTestModule(){await require(/*turbopackChunkingType: \
+             shared*/ 'INNER_TEST_MOCKS');return require(/*turbopackChunkingType: shared*/ \
+             'INNER_TEST_MODULE')}"
+                .into(),
+        )
+        .await?;
+        let harness = context.process(*harness_source, ReferenceType::Internal(turbo_tasks::ResolvedVc::cell(
+            turbo_tasks::fxindexmap!{rcstr!("INNER_TEST_MOCKS")=>registration,rcstr!("INNER_TEST_MODULE")=>modules["acyclic.cjs"]}
+        ))).module().to_resolved().await?;
+        assert!(
+            crate::testing_cjs_reset::actual_shared_harness_owner(
+                harness,
+                "INNER_TEST_MOCKS",
+                registration
+            )
+            .await?
+        );
+        assert!(
+            crate::testing_cjs_reset::actual_shared_harness_owner(
+                harness,
+                "INNER_TEST_MODULE",
+                modules["acyclic.cjs"]
+            )
+            .await?
+        );
+        let other_source = crate::testing::test_source(
+            directory.join("acyclic.cjs")?,
+            Some(rcstr!("registration-owner-control")),
+            "export const registration=2".into(),
+        )
+        .await?;
+        let other_registration = context
+            .process(
+                *other_source,
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        assert_ne!(other_registration, registration);
+        assert!(
+            !crate::testing_cjs_reset::actual_shared_harness_owner(
+                harness,
+                "INNER_TEST_MOCKS",
+                other_registration
+            )
+            .await?
+        );
+        let ordinary_harness_source = crate::testing::test_source(
+            directory.join("ordinary-node-harness.mjs")?,
+            None,
+            "export function load(){return require('INNER_TEST_MOCKS')}".into(),
+        )
+        .await?;
+        let ordinary_harness = context
+            .process(
+                *ordinary_harness_source,
+                ReferenceType::Internal(turbo_tasks::ResolvedVc::cell(
+                    turbo_tasks::fxindexmap! {rcstr!("INNER_TEST_MOCKS")=>registration},
+                )),
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        assert!(
+            !crate::testing_cjs_reset::actual_shared_harness_owner(
+                ordinary_harness,
+                "INNER_TEST_MOCKS",
+                registration
+            )
+            .await?
+        );
+        assert!(
+            !crate::testing_cjs_reset::actual_shared_harness_owner(
+                harness,
+                "INNER_TEST_MISSING",
+                registration
+            )
+            .await?
+        );
+        let wrapper_path = directory.join("issued-mock-namespace.js")?;
+        let wrapper_source = crate::testing::test_source(
+            wrapper_path.clone(),
+            None,
+            "__turbopack_context__.n({ value: 1 });".into(),
+        )
+        .await?;
+        let wrapper = context
+            .process(
+                *wrapper_source,
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        let placeable = turbo_tasks::ResolvedVc::try_sidecast::<
+            Box<dyn turbopack_ecmascript::chunk::EcmascriptChunkPlaceable>,
+        >(wrapper)
+        .context("actual namespace chunk owner")?;
+        assert!(matches!(
+            *placeable.get_exports().await?,
+            turbopack_ecmascript::chunk::EcmascriptExports::DynamicNamespace
+        ));
+        let held = NamespaceTransition {
+            source: wrapper_source,
+            module: wrapper,
+        }
+        .resolved_cell();
+        let retained = with_rules(
+            context,
+            vec![TransitionRule::new_all(
+                RuleCondition::ResourcePathEquals(wrapper_path.clone()),
+                turbo_tasks::ResolvedVc::upcast(held),
+            )],
+            original_layer,
+        )
+        .await?;
+        assert_eq!(
+            retained
+                .process(
+                    *wrapper_source,
+                    ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
+                )
+                .module()
+                .to_resolved()
+                .await?,
+            wrapper
+        );
+        let changed = crate::testing::test_source(
+            wrapper_path,
+            None,
+            "__turbopack_context__.n({ value: 2 });".into(),
+        )
+        .await?;
+        assert!(
+            retained
+                .process(
+                    *changed,
+                    ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
+                )
+                .module()
+                .to_resolved()
+                .await
+                .is_err()
+        );
         if priority {
             let source = Vc::upcast::<Box<dyn turbopack_core::source::Source>>(FileSource::new(
                 directory.join("acyclic.cjs")?,
@@ -1430,6 +1922,49 @@ mod tests {
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].owner, modules["acyclic.cjs"]);
         assert_eq!(edges[0].target, modules["dependency.cjs"]);
+        let captured = modules["dependency.cjs"];
+        for (request, builtin) in [
+            ("node:fs", true),
+            ("fs", true),
+            ("ordinary-package", false),
+            ("node:not-a-real-builtin", false),
+        ] {
+            let external = turbopack_ecmascript::references::external_module::CachedExternalModule::new(
+                request.into(), None,
+                turbopack_ecmascript::references::external_module::CachedExternalType::CommonJs,
+                turbopack_ecmascript::references::external_module::CachedExternalTracingMode::Untraced,
+            ).to_resolved().await?;
+            assert_eq!(
+                crate::testing_cjs_reset::original_require_builtin(
+                    turbo_tasks::ResolvedVc::upcast(external)
+                )
+                .await?,
+                builtin,
+                "{request}"
+            );
+        }
+        assert!(!crate::testing_cjs_reset::original_require_builtin(captured).await?);
+        let (retained, retained_edges) = crate::testing_cjs_reset::require_closure_with_originals(
+            &directory,
+            &[modules["acyclic.cjs"]],
+            &[captured],
+        )
+        .await?;
+        assert_eq!(retained, acyclic);
+        assert_eq!(retained_edges.len(), 1);
+        assert_eq!(retained_edges[0].owner, modules["acyclic.cjs"]);
+        assert_eq!(retained_edges[0].target, captured);
+        assert_eq!(retained_edges[0].reference, edges[0].reference);
+        assert_eq!(
+            retained_edges[0]
+                .reference
+                .resolve_reference()
+                .await?
+                .primary_modules()
+                .await?
+                .as_slice(),
+            &[captured]
+        );
         let (cycle, edges) = require_closure(&directory, &[modules["cycle.cjs"]]).await?;
         assert_eq!(cycle.len(), 2);
         assert_eq!(edges.len(), 2);
@@ -1457,6 +1992,18 @@ mod tests {
                 .err()
                 .with_context(|| format!("{name} must be refused"))?;
             assert!(error.to_string().contains(message), "{name}: {error}");
+            let protected_error = crate::testing_cjs_reset::require_closure_with_originals(
+                &directory,
+                &[modules[name]],
+                &[captured],
+            )
+            .await
+            .err()
+            .with_context(|| format!("protected original must not admit {name}"))?;
+            assert!(
+                protected_error.to_string().contains(message),
+                "{name}: {protected_error}"
+            );
         }
         Ok(())
     }

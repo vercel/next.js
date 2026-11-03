@@ -262,6 +262,8 @@ interface CompiledTestArtifactBase<
     version: 1
     /** Native static-export and direct named-import ownership certificate. */
     cjsNamedSpy?: 1
+    /** Captured CommonJS original with separately resettable importing modules. */
+    originalCommonJsRequireReset?: 1
     /** Ordered native setup/spec plans share actual module-cache identities. */
     setupInputs?: 1
     /** Native factory-only production plan and its immutable source/output closure. */

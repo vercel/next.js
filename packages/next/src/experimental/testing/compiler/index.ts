@@ -1914,6 +1914,31 @@ export async function createTestCompilerSession(
         const originalInitialMocks =
           metadata.dynamicModuleMocking?.nativeOriginalInitial === 1
         const nativeRuntimeMocks = staticRuntimeMocks || originalInitialMocks
+        const originalCommonJsRequireReset =
+          metadata.moduleMocking?.originalCommonJsRequireReset === 1
+        if (
+          metadata.moduleMocking?.originalCommonJsRequireReset !== undefined &&
+          (!originalCommonJsRequireReset ||
+            metadata.moduleMocking?.version !== 1 ||
+            Object.keys(metadata.moduleMocking).length !== 2 ||
+            metadata.moduleCache?.version !== 1 ||
+            Object.keys(metadata.moduleCache).length !== 1 ||
+            Object.keys(metadata).length !== 2 ||
+            metadata.dynamicModuleMocking !== undefined ||
+            profile.environment !== 'node' ||
+            profile.mode !== 'development' ||
+            profile.route !== undefined ||
+            profile.browserClient ||
+            cohortInputs ||
+            setupFiles.length ||
+            snapshotSerializers.length ||
+            coverage ||
+            usesInSource ||
+            entry.executionEnvironment)
+        )
+          throw new Error(
+            'Original CommonJS require resets require isolated ordinary development Node metadata'
+          )
         if (metadata.dynamicModuleMocking !== undefined) {
           if (
             metadata.dynamicModuleMocking?.version !== 1 ||
@@ -1952,7 +1977,9 @@ export async function createTestCompilerSession(
             profile.environment !== 'node' ||
             (profile.mode !== 'development' && !productionReset) ||
             cohortInputs ||
-            (metadata.moduleMocking && !nativeRuntimeMocks) ||
+            (metadata.moduleMocking &&
+              !nativeRuntimeMocks &&
+              !originalCommonJsRequireReset) ||
             setupFiles.length ||
             snapshotSerializers.length ||
             coverage ||
@@ -1964,6 +1991,8 @@ export async function createTestCompilerSession(
             )
           moduleCache = { version: 1 }
           if (nativeRuntimeMocks) moduleMocking = { version: 1 }
+          else if (originalCommonJsRequireReset)
+            moduleMocking = { version: 1, originalCommonJsRequireReset: 1 }
         } else {
           const productionStaticFactory =
             profile.mode === 'production' &&

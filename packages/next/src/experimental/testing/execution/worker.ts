@@ -594,6 +594,31 @@ async function run({
       artifact.kind === 'node' &&
       artifact.dynamicModuleMocking?.nativeOriginalInitial === 1
     const nativeRuntimeMocks = staticRuntimeMocks || originalInitialMocks
+    const originalCommonJsRequireReset =
+      artifact.moduleMocking?.originalCommonJsRequireReset === 1
+    if (
+      artifact.moduleMocking?.originalCommonJsRequireReset !== undefined &&
+      (!originalCommonJsRequireReset ||
+        artifact.kind !== 'node' ||
+        artifact.profile.environment !== 'node' ||
+        artifact.profile.mode !== 'development' ||
+        artifact.profile.route !== undefined ||
+        artifact.profile.browserClient ||
+        artifact.moduleMocking.version !== 1 ||
+        Object.keys(artifact.moduleMocking).length !== 2 ||
+        artifact.moduleCache?.version !== 1 ||
+        Object.keys(artifact.moduleCache).length !== 1 ||
+        artifact.dynamicModuleMocking !== undefined ||
+        artifact.cohort ||
+        options.coverage ||
+        options.collectOnly ||
+        options.inspect ||
+        options.setupFiles.length ||
+        options.snapshotSerializers?.length ||
+        options.entry.inSource ||
+        options.entry.executionEnvironment)
+    )
+      throw new Error('Unsupported original CommonJS require reset activation')
     const productionStaticRuntimeMocks =
       nativeRuntimeMocks &&
       artifact.profile.mode === 'production' &&
@@ -746,7 +771,8 @@ async function run({
         (options.coverage && artifact.moduleMocking.coverage?.version !== 1) ||
         ('moduleCache' in artifact &&
           artifact.moduleCache !== undefined &&
-          !nativeRuntimeMocks) ||
+          !nativeRuntimeMocks &&
+          !originalCommonJsRequireReset) ||
         (artifact.kind === 'rsc' &&
           (artifact.profile.route !== undefined ||
             options.setupFiles.length ||
@@ -771,7 +797,9 @@ async function run({
             ((!artifact.moduleMocking && !artifact.dynamicModuleMocking) ||
               productionStaticRuntimeMocks)
           )) ||
-        (artifact.moduleMocking && !nativeRuntimeMocks) ||
+        (artifact.moduleMocking &&
+          !nativeRuntimeMocks &&
+          !originalCommonJsRequireReset) ||
         artifact.cohort ||
         options.coverage ||
         options.collectOnly ||

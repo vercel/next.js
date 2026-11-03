@@ -1454,6 +1454,90 @@ describe('test compiler artifact publication', () => {
     expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
   })
 
+  it('activates the actual original CommonJS require reset role without dynamic mocks', async () => {
+    const nodeProfile = { ...profile, environment: 'node' as const }
+    session = await createTestCompilerSession(dir, nodeProfile)
+    mockMetadata = {
+      moduleCache: { version: 1 },
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 1 },
+    }
+    const originalBytes = JSON.stringify(mockMetadata)
+    const artifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(artifact.kind).toBe('node')
+    if (artifact.kind !== 'node')
+      throw new Error('Expected original require owner')
+    expect(artifact.moduleCache).toEqual({ version: 1 })
+    expect(artifact.moduleMocking).toEqual({
+      version: 1,
+      originalCommonJsRequireReset: 1,
+    })
+    expect(artifact).not.toHaveProperty('dynamicModuleMocking')
+    expect(JSON.stringify(mockMetadata)).toBe(originalBytes)
+    mockMetadata = { moduleCache: { version: 1 } }
+    const nextArtifact = await session.compile(
+      { ...entry(), profile: nodeProfile },
+      { signal: new AbortController().signal }
+    )
+    expect(nextArtifact).not.toHaveProperty('moduleMocking')
+  })
+
+  it.each([
+    {
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 2 },
+      moduleCache: { version: 1 },
+    },
+    {
+      moduleMocking: { version: 2, originalCommonJsRequireReset: 1 },
+      moduleCache: { version: 1 },
+    },
+    { moduleMocking: { version: 1, originalCommonJsRequireReset: 1 } },
+    {
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 1 },
+      moduleCache: { version: 2 },
+    },
+    {
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 1 },
+      moduleCache: { version: 1, extra: 1 },
+    },
+    {
+      moduleMocking: {
+        version: 1,
+        originalCommonJsRequireReset: 1,
+        cjsNamedSpy: 1,
+      },
+      moduleCache: { version: 1 },
+    },
+    {
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 1 },
+      moduleCache: { version: 1 },
+      extra: 1,
+    },
+    {
+      moduleMocking: { version: 1, originalCommonJsRequireReset: 1 },
+      moduleCache: { version: 1 },
+      dynamicModuleMocking: { version: 1, staticMocks: 1 },
+    },
+  ])(
+    'rejects malformed original CommonJS require reset activation %j',
+    async (metadata) => {
+      const nodeProfile = { ...profile, environment: 'node' as const }
+      session = await createTestCompilerSession(dir, nodeProfile)
+      mockMetadata = metadata
+      await expect(
+        session.compile(
+          { ...entry(), profile: nodeProfile },
+          { signal: new AbortController().signal }
+        )
+      ).rejects.toThrow(
+        'Original CommonJS require resets require isolated ordinary development Node metadata'
+      )
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
+    }
+  )
+
   it('publishes reset capability only from emitted native cache metadata', async () => {
     const nodeProfile = { ...profile, environment: 'node' as const }
     session = await createTestCompilerSession(dir, nodeProfile)

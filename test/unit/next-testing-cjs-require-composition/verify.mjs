@@ -141,9 +141,15 @@ try {
   assert.equal(started[0].entry.profile.environment, 'node')
   assert.equal(started[0].entry.profile.runtime, 'nodejs')
   const actual = {
-    row: JSON.parse(
-      fs.readFileSync(path.join(output, 'rows.jsonl'), 'utf8').trim()
-    ),
+    row: contract.multipleRows
+      ? fs
+          .readFileSync(path.join(output, 'rows.jsonl'), 'utf8')
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+      : JSON.parse(
+          fs.readFileSync(path.join(output, 'rows.jsonl'), 'utf8').trim()
+        ),
     events: fs
       .readFileSync(path.join(output, 'events.jsonl'), 'utf8')
       .trim()

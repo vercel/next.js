@@ -51,6 +51,27 @@ pub(crate) fn native_unmock_original_is_available<K: Eq + std::hash::Hash>(
 }
 
 impl StaticMockPlan {
+    /// Syntax only; assembly must retain the actual local CommonJS leaf owner.
+    pub(crate) fn commonjs_original_reset_candidate(&self) -> bool {
+        let [factory] = self.declarations.as_slice() else {
+            return false;
+        };
+        self.reset_modules
+            && self.hoisted.is_empty()
+            && self.actual_imports.is_empty()
+            && self.mock_imports.is_empty()
+            && self.unmocks.is_empty()
+            && self.runtime_requests.is_empty()
+            && (factory.request.starts_with("./") || factory.request.starts_with("../"))
+            && !factory.request.contains(['?', '#', '\\'])
+            && !factory.automatic
+            && !factory.spy
+            && !factory.has_parameters
+            && factory.has_object_return
+            && !factory.has_spread
+            && !factory.has_reset_factory_escape
+    }
+
     /// Syntax groups only. Native resolution/certificates remain assembly-owned.
     pub(crate) fn native_unmock_targets(&self) -> Option<Vec<NativeUnmockTarget>> {
         if self.declarations.is_empty()
@@ -288,6 +309,7 @@ pub(crate) struct StaticMockDeclaration {
     pub has_spread: bool,
     pub has_object_return: bool,
     pub has_parameters: bool,
+    pub has_reset_factory_escape: bool,
     pub automatic: bool,
     pub spy: bool,
 }
@@ -802,7 +824,21 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         && calls.mock_import_calls.is_empty()
         && calls.unmock_calls.is_empty()
         && calls.runtime_calls.is_empty();
+    let commonjs_original_reset = allow_runtime
+        && calls.calls.len() == 1
+        && top_level(&calls.calls[0])
+        && calls.hoisted_calls.is_empty()
+        && calls.actual_calls.is_empty()
+        && calls.mock_import_calls.is_empty()
+        && calls.unmock_calls.is_empty()
+        && calls.runtime_calls.is_empty()
+        && matches!(calls.calls[0].args.first(), Some(argument)
+            if argument.spread.is_none() && matches!(&*argument.expr, Expr::Lit(Lit::Str(request))
+                if request.value.as_str().is_some_and(|request|
+                    (request.starts_with("./") || request.starts_with("../"))
+                    && !request.contains(['?', '#', '\\']))));
     if !calls.reset_calls.is_empty()
+        && !commonjs_original_reset
         && !native_static
         && !native_hoisted_runtime
         && !actual_reset
@@ -1232,6 +1268,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
                 has_spread: false,
                 has_object_return: false,
                 has_parameters: false,
+                has_reset_factory_escape: true,
                 automatic: true,
                 spy,
             });
@@ -1267,6 +1304,15 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
                  before spec imports."
             );
         }
+        // Imported API binding identities and loader syntax are actual AST facts.
+        // Zero formal parameters alone cannot exclude an arguments/helper escape.
+        let mut reset_references = ResetFactoryReferences {
+            bindings: &bindings,
+            escaped: false,
+        };
+        factory.visit_with(&mut reset_references);
+        let mut reset_loaders = CjsSpyLoaderSyntax::default();
+        factory.visit_with(&mut reset_loaders);
         let original = match factory {
             Expr::Arrow(arrow) => arrow.params.first(),
             Expr::Fn(function) => function.function.params.first().map(|param| &param.pat),
@@ -1328,6 +1374,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
                 Expr::Fn(function) => !function.function.params.is_empty(),
                 _ => true,
             },
+            has_reset_factory_escape: reset_references.escaped || reset_loaders.0,
             automatic: false,
             spy: false,
         });
@@ -1359,7 +1406,7 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         .collect::<Vec<_>>();
     masks.extend(unmasked_actual_edits);
     masks.sort_by_key(|edit| edit.start);
-    Ok(StaticMockPlan {
+    let plan = StaticMockPlan {
         source: edited_range(source, 0, source.len(), &masks)?,
         declarations,
         hoisted,
@@ -1370,7 +1417,29 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         reset_modules,
         runtime_requests,
         throw_only_runtime_requests,
-    })
+    };
+    if reset_modules && commonjs_original_reset && !plan.commonjs_original_reset_candidate() {
+        bail!(
+            "vi.resetModules cannot currently combine with this static factory plan ({filename})."
+        );
+    }
+    Ok(plan)
+}
+
+struct ResetFactoryReferences<'a> {
+    bindings: &'a HashSet<Id>,
+    escaped: bool,
+}
+impl Visit for ResetFactoryReferences<'_> {
+    fn visit_ident(&mut self, ident: &Ident) {
+        self.escaped |= self.bindings.contains(&ident.to_id());
+    }
+    fn visit_member_expr(&mut self, member: &MemberExpr) {
+        // This initial role has no reflective/computed factory lookup contract.
+        self.escaped |= matches!(member.prop, MemberProp::Computed(_));
+        member.visit_children_with(self);
+    }
+    fn visit_ts_type(&mut self, _: &TsType) {}
 }
 
 fn hoisted_call(expr: &Expr) -> Option<&CallExpr> {
@@ -3717,6 +3786,95 @@ mod factory_parameter_plan_tests {
             let plan = extract_static_mocks(source, "spec.mjs").unwrap();
             assert!(plan.declarations[0].automatic);
             assert!(!plan.declarations[0].has_parameters);
+        }
+    }
+}
+
+#[cfg(test)]
+mod original_require_reset_plan_tests {
+    use crate::testing_mock_source::{extract_static_mocks, extract_test_mocks};
+
+    #[test]
+    fn retains_only_runtime_aware_relative_original_reset_candidates() {
+        for factory in [
+            "()=>({value:1})",
+            "function(){return {value:1}}",
+            "()=>{globalThis.counter=(globalThis.counter??0)+1;return {value:1}}",
+        ] {
+            let source = format!(
+                "import {{vi}} from 'vitest';vi.mock('./target.cjs',{factory});vi.resetModules()"
+            );
+            assert!(extract_static_mocks(&source, "spec.mjs").is_err());
+            let plan = extract_test_mocks(&source, "spec.mjs").unwrap();
+            assert!(plan.commonjs_original_reset_candidate(), "{factory}");
+            assert!(plan.reset_modules);
+            assert!(plan.runtime_requests.is_empty());
+            assert_eq!(plan.declarations[0].original_factory_source, factory);
+        }
+    }
+
+    #[test]
+    fn refuses_factory_arguments_helpers_and_reflective_loader_escapes() {
+        for factory in [
+            "(original)=>({value:1})",
+            "(...args)=>({value:1})",
+            "function(){return {value:arguments[0]()}}",
+            "function(){const actual=arguments[0];return {value:actual()}}",
+            "()=>({value:vi})",
+            "()=>{const api=vi;return {value:api}}",
+            "()=>({value:vi.importActual('./target.cjs')})",
+            "()=>({value:import('./target.cjs')})",
+            "()=>({value:globalThis.eval('1')})",
+            "()=>({value:globalThis['eval']('1')})",
+            "()=>({value:globalThis['e'+'val']('1')})",
+            "()=>({value:globalThis[globalThis.key]})",
+        ] {
+            let source = format!(
+                "import {{vi}} from 'vitest';vi.mock('./target.cjs',{factory});vi.resetModules()"
+            );
+            assert!(
+                extract_test_mocks(&source, "spec.mjs").is_err(),
+                "accepted {factory}"
+            );
+        }
+    }
+
+    #[test]
+    fn uses_actual_imported_api_identity_and_preserves_shadowed_locals() {
+        let escaped = "import {vi as tools} from \
+                       'vitest';tools.mock('./target.cjs',()=>({value:tools}));tools.\
+                       resetModules()";
+        assert!(extract_test_mocks(escaped, "spec.mjs").is_err());
+        let local = "import {vi as tools} from 'vitest';tools.mock('./target.cjs',()=>{const \
+                     tools={value:1};return {value:tools.value}});tools.resetModules()";
+        assert!(
+            extract_test_mocks(local, "spec.mjs")
+                .unwrap()
+                .commonjs_original_reset_candidate()
+        );
+    }
+
+    #[test]
+    fn keeps_other_static_reset_combinations_outside_the_candidate() {
+        for body in [
+            "vi.mock('package',()=>({value:1}))",
+            "vi.mock('./target.cjs?raw',()=>({value:1}))",
+            "vi.mock('./target.cjs', {spy:true})",
+            "vi.mock('./target.cjs')",
+            "vi.mock('./target.cjs',()=>({value:1}));vi.mock('./other.cjs',()=>({value:2}))",
+            "const state=vi.hoisted(()=>({value:1}));vi.mock('./target.cjs',()=>({value:state.\
+             value}))",
+            "vi.mock('./target.cjs',()=>({value:1}));vi.importActual('./target.cjs')",
+            "vi.mock('./target.cjs',()=>({value:1}));vi.importMock('./target.cjs')",
+            "vi.mock('./target.cjs',()=>({value:1}));vi.doMock('./target.cjs',()=>({value:2}))",
+            "vi.mock('./target.cjs',()=>({value:1}));vi.unmock('./target.cjs')",
+            "vi.mock('./target.cjs',()=>({value:1}));vi.doUnmock('./target.cjs')",
+        ] {
+            let source = format!("import {{vi}} from 'vitest';{body};vi.resetModules()");
+            match extract_test_mocks(&source, "spec.mjs") {
+                Ok(plan) => assert!(!plan.commonjs_original_reset_candidate(), "{body}"),
+                Err(_) => {}
+            }
         }
     }
 }
