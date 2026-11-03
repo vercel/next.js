@@ -17,7 +17,7 @@ use crate::{
     CellId, MappedReadRef, ReadRawVcFuture, ReadRef, TaskId, VcCast, VcValueTrait,
     VcValueTraitCast, VcValueTypeCast,
     keyed::{KeyedAccess, KeyedEq},
-    manager::KeyedReadDependency,
+    manager::ProvisionalReadDependency,
     vc::{keyed_read_ref::KeyedReadRef, lazy_read_ref::LazyReadRef},
 };
 
@@ -323,26 +323,27 @@ where
 }
 
 /// The dependency a successful [`CancelableDependencyRead`] hands over: the cell that was read and
-/// its registered [`KeyedReadDependency`].
-type HandedOverDependency = (TaskId, CellId, KeyedReadDependency);
+/// its registered [`ProvisionalReadDependency`].
+type HandedOverDependency = (TaskId, CellId, ProvisionalReadDependency);
 
 /// The shared read of [`ReadKeyedReaderVcFuture`] and [`ReadLazyReaderVcFuture`]: reads the cell
-/// with a separate [`CellKey::Keyed`](crate::CellKey::Keyed) dependency that the resulting
-/// [`KeyedReadRef`] narrows, or the resulting [`LazyReadRef`] cancels, when it's dropped.
+/// with a separate provisional ([`CellKey::Provisional`](crate::CellKey::Provisional)) dependency
+/// that the resulting [`KeyedReadRef`] narrows, or the resulting [`LazyReadRef`] cancels, when
+/// it's dropped.
 struct CancelableDependencyRead {
     raw: ReadRawVcFuture,
-    /// The [`CellKey::Keyed`](crate::CellKey::Keyed) dependency, registered as alive in the
-    /// execution that created this. `None` if the read isn't tracked that way (no current task),
-    /// once it was handed to the resulting ref, or once this was polled in a different execution
-    /// (then the registration is never released).
-    dependency: Option<KeyedReadDependency>,
+    /// The [`CellKey::Provisional`](crate::CellKey::Provisional) dependency, registered as alive
+    /// in the execution that created this. `None` if the read isn't tracked that way (no current
+    /// task), once it was handed to the resulting ref, or once this was polled in a different
+    /// execution (then the registration is never released).
+    dependency: Option<ProvisionalReadDependency>,
 }
 
 impl CancelableDependencyRead {
     fn new(mut raw: ReadRawVcFuture) -> Self {
-        let dependency = KeyedReadDependency::new_for_current_task();
+        let dependency = ProvisionalReadDependency::new_for_current_task();
         if let Some(dependency) = &dependency {
-            raw.set_track_keyed(dependency.id);
+            raw.set_track_provisional(dependency.id);
             // Counted until the resulting ref (or the future, when it doesn't complete) is
             // dropped within this execution.
             dependency.register_alive_ref();
@@ -400,9 +401,9 @@ impl CancelableDependencyRead {
 impl Drop for CancelableDependencyRead {
     fn drop(&mut self) {
         // Not completed (e.g. never awaited or cancelled). Dropping it within the creating
-        // execution is fine. A `CellKey::Keyed` dependency it might have registered is converted
-        // to a normal dependency when the execution completes. Dropping it elsewhere keeps it
-        // counted as leaked.
+        // execution is fine. A `CellKey::Provisional` dependency it might have registered is
+        // converted to a normal dependency when the execution completes. Dropping it elsewhere
+        // keeps it counted as leaked.
         if let Some(dependency) = self.dependency.take()
             && dependency.is_current_execution()
         {

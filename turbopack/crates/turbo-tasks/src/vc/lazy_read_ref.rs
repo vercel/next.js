@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     CellId, ReadRef, TaskId,
-    manager::{KeyedReadDependency, with_turbo_tasks},
+    manager::{ProvisionalReadDependency, with_turbo_tasks},
     vc::{VcReadTarget, VcValueType},
 };
 
@@ -29,7 +29,7 @@ where
 {
     read_ref: ReadRef<T>,
     /// `None` if the read can't be canceled (e.g. a read outside of a task execution).
-    dependency: Option<(TaskId, CellId, KeyedReadDependency)>,
+    dependency: Option<(TaskId, CellId, ProvisionalReadDependency)>,
     accessed: AtomicBool,
 }
 
@@ -38,11 +38,11 @@ where
     T: VcValueType,
 {
     /// `dependency` must only be `Some` within the task execution that created it, and must
-    /// already be registered as alive ([`KeyedReadDependency::register_alive_ref`]). The
+    /// already be registered as alive ([`ProvisionalReadDependency::register_alive_ref`]). The
     /// registration is released when this is dropped within that execution.
     pub(crate) fn new(
         read_ref: ReadRef<T>,
-        dependency: Option<(TaskId, CellId, KeyedReadDependency)>,
+        dependency: Option<(TaskId, CellId, ProvisionalReadDependency)>,
     ) -> Self {
         Self {
             read_ref,
@@ -81,9 +81,9 @@ where
             // completes.
             return;
         }
-        // Converting the dependency to no hashed dependencies at all removes it.
+        // Refining the provisional dependency to no hashed dependencies at all removes it.
         with_turbo_tasks(|tt| {
-            tt.convert_keyed_cell_dependency(
+            tt.refine_provisional_cell_dependency(
                 task,
                 index,
                 dependency.reader,
