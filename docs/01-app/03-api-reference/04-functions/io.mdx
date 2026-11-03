@@ -84,7 +84,7 @@ export function CurrentTime() {
 
 ## How `io()` differs from `connection()`
 
-The [`connection()`](/docs/app/api-reference/functions/connection) function excludes the code that follows it from the static shell, but it stays suspended until a full user navigation reaches the server, so it also blocks [prefetches](/docs/app/guides/prefetching). `io()` suspends like any other asynchronous function, so the code after it can be wrapped in [`"use cache"`](/docs/app/api-reference/directives/use-cache) and prefetched and cached on the client. Prefer `io()` over `connection()`, and reach for `connection()` only when you need to wait for a real user request.
+Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` also works inside a [`"use cache"`](/docs/app/api-reference/directives/use-cache) scope, where it resolves immediately, so a function that calls it can run in cached and uncached code alike. Calling `connection()` inside a cache scope throws an error. Outside a cache scope, the two behave the same: the code after either one is excluded from every prerender, whether the prerender runs at build time or for a [prefetch](/docs/app/guides/prefetching). Prefer `io()` over `connection()`, and reach for `connection()` only when you need to wait for a real user request.
 
 ## Reference
 

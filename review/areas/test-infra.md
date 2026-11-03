@@ -14,7 +14,7 @@
 
 ## Escalate when
 
-- REVIEW.md's `shared-test-infra` rule already makes `test/lib/**` medium. Add: changes to `gate/` condition evaluation or `next-modes/base.ts` (medium); changes to `run-tests.js` filtering/manifest logic (medium).
+- REVIEW.md's `shared-test-infra` rule already makes `test/lib/**` medium. Add: changes to how `gate/` evaluates conditions (adding a condition for a new flag isn't one) or `next-modes/base.ts` (medium); changes to `run-tests.js` filtering/manifest logic (medium).
 - TODO
 
 ## Rules

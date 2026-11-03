@@ -79,7 +79,9 @@ export function restoreReducer(
     // A history-traversal restore is bound to the shared map.
     segmentCacheMap,
     // A history-traversal restore never restricts to the shell.
-    false
+    false,
+    // Not the commit phase of a prepared navigation.
+    null
   )
 
   if (navigation === null) {
