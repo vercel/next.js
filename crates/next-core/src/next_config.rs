@@ -1171,6 +1171,7 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
     gesture_transition: Option<bool>,
+    hydration_change_event: Option<bool>,
     /// Forks the client router's entry-point modules to the experimental
     /// concurrent router queue implementation via the import map.
     concurrent_router_queue: Option<bool>,
@@ -1178,6 +1179,9 @@ pub struct ExperimentalConfig {
     // rename explicitly so it deserializes from the public `blockingSSR` field.
     #[serde(rename = "blockingSSR")]
     blocking_ssr: Option<bool>,
+    /// Streams React's instruction set as data plus a standalone browser runtime
+    /// asset instead of inline `<script>` tags.
+    external_browser_runtime: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
@@ -1195,6 +1199,7 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    turbopack_minify_before_chunking: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
     /// chunks loaded inside the worker) produced by
@@ -2202,6 +2207,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_external_browser_runtime(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.external_browser_runtime.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
     pub fn enable_expose_testing_api_in_production_build(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
@@ -2268,7 +2278,16 @@ impl NextConfig {
         let taint = self.experimental.taint.unwrap_or(false);
         let transition_indicator = self.experimental.transition_indicator.unwrap_or(false);
         let gesture_transition = self.experimental.gesture_transition.unwrap_or(false);
-        Vc::cell(blocking_ssr || taint || transition_indicator || gesture_transition)
+        let hydration_change_event = self.experimental.hydration_change_event.unwrap_or(false);
+        let external_browser_runtime = self.experimental.external_browser_runtime.unwrap_or(false);
+        Vc::cell(
+            blocking_ssr
+                || taint
+                || transition_indicator
+                || gesture_transition
+                || hydration_change_event
+                || external_browser_runtime,
+        )
     }
 
     #[turbo_tasks::function]
@@ -2492,6 +2511,17 @@ impl NextConfig {
             NextMode::Development => false,
             NextMode::Build => self.experimental.turbopack_scope_hoisting.unwrap_or(true),
         }))
+    }
+
+    /// Whether to minify each module factory as it is generated rather than minifying each
+    /// finished chunk in one pass. Only takes effect when minification is enabled.
+    #[turbo_tasks::function]
+    pub fn turbopack_minify_before_chunking(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_minify_before_chunking
+                .unwrap_or(false),
+        )
     }
 
     #[turbo_tasks::function]

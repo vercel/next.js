@@ -249,8 +249,8 @@ impl State {
     }
 }
 
-/// Used when [`DiskWatcherConfig::recursive_mode`] returns [`RecursiveMode::Recursive`] (default on
-/// macOS and Windows when not polling).
+/// Used when the resolved [`DiskWatcherConfig::recursive_mode`] is
+/// [`DiskWatcherRecursiveMode::Recursive`] (default on macOS and Windows when not polling).
 enum RecursiveState {
     /// Used when [`DiskWatcher::start_watching`] hasn't been called yet or after
     /// [`DiskWatcher::stop_watching`] is called.
@@ -261,8 +261,8 @@ enum RecursiveState {
     },
 }
 
-/// Used when [`DiskWatcherConfig::recursive_mode`] returns [`RecursiveMode::NonRecursive`] (default
-/// on Linux, and everywhere when polling).
+/// Used when the resolved [`DiskWatcherConfig::recursive_mode`] is
+/// [`DiskWatcherRecursiveMode::NonRecursive`] (default on Linux, and everywhere when polling).
 enum NonRecursiveState {
     /// Used when [`DiskWatcher::start_watching`] hasn't been called yet or after
     /// [`DiskWatcher::stop_watching`] is called.
@@ -459,7 +459,7 @@ mod non_recursive_helpers {
     ///
     /// Watches the given `dir_path` and every parent up to `root_path`. Parents must be recursively
     /// watched in case any of them change:
-    /// https://docs.rs/notify/latest/notify/#parent-folder-deletion
+    /// <https://docs.rs/notify/latest/notify/#parent-folder-deletion>
     fn start_watching_dir_and_parents(
         state: &mut NonRecursiveWatchingState,
         dir_path: &Path,

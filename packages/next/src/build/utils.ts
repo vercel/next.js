@@ -52,12 +52,9 @@ import { findPageFile } from '../server/lib/find-page-file'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import * as Log from './output/log'
 import type { LoadComponentsReturnType } from '../server/load-components'
-import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
-import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { getRuntimeContext } from '../server/web/sandbox'
 import { RouteKind } from '../server/route-kind'
 import type { PageExtensions } from './page-extensions-type'
 import type { FallbackMode } from '../lib/fallback'
@@ -67,11 +64,8 @@ import type {
   AppSegment,
   ParamMatching,
 } from './segment-config/app/app-segments'
-import { collectSegments } from './segment-config/app/app-segments'
-import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
+import type { collectSegments } from './segment-config/app/app-segments'
 import { collectRootParamKeys } from './segment-config/app/collect-root-param-keys'
-import { buildAppStaticPaths } from './static-paths/app'
-import { buildPagesStaticPaths } from './static-paths/pages'
 import type {
   PrerenderRouteMatcher,
   PrerenderedRoute,
@@ -93,6 +87,17 @@ import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { mapNftFileEntries, type NftJson, resolveNftOutputPath } from './nft'
+
+// Modules only needed when collecting page data / static paths (which runs in
+// build workers) are required lazily, so the main `next build` process doesn't
+// pay for evaluating them (and their dependency graphs) at startup.
+function loadComponents(
+  ...args: Parameters<typeof import('../server/load-components').loadComponents>
+) {
+  return (
+    require('../server/load-components') as typeof import('../server/load-components')
+  ).loadComponents(...args)
+}
 
 /**
  * Get the display path for build output. For static metadata files under
@@ -897,6 +902,8 @@ export async function isPageStatic({
     }
   }
 
+  const { createIncrementalCache } =
+    require('../export/helpers/create-incremental-cache') as typeof import('../export/helpers/create-incremental-cache')
   await createIncrementalCache({
     cacheHandler,
     cacheHandlers,
@@ -909,6 +916,8 @@ export async function isPageStatic({
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async (): Promise<PageIsStaticResult> => {
+      const { setHttpClientAndAgentOptions } =
+        require('../server/setup-http-agent-env') as typeof import('../server/setup-http-agent-env')
       setHttpClientAndAgentOptions({
         httpAgentOptions,
       })
@@ -923,6 +932,8 @@ export async function isPageStatic({
       const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
 
       if (pathIsEdgeRuntime) {
+        const { getRuntimeContext } =
+          require('../server/web/sandbox') as typeof import('../server/web/sandbox')
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
           edgeFunctionEntry: {
@@ -982,7 +993,9 @@ export async function isPageStatic({
 
         let collectedSegments: Awaited<ReturnType<typeof collectSegments>>
         try {
-          collectedSegments = await collectSegments(
+          const { collectSegments: collectAppSegments } =
+            require('./segment-config/app/app-segments') as typeof import('./segment-config/app/app-segments')
+          collectedSegments = await collectAppSegments(
             // We know this is an app page or app route module because we
             // checked above that the page type is 'app'.
             routeModule as AppPageRouteModule | AppRouteRouteModule,
@@ -1048,7 +1061,9 @@ export async function isPageStatic({
               prerenderRouteMatchers,
               paramMatching,
               fallbackMode: prerenderFallbackMode,
-            } = await buildAppStaticPaths({
+            } = await (
+              require('./static-paths/app') as typeof import('./static-paths/app')
+            ).buildAppStaticPaths({
               dir,
               page,
               route,
@@ -1117,14 +1132,15 @@ export async function isPageStatic({
       }
 
       if (hasStaticProps && hasStaticPaths) {
-        ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
-          await buildPagesStaticPaths({
-            page,
-            locales,
-            defaultLocale,
-            configFileName,
-            getStaticPaths: componentsResult.getStaticPaths!,
-          }))
+        ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } = await (
+          require('./static-paths/pages') as typeof import('./static-paths/pages')
+        ).buildPagesStaticPaths({
+          page,
+          locales,
+          defaultLocale,
+          configFileName,
+          getStaticPaths: componentsResult.getStaticPaths!,
+        }))
       }
 
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED

@@ -18,6 +18,7 @@ import {
   selectAppPageEntry,
 } from '../../../shared/lib/router/utils/app-paths'
 import { fillStaticMetadataSegment } from '../../../lib/metadata/get-metadata-route'
+import { isAPIRoute } from '../../../lib/is-api-route'
 import { RouteKind } from '../../route-kind'
 import {
   addLocalePrefixToDataRouteRegex,
@@ -208,6 +209,9 @@ export function createTurbopackDevRouteSnapshot(
       routeKeys: regex.routeKeys,
       match: getRouteMatcher(regex),
       page,
+      kind:
+        identitiesByPathname.get(page)?.kind ??
+        (isAPIRoute(page) ? RouteKind.PAGES_API : RouteKind.PAGES),
     }
   })
   const dataRoutes = sortedRoutes.map((page): FilesystemDynamicRoute => {
@@ -229,6 +233,7 @@ export function createTurbopackDevRouteSnapshot(
         ),
         groups: regex.groups,
       }),
+      kind: isAPIRoute(route.page) ? RouteKind.PAGES_API : RouteKind.PAGES,
     }
   })
 

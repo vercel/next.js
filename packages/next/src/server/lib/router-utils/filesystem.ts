@@ -84,6 +84,7 @@ export type FsOutput = {
   locale?: string
   route?: RouteIdentity
   params?: Params
+  didMatchLocalePrefixedPath?: boolean
   requestPath?: string
   error?: Error
 }
@@ -91,6 +92,7 @@ export type FsOutput = {
 const debug = setupDebug('next:router-server:filesystem')
 
 export type FilesystemDynamicRoute = ManifestRoute & {
+  kind: RouteKind
   /**
    * The path matcher that can be used to match paths against this route.
    */
@@ -112,7 +114,10 @@ export interface DevRoutesSnapshot {
   dynamicRoutes: ReadonlyArray<FilesystemDynamicRoute>
 }
 
-const buildFilesystemDynamicRoute = (page: string): FilesystemDynamicRoute => {
+const buildFilesystemDynamicRoute = (
+  page: string,
+  kind: RouteKind
+): FilesystemDynamicRoute => {
   const routeRegex = getNamedRouteRegex(page, {
     prefixRouteKeys: true,
     includePrefix: true,
@@ -125,6 +130,7 @@ const buildFilesystemDynamicRoute = (page: string): FilesystemDynamicRoute => {
     routeKeys: routeRegex.routeKeys,
     match: getRouteMatcher(routeRegex),
     page,
+    kind,
   }
 }
 
@@ -409,13 +415,13 @@ export async function setupFsCheck(opts: {
     )
     const appDynamicRoutes: FilesystemDynamicRoute[] = []
     const appDynamicRoutePathnames = new Set<string>()
-    const addAppDynamicRoute = (pathname: string) => {
+    const addAppDynamicRoute = (pathname: string, kind: RouteKind) => {
       if (!isDynamicRoute(pathname) || appDynamicRoutePathnames.has(pathname)) {
         return
       }
 
       appDynamicRoutePathnames.add(pathname)
-      appDynamicRoutes.push(buildFilesystemDynamicRoute(pathname))
+      appDynamicRoutes.push(buildFilesystemDynamicRoute(pathname, kind))
     }
 
     for (const key of Object.keys(pagesManifest)) {
@@ -476,7 +482,7 @@ export async function setupFsCheck(opts: {
         filename: appNormalizers.filename.normalize(appPathsManifest[page]),
         appPaths,
       } as RouteDefinition)
-      addAppDynamicRoute(pathname)
+      addAppDynamicRoute(pathname, RouteKind.APP_PAGE)
     }
 
     const appRouteHandlers = Object.keys(appPathsManifest).filter((page) =>
@@ -491,7 +497,7 @@ export async function setupFsCheck(opts: {
         bundlePath: appNormalizers.bundlePath.normalize(page),
         filename: appNormalizers.filename.normalize(appPathsManifest[page]),
       } as RouteDefinition)
-      addAppDynamicRoute(pathname)
+      addAppDynamicRoute(pathname, RouteKind.APP_ROUTE)
     }
 
     for (const route of routesManifest.dataRoutes) {
@@ -514,6 +520,7 @@ export async function setupFsCheck(opts: {
               : new RegExp(route.dataRouteRegex),
             groups: routeRegex.groups,
           }),
+          kind: isAPIRoute(route.page) ? RouteKind.PAGES_API : RouteKind.PAGES,
         })
       }
       nextDataRoutes.add(route.page)
@@ -530,9 +537,19 @@ export async function setupFsCheck(opts: {
         continue
       }
 
+      // App routes were built from app-paths-manifest above with their
+      // authoritative kind. routes-manifest also contains those paths, so
+      // avoid registering a second copy that would be mistaken for Pages.
+      if (appDynamicRoutePathnames.has(route.page)) {
+        continue
+      }
+
       filesystemDynamicRoutes.push({
         ...route,
-        ...buildFilesystemDynamicRoute(route.page),
+        ...buildFilesystemDynamicRoute(
+          route.page,
+          isAPIRoute(route.page) ? RouteKind.PAGES_API : RouteKind.PAGES
+        ),
       })
     }
 
@@ -733,10 +750,13 @@ export async function setupFsCheck(opts: {
 
     async getItem(
       itemPath: string,
-      requestPath?: string
+      requestPath?: string,
+      preserveAppLocalePath = false
     ): Promise<FsOutput | null> {
       const originalItemPath = itemPath
-      const itemKey = originalItemPath
+      const itemKey = preserveAppLocalePath
+        ? `app-locale:${originalItemPath}`
+        : originalItemPath
       const lruResult = getItemsLru?.get(itemKey)
 
       if (lruResult !== undefined) {
@@ -806,12 +826,17 @@ export async function setupFsCheck(opts: {
 
       for (let [items, type] of itemsToCheck) {
         let locale: string | undefined
+        let didMatchLocalePrefixedPath = false
         let curItemPath = itemPath
         let curDecodedItemPath = decodedItemPath
 
         const isPageOrAppFile = type === 'pageFile' || type === 'appFile'
 
-        if (i18n) {
+        if (i18n && type === 'appFile' && preserveAppLocalePath) {
+          didMatchLocalePrefixedPath = Boolean(
+            normalizeLocalePath(itemPath, i18n.locales).detectedLocale
+          )
+        } else if (i18n) {
           const localeResult = handleLocale(
             itemPath,
             // legacy behavior allows visiting static assets under
@@ -1048,6 +1073,7 @@ export async function setupFsCheck(opts: {
             itemPath: flatKeyCopy(curItemPath),
             route,
             params,
+            didMatchLocalePrefixedPath,
             error,
           }
 

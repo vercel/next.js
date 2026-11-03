@@ -28,7 +28,6 @@ itertools = { workspace = true }
 indexmap = { workspace = true }
 next-core = { workspace = true }
 regex = { workspace = true }
-roaring = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

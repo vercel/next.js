@@ -1,6 +1,6 @@
 use std::{iter, process::ExitStatus, time::Duration};
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use bytes::Bytes;
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, OperationVc, PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc,
+    Completion, FxIndexMap, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
     duration_span, fxindexmap, parallel::available_parallelism,
     resolve_strongly_consistent_and_take_and_apply_effects,
 };
@@ -45,11 +45,58 @@ use crate::{
     source_map::StructuredError,
 };
 
+/// An argument passed to the evaluated JavaScript.
+#[turbo_tasks::task_input]
+#[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
+pub enum EvaluateArg {
+    Vc(ResolvedVc<JsonValue>),
+    /// Passed as a string: A path relative to [`EvaluateContext::cwd`] when both are on the same
+    /// filesystem, otherwise an absolute system path (e.g. for an additional root).
+    ///
+    /// This is converted when the evaluation runs, so that machine-specific system paths aren't
+    /// stored in task inputs or cells.
+    Path(FileSystemPath),
+}
+
+impl EvaluateArg {
+    async fn to_json(&self, cwd: &FileSystemPath) -> Result<EvaluatedArg> {
+        Ok(match self {
+            Self::Vc(value) => EvaluatedArg::ReadRef(value.await?),
+            Self::Path(path) => {
+                let path = if let Some(relative) = cwd.get_relative_path_to(path) {
+                    // prefer to give the loader a relative path if we can, to reduce the risk of
+                    // the webpack loader storing a absolute path in the output.
+                    //
+                    // this uses a unix-style `/`-separated path, but Node.js file APIs support both
+                    // `/` and `\` on Windows.
+                    relative.into_owned()
+                } else {
+                    // if the path is on another root, we must give the loader an absolute path
+                    to_sys_path(path.clone())
+                        .await?
+                        .with_context(|| format!("{path} is not on a disk filesystem"))?
+                        .into_os_string()
+                        .into_string()
+                        .map_err(|path| anyhow!("{path:?} is not valid UTF-8"))?
+                };
+                EvaluatedArg::Owned(JsonValue::String(path))
+            }
+        })
+    }
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+enum EvaluatedArg {
+    ReadRef(ReadRef<JsonValue>),
+    Owned(JsonValue),
+}
+
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum EvalJavaScriptOutgoingMessage<'a> {
     #[serde(rename_all = "camelCase")]
-    Evaluate { args: Vec<&'a JsonValue> },
+    Evaluate { args: &'a [EvaluatedArg] },
     Result {
         id: u64,
         data: Option<JsonValue>,
@@ -360,7 +407,7 @@ pub trait EvaluateContext {
     fn keep_alive(&self) -> bool {
         false
     }
-    fn args(&self) -> &[ResolvedVc<JsonValue>];
+    fn args(&self) -> &[EvaluateArg];
     fn cwd(&self) -> Vc<FileSystemPath>;
     /// The source that issues about this evaluation are attributed to.
     fn context_source_for_issue(&self) -> ResolvedVc<Box<dyn Source>>;
@@ -405,7 +452,13 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
     // node.js code.
     let pool = pool_op.read_strongly_consistent().await?;
 
-    let args = evaluate_context.args().iter().try_join().await?;
+    let cwd = evaluate_context.cwd().owned().await?;
+    let args = evaluate_context
+        .args()
+        .iter()
+        .map(|arg| arg.to_json(&cwd))
+        .try_join()
+        .await?;
     // Assume this is a one-off operation, so we can kill the process
     // TODO use a better way to decide that.
     let kill = !evaluate_context.keep_alive();
@@ -420,9 +473,7 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
             let mut operation = pool.operation().await?;
             operation
                 .send(Bytes::from(serde_json::to_vec(
-                    &EvalJavaScriptOutgoingMessage::Evaluate {
-                        args: args.iter().map(|v| &**v).collect(),
-                    },
+                    &EvalJavaScriptOutgoingMessage::Evaluate { args: &args },
                 )?))
                 .await?;
             Ok(operation)
@@ -583,7 +634,7 @@ pub async fn evaluate(
     context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
-    args: Vec<ResolvedVc<JsonValue>>,
+    args: Vec<EvaluateArg>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 ) -> Result<Vc<Option<RcStr>>> {
@@ -697,7 +748,7 @@ struct BasicEvaluateContext {
     context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
-    args: Vec<ResolvedVc<JsonValue>>,
+    args: Vec<EvaluateArg>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
 }
@@ -722,7 +773,7 @@ impl EvaluateContext for BasicEvaluateContext {
         )
     }
 
-    fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
+    fn args(&self) -> &[EvaluateArg] {
         &self.args
     }
 

@@ -1,0 +1,810 @@
+# Review areas: which paths belong to which area, and who owns each area.
+#
+# Read by the review harness (and scripts/review-context.mjs), not by GitHub.
+# GitHub only reads CODEOWNERS from .github/, the repo root, or docs/, so this
+# file never auto-requests reviewers.
+#
+# Format: CODEOWNERS-style globs, relative to the repo root, grouped into
+# sections. Globs also support {a,b} alternatives (picomatch syntax).
+# A section header names the area and its owners:
+#
+#   [area-slug] @owner1 @owner2
+#
+# Every glob under a header belongs to that area, and the area's rubric is
+# review/areas/<area-slug>.md. Unlike GitHub CODEOWNERS, every matching area
+# applies, not just the last match. A colocated *.test.ts file belongs to the
+# area of its sibling source file.
+#
+# Each area needs at least one owner. PRs that match no area go to two team
+# members picked at random by scripts/review-context.mjs, from the people
+# listed here who committed in the past week.
+# TODO: request the Next.js oncall instead, once Vercel Agent supports it.
+
+# ----------------------------------------------------------------------
+# App Router runtime
+# ----------------------------------------------------------------------
+
+[app-render-pipeline] @unstubbable @lubieowoce
+packages/next/src/server/app-render/app-render.tsx
+packages/next/src/server/app-render/{create-component-tree,create-component-styles-and-scripts,get-layer-assets,get-css-inlined-link-tags,required-scripts,make-get-server-inserted-html,server-inserted-html,use-flight-response,render-css-resource,turbopack-bootstrap-script,get-asset-query-string,flight-render-result,react-large-shell-error,app-render-render-utils,app-render-scheduling,entry-base,interop-default,get-script-nonce-from-header,get-short-dynamic-param-type,has-loading-component-in-tree,install-global-module-loading-handlers,manifests-singleton,render-in-browser,types,wait-for-response}.{ts,tsx}
+packages/next/src/shared/lib/server-inserted-html.shared-runtime.tsx
+.agents/skills/v8-jit/**
+packages/next/src/server/app-render/stream-ops*.ts
+packages/next/src/server/app-render/module-loading/**
+packages/next/src/server/app-render/metadata-insertion/**
+packages/next/src/server/app-render/rsc/**
+packages/next/src/server/route-modules/app-page/**
+packages/next/src/server/stream-utils/**
+packages/next/src/build/templates/app-page*.ts
+test/e2e/app-dir/{app-rendering,rsc-basic,app-css,app-inline-css,csp-nonce-segment-scripts,use-server-inserted-html,streaming-*}/**
+
+[rsc-payload-format] @acdlite @unstubbable
+packages/next/src/shared/lib/rsc-transport.ts
+packages/next/src/shared/lib/app-router-types.ts
+packages/next/src/shared/lib/segment-cache/**
+packages/next/src/shared/lib/segment.ts
+packages/next/src/server/app-render/{create-transport-tree-from-loader-tree,walk-tree-with-flight-router-state,parse-and-validate-flight-router-state,strip-flight-headers,vary-params}.{ts,tsx}
+packages/next/src/server/app-render/collect-segment-data.tsx
+packages/next/src/client/flight-data-helpers.ts
+packages/next/src/client/components/app-router-headers.ts
+packages/next/src/client/components/segment-cache/decode-server-response.ts
+packages/next/src/client/components/router-reducer/fetch-server-response.ts
+packages/next/src/server/normalizers/request/{rsc,segment-prefix-rsc}.ts
+packages/next/src/server/lib/is-rsc-request.ts
+packages/next/src/server/lib/router-utils/build-prefetch-segment-data-route.ts
+packages/next/src/server/app-render/encryption*.ts
+
+[app-router-client] @acdlite @lubieowoce
+packages/next/src/client/components/{app-router,app-router-instance,app-router-state,app-router-utils,app-router-announcer,layout-router,client-segment,client-page,render-tree,render-from-template-context,router-transition,router-transition-types,concurrent-router-queue,sequential-router-queue,use-action-queue,bfcache-state-manager,nav-failure-handler,navigation,navigation.react-server,navigation-untracked,navigation-dynamic-rendering,navigation-devtools,navigator,redirect,redirect-boundary,redirect-error,redirect-status-code,not-found,forbidden,unauthorized,error-boundary,catch-error,is-next-router-error,unstable-rethrow,promise-queue,readonly-url-search-params,client-boundary-params,use-offline,offline,server-async-storage,noop-head}*.{ts,tsx}
+packages/next/src/client/components/builtin/**
+packages/next/src/client/components/styles/**
+packages/next/src/client/{router-transition-types,app-find-source-map-url}.ts
+packages/next/src/client/components/router-reducer/**
+packages/next/src/client/components/http-access-fallback/**
+packages/next/src/client/components/errors/**
+packages/next/src/client/{app-index,app-bootstrap,app-globals,app-next,app-next-dev,app-next-turbopack,app-webpack,app-link-gc,route-params,navigation-build-id,assign-location,register-deployment-id-global}.{ts,tsx}
+packages/next/src/client/react-client-callbacks/**
+packages/next/src/shared/lib/app-router-context.shared-runtime.ts
+packages/next/src/shared/lib/router/utils/{interception-routes,parse-loader-tree,app-paths,get-segment-param,get-dynamic-param,resolve-param-value,route-match-utils,dynamic-filter-pattern,interception-prefix-from-param-type}.ts*
+test/e2e/app-dir/{navigation*,concurrent-*,back-*,bfcache-*,error-boundary-navigation,not-found*,redirect*,router-*,shallow-routing,parallel-route*,interception-*}/**
+
+[client-prefetching] @acdlite @lubieowoce
+packages/next/src/client/components/segment-cache/**
+packages/next/src/client/components/links.ts
+packages/next/src/client/app-dir/link.tsx
+packages/next/src/server/app-render/collect-segment-data.tsx
+test/e2e/app-dir/segment-cache*/**
+
+[server-actions] @unstubbable @mischnic
+packages/next/src/server/app-render/{action-handler,csrf-protection,encryption,encryption-utils,encryption-utils-server,action-async-storage-instance,action-async-storage.external}.ts
+packages/next/src/server/lib/server-action-request-meta.ts
+packages/next/src/client/{app-call-server,concurrent-call-server,sequential-call-server,form,form-shared}.ts*
+packages/next/src/client/app-dir/form.tsx
+test/e2e/next-form/**
+packages/next/src/client/components/router-reducer/reducers/server-action-reducer.ts
+packages/next/src/client/components/unrecognized-action-error.ts
+packages/next/src/shared/lib/server-reference-info.ts
+packages/next/src/shared/lib/action-revalidation-kind.ts
+packages/next/src/build/webpack/loaders/next-flight-action-entry-loader.ts
+packages/next/src/build/webpack/loaders/next-flight-loader/**
+packages/next/src/build/webpack/loaders/next-flight-server-reference-proxy-loader.ts
+packages/next/src/build/webpack/plugins/flight-client-entry-plugin.ts
+crates/next-custom-transforms/src/transforms/server_actions.rs
+crates/next-api/src/server_actions.rs
+packages/next/src/server/dev/server-action-logger.ts
+test/e2e/app-dir/{actions*,action-*,server-action*,mpa-server-action-html,no-server-actions}/**
+
+[app-prerender-and-dynamic-apis] @lubieowoce @unstubbable
+packages/next/src/server/app-render/{dynamic-rendering,dynamic-rendering-client,dynamic-rendering-validation,staged-rendering,postponed-state,app-render-prerender-utils,prospective-render-utils,cache-signal,stale-time,sync-io-messages,blocking-route-messages,dev-validation-*,dev-response-lifecycle,instant-test-bootstrap,work-async-storage-instance,work-async-storage.external,work-unit-async-storage-instance,work-unit-async-storage.external,dynamic-access-async-storage-instance,dynamic-access-async-storage.external,async-local-storage}.{ts,tsx}
+packages/next/src/server/app-render/instant-validation/**
+packages/next/src/server/app-render/segment-config/**
+packages/next/src/server/dynamic-rendering-utils.ts
+packages/next/src/server/request/**
+packages/next/src/client/request/**
+packages/next/src/client/components/{static-generation-bailout,hooks-server-context,instant-samples,unresolved-thenable,handle-isr-error}*.ts*
+packages/next/src/client/components/instant-validation/**
+packages/next/src/server/resume-data-cache/**
+packages/next/src/server/async-storage/**
+packages/next/src/shared/lib/no-fallback-error.external.ts
+packages/next/src/lib/fallback.ts
+packages/next/src/build/static-paths/**
+packages/next/src/build/segment-config/app/**
+packages/next/src/build/rendering-mode.ts
+packages/next/src/export/routes/app-page.ts
+packages/next/src/export/helpers/**
+packages/next/src/server/dev/{dev-validation-worker,dev-validation-worker-pool,static-paths-worker}.ts
+packages/next/src/shared/lib/{instant-messages,instant-nav-cookie,size-limit}.ts
+test/e2e/app-dir/{ppr*,cache-components*,dynamic-*,partial-*,param-matching*,instant-validation*,fallback-*,static-*,searchparams-*,headers-static-bailout,root-params*,sub-shell-*}/**
+test/lib/e2e-utils/{ppr,instant-validation}.ts
+test/production/segment-config-precedence/**
+test/e2e/draft-mode/**
+test/e2e/app-dir/draft-mode*/**
+
+[metadata-and-og] @lubieowoce @timneutkens
+packages/next/src/lib/metadata/**
+packages/next/src/build/webpack/loaders/metadata/**
+packages/next/src/build/webpack/loaders/next-metadata-image-loader.ts
+packages/next/src/build/webpack/loaders/next-metadata-route-loader.ts
+packages/next/src/server/app-render/metadata-insertion/**
+packages/next/src/server/lib/streaming-metadata.ts
+packages/next/src/server/og/**
+packages/next/src/server/web/spec-extension/image-response.ts
+packages/next/src/api/og.ts
+crates/next-core/src/next_app/metadata/**
+test/e2e/app-dir/metadata*/**
+test/e2e/og-routes-custom-font/**
+test/e2e/app-dir/nsec-105-opengraph-image-dynamicparams/**
+test/e2e/og-api/**
+
+
+# ----------------------------------------------------------------------
+# Pages Router
+# ----------------------------------------------------------------------
+
+[pages-router] @timneutkens
+packages/next/src/server/render.tsx
+packages/next/src/server/route-modules/pages/**
+packages/next/src/server/route-modules/pages-api/**
+packages/next/src/server/api-utils/**
+packages/next/src/server/ReactDOMServerPages.*
+packages/next/src/pages/**
+packages/next/src/client/{router,page-loader,route-loader,index,with-router,next,next-dev,next-turbopack,next-dev-turbopack,webpack,page-bootstrap,head-manager,script,route-announcer,request-idle-callback,resolve-href,use-intersection}.{ts,tsx}
+packages/next/src/client/legacy/**
+packages/next/src/client/link.tsx
+packages/next/src/client/lib/**
+packages/next/src/lib/create-client-router-filter.ts
+packages/next/src/shared/lib/router/{router,adapters}.ts*
+packages/next/src/shared/lib/router/routes/**
+packages/next/src/shared/lib/router/utils/{as-path-to-search-params,interpolate-as,get-asset-path-from-route,get-route-from-asset-path,compare-states,disable-smooth-scroll,omit,parse-path,html-bots,is-bot,escape-path-delimiters,cache-busting-search-param,index}.ts
+packages/next/src/shared/lib/{head,dynamic,app-dynamic,side-effect,loadable.shared-runtime,loadable-context.shared-runtime,head-manager-context.shared-runtime,html-context.shared-runtime,router-context.shared-runtime,hooks-client-context.shared-runtime}.ts*
+packages/next/src/shared/lib/lazy-dynamic/**
+packages/next/src/build/templates/{pages,pages-api,pages-edge-api,edge-ssr}.ts
+packages/next/src/build/webpack/loaders/next-client-pages-loader.ts
+packages/next/src/build/webpack/loaders/next-route-loader/**
+packages/next/src/build/webpack/loaders/next-edge-ssr-loader/**
+packages/next/src/build/webpack/plugins/{pages-manifest-plugin,react-loadable-plugin}.ts
+packages/next/src/build/static-paths/pages.ts
+packages/next/src/build/segment-config/pages/**
+packages/next/src/export/routes/pages.ts
+packages/next/src/lib/is-serializable-props.ts
+crates/next-core/src/{next_pages/**,pages_structure.rs,page_loader.rs}
+crates/next-custom-transforms/src/transforms/{next_ssg,strip_page_exports,page_config,empty_gsp,disallow_re_export_all_in_page}.rs
+packages/next/src/build/babel/**
+test/e2e/{getserversideprops,prerender*,i18n-*,next-head,next-script,next-dynamic*,script-loader,streaming-ssr*,api-support}/**
+test/e2e/{legacy-link-behavior,new-link-behavior,link-*,app-document*,custom-server,404-page-router,index-index,invalid-href,switchable-runtime,pages-app-availability-boundary}/**
+test/production/pages-dir/**
+test/production/{500-page,page-config,custom-server,document-file-dependencies,required-server-files-ssr-404,prerender-worker-threads}/**
+test/development/pages-dir/**
+
+
+# ----------------------------------------------------------------------
+# Caching
+# ----------------------------------------------------------------------
+
+[use-cache] @unstubbable @lubieowoce
+packages/next/src/server/use-cache/**
+packages/next/src/server/lib/cache-handlers/**
+packages/next/src/server/lib/incremental-cache/tags-manifest.external.ts
+packages/next/src/server/lib/router-utils/cache-life-type-utils.ts
+packages/next/src/server/dev/use-cache-probe-*.ts
+packages/next/src/build/webpack/loaders/next-flight-loader/cache-wrapper.ts
+packages/next/src/server/lib/implicit-tags.ts
+packages/next/src/server/revalidation-utils.ts
+crates/next-custom-transforms/src/transforms/server_actions.rs
+test/e2e/app-dir/use-cache*/**
+test/e2e/app-dir/cached-navigations-*/**
+test/e2e/app-dir/{resume-data-cache,draft-mode-resume-data-cache,streamed-cache-revalidation,app-custom-cache-handler*,expire-time,custom-cache-control}/**
+test/e2e/cache-handlers-upstream-wiring/**
+test/unit/incremental-cache-handler-context.test.ts
+
+[incremental-cache-and-revalidation] @unstubbable @eps1lon
+packages/next/src/server/lib/incremental-cache/**
+packages/next/src/server/response-cache/**
+packages/next/src/server/lib/{patch-fetch,patch-fetch-symbol,dedupe-fetch,cache-control,route-cache-key,implicit-tags,disk-lru-cache.external,lru-cache,clone-response}.ts
+packages/next/src/server/revalidation-utils.ts
+packages/next/src/server/web/spec-extension/{revalidate,unstable-cache,unstable-no-store}.ts
+packages/next/src/server/cache-dir.ts
+packages/next/src/export/helpers/create-incremental-cache.ts
+packages/next/src/server/lib/router-utils/build-data-route.ts
+test/e2e/app-dir/{app-static,revalidate-*,revalidatetag-rsc,app-fetch-deduping*,app-invalid-revalidate,parallel-routes-revalidation,dynamic-interception-route-revalidate,non-ascii-cache-*}/**
+test/e2e/{filesystem-cache,incremental-cache-path-traversal,not-found-revalidate,revalidate-reason,vary-header}/**
+test/unit/incremental-cache/**
+test/production/{root-catchall-cache,route-scoped-cache-export}/**
+
+
+# ----------------------------------------------------------------------
+# Routing / server
+# ----------------------------------------------------------------------
+
+[router-server-request-handling] @timneutkens @devjiwonchoi
+packages/next/src/server/lib/router-server.ts
+packages/next/src/server/lib/router-utils/{resolve-routes,filesystem,proxy-request,block-cross-site-dev,router-server-context,normalize-catchall-routes,decode-path-params,strict-route-matching-config,types}.ts
+packages/next/src/server/lib/{start-server,render-server,i18n-provider,format-hostname,is-ipv6,to-route,match-next-data-pathname,decode-query-path-parameter,encode-header-safe}.ts
+packages/next/src/server/lib/server-ipc/**
+packages/next/src/server/lib/{patch-set-header,is-non-html-sec-fetch-dest}.ts
+packages/next/src/server/normalizers/**
+packages/next/src/server/request-meta.ts
+packages/next/src/shared/lib/i18n/**
+packages/next/src/shared/lib/get-hostname.ts
+packages/next/src/shared/lib/router/utils/{prepare-destination,resolve-rewrites,middleware-route-matcher,add-path-prefix,add-path-suffix,remove-path-prefix,path-has-prefix,add-locale,format-next-pathname-info,get-next-pathname-info,remove-trailing-slash,parse-url,parse-relative-url,relativize-url,route-matcher,route-regex,path-match,sorted-routes,sortable-routes,is-dynamic,is-local-url,querystring,format-url}.ts
+packages/next/src/client/{add-base-path,has-base-path,remove-base-path,add-locale,remove-locale,detect-domain-locale,get-domain-locale,normalize-locale-path,normalize-trailing-slash,asset-prefix}.ts
+packages/next/src/lib/{load-custom-routes,redirect-status,build-custom-route,generate-interception-routes-rewrites,is-interception-route-rewrite,route-pattern-normalizer,try-to-parse-path,url}.ts
+packages/next/src/build/generate-routes-manifest.ts
+packages/next-routing/**
+test/e2e/{basepath*,i18n-*,custom-routes-i18n*,trailing-slash*,trailingslash-with-rewrite,skip-trailing-slash-redirect,rewrites-*,rewrite-*,gssp-redirect*,middleware-base-path,middleware-trailing-slash,proxy-request-with-middleware,manual-client-base-path,dynamic-routing*,dynamic-optional-routing*,fallback-false-rewrite,link-with-api-rewrite,use-router-with-rewrites,custom-routes,url,multi-zone,cancel-request}/**
+test/production/options-request/**
+test/e2e/app-dir/{app-basepath*,basepath-fallback-params,trailingslash,i18n-hybrid,rewrites-redirects,rewrite-headers,rewrite-with-search-params,redirect-rewrite-dynamic*,x-forwarded-headers,external-redirect,no-duplicate-headers-*,proxy-*,app-routes-trailing-slash,asset-prefix*}/**
+
+[server-request-pipeline] @unstubbable @lubieowoce
+packages/next/src/server/{base-server,next-server,next,load-components,load-default-error-components,load-manifest.external,send-payload,send-response,serve-static,render-result,body-streams,pipe-readable,accept-header,server-route-utils,server-utils,route-kind,get-page-files,get-route-from-entrypoint,get-app-route-from-entrypoint,match-bundle,require,require-hook,setup-http-agent-env,post-process,patch-error-inspect,utils,internal-utils}.ts*
+packages/next/src/server/base-http/**
+packages/next/src/server/route-definitions/**
+packages/next/src/server/route-matches/**
+packages/next/src/server/route-modules/{route-module,checks}.ts
+packages/next/src/server/route-modules/app-route/**
+packages/next/src/build/templates/{app-route,edge-app-route,helpers}.ts
+packages/next/src/build/webpack/loaders/next-app-loader/**
+packages/next/src/server/lib/module-loader/**
+packages/next/src/server/lib/{etag,lazy-module,lazy-result,async-callback-set,postponed-request-body,params-utils,find-page-file,app-dir-module,node-fs-methods,mock-request,fix-mojibake,release-compression-stream,utils,types,worker-utils}.ts
+packages/next/src/server/after/**
+packages/next/src/server/app-render/{after-task-async-storage-instance,after-task-async-storage.external,console-async-storage-instance,console-async-storage.external}.ts
+packages/next/src/server/web/spec-extension/{request,response,cookies,fetch-event,url-pattern,user-agent}.ts
+packages/next/src/server/web/spec-extension/adapters/**
+packages/next/src/server/web/{next-url,http,error,utils}.ts
+packages/next/src/server/node-environment*.ts
+packages/next/src/server/node-environment-extensions/**
+packages/next/src/server/node-polyfill-crypto.ts
+packages/next/src/server/crypto-utils.ts
+test/e2e/app-dir/{app-routes*,next-after-*,set-cookies,react-max-headers-length,custom-server-response-chunks,graceful-shutdown-next-after}/**
+test/e2e/on-request-error/**
+
+[middleware-and-edge-runtime] @sokra @mischnic
+packages/next/src/server/web/{adapter,edge-route-module-wrapper,globals,internal-edge-wait-until,get-edge-preview-props,forward-trace-context,web-on-close,types}.ts
+packages/next/src/server/web/sandbox/**
+packages/next/src/server/web/exports/**
+packages/next/src/build/webpack/loaders/{next-middleware-loader,next-middleware-asset-loader,next-middleware-wasm-loader,next-edge-function-loader}.ts
+packages/next/src/build/webpack/loaders/next-edge-app-route-loader/**
+packages/next/src/build/webpack/plugins/middleware-plugin.ts
+packages/next/src/build/templates/{middleware,edge-wrapper,edge-ssr-app}.*
+packages/next/src/build/segment-config/middleware/**
+packages/next/src/build/warn-about-edge-runtime.ts
+packages/next/src/server/dev/middleware-*.ts
+packages/next/src/lib/is-edge-runtime.ts
+packages/next/src/lib/known-edge-safe-packages.json
+packages/next/src/experimental/testing/server/**
+crates/next-core/src/{middleware,instrumentation}.rs
+crates/next-core/src/next_edge/**
+crates/next-api/src/{middleware,instrumentation}.rs
+crates/next-custom-transforms/src/transforms/{middleware_dynamic,warn_for_edge_runtime}.rs
+crates/next-core/src/next_shared/transforms/{next_middleware_dynamic_assert,next_edge_node_api_assert}.rs
+.agents/skills/dce-edge/**
+test/e2e/middleware-*/**
+test/e2e/edge-*/**
+test/e2e/app-dir/{app-middleware*,middleware-*,app-edge*,edge-*,proxy-and-middleware-conflict,proxy-with-middleware,treeshake-mw,otel-middleware-trace}/**
+test/e2e/invalid-middleware-matchers/**
+
+[image-optimization] @styfle @eps1lon
+packages/next/src/server/image-optimizer.ts
+packages/next/src/server/image-optimizer/**
+packages/next/src/server/is-private-ip.ts
+packages/next/src/client/image-component.tsx
+packages/next/src/client/legacy/image.tsx
+packages/next/src/client/use-image-config.ts
+packages/next/src/shared/lib/{image-config,image-config-context.shared-runtime,image-loader,image-blur-svg,image-external,image-external-get-image-props,get-img-props,match-local-pattern,match-remote-pattern,find-closest-quality}.ts*
+packages/next/src/api/image.ts
+packages/next/src/build/webpack/loaders/next-image-loader/**
+packages/next/src/build/webpack/config/blocks/images/**
+packages/next/image-types/**
+packages/next/image-optimizer-transform.*
+crates/next-core/src/next_image/**
+turbopack/crates/turbopack-image/**
+test/e2e/next-image-*/**
+test/e2e/image-optimizer/**
+test/e2e/app-dir/next-image*/**
+test/unit/image-optimizer/**
+test/unit/next-image-*
+test/production/export-image-*/**
+
+[config-and-flags] @mischnic @sokra
+packages/next/src/server/{config,config-shared,config-schema,config-utils}.ts
+packages/next/src/build/define-env.ts
+packages/next/src/build/next-config-ts/**
+packages/next/src/lib/{find-config,static-env,inline-static-env,bundler}.ts
+packages/next/src/lib/{default-transpiled-packages.json,server-external-packages.jsonc}
+packages/next/src/shared/lib/zod.ts
+packages/next/src/server/lib/experimental/**
+packages/next/src/shared/lib/errors/{canary-only-config-error,hard-deprecated-config-error}.ts
+crates/next-core/src/next_config.rs
+packages/next/src/shared/lib/modern-browserslist-target.js
+packages/next/src/build/get-supported-browsers.ts
+.agents/skills/flags/**
+test/e2e/app-dir/next-config*/**
+test/e2e/{config-*,env-config,next-config-warnings,nullish-config}/**
+test/development/config*/**
+test/production/exported-runtimes-value-validation/**
+
+[observability] @timneutkens @sokra
+packages/next/src/server/lib/trace/**
+packages/next/src/server/instrumentation/**
+packages/next/src/server/lib/router-utils/instrumentation-*.ts
+packages/next/src/lib/require-instrumentation-client.ts
+packages/next/src/build/webpack/loaders/{next-instrumentation-client-loader,instrumentation-client-stub}.*
+packages/next/src/telemetry/**
+packages/next/src/trace/**
+packages/next/src/diagnostics/**
+packages/next/src/cli/{next-telemetry,next-request-insights}.ts
+packages/next/src/shared/lib/request-insights.ts
+packages/next/src/client/tracing/**
+packages/next/src/client/web-vitals.ts
+packages/next/src/build/webpack/plugins/telemetry-plugin/**
+packages/next/src/build/webpack/plugins/profiling-plugin.ts
+packages/next/src/server/client-component-renderer-logger.ts
+packages/next/src/server/create-deduped-by-callsite-server-error-logger.ts
+crates/next-core/src/{next_telemetry,tracing_presets}.rs
+scripts/{analyze-profile.js,trace-to-event-format.mjs,trace-to-tree.mjs,analyze-dev-server-bundle.js,profile-next-dev-boot.js,devlow-bench.mjs}
+scripts/send-trace-to-jaeger/**
+test/e2e/opentelemetry/**
+test/e2e/instrumentation-*/**
+test/e2e/telemetry/**
+test/e2e/on-request-error/**
+test/e2e/app-dir/{otel-*,instrumentation-order,fetch-metrics-lifecycle,logging,server-action-logging}/**
+
+
+# ----------------------------------------------------------------------
+# Build & bundling
+# ----------------------------------------------------------------------
+
+[build-output-and-manifests] @timneutkens @mischnic
+packages/next/src/build/{index,utils,entries,handle-entrypoints,generate-routes-manifest,collect-build-traces,nft,write-build-id,generate-build-id,route-bundle-stats,route-discovery,after-production-compile,worker,build-context,file-classifier,page-extensions-type,validate-app-paths,normalize-catchall-routes,get-static-info-including-layouts,print-build-errors,progress,spinner,type-check,is-writeable,lockfile,next-dir-paths,preview-key-utils,sort-by-page-exts,duration-to-string,get-convention-file-base-name}.ts
+packages/next/src/build/manifests/**
+packages/next/src/build/output/**
+packages/next/src/build/adapter/**
+packages/next/src/build/analysis/**
+packages/next/src/build/analyze/**
+packages/next/src/build/turbopack-analyze/**
+packages/next/src/build/turborepo-access-trace/**
+packages/next/src/build/{turbopack-build,webpack-build}/**
+packages/next/src/build/webpack/plugins/{build-manifest-plugin,build-manifest-plugin-utils,pages-manifest-plugin,flight-manifest-plugin,next-trace-entrypoints-plugin,subresource-integrity-plugin,next-font-manifest-plugin,copy-file-plugin,deferred-entries-plugin}.ts
+packages/next/src/export/**
+packages/next/src/cli/{next-build,next-export,next-post-build,next-analyze}.ts
+packages/next/src/shared/lib/{constants,entry-constants,deployment-id}.ts
+packages/next/src/server/load-manifest.external.ts
+packages/next/src/lib/{dist-dir,resolve-build-paths,recursive-copy,multi-file-writer}.ts
+crates/next-core/src/next_manifests/**
+crates/next-api/src/{*manifest*,nft*,paths,path_utils,versioned_content_map,entrypoints,route}.rs
+test/production/{standalone-mode,export*,prerender-export,build-*,deterministic-build,debug-build-path,turbotrace-with-webpack-worker,turborepo-access-trace,adapter-config,deployment-id-handling,static-routes-info,typescript-build-output,production-build-dir,production-start-no-build}/**
+test/e2e/app-dir/{adapter-*,build-output-truncated-generated-paths,trace-build-file,interception-routes-output-export,use-cache-output-export,static-export-skew-trailing-slash,deferred-entries}/**
+test/e2e/app-dir-export/**
+scripts/check-manifests.js
+packages/next/src/lib/constants.ts
+test/e2e/next-analyze/**
+test/production/{adapter-config-i18n,handles-export-errors,critical-css}/**
+
+[webpack-config-and-loaders] @mischnic @jamiboym
+packages/next/src/build/{webpack-config,compiler,create-compiler-aliases,handle-externals,load-jsconfig,load-entrypoint,get-babel-config-file,get-babel-loader-config,browser-variant-modules}.ts
+packages/next/src/build/webpack-config-rules/**
+packages/next/src/build/webpack/alias/**
+packages/next/src/build/webpack/config/**
+packages/next/src/build/webpack/{utils,stringify-request,cache-invalidation}.ts
+packages/next/src/lib/format-dynamic-import-path.ts
+packages/next/src/build/webpack/loaders/{next-barrel-loader,next-flight-client-entry-loader,next-flight-client-module-loader,modularize-import-loader,empty-loader,error-loader,next-error-browser-binary-loader,next-invalid-import-error-loader,next-root-params-loader,get-module-build-info,utils}.ts
+packages/next/src/build/webpack/loaders/devtool/**
+packages/next/src/build/webpack/plugins/{flight-client-entry-plugin,rspack-flight-client-entry-plugin,jsconfig-paths-plugin,optional-peer-dependency-resolve-plugin,memory-with-gc-cache-plugin,nextjs-require-cache-hot-reloader,force-complete-runtime,slow-module-detection-plugin,devtools-ignore-list-plugin,eval-source-map-dev-tool-plugin,rspack-profiling-plugin}.ts
+packages/next/src/build/webpack/plugins/{minify-webpack-plugin,wellknown-errors-plugin}/**
+packages/next/src/build/webpack/loaders/next-swc-loader.ts
+packages/next/src/lib/client-and-server-references.ts
+packages/next/src/shared/lib/{get-webpack-bundler,get-rspack,format-webpack-messages,magic-identifier}.ts
+packages/next/src/bundles/**
+packages/next/webpack-plugins/**
+packages/next-rspack/**
+rspack/**
+packages/react-refresh-utils/**
+.agents/skills/next-rspack/**
+.github/workflows/rspack-*.yml
+test/rspack-*-manifest.json
+test/e2e/app-dir/{custom-webpack,webpack-loader-*,client-reference-*,chunk-loading,dynamic-chunk-dedupe,layout-segment-chunk-sharing,modularizeimports,esm-externals,server-components-externals,bun-externals,externalize-node-binary,import-meta-glob-*,self-importing-package*,worker*}/**
+test/production/{jest,build-trace-extra-entries*,externals-esm-loose,babel-custom,typescript-checked-side-effect-imports}/**
+test/e2e/{import-conditions,module-layer,transpile-packages,url-imports,async-modules,externals-*,import-meta-glob,jsconfig-paths,webpack-loader-parse-error}/**
+test/unit/next-babel*
+
+[css-and-styling] @lukesandberg @mischnic
+packages/next/src/build/webpack/config/blocks/css/**
+packages/next/src/build/webpack/loaders/{css-loader,lightningcss-loader,postcss-loader,resolve-url-loader,next-style-loader}/**
+packages/next/src/build/webpack/loaders/next-flight-css-loader.ts
+packages/next/src/build/webpack/plugins/{css-chunking-plugin,css-minimizer-plugin,mini-css-extract-plugin}.ts
+packages/next/src/shared/lib/styled-jsx.*
+packages/next/src/server/app-render/{get-css-inlined-link-tags,render-css-resource}.tsx
+crates/next-core/src/next_shared/transforms/{styled_jsx,styled_components,emotion}.rs
+crates/next-core/src/next_client_reference/css_client_reference/**
+crates/next-napi-bindings/src/css/**
+turbopack/crates/turbopack-css/**
+turbopack/crates/turbopack-lightningcss-napi/**
+test/e2e/app-dir/{css-*,app-css*,scss,tailwind-css,no-double-tailwind-execution,emotion-js,dynamic-css,next-dynamic-css,initial-css-*,cssnano-colormin,experimental-lightningcss-features,random-in-sass,parallel-routes-css,css-client-side-nav-parallel-routes}/**
+test/e2e/{css-*,postcss-config-*,styled-jsx-dynamic,next-dynamic-css*,turbopack-css-node-process-connect-failure}/**
+test/production/{css-*,dynamic-css-client-navigation}/**
+test/development/css-*/**
+test/unit/{css-hmr-runtime,cssnano-simple}/**
+
+[next-font] @lukesandberg @andrewimm
+packages/font/**
+packages/next/src/build/webpack/loaders/next-font-loader/**
+packages/next/src/build/webpack/plugins/next-font-manifest-plugin.ts
+packages/next/src/server/font-utils.ts
+packages/next/src/server/app-render/get-preloadable-fonts.tsx
+packages/next/src/build/webpack/plugins/wellknown-errors-plugin/parseNextFontError.ts
+packages/next/src/next-devtools/server/font/**
+crates/next-core/src/next_font/**
+crates/next-custom-transforms/src/transforms/fonts/**
+crates/next-core/src/next_shared/transforms/next_font.rs
+crates/next-api/src/font.rs
+scripts/update-google-fonts.js
+.github/workflows/update_fonts_data.yml
+test/e2e/next-font/**
+test/e2e/geist-font/**
+test/e2e/app-dir/{next-font*,mdx-font-preload,metadata-font}/**
+test/development/next-font/**
+
+
+# ----------------------------------------------------------------------
+# Turbopack
+# ----------------------------------------------------------------------
+
+[turbopack-next-integration] @mischnic @sokra
+crates/next-core/**
+crates/next-api/**
+crates/next-napi-bindings/src/next_api/**
+crates/next-napi-bindings/{Cargo.toml,build.rs}
+crates/next-napi-bindings/npm/**
+crates/next-napi-bindings/src/{turbopack,rspack,turbo_trace_server,util,lib}.rs
+crates/next-build/**
+crates/next-build-test/**
+crates/next-taskless/**
+packages/next/src/build/swc/{index,types,helpers,generated-native.d}.ts
+packages/next/src/build/turbopack-build/**
+packages/next/src/shared/lib/turbopack/**
+packages/next/src/server/dev/turbopack-utils.ts
+packages/next/src/lib/turbopack-cache-seed.ts
+packages/next/src/lib/turbopack-warning.ts
+packages/next-swc/**
+Cargo.toml
+Cargo.lock
+rust-toolchain.toml
+.cargo/**
+scripts/{build-native.ts,install-native.mjs,docker-native-build.*,native-builder.Dockerfile,rust-fingerprint.js}
+test/e2e/app-dir/turbopack-*/**
+test/e2e/turbopack-*/**
+test/production/build-trace-extra-entries-turbo/**
+
+[turbopack-core-bundler] @sokra @lukesandberg @mischnic
+turbopack/crates/turbopack/**
+turbopack/crates/turbopack-core/**
+turbopack/crates/turbopack-ecmascript/**
+turbopack/crates/turbopack-ecmascript-plugins/**
+turbopack/crates/turbopack-resolve/**
+turbopack/crates/turbopack-browser/**
+turbopack/crates/turbopack-nodejs/**
+turbopack/crates/turbopack-node/**
+turbopack/crates/turbopack-static/**
+turbopack/crates/turbopack-wasm/**
+turbopack/crates/turbopack-env/**
+turbopack/crates/turbopack-mdx/**
+turbopack/crates/turbopack-nft/**
+turbopack/crates/turbopack-swc-utils/**
+turbopack/crates/turbopack-analyze/**
+turbopack/crates/turbopack-cli/**
+turbopack/crates/turbopack-cli-utils/**
+turbopack/crates/turbopack-bench/**
+turbopack/crates/turbopack-create-test-app/**
+turbopack/crates/turbopack-test-utils/**
+turbopack/crates/turbopack-tests/**
+turbopack/crates/turbopack-trace-*/**
+turbopack/crates/turbopack-tracing/**
+turbopack/crates/turbopack-swc-ast-explorer/**
+turbopack/xtask/**
+turbopack/scripts/**
+turbopack/benchmark-apps/**
+turbopack/AGENTS.md
+turbopack/tsconfig.json
+.github/workflows/{turbopack-benchmark,test-turbopack-rust-bench-test}.yml
+
+[turbo-tasks] @lukesandberg @sokra
+turbopack/crates/turbo-tasks/**
+turbopack/crates/turbo-tasks-*/**
+turbopack/crates/turbo-persistence/**
+turbopack/crates/turbo-persistence-tools/**
+turbopack/crates/turbo-rcstr/**
+turbopack/crates/turbo-rcstr-macros/**
+turbopack/crates/turbo-{bincode,bitset,dyn-eq-hash,esregex,frozenmap,prehash,unix-path}/**
+scripts/check-unused-turbo-tasks.mjs
+
+[turbopack-runtime-and-hmr] @lukesandberg @wbinnssmith
+turbopack/crates/turbopack-ecmascript-runtime/**
+turbopack/crates/turbopack-ecmascript-hmr-protocol/**
+turbopack/crates/turbopack-dev-server/**
+crates/next-core/src/hmr_entry.rs
+crates/next-api/src/aggregate_hmr.rs
+packages/next/src/client/dev/hot-reloader/turbopack-hot-reloader-common.ts
+packages/next/src/client/dev/noop-turbopack-hmr.ts
+
+
+# ----------------------------------------------------------------------
+# SWC / native transforms
+# ----------------------------------------------------------------------
+
+[swc-transforms] @lukesandberg @unstubbable
+crates/next-custom-transforms/**
+crates/next-core/src/next_shared/transforms/**
+crates/next-core/src/transform_options.rs
+crates/next-napi-bindings/src/{transform,minify,parse,mdx,lockfile,code_frame,react_compiler}.rs
+crates/next-code-frame/**
+crates/wasm/**
+packages/next/src/build/swc/{options,jest-transformer,loaderWorkerPool,generated-wasm.d}.ts
+packages/next/src/build/webpack/loaders/next-swc-loader.ts
+packages/next/src/build/babel/**
+packages/next/src/build/jest/**
+packages/next/src/build/get-babel-loader-config.ts
+packages/next/src/lib/{detect-typo,compile-error}.ts
+packages/next-swc/**
+scripts/build-wasm.cjs
+scripts/setup-wasi-env.sh
+scripts/wasi-builder.Dockerfile
+scripts/wasi-test-host/**
+test/unit/{next-swc,jest-next-swc,babel-plugin-*}*
+test/e2e/app-dir/{remove-console,typeof-window,with-babel,cache-components-dynamic-imports,dynamic-import-tree-shaking}/**
+test/e2e/{typescript-only-remove-type-imports,transpile-packages-typescript-foreign,type-module-interop,react-compiler,swc-plugins-env,relay-graphql-swc-multi-project}/**
+
+
+# ----------------------------------------------------------------------
+# Dev experience
+# ----------------------------------------------------------------------
+
+[dev-overlay] @aurorascharff @devjiwonchoi
+packages/next/src/next-devtools/**
+packages/next/next-devtools.webpack-config.js
+packages/next/src/client/dev/{runtime-error-handler,fouc,debug-channel}.ts
+packages/next/src/client/dev/error-overlay/**
+packages/next/src/client/components/dev-root-http-access-fallback-boundary.tsx
+packages/next/src/server/dev/{browser-logs/**,runtime-error-state.ts,serialized-errors.ts,node-stack-frames.ts,get-source-map-from-file.ts,dev-indicator-server-state.ts,log-requests.ts,messages.ts,parse-version-info.ts}
+packages/next/src/server/lib/{source-maps,parse-stack,install-code-frame}.ts
+packages/next/src/server/patch-error-inspect.ts
+packages/next/src/server/app-render/{create-error-handler,debug-channel-server*,segment-explorer-path}.ts*
+packages/next/src/shared/lib/error-source.ts
+packages/next/src/shared/lib/errors/**
+packages/next/src/lib/format-server-error.ts
+packages/next/.storybook/**
+.agents/skills/insight-error-page/**
+test/development/{acceptance*,error-overlay,dev-indicator,browser-logs,server-side-dev-errors,replayed-internal-errors,basic}/**
+test/e2e/app-dir/{dev-overlay,errors,dedupe-rsc-error-log,default-error-page-ui,server-source-maps,unhandled-rejection-logging,transition-indicator,detachable-panels}/**
+test/lib/add-redbox-matchers.ts
+test/lib/development-sandbox.ts
+
+[dev-server-and-hmr] @wbinnssmith @devjiwonchoi
+packages/next/src/server/dev/{next-dev-server,hot-reloader-webpack,hot-reloader-turbopack,hot-reloader-rspack,hot-reloader-shared-utils,hot-reloader-types,hot-middleware,on-demand-entry-handler,turbopack-utils,require-cache,atomic-manifest-output-fs,debug-channel}.ts
+packages/next/src/server/lib/router-utils/setup-dev-bundler.ts
+packages/next/src/server/lib/dev-bundler-service.ts
+packages/next/src/server/lib/chrome-devtools-workspace.ts
+packages/next/src/client/dev/{hot-middleware-client,on-demand-entries-client,report-hmr-latency}.ts
+packages/next/src/client/dev/hot-reloader/**
+packages/next/src/cli/next-dev.ts
+packages/next/src/lib/memory/**
+packages/next/src/lib/mkcert.ts
+packages/next/src/build/webpack/plugins/nextjs-require-cache-hot-reloader.ts
+packages/react-refresh-utils/**
+packages/next/src/shared/lib/turbopack/compilation-events.ts
+test/development/{app-hmr,app-dir,ondemand,css-hmr-unmounted-chunk,experimental-https-server,tsconfig-path-reloading,jsconfig-path-reloading}/**
+test/e2e/chrome-devtools-workspace/**
+test/e2e/app-dir/{app-compilation,app-hmr,refresh,hooks}/**
+test/unit/css-hmr-runtime/**
+test/lib/css-hmr-initial-load-race.ts
+
+[typegen-mcp-and-agent-tooling] @devjiwonchoi @aurorascharff
+packages/next/src/server/typescript/**
+packages/next/src/server/next-typescript.ts
+packages/next/src/lib/typescript/**
+packages/next/src/build/webpack/plugins/next-types-plugin/**
+packages/next/src/server/lib/router-utils/{typegen,route-types-utils,root-params-type-utils}.ts
+packages/next/src/cli/{next-typegen,next-upgrade,next-info,next-test}.ts
+packages/next/src/lib/upgrade/**
+packages/next/src/lib/verify-typescript-setup.ts
+packages/next/src/server/mcp/**
+packages/next/src/shared/lib/{mcp-error-types,mcp-page-metadata-types}.ts
+packages/next/src/server/lib/generate-agent-files.ts
+packages/next/src/agent-feedback/**
+packages/next/src/experimental/testmode/**
+skills/**
+evals/**
+apps/bundle-analyzer/**
+packages/next-codemod/bin/agents-md.ts
+test/development/{typescript-plugin,mcp-server,typescript-external-dir,next-config-ts}/**
+test/e2e/app-dir/{typed-routes*,typegen-*,types,segment-config-ts,next-config-ts*}/**
+test/e2e/typescript*/**
+test/production/{app-types,typescript-basic}/**
+test/unit/agentic-upgrade-prompts.test.ts
+test/unit/typescript-cli-config-origin/**
+test/e2e/agent-upgrade-terminal/**
+
+
+# ----------------------------------------------------------------------
+# Tooling & CLI
+# ----------------------------------------------------------------------
+
+[cli-and-process-lifecycle] @devjiwonchoi @aurorascharff
+packages/next/src/bin/**
+packages/next/src/cli/internal/**
+packages/next/src/cli/next-start.ts
+packages/next/src/lib/{format-cli-help-output,get-project-dir,find-pages-dir,find-root,get-network-host,get-package-version,has-necessary-dependencies,install-dependencies,patch-incorrect-lockfile,download-swc,setup-exception-listeners,verify-root-layout,verify-partytown-setup,warn-missing-react-dependencies,git-worktree,profiles-dir,worker,batcher,coalesced-function,scheduler,wait,with-promise-cache,file-exists,get-files-in-dir,recursive-readdir,recursive-delete,realpath,resolve-from,normalize-path,picocolors,pretty-bytes,oxford-comma-list,pick,non-nullable,is-error,interop-default,semver-noop,constants,page-types,is-api-route,is-app-page-route,is-app-route-route,is-internal-component,import-next-warning,mime-type}.ts
+packages/next/src/lib/{framework,fs,helpers}/**
+packages/next/src/build/swc/install-bindings.ts
+packages/next/src/server/lib/cpu-profile.ts
+packages/next/src/server/ci-info.ts
+packages/next/src/server/lib/app-info-log.ts
+scripts/{minimal-server.js,trace-cli-startup.js,trace-next-server.js,benchmark-*}
+test/unit/{find-config,get-project-dir,get-files-in-dir}.test.ts
+test/production/{production-start-no-build,allow-development-build,build-spinners,production-config}/**
+test/e2e/cli/**
+
+[create-next-app] @aurorascharff @devjiwonchoi
+packages/create-next-app/**
+test/production/create-next-app/**
+scripts/check-examples.sh
+
+[next-codemod] @devjiwonchoi @aurorascharff
+packages/next-codemod/**
+packages/next/src/cli/next-upgrade.ts
+
+[satellite-packages] @eps1lon @devjiwonchoi
+packages/eslint-plugin-next/**
+packages/eslint-config-next/**
+packages/eslint-plugin-internal/**
+packages/third-parties/**
+packages/next-mdx/**
+packages/next-bundle-analyzer/**
+packages/next-env/**
+packages/next-playwright/**
+packages/next-plugin-storybook/**
+packages/next-polyfill-module/**
+packages/next-polyfill-nomodule/**
+packages/devlow-bench/**
+packages/next/src/build/polyfills/**
+packages/next/src/api/**
+packages/next/*.js
+packages/next/*.d.ts
+packages/next/{compat,experimental,font,legacy,navigation-types,types}/**
+packages/next/src/client/{use-merged-ref,set-attributes-from-props,trusted-types,use-client-disallowed}.ts
+packages/next/src/client/compat/**
+packages/next/src/client/portal/**
+packages/next/src/shared/lib/{utils,constants,mitt,htmlescape,hash,fnv1a,bloom-filter,is-plain-object,is-thenable,deep-freeze,deep-readonly,escape-regexp,promise-with-resolvers,typescript-utils,invariant-error,is-internal,encode-uri-path,normalized-asset-prefix,dset}.*
+packages/next/src/shared/lib/utils/**
+packages/next/src/shared/lib/isomorphic/**
+packages/next/src/shared/lib/page-path/**
+test/unit/{eslint-plugin-next,eslint-config-next}/**
+test/e2e/app-dir/{third-parties,mdx*,monaco-editor}/**
+
+
+# ----------------------------------------------------------------------
+# Infra / CI / test infra
+# ----------------------------------------------------------------------
+
+[ci-and-release] @eps1lon @bgw
+.github/**
+scripts/{start-release,publish-release,release-*,version-bump,normalize-version-bump,check-is-release,check-backport-canary-release,undraft-release,set-preview-version,create-preview-tarballs,upload-preview-tarballs,wait-for-preview-tarball,patch-preview-tarball,inject-deploy-url,generate-release-log,automated-update-workflow,adopt-pr,pr-ci-comment,pr-logs,pr-status,git-configure,git-info,run-for-change,sweep,rm,sync-react,upload-adapter-test-results,deploy-turbopack-docs,setup-node,next-with-deps,trace-dd,test-stats-benchmark,send-trace-to-jaeger}*
+scripts/github-utils/**
+scripts/cargo/**
+package.json
+pnpm-workspace.yaml
+pnpm-lock.yaml
+turbo.json
+turbo/**
+lint-staged.config.js
+eslint.config.mjs
+eslint.cli.config.mjs
+sgconfig.yml
+socket.yaml
+vercel.json
+conductor.json
+.config/**
+.husky/**
+.devcontainer/**
+.vscode/**
+.conductor/**
+.cursor/**
+.claude/**
+.claude-plugin/**
+.prettierrc.json
+.prettierignore
+.typos.toml
+.rustfmt.toml
+.node-version
+.gitattributes
+.gitignore
+.git-blame-ignore-revs
+.ignore
+.alexrc
+.alexignore
+.cursorindexingignore
+skills-lock.json
+turbopack/.editorconfig
+AGENTS.md
+.agents/skills/{create-pr,gh-stack,backport-pr,pr-status-triage,deploy-release-test}/**
+
+[test-infra] @eps1lon @sokra
+test/lib/**
+test/*.js
+test/*.ts
+test/*.json
+test/AGENTS.md
+test/readme.md
+test/.stats-app/**
+test/unit/{gate,isolated,fixtures,deployment-test-env,next-deploy-failure,next-test-utils-retry.test.ts}/**
+run-tests.js
+run-evals.js
+jest.config.js
+jest.config.turbopack.js
+test-config-errors/**
+scripts/{run-jest.sh,test-report.js,get-changed-tests.mjs,test-new-tests.mjs,run-e2e-test-project-reset.mjs,reset-project.mjs,pack-next.ts,pack-util.ts,pack-utils/**,unpack-next.ts,patch-next.ts}
+packages/next/src/experimental/testmode/**
+packages/next/test-runner-jest.config.js
+.agents/skills/{gate-tests,router-act,sandbox-bench,runtime-debug}/**
+bench/**
+test/production/bundle-size/**
+test/e2e/{testmode,next-test}/**
+
+[react-vendoring] @eps1lon @bgw
+packages/next/src/compiled/react/**
+packages/next/src/compiled/react-dom/**
+packages/next/src/compiled/react-experimental/**
+packages/next/src/compiled/react-dom-experimental/**
+packages/next/src/compiled/react-is/**
+packages/next/src/compiled/react-server-dom-webpack/**
+packages/next/src/compiled/react-server-dom-webpack-experimental/**
+packages/next/src/compiled/react-server-dom-turbopack/**
+packages/next/src/compiled/react-server-dom-turbopack-experimental/**
+packages/next/src/compiled/scheduler*/**
+packages/next/src/server/route-modules/app-page/vendored/**
+packages/next/src/server/route-modules/app-page/module.compiled.*
+packages/next/src/server/app-render/entry-base.ts
+packages/next/src/server/{runtime-reacts.external,ReactDOMServerPages}.*
+packages/next/src/server/app-render/react-server.node.ts
+packages/next/src/lib/needs-experimental-react.ts
+packages/next/types/$$compiled.internal.d.ts
+packages/next/types/react-dom.d.ts
+packages/next/next-runtime.webpack-config.js
+packages/next/package.json
+scripts/sync-react.js
+.github/workflows/update_react*.yml
+.agents/skills/{react-vendoring,react-sync}/**
+test/lib/react-channel-require-hook.js
+test/e2e/app-dir/{taint,temporary-references,view-transitions,gesture-transitions}/**
+
+[next-package-build] @eps1lon @timneutkens
+packages/next/src/compiled/**
+packages/next/taskfile*.js
+packages/next/tsconfig*.json
+packages/next/turbo.json
+packages/next/README.md
+packages/next/AGENTS.md
+patches/**
+scripts/{check-pre-compiled.sh,check-pre-compiled.bat,generate-browser-variant-aliases.mjs,create-next-bin-placeholder.mjs,validate-externals-doc.js}
+packages/next/src/build/browser-variant-modules.ts
+packages/next/analyze/**
+packages/next/license.md
+tsconfig.json
+
+
+# ----------------------------------------------------------------------
+# Docs
+# ----------------------------------------------------------------------
+
+[docs] @aurorascharff @icyJoseph
+docs/**
+errors/**
+examples/**
+contributing/**
+contributing.md
+UPGRADING.md
+readme.md
+CODE_OF_CONDUCT.md
+license.md
+.agents/skills/{update-docs,write-api-reference,write-guide,docs-diagrams,authoring-skills}/**
+.agents/skills/README.md
+.github/actions/validate-docs-links/**

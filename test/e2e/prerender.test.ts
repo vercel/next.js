@@ -1,3 +1,4 @@
+// run deploy tests: v1
 import fs from 'fs-extra'
 import cookie from 'cookie'
 import cheerio from 'cheerio'

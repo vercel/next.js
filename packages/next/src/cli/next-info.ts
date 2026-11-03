@@ -105,7 +105,7 @@ async function printInfo() {
   let versionInfo
 
   try {
-    const registry = getRegistry()
+    const registry = await getRegistry()
     const res = await fetch(`${registry}-/package/next/dist-tags`)
     const tags = await res.json()
 

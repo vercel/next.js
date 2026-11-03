@@ -908,6 +908,12 @@ impl AppProject {
             let next_mode_ref = next_mode.await?;
             let should_trace = *self.project.should_write_nft_manifests().await?;
             let should_read_binding_usage = next_mode_ref.is_production();
+            let remove_unused_imports = *self
+                .project
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?;
+            let graph_options = self.project.module_graph_options().await?;
 
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
@@ -953,8 +959,7 @@ impl AppProject {
                             ),
                         ]),
                         visited_modules,
-                        should_trace,
-                        should_read_binding_usage,
+                        graph_options,
                     );
                     graphs.push(graph);
                     visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -972,8 +977,7 @@ impl AppProject {
                                 ResolvedVc::upcast(*module),
                             )]),
                             visited_modules,
-                            should_trace,
-                            should_read_binding_usage,
+                            graph_options,
                         );
                         graphs.push(graph);
                         let is_layout = module.server_path().await?.file_stem() == Some("layout");
@@ -995,8 +999,7 @@ impl AppProject {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     GraphEntries::from_chunk_groups(vec![rsc_entry_chunk_group]),
                     visited_modules,
-                    should_trace,
-                    should_read_binding_usage,
+                    graph_options,
                 );
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -1006,8 +1009,7 @@ impl AppProject {
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
                     visited_modules,
-                    should_trace,
-                    should_read_binding_usage,
+                    graph_options,
                 );
                 graphs.push(additional_module_graph);
 
@@ -1019,18 +1021,15 @@ impl AppProject {
                     span.record("modules", module_count);
                 }
 
-                let remove_unused_imports = *self
-                    .project
-                    .next_config()
-                    .turbopack_remove_unused_imports(next_mode)
-                    .await?;
-
                 let (full, binding_usage_info) = if remove_unused_imports {
                     let full_with_unused_references =
                         ModuleGraph::from_graphs(graphs.clone(), None);
+                    // This is a per-route graph: a module that is unused here might still be code
+                    // generated via another graph, so dropping its data would only cause re-parses.
                     let binding_usage_info = compute_binding_usage_info(
                         full_with_unused_references,
                         should_read_binding_usage,
+                        /* drop_unused_module_data */ false,
                     );
                     (
                         ModuleGraph::from_graphs(graphs, Some(binding_usage_info)),
@@ -1495,6 +1494,39 @@ impl AppEndpoint {
             None
         };
 
+        // Like the polyfill, this is a pre-compiled asset distributed as part of next and served
+        // as-is rather than bundled with the framework. Keeping it small and independent lets it
+        // reveal streamed Suspense boundaries before the framework loads or hydration begins.
+        // React only publishes it on the experimental channel, which
+        // `experimental.externalBrowserRuntime` opts into.
+        let external_browser_runtime_output_asset =
+            if matches!(this.ty, AppEndpointType::Page { .. })
+                && *project
+                    .next_config()
+                    .enable_external_browser_runtime()
+                    .await?
+            {
+                let next_package = get_next_package(project.project_path().owned().await?).await?;
+                let external_browser_runtime_source = FileSource::new(next_package.join(
+                    "dist/compiled/react-dom-experimental/unstable_server-external-runtime.js",
+                )?);
+
+                let external_browser_runtime_output_asset = ResolvedVc::upcast(
+                    SingleFileEcmascriptOutput::new(
+                        *client_chunking_context,
+                        Vc::upcast(external_browser_runtime_source),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+
+                client_assets.insert(external_browser_runtime_output_asset);
+
+                Some(external_browser_runtime_output_asset)
+            } else {
+                None
+            };
+
         // Compile any service workers registered via `navigator.serviceWorker.register(new
         // URL(...), { scope })` reachable from this endpoint.
         client_assets.extend(
@@ -1529,6 +1561,7 @@ impl AppEndpoint {
                 pages: Default::default(),
                 root_main_files: client_shared_chunks,
                 polyfill_files: polyfill_output_asset.into_iter().collect(),
+                external_browser_runtime_file: external_browser_runtime_output_asset,
                 root_main_files_per_page,
                 pages_chunk_group_bootstrap_params: client_chunk_group_bootstrap_params
                     .map(|params| {
