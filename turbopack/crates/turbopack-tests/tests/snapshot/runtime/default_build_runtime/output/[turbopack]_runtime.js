@@ -623,6 +623,25 @@ contextPrototype.U = relativeURL;
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
 /**
+ * Errors thrown because a module was required before any chunk had registered
+ * its factory. Such an error is a missing dependency (a link failure), not an
+ * error a module's own code threw, so the build runtimes do not keep it on the
+ * modules that were instantiating when it happened: a later require can
+ * instantiate them once the chunk with the factory has registered.
+ */ const factoryNotAvailableErrors = new WeakSet();
+/**
+ * Creates the error for a module whose factory is not available.
+ */ function factoryNotAvailableError(moduleId, sourceType, sourceData) {
+    const error = new Error(factoryNotAvailableMessage(moduleId, sourceType, sourceData));
+    factoryNotAvailableErrors.add(error);
+    return error;
+}
+/**
+ * Whether `error` is a missing module factory (see `factoryNotAvailableError`).
+ */ function isFactoryNotAvailableError(error) {
+    return error instanceof Error && factoryNotAvailableErrors.has(error);
+}
+/**
  * Constructs an error message for when a module factory is not available.
  */ function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
     let instantiationReason;
@@ -906,7 +925,7 @@ function instantiateModule(id, sourceType, sourceData) {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
         // and contains e.g. a `require("something")` call.
-        throw new Error(factoryNotAvailableMessage(id, sourceType, sourceData));
+        throw factoryNotAvailableError(id, sourceType, sourceData);
     }
     const module1 = createModuleWithDirection(id);
     const exports = module1.exports;
@@ -916,7 +935,14 @@ function instantiateModule(id, sourceType, sourceData) {
     try {
         moduleFactory(context, module1, exports);
     } catch (error) {
-        module1.error = error;
+        if (isFactoryNotAvailableError(error)) {
+            // A dependency had no factory yet: drop the module so a later require
+            // instantiates it once that factory's chunk has registered. An error
+            // the module's own code throws stays cached and is rethrown.
+            moduleCache.delete(id);
+        } else {
+            module1.error = error;
+        }
         throw error;
     }
     ;

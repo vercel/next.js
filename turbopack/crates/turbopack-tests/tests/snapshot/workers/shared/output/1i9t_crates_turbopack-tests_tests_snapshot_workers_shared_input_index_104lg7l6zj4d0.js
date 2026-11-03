@@ -645,6 +645,25 @@ contextPrototype.U = relativeURL;
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
 /**
+ * Errors thrown because a module was required before any chunk had registered
+ * its factory. Such an error is a missing dependency (a link failure), not an
+ * error a module's own code threw, so the build runtimes do not keep it on the
+ * modules that were instantiating when it happened: a later require can
+ * instantiate them once the chunk with the factory has registered.
+ */ const factoryNotAvailableErrors = new WeakSet();
+/**
+ * Creates the error for a module whose factory is not available.
+ */ function factoryNotAvailableError(moduleId, sourceType, sourceData) {
+    const error = new Error(factoryNotAvailableMessage(moduleId, sourceType, sourceData));
+    factoryNotAvailableErrors.add(error);
+    return error;
+}
+/**
+ * Whether `error` is a missing module factory (see `factoryNotAvailableError`).
+ */ function isFactoryNotAvailableError(error) {
+    return error instanceof Error && factoryNotAvailableErrors.has(error);
+}
+/**
  * Constructs an error message for when a module factory is not available.
  */ function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
     let instantiationReason;

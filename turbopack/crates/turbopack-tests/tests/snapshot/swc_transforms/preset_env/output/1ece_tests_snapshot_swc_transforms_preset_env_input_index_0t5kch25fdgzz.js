@@ -52,6 +52,12 @@ function _async_to_generator(fn) {
         });
     };
 }
+function _instanceof(left, right) {
+    "@swc/helpers - instanceof";
+    if (right != null && typeof Symbol !== "undefined" && right[Symbol.hasInstance]) {
+        return !!right[Symbol.hasInstance](left);
+    } else return left instanceof right;
+}
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
         label: 0,
@@ -871,6 +877,25 @@ contextPrototype.U = relativeURL;
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
 /**
+ * Errors thrown because a module was required before any chunk had registered
+ * its factory. Such an error is a missing dependency (a link failure), not an
+ * error a module's own code threw, so the build runtimes do not keep it on the
+ * modules that were instantiating when it happened: a later require can
+ * instantiate them once the chunk with the factory has registered.
+ */ var factoryNotAvailableErrors = new WeakSet();
+/**
+ * Creates the error for a module whose factory is not available.
+ */ function factoryNotAvailableError(moduleId, sourceType, sourceData) {
+    var error = new Error(factoryNotAvailableMessage(moduleId, sourceType, sourceData));
+    factoryNotAvailableErrors.add(error);
+    return error;
+}
+/**
+ * Whether `error` is a missing module factory (see `factoryNotAvailableError`).
+ */ function isFactoryNotAvailableError(error) {
+    return _instanceof(error, Error) && factoryNotAvailableErrors.has(error);
+}
+/**
  * Constructs an error message for when a module factory is not available.
  */ function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
     var instantiationReason;
@@ -1580,7 +1605,7 @@ function instantiateModule(id, sourceType, sourceData) {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
         // and contains e.g. a `require("something")` call.
-        throw new Error(factoryNotAvailableMessage(id, sourceType, sourceData));
+        throw factoryNotAvailableError(id, sourceType, sourceData);
     }
     var module = createModuleObject(id);
     var exports = module.exports;
@@ -1590,7 +1615,14 @@ function instantiateModule(id, sourceType, sourceData) {
     try {
         moduleFactory(context, module, exports);
     } catch (error) {
-        module.error = error;
+        if (isFactoryNotAvailableError(error)) {
+            // A dependency had no factory yet: drop the module so a later require
+            // instantiates it once that factory's chunk has registered. An error
+            // the module's own code throws stays cached and is rethrown.
+            moduleCache.delete(id);
+        } else {
+            module.error = error;
+        }
         throw error;
     }
     if (module.namespaceObject && module.exports !== module.namespaceObject) {

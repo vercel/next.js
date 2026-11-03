@@ -37,7 +37,7 @@ function instantiateModule(
     // This can happen if modules incorrectly handle HMR disposes/updates,
     // e.g. when they keep a `setTimeout` around which still executes old code
     // and contains e.g. a `require("something")` call.
-    throw new Error(factoryNotAvailableMessage(id, sourceType, sourceData))
+    throw factoryNotAvailableError(id, sourceType, sourceData)
   }
 
   const module: ModuleWithDirection = createModuleWithDirection(id)
@@ -53,7 +53,14 @@ function instantiateModule(
   try {
     moduleFactory(context, module, exports)
   } catch (error) {
-    module.error = error as any
+    if (isFactoryNotAvailableError(error)) {
+      // A dependency had no factory yet: drop the module so a later require
+      // instantiates it once that factory's chunk has registered. An error
+      // the module's own code throws stays cached and is rethrown.
+      moduleCache.delete(id)
+    } else {
+      module.error = error as any
+    }
     throw error
   }
 
