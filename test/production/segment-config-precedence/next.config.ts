@@ -1,9 +1,8 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  // TODO: Type-check excluded layouts once --debug-build-paths generates their slot types.
-  // Webpack still type-checks the complete fixture.
-  typescript: { ignoreBuildErrors: !!process.env.IS_TURBOPACK_TEST },
+  // Prefer JSX for the duplicate-layout fixture while keeping the TS/JS routes.
+  pageExtensions: ['jsx', 'js', 'tsx', 'ts'],
 }
 
 export default nextConfig
