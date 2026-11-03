@@ -20901,8 +20901,9 @@
           (workInProgressRootRenderLanes & 62914560) ===
             workInProgressRootRenderLanes &&
           now$1() - globalMostRecentFallbackTime < FALLBACK_THROTTLE_MS)
-          ? (executionContext & RenderContext) === NoContext &&
-            prepareFreshStack(root, 0)
+          ? (executionContext & RenderContext) === NoContext
+            ? prepareFreshStack(root, 0)
+            : (workInProgressRootPingedLanes |= pingedLanes)
           : (workInProgressRootPingedLanes |= pingedLanes),
         workInProgressSuspendedRetryLanes === workInProgressRootRenderLanes &&
           (workInProgressSuspendedRetryLanes = 0));
