@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault, mem::take};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use rustc_hash::{FxHashMap, FxHasher};
 use smallvec::SmallVec;
 use tracing::{Instrument, field::Empty};
@@ -43,9 +43,19 @@ pub async fn make_production_chunks(
         let module_chunk_groups = module_graph.chunk_group_info().module_chunk_groups();
         let chunk_group_info = module_graph.chunk_group_info().await?;
         let heuristics = &chunk_group_info.chunking_heuristics;
-        let is_module_merging_enabled = *(*split_context.chunking_context)
+        // Merged modules only exist when module merging is enabled; computing `merged_modules()`
+        // otherwise would force the (potentially expensive) merge analysis — and the module graph
+        // isn't even built to support it (it only collects `is_mergeable` when merging is on). So
+        // only resolve it when merging is enabled; the lookup below is only reached for modules
+        // that were merged away, which can't happen when merging is off.
+        let merged_modules = if *(*split_context.chunking_context)
             .is_module_merging_enabled()
-            .await?;
+            .await?
+        {
+            Some(module_graph.merged_modules().await?)
+        } else {
+            None
+        };
 
         #[derive(Default)]
         struct GroupedChunkItems<'l> {
@@ -80,22 +90,15 @@ pub async fn make_production_chunks(
                         } else {
                             // Merged modules don't have a chunk group in chunk_group_info, so
                             // lookup using the original module. A module can only be missing here
-                            // if it was merged away, which only happens when merging is enabled.
-                            // `merged_modules()` is only read here: computing it when merging is
-                            // disabled would force the (potentially expensive) merge analysis, and
-                            // the module graph isn't even built to support it then (it only
-                            // collects `is_mergeable` when merging is on). Reading it only for
-                            // merged-away modules also keeps other chunk groups from depending on
-                            // it.
-                            if !is_module_merging_enabled {
-                                bail!(
+                            // if it was merged away, which only happens
+                            // when merging is enabled (so
+                            // `merged_modules` is `Some`).
+                            let original_module = merged_modules
+                                .as_ref()
+                                .context(
                                     "module has no chunk group and module merging is disabled, so \
-                                     it cannot have been merged away"
-                                );
-                            }
-                            let original_module = module_graph
-                                .merged_modules()
-                                .await?
+                                     it cannot have been merged away",
+                                )?
                                 .get_original_module(module)
                                 .await?
                                 .context("every module should have a chunk group")?;
