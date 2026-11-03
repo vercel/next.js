@@ -442,6 +442,16 @@ function computeRootParamsCacheKeySuffix(
   )
 }
 
+function createRootParamsUnavailableError(
+  route: string,
+  rootParamNames: ReadonlySet<string>
+): Error {
+  const paramNames = [...rootParamNames].sort().join(', ')
+  return new Error(
+    `Route ${route} used root params (${paramNames}) inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.`
+  )
+}
+
 // Next-internal cookies that must not vary the private cache key, since they're
 // not part of the application's own cookie state. The instant-navigation cookie
 // toggles while a navigation lock is held, so including it would force spurious
@@ -3185,6 +3195,24 @@ export async function cache(
             }
 
             const updatedRootParamNames = knownRootParamsByFunctionId.get(id)
+            // Throw when the fill read root params and the joiner has none. A
+            // joiner without root params is nested in `unstable_cache`. The
+            // mismatch retry below requires the joiner's root params, so it
+            // cannot separate this joiner from a leader with different values.
+            // A fork would serve the leader's root-param-specific entry, and
+            // `unstable_cache` would persist it under a key that has no root
+            // params.
+            if (
+              updatedRootParamNames &&
+              updatedRootParamNames.size > 0 &&
+              !rootParams
+            ) {
+              cacheSignal?.endRead()
+              throw createRootParamsUnavailableError(
+                workStore.route,
+                updatedRootParamNames
+              )
+            }
             if (updatedRootParamNames && rootParams) {
               const newCacheHandlerKey =
                 cacheHandlerKeyBase +
@@ -3234,6 +3262,18 @@ export async function cache(
           } else {
             // prerender-dynamic — same root param check before hanging
             const updatedRootParamNames = knownRootParamsByFunctionId.get(id)
+            // Same missing-root-params guard as the fork path above.
+            if (
+              updatedRootParamNames &&
+              updatedRootParamNames.size > 0 &&
+              !rootParams
+            ) {
+              cacheSignal?.endRead()
+              throw createRootParamsUnavailableError(
+                workStore.route,
+                updatedRootParamNames
+              )
+            }
             if (updatedRootParamNames && rootParams) {
               const newCacheHandlerKey =
                 cacheHandlerKeyBase +
