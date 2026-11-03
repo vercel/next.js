@@ -152,6 +152,7 @@ import {
 } from './walk-tree-with-flight-router-state'
 import { createFullComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
+import { getExternalBrowserRuntimeSrc } from './get-external-browser-runtime-src'
 import {
   getClientReferenceManifest,
   getServerModuleMap,
@@ -3596,6 +3597,16 @@ async function renderToStream(
         nonce,
       }))
 
+  const { externalBrowserRuntime } = experimental
+  const externalRuntimeSrc = getExternalBrowserRuntimeSrc(
+    ctx,
+    buildManifest,
+    externalBrowserRuntime,
+    assetPrefix,
+    crossOrigin,
+    subresourceIntegrityManifest
+  )
+
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
     buildManifest,
     // Why is assetPrefix optional on renderOpts?
@@ -4117,7 +4128,8 @@ async function renderToStream(
               createNodeInlinedDataStream(
                 reactServerResult.tee(),
                 nonce,
-                formState
+                formState,
+                externalBrowserRuntime
               ),
               turbopackBootstrapScriptContent,
               nonce
@@ -4173,7 +4185,8 @@ async function renderToStream(
                 createNodeInlinedDataStream(
                   reactServerResult.consume(),
                   nonce,
-                  formState
+                  formState,
+                  externalBrowserRuntime
                 ),
                 turbopackBootstrapScriptContent,
                 nonce
@@ -4219,6 +4232,7 @@ async function renderToStream(
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
 
@@ -4238,7 +4252,8 @@ async function renderToStream(
           inlinedDataStream: createNodeInlinedDataStream(
             reactServerResult.consume(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady,
           allReady,
@@ -4260,7 +4275,8 @@ async function renderToStream(
               createWebInlinedDataStream(
                 reactServerResult.tee(),
                 nonce,
-                formState
+                formState,
+                externalBrowserRuntime
               ),
               turbopackBootstrapScriptContent,
               nonce
@@ -4316,7 +4332,8 @@ async function renderToStream(
                 createWebInlinedDataStream(
                   reactServerResult.consume(),
                   nonce,
-                  formState
+                  formState,
+                  externalBrowserRuntime
                 ),
                 turbopackBootstrapScriptContent,
                 nonce
@@ -4360,6 +4377,7 @@ async function renderToStream(
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
 
@@ -4377,7 +4395,8 @@ async function renderToStream(
           inlinedDataStream: createWebInlinedDataStream(
             reactServerResult.consume(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady,
           allReady,
@@ -4524,6 +4543,7 @@ async function renderToStream(
               nonce,
               bootstrapScriptContent: errorBootstrapScriptContent,
               bootstrapScripts: [errorBootstrapScript],
+              unstable_externalRuntimeSrc: externalRuntimeSrc,
               formState,
               onAllReady: finishHtmlRender,
             },
@@ -4537,7 +4557,8 @@ async function renderToStream(
               // render
               reactServerResult.consume(),
               nonce,
-              formState
+              formState,
+              externalBrowserRuntime
             ),
             waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -4617,6 +4638,7 @@ async function renderToStream(
                 nonce,
                 bootstrapScriptContent: errorBootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
               }
             )
@@ -4631,7 +4653,8 @@ async function renderToStream(
               // render
               reactServerResult.consume(),
               nonce,
-              formState
+              formState,
+              externalBrowserRuntime
             ),
             waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -8817,6 +8840,7 @@ async function continueStaticPrerenderWithInlinedData(
   reactServerResult: ReactServerPrerenderResult,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   createInlinedDataStream: typeof createWebInlinedDataStream,
+  externalBrowserRuntime: boolean,
   formState: unknown | null,
   nonce: string | undefined,
   getServerInsertedHTML: () => Promise<string>,
@@ -8859,7 +8883,8 @@ async function continueStaticPrerenderWithInlinedData(
       createInlinedDataStream(
         emptyReactServerResult.consumeAsStream(),
         nonce,
-        formState
+        formState,
+        externalBrowserRuntime
       ),
       turbopackBootstrapScriptContent,
       nonce
@@ -8876,7 +8901,8 @@ async function continueStaticPrerenderWithInlinedData(
     createInlinedDataStream(
       reactServerResult.consumeAsStream(),
       nonce,
-      formState
+      formState,
+      externalBrowserRuntime
     ),
     turbopackBootstrapScriptContent,
     nonce
@@ -8994,6 +9020,16 @@ async function prerenderToStream(
         noModule: true,
         nonce,
       }))
+
+  const { externalBrowserRuntime } = experimental
+  const externalRuntimeSrc = getExternalBrowserRuntimeSrc(
+    ctx,
+    buildManifest,
+    externalBrowserRuntime,
+    assetPrefix,
+    crossOrigin,
+    subresourceIntegrityManifest
+  )
 
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
     buildManifest,
@@ -9525,6 +9561,7 @@ async function prerenderToStream(
             },
             bootstrapScriptContent,
             bootstrapScripts: [bootstrapScript],
+            unstable_externalRuntimeSrc: externalRuntimeSrc,
           }
         )
 
@@ -10008,6 +10045,7 @@ async function prerenderToStream(
                 maxHeadersLength: reactMaxHeadersLength,
                 bootstrapScriptContent,
                 bootstrapScripts: [bootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
               }
             )
 
@@ -10199,6 +10237,7 @@ async function prerenderToStream(
         reactServerResult,
         fallbackRouteParams,
         createInlinedDataStream,
+        externalBrowserRuntime,
         formState,
         nonce,
         getServerInsertedHTML,
@@ -10288,6 +10327,7 @@ async function prerenderToStream(
               : turbopackBootstrapScriptContent
             : bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
         },
         { waitForAllReady: true }
       )
@@ -10318,7 +10358,8 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataStream(
             reactServerResult.consumeAsStream(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady: true,
           getServerInsertedHTML,
@@ -10615,6 +10656,7 @@ async function prerenderToStream(
                 // Like the regular prerender, the Turbopack bootstrap is left
                 // out of the shell; see `withTurbopackBootstrapScript`.
                 bootstrapScripts: [errorBootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
                 signal: errorClientReactController.signal,
                 onError: (clientError: unknown, errorInfo: ErrorInfo) => {
@@ -10762,6 +10804,7 @@ async function prerenderToStream(
           originalFlightPrerenderResult,
           fallbackRouteParams,
           createInlinedDataStream,
+          externalBrowserRuntime,
           formState,
           nonce,
           getServerInsertedHTML,
@@ -10865,6 +10908,7 @@ async function prerenderToStream(
           nonce,
           bootstrapScriptContent: errorBootstrapScriptContent,
           bootstrapScripts: [errorBootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         },
         { waitForAllReady: true }
@@ -10891,7 +10935,8 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataStream(
             reactServerPrerenderResult.consumeAsStream(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady: true,
           getServerInsertedHTML: makeGetServerInsertedHTML({

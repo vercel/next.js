@@ -18,3 +18,10 @@ These rules apply throughout this directory tree when developing with turbo_task
 - Read keyed cells through keyed access, such as `map.get(&key).await?`, so invalidation depends only on the entries actually read. Awaiting the entire map and then looking up a key creates a dependency on the whole map instead.
 - When a task reads many keys of the same keyed cell, use `let map = map.keyed_reader().await?;` and then the synchronous `map.get(&key)` / `map.contains_key(&key)`. It reads the cell once and, when the `KeyedReadRef` is dropped, narrows the dependency to the accessed keys in one batch. The `KeyedReadRef` (and the `keyed_reader()` future) must be dropped within the task execution that called `keyed_reader()`: don't return, store, leak, or move them to other threads or tasks. Otherwise completing the task execution panics, which aborts the process.
 - When changing task boundaries, check the intended invalidation behavior. An unrelated module change should not invalidate consumers of unchanged keyed entries; correct output alone does not demonstrate good cache granularity.
+- Cell equality must include every observable distinction: comparison can retain the old value when the new value compares equal. In particular, `IndexSet` has deterministic iteration order but order-insensitive equality. Use `Vec` or an order-sensitive comparison when order is semantic or another cell stores positional indices into the collection; otherwise a reorder can leave old data paired with new indices even after recomputation settles.
+
+### Eventual consistency
+
+- Reads of separate cells can observe different executions during recomputation, even when the cells are produced by the same task or referenced through `ResolvedVc`. Do not assume a parent cell and its child/index cells form an atomic snapshot.
+- For cross-cell indices and lookups, handle transient mismatches with `bail!` or other `Result::Err` returns. Do not use panicking indexing, `unwrap`/`expect` or assertions.
+- Bounds checks prevent panics, not torn reads: an in-range index can still select the wrong value from another execution, for example leading to unexpected enum variants.
