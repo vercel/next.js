@@ -104,9 +104,18 @@ impl EcmascriptBrowserWorkerEntrypoint {
 impl OutputAssetsReference for EcmascriptBrowserWorkerEntrypoint {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
-        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(vec![
-            ResolvedVc::upcast(self.source_map().to_resolved().await?),
-        ])))
+        let this = self.await?;
+        let mut references = Vec::new();
+        if *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?
+        {
+            references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
+        }
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
     }
 }
 
