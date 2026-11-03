@@ -111,6 +111,9 @@ search doesn't.
 
 ### after the edit — verify
 
+Verify the changed behavior. Reuse passing checks while the code and
+conditions they cover remain unchanged.
+
 Four failure modes. Check each:
 
 - **Compiles** — `get_compilation_issues`.
@@ -118,15 +121,19 @@ Four failure modes. Check each:
   browser errors both surface here).
 - **Behaves as intended** — `agent-browser` drives the page; assert
   what the user actually sees.
-- **React-level behavior** — `agent-browser` with react-devtools
-  enabled exposes the component tree, props, state, and render
-  counts. Anchor framework-level checks here (extra renders,
-  server/client boundary shifts, suspense fallbacks) — DOM asserts
-  alone miss them. Use `agent-browser react tree --json` to get the tree
-  rather than a bare acknowledgement.
+- **React-level behavior** — when checking render counts,
+  server/client boundaries, or Suspense fallbacks, inspect the relevant
+  components with react-devtools. Use `agent-browser react tree --json`
+  to get the tree, then narrow subsequent reads to the question being
+  checked. A full tree is not needed for every page interaction.
 
 Pick the specific tool from `tools/list` or the agent-browser
 manual rather than from memory.
+
+Save long test output to a file and read the failures and final summary.
+Wait for running checks to finish instead of repeatedly polling at short
+intervals. Finish when the requested behavior and required tests pass and
+compilation and runtime checks are clear.
 
 ## gotchas
 
