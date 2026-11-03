@@ -1,0 +1,3 @@
+import type { BaselineData } from 'vitest';
+const stats: BaselineData['latency'] = {mean: 1};
+void stats;

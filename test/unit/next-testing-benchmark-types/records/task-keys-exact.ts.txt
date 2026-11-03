@@ -1,0 +1,6 @@
+import type { BaselineData, TestBenchmarkTask, TestBenchmark } from 'vitest';
+type Equal<A,B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+const keys: Equal<keyof TestBenchmarkTask,keyof BaselineData|'name'|'rank'|'perProject'|'fromStore'> = true;
+const groups: Equal<keyof TestBenchmark,'name'|'tasks'> = true;
+const task: Equal<TestBenchmark['tasks'][number],TestBenchmarkTask> = true;
+void [keys,groups,task];

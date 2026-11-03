@@ -579,6 +579,13 @@ export type {
   UncheckedSnapshot,
 } from '../../compiled/next-test-primitives'
 
+export type {
+  BaselineData,
+  BenchFromSource,
+  TestBenchmark,
+  TestBenchmarkTask,
+} from './benchmark-types'
+
 export const assert: ReturnType<typeof getAssertionRuntime>['assert'] =
   new Proxy(
     function (

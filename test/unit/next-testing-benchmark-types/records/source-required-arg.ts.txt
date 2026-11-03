@@ -1,0 +1,4 @@
+import type { BaselineData, BenchFromSource } from 'vitest';
+declare const data: BaselineData;
+const source: BenchFromSource = (required: string) => data;
+void source;
