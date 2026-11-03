@@ -5,7 +5,7 @@ use std::{
     mem::{replace, take},
     path::{Path, PathBuf},
     rc::Rc,
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 
 use base64::{display::Base64Display, prelude::BASE64_STANDARD};
@@ -48,64 +48,67 @@ pub struct Config {
     pub is_react_server_layer: bool,
     pub is_development: bool,
     pub use_cache_enabled: bool,
-    pub hash_salt: HashSalt,
-    pub cache_kinds: FxHashSet<RcStr>,
+    /// The salt mixed into every generated server reference ID. Only read when the transform
+    /// generates a server reference ID, i.e. for modules with `"use server"` or `"use cache"`
+    /// functions.
+    pub hash_salt: LazyValue<RcStr>,
+    /// The known custom cache kinds. Only read for `"use cache: <kind>"` directives.
+    pub cache_kinds: LazyValue<FxHashSet<RcStr>>,
 }
 
-/// The salt mixed into every generated server reference ID.
+/// A config value that is either given directly or computed on first access.
 ///
-/// It is only read when the transform generates a server reference ID, i.e. for modules with
-/// `"use server"` or `"use cache"` functions. A [lazy](HashSalt::lazy) salt allows callers to
-/// avoid computing (or depending on) the salt for all other modules.
-#[derive(Clone, Deserialize)]
-#[serde(from = "String")]
-pub struct HashSalt(HashSaltInner);
+/// A [lazy](LazyValue::lazy) value allows callers to avoid computing (or depending on) values
+/// the transform only needs for some modules. It deserializes transparently from the plain value.
+pub struct LazyValue<T>(Arc<LazyValueInner<T>>);
 
-#[derive(Clone)]
-enum HashSaltInner {
-    Value(RcStr),
-    Lazy(Arc<dyn Fn() -> RcStr + Send + Sync>),
+struct LazyValueInner<T> {
+    value: OnceLock<T>,
+    get: Option<Box<dyn Fn() -> T + Send + Sync>>,
 }
 
-impl HashSalt {
-    /// A salt that is computed by `get` when it is needed. `get` may be called multiple times.
-    pub fn lazy(get: impl Fn() -> RcStr + Send + Sync + 'static) -> Self {
-        Self(HashSaltInner::Lazy(Arc::new(get)))
+impl<T> LazyValue<T> {
+    /// A value that is computed by `get` on first access. `get` is called at most once (shared
+    /// by all clones).
+    pub fn lazy(get: impl Fn() -> T + Send + Sync + 'static) -> Self {
+        Self(Arc::new(LazyValueInner {
+            value: OnceLock::new(),
+            get: Some(Box::new(get)),
+        }))
     }
 
-    fn get(&self) -> RcStr {
-        match &self.0 {
-            HashSaltInner::Value(value) => value.clone(),
-            HashSaltInner::Lazy(get) => get(),
-        }
-    }
-}
-
-impl From<RcStr> for HashSalt {
-    fn from(value: RcStr) -> Self {
-        Self(HashSaltInner::Value(value))
+    /// Returns the value, computing it on first access.
+    pub fn get(&self) -> &T {
+        let LazyValueInner { value, get } = &*self.0;
+        value.get_or_init(|| get.as_ref().expect("an eager value is always initialized")())
     }
 }
 
-impl From<String> for HashSalt {
-    fn from(value: String) -> Self {
-        RcStr::from(value).into()
+impl<T> Clone for LazyValue<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
-impl From<&str> for HashSalt {
-    fn from(value: &str) -> Self {
-        RcStr::from(value).into()
+impl<T> From<T> for LazyValue<T> {
+    fn from(value: T) -> Self {
+        Self(Arc::new(LazyValueInner {
+            value: OnceLock::from(value),
+            get: None,
+        }))
     }
 }
 
-impl std::fmt::Debug for HashSalt {
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for LazyValue<T> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        T::deserialize(deserializer).map(Self::from)
+    }
+}
+
+impl<T> std::fmt::Debug for LazyValue<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Don't print the salt: it can be a secret (e.g. the server actions encryption key).
-        f.write_str(match &self.0 {
-            HashSaltInner::Value(_) => "HashSalt(..)",
-            HashSaltInner::Lazy(_) => "HashSalt(lazy)",
-        })
+        // Don't print the value: it can be a secret (e.g. the server actions encryption key).
+        f.write_str("LazyValue(..)")
     }
 }
 
@@ -3542,7 +3545,7 @@ impl DirectiveVisitor<'_> {
                             let cache_kind = RcStr::from(rest.split_at(": ".len()).1.to_string());
 
                             if !cache_kind.is_empty() {
-                                if !self.config.cache_kinds.contains(&cache_kind) {
+                                if !self.config.cache_kinds.get().contains(&cache_kind) {
                                     emit_error(ServerActionsErrorKind::UnknownCacheKind {
                                         span: *span,
                                         cache_kind: cache_kind.clone(),
