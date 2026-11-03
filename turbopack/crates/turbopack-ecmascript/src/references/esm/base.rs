@@ -314,8 +314,9 @@ impl ReferencedAsset {
                                 .await?
                                 {
                                     Some(ReferencedAssetIdent::Module {
-                                        // This import is inserted in the module containing the
-                                        // reexport, not the module using the import.
+                                        // Overwrite the context. This import isn't
+                                        // inserted in the module that uses the import,
+                                        // but in the module containing the reexport
                                         ctxt: None,
                                         export,
                                         import_source,

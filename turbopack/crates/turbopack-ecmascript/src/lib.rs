@@ -1367,8 +1367,8 @@ impl EcmascriptModuleContent {
                     .await?
                     .as_deref()
             {
-                if let Some(flat_group) = *references::esm::mangle::allocate_exports(
-                    references::esm::mangle::ExportAllocationDomain::Group(*group),
+                if let Some(flat_group) = *references::esm::mangle::compute_export_names(
+                    references::esm::mangle::ExportNamesScope::Group(*group),
                     *options.chunking_context,
                 )
                 .await?
@@ -1380,15 +1380,26 @@ impl EcmascriptModuleContent {
             } else {
                 None
             };
-            // Any exposed deoptimized member can instantiate this factory through its alias.
-            // Always target the flat namespace explicitly in mixed groups, even when it is the
-            // original entry, so registration never writes to and seals an alias's namespace.
+            let additional_ids: SmallVec<[ModuleId; 1]> = modules
+                .keys()
+                // Flat members share one namespace ID. Only its target and independently
+                // exposed namespaces need aliases for imports that instantiate this factory.
+                .filter(|m| {
+                    **m != first_entry
+                        && *modules.get(*m).unwrap() == MergeableModuleExposure::External
+                        && flat_group
+                            .as_ref()
+                            .is_none_or(|group| **m == group.entry || !group.names.contains_key(*m))
+                })
+                .map(|m| m.chunk_item_id(*options.chunking_context))
+                .try_join()
+                .await?
+                .into();
+            // With multiple factory registrations, the caller may use any alias. Target the
+            // flat namespace explicitly rather than whichever alias instantiated the factory.
             let flat_export_id = if let Some(group) = &flat_group
-                && (group.entry != first_entry
-                    || modules.iter().any(|(module, exposure)| {
-                        *exposure == MergeableModuleExposure::External
-                            && !group.names.contains_key(module)
-                    })) {
+                && !additional_ids.is_empty()
+            {
                 Some(group.entry.chunk_item_id(*options.chunking_context).await?)
             } else {
                 None
@@ -1424,22 +1435,6 @@ impl EcmascriptModuleContent {
                 minify: *options.chunking_context.minify_type().await?,
                 scope_hoisting_syntax_contexts: None,
             };
-
-            let additional_ids = modules
-                .keys()
-                // Flat members share one namespace ID. Only its target and independently
-                // exposed namespaces need aliases for imports that instantiate this factory.
-                .filter(|module| {
-                    **module != first_entry
-                        && *modules.get(*module).unwrap() == MergeableModuleExposure::External
-                        && flat_group.as_ref().is_none_or(|group| {
-                            **module == group.entry || !group.names.contains_key(*module)
-                        })
-                })
-                .map(|module| module.chunk_item_id(*options.chunking_context))
-                .try_join()
-                .await?
-                .into();
 
             emit_content(content, additional_ids)
                 .instrument(tracing::info_span!("emit code"))
