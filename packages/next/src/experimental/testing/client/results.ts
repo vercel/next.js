@@ -71,7 +71,8 @@ export function createClientResultCollector(
     isUserCancellationFinalized?: () => boolean
     caseScheduling?: 'concurrent-v1'
   },
-  mapStack?: (stack: string) => NonNullable<SerializedDiagnostic['frames']>
+  mapStack?: (stack: string) => NonNullable<SerializedDiagnostic['frames']>,
+  ownsSnapshotPath?: (path: string) => boolean
 ) {
   const concurrentScheduling = options.caseScheduling === 'concurrent-v1'
   const events: ResultEvent[] = []
@@ -978,7 +979,8 @@ export function createClientResultCollector(
         if (
           !record(update) ||
           !string(update.path) ||
-          !snapshotPaths.has(update.path) ||
+          (!snapshotPaths.has(update.path) &&
+            ownsSnapshotPath?.(update.path) !== true) ||
           paths.has(update.path) ||
           (update.content !== null && typeof update.content !== 'string') ||
           (update.previousContent !== null &&

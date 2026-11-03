@@ -548,6 +548,9 @@ body {
       await snapshots.verify()
       await assets.verify()
     },
+    ownsSnapshotPath(path: string) {
+      return snapshots.ownsPath(path)
+    },
     mapStack(stack: string) {
       return mapClientDiagnosticStack(stack, mapper)
     },

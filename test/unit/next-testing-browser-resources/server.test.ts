@@ -1964,12 +1964,105 @@ body {
     ).rejects.toThrow(/escaped/)
     await expect(
       snapshots.request('resolveRawPath', [configuration.filePath, 'raw.txt'])
-    ).rejects.toThrow(/unsupported/)
+    ).resolves.toBe(join(root, 'raw.txt'))
     await mkdir(join(root, 'elsewhere'))
     await symlink(join(root, 'elsewhere'), join(root, '__snapshots__'))
     await expect(
       snapshots.request('resolvePath', [configuration.filePath])
     ).rejects.toThrow(/symbolic link/)
+  })
+  it.each(['raw.txt', 'nested/raw.txt'])(
+    'reads only the raw snapshot actually resolved by this file owner: %s',
+    async (name) => {
+      const snapshots = await createClientSnapshotAccess(
+        configuration.filePath,
+        artifact.sourceHash
+      )
+      const path = join(root, name)
+      expect(snapshots.ownsPath(path)).toBe(false)
+      await expect(
+        snapshots.request('readSnapshotFile', [path])
+      ).rejects.toThrow(/escaped/)
+      expect(
+        await snapshots.request('resolveRawPath', [
+          configuration.filePath,
+          name,
+        ])
+      ).toBe(path)
+      expect(snapshots.ownsPath(path)).toBe(true)
+      expect(await snapshots.request('readSnapshotFile', [path])).toBeNull()
+      await mkdir(join(path, '..'), { recursive: true })
+      await writeFile(path, 'raw\nbytes')
+      expect(await snapshots.request('readSnapshotFile', [path])).toBe(
+        'raw\nbytes'
+      )
+      expect(
+        await snapshots.request('resolveRawPath', [
+          configuration.filePath,
+          path,
+        ])
+      ).toBe(path)
+      await snapshots.verify()
+    }
+  )
+  it('stages a raw snapshot only after its actual server resolves and reads the path', async () => {
+    const collector = createClientResultCollector(
+      artifact,
+      { runId: 'run', updateSnapshots: true },
+      undefined,
+      (path: string) => server?.ownsSnapshotPath(path) === true
+    )
+    const { post } = await open((message) => {
+      collector.accept(message)
+    })
+    const path = join(root, 'raw.txt')
+    expect(server!.ownsSnapshotPath(path)).toBe(false)
+    expect(
+      await (
+        await post({
+          type: 'snapshot',
+          method: 'resolveRawPath',
+          args: [configuration.filePath, 'raw.txt'],
+        })
+      ).json()
+    ).toEqual({ value: path })
+    expect(server!.ownsSnapshotPath(path)).toBe(true)
+    expect(
+      await (
+        await post({
+          sequence: 1,
+          type: 'snapshot',
+          method: 'readSnapshotFile',
+          args: [path],
+        })
+      ).json()
+    ).toEqual({ value: null })
+    collected(collector)
+    startCase(collector)
+    endCase(collector)
+    rootSuite(collector)
+    const updates = [{ path, content: 'raw\nbytes', previousContent: null }]
+    const response = await post({
+      sequence: 2,
+      type: 'complete',
+      status: 'passed',
+      interrupted: false,
+      caseCount: 1,
+      updates,
+    })
+    expect(response.status).toBe(200)
+    await server!.completion
+    await server!.verify()
+    server!.assertClean()
+    expect(collector.result().updates).toEqual(updates)
+    await expect(readFile(path)).rejects.toMatchObject({ code: 'ENOENT' })
+    const {
+      commitSnapshotUpdates,
+    } = require('next/dist/experimental/testing/assertions/snapshots')
+    await commitSnapshotUpdates(configuration.filePath, updates, {
+      sourceHash: artifact.sourceHash,
+    })
+    expect(await readFile(path, 'utf8')).toBe('raw\nbytes')
   })
   it('requires actual native descriptor membership and bootstrap types', async () => {
     await mkdir(join(artifact.rootDir, 'server/next-test'), { recursive: true })

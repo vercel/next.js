@@ -186,7 +186,8 @@ export async function executeClient(
           }
         : {}),
     },
-    (stack) => server?.mapStack(stack) ?? []
+    (stack) => server?.mapStack(stack) ?? [],
+    (path) => server?.ownsSnapshotPath(path) === true
   )
   const forwardedEvents = options.captureTaskResults
     ? new Set<ResultEvent>()
