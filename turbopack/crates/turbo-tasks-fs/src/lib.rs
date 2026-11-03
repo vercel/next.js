@@ -27,6 +27,7 @@ mod globset;
 pub mod invalidation;
 mod invalidator_map;
 pub mod json;
+mod json_escape;
 mod mutex_map;
 mod null_fs;
 mod path;

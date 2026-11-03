@@ -66,7 +66,7 @@ enum CellRopeSegment {
 /// JSON-escapes `text` into a string literal (including the quotes), as `serde_json` serializes
 /// a string. This is the form of a source's text in a source map's `sourcesContent`.
 pub fn escape_json_string(text: &str) -> Rope {
-    Rope::from(serde_json::to_vec(text).expect("string serialization is infallible"))
+    Rope::from(crate::json_escape::escape_json(text))
 }
 
 /// `content` as a JSON string literal, see [`CellRopeBuilder::push_escaped_file_content`].
