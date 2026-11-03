@@ -214,7 +214,7 @@ impl ChunkGroupInfo {
         &self,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ChunkGroups>> {
-        let module_chunk_groups = self.module_chunk_groups.await?;
+        let module_chunk_groups = self.module_chunk_groups.keyed_reader().await?;
         let Some(groups) = module_chunk_groups.get(&module) else {
             return Ok(Vc::cell(Vec::new()));
         };

@@ -24,6 +24,7 @@ import FileSystemCache from './file-system-cache'
 
 import {
   CACHE_ONE_YEAR_SECONDS,
+  FETCH_CACHE_KEY_EXCLUDED_HEADERS,
   NEXT_CACHE_TAGS_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
@@ -471,10 +472,9 @@ export class IncrementalCache implements IncrementalCacheType {
         ? Object.fromEntries(init.headers as Headers)
         : Object.assign({} as Record<string, string>, init.headers)
 
-    // w3c trace context headers can break request caching and deduplication
-    // so we remove them from the cache key
-    if ('traceparent' in headers) delete headers['traceparent']
-    if ('tracestate' in headers) delete headers['tracestate']
+    for (const header of FETCH_CACHE_KEY_EXCLUDED_HEADERS) {
+      if (header in headers) delete headers[header]
+    }
 
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,

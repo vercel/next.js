@@ -816,6 +816,13 @@ export interface ExperimentalConfig {
   gestureTransition?: boolean
 
   /**
+   * Enables `router.experimental_prepare()`, which starts a navigation
+   * without committing it, so its data can be requested ahead of time (e.g.
+   * on `pointerdown`) and the navigation committed later (e.g. on `click`).
+   */
+  prepareNavigation?: boolean
+
+  /**
    * Controls Turbopack's memory eviction strategy for development sessions
    *
    * Only effective in dev sessions where
@@ -1325,6 +1332,30 @@ export interface ExperimentalConfig {
    * React build.
    */
   hydrationChangeEvent?: boolean
+
+  /**
+   * Streams React's instruction set for the `app` directory as data instead of
+   * as inline `<script>` tags. React emits `<template data-rci="" …>` elements,
+   * and a standalone runtime script, served as a static asset from
+   * `/_next/static/chunks`, collects them with a `MutationObserver` and applies
+   * the instructions. This also removes React's inline form-replaying runtime.
+   *
+   * The goal is a document with no inline scripts, so a Content-Security-Policy
+   * can drop `unsafe-inline` without a per-response nonce (which is
+   * incompatible with static generation). Note that this alone is not
+   * sufficient yet: the Flight payload and the bootstrap script are still
+   * inlined.
+   *
+   * This feature is currently only available in React's experimental release
+   * channel, so enabling it opts the `app` directory into `react@experimental`
+   * (the same channel used by `taint`, `transitionIndicator`,
+   * `gestureTransition`, and `blockingSSR`).
+   *
+   * This is an opt-in only. Setting it to `false` does not disable the
+   * experimental channel when another feature (such as `taint`,
+   * `transitionIndicator`, or `gestureTransition`) requires it.
+   */
+  externalBrowserRuntime?: boolean
 
   /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
@@ -2510,6 +2541,7 @@ export const defaultConfig = Object.freeze({
     transitionIndicator: false,
     gestureTransition: false,
     hydrationChangeEvent: false,
+    prepareNavigation: false,
     inlineCss: false,
     useCache: undefined,
     useCacheStaticRootParamTracking: false,
@@ -2647,6 +2679,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
     | 'requestInsights'
+    | 'externalBrowserRuntime'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2720,6 +2753,7 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
+    externalBrowserRuntime: ex.externalBrowserRuntime,
 
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,
