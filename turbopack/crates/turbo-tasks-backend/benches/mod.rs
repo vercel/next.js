@@ -3,6 +3,7 @@
 
 use criterion::{Criterion, criterion_group, criterion_main};
 
+pub(crate) mod batch_lookup;
 pub(crate) mod cell_fan_out;
 pub(crate) mod collectibles;
 pub(crate) mod gc;
@@ -15,6 +16,7 @@ criterion_group!(
     name = turbo_tasks_backend_stress;
     config = Criterion::default();
     targets = stress::fibonacci, scope_stress::scope_stress, overhead::overhead, gc::gc,
-        cell_fan_out::cell_fan_out, state_fan_out::state_fan_out, collectibles::collectibles
+        cell_fan_out::cell_fan_out, state_fan_out::state_fan_out, collectibles::collectibles,
+        batch_lookup::batch_lookup
 );
 criterion_main!(turbo_tasks_backend_stress);

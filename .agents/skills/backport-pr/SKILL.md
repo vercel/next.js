@@ -67,8 +67,11 @@ branch.
    git switch -c backport-<pr-number>-to-<target-branch> origin/<target-branch>
    ```
 
-   After switching branches in this repo, run `pnpm build-all` before Next.js
-   integration tests unless the user explicitly limits the task to preparing the
+   Bootstrapping this checkout does not require `pnpm build-all` since
+   `pnpm install` pulls in recent native bindings. Before running Next.js
+   integration tests, build what the branch switch and cherry-pick changed:
+   `pnpm build` for JS changes, `pnpm build-all` only for Rust/Turbopack
+   changes. Skip builds entirely if the task is limited to preparing the
    cherry-pick or PR.
 
 5. Cherry-pick the landed commit with provenance:

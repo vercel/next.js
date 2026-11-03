@@ -147,7 +147,10 @@ impl EcmascriptChunkItemContent {
         }
 
         if self.options.strict {
-            code += "\"use strict\";\n\n";
+            // Recorded so that a chunk placing this factory in a strict context anyway can drop
+            // it again (see `write_module_factories`).
+            code.push_strict_directive();
+            code += "\n\n";
         } else {
             code += "\n";
         }

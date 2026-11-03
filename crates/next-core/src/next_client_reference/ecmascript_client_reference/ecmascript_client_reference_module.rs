@@ -34,6 +34,8 @@ use turbopack_ecmascript::{
     utils::StringifyJs,
 };
 
+use crate::next_client_reference::{CLIENT_MERGE_TAG, SSR_MERGE_TAG};
+
 /// A [`EcmascriptClientReferenceModule`] is used in RSC to represent
 /// a client or SSR asset.
 #[turbo_tasks::value]
@@ -186,13 +188,6 @@ impl EcmascriptClientReferenceModule {
     }
 }
 
-pub fn ecmascript_client_reference_merge_tag() -> RcStr {
-    rcstr!("client")
-}
-pub fn ecmascript_client_reference_merge_tag_ssr() -> RcStr {
-    rcstr!("ssr")
-}
-
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
@@ -229,7 +224,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*client_module),
                     ChunkGroupType::Evaluated,
-                    Some(ecmascript_client_reference_merge_tag()),
+                    Some(CLIENT_MERGE_TAG),
                     rcstr!("ecmascript client reference to client"),
                 )
                 .to_resolved()
@@ -239,7 +234,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*ssr_module),
                     ChunkGroupType::Entry,
-                    Some(ecmascript_client_reference_merge_tag_ssr()),
+                    Some(SSR_MERGE_TAG),
                     rcstr!("ecmascript client reference to ssr"),
                 )
                 .to_resolved()

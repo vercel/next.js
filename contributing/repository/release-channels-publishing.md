@@ -46,14 +46,15 @@ repository secrets, so using them is gated by deployment rules:
   from the `canary` branch and release tags). This is what keeps the nightly
   canary unattended. Prerelease tags only ever point at reviewed branch
   content, so creating them needs no approval.
-- Only `stable` requires a deployment approval from the Next.js Engineering team
-  **before the release tag is created** (environment `bot-approved`). The
-  person who dispatched the release cannot approve it themselves.
+- Only `stable` requires a deployment approval from the Next.js Engineering
+  or Turbopack team **before the release tag is created** (environment
+  `bot-approved`). The person who dispatched the release cannot approve it
+  themselves.
 - Publishing to npm is gated per channel: the publish job only runs in the
   channel's `release-*` environment (deployable only from matching tags), and
   every channel except canary (`release-stable`, `release-beta`,
   `release-release-candidate`, `release-preview`) requires Next.js
-  Engineering approval there.
+  Engineering or Turbopack approval there.
 
 So a stable release is approved twice — once before its tag exists and once
 before the packages reach npm — every other prerelease is approved once (at

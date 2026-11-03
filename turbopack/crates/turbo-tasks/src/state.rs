@@ -33,7 +33,7 @@ impl<T> StateInner<T> {
     }
 
     /// Sets the value and returns the drained invalidators. The caller MUST
-    /// run them via [`run_invalidators`] *after* dropping the [`Mutex`] guard
+    /// run them via [`notify_mutated`] *after* dropping the [`Mutex`] guard
     /// — calling [`Invalidator::invalidate`] may grab locks in the backend which can lead to cycles
     #[must_use]
     fn set_unconditionally(&mut self, value: T) -> AutoSet<Invalidator> {

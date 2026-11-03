@@ -60,7 +60,9 @@ pub fn invalidate(
     queue.execute(&mut ctx);
 }
 
-/// Requires the guard to be allocated with [TaskDataCategory::All]
+/// Requires the guard to be allocated with [`TaskDataCategory::All`]
+///
+/// [`TaskDataCategory::All`]: crate::backend::storage::TaskDataCategory::All
 pub fn make_task_dirty_internal(
     task: &mut TaskGuard<'_>,
     make_stale: bool,
@@ -84,7 +86,9 @@ pub fn make_task_dirty_internal(
 /// priority to schedule it with (see [`ExecuteContext::schedule_task`]). The task is already marked
 /// as scheduled when this returns `Some`, so the caller must schedule it.
 ///
-/// Requires the guard to be allocated with [TaskDataCategory::All]
+/// Requires the guard to be allocated with [`TaskDataCategory::All`]
+///
+/// [`TaskDataCategory::All`]: crate::backend::storage::TaskDataCategory::All
 #[must_use]
 pub(super) fn make_task_dirty_without_scheduling(
     task: &mut TaskGuard<'_>,
