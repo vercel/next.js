@@ -39,7 +39,7 @@ export { NodeSnapshotEnvironment } from '@vitest/snapshot/environment'
 export { expectTypeOf } from 'expect-type'
 export type { ExpectTypeOf } from 'expect-type'
 
-export type { TestError } from '@vitest/utils'
+export type { ParsedStack, SerializedError, TestError } from '@vitest/utils'
 
 /** Exact pinned engine-neutral benchmark callback signature. */
 export type BenchFn = () => unknown

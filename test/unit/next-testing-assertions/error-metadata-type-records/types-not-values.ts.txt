@@ -1,0 +1,2 @@
+import {SerializedError,ParsedStack} from 'vitest'
+new SerializedError();new ParsedStack()

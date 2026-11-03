@@ -1,0 +1,14 @@
+[
+  "stack-identity.ts",
+  "error-minimal.ts",
+  "error-fields.ts",
+  "error-relationship.ts",
+  "error-undefined-optionals.ts",
+  "stack-missing-method.ts",
+  "stack-line-type.ts",
+  "error-missing-message.ts",
+  "error-stacks-type.ts",
+  "error-cause-message.ts",
+  "error-index-unknown.ts",
+  "types-not-values.ts"
+]

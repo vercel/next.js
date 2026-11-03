@@ -620,7 +620,11 @@ export const assert: ReturnType<typeof getAssertionRuntime>['assert'] =
     }
   )
 
-export type { TestError } from '../../compiled/next-test-primitives'
+export type {
+  ParsedStack,
+  SerializedError,
+  TestError,
+} from '../../compiled/next-test-primitives'
 
 export type {
   DeeplyAllowMatchers,

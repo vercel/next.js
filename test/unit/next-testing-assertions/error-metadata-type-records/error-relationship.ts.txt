@@ -1,0 +1,8 @@
+import type {SerializedError,ParsedStack,TestError} from 'vitest'
+type Equal<A,B>=(<T>()=>T extends A?1:2) extends (<T>()=>T extends B?1:2)?true:false
+const stack:true=null as unknown as Equal<NonNullable<TestError['stacks']>[number],ParsedStack>
+const cause:true=null as unknown as Equal<SerializedError['cause'],SerializedError|undefined>
+const keys:true=null as unknown as Equal<keyof SerializedError,string|number>
+const required:true=null as unknown as Equal<{} extends Pick<SerializedError,'message'>?true:false,false>
+const optional:true=null as unknown as Equal<{} extends Pick<SerializedError,'name'|'stack'|'stacks'|'cause'>?true:false,true>
+declare const testError:TestError;const base:SerializedError=testError;void stack;void cause;void keys;void required;void optional;void base

@@ -1592,3 +1592,26 @@ it('retains the exact engine-neutral BenchFn root type without executing benchma
     rejected: 4,
   })
 }, 35000)
+
+it('matches genuine public error metadata root types without controller dependencies', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'error-metadata-types.cjs')],
+    { timeout: 30000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toMatchObject({
+    rootConfigAndGlobalAugmentations: true,
+    publishedFacadeTarget: true,
+    actualBundledPrimitiveTypes: true,
+    noExternalVitestViteFormatterDeclarations: true,
+    typeOnlyImports: true,
+    programs: 12,
+    accepted: 5,
+    rejected: 7,
+    symbols: [
+      { name: 'ParsedStack', exported: true, hasValueFlag: false },
+      { name: 'SerializedError', exported: true, hasValueFlag: false },
+    ],
+  })
+}, 35000)
