@@ -1589,9 +1589,13 @@ export function createAppPageEntrypoint({
           }
 
           const placeholderFallbackRouteParams =
-            // When a request carries dynamic placeholder values (e.g. "[slug]"),
-            // defer only the unresolved subset instead of forcing all fallback
-            // params to suspend.
+            // In minimal mode, the platform injects dynamic placeholder values
+            // (e.g. "[slug]") for the params it leaves unresolved, so defer
+            // only that subset instead of forcing all fallback params to
+            // suspend. With `next start`, a placeholder-shaped segment in the
+            // URL is an ordinary concrete value, and every never-prerenderable
+            // param defers below.
+            isMinimalMode &&
             !routeModule.isDev &&
             pageIsDynamic &&
             prerenderInfo?.fallbackRouteParams
