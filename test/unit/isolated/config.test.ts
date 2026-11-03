@@ -178,8 +178,8 @@ describe('config', () => {
       expect(await areDefaultsFrozen(PHASE_DEVELOPMENT_SERVER)).toBe(true)
     })
 
-    it('Should not freeze them in canary releases when loading for a production server', async () => {
-      expect(await areDefaultsFrozen(PHASE_PRODUCTION_SERVER)).toBe(false)
+    it('Should freeze them in canary releases when loading for a production server', async () => {
+      expect(await areDefaultsFrozen(PHASE_PRODUCTION_SERVER)).toBe(true)
     })
 
     it('Should not freeze them when NEXT_DISABLE_DEFAULT_CONFIG_FREEZE is set', async () => {

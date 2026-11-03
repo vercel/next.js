@@ -77,10 +77,8 @@ export type { DomainLocale, NextConfig } from './config-shared'
  *
  * Runs after `.env` files are loaded so the opt-out can be set there too.
  */
-function freezeSharedDefaults(phase: PHASE_TYPE): void {
+function freezeSharedDefaults(): void {
   if (isStableBuild() || process.env.NEXT_DISABLE_DEFAULT_CONFIG_FREEZE) return
-  // Production servers are not frozen yet, except in tests.
-  if (phase === PHASE_PRODUCTION_SERVER && !process.env.__NEXT_TEST_MODE) return
 
   // `defaultConfig` itself is already shallowly frozen, which makes
   // `deepFreeze` stop at the top level, so freeze what it contains. Values that
@@ -2086,7 +2084,7 @@ async function loadConfigImpl(
     }
     // `.env` files are not loaded on this path, so only the process
     // environment can opt out here.
-    freezeSharedDefaults(phase)
+    freezeSharedDefaults()
 
     // Cache the standalone config
     configCache.set(cacheKey, {
@@ -2107,7 +2105,7 @@ async function loadConfigImpl(
     : Log
 
   loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-  freezeSharedDefaults(phase)
+  freezeSharedDefaults()
 
   let configFileName = 'next.config.js'
   const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
