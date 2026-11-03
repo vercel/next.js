@@ -23,6 +23,7 @@ import {
   getOriginatingHook,
   getOriginatingCollection,
   getOriginatingFileFixtures,
+  getOriginatingWorkerFixtures,
   getOriginatingScopeAncestors,
   getOriginatingUnhandledFailureSink,
 } from './async-context'
@@ -36,7 +37,10 @@ import {
   type TestContext,
 } from './collector'
 import { createAssertionRuntime } from '../assertions'
-import { assertAssertionRuntimeAccess } from '../assertions/assertion-platform'
+import {
+  assertAssertionRuntimeAccess,
+  fileAssertionLifetime,
+} from '../assertions/assertion-platform'
 import { createFixtureWorker, type FixtureWorker } from './fixtures'
 import { getFinalCaseResults } from '../reporting/final-cases'
 import {
@@ -469,18 +473,34 @@ function initializeFile(
   // Each current execution process owns one isolated file. Keeping this owner
   // outside runCollected makes worker cleanup a separate host disposal phase;
   // file fixtures finish first, and snapshot publication waits for both.
+  const workerFixtureContext = worker
+    ? undefined
+    : { id: `${fileId}/worker/fixtures`, name: filePath }
+  let workerAssertions:
+    | ReturnType<NonNullable<typeof assertions>['beginWorkerFixtures']>
+    | undefined
   const workerScope = worker
     ? undefined
     : createAsyncScope(
         {
           kind: 'worker-fixtures',
-          context: { id: `${fileId}/worker/fixtures`, name: filePath },
+          context: workerFixtureContext!,
         },
         onLateFailure,
         (reason, promise) => onUnhandledFailure(reason, promise)
       )
   const workerFixtures =
-    worker?.fixtures ?? createFixtureWorker((fn) => workerScope!.run(fn))
+    worker?.fixtures ??
+    createFixtureWorker((fn) =>
+      workerScope!.run(() => {
+        // Factories run during execution; disposal cannot create a new view.
+        if (!workerAssertions && !fileAssertionLifetime && state === 'running')
+          workerAssertions = fileAssertions!.beginWorkerFixtures(
+            workerFixtureContext!
+          )
+        return fn()
+      })
+    )
   const onUnhandledFailure = (reason: unknown, promise?: Promise<unknown>) => {
     const recordedBody =
       snapshotBodyFailures &&
@@ -736,6 +756,7 @@ function initializeFile(
           getCurrentHook: getActiveHook,
           getCurrentCollection: getOriginatingCollection,
           getCurrentFileFixtures: getOriginatingFileFixtures,
+          getCurrentWorkerFixtures: getOriginatingWorkerFixtures,
           getCurrentScopeAncestors: getOriginatingScopeAncestors,
         })
         fileAssertions = assertions
@@ -1597,6 +1618,16 @@ function initializeFile(
         workerDisposalFailure = Object.freeze({ error })
         errors.push(error)
       } finally {
+        const scope = workerAssertions
+        if (scope) {
+          for (const method of ['finalize', 'dispose'] as const) {
+            try {
+              await workerScope!.run(() => scope[method]())
+            } catch (error) {
+              errors.push(error)
+            }
+          }
+        }
         workerScope?.close()
       }
       try {

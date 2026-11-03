@@ -1,0 +1,305 @@
+{
+  "status": 0,
+  "rows": [
+    {
+      "phase": "setup-entry",
+      "counts": {
+        "setup": 1,
+        "cleanup": 0,
+        "body": 0
+      }
+    },
+    {
+      "phase": "setup-before",
+      "counts": {
+        "setup": 1,
+        "cleanup": 0,
+        "body": 0
+      },
+      "state": {
+        "assertionCalls": {
+          "own": true,
+          "type": "number",
+          "value": 0
+        },
+        "expectedAssertionsNumber": {
+          "own": true,
+          "type": "object",
+          "value": null
+        },
+        "isExpectingAssertions": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "currentTestName": {
+          "own": true,
+          "type": "string",
+          "value": "first"
+        }
+      }
+    },
+    {
+      "phase": "setup-after",
+      "counts": {
+        "setup": 1,
+        "cleanup": 0,
+        "body": 0
+      },
+      "state": {
+        "assertionCalls": {
+          "own": true,
+          "type": "number",
+          "value": 1
+        },
+        "expectedAssertionsNumber": {
+          "own": true,
+          "type": "object",
+          "value": null
+        },
+        "isExpectingAssertions": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "currentTestName": {
+          "own": true,
+          "type": "string",
+          "value": "first"
+        }
+      }
+    },
+    {
+      "phase": "body-before",
+      "counts": {
+        "setup": 1,
+        "cleanup": 0,
+        "body": 1
+      },
+      "state": {
+        "assertionCalls": {
+          "own": true,
+          "type": "number",
+          "value": 1
+        },
+        "expectedAssertionsNumber": {
+          "own": true,
+          "type": "object",
+          "value": null
+        },
+        "isExpectingAssertions": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "currentTestName": {
+          "own": true,
+          "type": "string",
+          "value": "first"
+        }
+      },
+      "name": "first",
+      "workerValue": "worker"
+    },
+    {
+      "phase": "body-after",
+      "counts": {
+        "setup": 1,
+        "cleanup": 0,
+        "body": 1
+      },
+      "state": {
+        "assertionCalls": {
+          "own": true,
+          "type": "number",
+          "value": 2
+        },
+        "expectedAssertionsNumber": {
+          "own": true,
+          "type": "object",
+          "value": null
+        },
+        "isExpectingAssertions": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "currentTestName": {
+          "own": true,
+          "type": "string",
+          "value": "first"
+        }
+      },
+      "name": "first",
+      "workerValue": "worker"
+    },
+    {
+      "phase": "body-before",
+      "counts": {
+        "setup": 1,
+        "cleanup": 0,
+        "body": 2
+      },
+      "state": {
+        "assertionCalls": {
+          "own": true,
+          "type": "number",
+          "value": 0
+        },
+        "expectedAssertionsNumber": {
+          "own": true,
+          "type": "object",
+          "value": null
+        },
+        "isExpectingAssertions": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "currentTestName": {
+          "own": true,
+          "type": "string",
+          "value": "second"
+        }
+      },
+      "name": "second",
+      "workerValue": "worker"
+    },
+    {
+      "phase": "body-after",
+      "counts": {
+        "setup": 1,
+        "cleanup": 0,
+        "body": 2
+      },
+      "state": {
+        "assertionCalls": {
+          "own": true,
+          "type": "number",
+          "value": 1
+        },
+        "expectedAssertionsNumber": {
+          "own": true,
+          "type": "object",
+          "value": null
+        },
+        "isExpectingAssertions": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "currentTestName": {
+          "own": true,
+          "type": "string",
+          "value": "second"
+        }
+      },
+      "name": "second",
+      "workerValue": "worker"
+    },
+    {
+      "phase": "cleanup-entry",
+      "counts": {
+        "setup": 1,
+        "cleanup": 1,
+        "body": 2
+      }
+    },
+    {
+      "phase": "cleanup-before",
+      "counts": {
+        "setup": 1,
+        "cleanup": 1,
+        "body": 2
+      },
+      "state": {
+        "assertionCalls": {
+          "own": true,
+          "type": "number",
+          "value": 1
+        },
+        "expectedAssertionsNumber": {
+          "own": true,
+          "type": "object",
+          "value": null
+        },
+        "isExpectingAssertions": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "currentTestName": {
+          "own": true,
+          "type": "string",
+          "value": "second"
+        }
+      }
+    },
+    {
+      "phase": "cleanup-after",
+      "counts": {
+        "setup": 1,
+        "cleanup": 1,
+        "body": 2
+      },
+      "state": {
+        "assertionCalls": {
+          "own": true,
+          "type": "number",
+          "value": 2
+        },
+        "expectedAssertionsNumber": {
+          "own": true,
+          "type": "object",
+          "value": null
+        },
+        "isExpectingAssertions": {
+          "own": true,
+          "type": "boolean",
+          "value": false
+        },
+        "currentTestName": {
+          "own": true,
+          "type": "string",
+          "value": "second"
+        }
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "first",
+      "state": "passed"
+    },
+    {
+      "name": "second",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "terminal": [
+    {
+      "hook": "end",
+      "reason": "passed",
+      "errors": [],
+      "modules": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ]
+    }
+  ],
+  "allOwnersJoined": true
+}

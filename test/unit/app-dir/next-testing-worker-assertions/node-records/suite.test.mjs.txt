@@ -1,0 +1,45 @@
+import { test, expect } from 'vitest'
+const profile = process.env.WORKER_FIXTURE_PROFILE
+if (!['pass', 'setup-assert', 'setup-throw', 'cleanup-assert'].includes(profile)) throw new Error('An explicit worker characterization profile is required')
+const counts = { setup: 0, cleanup: 0, body: 0 }
+const explicitFailure = new Error('actual worker setup failure')
+let firstFailure
+const box = (value) => value === undefined ? { type: 'undefined' } : { type: typeof value, value }
+function record(phase, extra = {}) {
+  const state = expect.getState()
+  const fields = Object.fromEntries(['assertionCalls', 'expectedAssertionsNumber', 'isExpectingAssertions', 'currentTestName'].map((name) => [name, { own: Object.hasOwn(state, name), ...box(state[name]) }]))
+  console.log('WORKER_ASSERTION_ROW ' + JSON.stringify({ phase, counts: { ...counts }, state: fields, ...extra }))
+}
+function reject(phase, action) {
+  try { action() }
+  catch (error) {
+    const repeated = firstFailure !== undefined
+    if (!repeated) firstFailure = error
+    console.log('WORKER_ASSERTION_ROW ' + JSON.stringify({ phase, counts: { ...counts }, sameActualError: error === firstFailure, repeatedActualError: repeated }))
+    throw error
+  }
+}
+const extended = test.extend({
+  workerValue: [async ({}, use) => {
+    counts.setup++
+    console.log('WORKER_ASSERTION_ROW ' + JSON.stringify({ phase: 'setup-entry', counts: { ...counts } }))
+    if (profile === 'setup-throw') reject('setup-error', () => { throw explicitFailure })
+    if (profile !== 'cleanup-assert') {
+      record('setup-before')
+      reject('setup-error', () => expect(1).toBe(profile === 'setup-assert' ? 2 : 1))
+      record('setup-after')
+    }
+    await use('worker')
+    counts.cleanup++
+    console.log('WORKER_ASSERTION_ROW ' + JSON.stringify({ phase: 'cleanup-entry', counts: { ...counts } }))
+    record('cleanup-before')
+    reject('cleanup-error', () => expect(1).toBe(profile === 'cleanup-assert' ? 2 : 1))
+    record('cleanup-after')
+  }, { scope: 'worker' }],
+})
+for (const name of ['first', 'second']) extended(name, ({ workerValue }) => {
+  counts.body++
+  record('body-before', { name, workerValue })
+  expect(workerValue).toBe('worker')
+  record('body-after', { name, workerValue })
+})

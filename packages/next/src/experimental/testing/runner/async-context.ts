@@ -148,6 +148,14 @@ export function getOriginatingFileFixtures():
   return scope?.kind === 'file-fixtures' ? scope.context : undefined
 }
 
+/** Worker fixtures retain their real owner across setup and deferred teardown. */
+export function getOriginatingWorkerFixtures():
+  | { id: string; name: string }
+  | undefined {
+  const scope = current()
+  return scope?.kind === 'worker-fixtures' ? scope.context : undefined
+}
+
 /** Actual asynchronous parents, rather than names or declaration-path guesses. */
 export function getOriginatingScopeAncestors(): readonly string[] {
   return current()?.ancestors.map((scope) => scope.context.id) ?? []

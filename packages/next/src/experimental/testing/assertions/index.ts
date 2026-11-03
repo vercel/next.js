@@ -352,6 +352,7 @@ export async function createAssertionRuntime(options: {
   getCurrentHook?: () => AssertionHook | undefined
   getCurrentCollection?: () => AssertionCollection | undefined
   getCurrentFileFixtures?: () => AssertionCollection | undefined
+  getCurrentWorkerFixtures?: () => AssertionCollection | undefined
   getCurrentScopeAncestors?: () => readonly string[]
   snapshotOptions?: SnapshotStateOptions
   /** Actual public file preparation; internal callers retain eager setup. */
@@ -483,7 +484,12 @@ export async function createAssertionRuntime(options: {
   >
   type AssertionScope = {
     context: AssertionAttempt | AssertionHook | AssertionCollection
-    kind: 'attempt' | 'hook' | 'collection' | 'file-fixtures'
+    kind:
+      | 'attempt'
+      | 'hook'
+      | 'collection'
+      | 'file-fixtures'
+      | 'worker-fixtures'
     ancestors: readonly string[]
     task: AssertionTask
     finalized: boolean
@@ -539,7 +545,9 @@ export async function createAssertionRuntime(options: {
     const hook = options.getCurrentHook?.()
     const collection = options.getCurrentCollection?.()
     const fileFixtures = options.getCurrentFileFixtures?.()
-    const origin = attempt ?? hook ?? collection ?? fileFixtures
+    const workerFixtures = options.getCurrentWorkerFixtures?.()
+    const origin =
+      attempt ?? hook ?? collection ?? fileFixtures ?? workerFixtures
     return origin ? scopes.get(origin.id) : undefined
   }
   const snapshotTests = new Set<string>()
@@ -576,7 +584,8 @@ export async function createAssertionRuntime(options: {
         originatingAttempt ||
         originatingHook ||
         options.getCurrentCollection?.() ||
-        options.getCurrentFileFixtures?.()
+        options.getCurrentFileFixtures?.() ||
+        options.getCurrentWorkerFixtures?.()
       ) {
         throw new Error('Cannot access a disposed assertion scope')
       }
@@ -2216,9 +2225,11 @@ export async function createAssertionRuntime(options: {
       const task =
         !test && options.getCurrentTest
           ? options.getCurrentTest()
-          : taskScope?.kind === 'attempt' && 'testId' in taskScope.context
-            ? (taskScope.context.task ?? taskScope.task)
-            : taskScope?.task
+          : scope.kind === 'worker-fixtures'
+            ? undefined
+            : taskScope?.kind === 'attempt' && 'testId' in taskScope.context
+              ? (taskScope.context.task ?? taskScope.task)
+              : taskScope?.task
       const state = getState(expect)
       state.assertionCalls++
       const assertion = chai.expect(value, message)
@@ -3344,7 +3355,12 @@ export async function createAssertionRuntime(options: {
 
   function beginScope(
     context: AssertionAttempt | AssertionHook | AssertionCollection,
-    kind: 'attempt' | 'hook' | 'collection' | 'file-fixtures'
+    kind:
+      | 'attempt'
+      | 'hook'
+      | 'collection'
+      | 'file-fixtures'
+      | 'worker-fixtures'
   ) {
     if (disposed || scopes.has(context.id))
       throw new Error('An assertion attempt is already active or disposed')
@@ -3624,6 +3640,7 @@ export async function createAssertionRuntime(options: {
     }
     if (
       kind !== 'file-fixtures' &&
+      kind !== 'worker-fixtures' &&
       (!fileAssertionLifetime || kind !== 'hook') &&
       (!publicTestState || (kind !== 'hook' && kind !== 'attempt'))
     )
@@ -3652,6 +3669,7 @@ export async function createAssertionRuntime(options: {
       if (
         kind === 'collection' ||
         kind === 'file-fixtures' ||
+        kind === 'worker-fixtures' ||
         ((fileAssertionLifetime || publicTestState) && kind === 'hook')
       )
         return []
@@ -4549,6 +4567,8 @@ export async function createAssertionRuntime(options: {
     beginHook: (context: AssertionHook) => beginScope(context, 'hook'),
     beginFileFixtures: (context: AssertionCollection) =>
       beginScope(context, 'file-fixtures'),
+    beginWorkerFixtures: (context: AssertionCollection) =>
+      beginScope(context, 'worker-fixtures'),
     finishReadOnlySnapshotSelection(
       cases: readonly { name: string; status: string }[],
       selection: { partial: boolean; complete: boolean }
@@ -4568,10 +4588,16 @@ export async function createAssertionRuntime(options: {
         throw new Error(
           'Read-only snapshots require one actual root finalizer.'
         )
+      // The real worker resource closes after this root snapshot finalizer.
+      // Its cleanup still owns file disposal and the publication veto.
       if (
         (fileAssertionLifetime || options.observeNativeUnhandledAssertions
-          ? [...scopes.values()].some((scope) => !scope.finalized)
-          : scopes.size) ||
+          ? [...scopes.values()].some(
+              (scope) => scope.kind !== 'worker-fixtures' && !scope.finalized
+            )
+          : [...scopes.values()].some(
+              (scope) => scope.kind !== 'worker-fixtures'
+            )) ||
         suspendedScopes.size
       )
         throw new Error('Cannot finish snapshots with an active attempt')

@@ -742,6 +742,11 @@ export function getOriginatingCollection() {
   const scope = current()
   return scope?.kind === 'collection' ? scope.context : undefined
 }
+/** Observe the real worker owner without admitting Browser assertion APIs. */
+export function getOriginatingWorkerFixtures() {
+  const scope = current()
+  return scope?.kind === 'worker-fixtures' ? scope.context : undefined
+}
 export function getOriginatingScopeAncestors(): readonly string[] {
   return current()?.ancestors.map((scope) => scope.context.id) ?? []
 }
