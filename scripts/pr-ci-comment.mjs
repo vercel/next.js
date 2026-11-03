@@ -38,14 +38,6 @@ const API_BASE = (
 // would overwrite the comment with an empty report.
 const REPORTABLE_CONCLUSIONS = new Set(['success', 'failure', 'timed_out'])
 
-// Branch names may contain `&`, `=`, `#`, `%` and `+`, so they are never
-// interpolated into a URL raw. This rejects everything git forbids in a ref.
-const REF_RE =
-  // eslint-disable-next-line no-control-regex
-  /^[^\s~^:?*[\\\u0000-\u001f\u007f]{1,255}$/
-const SHA_RE = /^[0-9a-f]{7,40}$/
-const REPO_SEGMENT_RE = /^[A-Za-z0-9._-]+$/
-
 class GitHubClient {
   constructor({ token, owner, repo, dryRun }) {
     this.token = token
@@ -257,6 +249,8 @@ class GitHubClient {
   }
 
   async listPullRequestsForHead({ ownerLogin, branch, state }) {
+    // Branch names may contain `&`, `=`, `#` and `%`, so the filter cannot be
+    // interpolated into the query string.
     const params = new URLSearchParams({
       state,
       head: `${ownerLogin}:${branch}`,
@@ -290,7 +284,7 @@ async function main() {
     event.repository?.full_name || process.env.GITHUB_REPOSITORY || ''
   const [owner, repo] = repository.split('/')
 
-  if (!REPO_SEGMENT_RE.test(owner || '') || !REPO_SEGMENT_RE.test(repo || '')) {
+  if (!owner || !repo) {
     throw new Error(
       `Unable to resolve repository owner/name from "${repository}"`
     )
@@ -341,8 +335,8 @@ async function main() {
 }
 
 function shouldCommentForWorkflowRun(workflowRun, phase) {
-  // The workflow `if:` filters this too, but the precondition decides whether
-  // the payload can be trusted, so the script does not leave it to its caller.
+  // The workflow `if:` filters this too, but a run that no pull request
+  // started has nothing to resolve a head branch against.
   if (workflowRun.event !== 'pull_request') {
     console.log(`Ignoring workflow run for "${workflowRun.event}" event`)
     return false
@@ -376,24 +370,10 @@ function getWorkflowRunHead(workflowRun) {
   const branch = workflowRun.head_branch
   const sha = workflowRun.head_sha
   const repoFullName = workflowRun.head_repository?.full_name
-  const [repoOwner, repoName] = (repoFullName || '').split('/')
 
-  if (!REF_RE.test(branch || '')) {
-    console.log(`Ignoring workflow run with unusable head branch "${branch}"`)
-    return null
-  }
-
-  if (!SHA_RE.test(sha || '')) {
-    console.log(`Ignoring workflow run with unusable head SHA "${sha}"`)
-    return null
-  }
-
-  if (
-    !REPO_SEGMENT_RE.test(repoOwner || '') ||
-    !REPO_SEGMENT_RE.test(repoName || '')
-  ) {
+  if (!branch || !sha || !repoFullName) {
     console.log(
-      `Ignoring workflow run with unusable head repository "${repoFullName}"`
+      `Ignoring workflow run ${workflowRun.id} without a complete head: ${repoFullName}:${branch} at ${sha}`
     )
     return null
   }
@@ -402,7 +382,8 @@ function getWorkflowRunHead(workflowRun) {
     branch,
     sha,
     repoFullName,
-    ownerLogin: workflowRun.head_repository?.owner?.login || repoOwner,
+    ownerLogin:
+      workflowRun.head_repository.owner?.login || repoFullName.split('/')[0],
   }
 }
 
