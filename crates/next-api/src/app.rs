@@ -1200,10 +1200,20 @@ impl Endpoint for GoRouteEndpoint {
     async fn output(self: Vc<Self>) -> Result<Vc<EndpointOutput>> {
         let this = self.await?;
         let project = this.app_project.project().to_resolved().await?;
-        ensure!(
-            *project.next_config().go_routes().await?,
-            "route.go requires experimental.goRoutes: true"
-        );
+        if !*project.next_config().go_routes().await? {
+            GoRouteIssue {
+                path: this.path.clone(),
+                message: rcstr!("route.go requires experimental.goRoutes: true"),
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+            }
+            .cell());
+        }
         let source_root = project.project_root_path().owned().await?;
         let directory = this.path.parent();
         let owner = project
@@ -1304,7 +1314,7 @@ impl Endpoint for GoRouteEndpoint {
                     project,
                     output_assets: OutputAssets::empty().to_resolved().await?,
                     output_paths: EndpointOutputPaths::NativeFailed {
-                        build: (*result).clone(),
+                        build: Some((*result).clone()),
                     }
                     .resolved_cell(),
                 }

@@ -352,8 +352,9 @@ pub enum EndpointOutputPaths {
     },
     NotFound,
     /// Keep failed inputs available to request-side validation, without publishing an executable.
+    /// Configuration failures have no compiler inputs to validate.
     NativeFailed {
-        build: turbopack_go::GoBundleResult,
+        build: Option<turbopack_go::GoBundleResult>,
     },
 }
 
@@ -369,9 +370,8 @@ pub async fn read_with_validated_endpoint<T, F: Future<Output = Result<T>>>(
     get_output: impl Fn(&T) -> Option<&EndpointOutputPaths>,
 ) -> Result<T> {
     turbopack_go::read_with_validated_inputs(read, |value| match get_output(value) {
-        Some(
-            EndpointOutputPaths::Native { build, .. } | EndpointOutputPaths::NativeFailed { build },
-        ) => Some(build),
+        Some(EndpointOutputPaths::Native { build, .. }) => Some(build),
+        Some(EndpointOutputPaths::NativeFailed { build }) => build.as_ref(),
         _ => None,
     })
     .await
