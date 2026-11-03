@@ -1,0 +1,31 @@
+{
+  "args": [
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/vitest.mjs",
+    "run",
+    "--root",
+    "/private/tmp/browser-clock-tick-modes/genuine/sdk156/firefox/production/fixture",
+    "--mode",
+    "production",
+    "--config",
+    "/private/tmp/browser-clock-tick-modes/genuine/sdk156/firefox/production/fixture/vitest.config.mjs",
+    "--configLoader=native",
+    "--reporter=json",
+    "--reporter=/private/tmp/browser-clock-tick-modes/genuine/sdk156/firefox/production/fixture/reporter.mjs",
+    "--outputFile=/private/tmp/browser-clock-tick-modes/genuine/sdk156/firefox/production/report.json"
+  ],
+  "lane": "sdk156",
+  "engine": "firefox",
+  "mode": "production",
+  "sourceSHA256": "e6f7a06e5b8c2d1e1503d6f351d40d68486d6a00cb92e444eec184b6e17880be",
+  "configSHA256": "07858a63728372106fed9769e072eee380b18bb986c92d18d9199fc04b08485f",
+  "executable": "/Users/timneutkens/Library/Caches/ms-playwright/firefox-1555/firefox/Nightly.app/Contents/MacOS/firefox",
+  "executableSHA256": "65f70a725a576763c36634d63407fad91d898d522f25a5ca9caf748b3e3be005",
+  "configuredUniquePort": 63506,
+  "actualNode": "v26.12.1",
+  "noProviderWrapperOrCanonicalWrites": true,
+  "bounds": {
+    "cli": 120000,
+    "test": 5000,
+    "hook": 5000
+  }
+}

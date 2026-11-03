@@ -127,3 +127,6 @@ test/unit/next-testing-lifecycle/normal-suite-records/
 
 # Exact BenchFn strict type programs and genuine diagnostics.
 test/unit/next-testing-assertions/bench-fn-records/
+
+# Exact Browser clock tick-mode inputs and complete genuine reports.
+test/unit/next-testing-browser-clock-tick-modes/records/

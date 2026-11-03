@@ -1,0 +1,89 @@
+{
+  "target": "Vitest5.0.4 actual Browser mode",
+  "bodySHA256": "e6f7a06e5b8c2d1e1503d6f351d40d68486d6a00cb92e444eec184b6e17880be",
+  "profiles": {
+    "source149-chromium-development": {
+      "bodySHA256": "e6f7a06e5b8c2d1e1503d6f351d40d68486d6a00cb92e444eec184b6e17880be",
+      "executableSHA256": "b1b9e2dd063115031f08eadc10ed381ca0fa05b2284baff8f721d87f5f0f61b7",
+      "actualNode": "v26.12.1",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "source149-chromium-production": {
+      "bodySHA256": "e6f7a06e5b8c2d1e1503d6f351d40d68486d6a00cb92e444eec184b6e17880be",
+      "executableSHA256": "b1b9e2dd063115031f08eadc10ed381ca0fa05b2284baff8f721d87f5f0f61b7",
+      "actualNode": "v26.12.1",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "source149-firefox-development": {
+      "bodySHA256": "e6f7a06e5b8c2d1e1503d6f351d40d68486d6a00cb92e444eec184b6e17880be",
+      "executableSHA256": "cc46f4ac861dbeef56bf718d9e3a54c3c5f9e7365270b19a771db20132d0cb1b",
+      "actualNode": "v26.12.1",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "source149-firefox-production": {
+      "bodySHA256": "e6f7a06e5b8c2d1e1503d6f351d40d68486d6a00cb92e444eec184b6e17880be",
+      "executableSHA256": "cc46f4ac861dbeef56bf718d9e3a54c3c5f9e7365270b19a771db20132d0cb1b",
+      "actualNode": "v26.12.1",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "sdk156-chromium-development": {
+      "bodySHA256": "e6f7a06e5b8c2d1e1503d6f351d40d68486d6a00cb92e444eec184b6e17880be",
+      "executableSHA256": "c8509aee32abd6977968e9999769980b7a420dea05402d90042d9e5b41db15ef",
+      "actualNode": "v26.12.1",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "sdk156-chromium-production": {
+      "bodySHA256": "e6f7a06e5b8c2d1e1503d6f351d40d68486d6a00cb92e444eec184b6e17880be",
+      "executableSHA256": "c8509aee32abd6977968e9999769980b7a420dea05402d90042d9e5b41db15ef",
+      "actualNode": "v26.12.1",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "sdk156-firefox-development": {
+      "bodySHA256": "e6f7a06e5b8c2d1e1503d6f351d40d68486d6a00cb92e444eec184b6e17880be",
+      "executableSHA256": "65f70a725a576763c36634d63407fad91d898d522f25a5ca9caf748b3e3be005",
+      "actualNode": "v26.12.1",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    },
+    "sdk156-firefox-production": {
+      "bodySHA256": "e6f7a06e5b8c2d1e1503d6f351d40d68486d6a00cb92e444eec184b6e17880be",
+      "executableSHA256": "65f70a725a576763c36634d63407fad91d898d522f25a5ca9caf748b3e3be005",
+      "actualNode": "v26.12.1",
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      }
+    }
+  },
+  "noWebKitOtherHostOrConcurrencyClaim": true,
+  "allCanonicalGraphAndTempGuardsHeld": true,
+  "noProductRuntimeChange": true
+}

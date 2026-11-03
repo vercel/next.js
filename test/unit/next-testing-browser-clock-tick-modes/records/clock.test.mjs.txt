@@ -1,0 +1,61 @@
+import { afterAll, expect, test, vi } from 'vitest'
+const epoch = 1700000000000
+const original = { Date: globalThis.Date, setTimeout: globalThis.setTimeout, clearTimeout: globalThis.clearTimeout, queueMicrotask: globalThis.queueMicrotask }
+const rows = []
+const emit = (name, value) => { const row = { name, value }; rows.push(row); console.log('CLOCK_TICK_ROW ' + JSON.stringify(row)) }
+const state = () => ({ now: Date.now(), fake: vi.isFakeTimers(), count: vi.getTimerCount(), mocked: vi.getMockedSystemTime()?.getTime() ?? null })
+let pendingEvents
+const restored = () => ({ Date: globalThis.Date === original.Date, timeout: globalThis.setTimeout === original.setTimeout, clear: globalThis.clearTimeout === original.clearTimeout, microtask: globalThis.queueMicrotask === original.queueMicrotask, fake: vi.isFakeTimers(), mocked: vi.getMockedSystemTime() })
+afterAll(() => { vi.useRealTimers() })
+test('runs inside the actual browser realm', () => { const element = document.createElement('span'); expect(element.ownerDocument).toBe(document); expect(window).toBe(globalThis); emit('realm', { window: window === globalThis, element: element.tagName }) })
+test('next async ticks preserve nested Promise and fake microtask order', async () => {
+  vi.useFakeTimers({ now: epoch, toFake: ['Date', 'setTimeout', 'clearTimeout', 'queueMicrotask'] })
+  const events = []
+  const fluent = vi.setTimerTickMode('nextTimerAsync') === vi
+  await new Promise(resolve => {
+    setTimeout(() => {
+      events.push(['first', Date.now()])
+      queueMicrotask(() => events.push(['microtask', Date.now()]))
+      Promise.resolve().then(() => events.push(['promise', Date.now()]))
+      setTimeout(() => { events.push(['nested', Date.now()]); vi.setTimerTickMode('manual'); resolve() }, 7)
+    }, 5)
+  })
+  expect(events).toEqual([['first', epoch + 5], ['microtask', epoch + 5], ['promise', epoch + 5], ['nested', epoch + 12]])
+  pendingEvents = events
+  setTimeout(() => events.push(['retained', Date.now()]), 11)
+  emit('next-async', { fluent, events: [...events], state: state() })
+})
+test('manual clock and pending native timer persist into the following case', () => {
+  expect(vi.isFakeTimers()).toBe(true)
+  expect(Date.now()).toBe(epoch + 12)
+  const before = state()
+  const fluent = vi.advanceTimersByTime(11) === vi
+  expect(pendingEvents.at(-1)).toEqual(['retained', epoch + 23])
+  emit('cross-case', { before, fluent, after: state(), events: pendingEvents })
+  vi.useRealTimers()
+  emit('cross-case-restored', restored())
+})
+test('interval ticking can return to manual mode inside its actual timer callback', async () => {
+  let value
+  try {
+    vi.useFakeTimers({ now: epoch + 100, toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    const events = []
+    const fluent = vi.setTimerTickMode('interval', 5) === vi
+    await new Promise(resolve => setTimeout(() => { events.push(['interval', Date.now()]); vi.setTimerTickMode('manual'); resolve() }, 15))
+    const stopped = state()
+    setTimeout(() => events.push(['manual', Date.now()]), 5)
+    vi.advanceTimersByTime(5)
+    value = { fluent, stopped, final: state(), events }
+    expect(events).toEqual([['interval', epoch + 115], ['manual', epoch + 120]])
+  } finally { vi.useRealTimers(); emit('interval-to-manual', { value, restored: restored() }) }
+})
+test('next async timer callbacks can explicitly restore the real clock', async () => {
+  let value
+  try {
+    vi.useFakeTimers({ now: epoch + 200, toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    const fluent = vi.setTimerTickMode('nextTimerAsync') === vi
+    await new Promise(resolve => setTimeout(() => { value = { fluent, during: state() }; vi.useRealTimers(); resolve() }, 4))
+    expect(value.during.now).toBe(epoch + 204)
+    emit('restore-from-timer', { value, restored: restored() })
+  } finally { vi.useRealTimers() }
+})

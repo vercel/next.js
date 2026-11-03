@@ -1,0 +1,31 @@
+{
+  "args": [
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/vitest.mjs",
+    "run",
+    "--root",
+    "/private/tmp/browser-clock-tick-modes/genuine/sdk156/chromium/development/fixture",
+    "--mode",
+    "development",
+    "--config",
+    "/private/tmp/browser-clock-tick-modes/genuine/sdk156/chromium/development/fixture/vitest.config.mjs",
+    "--configLoader=native",
+    "--reporter=json",
+    "--reporter=/private/tmp/browser-clock-tick-modes/genuine/sdk156/chromium/development/fixture/reporter.mjs",
+    "--outputFile=/private/tmp/browser-clock-tick-modes/genuine/sdk156/chromium/development/report.json"
+  ],
+  "lane": "sdk156",
+  "engine": "chromium",
+  "mode": "development",
+  "sourceSHA256": "e6f7a06e5b8c2d1e1503d6f351d40d68486d6a00cb92e444eec184b6e17880be",
+  "configSHA256": "fb76b0b62e911783c895b552678b776faa8f640d48f0f4aa019c062b56ed9a5e",
+  "executable": "/Users/timneutkens/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  "executableSHA256": "c8509aee32abd6977968e9999769980b7a420dea05402d90042d9e5b41db15ef",
+  "configuredUniquePort": 63337,
+  "actualNode": "v26.12.1",
+  "noProviderWrapperOrCanonicalWrites": true,
+  "bounds": {
+    "cli": 120000,
+    "test": 5000,
+    "hook": 5000
+  }
+}
