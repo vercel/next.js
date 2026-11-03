@@ -27,6 +27,12 @@ function execNodeWithoutNodePath(script, options = {}) {
  * npx @next/codemod agents-md --version 15.0.0 --output AGENTS.md
  */
 describe('agents-md e2e (CLI invocation)', () => {
+  // A stable cwd to return to after every test. Tests chdir into their temp
+  // project, and the cleanup below deletes it. If a test times out, its body
+  // keeps running and never restores the cwd itself, so without this every
+  // later test would start in (and capture as its "original" cwd) a
+  // directory that no longer exists.
+  const suiteCwd = process.cwd()
   let testProjectDir
   let originalConsoleLog
   let consoleOutput
@@ -51,6 +57,8 @@ describe('agents-md e2e (CLI invocation)', () => {
   afterEach(() => {
     // Restore console.log
     console.log = originalConsoleLog
+
+    process.chdir(suiteCwd)
 
     // Clean up test directory
     if (testProjectDir && fs.existsSync(testProjectDir)) {
@@ -300,7 +308,7 @@ This is my project documentation.
     } finally {
       process.chdir(originalCwd)
     }
-  }, 30000) // Increase timeout for git clone
+  }) // Uses the default timeout (60s); the clone regularly exceeds 30s on CI
 
   describe('bundled docs (Next.js >= 16.2.0)', () => {
     // Simulate an install of a Next.js version that ships docs inside the
@@ -395,12 +403,24 @@ This is my project documentation.
     it('falls back to downloading when --version differs from the installed version', async () => {
       setupBundledNext(testProjectDir, '16.2.0')
 
+      // This test is about choosing the download path, not about the download
+      // itself (covered by the tests above), so stub it to stay offline.
+      const pullDocsSpy = jest
+        .spyOn(require('../../lib/agents-md'), 'pullDocs')
+        .mockImplementation(async ({ docsDir }) => {
+          fs.mkdirSync(path.join(docsDir, '01-app'), { recursive: true })
+          fs.writeFileSync(path.join(docsDir, '01-app', 'index.md'), '# Docs')
+          return { success: true, docsPath: docsDir }
+        })
+
       const originalCwd = process.cwd()
       process.chdir(testProjectDir)
 
       try {
         await runAgentsMd({ version: '15.0.0', output: 'AGENTS.md' })
 
+        expect(pullDocsSpy).toHaveBeenCalledTimes(1)
+        expect(pullDocsSpy.mock.calls[0][0].version).toBe('15.0.0')
         expect(fs.existsSync(path.join(testProjectDir, '.next-docs'))).toBe(
           true
         )
@@ -415,8 +435,9 @@ This is my project documentation.
         expect(output).toContain('Downloading')
       } finally {
         process.chdir(originalCwd)
+        pullDocsSpy.mockRestore()
       }
-    }, 30000) // Increase timeout for git clone
+    })
   })
 
   // The index `root` is resolved by agents from the directory of the output
