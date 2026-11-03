@@ -1,5 +1,6 @@
 import isAnimated from 'next/dist/compiled/is-animated'
 import { optimizeImage } from '../../../../server/image-optimizer/sharp'
+import { DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS } from '../../../../shared/lib/image-optimizer-constants'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70
@@ -72,6 +73,7 @@ export async function getBlurImage(
           height: blurHeight,
           contentType: `image/${extension}`,
           quality: BLUR_QUALITY,
+          timeoutInSeconds: DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS,
         })
       )
       const blurDataURLSpan = tracing('image-base64-tostring')

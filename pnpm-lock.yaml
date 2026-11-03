@@ -1261,6 +1261,9 @@ importers:
       '@next/env':
         specifier: workspace:*
         version: link:../next-env
+      '@next/safe-image-optimization':
+        specifier: 0.0.2
+        version: 0.0.2
       '@swc/helpers':
         specifier: 0.5.24
         version: 0.5.24
@@ -5211,6 +5214,60 @@ packages:
 
   '@next/rspack-core@1.0.3':
     resolution: {integrity: sha512-4EDUKhRIuljVhTDjy8DqGvTrWrZIFUHffdAThSB3OAEyCPm+pgM3JedSodm00Od5ox0PpsZ0nWY2sbwsJofg2A==}
+
+  '@next/safe-image-optimization-darwin-arm64@0.0.2':
+    resolution: {integrity: sha512-9LXsPNrc6wG3P8/u2aOKVTd1Pk71j8oXmORp5v36xZlcLnilqdFtvgd5Hu3Fu7ftqteezqql3EBsLIrS5NRNXQ==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@next/safe-image-optimization-darwin-x64@0.0.2':
+    resolution: {integrity: sha512-l/FMhx9fCK6i8zU5f3sQu+F36CyzehcvFei+XWsp/fHa+0uZkUXZll9Xk/j4KQODcvbjDCzCZdJULZP8txar6Q==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@next/safe-image-optimization-linux-arm64-gnu@0.0.2':
+    resolution: {integrity: sha512-ikhfpxJ4qx6ZOWAv5xpSWten4Cmzh7EcXh1rNyRJ5s7/41TX7G2rUSqsgOBhRiFKVlaO2XNxNpoXa1JokHQ2aA==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@next/safe-image-optimization-linux-arm64-musl@0.0.2':
+    resolution: {integrity: sha512-QDkFYYVtdlf1AEg56f16xuaxwruyyvPicFMkjQKgn27rTu+Bios554VqnW1zsrMRUxextZiUL3m5Kc3n1RPZ2g==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@next/safe-image-optimization-linux-riscv64-gnu@0.0.2':
+    resolution: {integrity: sha512-LBMZ2oXDAU7PlqPyI4xdjHF0k5d67J7/StmH4Aj6PMVfDX6oEJ5RoX2dWfxRhpuZlHVIk2ns2hEEDQbBP/I4Fg==}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [glibc]
+
+  '@next/safe-image-optimization-linux-x64-gnu@0.0.2':
+    resolution: {integrity: sha512-7t3jBZKZIxJd/4AHH+O61Huc8fGVlq4e4IgkJHR7zSkUltm1w+/i759WLNcEtDZ+nKslGDrVH2ZXGnrxC9nSMw==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@next/safe-image-optimization-linux-x64-musl@0.0.2':
+    resolution: {integrity: sha512-RAONgGlj8cOu9phpyvbSDnYUZuHfMwDKrxbJ2ioAken2+FkIKrER9Drsf7jp3cWWhL+dXjfrPdfWjIFJXnvJ3g==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@next/safe-image-optimization-win32-arm64-msvc@0.0.2':
+    resolution: {integrity: sha512-K61PpzH2CE6KA2SRPpSjEdC49s4YWKiHmKBqfyFaSJgC0KkBZsc3ewiEyBg475wNtLiqgWyp3TCWPrw3HZ7MeQ==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@next/safe-image-optimization-win32-x64-msvc@0.0.2':
+    resolution: {integrity: sha512-7JW5zPojaMCmBK3ZpmleQMiqvp3hcfprZ4cc5Jy2rAdsqAwapm23yBUO7Le6tuwqkPhMyN/QrYEV3VkOUGQu/Q==}
+    cpu: [x64]
+    os: [win32]
+
+  '@next/safe-image-optimization@0.0.2':
+    resolution: {integrity: sha512-8Lxme1e+YYjztMchFlJO7NOw5gybzIDiRmzjn1McLfNx4nxfmosZX5jV373QnVXCWPiQUPA+19CNbXTbsEeWeA==}
+    engines: {node: '>= 20.9.0'}
 
   '@next/swc-darwin-arm64@16.4.0-canary.31':
     resolution: {integrity: sha512-vWxGWVjr8TEO7sqESJyp1Wr+Xd6XuQ0YkN6UmxwNKlYOx4Y6DnVpsJv0GKyGMQayITZ75tLHq6IeMCPQmnUITA==}
@@ -22039,6 +22096,45 @@ snapshots:
     transitivePeerDependencies:
       - '@module-federation/runtime-tools'
       - '@swc/helpers'
+
+  '@next/safe-image-optimization-darwin-arm64@0.0.2':
+    optional: true
+
+  '@next/safe-image-optimization-darwin-x64@0.0.2':
+    optional: true
+
+  '@next/safe-image-optimization-linux-arm64-gnu@0.0.2':
+    optional: true
+
+  '@next/safe-image-optimization-linux-arm64-musl@0.0.2':
+    optional: true
+
+  '@next/safe-image-optimization-linux-riscv64-gnu@0.0.2':
+    optional: true
+
+  '@next/safe-image-optimization-linux-x64-gnu@0.0.2':
+    optional: true
+
+  '@next/safe-image-optimization-linux-x64-musl@0.0.2':
+    optional: true
+
+  '@next/safe-image-optimization-win32-arm64-msvc@0.0.2':
+    optional: true
+
+  '@next/safe-image-optimization-win32-x64-msvc@0.0.2':
+    optional: true
+
+  '@next/safe-image-optimization@0.0.2':
+    optionalDependencies:
+      '@next/safe-image-optimization-darwin-arm64': 0.0.2
+      '@next/safe-image-optimization-darwin-x64': 0.0.2
+      '@next/safe-image-optimization-linux-arm64-gnu': 0.0.2
+      '@next/safe-image-optimization-linux-arm64-musl': 0.0.2
+      '@next/safe-image-optimization-linux-riscv64-gnu': 0.0.2
+      '@next/safe-image-optimization-linux-x64-gnu': 0.0.2
+      '@next/safe-image-optimization-linux-x64-musl': 0.0.2
+      '@next/safe-image-optimization-win32-arm64-msvc': 0.0.2
+      '@next/safe-image-optimization-win32-x64-msvc': 0.0.2
 
   '@next/swc-darwin-arm64@16.4.0-canary.31':
     optional: true
