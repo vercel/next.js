@@ -276,7 +276,7 @@ async fn build_assets(
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
     browserslist_query: RcStr,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
