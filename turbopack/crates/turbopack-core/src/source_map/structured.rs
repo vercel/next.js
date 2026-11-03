@@ -252,10 +252,11 @@ impl serde::Serializer for FieldSplit {
 }
 
 impl StructuredSourceMap {
-    /// Builds from a [`swc_sourcemap::SourceMap`], taking the `sourcesContent` entries out of
-    /// the map before serializing the (now small) remainder. This is the cheap constructor for
-    /// all internally generated maps: the source text is escaped exactly once and never
-    /// round-trips through JSON parsing.
+    /// Builds from a [`swc_sourcemap::SourceMap`]: the `sourcesContent` entries are escaped one
+    /// by one, and every other field is serialized straight from the map's lists and tokens (see
+    /// `fields_from_swc_map`). This is the cheap constructor for all
+    /// internally generated maps: the source text is escaped exactly once, and nothing is parsed
+    /// back from JSON.
     pub fn from_swc_map(map: swc_sourcemap::SourceMap) -> Result<Self> {
         Ok(Self::from_swc_map_with_sources(map, &[])?.0)
     }
@@ -285,17 +286,67 @@ impl StructuredSourceMap {
             })
             .collect();
         let has_contents = contents.iter().any(|c| c.to_bytes().as_ref() != b"null");
-        for idx in 0..map.get_source_count() {
-            map.set_source_contents(idx, None);
-        }
-        let mut skeleton = Vec::new();
-        map.to_writer(&mut skeleton)?;
-        let mut result = Self::from_json_slice(&skeleton)?;
+        let mut result = match Self::fields_from_swc_map(&map)? {
+            Some(result) => result,
+            None => {
+                for idx in 0..map.get_source_count() {
+                    map.set_source_contents(idx, None);
+                }
+                let mut skeleton = Vec::new();
+                map.to_writer(&mut skeleton)?;
+                Self::from_json_slice(&skeleton)?
+            }
+        };
         result.sources_content = has_contents.then_some(SourcesContentField::Escaped(contents));
         if !has_contents {
             source_refs.clear();
         }
         Ok((result, source_refs))
+    }
+
+    /// Every field of `map` except `sourcesContent`, each serialized exactly as
+    /// `swc_sourcemap::SourceMap::to_writer` serializes it, but computed directly from the map's
+    /// lists and tokens instead of writing the whole map out and parsing it back.
+    ///
+    /// Returns `None` for what `swc_sourcemap` doesn't expose, which turbopack doesn't generate:
+    /// a map with range mappings (their encoding is private), or with a non-empty source root
+    /// (the map then only hands out its sources prefixed with the root).
+    fn fields_from_swc_map(map: &swc_sourcemap::SourceMap) -> Result<Option<Self>> {
+        if map.get_source_root().is_some_and(|root| !root.is_empty())
+            || map.tokens().any(|token| token.is_range())
+        {
+            return Ok(None);
+        }
+        fn json(value: &(impl serde::Serialize + ?Sized)) -> Result<Rope> {
+            Ok(Rope::from(serde_json::to_vec(value)?))
+        }
+        let ignore_list = map.ignore_list().copied().collect::<Vec<u32>>();
+        Ok(Some(StructuredSourceMap {
+            version: Some(Rope::from("3")),
+            file: map.get_file().map(|file| json(file.as_str())).transpose()?,
+            sources: Some(SourcesField::Raw(json(
+                &map.sources()
+                    .map(|source| source.as_str())
+                    .collect::<Vec<_>>(),
+            )?)),
+            source_root: map
+                .get_source_root()
+                .map(|root| json(root.as_str()))
+                .transpose()?,
+            names: Some(json(
+                &map.names().map(|name| name.as_str()).collect::<Vec<_>>(),
+            )?),
+            scopes: map
+                .get_scopes()
+                .map(|scopes| json(scopes.as_str()))
+                .transpose()?,
+            mappings: Some(Rope::from(serialize_swc_mappings(map))),
+            ignore_list: (!ignore_list.is_empty())
+                .then(|| json(&ignore_list))
+                .transpose()?,
+            debug_id_old: map.get_debug_id().map(|id| json(&id)).transpose()?,
+            ..Default::default()
+        }))
     }
 
     /// Parses an arbitrary serialized source map, e.g. one shipped alongside external code.
@@ -715,6 +766,75 @@ impl StructuredSourceMap {
     }
 }
 
+/// `map`'s mappings as a JSON string, byte for byte what `swc_sourcemap` writes: the same port of
+/// its `serialize_mappings`, including that it skips a token equal to the one before it on the
+/// same line. The VLQ alphabet and the mappings separators need no JSON escaping.
+fn serialize_swc_mappings(map: &swc_sourcemap::SourceMap) -> Vec<u8> {
+    fn encode_vlq(out: &mut Vec<u8>, a: u32, b: u32) {
+        const B64_CHARS: &[u8; 64] =
+            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let num = i64::from(a) - i64::from(b);
+        let mut num = if num < 0 { ((-num) << 1) + 1 } else { num << 1 };
+        loop {
+            let mut digit = num & 0b11111;
+            num >>= 5;
+            if num > 0 {
+                digit |= 1 << 5;
+            }
+            out.push(B64_CHARS[digit as usize]);
+            if num == 0 {
+                break;
+            }
+        }
+    }
+
+    // Tokens take ~5 bytes each on average.
+    let mut out = Vec::with_capacity(map.get_token_count() as usize * 5 + 2);
+    out.push(b'"');
+    let mut prev_dst_line = 0;
+    let mut prev_dst_col = 0;
+    let mut prev_src_line = 0;
+    let mut prev_src_col = 0;
+    let mut prev_name_id = 0;
+    let mut prev_src_id = 0;
+    let mut prev_token = None;
+    for (idx, token) in map.tokens().enumerate() {
+        let raw = token.get_raw_token();
+        let same_as_prev = prev_token == Some(raw);
+        prev_token = Some(raw);
+        if token.get_dst_line() != prev_dst_line {
+            prev_dst_col = 0;
+            while token.get_dst_line() != prev_dst_line {
+                out.push(b';');
+                prev_dst_line += 1;
+            }
+        } else if idx > 0 {
+            if same_as_prev {
+                continue;
+            }
+            out.push(b',');
+        }
+
+        encode_vlq(&mut out, token.get_dst_col(), prev_dst_col);
+        prev_dst_col = token.get_dst_col();
+
+        if token.has_source() {
+            encode_vlq(&mut out, token.get_src_id(), prev_src_id);
+            prev_src_id = token.get_src_id();
+            encode_vlq(&mut out, token.get_src_line(), prev_src_line);
+            prev_src_line = token.get_src_line();
+            encode_vlq(&mut out, token.get_src_col(), prev_src_col);
+            prev_src_col = token.get_src_col();
+            if token.has_name() {
+                encode_vlq(&mut out, token.get_name_id(), prev_name_id);
+                prev_name_id = token.get_name_id();
+            }
+        }
+    }
+    out.push(b'"');
+    out
+}
+
 /// A `sourcesContent` value with `count` `null` entries: `[null,...]`. Stands in for shared
 /// contents left out of a map, see [`StructuredSourceMap::contents_placeholder`].
 pub(crate) fn null_contents(count: usize) -> Rope {
@@ -977,6 +1097,101 @@ mod tests {
 
         let structured = StructuredSourceMap::from_swc_map(map)?;
         assert_eq!(structured.to_rope().to_bytes().as_ref(), &expected[..]);
+        Ok(())
+    }
+
+    /// Maps generated with every field `fields_from_swc_map` writes (file, source root, sources,
+    /// contents, names, scopes, ignore list, debug id, and tokens with and without sources and
+    /// names, across lines and with duplicates) serialize exactly as `swc_sourcemap` does. Maps
+    /// with range mappings take the fallback and match too.
+    #[test]
+    fn golden_matches_swc_serializer_for_generated_maps() -> Result<()> {
+        let debug_id = swc_sourcemap::SourceMap::from_slice(
+            br#"{"version":3,"sources":[],"names":[],"mappings":"","debugId":"00000000-0000-0000-0000-000000000001"}"#,
+        )?
+        .get_debug_id();
+        assert!(debug_id.is_some());
+        // xorshift64, so the cases are the same on every run.
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut next = |n: u32| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state % u64::from(n.max(1))) as u32
+        };
+        let mut fast_path_cases = 0;
+        for case in 0..3_000 {
+            let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
+            if next(2) == 0 {
+                builder.set_file(Some("out\"\u{2028}.js"));
+            }
+            if next(4) == 0 {
+                builder.set_source_root(Some("/root"));
+            }
+            let sources = next(4);
+            for i in 0..sources {
+                let id = builder.add_source(format!("turbopack:///[project]/s{i}\\\"é.js").into());
+                if next(2) == 0 {
+                    builder.set_source_contents(id, Some(format!("text {i}\n\"\u{1}").into()));
+                }
+                if next(4) == 0 {
+                    builder.add_to_ignore_list(id);
+                }
+            }
+            let names = next(4);
+            for i in 0..names {
+                builder.add_name(format!("name{i}\"").into());
+            }
+            if next(4) == 0 {
+                builder.set_debug_id(debug_id);
+            }
+            let range = case % 10 == 0;
+            let (mut line, mut col) = (0, 0);
+            for _ in 0..next(60) {
+                if next(5) == 0 {
+                    line += next(3);
+                    col = 0;
+                } else {
+                    // Sometimes 0: a token equal to the one before it.
+                    col += next(20);
+                }
+                let src = (sources > 0 && next(6) != 0).then(|| next(sources));
+                let name = (src.is_some() && names > 0 && next(3) == 0).then(|| next(names));
+                builder.add_raw(
+                    line,
+                    col,
+                    next(200),
+                    next(80),
+                    src,
+                    name,
+                    range && next(3) == 0,
+                );
+            }
+            let mut map = builder.into_sourcemap();
+            if next(6) == 0 {
+                map.set_scopes(Some("scopes"));
+            }
+
+            // Only range mappings and a source root take the fallback.
+            let fallback =
+                map.tokens().any(|token| token.is_range()) || map.get_source_root().is_some();
+            assert_eq!(
+                StructuredSourceMap::fields_from_swc_map(&map)?.is_none(),
+                fallback,
+                "case {case}"
+            );
+            fast_path_cases += usize::from(!fallback);
+
+            let mut expected = Vec::new();
+            map.clone().to_writer(&mut expected)?;
+            let structured = StructuredSourceMap::from_swc_map(map)?;
+            assert_eq!(
+                std::str::from_utf8(&structured.to_rope().to_bytes())?,
+                std::str::from_utf8(&expected)?,
+                "case {case}"
+            );
+        }
+        assert!(fast_path_cases > 1_500, "{fast_path_cases}");
         Ok(())
     }
 
