@@ -1,4 +1,8 @@
-import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
+import {
+  PHASE_INFO,
+  PHASE_PRODUCTION_BUILD,
+  PHASE_PRODUCTION_SERVER,
+} from '../api/constants'
 import {
   getStrictRouteMatchingDefaultWarning,
   STRICT_ROUTE_MATCHING_DEFAULT_WARNING,
@@ -383,6 +387,41 @@ describe('loadConfig', () => {
       })
 
       expect(result.experimental.durableUseCacheEntries).toBe(true)
+    })
+  })
+
+  describe('instrumentationInject', () => {
+    it('defaults to an empty array, so modifyConfig can push to it', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+      expect(result.instrumentationInject).toEqual([])
+    })
+
+    it('gives each load its own array, so a push does not leak into later loads', async () => {
+      const first = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+      first.instrumentationInject.push('./x.js')
+      first.instrumentationClientInject.push('./y.js')
+
+      const second = await loadConfig(PHASE_PRODUCTION_SERVER, __dirname, {
+        customConfig: {},
+      })
+      expect(second).toMatchObject({
+        instrumentationInject: [],
+        instrumentationClientInject: [],
+      })
+    })
+
+    it('is accepted by the config schema', () => {
+      expect(
+        configSchema.safeParse({ instrumentationInject: ['./script.js'] })
+          .success
+      ).toBe(true)
+      expect(
+        configSchema.safeParse({ instrumentationInject: 'script.js' }).success
+      ).toBe(false)
     })
   })
 })
