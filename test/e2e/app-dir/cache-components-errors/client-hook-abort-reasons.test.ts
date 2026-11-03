@@ -883,13 +883,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useParams (<next-dist-dir>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:8:7)
-                   214 | // Client components API
-                   215 | export function useParams<T extends Params = Params>(): T {
-                 > 216 |   useDynamicRouteParams?.('useParams()')
+                   215 | // Client components API
+                   216 | export function useParams<T extends Params = Params>(): T {
+                 > 217 |   useDynamicRouteParams?.('useParams()')
                        |                        ^
-                   217 |
-                   218 |   const params = useContext(PathParamsContext) as T
-                   219 | {
+                   218 |
+                   219 |   const params = useContext(PathParamsContext) as T
+                   220 | {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-params/[id]" in your browser to investigate the error.
@@ -1172,13 +1172,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSelectedLayoutSegments (<next-dist-dir>)
                      at UseSelectedLayoutSegments (webpack:///app/client-hook-abort-reasons/client.tsx:37:28)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page.tsx:7:7)
-                   268 |   parallelRouteKey: string = 'children'
-                   269 | ): string[] {
-                 > 270 |   useDynamicRouteParams?.('useSelectedLayoutSegments()')
+                   269 |   parallelRouteKey: string = 'children'
+                   270 | ): string[] {
+                 > 271 |   useDynamicRouteParams?.('useSelectedLayoutSegments()')
                        |                        ^
-                   271 |
-                   272 |   const context = useContext(LayoutRouterContext)
-                   273 |   // @ts-expect-error This only happens in \`pages\`. Type is overwritten in navigation.d.ts {
+                   272 |
+                   273 |   const context = useContext(LayoutRouterContext)
+                   274 |   // @ts-expect-error This only happens in \`pages\`. Type is overwritten in navigation.d.ts {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]" in your browser to investigate the error.
@@ -1461,13 +1461,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSelectedLayoutSegment (<next-dist-dir>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page.tsx:8:7)
-                   323 |   parallelRouteKey: string = 'children'
-                   324 | ): string | null {
-                 > 325 |   useDynamicRouteParams?.('useSelectedLayoutSegment()')
+                   324 |   parallelRouteKey: string = 'children'
+                   325 | ): string | null {
+                 > 326 |   useDynamicRouteParams?.('useSelectedLayoutSegment()')
                        |                        ^
-                   326 |   const navigationPromises = useContext(NavigationPromisesContext)
-                   327 |   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
-                   328 | {
+                   327 |   const navigationPromises = useContext(NavigationPromisesContext)
+                   328 |   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
+                   329 | {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]" in your browser to investigate the error.
@@ -2171,13 +2171,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useParams (<next-dist-dir>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-params/[id]/page.tsx:7:7)
-                   214 | // Client components API
-                   215 | export function useParams<T extends Params = Params>(): T {
-                 > 216 |   useDynamicRouteParams?.('useParams()')
+                   215 | // Client components API
+                   216 | export function useParams<T extends Params = Params>(): T {
+                 > 217 |   useDynamicRouteParams?.('useParams()')
                        |                        ^
-                   217 |
-                   218 |   const params = useContext(PathParamsContext) as T
-                   219 | {
+                   218 |
+                   219 |   const params = useContext(PathParamsContext) as T
+                   220 | {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-params/[id]" in your browser to investigate the error.
@@ -2669,13 +2669,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSelectedLayoutSegment (<next-dist-dir>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:8:7)
-                   323 |   parallelRouteKey: string = 'children'
-                   324 | ): string | null {
-                 > 325 |   useDynamicRouteParams?.('useSelectedLayoutSegment()')
+                   324 |   parallelRouteKey: string = 'children'
+                   325 | ): string | null {
+                 > 326 |   useDynamicRouteParams?.('useSelectedLayoutSegment()')
                        |                        ^
-                   326 |   const navigationPromises = useContext(NavigationPromisesContext)
-                   327 |   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
-                   328 | {
+                   327 |   const navigationPromises = useContext(NavigationPromisesContext)
+                   328 |   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
+                   329 | {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.

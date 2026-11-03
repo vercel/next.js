@@ -4,7 +4,12 @@ import { data } from './data'
 export async function readShortLived(key: string) {
   'use cache'
   cacheTag(`short-lived:${key}`)
-  cacheLife({ stale: 30, revalidate: 120, expire: 180 })
+  // A long-lived entry keeps the expiration test's content in the static shell.
+  if (process.env.TEST_HOLD_EXPIRATION === '1') {
+    cacheLife('hours')
+  } else {
+    cacheLife({ stale: 30, revalidate: 120, expire: 180 })
+  }
   return `short-lived ${key}`
 }
 

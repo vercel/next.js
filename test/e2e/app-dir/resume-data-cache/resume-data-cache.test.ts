@@ -289,9 +289,9 @@ describe('resume-data-cache', () => {
     })
   })
 
-  // The discard-count assertion requires local server logs.
+  // The cache lookup assertions require local server logs.
   // @force-gate start && partialPrefetchingGlobal
-  it('replaces an invalidated RDC entry with a handler hit for the embedded runtime prefetch', async () => {
+  it('fills the RDC from the cache handler for the embedded runtime prefetch', async () => {
     const initialPage = await next.render$('/handler-handoff')
     const initialValue = initialPage('#handoff-value').text()
 
@@ -310,8 +310,8 @@ describe('resume-data-cache', () => {
     expect(await browser.elementById('handoff-value').text()).toBe(initialValue)
     const outputIndex = next.cliOutput.length
 
-    // Each revision has its own tag. The action invalidates the prerendered RDC
-    // entry while the cache handler's replacement remains valid.
+    // Each revision has its own tag. The action invalidates the prerendered
+    // result while the cache handler's replacement remains valid.
     const pendingActionResponse = page.waitForResponse(
       (response) =>
         new URL(response.url()).pathname === '/handler-handoff' &&
@@ -337,10 +337,15 @@ describe('resume-data-cache', () => {
       .join('\n')
     expect(cacheEntryOutput).toIncludeRepeated('RDC handoff handler hit', 1)
 
-    // The retained handler lookup can hide a missing RDC update. A second RDC
-    // discard detects that failure even when the rendered value is correct.
+    // The first render fills the RDC from the handler. The runtime prefetch
+    // must then read the RDC. The retained handler lookup could otherwise hide
+    // a missing RDC update.
     expect(cacheEntryOutput).toIncludeRepeated(
-      'discarding RDC entry due to recently revalidated tags',
+      'Resume Data Cache entry not found',
+      1
+    )
+    expect(cacheEntryOutput).toIncludeRepeated(
+      'Resume Data Cache entry found',
       1
     )
   })

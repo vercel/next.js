@@ -93,13 +93,12 @@ impl AvailabilityInfo {
             },
             ChunkableModuleOrBatch::None(_) => return Ok(false),
         };
+        let available = available_chunk_groups.chunk_groups(module_graph)?;
         Ok(chunk_group_info
             .module_chunk_groups
             .await?
             .get(&module)
-            .is_some_and(|groups| {
-                !groups.is_disjoint(available_chunk_groups.chunk_groups(module_graph))
-            }))
+            .is_some_and(|groups| !groups.is_disjoint(available)))
     }
 
     pub fn in_async_module(self) -> Self {
@@ -173,7 +172,7 @@ impl AvailabilityInfo {
             Some(available_chunk_groups) => {
                 let available_chunk_groups = available_chunk_groups.await?;
                 let canonical =
-                    relevant.canonicalize(available_chunk_groups.chunk_groups(module_graph));
+                    relevant.canonicalize(available_chunk_groups.chunk_groups(module_graph)?);
                 if canonical.is_zero() {
                     None
                 } else {

@@ -13782,7 +13782,9 @@ function resetWorkInProgressStack() {
 function prepareFreshStack(root, lanes) {
   var timeoutHandle = root.timeoutHandle;
   -1 !== timeoutHandle &&
-    ((root.timeoutHandle = -1), cancelTimeout(timeoutHandle));
+    ((root.timeoutHandle = -1),
+    cancelTimeout(timeoutHandle),
+    markRootPinged$1(root, pendingEffectsLanes));
   timeoutHandle = root.cancelPendingCommit;
   null !== timeoutHandle &&
     ((root.cancelPendingCommit = null), timeoutHandle());
@@ -15077,7 +15079,9 @@ function resolveRetryWakeable(boundaryFiber, wakeable) {
       retryCache = boundaryFiber.stateNode;
       break;
     case 22:
-      retryCache = boundaryFiber.stateNode._retryCache;
+      retryCache = boundaryFiber.stateNode;
+      if (null === retryCache) return;
+      retryCache = retryCache._retryCache;
       break;
     default:
       throw Error(formatProdErrorMessage(314));
@@ -15453,20 +15457,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1825 = 0;
-  i$jscomp$inline_1825 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1825++
+  var i$jscomp$inline_1828 = 0;
+  i$jscomp$inline_1828 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1828++
 ) {
-  var eventName$jscomp$inline_1826 =
-      simpleEventPluginEvents[i$jscomp$inline_1825],
-    domEventName$jscomp$inline_1827 =
-      eventName$jscomp$inline_1826.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1828 =
-      eventName$jscomp$inline_1826[0].toUpperCase() +
-      eventName$jscomp$inline_1826.slice(1);
+  var eventName$jscomp$inline_1829 =
+      simpleEventPluginEvents[i$jscomp$inline_1828],
+    domEventName$jscomp$inline_1830 =
+      eventName$jscomp$inline_1829.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1831 =
+      eventName$jscomp$inline_1829[0].toUpperCase() +
+      eventName$jscomp$inline_1829.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1827,
-    "on" + capitalizedEvent$jscomp$inline_1828
+    domEventName$jscomp$inline_1830,
+    "on" + capitalizedEvent$jscomp$inline_1831
   );
 }
 registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
@@ -17685,16 +17689,18 @@ function customizeViewTransitionError(error, ignoreAbort) {
         if (ignoreAbort) return null;
         break;
       case "InvalidStateError":
-        if (
-          "View transition was skipped because document visibility state is hidden." ===
-            error.message ||
-          "Skipping view transition because document visibility state has become hidden." ===
-            error.message ||
-          "Skipping view transition because viewport size changed." ===
-            error.message ||
-          "Transition was aborted because of invalid state" === error.message
-        )
-          return null;
+        switch (error.message) {
+          case "Transition was aborted because of invalid state":
+          case "Transition was aborted because of invalid state.":
+          case "Transition was aborted because of invalid state. Document hidden":
+          case "Transition was aborted because of invalid state. Viewport size changed":
+          case "Skipped ViewTransition due to document being hidden":
+          case "Skipped view transition due to viewport resize":
+          case "View transition was skipped because document visibility state is hidden.":
+          case "Skipping view transition because document visibility state has become hidden.":
+          case "Skipping view transition because viewport size changed.":
+            return null;
+        }
     }
   return error;
 }
@@ -20794,16 +20800,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2273 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2276 = React.version;
 if (
-  "19.3.0-experimental-dc9aed36-20261027" !==
-  isomorphicReactPackageVersion$jscomp$inline_2273
+  "19.3.0-experimental-e84e1492-20261031" !==
+  isomorphicReactPackageVersion$jscomp$inline_2276
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2273,
-      "19.3.0-experimental-dc9aed36-20261027"
+      isomorphicReactPackageVersion$jscomp$inline_2276,
+      "19.3.0-experimental-e84e1492-20261031"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20823,24 +20829,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2939 = {
+var internals$jscomp$inline_2942 = {
   bundleType: 0,
-  version: "19.3.0-experimental-dc9aed36-20261027",
+  version: "19.3.0-experimental-e84e1492-20261031",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-dc9aed36-20261027"
+  reconcilerVersion: "19.3.0-experimental-e84e1492-20261031"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2940 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2943 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2940.isDisabled &&
-    hook$jscomp$inline_2940.supportsFiber
+    !hook$jscomp$inline_2943.isDisabled &&
+    hook$jscomp$inline_2943.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2940.inject(
-        internals$jscomp$inline_2939
+      (rendererID = hook$jscomp$inline_2943.inject(
+        internals$jscomp$inline_2942
       )),
-        (injectedHook = hook$jscomp$inline_2940);
+        (injectedHook = hook$jscomp$inline_2943);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -21086,4 +21092,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.3.0-experimental-dc9aed36-20261027";
+exports.version = "19.3.0-experimental-e84e1492-20261031";
