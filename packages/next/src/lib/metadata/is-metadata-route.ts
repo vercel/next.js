@@ -56,6 +56,12 @@ export function isStaticMetadataFile(appDirRelativePath: string) {
   return isMetadataRouteFile(appDirRelativePath, [], true)
 }
 
+// Emitted metadata URLs can have a route-group hash suffix. Source filenames
+// must still use isStaticMetadataFile so these suffixes aren't file conventions.
+export function isStaticMetadataPathname(pathname: string) {
+  return isMetadataRouteFile(pathname, [], true, true)
+}
+
 // Pre-compiled static regexes for common cases
 const FAVICON_REGEX = /^[\\/]favicon\.ico$/
 const ROBOTS_TXT_REGEX = /^[\\/]robots\.txt$/
@@ -96,10 +102,11 @@ function fastPathCheck(normalizedPath: string): boolean | null {
 
 function getCompiledRegexes(
   pageExtensions: PageExtensions,
-  strictlyMatchExtensions: boolean
+  strictlyMatchExtensions: boolean,
+  allowGroupSuffix: boolean
 ): RegExp[] {
   // Create cache key
-  const cacheKey = `${pageExtensions.join(',')}|${strictlyMatchExtensions}`
+  const cacheKey = `${pageExtensions.join(',')}|${strictlyMatchExtensions}|${allowGroupSuffix}`
 
   const cached = compiledRegexCache.get(cacheKey)
   if (cached) {
@@ -109,7 +116,7 @@ function getCompiledRegexes(
   // Pre-compute common strings
   const trailingMatcher = strictlyMatchExtensions ? '$' : '?$'
   const variantsMatcher = '\\d?'
-  const groupSuffix = strictlyMatchExtensions ? '' : '(-\\w{6})?'
+  const groupSuffix = allowGroupSuffix ? '(-\\w{6})?' : ''
   const suffixMatcher = variantsMatcher + groupSuffix
 
   // Pre-compute extension arrays to avoid repeated concatenation
@@ -171,7 +178,8 @@ function getCompiledRegexes(
 export function isMetadataRouteFile(
   appDirRelativePath: string,
   pageExtensions: PageExtensions,
-  strictlyMatchExtensions: boolean
+  strictlyMatchExtensions: boolean,
+  allowGroupSuffix: boolean = !strictlyMatchExtensions
 ): boolean {
   // Early exit for empty or obviously non-metadata paths
   if (!appDirRelativePath || appDirRelativePath.length < 2) {
@@ -187,7 +195,11 @@ export function isMetadataRouteFile(
   }
 
   // Get compiled regexes from cache
-  const regexes = getCompiledRegexes(pageExtensions, strictlyMatchExtensions)
+  const regexes = getCompiledRegexes(
+    pageExtensions,
+    strictlyMatchExtensions,
+    allowGroupSuffix
+  )
 
   // Use for loop instead of .some() for better performance
   for (let i = 0; i < regexes.length; i++) {

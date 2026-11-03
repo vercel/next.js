@@ -1,4 +1,4 @@
-import { isMetadataPage } from './is-metadata-route'
+import { isMetadataPage, isStaticMetadataPathname } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -7,7 +7,6 @@ import { djb2Hash } from '../../shared/lib/hash'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
-import { isMetadataRouteFile } from './is-metadata-route'
 import {
   isGroupSegment,
   isParallelRouteSegment,
@@ -108,7 +107,7 @@ export function getStaticMetadataPrerenderPathname(
   pathname: string
 ): string | null {
   const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`
-  if (!isMetadataRouteFile(normalized, [], true)) {
+  if (!isStaticMetadataPathname(normalized)) {
     return null
   }
 

@@ -14,6 +14,17 @@ describe('metadata-files-static-output-group-route', () => {
     return
   }
 
+  it('builds and serves a static icon under a dynamic segment in a route group', async () => {
+    const $ = await next.render$('/group/first')
+    const icon = $('link[rel="icon"][type="image/svg+xml"]').attr('href')!
+    expect(icon).toMatch(/icon-\w+\.svg/)
+
+    const response = await next.fetch(icon)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('image/svg+xml')
+    expect(await response.text()).toContain('<svg')
+  })
+
   it('should have correct link tags for group page', async () => {
     const browser = await next.browser('/group')
 

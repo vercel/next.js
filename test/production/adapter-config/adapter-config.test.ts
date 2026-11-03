@@ -67,6 +67,33 @@ describe('adapter-config', () => {
     ).toBeUndefined()
   })
 
+  it('prerenders dynamic metadata for generateStaticParams and retains its fallback', async () => {
+    const manifest = await next.readJSON('.next/prerender-manifest.json')
+    expect(
+      manifest.routes['/dynamic-metadata/first/sitemap.xml']
+    ).toMatchObject({
+      srcRoute: '/dynamic-metadata/[slug]/sitemap.xml',
+      initialRevalidateSeconds: 5,
+    })
+    expect(
+      manifest.dynamicRoutes['/dynamic-metadata/[slug]/sitemap.xml']
+    ).toBeDefined()
+    expect(manifest.routes['/dynamic-metadata/-/sitemap.xml']).toBeUndefined()
+
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    const prerender = outputs.prerenders.find(
+      (output) => output.pathname === '/docs/dynamic-metadata/first/sitemap.xml'
+    )
+    expect(prerender?.fallback?.initialRevalidate).toBe(5)
+    expect(
+      outputs.prerenders.find(
+        (output) =>
+          output.pathname === '/docs/dynamic-metadata/[slug]/sitemap.xml'
+      )
+    ).toBeDefined()
+  })
+
   it('should call onBuildComplete with correct context', async () => {
     expect(next.cliOutput).toContain('onBuildComplete called')
 
