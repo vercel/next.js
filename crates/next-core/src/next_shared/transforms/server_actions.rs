@@ -78,10 +78,7 @@ impl CustomTransformer for NextServerActions {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "server_actions", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         // The hash salt (the encryption key) is only needed for modules with server functions.
-        // This transform runs on every module, so depending on the key unconditionally would make
-        // every module's parse depend on it, and a key change (e.g. key rotation or a per-build
-        // `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`) would invalidate most of the build graph. Read it
-        // lazily: the dependency is dropped again if the transform never generates an ID.
+        // `lazy_reader` allows us to drop the dependency in the common case.
         let encryption_key = self.encryption_key.lazy_reader().await?;
         let actions = server_actions(
             &FileName::Real(ctx.file_path_str.into()),
