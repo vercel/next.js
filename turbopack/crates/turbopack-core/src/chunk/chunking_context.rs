@@ -554,8 +554,8 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>>;
 
-    /// Scope-hoisting groups keyed by source module. `None` disables module merging;
-    /// `Some` enables it even if the map is empty. Read the map through keyed access.
+    /// If set, use `MergeableModule` to merge modules if possible. Lists the merged groups which
+    /// can be used for better codegen.
     #[turbo_tasks::function]
     async fn merged_modules(self: Vc<Self>) -> Result<Vc<OptionMergedModuleGroups>>;
 

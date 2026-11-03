@@ -32,8 +32,7 @@ pub struct MergedModulesOriginalModules(
     FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>>,
 );
 
-/// Original modules belonging to the same scope-hoisting group. Kept separately from the
-/// replacement decisions so code generation can read just its target's group.
+/// Map of modules (whether replaced or kept) to the group that they merged into.
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct MergedModuleGroups(
     FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<MergedModuleGroup>>,
@@ -883,18 +882,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     })
                     .collect::<Vec<_>>();
 
-                let group = MergedModuleGroup::new(
-                    MergeableModulesExposed::interned(list_exposed),
-                    Vc::upcast(entry_points[0]),
-                )
-                .to_resolved()
-                .await?;
+                let modules = MergeableModulesExposed::interned(list_exposed);
+                let group = MergedModuleGroup::new(modules, Vc::upcast(entry_points[0]))
+                    .to_resolved()
+                    .await?;
                 let entry = *list.last().unwrap();
                 let result = entry
-                    .merge(
-                        *group.await?.modules,
-                        MergeableModules::interned(entry_points),
-                    )
+                    .merge(modules, MergeableModules::interned(entry_points))
                     .to_resolved()
                     .await?;
 

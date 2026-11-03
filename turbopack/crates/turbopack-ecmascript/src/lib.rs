@@ -1367,9 +1367,11 @@ impl EcmascriptModuleContent {
                     .await?
                     .as_deref()
             {
-                if let Some(flat_group) =
-                    *references::esm::mangle::flat_group_exports(**group, *options.chunking_context)
-                        .await?
+                if let Some(flat_group) = *references::esm::mangle::allocate_exports(
+                    references::esm::mangle::ExportAllocationDomain::Group(*group),
+                    *options.chunking_context,
+                )
+                .await?
                 {
                     Some(flat_group.await?)
                 } else {

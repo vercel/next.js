@@ -203,14 +203,14 @@ impl MergeableModules {
 #[turbo_tasks::task_input]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum MergeableModuleExposure {
-    // This module is only used from within the current group, and only individual exports are
-    // used (and no namespace object is required).
+    /// This module is only used from within the current group, and only individual exports are
+    /// used (and no namespace object is required).
     None,
-    // This module is only used from within the current group, and but the namespace object is
-    // needed.
+    /// This module is only used from within the current group, but the namespace object is
+    /// needed.
     Internal,
-    // The exports of this module are read from outside this group, so they need runtime
-    // registration (either in a source-module namespace or a shared flat export table).
+    /// The exports of this module are read from outside this group, so they need to be exported
+    /// in some way.
     External,
 }
 
