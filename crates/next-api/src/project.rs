@@ -3243,7 +3243,11 @@ async fn loader_emitted_output_assets(
             );
             continue;
         }
-        let Ok(path) = root.join(relative) else {
+        let Some(path) = root
+            .join(relative)
+            .ok()
+            .filter(|path| path.is_inside_ref(&node_root))
+        else {
             emitted_file_issue(
                 &file,
                 IssueSeverity::Error,

@@ -156,6 +156,10 @@ describe('webpack-loader-emit-file-conflicts', () => {
   // @force-gate turbopack && !deploy
   it('rejects emitted file names outside of the output directory', async () => {
     await expectInvalidName(
+      '../../../outside.txt',
+      'is outside of the output directory'
+    )
+    await expectInvalidName(
       '../../../../../../../../../outside.txt',
       'is outside of the output directory'
     )

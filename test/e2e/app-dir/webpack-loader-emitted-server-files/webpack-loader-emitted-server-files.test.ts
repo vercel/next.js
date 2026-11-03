@@ -48,6 +48,16 @@ describe('webpack-loader-emitted-server-files', () => {
         )
         .filter((file: string) => file.includes('/loader-output/'))
       expect({ entry, files }).toEqual({ entry, files: expected.map(emitted) })
+      for (const name of expected) {
+        expect(
+          await next.readFile(
+            join(
+              next.distDir,
+              `server/chunks/loader-output/${name}.txt.excluded`
+            )
+          )
+        ).toBe('excluded-content\n')
+      }
     }
   })
 

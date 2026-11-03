@@ -104,13 +104,26 @@ impl Asset for NftJsonAsset {
 
             let chunk = this.chunk;
             let traced_files = this.traced_files.await?;
+            let exclude_glob =
+                tracing_exclude_glob(this.page_name.clone(), project_path.clone(), next_config)
+                    .await?
+                    .map(|v| *v);
+            let emitted_exclude_glob = match exclude_glob {
+                Some(glob) => Some(glob.await?),
+                None => None,
+            };
             // Public files are served from the static directory rather than read by the server.
             let emitted_assets = traced_files
                 .emitted_assets
                 .iter()
                 .copied()
                 .map(async |asset| {
-                    Ok((!asset.path().await?.is_inside_ref(&client_root)).then_some(asset))
+                    let path = asset.path().await?;
+                    Ok((!path.is_inside_ref(&client_root)
+                        && !emitted_exclude_glob
+                            .as_ref()
+                            .is_some_and(|glob| glob.matches(&path.path)))
+                    .then_some(asset))
                 })
                 .try_flat_join()
                 .await?;
@@ -122,9 +135,6 @@ impl Asset for NftJsonAsset {
                 .chain(emitted_assets)
                 .collect();
 
-            let exclude_glob =
-                tracing_exclude_glob(this.page_name.clone(), project_path.clone(), next_config);
-
             enum AssetOrModule {
                 Asset(ResolvedVc<Box<dyn OutputAsset>>),
                 Module(ResolvedVc<Box<dyn Module>>),
@@ -134,7 +144,7 @@ impl Asset for NftJsonAsset {
             let all_assets = all_assets_from_entries_filtered(
                 Vc::cell(entries),
                 Some(client_root.clone()),
-                exclude_glob.await?.map(|v| *v),
+                exclude_glob,
             )
             .await?;
 

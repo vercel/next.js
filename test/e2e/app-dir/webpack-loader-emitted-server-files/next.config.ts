@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   cacheComponents: false,
   experimental: { cachedNavigations: false },
+  outputFileTracingExcludes: {
+    '/*': ['.next/server/chunks/loader-output/*.excluded'],
+  },
   turbopack: {
     rules: {
       '*.template': {
