@@ -989,7 +989,7 @@ export function proxy(request) {
 }
 ```
 
-> **Good to know**: When Proxy runs for a request, Next.js buffers the request body in memory so that both Proxy and the route can read it. Bodies larger than [`proxyClientMaxBodySize`](/docs/app/api-reference/config/next-config-js/proxyClientMaxBodySize) (10MB by default) are cut off without an error, so exclude routes that receive uploads with a [`matcher`](/docs/app/api-reference/file-conventions/proxy#matcher), and perform any checks Proxy does for them, such as authentication, in the route itself.
+> **Good to know**: When Proxy runs for a request, Next.js buffers the request body in memory so that both Proxy and the route can read it. Bodies larger than [`proxyClientMaxBodySize`](/docs/app/api-reference/config/next-config-js/proxyClientMaxBodySize) (10MB by default) are truncated and Next.js logs a warning, so exclude routes that receive uploads with a [`matcher`](/docs/app/api-reference/file-conventions/proxy#matcher), and perform any checks Proxy does for them, such as authentication, in the route itself.
 
 ## Security
 
