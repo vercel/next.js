@@ -1,0 +1,34 @@
+import { test, expect } from 'vitest'
+import { page } from 'vitest/browser'
+import React, { useEffect, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+const h = React.createElement
+
+test('updates an actual responsive React layout through page.viewport', async () => {
+  const host = document.createElement('div'), style = document.createElement('style'), rows = []
+  style.textContent = '.viewport-contract { display: grid; grid-template-columns: 1fr; } @media (min-width: 600px) { .viewport-contract { grid-template-columns: 1fr 1fr; } }'
+  document.head.append(style); document.body.append(host)
+  function View() {
+    const [width, setWidth] = useState(window.innerWidth)
+    useEffect(() => { const resize = () => { rows.push({ event: 'resize', width: window.innerWidth, height: window.innerHeight }); setWidth(window.innerWidth) }; window.addEventListener('resize', resize); host.dataset.ready = 'yes'; return () => { window.removeEventListener('resize', resize); rows.push({ event: 'cleanup' }) } }, [])
+    return h('section', { className: 'viewport-contract', 'data-testid': 'responsive' }, h('span', null, width + ':' + (width < 600 ? 'narrow' : 'wide')), h('span', null, 'content'))
+  }
+  const root = createRoot(host)
+  try {
+    root.render(h(View))
+    await expect.poll(() => host.dataset.ready).toBe('yes')
+    const original = host.querySelector('section'), facts = []
+    for (const [width, height] of [[360,640],[960,480]]) {
+      const operation = Reflect.apply(page.viewport, { foreignReceiver: true }, [width,height])
+      const actualPromise = operation instanceof Promise
+      const result = await operation
+      await expect.poll(() => host.querySelector('span').textContent).toBe(width + ':' + (width < 600 ? 'narrow' : 'wide'))
+      const element = page.getByTestId('responsive').element()
+      facts.push({ actualPromise, returnedUndefined: result === undefined, width: window.innerWidth, height: window.innerHeight, mediaWide: matchMedia('(min-width: 600px)').matches, retained: element === original, text: element.textContent, columns: getComputedStyle(element).gridTemplateColumns.split(' ').length })
+    }
+    root.unmount()
+    console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify({ facts, rows, afterUnmount: host.childNodes.length }))
+    expect(facts).toEqual([{ actualPromise:true,returnedUndefined:true,width:360,height:640,mediaWide:false,retained:true,text:'360:narrowcontent',columns:1 }, { actualPromise:true,returnedUndefined:true,width:960,height:480,mediaWide:true,retained:true,text:'960:widecontent',columns:2 }])
+    expect(rows.filter(row => row.event === 'cleanup')).toHaveLength(1)
+  } finally { root.unmount(); host.remove(); style.remove() }
+})

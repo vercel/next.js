@@ -1,3 +1,4 @@
+import type { WebKitPageOwner } from '../browser/webkit-host'
 import { isTestCI } from '../config-environment'
 import { cleanupClientKeyboard, runClientKeyboard } from './keyboard'
 import { captureProductionStaticMockClosure } from '../mocking/production-artifact'
@@ -159,6 +160,7 @@ export async function executeClient(
     page: Page | undefined,
     testFrame: Frame | undefined,
     frameOwner: BrowserFrameOwner | FirefoxFrameOwner | undefined,
+    webKitOwner: WebKitPageOwner | undefined,
     server: Awaited<ReturnType<typeof createClientServer>> | undefined,
     coverage: ReturnType<typeof createClientCoverage> | undefined,
     engineBrand: ReturnType<typeof createClientEngineBrand> | undefined
@@ -359,14 +361,21 @@ export async function executeClient(
             testFrame !== undefined &&
             frameOwner?.engine === 'firefox' &&
             actionFrame === testFrame
+          const webKitMainFrame =
+            engine === 'webkit' &&
+            !options.testFrame &&
+            !testFrame &&
+            actionFrame === actionPage &&
+            webKitOwner !== undefined
           if (
             options.userCancelSignal ||
-            (!chromiumMainFrame && !firefoxOwnedFrame)
+            (!chromiumMainFrame && !firefoxOwnedFrame && !webKitMainFrame)
           )
             throw new Error(
-              'Browser viewport commands require a Chromium main frame or owned Firefox frame in a one-shot session.'
+              'Browser viewport commands require a Chromium/WebKit main frame or owned Firefox frame in a one-shot session.'
             )
           if (firefoxOwnedFrame) frameOwner!.assertCurrent()
+          if (webKitMainFrame) webKitOwner!.assertCurrent()
           await runAction(() =>
             actionPage.setViewportSize({
               width: command.args[0] as number,
@@ -899,7 +908,7 @@ export async function executeClient(
         ? { firefoxOwner: host.firefoxPageOwner!(context, page) }
         : {}),
       ...(engine === 'webkit'
-        ? { webKitOwner: host.webKitPageOwner!(context, page) }
+        ? { webKitOwner: (webKitOwner = host.webKitPageOwner!(context, page)) }
         : {}),
     })
     await Promise.race([engineBrand.start(), interrupted])
