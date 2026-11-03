@@ -1,6 +1,5 @@
 (()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_mangle-exports_flat-hoisted_input_19v7j-mslz9_y._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/flat-hoisted/input/first.js [test] (ecmascript)", "[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/flat-hoisted/input/second.js [test] (ecmascript)", 
-((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/flat-hoisted/input/first.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([

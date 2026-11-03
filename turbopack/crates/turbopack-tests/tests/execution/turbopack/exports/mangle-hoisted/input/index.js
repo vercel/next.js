@@ -48,4 +48,15 @@ it('should be correct across a chunk boundary with scope hoisting enabled', asyn
   expect(fromLazy()).toBe(
     'shared-1/shared-fn/second-1/shared-short/second-short/1'
   )
+
+  // Another chunk reads and updates the noncanonical member of the same shared group. All of its
+  // imports must use the one registered factory ID, and updates must remain visible in both chunks.
+  const { readAndIncrement } = await import(
+    /* turbopackExports: ["readAndIncrement"] */ './lazy-second'
+  )
+  expect(readAndIncrement()).toEqual(['shared-1', 1, 2])
+  expect(liveValue).toBe(2)
+  expect(fromLazy()).toBe(
+    'shared-1/shared-fn/second-1/shared-short/second-short/2'
+  )
 })
