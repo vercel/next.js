@@ -1,4 +1,5 @@
 import { supportsCustomCoverageMode } from '../experimental/testing/coverage/custom-options'
+import { isSharedRscWatchRun } from '../experimental/testing/incremental/shared-rsc-cohort'
 import type {
   TestResultCache,
   TestResultCacheUpdate,
@@ -788,7 +789,25 @@ export async function nextTestRunner(
       throw new Error(
         'Custom coverage requires one-shot isolated Node execution in development or plain JavaScript production without V8, DOM, type tests, debugging or snapshot updates.'
       )
+    const sharedRscWatch =
+      options.watch &&
+      apiPort === undefined &&
+      !configuration.compilerTransformNames.length &&
+      isSharedRscWatchRun({
+        operation: 'run',
+        projectDir,
+        projects,
+        maxWorkers,
+        collectOnly: options.list,
+        inspect,
+        inspectBrk,
+        coverage: options.coverage,
+        standardCoverageOptions,
+        updateSnapshots: options.update,
+        snapshotUpdateMode: process.env.CI ? 'none' : 'new',
+      })
     if (
+      !sharedRscWatch &&
       projects.some(
         (project) =>
           project.isolate === false && (options.watch || project.entries.length)

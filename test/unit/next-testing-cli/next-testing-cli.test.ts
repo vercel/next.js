@@ -6660,6 +6660,7 @@ describe('Node watch machine generations', () => {
         await writeFile(
           path.join(directory, 'next.test.config.json'),
           JSON.stringify({
+            ...(mode === 'development' ? { maxWorkers: 2 } : {}),
             projects: [
               {
                 name: 'shared-rsc',
@@ -6688,6 +6689,7 @@ describe('Node watch machine generations', () => {
     await writeFile(
       path.join(directory, 'next.test.config.json'),
       JSON.stringify({
+        maxWorkers: 2,
         projects: [
           {
             name: 'development-rsc',

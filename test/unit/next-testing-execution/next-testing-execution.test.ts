@@ -7495,6 +7495,30 @@ describe('shared RSC compiler and per-file rendering contracts', () => {
   })
 })
 
+// Admission stays closed until the real native shared AppPage contract is qualified.
+describe('shared RSC watch generation foundation', () => {
+  it.each(['scope', 'selection', 'join'])(
+    'validates %s with existing closed-generation semantics',
+    (mode) => {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'shared-rsc-watch-contract.cjs'),
+          path.join(__dirname, '../../..'),
+          mode,
+        ],
+        { encoding: 'utf8', timeout: 10000 }
+      )
+      expect(JSON.parse(stdout)).toMatchObject({
+        mode,
+        pureContractOnly: true,
+        actualWatchAdmissionOpen: false,
+        actualNativeWatchQualified: false,
+      })
+    }
+  )
+})
+
 describe('actual host console task preservation', () => {
   it.each(['actual', 'absent'])(
     'preserves %s task capability while capturing and restoring output',

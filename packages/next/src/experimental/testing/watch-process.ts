@@ -3,6 +3,7 @@ import {
   type SnapshotPreparationFailure,
 } from './execution/snapshot-preparation'
 import type { RuntimeModuleCompletion } from './execution/completed-module'
+import { isSharedRscWatchRun } from './incremental/shared-rsc-cohort'
 import type {
   IstanbulSourcePlan,
   IstanbulSourceDeclarations,
@@ -605,7 +606,8 @@ export async function runWatchProcess(
       cwd: request.projectDir,
       env: {
         ...process.env,
-        ...((request.operation === 'run' && request.isolatedProfile) ||
+        ...((request.operation === 'run' &&
+          (request.isolatedProfile || isSharedRscWatchRun(request))) ||
         request.operation === 'plan'
           ? {
               NODE_ENV:
@@ -784,7 +786,8 @@ export async function runWatchProcess(
       browserApplications,
       maxWorkers: request.operation === 'run' ? request.maxWorkers : undefined,
       allowCohorts:
-        request.operation === 'run' && request.isolatedProfile === true,
+        request.operation === 'run' &&
+        (request.isolatedProfile === true || isSharedRscWatchRun(request)),
       allowCoverage:
         request.operation === 'run' &&
         (request.isolatedProfile === true ||

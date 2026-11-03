@@ -30,6 +30,11 @@ import {
 } from './incremental/registry-additions'
 import { selectSourceRelatedProjects } from './incremental/source-selection'
 import {
+  expandSharedRscCohortSelection,
+  isSharedRscCohortProject,
+  isSharedRscWatchRun,
+} from './incremental/shared-rsc-cohort'
+import {
   createWatchKeyboard,
   type WatchCommand,
 } from './incremental/watch-keyboard'
@@ -406,13 +411,26 @@ export async function watchTests(
         )
       }
     }
+    const sharedRscWatch =
+      options.apiPort === undefined &&
+      !configuration.compilerTransformNames.length &&
+      isSharedRscWatchRun({
+        operation: 'run',
+        projectDir,
+        projects,
+        maxWorkers: resolveTestMaxWorkers(config, options),
+        coverage: coverage.enabled,
+        standardCoverageOptions,
+        updateSnapshots,
+        snapshotUpdateMode: options.snapshotUpdateMode ?? 'none',
+      })
     if (
       projects.some(({ profile, browserFixtures, isolate }) => {
         const explicitRscRoute =
           (profile.mode === 'development' || profile.mode === 'production') &&
           profile.environment === 'rsc' &&
           profile.route !== undefined &&
-          isolate !== false
+          (isolate !== false || sharedRscWatch)
         return (
           (profile.mode !== 'development' &&
             !(
@@ -750,7 +768,7 @@ export async function watchTests(
           (project.profile.mode === 'development' ||
             project.profile.mode === 'production') &&
           project.profile.route !== undefined &&
-          project.isolate !== false
+          (project.isolate !== false || isSharedRscCohortProject(project))
       )
         ? { sourceProcess: true as const, signal: controller.signal }
         : {}),
@@ -1228,7 +1246,7 @@ export async function watchTests(
             coverageConfig,
             signal
           )
-        const selected = new Set(
+        let selected = new Set(
           coverageConfig
             ? await coverageCache.selectEntryIds({
                 registry: discovery.registry,
@@ -1248,6 +1266,11 @@ export async function watchTests(
         const missingEditorFile =
           requestedEditorFile !== undefined &&
           !selected.has(requestedEditorFile)
+        if (!coverageConfig)
+          selected = expandSharedRscCohortSelection(
+            discovery.projects,
+            selected
+          )
         // Initial starts and explicit full reruns include untouched sources.
         // A cancelled generation cannot consume this publication intent.
         const includeUnimported =

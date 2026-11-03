@@ -5,6 +5,7 @@ import type {
   WatchProcessResult,
 } from './watch-process'
 import { randomUUID } from 'crypto'
+import { isSharedRscWatchRun } from './incremental/shared-rsc-cohort'
 import type { WatchDirectories } from './incremental/watch-files'
 import { getTestRunLockPath } from './run-lock'
 import { serializeDiagnostic } from './reporting/diagnostics'
@@ -73,7 +74,8 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       allowCoverage:
         request.isolatedProfile === true ||
         (request.watchCoverage === true && !!request.standardCoverageOptions),
-      allowCohorts: request.isolatedProfile === true,
+      allowCohorts:
+        request.isolatedProfile === true || isSharedRscWatchRun(request),
       send: (message) =>
         new Promise<void>((sent, failed) => {
           if (!process.connected)
@@ -216,7 +218,7 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       customCoverageDisabled: request.customCoverageDisabled,
       execute: broker.execute,
       brokerOwnsBrowser: true,
-      ...(request.isolatedProfile === true
+      ...(request.isolatedProfile === true || isSharedRscWatchRun(request)
         ? { executeCohort: broker.executeCohort }
         : {}),
       allocateArtifact: (parentDir) =>
