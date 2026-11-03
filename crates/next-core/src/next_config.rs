@@ -108,6 +108,9 @@ pub struct NextConfig {
     images: ImageConfig,
     page_extensions: Vec<RcStr>,
     instrumentation_client_inject: Option<Vec<RcStr>>,
+    /// Server instrumentation module specifiers. They run in order, before the project's own
+    /// instrumentation file. Next.js does not install the modules.
+    instrumentation_inject: Option<Vec<RcStr>>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     react_production_profiling: Option<bool>,
     react_strict_mode: Option<bool>,
@@ -1241,6 +1244,7 @@ pub struct ExperimentalConfig {
     /// Omit catch-all-derived route matchers whose loader trees contain an unmatched parallel
     /// route.
     strict_route_matching: Option<bool>,
+    go_routes: Option<bool>,
     /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
     turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1705,6 +1709,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn instrumentation_inject(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.instrumentation_inject.clone().unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
     pub fn server_external_packages(&self) -> Vc<Vec<RcStr>> {
         Vc::cell(
             self.server_external_packages
@@ -1798,6 +1807,11 @@ impl NextConfig {
                 .explicit_parallel_route_children
                 .unwrap_or(true),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn go_routes(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.go_routes.unwrap_or_default())
     }
 
     #[turbo_tasks::function]

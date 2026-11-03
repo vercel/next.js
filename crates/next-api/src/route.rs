@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, future::Future};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
@@ -35,6 +35,10 @@ pub enum Route {
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     AppPage(Vec<AppPageRoute>),
+    AppGoRoute {
+        original_name: RcStr,
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    },
     AppRoute {
         original_name: RcStr,
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
@@ -331,6 +335,10 @@ pub struct EndpointOutput {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub enum EndpointOutputPaths {
+    Native {
+        executable_path: RcStr,
+        build: turbopack_go::GoBundleResult,
+    },
     NodeJs {
         /// Relative to the root_path
         server_entry_path: RcStr,
@@ -343,9 +351,28 @@ pub enum EndpointOutputPaths {
         client_paths: Vec<RcStr>,
     },
     NotFound,
+    /// Keep failed inputs available to request-side validation, without publishing an executable.
+    /// Configuration failures have no compiler inputs to validate.
+    NativeFailed {
+        build: Option<turbopack_go::GoBundleResult>,
+    },
 }
 
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
 #[turbo_tasks::value(transparent)]
 pub struct Routes(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Route>);
+
+/// Accept endpoint output using the native compiler's live-input validation contract.
+/// JavaScript and edge output require no additional validation.
+pub async fn read_with_validated_endpoint<T, F: Future<Output = Result<T>>>(
+    read: impl FnMut() -> F,
+    get_output: impl Fn(&T) -> Option<&EndpointOutputPaths>,
+) -> Result<T> {
+    turbopack_go::read_with_validated_inputs(read, |value| match get_output(value) {
+        Some(EndpointOutputPaths::Native { build, .. }) => Some(build),
+        Some(EndpointOutputPaths::NativeFailed { build }) => build.as_ref(),
+        _ => None,
+    })
+    .await
+}

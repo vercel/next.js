@@ -650,6 +650,18 @@ export async function getAppPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<AppPageStaticInfo> {
+  if (/(?:^|[\\/])route\.go$/.test(pageFilePath)) {
+    if (!process.env.TURBOPACK)
+      throw new Error('route.go requires Turbopack; remove --webpack')
+    return {
+      type: PAGE_TYPES.APP,
+      config: { dynamic: 'force-dynamic' },
+      runtime: undefined,
+      preferredRegion: undefined,
+      maxDuration: undefined,
+      hadUnsupportedValue: false,
+    }
+  }
   const content = tryToReadFile(pageFilePath, !isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {

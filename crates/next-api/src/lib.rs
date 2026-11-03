@@ -30,5 +30,6 @@ pub mod route;
 pub mod routes_hashes_manifest;
 mod server_actions;
 mod service_worker;
+pub mod shutdown;
 mod sri_manifest;
 mod versioned_content_map;
