@@ -655,7 +655,11 @@ async fn compact_reference_target(
         ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?;
     let Some(ReferencedAssetIdent::Module {
         ctxt,
-        import_source: import_source @ ImportSource::Module { asset, .. },
+        import_source:
+            ImportSource::Module {
+                asset,
+                namespace_ident,
+            },
         ..
     }) = referenced_asset
         .get_ident(chunking_context, None, scope_hoisting_context)
@@ -663,10 +667,7 @@ async fn compact_reference_target(
     else {
         return Ok(None);
     };
-    Ok(Some((
-        (import_source.namespace_ident().into_owned(), ctxt),
-        asset,
-    )))
+    Ok(Some(((namespace_ident, ctxt), asset)))
 }
 
 /// Collects the exports into one group per source module, or returns `None` if any export does not
@@ -778,7 +779,11 @@ async fn build_compact_reexports(
         let Some(ReferencedAssetIdent::Module {
             ctxt,
             export: Some(imported_key),
-            import_source: import_source @ ImportSource::Module { asset, .. },
+            import_source:
+                ImportSource::Module {
+                    asset,
+                    namespace_ident,
+                },
         }) = referenced_asset
             .get_ident(
                 chunking_context,
@@ -791,7 +796,6 @@ async fn build_compact_reexports(
             // these are a property read off an imported namespace.
             return Ok(None);
         };
-        let namespace_ident = import_source.namespace_ident().into_owned();
 
         let exported_key = mangled_names
             .and_then(|names| names.get(exported))

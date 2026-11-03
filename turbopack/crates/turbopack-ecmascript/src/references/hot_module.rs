@@ -165,7 +165,7 @@ impl ModuleHotReferenceCodeGen {
                             .get_ident(chunking_context, None, scope_hoisting_context)
                             .await?;
                         if let Some((namespace_ident, ctxt)) =
-                            ident.and_then(|i| i.as_module_namespace_ident())
+                            ident.and_then(|i| i.into_module_namespace_ident())
                         {
                             let id = asset.chunk_item_id(chunking_context).await?;
                             let module_id_expr = module_id_to_lit(&id);

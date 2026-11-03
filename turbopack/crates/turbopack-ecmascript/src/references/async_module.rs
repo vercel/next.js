@@ -127,7 +127,7 @@ impl AsyncModule {
                             referenced_asset
                                 .get_ident(chunking_context, None, ScopeHoistingContext::None)
                                 .await?
-                                .map(|i| i.as_module_namespace_ident().unwrap())
+                                .map(|i| i.into_module_namespace_ident().unwrap())
                                 .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
                         } else {
                             None
@@ -141,7 +141,7 @@ impl AsyncModule {
                             referenced_asset
                                 .get_ident(chunking_context, None, ScopeHoistingContext::None)
                                 .await?
-                                .map(|i| i.as_module_namespace_ident().unwrap())
+                                .map(|i| i.into_module_namespace_ident().unwrap())
                                 .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
                         } else {
                             None

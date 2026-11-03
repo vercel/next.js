@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
@@ -83,7 +81,7 @@ pub enum ReferencedAssetIdent {
         ctxt: SyntaxContext,
         liveness: Liveness,
     },
-    /// The given export (or namespace) should be imported accessed from the `export` on the
+    /// The given export (or namespace) should be imported and accessed as `export` on the
     /// `import_source.namespace_ident()` variable.
     Module {
         ctxt: Option<SyntaxContext>,
@@ -109,7 +107,12 @@ pub enum ImportSource {
     /// Import an external dependency. The emitting site decides between
     /// `__turbopack_external_import` and `__turbopack_external_require` based on its own
     /// `import_externals` flag.
-    External { request: RcStr, ty: ExternalType },
+    External {
+        request: RcStr,
+        ty: ExternalType,
+        /// The name of the variable that should hold the imported namespace.
+        namespace_ident: String,
+    },
 }
 
 impl ImportSource {
@@ -125,29 +128,47 @@ impl ImportSource {
     }
 
     fn new_external(request: RcStr, ty: ExternalType) -> Self {
-        ImportSource::External { request, ty }
+        let namespace_ident = magic_identifier::mangle(&format!("{ty} external {request}"));
+        ImportSource::External {
+            request,
+            ty,
+            namespace_ident,
+        }
     }
 
-    pub fn namespace_ident(&self) -> Cow<'_, str> {
+    /// The name of the variable that should hold the imported namespace.
+    pub fn namespace_ident(&self) -> &str {
         match self {
             ImportSource::Module {
                 namespace_ident, ..
-            } => Cow::Borrowed(namespace_ident),
-            ImportSource::External { request, ty } => Cow::Owned(magic_identifier::mangle(
-                &format!("{ty} external {request}"),
-            )),
+            }
+            | ImportSource::External {
+                namespace_ident, ..
+            } => namespace_ident,
+        }
+    }
+
+    /// Like [`ImportSource::namespace_ident`], but takes ownership of the name.
+    pub fn into_namespace_ident(self) -> String {
+        match self {
+            ImportSource::Module {
+                namespace_ident, ..
+            }
+            | ImportSource::External {
+                namespace_ident, ..
+            } => namespace_ident,
         }
     }
 }
 
 impl ReferencedAssetIdent {
-    pub fn as_module_namespace_ident(&self) -> Option<(String, Option<SyntaxContext>)> {
+    pub fn into_module_namespace_ident(self) -> Option<(String, Option<SyntaxContext>)> {
         match self {
             ReferencedAssetIdent::Module {
                 import_source,
                 ctxt,
                 ..
-            } => Some((import_source.namespace_ident().into_owned(), *ctxt)),
+            } => Some((import_source.into_namespace_ident(), ctxt)),
             ReferencedAssetIdent::LocalBinding { .. } => None,
         }
     }
@@ -169,7 +190,7 @@ impl ReferencedAssetIdent {
                     Either::Right(MemberExpr {
                         span,
                         obj: Box::new(Expr::Ident(Ident::new(
-                            namespace_ident.as_ref().into(),
+                            namespace_ident.into(),
                             DUMMY_SP,
                             ctxt.unwrap_or_default(),
                         ))),
@@ -184,7 +205,7 @@ impl ReferencedAssetIdent {
                     })
                 } else {
                     Either::Left(Ident::new(
-                        namespace_ident.as_ref().into(),
+                        namespace_ident.into(),
                         span,
                         ctxt.unwrap_or_default(),
                     ))
@@ -911,11 +932,9 @@ impl EsmAssetReference {
                                     export: _,
                                     import_source,
                                 }) => {
-                                    let namespace_ident = import_source.namespace_ident();
-                                    if subsumed_imports
-                                        .namespaces
-                                        // TODO why do we have to clone just for the lookup here?
-                                        .contains(&(namespace_ident.to_string(), ctxt))
+                                    let namespace_key =
+                                        (import_source.namespace_ident().to_owned(), ctxt);
+                                    if subsumed_imports.namespaces.contains(&namespace_key)
                                         && (!matches!(
                                             this.export_name,
                                             Some(ModulePart::Evaluation)
@@ -928,7 +947,7 @@ impl EsmAssetReference {
                                         break 'import;
                                     }
                                     let name = Ident::new(
-                                        namespace_ident.into(),
+                                        namespace_key.0.into(),
                                         DUMMY_SP,
                                         ctxt.unwrap_or_default(),
                                     );
@@ -951,6 +970,7 @@ impl EsmAssetReference {
                                         ImportSource::External {
                                             request,
                                             ty: ExternalType::EcmaScriptModule,
+                                            ..
                                         } => {
                                             if !*chunking_context
                                                 .environment()
@@ -981,6 +1001,7 @@ impl EsmAssetReference {
                                         ImportSource::External {
                                             request,
                                             ty: ExternalType::CommonJs | ExternalType::Url,
+                                            ..
                                         } => {
                                             if !*chunking_context
                                                 .environment()
