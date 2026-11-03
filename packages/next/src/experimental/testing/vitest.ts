@@ -567,6 +567,7 @@ export function assertType<T>(value: T): void {
 }
 export { expectTypeOf } from '../../compiled/next-test-primitives'
 export type {
+  BenchFn,
   ExpectTypeOf,
   SnapshotResult,
   SnapshotStateOptions,

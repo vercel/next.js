@@ -1573,3 +1573,22 @@ it('matches standalone task and external-result root type contracts', async () =
     typeOnlyImports: true,
   })
 }, 35000)
+
+it('retains the exact engine-neutral BenchFn root type without executing benchmarks', () => {
+  const { execFileSync } = require('node:child_process')
+  const { join } = require('node:path')
+  const actual = JSON.parse(
+    execFileSync(process.execPath, [join(__dirname, 'bench-fn-types.cjs')], {
+      encoding: 'utf8',
+      timeout: 30000,
+    })
+  )
+  expect(actual).toMatchObject({
+    rootConfigAndGlobalAugmentations: true,
+    noExternalVitestViteFormatterDeclarations: true,
+    typeOnlyNoBenchmarkExecution: true,
+    programs: 8,
+    accepted: 4,
+    rejected: 4,
+  })
+}, 35000)

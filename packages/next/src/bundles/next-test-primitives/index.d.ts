@@ -41,6 +41,9 @@ export type { ExpectTypeOf } from 'expect-type'
 
 export type { TestError } from '@vitest/utils'
 
+/** Exact pinned engine-neutral benchmark callback signature. */
+export type BenchFn = () => unknown
+
 /** Private lookup for assertions created by the genuine pinned primitives. */
 export declare function getChaiAssertionIdentity(
   value: unknown

@@ -40,6 +40,9 @@ export type { ExpectTypeOf } from 'expect-type'
 
 export type { TestError } from '@vitest/utils'
 
+/** Exact pinned engine-neutral benchmark callback signature. */
+export type BenchFn = () => unknown
+
 export { format, inspect } from '@vitest/utils/display'
 
 export { queries, prettyDOM } from '@testing-library/dom'

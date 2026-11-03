@@ -1,0 +1,2 @@
+import type {BenchFn} from 'vitest'
+declare const fn:BenchFn;const value:number=fn();void value

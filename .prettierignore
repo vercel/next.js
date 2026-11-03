@@ -124,3 +124,6 @@ test/unit/next-testing-compiler/fixtures/shared-rsc/sources/
 
 # Exact authored SuiteAPI bodies, strict type programs and genuine runner records.
 test/unit/next-testing-lifecycle/normal-suite-records/
+
+# Exact BenchFn strict type programs and genuine diagnostics.
+test/unit/next-testing-assertions/bench-fn-records/
