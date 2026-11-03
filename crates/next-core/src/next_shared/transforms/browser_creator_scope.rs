@@ -3,9 +3,11 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::browser_creator_scope::{
-    browser_creator_scope, browser_promise_static_calls, preserve_browser_block_function_names,
+    browser_creator_scope_with_runner, browser_promise_static_calls,
+    preserve_browser_block_function_names,
 };
 use swc_core::{common::SyntaxContext, ecma::ast::Program};
+use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
@@ -14,8 +16,14 @@ use turbopack_ecmascript::{
     TransformPlugin,
 };
 
-pub async fn rule(project: FileSystemPath, framework: FileSystemPath) -> Result<ModuleRule> {
-    let plugin = creator_plugin(project, framework).to_resolved().await?;
+pub async fn rule(
+    project: FileSystemPath,
+    framework: FileSystemPath,
+    runner_request: RcStr,
+) -> Result<ModuleRule> {
+    let plugin = creator_plugin(project, framework, runner_request)
+        .to_resolved()
+        .await?;
     Ok(ModuleRule::new_all(
         RuleCondition::any(
             [".js", ".mjs", ".jsx", ".ts", ".mts", ".tsx"]
@@ -39,14 +47,22 @@ pub async fn rule(project: FileSystemPath, framework: FileSystemPath) -> Result<
     ))
 }
 #[turbo_tasks::function]
-fn creator_plugin(project: FileSystemPath, framework: FileSystemPath) -> Vc<TransformPlugin> {
-    Vc::cell(Box::new(CreatorTransformer { project, framework })
-        as Box<dyn CustomTransformer + Send + Sync>)
+fn creator_plugin(
+    project: FileSystemPath,
+    framework: FileSystemPath,
+    runner_request: RcStr,
+) -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(CreatorTransformer {
+        project,
+        framework,
+        runner_request,
+    }) as Box<dyn CustomTransformer + Send + Sync>)
 }
 #[derive(Debug)]
 struct CreatorTransformer {
     project: FileSystemPath,
     framework: FileSystemPath,
+    runner_request: RcStr,
 }
 #[async_trait]
 impl CustomTransformer for CreatorTransformer {
@@ -58,7 +74,7 @@ impl CustomTransformer for CreatorTransformer {
         {
             return Ok(());
         }
-        browser_creator_scope(program)?;
+        browser_creator_scope_with_runner(program, &self.runner_request)?;
         browser_promise_static_calls(
             program,
             SyntaxContext::empty().apply_mark(ctx.unresolved_mark),

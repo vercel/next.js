@@ -68,6 +68,10 @@ use crate::{
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
 };
 
+// One actual facade selection supplies both forced resolution and creator roles.
+const BROWSER_RUNNER_REQUEST: &str = "vitest";
+const BROWSER_RUNNER_FACADE: &str = "dist/experimental/testing/client/vitest.js";
+
 fn is_bare_node_global(segments: &[DefinableNameSegment]) -> bool {
     matches!(segments, [DefinableNameSegment::Name(name)] if matches!(name.as_str(), "process" | "Buffer"))
         || matches!(segments, [DefinableNameSegment::Name(name), DefinableNameSegment::TypeOf] if matches!(name.as_str(), "process" | "Buffer"))
@@ -83,7 +87,7 @@ async fn resolve_context(
     let next = get_next_package(project_path.clone()).await?;
     let mut imports = ImportMap::empty();
     for (request, target) in [
-        ("vitest", "dist/experimental/testing/client/vitest.js"),
+        (BROWSER_RUNNER_REQUEST, BROWSER_RUNNER_FACADE),
         (
             "private-next-test-creator-scope",
             "dist/experimental/testing/client/async-context.js",
@@ -293,8 +297,12 @@ async fn module_options(
     });
     if lower_async {
         options.module_rules.push(
-            next_core::get_browser_creator_scope_rule(project_path.clone(), framework_path.clone())
-                .await?,
+            next_core::get_browser_creator_scope_rule(
+                project_path.clone(),
+                framework_path.clone(),
+                BROWSER_RUNNER_REQUEST.into(),
+            )
+            .await?,
         );
     }
     options.ecmascript.inline_helpers = false;
@@ -407,6 +415,7 @@ async fn validate_client_graph(
     let legacy_brand =
         framework.join("dist/experimental/testing/client/engine-brand-contract.js")?;
     let creator_helper = framework.join("dist/experimental/testing/client/async-context.js")?;
+    let runner_facade = framework.join(BROWSER_RUNNER_FACADE)?;
     let promise_static_helper =
         framework.join("dist/experimental/testing/client/promise-static-call.js")?;
     while let Some(module) = queue.pop() {
@@ -467,6 +476,43 @@ async fn validate_client_graph(
         }
         for reference in module.references().await?.iter() {
             let resolved = reference.resolve_reference().await?;
+            // Callback roles come from the same actual forced facade selection. An
+            // authored import spelling cannot independently grant a role.
+            if let Some(issued) = ResolvedVc::try_downcast_type::<EsmAssetReference>(*reference)
+                && issued.await?.request == BROWSER_RUNNER_REQUEST
+            {
+                let issuer = full_client_module(module).await?;
+                if issuer != Some(issued.await?.module) {
+                    bail!("Browser runner callback import requires its actual source issuer");
+                }
+                let mut selected = false;
+                for dependency in resolved.primary_modules_raw_iter() {
+                    let Some(target) = full_client_module(dependency).await? else {
+                        bail!("Browser runner callback import requires the selected facade source");
+                    };
+                    if target.await?.source.ident().await?.path != runner_facade {
+                        bail!(
+                            "Browser runner callback import resolved outside the selected facade"
+                        );
+                    }
+                    selected = true;
+                }
+                // The actual optimizer may omit a side-effect-free Evaluation
+                // reference. That edge carries no binding and grants no callback
+                // role; real binding/value references still require the exact
+                // selected facade above, including when they resolve to Ignore.
+                let ignored_evaluation = matches!(
+                    &issued.await?.export_name,
+                    Some(turbopack_core::resolve::ModulePart::Evaluation)
+                ) && !resolved.primary.is_empty()
+                    && resolved
+                        .primary
+                        .iter()
+                        .all(|(_, item)| matches!(item, ModuleResolveResultItem::Ignore));
+                if !selected && !ignored_evaluation {
+                    bail!("Browser runner callback import did not resolve to its selected facade");
+                }
+            }
             for (_, item) in resolved.primary.iter() {
                 if let ModuleResolveResultItem::External { name, .. } = item {
                     let issuer = module.ident().to_string().await?;

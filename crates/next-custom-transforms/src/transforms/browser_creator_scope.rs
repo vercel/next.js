@@ -1,8 +1,10 @@
 //! Browser test creator cells. This pass only adds body entry to an explicit
 //! synchronous subset and never replaces a function/method object or parameters.
+use std::collections::HashSet;
+
 use anyhow::{Result, bail};
 use swc_core::{
-    common::{DUMMY_SP, SyntaxContext, util::take::Take},
+    common::{DUMMY_SP, Span, SyntaxContext, util::take::Take},
     ecma::{
         ast::*,
         utils::{private_ident, quote_ident},
@@ -202,6 +204,74 @@ pub fn validate_promise_static_import(program: &Program) -> Result<bool> {
 /// Only parser-authored input reaches this check; generated bridge imports are
 /// added afterwards. Resolution/issuer checks must additionally run on the graph.
 pub fn browser_creator_scope(program: &mut Program) -> Result<usize> {
+    creator_scope(program, None)
+}
+
+/// The caller must select this request with its actual Browser runner facade.
+/// Resolution is checked on the emitted graph before any chunk is published.
+pub fn browser_creator_scope_with_runner(
+    program: &mut Program,
+    runner_request: &str,
+) -> Result<usize> {
+    creator_scope(program, Some(runner_request))
+}
+
+fn runner_concise_test_callbacks(program: &Program, runner_request: Option<&str>) -> HashSet<Span> {
+    let mut bindings = HashSet::new();
+    if let (Program::Module(module), Some(request)) = (program, runner_request) {
+        for item in &module.body {
+            let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item else {
+                continue;
+            };
+            if import.type_only || import.src.value != request {
+                continue;
+            }
+            for specifier in &import.specifiers {
+                let ImportSpecifier::Named(named) = specifier else {
+                    continue;
+                };
+                let imported = named
+                    .imported
+                    .as_ref()
+                    .map(|name| name.atom().to_string())
+                    .unwrap_or_else(|| named.local.sym.to_string());
+                if !named.is_type_only && matches!(imported.as_str(), "test" | "it") {
+                    bindings.insert(named.local.to_id());
+                }
+            }
+        }
+    }
+    struct TestCallbacks<'a> {
+        bindings: &'a HashSet<Id>,
+        arrows: HashSet<Span>,
+    }
+    impl Visit for TestCallbacks<'_> {
+        fn visit_call_expr(&mut self, call: &CallExpr) {
+            if matches!(&call.callee, Callee::Expr(callee)
+                if matches!(&**callee, Expr::Ident(ident) if self.bindings.contains(&ident.to_id())))
+                && call.args.len() == 2
+                && call.args.iter().all(|argument| argument.spread.is_none())
+                && matches!(&*call.args[0].expr, Expr::Lit(Lit::Str(_)))
+                && let Expr::Arrow(arrow) = &*call.args[1].expr
+                && !arrow.is_async
+                && arrow.params.iter().all(simple_pattern)
+                && matches!(&*arrow.body, ArrowFunctionBody::Expr(_))
+            {
+                self.arrows.insert(arrow.span);
+            }
+            call.visit_children_with(self);
+        }
+    }
+    let mut callbacks = TestCallbacks {
+        bindings: &bindings,
+        arrows: HashSet::new(),
+    };
+    program.visit_with(&mut callbacks);
+    callbacks.arrows
+}
+
+fn creator_scope(program: &mut Program, runner_request: Option<&str>) -> Result<usize> {
+    let runner_concise_tests = runner_concise_test_callbacks(program, runner_request);
     let mut admission = Admission::default();
     program.visit_with(&mut admission);
     if let Some(reason) = admission.error {
@@ -216,6 +286,7 @@ pub fn browser_creator_scope(program: &mut Program) -> Result<usize> {
         pending: Vec::new(),
         error: None,
         count: 0,
+        runner_concise_tests,
         in_parameters: false,
         in_inline_body: false,
         repeated: false,
@@ -429,6 +500,7 @@ struct CreatorPass {
     pending: Vec<Stmt>,
     error: Option<&'static str>,
     count: usize,
+    runner_concise_tests: HashSet<Span>,
     in_parameters: bool,
     in_inline_body: bool,
     repeated: bool,
@@ -658,6 +730,16 @@ impl VisitMut for CreatorPass {
         let repeated = self.repeated;
         let suspended = self.suspended;
         let labeled = self.labeled_loop;
+        // Only this original runner callback may keep its immediate expression
+        // captures inside its own real invocation. Saved entry flags prevent an
+        // enclosing parameter, deferred concise body, repeated header or
+        // suspended operand from acquiring this separate placement admission.
+        let runner_concise = self.runner_concise_tests.contains(&arrow.span)
+            && !parameters
+            && !inline
+            && !repeated
+            && !suspended
+            && !labeled;
         self.suspended = false;
         self.labeled_loop = false;
         self.in_parameters = true;
@@ -666,11 +748,13 @@ impl VisitMut for CreatorPass {
         self.repeated = false;
         self.function_depth += 1;
         if let ArrowFunctionBody::Expr(expression) = &mut *arrow.body
-            && matches!(&**expression, Expr::Fn(_))
+            && (matches!(&**expression, Expr::Fn(_)) || runner_concise)
         {
-            // A returned ordinary function is created when this arrow is called.
-            // Keep its creator cell in that invocation, without replacing either
-            // function object or moving capture into the surrounding statement.
+            // Returned ordinary functions keep their existing supported path.
+            // A selected runner callback likewise creates these immediate cells
+            // only when its original arrow is invoked. Keep every capture in
+            // that same invocation, without replacing any function or method
+            // or moving a cell into the surrounding collection statement.
             let outer = self.pending.take();
             self.in_inline_body = false;
             expression.visit_mut_with(self);
@@ -831,10 +915,11 @@ impl VisitMut for CreatorPass {
 #[cfg(test)]
 mod tests {
     use swc_core::{
-        common::{FileName, GLOBALS, SourceMap},
+        common::{FileName, GLOBALS, Mark, SourceMap, Spanned},
         ecma::{
             codegen::to_code,
             parser::{Syntax, parse_file_as_module},
+            transforms::base::resolver,
         },
     };
 
@@ -862,6 +947,206 @@ mod tests {
         let count = browser_creator_scope(&mut program)?;
         Ok((program, count))
     }
+    fn resolved_runner_program(source: &str) -> Program {
+        let mut program = parse(source);
+        program.visit_mut_with(&mut resolver(Mark::new(), Mark::new(), false));
+        program
+    }
+
+    #[test]
+    fn selected_concise_snapshot_callback_keeps_captures_in_its_invocation() {
+        GLOBALS.set(&Default::default(), || {
+            // The unchanged five-case authored snapshot-format fixture.
+            let source = r###"import { test, expect } from 'vitest'
+const tree = { z: [1, 2, 3], a: { nested: { value: 'leaf' } }, text: 'line\nquote"' }
+test('tree', () => expect(tree).toMatchSnapshot())
+test('special values', () => expect({ fn: function named() {}, regex: /a.b/i, custom: { value: 1, toJSON() { return { json: true } } } }).toMatchSnapshot())
+test('property matcher', () => expect({ number: 42, nested: { z: 2, a: 1 } }).toMatchSnapshot({ number: expect.any(Number) }))
+test('inline', () => expect(tree).toMatchInlineSnapshot())
+test('raw file', async () => expect('raw\nbytes').toMatchFileSnapshot('raw.txt'))
+"###;
+            let mut program = resolved_runner_program(source);
+            let before = to_code(&program);
+            assert_eq!(browser_creator_scope_with_runner(&mut program, "vitest").unwrap(), 2);
+            let Program::Module(module) = &program else { unreachable!() };
+            let mut callbacks = Vec::new();
+            for item in &module.body {
+                if let ModuleItem::Stmt(Stmt::Decl(Decl::Var(declaration))) = item {
+                    for binding in &declaration.decls {
+                        assert!(!matches!(&binding.name, Pat::Ident(ident)
+                            if ident.id.sym.starts_with("__next_creator_cell")));
+                    }
+                }
+                if let ModuleItem::Stmt(Stmt::Expr(statement)) = item
+                    && let Expr::Call(call) = &*statement.expr
+                    && let Expr::Lit(Lit::Str(name)) = &*call.args[0].expr
+                    && let Expr::Arrow(arrow) = &*call.args[1].expr
+                {
+                    callbacks.push((name.value.to_string_lossy().to_string(), arrow));
+                }
+            }
+            assert_eq!(callbacks.len(), 5);
+            for (name, arrow) in callbacks {
+                assert!(arrow.params.is_empty());
+                if name == "special values" {
+                    let ArrowFunctionBody::FunctionBody(body) = &*arrow.body else {
+                        panic!("special value captures escaped their callback")
+                    };
+                    assert_eq!(body.stmts.len(), 3);
+                    assert!(matches!(&body.stmts[0], Stmt::Decl(Decl::Var(_))));
+                    assert!(matches!(&body.stmts[1], Stmt::Decl(Decl::Var(_))));
+                    assert!(matches!(&body.stmts[2], Stmt::Return(_)));
+                } else {
+                    assert!(matches!(&*arrow.body, ArrowFunctionBody::Expr(_)));
+                }
+            }
+            let output = to_code(&program);
+            assert!(before.contains("function named()"));
+            assert!(output.contains("function named()"));
+            #[derive(Default)]
+            struct ToJsonMethods(usize);
+            impl Visit for ToJsonMethods {
+                fn visit_method_prop(&mut self, method: &MethodProp) {
+                    if matches!(&method.key, PropName::Ident(name) if name.sym == "toJSON") {
+                        self.0 += 1;
+                    }
+                    method.visit_children_with(self);
+                }
+            }
+            let mut methods = ToJsonMethods::default();
+            program.visit_with(&mut methods);
+            assert_eq!(methods.0, 1);
+            assert!(output.contains("toMatchSnapshot()"));
+            assert!(validate_creator_import(&program).unwrap());
+        });
+    }
+
+    #[test]
+    fn selected_concise_test_binding_preserves_original_arrow_and_expression_facts() {
+        GLOBALS.set(&Default::default(), || {
+            for (imported, local) in [("test", "test"), ("it", "it"), ("test", "check")] {
+                let source = format!(
+                    "import {{{imported} as {local}}} from 'vitest';{local}('actual', \
+                     (context)=>({{fn:function original(){{return \
+                     context}},custom:{{toJSON(){{return this}}}}}}))"
+                );
+                let mut program = resolved_runner_program(&source);
+                #[derive(Default)]
+                struct OriginalFacts {
+                    arrows: Vec<ArrowExpr>,
+                    functions: Vec<FnExpr>,
+                    methods: Vec<MethodProp>,
+                }
+                impl Visit for OriginalFacts {
+                    fn visit_arrow_expr(&mut self, arrow: &ArrowExpr) {
+                        self.arrows.push(arrow.clone());
+                        arrow.visit_children_with(self);
+                    }
+                    fn visit_fn_expr(&mut self, function: &FnExpr) {
+                        self.functions.push(function.clone());
+                        function.visit_children_with(self);
+                    }
+                    fn visit_method_prop(&mut self, method: &MethodProp) {
+                        self.methods.push(method.clone());
+                        method.visit_children_with(self);
+                    }
+                }
+                let mut before = OriginalFacts::default();
+                program.visit_with(&mut before);
+                assert_eq!(
+                    browser_creator_scope_with_runner(&mut program, "vitest").unwrap(),
+                    2
+                );
+                let mut after = OriginalFacts::default();
+                program.visit_with(&mut after);
+                assert_eq!(before.arrows.len(), 1);
+                assert_eq!(after.arrows.len(), 1);
+                assert_eq!(before.functions.len(), after.functions.len());
+                assert_eq!(before.methods.len(), after.methods.len());
+                assert_eq!(before.arrows[0].span, after.arrows[0].span);
+                assert_eq!(before.arrows[0].is_async, after.arrows[0].is_async);
+                assert_eq!(
+                    format!("{:?}", before.arrows[0].params),
+                    format!("{:?}", after.arrows[0].params)
+                );
+                assert_eq!(
+                    before.functions[0].function.span,
+                    after.functions[0].function.span
+                );
+                assert_eq!(
+                    format!("{:?}", before.functions[0].ident),
+                    format!("{:?}", after.functions[0].ident)
+                );
+                assert_eq!(
+                    format!("{:?}", before.functions[0].function.params),
+                    format!("{:?}", after.functions[0].function.params)
+                );
+                assert_eq!(
+                    format!("{:?}", before.methods[0].key),
+                    format!("{:?}", after.methods[0].key)
+                );
+                assert_eq!(
+                    before.methods[0].function.span,
+                    after.methods[0].function.span
+                );
+                assert_eq!(
+                    format!("{:?}", before.methods[0].function.params),
+                    format!("{:?}", after.methods[0].function.params)
+                );
+                let ArrowFunctionBody::Expr(original) = &*before.arrows[0].body else {
+                    unreachable!()
+                };
+                let ArrowFunctionBody::FunctionBody(body) = &*after.arrows[0].body else {
+                    unreachable!()
+                };
+                let Some(Stmt::Return(returned)) = body.stmts.last() else {
+                    unreachable!()
+                };
+                // The whole original return expression retains its source span.
+                assert_eq!(original.span(), returned.arg.as_ref().unwrap().span());
+            }
+        });
+    }
+
+    #[test]
+    fn selected_concise_test_roles_do_not_escape_their_exact_invocation() {
+        GLOBALS.set(&Default::default(), || {
+            for source in [
+                "import {test} from 'other';test('x',()=>({fn:function named(){}}))",
+                "import {test} from 'vitest';function foreign(test){test('x',()=>({fn:function \
+                 named(){}}))}",
+                "import {test} from 'vitest';const check=test;check('x',()=>({fn:function \
+                 named(){}}))",
+                "import * as runner from 'vitest';runner.test('x',()=>({fn:function named(){}}))",
+                "import {test} from 'vitest';test?.('x',()=>({fn:function named(){}}))",
+                "import {test} from 'vitest';test('x',()=>({fn:function named(){}}),100)",
+                "import {test} from 'vitest';test.each([1])('x',()=>({fn:function named(){}}))",
+                "import {test} from 'vitest';test(title,()=>({fn:function named(){}}))",
+                "import {test} from 'vitest';test('x',async()=>({fn:function named(){}}))",
+                "import {test} from 'vitest';test('x',(value=1)=>({fn:function named(){}}))",
+                "import {test} from 'vitest';test('x',({value})=>({fn:function named(){}}))",
+                "import {test} from 'vitest';for(;test('x',()=>({fn:function named(){}}));){}",
+                "import {test} from 'vitest';function outer(value=test('x',()=>({fn:function \
+                 named(){}}))){}",
+                "import {test} from 'vitest';async function outer(){return(await \
+                 value,test('x',()=>({fn:function named(){}})))}",
+                "import {test} from 'vitest';const declare=()=>test('x',()=>({fn:function \
+                 named(){}}))",
+                "import {test} from 'vitest';test('x',()=>later(()=>({toJSON(){}})))",
+            ] {
+                let mut program = resolved_runner_program(source);
+                assert!(
+                    browser_creator_scope_with_runner(&mut program, "vitest").is_err(),
+                    "accepted {source}"
+                );
+            }
+            let mut program = resolved_runner_program(
+                "import {test} from 'vitest';test('x',()=>({fn:function named(){}}))",
+            );
+            assert!(browser_creator_scope(&mut program).is_err());
+        });
+    }
+
     #[test]
     fn transforms_actual_original_fixture_without_renaming_methods_or_parameters() {
         GLOBALS.set(&Default::default(), || {
