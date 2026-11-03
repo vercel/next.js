@@ -50,7 +50,7 @@ use turbopack_core::{
     module_graph::{
         GraphTraversalAction, ModuleGraph, ModuleGraphLayer, SingleModuleGraphNode,
         async_module_info::AsyncModulesInfo, binding_usage_info::ModuleExportUsage,
-        chunk_group_info::ChunkGroupKey,
+        chunk_group_info::ChunkGroupKey, merged_modules::MergedModuleGroups,
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -1337,6 +1337,12 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     #[turbo_tasks::function]
     fn unused_references(self: Vc<Self>) -> Vc<UnusedReferences> {
         // Intentionally empty for more stable hashes
+        Vc::cell(Default::default())
+    }
+
+    #[turbo_tasks::function]
+    fn merged_modules(self: Vc<Self>) -> Vc<MergedModuleGroups> {
+        // Hashes describe standalone module content, independent of scope-hoisting groups.
         Vc::cell(Default::default())
     }
 
