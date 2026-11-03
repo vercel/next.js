@@ -98,7 +98,7 @@ interface SharedRouteFields {
   /**
    * runtime is which runtime the entrypoint is built for
    */
-  runtime: 'nodejs' | 'edge'
+  runtime: 'nodejs' | 'edge' | 'go'
 
   /**
    * assets are all necessary traced assets that could be
@@ -270,9 +270,8 @@ export interface AdapterOutput {
    * `APP_ROUTE` represents all the API routes and metadata routes that are under `app/` with the
    * filename of `route.{j,t}s{,x}` or experimental `route.go`.
    */
-  APP_ROUTE: Omit<SharedRouteFields, 'runtime'> & {
+  APP_ROUTE: SharedRouteFields & {
     type: AdapterOutputType.APP_ROUTE
-    runtime: SharedRouteFields['runtime'] | 'go'
   }
 
   /**
