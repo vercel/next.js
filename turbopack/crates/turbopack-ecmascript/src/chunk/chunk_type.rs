@@ -84,8 +84,10 @@ impl ChunkType for EcmascriptChunkType {
                     let source_maps = *chunking_context
                         .reference_module_source_maps(chunk_item.module())
                         .await?;
-                    let code =
-                        minified_module_factory(content, source_maps, mangle.is_some()).await?;
+                    // `to_code` is the same task code generation reads the factory through.
+                    let code = minified_module_factory(content, source_maps, mangle.is_some())
+                        .to_code()
+                        .await?;
                     code.source_code().len()
                 }
                 MinifyType::NoMinify => content.await?.inner_code.len(),
