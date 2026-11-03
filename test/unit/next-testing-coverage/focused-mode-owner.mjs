@@ -134,6 +134,7 @@ if (phase !== 'child') {
       c.api.test.only('first', () => bodies++)
       c.api.test('second', () => bodies++)
     }
+    await c.settle()
     const root = c.close(),
       options = {
         runId: 'focused-owner',

@@ -48,7 +48,7 @@ if (phase !== 'child') {
       'next/dist/experimental/testing/reporting/custom-reporter-live-tasks'
     )
   let controls = 0
-  const make = (mode) => {
+  const make = async (mode) => {
     const c = createCollector('live-only-' + mode)
     if (mode === 'active' || mode === 'root-skip')
       c.api.test.only('target', () => {})
@@ -63,6 +63,7 @@ if (phase !== 'child') {
         else c.api.test.only('target', () => {})
       })
     }
+    await c.settle()
     const { file } = createTaskTree(c.close(), {
       filePath: '/actual/' + mode + '.test.mjs',
       projectName: 'actual',
@@ -89,7 +90,7 @@ if (phase !== 'child') {
     ['result-present', 'run'],
     ['non-only', 'run'],
   ]) {
-    const { tree, targetId } = make(mode),
+    const { tree, targetId } = await make(mode),
       store = createLiveReporterTaskStore('/actual'),
       module = store.update(tree)
     const find = (view) =>
@@ -106,7 +107,7 @@ if (phase !== 'child') {
     assert.equal(options.mode, expected)
     controls++
   }
-  const { tree, targetId } = make('skip-test'),
+  const { tree, targetId } = await make('skip-test'),
     store = createLiveReporterTaskStore('/actual'),
     module = store.update(tree),
     view = store.case(tree.id, targetId),

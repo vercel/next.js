@@ -135,6 +135,7 @@ else {
     )
   )
 }
+await c.settle()
 const root = c.close(),
   cached = new Map(),
   declarations = new Map()

@@ -4470,11 +4470,13 @@ it('retains actual collected hierarchy and live task identities before following
       }
     )
   })
-  c.api.afterAll((...args: unknown[]) => {
-    const task =
-      args[1] as import('next/dist/experimental/testing/runner/tasks').Suite
-    Object.assign(task.meta, { fileFinished: true })
-  })
+  c.api.afterAll(
+    // eslint-disable-next-line no-empty-pattern -- Suite hooks require the fixture context before their Suite.
+    ({}, task: import('next/dist/experimental/testing/runner/tasks').Suite) => {
+      Object.assign(task.meta, { fileFinished: true })
+    }
+  )
+  await c.settle()
   const running = runCollected(
     c.close(),
     {
@@ -5776,6 +5778,7 @@ describe('actual custom watch hooks and worker ownership', () => {
               Object.assign(task.meta, { authored: 'kept' })
             })
           })
+          await collector.settle()
           let tree!: ReturnType<typeof captureReporterTaskTree>
           await runCollected(
             collector.close(),

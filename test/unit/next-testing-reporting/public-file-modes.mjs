@@ -40,6 +40,7 @@ else if (mode === 'mixed') {
   c.api.test('other', () => bodies.push('BAD'))
 } else if (mode === 'filter') c.api.test('filtered', () => bodies.push('BAD'))
 else excluded()
+await c.settle()
 const root = c.close(),
   privateModes = new Map(),
   cached = new Map()

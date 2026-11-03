@@ -41,6 +41,7 @@ if (phase !== 'child') {
     c.api.test.skip('skip', () => {})
     c.api.test.todo('todo')
     c.api.describe('nested', () => c.api.test.skip('leaf', () => {}))
+    await c.settle()
     const root = c.close(),
       { tasks } = createTaskTree(root, {
         testTimeout: 5000,
@@ -114,6 +115,7 @@ if (phase !== 'child') {
         c.api.test.todo('todo')
       })
     }
+    await c.settle()
     const root = c.close(),
       { tasks } = createTaskTree(root, { testTimeout: 5000 }),
       tests = [...tasks.keys()].filter((n) => n.type === 'test'),
