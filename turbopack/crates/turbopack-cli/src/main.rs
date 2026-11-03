@@ -126,7 +126,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
             signal = interrupted() => signal,
             result = &mut command => result,
         };
-        // Keep the command's run_once receivers alive until their tasks have drained, then
+        // Keep the command's run_once receivers alive during compiler cancellation, then
         // drop the suspended command before closing the trace writer.
         receiver.run_exit_handler().await;
         result

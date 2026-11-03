@@ -711,7 +711,7 @@ pub async fn build(args: &BuildArguments, exit: &ExitHandler) -> Result<()> {
     }
 
     let task = builder.start(&tt, args.watch);
-    register_shutdown(exit, tt.clone(), go_entries, Some(task));
+    let shutdown = register_shutdown(exit, tt.clone(), go_entries, Some(task));
 
     let result = if args.watch {
         std::future::pending().await
@@ -724,6 +724,14 @@ pub async fn build(args: &BuildArguments, exit: &ExitHandler) -> Result<()> {
         })
         .await
     };
+
+    shutdown.skip_persistence();
+    if result.is_ok() {
+        shutdown.cleanup().await;
+        // Persist successful one-shot builds here, while the command still owns the engine.
+        // Errors only cancel work and release watchers via the exit handler.
+        tt.stop_and_wait().await;
+    }
 
     // Intentionally leak this `Arc`. Otherwise we'll waste time during process exit performing a
     // ton of drop calls.

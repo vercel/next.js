@@ -180,69 +180,6 @@ fn toolchain_fingerprint(go: &Path, goroot: &Path) -> Result<Vec<u8>> {
     Ok(digest.finalize().to_vec())
 }
 
-#[cfg(test)]
-#[test]
-fn toolchain_identity_survives_sdk_copies_and_excludes_module_caches() -> Result<()> {
-    let temp = tempfile::tempdir()?;
-    let original = temp.path().join("original");
-    let restored = temp.path().join("restored");
-    let files = [
-        ("bin/go", "go executable"),
-        ("src/runtime/source.go", "runtime source"),
-        ("pkg/include/textflag.h", "assembler header"),
-        ("pkg/tool/host/compile", "compiler"),
-    ];
-    for root in [&original, &restored] {
-        for (path, content) in files {
-            let path = root.join(path);
-            std::fs::create_dir_all(path.parent().unwrap())?;
-            std::fs::write(path, content)?;
-        }
-    }
-    let fingerprint = toolchain_fingerprint(&original.join("bin/go"), &original)?;
-    let restored_fingerprint = || toolchain_fingerprint(&restored.join("bin/go"), &restored);
-    assert_eq!(fingerprint, restored_fingerprint()?);
-    let modules = restored.join("pkg/mod/example.com/library@v1.0.0");
-    std::fs::create_dir_all(&modules)?;
-    std::fs::write(modules.join("library.go"), "module cache contents")?;
-    assert_eq!(fingerprint, restored_fingerprint()?);
-    for (path, content) in files {
-        std::fs::write(restored.join(path), format!("{content} changed"))?;
-        assert_ne!(fingerprint, restored_fingerprint()?, "{path}");
-        std::fs::write(restored.join(path), content)?;
-        assert_eq!(fingerprint, restored_fingerprint()?);
-    }
-    let settings = "GOEXPERIMENT=default-experiment\n";
-    std::fs::write(original.join("go.env"), settings)?;
-    let with_settings = toolchain_fingerprint(&original.join("bin/go"), &original)?;
-    assert_ne!(fingerprint, with_settings);
-    let go_env = restored.join("go.env");
-    std::fs::write(&go_env, settings)?;
-    assert_eq!(with_settings, restored_fingerprint()?);
-    std::fs::write(&go_env, "GOEXPERIMENT=changed-experiment\n")?;
-    assert_ne!(with_settings, restored_fingerprint()?);
-    std::fs::write(&go_env, "")?;
-    assert_ne!(
-        fingerprint,
-        restored_fingerprint()?,
-        "an empty go.env is present"
-    );
-    std::fs::remove_file(&go_env)?;
-    assert_eq!(fingerprint, restored_fingerprint()?);
-    #[cfg(unix)]
-    {
-        let target = temp.path().join("sdk-settings");
-        std::fs::write(&target, settings)?;
-        std::os::unix::fs::symlink(&target, &go_env)?;
-        assert_eq!(with_settings, restored_fingerprint()?);
-        std::fs::write(&target, "GOEXPERIMENT=changed-symlink-target\n")?;
-        assert_ne!(with_settings, restored_fingerprint()?);
-        std::fs::remove_file(go_env)?;
-        assert_eq!(fingerprint, restored_fingerprint()?);
-    }
-    Ok(())
-}
-
 impl GoBuildContext {
     pub async fn host(go: &Path, cache: Option<&Path>, tags: &str) -> Result<Self> {
         let go = if go.components().count() == 1 && !go.is_absolute() {
@@ -299,10 +236,19 @@ impl GoBuildContext {
         );
         let goroot = std::fs::canonicalize(env.get("GOROOT").context("Go did not report GOROOT")?)?;
         let custom_cache = cache.is_some();
-        let cache = cache
-            .map(Path::to_owned)
-            .unwrap_or_else(|| PathBuf::from(&env["GOCACHE"]));
-        let module_cache = PathBuf::from(&env["GOMODCACHE"]);
+        let cache = match cache {
+            Some(cache) => cache.to_owned(),
+            None => PathBuf::from(env.get("GOCACHE").context("Go did not report GOCACHE")?),
+        };
+        let module_cache = PathBuf::from(
+            env.get("GOMODCACHE")
+                .context("Go did not report GOMODCACHE")?,
+        );
+        let goos = env.get("GOHOSTOS").context("Go did not report GOHOSTOS")?;
+        let goarch = env
+            .get("GOHOSTARCH")
+            .context("Go did not report GOHOSTARCH")?;
+        let gopath = env.get("GOPATH").context("Go did not report GOPATH")?;
         ensure!(
             !custom_cache
                 || !std::fs::symlink_metadata(&cache)
@@ -323,9 +269,9 @@ impl GoBuildContext {
                 goroot: goroot.to_str().context("non-UTF8 GOROOT")?.into(),
                 version: version.as_str().into(),
                 toolchain_fingerprint: toolchain_fingerprint(&go, &goroot)?,
-                goos: env["GOHOSTOS"].as_str().into(),
-                goarch: env["GOHOSTARCH"].as_str().into(),
-                exe_suffix: if env["GOHOSTOS"] == "windows" {
+                goos: goos.as_str().into(),
+                goarch: goarch.as_str().into(),
+                exe_suffix: if goos == "windows" {
                     rcstr!(".exe")
                 } else {
                     rcstr!("")
@@ -338,7 +284,7 @@ impl GoBuildContext {
                     .to_str()
                     .context("non-UTF8 module cache")?
                     .into(),
-                gopath: env["GOPATH"].as_str().into(),
+                gopath: gopath.as_str().into(),
                 path: std::env::join_paths(path)?
                     .to_str()
                     .context("non-UTF8 PATH")?
@@ -568,24 +514,6 @@ struct Requirement {
     version: String,
 }
 
-#[cfg(test)]
-#[test]
-fn module_configuration_accepts_absent_null_and_empty_requirements() {
-    for json in [r#"{}"#, r#"{"Require":null}"#, r#"{"Require":[]}"#] {
-        let config: ModuleConfig = serde_json::from_str(json).unwrap();
-        assert!(config.require.unwrap_or_default().is_empty());
-    }
-    let config: ModuleConfig = serde_json::from_str(
-        r#"{"Require":[{"Path":"example.com/dependency","Version":"v1.2.3"}]}"#,
-    )
-    .unwrap();
-    let requirements = config.require.unwrap();
-    assert_eq!(requirements.len(), 1);
-    assert_eq!(requirements[0].path, "example.com/dependency");
-    assert_eq!(requirements[0].version, "v1.2.3");
-    assert!(serde_json::from_str::<ModuleConfig>(r#"{"Require":{}}"#).is_err());
-}
-
 // Go's module cache escapes uppercase ASCII as ! followed by its lowercase form.
 fn module_escape(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len());
@@ -631,7 +559,7 @@ fn validate_build_cache(project: &Path, go_context: &GoBuildContext) -> Result<(
         !paths::directories_overlap(cache, project)?
             && !paths::directories_overlap(cache, Path::new(go_context.module_cache.as_str()))?,
         "Go build cache must be outside the source project and module cache; choose another \
-         --go-cache path"
+         GOCACHE path"
     );
     std::fs::create_dir_all(cache)?;
     Ok(())
@@ -1390,4 +1318,88 @@ pub fn go_bundle_with_session(
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Vc<GoBundleResult> {
     bundle(root, files, *session, generated)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn toolchain_identity_survives_sdk_copies_and_excludes_module_caches() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let original = temp.path().join("original");
+        let restored = temp.path().join("restored");
+        let files = [
+            ("bin/go", "go executable"),
+            ("src/runtime/source.go", "runtime source"),
+            ("pkg/include/textflag.h", "assembler header"),
+            ("pkg/tool/host/compile", "compiler"),
+        ];
+        for root in [&original, &restored] {
+            for (path, content) in files {
+                let path = root.join(path);
+                std::fs::create_dir_all(path.parent().unwrap())?;
+                std::fs::write(path, content)?;
+            }
+        }
+        let fingerprint = toolchain_fingerprint(&original.join("bin/go"), &original)?;
+        let restored_fingerprint = || toolchain_fingerprint(&restored.join("bin/go"), &restored);
+        assert_eq!(fingerprint, restored_fingerprint()?);
+        let modules = restored.join("pkg/mod/example.com/library@v1.0.0");
+        std::fs::create_dir_all(&modules)?;
+        std::fs::write(modules.join("library.go"), "module cache contents")?;
+        assert_eq!(fingerprint, restored_fingerprint()?);
+        for (path, content) in files {
+            std::fs::write(restored.join(path), format!("{content} changed"))?;
+            assert_ne!(fingerprint, restored_fingerprint()?, "{path}");
+            std::fs::write(restored.join(path), content)?;
+            assert_eq!(fingerprint, restored_fingerprint()?);
+        }
+        let settings = "GOEXPERIMENT=default-experiment\n";
+        std::fs::write(original.join("go.env"), settings)?;
+        let with_settings = toolchain_fingerprint(&original.join("bin/go"), &original)?;
+        assert_ne!(fingerprint, with_settings);
+        let go_env = restored.join("go.env");
+        std::fs::write(&go_env, settings)?;
+        assert_eq!(with_settings, restored_fingerprint()?);
+        std::fs::write(&go_env, "GOEXPERIMENT=changed-experiment\n")?;
+        assert_ne!(with_settings, restored_fingerprint()?);
+        std::fs::write(&go_env, "")?;
+        assert_ne!(
+            fingerprint,
+            restored_fingerprint()?,
+            "an empty go.env is present"
+        );
+        std::fs::remove_file(&go_env)?;
+        assert_eq!(fingerprint, restored_fingerprint()?);
+        #[cfg(unix)]
+        {
+            let target = temp.path().join("sdk-settings");
+            std::fs::write(&target, settings)?;
+            std::os::unix::fs::symlink(&target, &go_env)?;
+            assert_eq!(with_settings, restored_fingerprint()?);
+            std::fs::write(&target, "GOEXPERIMENT=changed-symlink-target\n")?;
+            assert_ne!(with_settings, restored_fingerprint()?);
+            std::fs::remove_file(go_env)?;
+            assert_eq!(fingerprint, restored_fingerprint()?);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn module_configuration_accepts_absent_null_and_empty_requirements() {
+        for json in [r#"{}"#, r#"{"Require":null}"#, r#"{"Require":[]}"#] {
+            let config: ModuleConfig = serde_json::from_str(json).unwrap();
+            assert!(config.require.unwrap_or_default().is_empty());
+        }
+        let config: ModuleConfig = serde_json::from_str(
+            r#"{"Require":[{"Path":"example.com/dependency","Version":"v1.2.3"}]}"#,
+        )
+        .unwrap();
+        let requirements = config.require.unwrap();
+        assert_eq!(requirements.len(), 1);
+        assert_eq!(requirements[0].path, "example.com/dependency");
+        assert_eq!(requirements[0].version, "v1.2.3");
+        assert!(serde_json::from_str::<ModuleConfig>(r#"{"Require":{}}"#).is_err());
+    }
 }
