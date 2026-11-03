@@ -41,4 +41,15 @@ describe('cache-components-navigation-cache-miss', () => {
     expect(document.headers.get('x-nextjs-cache')).toBe('HIT')
     expect(document.headers.get('x-nextjs-postponed')).toBeNull()
   })
+
+  it('falls back to a document navigation when a generated path is no longer fully static', async () => {
+    await next.patchFile('becomes-partial.partial', '')
+
+    const { browser, responses } = await navigate('becomes-partial')
+    expect(await browser.eval('window.__beforeNavigation')).toBeUndefined()
+    for (const response of responses) {
+      expect(response.status()).toBe(404)
+      expect(response.headers()['cache-control']).toContain('no-store')
+    }
+  })
 })

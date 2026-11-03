@@ -2278,6 +2278,24 @@ export function createAppPageEntrypoint({
         // generate both HTML and payloads in the same request so continue to just
         // return the generated payload
         if (isRSCRequest && !isDraftMode) {
+          const isUnresumableStaticRSC =
+            !isMinimalMode &&
+            !isPrefetchRSCRequest &&
+            staticPrefetchDataRoute &&
+            didPostpone
+
+          if (isUnresumableStaticRSC) {
+            res.statusCode = 404
+            return sendRenderResult({
+              req,
+              res,
+              generateEtags: nextConfig.generateEtags,
+              poweredByHeader: nextConfig.poweredByHeader,
+              result: RenderResult.EMPTY,
+              cacheControl: { revalidate: 0, expire: undefined },
+            })
+          }
+
           // If this is a dynamic RSC request, then stream the response.
           if (typeof cachedData.rscData === 'undefined') {
             // If the response is not an RSC response, then we can't serve it.
