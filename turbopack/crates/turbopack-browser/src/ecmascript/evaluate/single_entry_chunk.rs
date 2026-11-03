@@ -65,10 +65,16 @@ impl EcmascriptBrowserSingleEntryChunk {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
 
-        let mut code = CodeBuilder::new(*this.chunking_context.debug_ids_enabled().await?);
+        let mut code = CodeBuilder::new(
+            *this.chunking_context.debug_ids_enabled().await?,
+            *this
+                .chunking_context
+                .source_map_generation_options()
+                .await?,
+        );
 
         let module_chunk = EcmascriptBrowserChunk::new(*this.chunking_context, *this.chunk);
-        code.push_code(&*module_chunk.own_content().code().await?);
+        code.push_code(&*module_chunk.own_content().code().await?)?;
 
         let evaluate_chunk = EcmascriptBrowserEvaluateChunk::new(
             *this.chunking_context,
@@ -77,7 +83,7 @@ impl EcmascriptBrowserSingleEntryChunk {
             *this.evaluatable_assets,
             *this.module_graph,
         );
-        code.push_code(&*evaluate_chunk.code().await?);
+        code.push_code(&*evaluate_chunk.code().await?)?;
 
         // Append the shared runtime chunk; without `shared_runtime` it's already inlined above.
         if *this.chunking_context.shared_runtime().await? {
@@ -85,7 +91,7 @@ impl EcmascriptBrowserSingleEntryChunk {
                 .chunking_context
                 .generate_runtime_chunk(*this.module_graph)
                 .await?;
-            code.push_code(&*runtime_chunk.code().await?);
+            code.push_code(&*runtime_chunk.code().await?)?;
         }
 
         Ok(Code::cell(code.build()))

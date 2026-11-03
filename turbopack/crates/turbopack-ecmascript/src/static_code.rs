@@ -46,11 +46,12 @@ impl StaticEcmascriptCode {
     #[turbo_tasks::function]
     pub async fn code(&self) -> Result<Vc<Code>> {
         let runtime_base_content = self.asset.module_content_without_analysis().await?;
-        let mut code = CodeBuilder::new(false);
+        let mut code =
+            CodeBuilder::new(false, runtime_base_content.source_maps.generation_options());
         code.push_source(
             &runtime_base_content.inner_code,
             runtime_base_content.source_maps.clone(),
-        );
+        )?;
         Ok(Code::cell(code.build()))
     }
 }

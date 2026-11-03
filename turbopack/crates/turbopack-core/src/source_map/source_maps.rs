@@ -4,7 +4,7 @@ use bincode::{Decode, Encode};
 use turbo_tasks::NonLocalValue;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
-use crate::source_map::SourceMapType;
+use crate::source_map::{SourceMapGenerationOptions, SourceMapType};
 
 /// Source maps associated with the same generated code.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Encode, Decode, NonLocalValue)]
@@ -17,6 +17,7 @@ pub enum SourceMaps<T: NonLocalValue> {
         full: T,
         shallow: T,
     },
+    /// One map satisfies both full and shallow mapping requirements.
     Shared(T),
 }
 
@@ -43,6 +44,13 @@ impl<T: NonLocalValue> SourceMaps<T> {
             (Some(full), None) => Self::Full(full),
             (None, Some(shallow)) => Self::Shallow(shallow),
             (None, None) => Self::None,
+        }
+    }
+
+    pub fn generation_options(&self) -> SourceMapGenerationOptions {
+        SourceMapGenerationOptions {
+            full: self.get(SourceMapType::Full).is_some(),
+            shallow: self.get(SourceMapType::Shallow).is_some(),
         }
     }
 

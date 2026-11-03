@@ -12,7 +12,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
-    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapGenerationOptions, SourceMapType},
 };
 use turbopack_ecmascript::minify::minify;
 
@@ -163,7 +163,7 @@ fn generate_worker_bootstrap_code(
     forwarded_globals: &[RcStr],
     shared_runtime: bool,
 ) -> Result<Code> {
-    let mut code: CodeBuilder = CodeBuilder::default();
+    let mut code: CodeBuilder = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
 
     // Generate the Object.assign properties for forwarded globals
     // params[0] = chunk URLs, params[1] = ASSET_SUFFIX,

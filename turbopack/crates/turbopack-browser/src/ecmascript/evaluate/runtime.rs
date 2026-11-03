@@ -47,21 +47,25 @@ impl EcmascriptBrowserRuntimeChunk {
     pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let chunking_context = this.chunking_context;
+        let source_map_generation_options =
+            *chunking_context.source_map_generation_options().await?;
         let environment = chunking_context.environment();
 
         let output_root_to_root_path = chunking_context.output_root_to_root_path().owned().await?;
-        let asset_context = turbopack::get_runtime_asset_context(
-            environment,
-            *chunking_context.source_map_generation_options().await?,
-        );
+        let asset_context =
+            turbopack::get_runtime_asset_context(environment, source_map_generation_options);
         let runtime_type = *chunking_context.runtime_type().await?;
 
-        let mut code = CodeBuilder::new(*chunking_context.debug_ids_enabled().await?);
+        let mut code = CodeBuilder::new(
+            *chunking_context.debug_ids_enabled().await?,
+            source_map_generation_options,
+        );
 
         match runtime_type {
             RuntimeType::Production | RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     asset_context,
+                    source_map_generation_options,
                     chunking_context.chunk_base_path(),
                     chunking_context.asset_suffix(),
                     runtime_type,
@@ -73,12 +77,12 @@ impl EcmascriptBrowserRuntimeChunk {
                     chunking_context.chunk_loading(),
                     *chunking_context.generate_component_chunks().await?,
                 );
-                code.push_code(&*runtime_code.await?);
+                code.push_code(&*runtime_code.await?)?;
             }
             #[cfg(feature = "test")]
             RuntimeType::Dummy => {
                 let runtime_code = turbopack_ecmascript_runtime::get_dummy_runtime_code();
-                code.push_code(&runtime_code);
+                code.push_code(&runtime_code)?;
             }
         }
 

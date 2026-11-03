@@ -78,10 +78,14 @@ impl CssChunk {
         use std::io::Write;
 
         let this = self.await?;
+        let source_map_generation_options = *this
+            .chunking_context
+            .source_map_generation_options()
+            .await?;
 
         // CSS chunks never have debug IDs
-        let mut code = CodeBuilder::new(false);
-        let mut body = CodeBuilder::new(false);
+        let mut code = CodeBuilder::new(false, source_map_generation_options);
+        let mut body = CodeBuilder::new(false, source_map_generation_options);
         let mut external_imports = FxIndexSet::default();
         for css_item in &this.content.await?.chunk_items {
             let content = &css_item.content().await?;
@@ -129,7 +133,7 @@ impl CssChunk {
                     }
                 })
                 .await?;
-            body.push_source(&content.inner_code, source_maps);
+            body.push_source(&content.inner_code, source_maps)?;
 
             if !close.is_empty() {
                 writeln!(body, "{close}")?;
@@ -142,7 +146,7 @@ impl CssChunk {
         }
 
         let built = &body.build();
-        code.push_code(built);
+        code.push_code(built)?;
 
         let c = code.build().cell();
         Ok(c)

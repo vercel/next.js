@@ -172,7 +172,7 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
             }
 
             let generation = module.source_map_generation_options;
-            let mut code = CodeBuilder::new(false);
+            let mut code = CodeBuilder::new(false, generation);
             if !env_vars.is_empty() {
                 let replacements = module.compile_time_info.await?.free_var_references;
                 code += "var process = {env:\n";
@@ -225,13 +225,14 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
 
             code += "(function(){\n";
             let source_mapping_url = extract_source_mapping_url_from_content(&content_str);
-            let source_map = if generation.full {
+            let full_source_map = if generation.full {
                 if let Some((source_map, _)) =
                     parse_source_map_comment(source, source_mapping_url, &self.ident().await?.path)
                         .await?
                 {
-                    let source_map = source_map.generate_source_map(SourceMapType::Full).await?;
-                    source_map.as_content().map(|f| f.content().clone())
+                    let full_source_map =
+                        source_map.generate_source_map(SourceMapType::Full).await?;
+                    full_source_map.as_content().map(|f| f.content().clone())
                 } else {
                     None
                 }
@@ -239,7 +240,7 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                 None
             };
             let shallow_source_map = if generation.shallow
-                || (generation.full && source_map.is_none())
+                || (generation.full && full_source_map.is_none())
             {
                 let mut map = swc_sourcemap::SourceMapBuilder::new(None);
                 let source_id = map.add_source(self.ident().to_string().await?.to_string().into());
@@ -253,12 +254,13 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
             } else {
                 None
             };
-            let source_maps = if generation.full && generation.shallow && source_map.is_none() {
+            let source_maps = if generation.full && generation.shallow && full_source_map.is_none()
+            {
                 SourceMaps::Shared(shallow_source_map.unwrap())
             } else {
                 SourceMaps::new(
                     if generation.full {
-                        source_map.or_else(|| shallow_source_map.clone())
+                        full_source_map.or_else(|| shallow_source_map.clone())
                     } else {
                         None
                     },
@@ -269,7 +271,7 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                     },
                 )
             };
-            code.push_source(content, source_maps);
+            code.push_source(content, source_maps)?;
 
             // Add newline in case the raw code had a comment as the last line and no final newline.
             code += "\n})();\n";

@@ -192,15 +192,16 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_client_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
-            self.project().client_compile_time_info().environment(),
+            project.project_path().owned().await?,
+            project.execution_context(),
+            project.client_compile_time_info().environment(),
             self.client_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
-            self.project().encryption_key(),
-            self.project().client_source_map_generation_options(),
+            project.next_mode(),
+            project.next_config(),
+            project.encryption_key(),
+            project.client_source_map_generation_options(),
         ))
     }
 
@@ -223,71 +224,75 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.rsc_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::NodeJs,
-            self.project().encryption_key(),
-            self.project().server_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
-            self.project().server_source_map_generation_options(),
+            project.encryption_key(),
+            project.server_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
+            *project.should_write_nft_manifests().await?,
+            project.server_source_map_generation_options(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn edge_rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.rsc_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::Edge,
-            self.project().encryption_key(),
-            self.project().edge_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
+            project.encryption_key(),
+            project.edge_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
-            self.project().server_source_map_generation_options(),
+            project.server_source_map_generation_options(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.route_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::NodeJs,
-            self.project().encryption_key(),
-            self.project().server_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
-            self.project().server_source_map_generation_options(),
+            project.encryption_key(),
+            project.server_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
+            *project.should_write_nft_manifests().await?,
+            project.server_source_map_generation_options(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn edge_route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.route_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::Edge,
-            self.project().encryption_key(),
-            self.project().edge_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
+            project.encryption_key(),
+            project.edge_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
-            self.project().server_source_map_generation_options(),
+            project.server_source_map_generation_options(),
         ))
     }
 

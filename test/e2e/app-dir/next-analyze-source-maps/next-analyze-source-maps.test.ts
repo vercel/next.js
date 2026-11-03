@@ -12,7 +12,6 @@ describe('next analyze source maps', () => {
   it.each(['default', 'none', 'shallow', 'full'] as const)(
     'preserves emitted assets with %s source maps',
     async (sourceMaps) => {
-      const originalConfig = await next.readFile('next.config.js')
       const readBuildAssets = () => {
         const buildDir = path.join(next.testDir, '.next')
         const assets: Record<string, string> = {}
@@ -129,7 +128,7 @@ describe('next analyze source maps', () => {
           parts.some((part) => /original-(?:lazy|page)/.test(part.source_path))
         ).toBe(false)
       } finally {
-        await next.patchFile('next.config.js', originalConfig)
+        await next.deleteFile('next.config.js')
       }
     },
     240_000

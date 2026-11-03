@@ -13,7 +13,7 @@ use turbopack_core::{
         OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
         OutputAssetsWithReferenced,
     },
-    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapGenerationOptions, SourceMapType},
     version::VersionedContent,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
@@ -90,7 +90,7 @@ impl EcmascriptBuildNodeEntryChunk {
             turbobail!("chunk path ({chunk_path}) is not in output root ({output_root})");
         };
 
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
 
         writedoc!(
             code,

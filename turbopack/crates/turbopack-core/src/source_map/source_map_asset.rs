@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -105,10 +105,10 @@ impl OutputAsset for SourceMapAsset {
 impl Asset for SourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let content = match self.source_map_ty {
-            Some(ty) => self.generate_source_map.generate_source_map(ty),
-            None => FileContent::NotFound.cell(),
-        };
+        let ty = self
+            .source_map_ty
+            .context("Cannot emit a source map asset when source maps are disabled")?;
+        let content = self.generate_source_map.generate_source_map(ty);
         if content.await?.is_content() {
             Ok(AssetContent::file(content))
         } else {

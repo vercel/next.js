@@ -59,7 +59,13 @@ impl SingleItemCssChunk {
 
         let this = self.await?;
         // CSS chunks never have debug IDs
-        let mut code = CodeBuilder::new(false);
+        let mut code = CodeBuilder::new(
+            false,
+            *this
+                .chunking_context
+                .source_map_generation_options()
+                .await?,
+        );
 
         if matches!(
             &*this.chunking_context.minify_type().await?,
@@ -71,7 +77,7 @@ impl SingleItemCssChunk {
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;
 
-        code.push_source(&content.inner_code, content.source_maps.clone());
+        code.push_source(&content.inner_code, content.source_maps.clone())?;
         write!(code, "{close}")?;
 
         let c = code.build().cell();

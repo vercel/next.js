@@ -15,7 +15,16 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
     output::{OutputAsset, OutputAssetsReference},
-    source_map::{GenerateSourceMap, SourceMapType, SourceMaps},
+    source_map::{GenerateSourceMap, SourceMapGenerationOptions, SourceMapType, SourceMaps},
+};
+
+const BOTH: SourceMapGenerationOptions = SourceMapGenerationOptions {
+    full: true,
+    shallow: true,
+};
+const SHALLOW: SourceMapGenerationOptions = SourceMapGenerationOptions {
+    full: false,
+    shallow: true,
 };
 
 static REGISTRATION: Registration = register!();
@@ -23,7 +32,7 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn split_chunk() {
     run_once(&REGISTRATION, async || {
-        let mut code = CodeBuilder::new(false);
+        let mut code = CodeBuilder::new(false, SHALLOW);
         code += "Hello world!\n";
         code += "This is a test file.\n";
         code.push_source(
@@ -35,7 +44,7 @@ async fn split_chunk() {
                 "names": [],
                 "sourcesContent": ["console.log('Hello world!');"]
             }))?)),
-        );
+        )?;
         code += "This is the middle of the file.\n";
         code.push_source(
             &Rope::from("This is the middle of the file.\n"),
@@ -46,7 +55,7 @@ async fn split_chunk() {
                 "names": [],
                 "sourcesContent": ["console.log('Middle of file');"]
             }))?)),
-        );
+        )?;
         code += "This is the end of the file.\n";
         let code = code.build();
 
@@ -160,15 +169,15 @@ impl GenerateSourceMap for TestAsset {
 }
 
 #[test]
-fn rejects_missing_source_map_variants() {
-    let mut shallow = CodeBuilder::new(false);
+fn rejects_missing_source_map_variants() -> Result<()> {
+    let mut shallow = CodeBuilder::new(false, SHALLOW);
     shallow.push_source(
         &Rope::from("shallow"),
         SourceMaps::new(
             None,
             Some(turbopack_core::source_map::SourceMap::empty_rope()),
         ),
-    );
+    )?;
     let shallow = shallow.build();
     assert!(
         shallow
@@ -181,48 +190,28 @@ fn rejects_missing_source_map_variants() {
             .is_ok()
     );
 
-    let mut combined = CodeBuilder::new(false);
+    let mut combined = CodeBuilder::new(false, SHALLOW);
     combined += "synthetic prefix";
-    combined.push_code(&shallow);
+    combined.push_code(&shallow)?;
     let combined = combined.build();
     assert!(
         combined
             .generate_source_map_ref(None, SourceMapType::Full)
             .is_err()
     );
-
-    let mut incompatible = CodeBuilder::new(false);
-    incompatible.push_code(&combined);
-    incompatible.push_source(
-        &Rope::from("full"),
-        SourceMaps::new(
-            Some(turbopack_core::source_map::SourceMap::empty_rope()),
-            None,
-        ),
-    );
-    let incompatible = incompatible.build();
-    assert!(
-        incompatible
-            .generate_source_map_ref(None, SourceMapType::Full)
-            .is_err()
-    );
-    assert!(
-        incompatible
-            .generate_source_map_ref(None, SourceMapType::Shallow)
-            .is_err()
-    );
+    Ok(())
 }
 
 #[test]
 fn shared_maps_survive_concatenation() -> anyhow::Result<()> {
-    let mut source = CodeBuilder::new(false);
+    let mut source = CodeBuilder::new(false, BOTH);
     source.push_source(
         &Rope::from("const value = 1;"),
         SourceMaps::Shared(turbopack_core::source_map::SourceMap::empty_rope()),
-    );
-    let mut combined = CodeBuilder::new(false);
+    )?;
+    let mut combined = CodeBuilder::new(false, BOTH);
     combined += "prefix";
-    combined.push_code(&source.build());
+    combined.push_code(&source.build())?;
     combined += "suffix";
     let combined = combined.build();
     assert!(matches!(combined.source_maps()?, SourceMaps::Shared(_)));
@@ -235,15 +224,15 @@ fn shared_maps_survive_concatenation() -> anyhow::Result<()> {
 
 #[test]
 fn shared_maps_split_when_variants_diverge() -> anyhow::Result<()> {
-    let mut code = CodeBuilder::new(false);
+    let mut code = CodeBuilder::new(false, SHALLOW);
     code.push_source(
         &Rope::from("shared"),
         SourceMaps::Shared(turbopack_core::source_map::SourceMap::empty_rope()),
-    );
+    )?;
     code.push_source(
         &Rope::from("shallow"),
         SourceMaps::Shallow(turbopack_core::source_map::SourceMap::empty_rope()),
-    );
+    )?;
     let code = code.build();
     assert!(
         code.generate_source_map_ref(None, SourceMapType::Full)
@@ -273,7 +262,7 @@ fn concatenation_preserves_variant_offsets_and_synthetic_sections() -> Result<()
         "sources": ["shared.js"],
         "names": [],
     });
-    let mut source = CodeBuilder::new(false);
+    let mut source = CodeBuilder::new(false, BOTH);
     source += "prefix ";
     source.push_source(
         &Rope::from("mapped"),
@@ -281,14 +270,14 @@ fn concatenation_preserves_variant_offsets_and_synthetic_sections() -> Result<()
             full: Rope::from(serde_json::to_string(&full)?),
             shallow: Rope::from(serde_json::to_string(&shallow)?),
         },
-    );
-    let mut combined = CodeBuilder::new(false);
+    )?;
+    let mut combined = CodeBuilder::new(false, BOTH);
     combined.push_source(
         &Rope::from("shared"),
         SourceMaps::Shared(Rope::from(serde_json::to_string(&shared)?)),
-    );
-    combined.push_code(&source.build());
-    combined.push_code(&CodeBuilder::new(false).build());
+    )?;
+    combined.push_code(&source.build())?;
+    combined.push_code(&CodeBuilder::new(false, SourceMapGenerationOptions::NONE).build())?;
     combined += "suffix";
     let combined = combined.build();
 
@@ -311,6 +300,58 @@ fn concatenation_preserves_variant_offsets_and_synthetic_sections() -> Result<()
                 } },
             ])
         );
+    }
+    Ok(())
+}
+
+#[test]
+fn concatenation_preserves_required_variants() -> Result<()> {
+    use turbopack_core::source_map::SourceMap;
+
+    let variants = [
+        SourceMaps::None,
+        SourceMaps::Full(SourceMap::empty_rope()),
+        SourceMaps::Shallow(SourceMap::empty_rope()),
+        SourceMaps::Both {
+            full: SourceMap::empty_rope(),
+            shallow: SourceMap::empty_rope(),
+        },
+        SourceMaps::Shared(SourceMap::empty_rope()),
+    ];
+    for required in variants.iter().map(SourceMaps::generation_options) {
+        for maps in &variants {
+            let compatible = matches!(maps, SourceMaps::None)
+                || ((!required.full || maps.get(SourceMapType::Full).is_some())
+                    && (!required.shallow || maps.get(SourceMapType::Shallow).is_some()));
+            for append_code in [false, true] {
+                let mut builder = CodeBuilder::new(false, required);
+                builder.push_source(
+                    &Rope::from("initial"),
+                    SourceMaps::Shared(SourceMap::empty_rope()),
+                )?;
+                let before = builder.build();
+                let mut builder = CodeBuilder::from(before.clone());
+                let result = if append_code {
+                    let mut other = CodeBuilder::new(false, maps.generation_options());
+                    other += "prefix ";
+                    other.push_source(&Rope::from("addition"), maps.clone())?;
+                    builder.push_code(&other.build())
+                } else {
+                    builder.push_source(&Rope::from("addition"), maps.clone())
+                };
+                assert_eq!(
+                    result.is_ok(),
+                    compatible,
+                    "{required:?}, {maps:?}, append_code={append_code}"
+                );
+                let after = builder.build();
+                assert_eq!(after.source_map_generation_options(), required);
+                if !compatible {
+                    assert_eq!(after.source_code(), before.source_code());
+                    assert_eq!(after.source_maps()?, before.source_maps()?);
+                }
+            }
+        }
     }
     Ok(())
 }

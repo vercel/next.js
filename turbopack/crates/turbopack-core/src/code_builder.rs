@@ -23,8 +23,8 @@ use crate::{
     debug_id::generate_debug_id,
     output::OutputAsset,
     source_map::{
-        GenerateSourceMap, SourceMap, SourceMapAsset, SourceMapType, SourceMaps,
-        structured::StructuredSourceMap,
+        GenerateSourceMap, SourceMap, SourceMapAsset, SourceMapGenerationOptions, SourceMapType,
+        SourceMaps, structured::StructuredSourceMap,
     },
     source_pos::SourcePos,
 };
@@ -108,12 +108,19 @@ impl PersistedCode {
 impl Code {
     /// Rejects variants that were not generated for every mapped section.
     pub fn validate_source_map_type(&self, ty: SourceMapType) -> Result<()> {
-        let available = self.mappings.is_complete(ty);
+        let available = !self.has_source_map() || self.mappings.is_complete(ty);
         anyhow::ensure!(
             available,
             "Requested {ty:?} source map was not generated for all mapped code"
         );
         Ok(())
+    }
+
+    pub fn source_map_generation_options(&self) -> SourceMapGenerationOptions {
+        SourceMapGenerationOptions {
+            full: self.mappings.is_complete(SourceMapType::Full),
+            shallow: self.mappings.is_complete(SourceMapType::Shallow),
+        }
     }
 
     pub fn source_code(&self) -> &Rope {
@@ -231,7 +238,6 @@ impl Code {
 }
 
 /// CodeBuilder provides a mutable container to append source code.
-#[derive(Default)]
 pub struct CodeBuilder {
     code: RopeBuilder,
     mappings: Mappings,
@@ -240,10 +246,15 @@ pub struct CodeBuilder {
 }
 
 impl CodeBuilder {
-    pub fn new(should_generate_debug_id: bool) -> Self {
+    pub fn new(
+        should_generate_debug_id: bool,
+        source_map_generation_options: SourceMapGenerationOptions,
+    ) -> Self {
         Self {
+            code: RopeBuilder::default(),
+            mappings: Mappings::new(source_map_generation_options),
             should_generate_debug_id,
-            ..Default::default()
+            strict_directive: None,
         }
     }
 
@@ -266,33 +277,36 @@ impl CodeBuilder {
     /// the default concatenation operation, but it's designed to be used
     /// with the `+=` operator.
     fn push_static_bytes(&mut self, code: &'static [u8]) {
-        self.push_source_maps(SourceMaps::None);
+        self.mappings.push_synthetic(self.code.len());
         self.code.push_static_bytes(code);
     }
 
     /// Pushes original user code with an optional source map if one is
     /// available. If it's not, this is no different than pushing Synthetic
     /// code.
+    ///
+    /// Returns an error without appending code if a required source map variant is missing.
     pub fn push_source<M: Into<SectionMap> + NonLocalValue>(
         &mut self,
         code: &Rope,
         source_maps: SourceMaps<M>,
-    ) {
-        self.push_source_maps(source_maps.map(Into::into));
+    ) -> Result<()> {
+        self.mappings
+            .push(self.code.len(), source_maps.map(Into::into))?;
         self.code += code;
-    }
-
-    fn push_source_maps(&mut self, source_maps: SourceMaps<SectionMap>) {
-        self.mappings.push(self.code.len(), source_maps);
+        Ok(())
     }
 
     /// Copies the Synthetic/Original code of an already constructed Code into
     /// this instance.
     ///
     /// This adjusts the source map to be relative to the new code object
-    pub fn push_code(&mut self, prebuilt: &Code) {
-        self.mappings.append(self.code.len(), &prebuilt.mappings);
+    ///
+    /// Returns an error without appending code if a required source map variant is missing.
+    pub fn push_code(&mut self, prebuilt: &Code) -> Result<()> {
+        self.mappings.append(self.code.len(), &prebuilt.mappings)?;
         self.code += &prebuilt.code;
+        Ok(())
     }
 
     /// Like [`CodeBuilder::push_code`], but leaves out the code's recorded `"use strict"`
@@ -301,10 +315,9 @@ impl CodeBuilder {
     ///
     /// The directive is its own unmapped section, so this only drops its bytes and moves the
     /// following sections up; no section map has to be rewritten.
-    pub fn push_code_without_strict_directive(&mut self, prebuilt: &Code) {
+    pub fn push_code_without_strict_directive(&mut self, prebuilt: &Code) -> Result<()> {
         let Some(directive) = prebuilt.strict_directive() else {
-            self.push_code(prebuilt);
-            return;
+            return self.push_code(prebuilt);
         };
         debug_assert!(
             prebuilt
@@ -339,7 +352,7 @@ impl CodeBuilder {
             mappings,
             should_generate_debug_id: prebuilt.should_generate_debug_id,
             strict_directive: None,
-        });
+        })
     }
 
     pub fn build(self) -> Code {
@@ -366,7 +379,7 @@ impl ops::AddAssign<&'static str> for &mut CodeBuilder {
 
 impl Write for CodeBuilder {
     fn write(&mut self, bytes: &[u8]) -> IoResult<usize> {
-        self.push_source_maps(SourceMaps::None);
+        self.mappings.push_synthetic(self.code.len());
         self.code.write(bytes)
     }
 
@@ -377,8 +390,13 @@ impl Write for CodeBuilder {
 
 impl From<Code> for CodeBuilder {
     fn from(code: Code) -> Self {
-        let mut builder = CodeBuilder::new(code.should_generate_debug_id);
-        builder.push_code(&code);
+        let mut builder = Self {
+            code: RopeBuilder::default(),
+            mappings: code.mappings,
+            should_generate_debug_id: code.should_generate_debug_id,
+            strict_directive: None,
+        };
+        builder.code += &code.code;
         builder
     }
 }
@@ -506,6 +524,11 @@ mod tests {
 
     use super::*;
 
+    const BOTH: SourceMapGenerationOptions = SourceMapGenerationOptions {
+        full: true,
+        shallow: true,
+    };
+
     const SECTION_MAP: &str = r#"{"version":3,"sources":["a.js"],"names":[],"mappings":"AAAA"}"#;
 
     fn section_offsets(code: &Code) -> Vec<(u64, u64)> {
@@ -529,14 +552,16 @@ mod tests {
 
     #[test]
     fn section_offsets_count_utf16_code_units() {
-        let mut builder = CodeBuilder::default();
+        let mut builder = CodeBuilder::new(false, BOTH);
         // `🦀` is a 4-byte UTF-8 sequence and two UTF-16 code units, `é` is a single unit.
         let prefix = "line0\n\"🦀é\"; ";
         builder += prefix;
-        builder.push_source(
-            &Rope::from("mapped();".to_string()),
-            SourceMaps::Shared(Rope::from(SECTION_MAP.to_string())),
-        );
+        builder
+            .push_source(
+                &Rope::from("mapped();".to_string()),
+                SourceMaps::Shared(Rope::from(SECTION_MAP.to_string())),
+            )
+            .unwrap();
         let code = builder.build();
 
         let expected_column = "\"🦀é\"; ".encode_utf16().count() as u64;
@@ -598,22 +623,23 @@ mod tests {
     }
 
     fn factory(head: &'static str, gap: &'static str, body: &str) -> Code {
-        let mut code = CodeBuilder::new(false);
+        let mut code = CodeBuilder::new(false, BOTH);
         code += head;
         code.push_strict_directive();
         code += gap;
-        code.push_source(&body.to_string().into(), SourceMaps::Shared(line_map(body)));
+        code.push_source(&body.to_string().into(), SourceMaps::Shared(line_map(body)))
+            .unwrap();
         code += "})";
         code.build()
     }
 
     fn compose(factory: &Code, without_directive: bool) -> Code {
-        let mut code = CodeBuilder::new(false);
+        let mut code = CodeBuilder::new(false, factory.source_map_generation_options());
         code += "[1,";
         if without_directive {
-            code.push_code_without_strict_directive(factory);
+            code.push_code_without_strict_directive(factory).unwrap();
         } else {
-            code.push_code(factory);
+            code.push_code(factory).unwrap();
         }
         code += "]";
         code.build()
@@ -665,11 +691,12 @@ mod tests {
 
     #[test]
     fn pushing_code_without_a_directive_is_unchanged() {
-        let mut code = CodeBuilder::new(false);
+        let mut code = CodeBuilder::new(false, BOTH);
         code.push_source(
             &"x();".to_string().into(),
             SourceMaps::Shared(line_map("x();")),
-        );
+        )
+        .unwrap();
         let code = code.build();
         assert!(code.strict_directive().is_none());
         assert_eq!(

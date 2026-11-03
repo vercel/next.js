@@ -58,7 +58,7 @@ export async function turbopackAnalyze(
       projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
       distDir,
       nextConfig: config,
-      analyze: true,
+      ensureShallowSourceMaps: true,
       watch: {
         enable: false,
       },

@@ -229,7 +229,8 @@ pub struct NapiProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: Option<bool>,
-    pub analyze: Option<bool>,
+    /// Retains shallow source maps for `analyze` without changing the emitted source map variant.
+    pub ensure_shallow_source_maps: Option<bool>,
 }
 
 /// The subset of [`NapiProjectOptions`] that may change without restarting the process. Used by
@@ -321,7 +322,7 @@ impl NapiProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr,
-            analyze,
+            ensure_shallow_source_maps,
         } = val;
         ProjectOptions {
             root_path,
@@ -354,7 +355,7 @@ impl NapiProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr: server_hmr.unwrap_or(false),
-            analyze: analyze.unwrap_or(false),
+            ensure_shallow_source_maps: ensure_shallow_source_maps.unwrap_or(false),
         }
     }
 }

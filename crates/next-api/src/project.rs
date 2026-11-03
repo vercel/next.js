@@ -371,8 +371,9 @@ pub struct ProjectOptions {
     /// Whether server-side HMR is enabled (disabled with `--no-server-fast-refresh`).
     pub server_hmr: bool,
 
-    /// Retains shallow source maps for analysis without changing emitted source maps.
-    pub analyze: bool,
+    /// Retains shallow source maps (e.g. for `next analyze`) without changing the emitted source
+    /// map variant.
+    pub ensure_shallow_source_maps: bool,
 }
 
 /// The subset of [`ProjectOptions`] that may change without restarting the process. Used by
@@ -953,7 +954,7 @@ impl ProjectContainer {
         let deferred_entries;
         let is_persistent_caching_enabled;
         let server_hmr;
-        let analyze;
+        let ensure_shallow_source_maps;
         let project_file_system;
         let output_file_system;
         let additional_roots;
@@ -989,7 +990,7 @@ impl ProjectContainer {
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
             server_hmr = options.server_hmr;
-            analyze = options.analyze;
+            ensure_shallow_source_maps = options.ensure_shallow_source_maps;
             project_file_system = file_systems.project_file_system;
             output_file_system = file_systems.output_file_system;
             additional_roots = self.additional_roots_state.get().iter().cloned().collect();
@@ -1029,7 +1030,7 @@ impl ProjectContainer {
             deferred_entries,
             is_persistent_caching_enabled,
             server_hmr,
-            analyze,
+            ensure_shallow_source_maps,
             project_file_system,
             output_file_system,
             additional_roots,
@@ -1059,6 +1060,7 @@ impl ProjectContainer {
     ) -> Result<Vc<FileContent>> {
         if let Some(map) = self.await?.versioned_content_map {
             let project = self.project();
+            // Error tracing must use shallow maps when input source maps are disabled.
             let ty = if project.client_source_map_generation_options().await?.full
                 || project.server_source_map_generation_options().await?.full
             {
@@ -1150,7 +1152,8 @@ pub struct Project {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
-    analyze: bool,
+    /// Retains shallow source maps for `analyze` without changing the emitted source map variant.
+    ensure_shallow_source_maps: bool,
 
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
@@ -1449,7 +1452,7 @@ impl Project {
         let mut generation = SourceMapGenerationOptions::from_emitted(
             *self.next_config.client_source_maps(*self.mode).await?,
         );
-        generation.shallow |= self.analyze;
+        generation.shallow |= self.ensure_shallow_source_maps;
         Ok(generation.cell())
     }
 
@@ -1459,7 +1462,7 @@ impl Project {
     ) -> Result<Vc<SourceMapGenerationOptions>> {
         let mut generation =
             SourceMapGenerationOptions::from_emitted(*self.next_config.server_source_maps().await?);
-        generation.shallow |= self.analyze;
+        generation.shallow |= self.ensure_shallow_source_maps;
         Ok(generation.cell())
     }
 

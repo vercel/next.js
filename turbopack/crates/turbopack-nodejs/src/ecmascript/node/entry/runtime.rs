@@ -45,6 +45,10 @@ impl EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
+        let source_map_generation_options = *this
+            .chunking_context
+            .source_map_generation_options()
+            .await?;
 
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path().await?;
         let output_root = this.chunking_context.output_root().await?;
@@ -55,7 +59,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
             turbobail!("runtime path {runtime_path} is not in output root {output_root}");
         };
 
-        let mut code = CodeBuilder::new(false);
+        let mut code = CodeBuilder::new(false, source_map_generation_options);
         let asset_prefix = this.chunking_context.asset_prefix().await?;
         let asset_prefix = asset_prefix.as_deref().unwrap_or("/");
 
@@ -100,33 +104,32 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
         let asset_context = turbopack::get_runtime_asset_context(
             this.chunking_context.environment(),
-            *this
-                .chunking_context
-                .source_map_generation_options()
-                .await?,
+            source_map_generation_options,
         );
 
         match *this.chunking_context.runtime_type().await? {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     asset_context,
+                    source_map_generation_options,
                     RuntimeType::Development,
                     this.include_async_module_runtime,
                 );
-                code.push_code(&*runtime_code.await?);
+                code.push_code(&*runtime_code.await?)?;
             }
             RuntimeType::Production => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     asset_context,
+                    source_map_generation_options,
                     RuntimeType::Production,
                     this.include_async_module_runtime,
                 );
-                code.push_code(&*runtime_code.await?);
+                code.push_code(&*runtime_code.await?)?;
             }
             #[cfg(feature = "test")]
             RuntimeType::Dummy => {
                 let runtime_code = turbopack_ecmascript_runtime::get_dummy_runtime_code();
-                code.push_code(&runtime_code);
+                code.push_code(&runtime_code)?;
             }
         }
 

@@ -78,7 +78,13 @@ impl EcmascriptBrowserChunkContent {
                 Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
             }
         };
-        let mut code = CodeBuilder::new(*this.chunking_context.debug_ids_enabled().await?);
+        let mut code = CodeBuilder::new(
+            *this.chunking_context.debug_ids_enabled().await?,
+            *this
+                .chunking_context
+                .source_map_generation_options()
+                .await?,
+        );
 
         let supports_arrow_functions = *this
             .chunking_context

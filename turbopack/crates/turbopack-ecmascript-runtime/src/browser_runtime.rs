@@ -9,6 +9,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
     environment::ChunkLoading,
+    source_map::SourceMapGenerationOptions,
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
@@ -35,6 +36,7 @@ mod tests {
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    source_map_generation_options: SourceMapGenerationOptions,
     chunk_base_path: Vc<Option<RcStr>>,
     asset_suffix: Vc<AssetSuffix>,
     runtime_type: RuntimeType,
@@ -99,7 +101,7 @@ pub async fn get_browser_runtime_code(
         }
     };
 
-    let mut code: CodeBuilder = CodeBuilder::new(false);
+    let mut code: CodeBuilder = CodeBuilder::new(false, source_map_generation_options);
     let relative_root_path = output_root_to_root_path;
     let chunk_base_path = chunk_base_path.await?;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
@@ -225,30 +227,30 @@ pub async fn get_browser_runtime_code(
         chunk_load_retry.max_jitter_ms,
     )?;
 
-    code.push_code(&*shared_runtime_utils_code.await?);
+    code.push_code(&*shared_runtime_utils_code.await?)?;
     if include_async_module_runtime {
         code.push_code(
             &*embed_static_code(asset_context, rcstr!("shared/runtime/async-module.ts")).await?,
-        );
+        )?;
     }
     for runtime_code in runtime_base_code {
-        code.push_code(&*embed_static_code(asset_context, runtime_code.into()).await?);
+        code.push_code(&*embed_static_code(asset_context, runtime_code.into()).await?)?;
     }
 
     if *environment.supports_commonjs_externals().await? {
         code.push_code(
             &*embed_static_code(asset_context, rcstr!("shared-node/base-externals-utils.ts"))
                 .await?,
-        );
+        )?;
     }
     if *environment.node_externals().await? {
         code.push_code(
             &*embed_static_code(asset_context, rcstr!("shared-node/node-externals-utils.ts"))
                 .await?,
-        );
+        )?;
     }
     for backend_code in runtime_backend_code {
-        code.push_code(&*embed_static_code(asset_context, backend_code.into()).await?);
+        code.push_code(&*embed_static_code(asset_context, backend_code.into()).await?)?;
     }
 
     // Registering chunks/chunk lists depends on the BACKEND variable set by the specific
