@@ -1,0 +1,2 @@
+export const unused = 42;
+export function unusedFunction() { return 'unused-loader-runtime-marker'; }

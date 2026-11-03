@@ -1,0 +1,1 @@
+require('./commonjs.emit-cjs')
