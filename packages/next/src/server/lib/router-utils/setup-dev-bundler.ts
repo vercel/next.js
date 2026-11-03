@@ -92,6 +92,7 @@ import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-e
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
   JSON_CONTENT_TYPE_HEADER,
+  INSTRUMENTATION_HOOK_FILENAME,
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
 } from '../../../lib/constants'
@@ -257,6 +258,14 @@ async function startWatcher(
     logging: nextConfig.logging !== false,
   })
 
+  const hasInstrumentationInject =
+    (nextConfig.instrumentationInject?.length ?? 0) > 0
+  // Turbopack reports instrumentation through its entrypoints
+  // (turbopack-utils.ts). Webpack has no such list.
+  if (hasInstrumentationInject && !opts.turbo) {
+    serverFields.actualInstrumentationHookFile = `/${INSTRUMENTATION_HOOK_FILENAME}`
+  }
+
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
     ? await (async () => {
         const createHotReloaderTurbopack = (
@@ -297,6 +306,7 @@ async function startWatcher(
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
           hasVulnerabilityInsight: opts.hasVulnerabilityInsight,
+          hasInstrumentationInject,
         })
       })()
 
