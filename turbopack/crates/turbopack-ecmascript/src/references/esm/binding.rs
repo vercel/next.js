@@ -137,12 +137,14 @@ impl EsmBindings {
                     imported_module => match exports_cache.entry(export.clone()) {
                         std::collections::hash_map::Entry::Vacant(entry) => {
                             let ident: ImportedIdent = imported_module
-                                .get_ident(
+                                .prepare_binding(
                                     chunking_context,
                                     module_merging,
                                     export.clone(),
                                     scope_hoisting_context,
                                 )
+                                .await?
+                                .get_ident(chunking_context)
                                 .await?
                                 .map_or(ImportedIdent::Unresolvable, ImportedIdent::Module);
                             entry.insert(ident.clone());

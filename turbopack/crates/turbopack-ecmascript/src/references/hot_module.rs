@@ -163,12 +163,14 @@ impl ModuleHotReferenceCodeGen {
                 match &referenced_asset {
                     ReferencedAsset::Some(asset) => {
                         let ident = referenced_asset
-                            .get_ident(
+                            .prepare_binding(
                                 chunking_context,
                                 module_merging,
                                 None,
                                 scope_hoisting_context,
                             )
+                            .await?
+                            .get_ident(chunking_context)
                             .await?;
                         if let Some((namespace_ident, ctxt)) =
                             ident.and_then(|i| i.into_module_namespace_ident())

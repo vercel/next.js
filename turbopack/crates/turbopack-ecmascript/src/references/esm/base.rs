@@ -237,15 +237,61 @@ impl ReferencedAssetIdent {
     }
 }
 
-impl ReferencedAsset {
+/// A binding prepared for code generation. Target selection and re-export traversal happen
+/// before identifier formatting, while the original module is still available for local
+/// binding resolution and export-name allocation.
+pub enum PreparedBinding {
+    LocalBinding {
+        ident: RcStr,
+        ctxt: SyntaxContext,
+        liveness: Liveness,
+    },
+    Module {
+        import_source: ImportSource,
+        ctxt: Option<SyntaxContext>,
+        export: Option<RcStr>,
+    },
+    None,
+}
+
+impl PreparedBinding {
     pub async fn get_ident(
+        self,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Option<ReferencedAssetIdent>> {
+        Ok(match self {
+            Self::LocalBinding {
+                ident,
+                ctxt,
+                liveness,
+            } => Some(ReferencedAssetIdent::LocalBinding {
+                ident,
+                ctxt,
+                liveness,
+            }),
+            Self::Module {
+                import_source,
+                ctxt,
+                export,
+            } => Some(ReferencedAssetIdent::Module {
+                ctxt,
+                export,
+                import_source,
+            }),
+            Self::None => None,
+        })
+    }
+}
+
+impl ReferencedAsset {
+    pub async fn prepare_binding(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module_merging: ModuleMergingAnalysis,
         export: Option<RcStr>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
-    ) -> Result<Option<ReferencedAssetIdent>> {
-        self.get_ident_inner(
+    ) -> Result<PreparedBinding> {
+        self.prepare_binding_inner(
             chunking_context,
             module_merging,
             export,
@@ -255,14 +301,14 @@ impl ReferencedAsset {
         .await
     }
 
-    async fn get_ident_inner(
+    async fn prepare_binding_inner(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module_merging: ModuleMergingAnalysis,
         export: Option<RcStr>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         initial: Option<&ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
-    ) -> Result<Option<ReferencedAssetIdent>> {
+    ) -> Result<PreparedBinding> {
         Ok(match self {
             ReferencedAsset::Some(asset) => {
                 if let Some(ctxt) = scope_hoisting_context.get_module_syntax_context(*asset)
@@ -276,11 +322,11 @@ impl ReferencedAsset {
                             // A local binding in a module that is merged in the same group. Use the
                             // export name as identifier, it will be replaced with the actual
                             // variable name during AST merging.
-                            return Ok(Some(ReferencedAssetIdent::LocalBinding {
+                            return Ok(PreparedBinding::LocalBinding {
                                 ident: export.clone(),
                                 ctxt,
                                 liveness: *liveness,
-                            }));
+                            });
                         }
                         Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
                         | Some(b @ EsmExport::ImportedNamespace(esm_ref)) => {
@@ -307,13 +353,13 @@ impl ReferencedAsset {
                                 }
                                 .resolved_cell()
                                 .emit();
-                                return Ok(None);
+                                return Ok(PreparedBinding::None);
                             }
 
                             // If the target module is still in the same group, we can
                             // refer it locally, otherwise it will be imported
                             return Ok(
-                                match Box::pin(referenced_asset.get_ident_inner(
+                                match Box::pin(referenced_asset.prepare_binding_inner(
                                     chunking_context,
                                     module_merging,
                                     imported,
@@ -322,18 +368,17 @@ impl ReferencedAsset {
                                 ))
                                 .await?
                                 {
-                                    Some(ReferencedAssetIdent::Module {
-                                        // Overwrite the context. This import isn't
-                                        // inserted in the module that uses the import,
-                                        // but in the module containing the reexport
+                                    PreparedBinding::Module {
+                                        // This import is inserted in the module containing the
+                                        // reexport, not the module using the import.
                                         ctxt: None,
                                         export,
                                         import_source,
-                                    }) => Some(ReferencedAssetIdent::Module {
+                                    } => PreparedBinding::Module {
                                         ctxt: Some(ctxt),
                                         export,
                                         import_source,
-                                    }),
+                                    },
                                     ident => ident,
                                 },
                             );
@@ -353,12 +398,10 @@ impl ReferencedAsset {
                     *asset
                 };
                 let import_source = ImportSource::new_module(target, chunking_context).await?;
-                Some(ReferencedAssetIdent::Module {
+                PreparedBinding::Module {
                     ctxt: None,
-                    // The target module may emit its exports under shortened keys. This is the
-                    // only place a cross-module export access is materialized, and it resolves
-                    // the same map the producing module uses (see
-                    // `EsmExports::code_generation`), so the two always agree.
+                    // Allocate against the original module, not the shared factory target,
+                    // using the same mapping as the producing module.
                     export: match &export {
                         Some(export) => Some(
                             generated_export_key(*asset, chunking_context, module_merging, export)
@@ -367,13 +410,13 @@ impl ReferencedAsset {
                         None => None,
                     },
                     import_source,
-                })
+                }
             }
-            ReferencedAsset::External(request, ty) => Some(ReferencedAssetIdent::Module {
+            ReferencedAsset::External(request, ty) => PreparedBinding::Module {
                 ctxt: None,
                 export,
                 import_source: ImportSource::new_external(request.clone(), *ty),
-            }),
+            },
             ReferencedAsset::NonPlaceable(module) => {
                 // The module exists but has no ECMAScript bindings, so there is
                 // nothing this identifier could refer to. Report it instead of
@@ -400,9 +443,11 @@ impl ReferencedAsset {
                 }
                 .resolved_cell()
                 .emit();
-                None
+                PreparedBinding::None
             }
-            ReferencedAsset::None | ReferencedAsset::Empty | ReferencedAsset::Unresolvable => None,
+            ReferencedAsset::None | ReferencedAsset::Empty | ReferencedAsset::Unresolvable => {
+                PreparedBinding::None
+            }
         })
     }
 
@@ -918,7 +963,7 @@ impl EsmAssetReference {
                     } else {
                         'import: {
                             let ident = referenced_asset
-                                .get_ident(
+                                .prepare_binding(
                                     chunking_context,
                                     module_merging,
                                     this.export_name
@@ -927,6 +972,8 @@ impl EsmAssetReference {
                                         .cloned(),
                                     scope_hoisting_context,
                                 )
+                                .await?
+                                .get_ident(chunking_context)
                                 .await?;
                             // `referenced_asset` must not be used past this point: the ident
                             // carries everything about the import

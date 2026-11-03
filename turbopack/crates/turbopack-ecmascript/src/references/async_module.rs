@@ -126,12 +126,14 @@ impl AsyncModule {
                     ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
                         if self.import_externals {
                             referenced_asset
-                                .get_ident(
+                                .prepare_binding(
                                     chunking_context,
                                     module_merging,
                                     None,
                                     ScopeHoistingContext::None,
                                 )
+                                .await?
+                                .get_ident(chunking_context)
                                 .await?
                                 .map(|i| i.into_module_namespace_ident().unwrap())
                                 .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
@@ -145,12 +147,14 @@ impl AsyncModule {
                             .contains(&ResolvedVc::upcast(*placeable))
                         {
                             referenced_asset
-                                .get_ident(
+                                .prepare_binding(
                                     chunking_context,
                                     module_merging,
                                     None,
                                     ScopeHoistingContext::None,
                                 )
+                                .await?
+                                .get_ident(chunking_context)
                                 .await?
                                 .map(|i| i.into_module_namespace_ident().unwrap())
                                 .map(|(i, ctx)| (i, ctx.unwrap_or_default().into()))
