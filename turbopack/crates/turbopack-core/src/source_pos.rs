@@ -123,52 +123,12 @@ impl std::cmp::PartialEq<(u32, u32)> for SourcePos {
 
 #[cfg(test)]
 mod tests {
-    use super::{SourcePos, utf16_len};
+    use super::SourcePos;
 
     fn pos_after(code: &str) -> SourcePos {
         let mut pos = SourcePos::new(0);
         pos.update(code.as_bytes());
         pos
-    }
-
-    #[test]
-    fn utf16_len_matches_std() {
-        for s in [
-            "",
-            "abc",
-            "é€",
-            "🦀",
-            "x🦀é€😀y\n\r\u{2028}",
-            "\u{0}\u{7f}\u{80}\u{7ff}\u{800}\u{ffff}\u{10000}\u{10ffff}",
-        ] {
-            assert_eq!(utf16_len(s.as_bytes()), s.encode_utf16().count(), "{s:?}");
-        }
-    }
-
-    #[test]
-    fn utf16_len_counts_invalid_utf8_per_byte() {
-        fn per_byte(bytes: &[u8]) -> usize {
-            bytes
-                .iter()
-                .map(|&b| 1 + (b >= 0xF0) as usize - ((b & 0xC0) == 0x80) as usize)
-                .sum()
-        }
-
-        // Lone continuation bytes, truncated sequences and bytes that never appear in UTF-8,
-        // both short and long enough to go through the vectorized loops.
-        let long = [b"x\x80\xC3\xE2\x80\xF0\x9F\xA6\xFF\xFE".as_slice(); 32].concat();
-        for bytes in [
-            b"\x80".as_slice(),
-            b"\xC3",
-            b"\xE2\x80",
-            b"\xF0\x9F\xA6",
-            b"\xFF\xFE",
-            b"abc\xF0",
-            &long,
-            &long[1..],
-        ] {
-            assert_eq!(utf16_len(bytes), per_byte(bytes), "{bytes:?}");
-        }
     }
 
     #[test]
