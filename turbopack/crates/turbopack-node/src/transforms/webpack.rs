@@ -179,14 +179,15 @@ struct WebpackLoadersProcessedAsset {
 impl Source for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        let ident_vc = self.source.ident();
         let Some(rename_as) = self.transform.await?.rename_as.clone() else {
-            return Ok(self.source.ident());
+            return Ok(ident_vc);
         };
-        let ident = self.source.ident().owned().await?;
+        let ident = ident_vc.await?;
         if is_redundant_rename(&rename_as, &ident.path.path) {
-            return Ok(self.source.ident());
+            return Ok(ident_vc);
         }
-        Ok(ident.rename_as(&rename_as).into_vc())
+        Ok(ReadRef::into_owned(ident).rename_as(&rename_as).into_vc())
     }
 
     #[turbo_tasks::function]
