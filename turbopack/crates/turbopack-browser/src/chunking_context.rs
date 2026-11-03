@@ -87,11 +87,6 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn module_merging(mut self, enable_module_merging: bool) -> Self {
-        self.chunking_context.enable_module_merging = enable_module_merging;
-        self
-    }
-
     pub fn dynamic_chunk_content_loading(
         mut self,
         enable_dynamic_chunk_content_loading: bool,
@@ -368,8 +363,6 @@ pub struct BrowserChunkingContext {
     enable_hot_module_replacement: bool,
     /// Enable nested async availability for this chunking
     enable_nested_async_availability: bool,
-    /// Enable module merging
-    enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
     enable_dynamic_chunk_content_loading: bool,
     /// Enable debug IDs for chunks and source maps.
@@ -460,7 +453,6 @@ impl BrowserChunkingContext {
                 default_url_behavior: None,
                 enable_hot_module_replacement: false,
                 enable_nested_async_availability: false,
-                enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
                 debug_ids: false,
                 shared_runtime: false,
@@ -875,7 +867,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     fn is_module_merging_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_module_merging)
+        Vc::cell(self.merged_modules.is_some())
     }
 
     #[turbo_tasks::function]
@@ -1359,9 +1351,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     fn merged_modules(&self) -> Vc<MergedModuleGroups> {
-        if self.enable_module_merging
-            && let Some(merged_modules) = self.merged_modules
-        {
+        if let Some(merged_modules) = self.merged_modules {
             *merged_modules
         } else {
             Vc::cell(Default::default())
