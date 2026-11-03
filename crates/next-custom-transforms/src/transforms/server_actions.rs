@@ -5,7 +5,7 @@ use std::{
     mem::{replace, take},
     path::{Path, PathBuf},
     rc::Rc,
-    sync::{Arc, OnceLock},
+    sync::Arc,
 };
 
 use base64::{display::Base64Display, prelude::BASE64_STANDARD};
@@ -56,46 +56,49 @@ pub struct Config {
     pub cache_kinds: LazyValue<FxHashSet<RcStr>>,
 }
 
-/// A config value that is either given directly or computed on first access.
-///
-/// A [lazy](LazyValue::lazy) value allows callers to avoid computing (or depending on) values
-/// the transform only needs for some modules. It deserializes transparently from the plain value.
-pub struct LazyValue<T>(Arc<LazyValueInner<T>>);
+/// Provides a [lazy](LazyValue::lazy) config value. `get` is only called when the transform needs
+/// the value, so an implementation can track whether the value was used (e.g. Turbopack's
+/// `LazyReadRef`).
+pub trait LazyGet<T>: Send + Sync {
+    fn get(&self) -> &T;
+}
 
-struct LazyValueInner<T> {
-    value: OnceLock<T>,
-    get: Option<Box<dyn Fn() -> T + Send + Sync>>,
+/// A config value that is either given directly or only accessed when needed.
+///
+/// A [lazy](LazyValue::lazy) value allows callers to avoid depending on values the transform only
+/// needs for some modules. It deserializes transparently from the plain value.
+pub enum LazyValue<T> {
+    Value(Arc<T>),
+    Lazy(Arc<dyn LazyGet<T>>),
 }
 
 impl<T> LazyValue<T> {
-    /// A value that is computed by `get` on first access. `get` is called at most once (shared
-    /// by all clones).
-    pub fn lazy(get: impl Fn() -> T + Send + Sync + 'static) -> Self {
-        Self(Arc::new(LazyValueInner {
-            value: OnceLock::new(),
-            get: Some(Box::new(get)),
-        }))
+    /// A value that is provided by `get` when the transform needs it.
+    pub fn lazy(get: Arc<dyn LazyGet<T>>) -> Self {
+        Self::Lazy(get)
     }
 
-    /// Returns the value, computing it on first access.
+    /// Returns the value. For a lazy value, this marks it as used.
     pub fn get(&self) -> &T {
-        let LazyValueInner { value, get } = &*self.0;
-        value.get_or_init(|| get.as_ref().expect("an eager value is always initialized")())
+        match self {
+            Self::Value(value) => value,
+            Self::Lazy(get) => get.get(),
+        }
     }
 }
 
 impl<T> Clone for LazyValue<T> {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        match self {
+            Self::Value(value) => Self::Value(value.clone()),
+            Self::Lazy(get) => Self::Lazy(get.clone()),
+        }
     }
 }
 
 impl<T> From<T> for LazyValue<T> {
     fn from(value: T) -> Self {
-        Self(Arc::new(LazyValueInner {
-            value: OnceLock::from(value),
-            get: None,
-        }))
+        Self::Value(Arc::new(value))
     }
 }
 

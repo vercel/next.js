@@ -1,12 +1,14 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use next_custom_transforms::transforms::server_actions::{
-    Config, LazyValue, ServerActionsMode, server_actions,
+    Config, LazyGet, LazyValue, ServerActionsMode, server_actions,
 };
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{LazyReadRef, ResolvedVc, Vc, VcRead, VcValueType};
 use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
@@ -64,6 +66,19 @@ async fn next_server_actions_transform_plugin(
     }) as Box<dyn CustomTransformer + Send + Sync>))
 }
 
+/// Provides a lazily read cell to the transform: the read is only kept when the transform accesses
+/// it.
+struct LazyRead<T: VcValueType>(LazyReadRef<T>);
+
+impl<T: VcValueType> LazyGet<<T::Read as VcRead<T>>::Target> for LazyRead<T>
+where
+    LazyReadRef<T>: Send + Sync,
+{
+    fn get(&self) -> &<T::Read as VcRead<T>>::Target {
+        self.0.get()
+    }
+}
+
 #[derive(Debug)]
 struct NextServerActions {
     is_react_server_layer: bool,
@@ -89,8 +104,8 @@ impl CustomTransformer for NextServerActions {
                 is_react_server_layer: self.is_react_server_layer,
                 is_development: self.mode.is_development(),
                 use_cache_enabled: self.use_cache_enabled,
-                hash_salt: LazyValue::lazy(move || encryption_key.get().clone()),
-                cache_kinds: LazyValue::lazy(move || cache_kinds.get().clone()),
+                hash_salt: LazyValue::lazy(Arc::new(LazyRead(encryption_key))),
+                cache_kinds: LazyValue::lazy(Arc::new(LazyRead(cache_kinds))),
             },
             ctx.comments.clone(),
             ctx.unresolved_mark,

@@ -7,7 +7,7 @@ use std::sync::{
 };
 
 use next_custom_transforms::transforms::server_actions::{
-    self, LazyValue, ServerActionsMode, server_actions,
+    self, LazyGet, LazyValue, ServerActionsMode, server_actions,
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
@@ -53,16 +53,27 @@ fn cache_kinds() -> FxHashSet<RcStr> {
     FxHashSet::from_iter([rcstr!("x")])
 }
 
-/// Returns a lazy value counting how often it was computed.
-fn counting<T: 'static>(reads: &Arc<AtomicUsize>, value: fn() -> T) -> LazyValue<T> {
-    let reads = reads.clone();
-    LazyValue::lazy(move || {
-        reads.fetch_add(1, Ordering::Relaxed);
-        value()
-    })
+/// A lazy value counting how often it was accessed.
+struct Counting<T> {
+    value: T,
+    reads: Arc<AtomicUsize>,
 }
 
-/// Returns how often `source` computed a lazy salt, after checking it matches an eager salt.
+impl<T: Send + Sync> LazyGet<T> for Counting<T> {
+    fn get(&self) -> &T {
+        self.reads.fetch_add(1, Ordering::Relaxed);
+        &self.value
+    }
+}
+
+fn counting<T: Send + Sync + 'static>(reads: &Arc<AtomicUsize>, value: fn() -> T) -> LazyValue<T> {
+    LazyValue::lazy(Arc::new(Counting {
+        value: value(),
+        reads: reads.clone(),
+    }))
+}
+
+/// Returns how often `source` accessed a lazy salt, after checking it matches an eager salt.
 fn lazy_salt_reads(source: &str) -> usize {
     let reads = Arc::new(AtomicUsize::new(0));
     let lazy = transform(
@@ -77,7 +88,7 @@ fn lazy_salt_reads(source: &str) -> usize {
     reads.load(Ordering::Relaxed)
 }
 
-/// Returns how often `source` computed lazy cache kinds, after checking they match eager ones.
+/// Returns how often `source` accessed lazy cache kinds, after checking they match eager ones.
 fn lazy_cache_kinds_reads(source: &str) -> usize {
     let reads = Arc::new(AtomicUsize::new(0));
     let lazy = transform(source, rcstr!("salt").into(), counting(&reads, cache_kinds));
@@ -94,12 +105,11 @@ fn lazy_salt_is_only_read_for_server_functions() {
         lazy_salt_reads("export default function f() { return 'use server'; }"),
         0
     );
-    assert_eq!(
+    assert!(
         lazy_salt_reads(
             "export async function f() { 'use server'; } export async function g() { 'use \
              server'; }"
-        ),
-        1
+        ) > 0
     );
 }
 
@@ -113,11 +123,10 @@ fn lazy_cache_kinds_are_only_read_for_custom_cache_kinds() {
         lazy_cache_kinds_reads("export async function f() { 'use cache'; }"),
         0
     );
-    assert_eq!(
+    assert!(
         lazy_cache_kinds_reads(
             "export async function f() { 'use cache: x'; } export async function g() { 'use \
              cache: x'; }"
-        ),
-        1
+        ) > 0
     );
 }
