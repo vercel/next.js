@@ -431,18 +431,37 @@ export function createFixtureFile(
         if (cache.has(registration)) return cache.get(registration)!
         const pending = (async () => {
           if (typeof fixture.value !== 'function') return fixture.value
-          const deps: Record<string, unknown> = Object.create(null)
+          const sharedTestContext = fixture.scope === 'test' && reuseContext
+          const deps: Record<string, unknown> = sharedTestContext
+            ? context
+            : Object.create(null)
           for (const dependency of dependencies(fixture.value)) {
+            // Builtin context accessors belong to the authored parameter read.
+            // Passing the real context must not eagerly read them a second time.
+            if (
+              sharedTestContext &&
+              !definitions[dependency] &&
+              Object.prototype.hasOwnProperty.call(context, dependency)
+            )
+              continue
             const dependencyRegistration =
               dependency === name && registration.parent
                 ? registration.parent
                 : definitions[dependency]
-            deps[dependency] = await resolve(
+            const value = await resolve(
               dependency,
               [...path, registration],
               fixture.scope,
               dependencyRegistration
             )
+            if (sharedTestContext)
+              Object.defineProperty(context, dependency, {
+                configurable: true,
+                enumerable: true,
+                writable: true,
+                value,
+              })
+            else deps[dependency] = value
           }
           const ready = deferred<unknown>()
           const release = deferred<void>()
@@ -515,15 +534,15 @@ export function createFixtureFile(
                 value: await resolve(name, []),
               })
           for (const name of dependencies(fn)) {
-            // Resolve context accessors only when requested. Merely cloning the
-            // context must not switch runner assertion counts to a local expect.
-            const value = await resolve(name, [])
+            // The reused public context already owns builtin accessors. Leave
+            // their single observable read to the authored parameter binding.
             if (
               reuseContext &&
               !definitions[name] &&
               Object.prototype.hasOwnProperty.call(context, name)
             )
               continue
+            const value = await resolve(name, [])
             Object.defineProperty(values, name, {
               configurable: true,
               enumerable: true,

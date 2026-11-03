@@ -130,3 +130,6 @@ test/unit/next-testing-assertions/bench-fn-records/
 
 # Exact Browser clock tick-mode inputs and complete genuine reports.
 test/unit/next-testing-browser-clock-tick-modes/records/
+
+# Exact test-fixture Context inputs and whole genuine reports.
+test/unit/next-testing-fixture-context/node-records/

@@ -1,0 +1,28 @@
+{
+  "args": [
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-v8@5.0.4_@vitest+ui@5.0.4_vite@8.3.4/node_modules/vitest/vitest.mjs",
+    "run",
+    "--root",
+    "/private/tmp/fixture-test-context-identity/genuine-v2/26-production/fixture",
+    "--mode",
+    "production",
+    "--config",
+    "/private/tmp/fixture-test-context-identity/genuine-v2/26-production/fixture/vitest.config.mjs",
+    "--configLoader=native",
+    "--reporter=json",
+    "--reporter=/private/tmp/fixture-test-context-identity/genuine-v2/26-production/fixture/reporter.mjs",
+    "--outputFile=/private/tmp/fixture-test-context-identity/genuine-v2/26-production/report.json"
+  ],
+  "mode": "production",
+  "actualNode": "v26.12.1",
+  "actualExecutable": "/usr/local/bin/node",
+  "bodySHA256": "d96c912a61ff6c04c0c41fc3703adc3fda860cf2bcb8ee7907f997448c1818dd",
+  "config": "export default {cacheDir:\"/private/tmp/fixture-test-context-identity/genuine-v2/26-production/cache\",test:{include:['suite.test.mjs'],maxWorkers:1,fileParallelism:false,testTimeout:5000,hookTimeout:5000,includeTaskLocation:false}}\n",
+  "configSHA256": "b15e773315f20e440bae05ccbc2f856c3bad9f318081efea09fd79e141b8a514",
+  "bounds": {
+    "cli": 120000,
+    "test": 5000,
+    "hook": 5000
+  },
+  "unwrappedPinnedRuntimeAndPrivateCache": true
+}

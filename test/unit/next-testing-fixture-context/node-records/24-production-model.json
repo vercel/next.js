@@ -1,0 +1,175 @@
+{
+  "status": 0,
+  "rows": [
+    {
+      "phase": "primary-setup",
+      "value": {
+        "hasTask": true,
+        "fromPrimary": "primary"
+      }
+    },
+    {
+      "phase": "derived-setup",
+      "value": {
+        "sameContext": true,
+        "task": true,
+        "primary": "primary"
+      }
+    },
+    {
+      "phase": "before",
+      "value": {
+        "primary": true,
+        "derived": true,
+        "task": true,
+        "fromPrimary": "primary",
+        "fromDerived": "derived"
+      }
+    },
+    {
+      "phase": "body",
+      "value": {
+        "name": "first",
+        "primary": true,
+        "derived": true,
+        "task": true,
+        "fromPrimary": "primary",
+        "fromDerived": "derived",
+        "fromBefore": "before"
+      }
+    },
+    {
+      "phase": "after",
+      "value": {
+        "primary": true,
+        "derived": true,
+        "body": "first",
+        "before": "before"
+      }
+    },
+    {
+      "phase": "derived-cleanup",
+      "value": {
+        "body": "first",
+        "after": "after"
+      }
+    },
+    {
+      "phase": "primary-cleanup",
+      "value": {
+        "body": "first",
+        "after": "after",
+        "derived": "derived"
+      }
+    },
+    {
+      "phase": "primary-setup",
+      "value": {
+        "hasTask": true,
+        "fromPrimary": "primary"
+      }
+    },
+    {
+      "phase": "derived-setup",
+      "value": {
+        "sameContext": true,
+        "task": true,
+        "primary": "primary"
+      }
+    },
+    {
+      "phase": "before",
+      "value": {
+        "primary": true,
+        "derived": true,
+        "task": true,
+        "fromPrimary": "primary",
+        "fromDerived": "derived"
+      }
+    },
+    {
+      "phase": "body",
+      "value": {
+        "name": "second",
+        "primary": true,
+        "derived": true,
+        "task": true,
+        "fromPrimary": "primary",
+        "fromDerived": "derived",
+        "fromBefore": "before"
+      }
+    },
+    {
+      "phase": "after",
+      "value": {
+        "primary": true,
+        "derived": true,
+        "body": "second",
+        "before": "before"
+      }
+    },
+    {
+      "phase": "derived-cleanup",
+      "value": {
+        "body": "second",
+        "after": "after"
+      }
+    },
+    {
+      "phase": "primary-cleanup",
+      "value": {
+        "body": "second",
+        "after": "after",
+        "derived": "derived"
+      }
+    },
+    {
+      "phase": "summary",
+      "value": {
+        "contexts": 2,
+        "distinct": true,
+        "traceLength": 14,
+        "taskReads": [
+          6,
+          6
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "first",
+      "state": "passed"
+    },
+    {
+      "name": "second",
+      "state": "passed"
+    }
+  ],
+  "summary": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 2,
+    "numPassedTests": 2,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "success": true
+  },
+  "terminal": [
+    {
+      "hook": "end",
+      "reason": "passed",
+      "errors": [],
+      "modules": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ]
+    }
+  ],
+  "allOwnersJoined": true
+}
