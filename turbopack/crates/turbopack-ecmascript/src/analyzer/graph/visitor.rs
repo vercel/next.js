@@ -81,7 +81,7 @@ pub(super) struct Analyzer<'arena, 'eval> {
     pub(super) state: analyzer_state::AnalyzerState<'arena>,
 
     pub(super) effects: BumpVec<'arena, Effect<'arena>>,
-    /// Effects collected from hoisted declarations. See https://developer.mozilla.org/en-US/docs/Glossary/Hoisting
+    /// Effects collected from hoisted declarations. See <https://developer.mozilla.org/en-US/docs/Glossary/Hoisting>
     /// Tracked separately so we can preserve effects from hoisted declarations even when we don't
     /// collect effects from the declaring context.
     pub(super) hoisted_effects: BumpVec<'arena, Effect<'arena>>,
@@ -809,7 +809,7 @@ pub fn as_parent_path_in<'a>(
     path.into_boxed_slice()
 }
 
-/// Like [`as_parent_path_with`], but freezes the path into an arena-allocated boxed slice.
+/// Like [`as_parent_path_in`], but appends `additional` to the frozen path.
 pub fn as_parent_path_with_in<'a>(
     arena: &'a Bump,
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,

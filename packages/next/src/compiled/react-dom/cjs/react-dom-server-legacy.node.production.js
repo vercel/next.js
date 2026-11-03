@@ -308,6 +308,7 @@ function createResumableState(
     idPrefix: void 0 === identifierPrefix ? "" : identifierPrefix,
     nextFormID: 0,
     streamingFormat: 0,
+    externalRuntimeConfig: externalRuntimeConfig,
     bootstrapScriptContent: bootstrapScriptContent,
     bootstrapScripts: bootstrapScripts,
     bootstrapModules: bootstrapModules,
@@ -3132,10 +3133,9 @@ function pushTreeContext(baseContext, totalChildren, index) {
   var length = 32 - clz32(totalChildren) + baseLength;
   if (30 < length) {
     var numberOfOverflowBits = baseLength - (baseLength % 5);
-    length = (
-      baseIdWithLeadingBit &
-      ((1 << numberOfOverflowBits) - 1)
-    ).toString(32);
+    length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+      .toString(32)
+      .padStart(numberOfOverflowBits / 5, "0");
     baseIdWithLeadingBit >>= numberOfOverflowBits;
     baseLength -= numberOfOverflowBits;
     return {
@@ -7065,7 +7065,10 @@ function renderToStringImpl(
     fatalError = null,
     result = "",
     readyToStream = !1;
-  options = createResumableState(options ? options.identifierPrefix : void 0);
+  options = createResumableState(
+    options ? options.identifierPrefix : void 0,
+    void 0
+  );
   children = createRequest(
     children,
     options,
@@ -7121,4 +7124,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.3.0-canary-a6792708-20261019";
+exports.version = "19.3.0-canary-e84e1492-20261031";

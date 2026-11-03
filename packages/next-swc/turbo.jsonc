@@ -91,6 +91,16 @@
         "!../../turbopack/crates/turbopack-tests/tests/execution/**/output/*",
       ],
     },
+    // Same as `test-cargo-unit`, but with the `ci` features that ignore tests known to be flaky on CI runners.
+    "test-cargo-unit-ci": {
+      "dependsOn": ["rust-fingerprint"],
+      "inputs": [
+        "../../target/.rust-fingerprint",
+        "../../crates/*/tests/**",
+        "../../turbopack/crates/*/tests/**",
+        "!../../turbopack/crates/turbopack-tests/tests/execution/**/output/*",
+      ],
+    },
     "test-cargo-unit-miri": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": [

@@ -385,6 +385,73 @@ describe('app-root-param-getters - cache dedup with root params', () => {
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),
   })
 
+  beforeAll(async () => {
+    if (isNextDev) {
+      // Compile the page before the concurrent test requests. Without an `id`,
+      // the page skips `readCachedValue()`, so its root parameter dependencies
+      // remain unknown.
+      await next.render('/ca/en/write-failure')
+    }
+  })
+
+  // The control route and cache handler share process-local test state.
+  // @force-gate !deploy
+  it('persists a joining root value after the shared producer cache write fails', async () => {
+    const id = `write-failure-${randomUUID()}`
+    const control = (action: string) =>
+      next.fetch(`/write-failure-control?id=${id}`, {
+        method: 'POST',
+        body: action,
+      })
+    const readState = () =>
+      next.fetch('/write-failure-control').then(
+        (response) =>
+          response.json() as Promise<{
+            requestedLanguages: string[]
+            generatedLanguages: string[]
+            failedWriteLanguages: string[]
+            writtenLanguages: string[]
+          }>
+      )
+    // Keep the English cached call pending until the French request starts.
+    // Both calls initially use the key without root parameters because the
+    // wrapper has not collected the English call's `lang` dependency yet.
+    await control('hold-fill')
+    const english = next.render$(`/ca/en/write-failure?id=${id}`)
+    let french: ReturnType<typeof next.render$> | undefined
+    try {
+      await retry(async () => {
+        expect((await readState()).generatedLanguages).toEqual(['en'])
+      })
+      french = next.render$(`/ca/fr/write-failure?id=${id}`)
+      await retry(async () => {
+        const state = await readState()
+        expect(state.requestedLanguages).toEqual(['en', 'fr'])
+        expect(state.generatedLanguages).toEqual(['en'])
+      })
+      // The English `set()` calls reject. The French request must still retry
+      // the lookup with its own `lang` value and return French data.
+      await control('release-fill')
+      const [englishPage, frenchPage] = await Promise.all([english, french])
+      expect(englishPage('#value').text()).toStartWith('en:')
+      const frenchValue = frenchPage('#value').text()
+      expect(frenchValue).toStartWith('fr:')
+      await retry(async () => {
+        const state = await readState()
+        expect(state.failedWriteLanguages).toContain('en')
+        expect(state.writtenLanguages).toContain('fr')
+      })
+      // The next request must reuse the stored French entry. Another execution
+      // of `readCachedValue()` would generate a new UUID.
+      expect(
+        (await next.render$(`/ca/fr/write-failure?id=${id}`))('#value').text()
+      ).toBe(frenchValue)
+    } finally {
+      await control('release-fill')
+      await Promise.allSettled([english, french])
+    }
+  })
+
   it('should key a joining outer cache by the root params read by its inner cache', async () => {
     const english = await next.render$('/ca/en/nested?prime=1')
     expect(english('#first').text()).toBe('en')

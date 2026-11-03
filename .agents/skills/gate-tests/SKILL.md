@@ -144,7 +144,7 @@ start passing. Working example: `test/e2e/app-dir/concurrent-router-queue/`
 pairs with a lazy `@force-gate` when the off state proves nothing —
 `test/e2e/app-dir/use-offline/` — which skips the redundant axis run (build
 included) instead of covering it. Axis `A` aliases `__NEXT_CACHE_COMPONENTS`
-for now (see `scripts/run-jest.sh`) — fine, because these fixtures pin
+for now (see `test/jest-global-setup.ts`) — fine, because these fixtures pin
 `cacheComponents` explicitly, so that run's env default is a no-op for them.
 
 **Keep exactly one flag varying per fixture.** A red shard must attribute to a

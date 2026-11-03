@@ -25,6 +25,11 @@ const BUILD_LOGS_MAX_POLL_MS = 180_000
 // with its own diagnostic instead of an opaque hook timeout.
 const SETUP_HOOK_MARGIN_MS = 20_000
 
+// The Node.js version deployments are pinned to via `engines.node`. Must use
+// the exact `N.x` form: a range like `>=22.0.0` maps to the newest available
+// major. Matches NODE_LTS_VERSION in build_and_test.yml.
+const DEPLOY_TEST_NODE_VERSION = '22.x'
+
 const BUILD_LOG_MARKERS = [
   'BUILD_ID',
   'DEPLOYMENT_ID',
@@ -435,6 +440,10 @@ export class NextDeployInstance extends NextInstance {
 
     await this.writeMirrorNpmrcIfNecessary()
 
+    if (!process.env.NEXT_TEST_DEPLOY_URL?.trim()) {
+      this.pinNodeVersion()
+    }
+
     if (
       !process.env.NEXT_TEST_DEPLOY_URL?.trim() &&
       !process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim() &&
@@ -444,6 +453,26 @@ export class NextDeployInstance extends NextInstance {
     }
 
     this.preparePnpmSettings()
+  }
+
+  // `engines.node` overrides the project-level Node.js version on Vercel, so
+  // it is the only place the pin can live: the weekly project reset recreates
+  // the projects, and the create-project API does not accept `nodeVersion`.
+  private pinNodeVersion(): void {
+    const packageJsonPath = path.join(this.testDir, 'package.json')
+    const packageJson: {
+      engines?: Record<string, string>
+    } = fs.readJsonSync(packageJsonPath)
+    packageJson.engines = {
+      ...packageJson.engines,
+      // A fixture's own `engines.node` wins so it can deliberately deploy
+      // with a different version.
+      node: packageJson.engines?.node ?? DEPLOY_TEST_NODE_VERSION,
+    }
+    this.writeFixtureConfiguration(
+      packageJsonPath,
+      JSON.stringify(packageJson, null, 2) + '\n'
+    )
   }
 
   private preparePnpmSettings(): void {
@@ -569,6 +598,12 @@ export class NextDeployInstance extends NextInstance {
         ? projectEnv.TURBOPACK_TEST_TOKEN
         : projectEnv.TEST_TOKEN
 
+    // revalidatePath/revalidateTag invalidate at project scope, so CI jobs
+    // that must not share a revalidation scope set VERCEL_TEST_PROJECT to a
+    // dedicated project. Unset keeps the shared default.
+    const TEST_PROJECT_NAME =
+      process.env.VERCEL_TEST_PROJECT?.trim() || projectEnv.TEST_PROJECT_NAME
+
     // If the team name is available in the environment, use it as the scope.
     if (TEST_TEAM_NAME) {
       vercelFlags.push('--scope', TEST_TEAM_NAME)
@@ -611,7 +646,7 @@ export class NextDeployInstance extends NextInstance {
     // link the project
     const linkRes = await execa(
       'vercel',
-      ['link', '-p', projectEnv.TEST_PROJECT_NAME, '--yes', ...vercelFlags],
+      ['link', '-p', TEST_PROJECT_NAME, '--yes', ...vercelFlags],
       {
         cwd: this.testDir,
         env: vercelEnv,
@@ -630,6 +665,19 @@ export class NextDeployInstance extends NextInstance {
 
     for (const key of Object.keys(this.env || {})) {
       additionalEnv.push(`${key}=${this.env[key]}`)
+    }
+
+    // Providers can expose the hostname that routes to this deployment so
+    // fixtures can use it in host-sensitive configuration such as
+    // `i18n.domains`. Vercel fixtures can use the system-provided VERCEL_URL
+    // instead, but forward an explicit generic hostname when one is supplied.
+    if (
+      process.env.NEXT_TEST_DEPLOYMENT_HOST &&
+      this.env?.NEXT_TEST_DEPLOYMENT_HOST === undefined
+    ) {
+      additionalEnv.push(
+        `NEXT_TEST_DEPLOYMENT_HOST=${process.env.NEXT_TEST_DEPLOYMENT_HOST}`
+      )
     }
 
     additionalEnv.push(

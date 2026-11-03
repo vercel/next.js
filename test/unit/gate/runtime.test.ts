@@ -151,6 +151,14 @@ describe('@gate runtime', () => {
   })
 
   describe('lazy conditions', () => {
+    it('reads strict route types from the resolved config', async () => {
+      fixtureWith({ experimental: { strictRouteTypes: true } })
+      await expect(gate('strictRouteTypes')).resolves.toBe(true)
+
+      fixtureWith({ experimental: { strictRouteTypes: false } })
+      await expect(gate('strictRouteTypes')).resolves.toBe(false)
+    })
+
     it('reads the running fixture’s resolved config', async () => {
       const getResolvedConfig = fixtureWith({ cacheComponents: true })
       // cacheComponents is on, so `!cacheComponents` is false: a passing body
@@ -263,6 +271,30 @@ describe('@gate runtime', () => {
   })
 
   describe('@force-gate', () => {
+    it('recognizes prerelease and stable Next.js versions at collection', async () => {
+      const nextPackage = require('next/package.json')
+      const original = nextPackage.version
+      const prerelease = parseGate('prerelease', true)
+      expect(prerelease.needsResolvedConfig).toBe(false)
+
+      try {
+        nextPackage.version = '16.0.0-canary.1'
+        await expect(
+          __testing.decideGates([prerelease])
+        ).resolves.toMatchObject({
+          type: 'run',
+        })
+        nextPackage.version = '16.0.0'
+        await expect(
+          __testing.decideGates([prerelease])
+        ).resolves.toMatchObject({
+          type: 'force-pass',
+        })
+      } finally {
+        nextPackage.version = original
+      }
+    })
+
     it('accepts a lazy condition, classified for runtime resolution', () => {
       const gate = parseGate('!cacheComponents', true)
       expect(gate.force).toBe(true)

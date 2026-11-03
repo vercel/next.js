@@ -529,6 +529,12 @@ export interface ExperimentalConfig {
     string,
     { path: string; ignoreIfMissing?: boolean }
   >
+  /**
+   * Detect pnpm's global virtual store and add it as an additional root. Requires pnpm 11 or later.
+   *
+   * @default false
+   */
+  turbopackDetectGlobalVirtualStore?: boolean
 
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
@@ -810,6 +816,13 @@ export interface ExperimentalConfig {
   gestureTransition?: boolean
 
   /**
+   * Enables `router.experimental_prepare()`, which starts a navigation
+   * without committing it, so its data can be requested ahead of time (e.g.
+   * on `pointerdown`) and the navigation committed later (e.g. on `click`).
+   */
+  prepareNavigation?: boolean
+
+  /**
    * Controls Turbopack's memory eviction strategy for development sessions
    *
    * Only effective in dev sessions where
@@ -886,6 +899,13 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
+   * Minify each module separately instead of each finished chunk, so minification runs in
+   * parallel and is cached per module. The trade-off is slightly worse compression.
+   * Defaults to false. Only applies to production builds.
+   */
+  turbopackMinifyBeforeChunking?: boolean
+
+  /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
    * true. Only applies to production builds; has no effect in development mode.
@@ -937,7 +957,7 @@ export interface ExperimentalConfig {
      */
     requestCost?: number
     /**
-     * Avoid creating more than one chunk smaller than this size, in bytes. Smaller
+     * Avoid creating more than one client-side chunk smaller than this size, in bytes. Smaller
      * chunks are merged into bigger ones to avoid that. Defaults to `50000` (50 KB).
      */
     minChunkSize?: number
@@ -947,8 +967,9 @@ export interface ExperimentalConfig {
      */
     maxChunkCountPerGroup?: number
     /**
-     * Never merge chunks bigger than this size, in bytes, with other chunks. This keeps code
-     * in big chunks from being duplicated across multiple chunks. Defaults to `200000` (200 KB).
+     * Never merge client-side chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `200000`
+     * (200 KB).
      */
     maxMergeChunkSize?: number
     /**
@@ -962,6 +983,18 @@ export interface ExperimentalConfig {
      * single remainder chunk. Defaults to `20000` (20 KB).
      */
     minComponentChunkSize?: number
+    /**
+     * Avoid creating more than one Node.js server chunk smaller than this size, in bytes.
+     * Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB). Doesn't
+     * apply to Edge runtime chunks.
+     */
+    minServerChunkSize?: number
+    /**
+     * Never merge Node.js server chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `100000`
+     * (100 KB). Doesn't apply to Edge runtime chunks.
+     */
+    maxMergeServerChunkSize?: number
   }
 
   /**
@@ -1282,6 +1315,42 @@ export interface ExperimentalConfig {
    * `transitionIndicator`, or `gestureTransition`) requires it.
    */
   blockingSSR?: boolean
+
+  /**
+   * Opts the `app` directory into React's experimental release channel
+   * (`react@experimental`), which ships React's internal
+   * `enableHydrationChangeEvent` feature flag. This lets teams try that flag
+   * before it lands in React's canary channel. The name mirrors React's
+   * underlying feature flag.
+   *
+   * This flag has no effect of its own beyond selecting the experimental
+   * React build.
+   */
+  hydrationChangeEvent?: boolean
+
+  /**
+   * Streams React's instruction set for the `app` directory as data instead of
+   * as inline `<script>` tags. React emits `<template data-rci="" …>` elements,
+   * and a standalone runtime script, served as a static asset from
+   * `/_next/static/chunks`, collects them with a `MutationObserver` and applies
+   * the instructions. This also removes React's inline form-replaying runtime.
+   *
+   * The goal is a document with no inline scripts, so a Content-Security-Policy
+   * can drop `unsafe-inline` without a per-response nonce (which is
+   * incompatible with static generation). Note that this alone is not
+   * sufficient yet: the Flight payload and the bootstrap script are still
+   * inlined.
+   *
+   * This feature is currently only available in React's experimental release
+   * channel, so enabling it opts the `app` directory into `react@experimental`
+   * (the same channel used by `taint`, `transitionIndicator`,
+   * `gestureTransition`, and `blockingSSR`).
+   *
+   * This is an opt-in only. Setting it to `false` does not disable the
+   * experimental channel when another feature (such as `taint`,
+   * `transitionIndicator`, or `gestureTransition`) requires it.
+   */
+  externalBrowserRuntime?: boolean
 
   /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
@@ -2466,6 +2535,8 @@ export const defaultConfig = Object.freeze({
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
     gestureTransition: false,
+    hydrationChangeEvent: false,
+    prepareNavigation: false,
     inlineCss: false,
     useCache: undefined,
     useCacheStaticRootParamTracking: false,
@@ -2603,6 +2674,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
     | 'requestInsights'
+    | 'externalBrowserRuntime'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2676,6 +2748,7 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
+    externalBrowserRuntime: ex.externalBrowserRuntime,
 
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,
