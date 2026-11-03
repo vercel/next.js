@@ -433,16 +433,7 @@ impl StructuredSourceMap {
                 .ok()?
                 .len(),
         };
-        let mut placeholder = String::with_capacity(2 + count * 5);
-        placeholder.push('[');
-        for i in 0..count {
-            if i > 0 {
-                placeholder.push(',');
-            }
-            placeholder.push_str("null");
-        }
-        placeholder.push(']');
-        Some(Rope::from(placeholder))
+        Some(null_contents(count))
     }
 
     /// Splits the map into its head (`version`, `file` and `sources`, the fields that come
@@ -633,7 +624,7 @@ impl StructuredSourceMap {
     fn write_tail_parts(
         &self,
         source_refs: &[Option<ResolvedVc<FileContent>>],
-    ) -> (Option<CellRope>, CellRope) {
+    ) -> (Option<ContentsPart>, CellRope) {
         if let (true, Some(SourcesContentField::Escaped(contents))) =
             (self.has_shareable_contents(), &self.sources_content)
         {
@@ -646,7 +637,17 @@ impl StructuredSourceMap {
             rest += "}";
             let mut rest_builder = CellRopeBuilder::default();
             rest_builder.concat(&rest.build());
-            (Some(contents_builder.build()), rest_builder.build())
+            let contents_part = ContentsPart {
+                rope: contents_builder.build(),
+                entries: contents.len() as u32,
+                // Every entry is either a reference to a file's content or `null`: the part's
+                // inline bytes are only JSON scaffolding (see `SharedMapPart`).
+                reference_only: contents.iter().enumerate().all(|(i, content)| {
+                    source_refs.get(i).copied().flatten().is_some()
+                        || content.to_bytes().as_ref() == b"null"
+                }),
+            };
+            (Some(contents_part), rest_builder.build())
         } else {
             let mut rest = CellRopeBuilder::default();
             let mut first = !self.has_head();
@@ -681,7 +682,7 @@ impl StructuredSourceMap {
         expected_head: &Rope,
         contents: SharedMapPart,
     ) -> Option<SectionMap> {
-        let prefix = self.shared_contents_prefix(expected_head)?;
+        let prefix = self.shared_contents_prefix(expected_head, contents.entries() as usize)?;
         Some(SectionMap::SharedContents {
             prefix,
             contents,
@@ -691,7 +692,10 @@ impl StructuredSourceMap {
 
     /// The opening `{` and head fields of this map, if it can take back the contents of a map
     /// with `expected_head`, see [`StructuredSourceMap::with_shared_contents`].
-    fn shared_contents_prefix(&self, expected_head: &Rope) -> Option<Rope> {
+    ///
+    /// `entries` is the number of entries of those contents: the placeholder the map's input had
+    /// instead has as many `null`s.
+    fn shared_contents_prefix(&self, expected_head: &Rope, entries: usize) -> Option<Rope> {
         if self.source_root.is_some() || !self.has_head() {
             return None;
         }
@@ -699,8 +703,7 @@ impl StructuredSourceMap {
         // `StructuredSourceMap::contents_placeholder`).
         match &self.sources_content {
             None => {}
-            Some(SourcesContentField::Raw(raw))
-                if Some(raw) == self.contents_placeholder().as_ref() => {}
+            Some(SourcesContentField::Raw(raw)) if *raw == null_contents(entries) => {}
             Some(_) => return None,
         }
         let mut prefix = RopeBuilder::default();
@@ -710,6 +713,21 @@ impl StructuredSourceMap {
         let prefix = prefix.build();
         (prefix == *expected_head).then_some(prefix)
     }
+}
+
+/// A `sourcesContent` value with `count` `null` entries: `[null,...]`. Stands in for shared
+/// contents left out of a map, see [`StructuredSourceMap::contents_placeholder`].
+pub(crate) fn null_contents(count: usize) -> Rope {
+    let mut placeholder = String::with_capacity(2 + count * 5);
+    placeholder.push('[');
+    for i in 0..count {
+        if i > 0 {
+            placeholder.push(',');
+        }
+        placeholder.push_str("null");
+    }
+    placeholder.push(']');
+    Rope::from(placeholder)
 }
 
 /// Writes `"sourcesContent":[...]` (without a leading comma) into `builder`, with each entry that
@@ -777,8 +795,24 @@ impl DeterministicHash for StructuredSourceMap {
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 pub struct SplitSourceMap {
     head: StructuredSourceMap,
-    contents: Option<ResolvedVc<CellRope>>,
+    contents: Option<SplitContents>,
     rest: ResolvedVc<CellRope>,
+}
+
+/// The `sourcesContent` part of a [`SplitSourceMap`], with what [`SharedMapPart::read_contents`]
+/// needs to know about it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
+struct SplitContents {
+    cell: ResolvedVc<CellRope>,
+    entries: u32,
+    reference_only: bool,
+}
+
+/// A `sourcesContent` part as [`StructuredSourceMap::write_tail_parts`] writes it.
+struct ContentsPart {
+    rope: CellRope,
+    entries: u32,
+    reference_only: bool,
 }
 
 impl SplitSourceMap {
@@ -804,7 +838,11 @@ impl SplitSourceMap {
         let head = map.head_fields();
         SplitSourceMap {
             head,
-            contents: contents.map(|contents| contents.resolved_cell()),
+            contents: contents.map(|contents| SplitContents {
+                cell: contents.rope.resolved_cell(),
+                entries: contents.entries,
+                reference_only: contents.reference_only,
+            }),
             rest: rest.resolved_cell(),
         }
     }
@@ -817,7 +855,7 @@ impl SplitSourceMap {
     /// The cell holding the serialized `sourcesContent` (preceded by a comma), if it's stored
     /// on its own.
     pub fn contents(&self) -> Option<ResolvedVc<CellRope>> {
-        self.contents
+        self.contents.map(|contents| contents.cell)
     }
 
     /// The cell holding the rest of the serialized tail, after the contents (if stored on their
@@ -831,7 +869,11 @@ impl SplitSourceMap {
     pub async fn to_section_map(&self, head: StructuredSourceMap) -> Result<SectionMap> {
         debug_assert_eq!(head.has_head(), self.head.has_head());
         let contents = match self.contents {
-            Some(contents) => Some(SharedMapPart::read(contents).await?),
+            Some(SplitContents {
+                cell,
+                entries,
+                reference_only,
+            }) => Some(SharedMapPart::read_contents(cell, entries, reference_only).await?),
             None => None,
         };
         Ok(SectionMap::Split {
@@ -1056,8 +1098,9 @@ mod tests {
     fn shared_contents_reuse_condition() -> Result<()> {
         let head = Rope::from(r#"{"version":3,"sources":["a.js","b.js"]"#);
         let map = |json: &str| StructuredSourceMap::from_json(&Rope::from(json.to_string()));
-        let can =
-            |json: &str| -> Result<bool> { Ok(map(json)?.shared_contents_prefix(&head).is_some()) };
+        let can = |json: &str| -> Result<bool> {
+            Ok(map(json)?.shared_contents_prefix(&head, 2).is_some())
+        };
         // Same head; no contents, or the placeholder.
         assert!(can(
             r#"{"version":3,"sources":["a.js","b.js"],"names":[],"mappings":"AAAA"}"#
@@ -1108,7 +1151,9 @@ mod tests {
             assert_eq!(contents.is_some(), source_root.is_empty());
             let mut joined = map.head_fields().head_to_rope().to_bytes().to_vec();
             if let Some(contents) = contents {
-                joined.extend_from_slice(&contents.read().await?.to_bytes());
+                assert_eq!(contents.entries, 1);
+                assert!(!contents.reference_only);
+                joined.extend_from_slice(&contents.rope.read().await?.to_bytes());
             }
             joined.extend_from_slice(&rest.read().await?.to_bytes());
             assert_eq!(joined, map.to_rope().to_bytes().to_vec());

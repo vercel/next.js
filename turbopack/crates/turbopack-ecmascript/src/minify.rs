@@ -46,15 +46,14 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
     let original_map = source_maps.then(|| code.generate_source_map_ref(None));
     let generate_debug_id = code.should_generate_debug_id();
     let source_code = BytesStr::from_utf8(code.into_source_code().into_bytes())?;
-    Ok(minify_source(
+    minify_source(
         source_code,
         original_map,
         generate_debug_id,
         mangle,
         MinifyTarget::Program,
         None,
-    )?
-    .expect("minifying without shared contents always succeeds"))
+    )
 }
 
 /// Minifies a single chunk item: one module factory expression, optionally preceded by the
@@ -70,7 +69,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
 /// [`Code::generate_source_map_ref_without_shared_contents`]), the item is minified without the
 /// contents, which the minifier keeps as they are anyway, and the minified map references that
 /// part instead of copying it. If the minified map's sources turn out not to be the item's (so
-/// the contents wouldn't match them), the item is minified again with the whole map.
+/// the contents wouldn't match them), only the map is generated again, from the whole map.
 #[instrument(level = "info", name = "minify chunk item", skip_all)]
 pub fn minify_chunk_item(
     code: &Code,
@@ -79,29 +78,38 @@ pub fn minify_chunk_item(
 ) -> Result<Code> {
     let generate_debug_id = code.should_generate_debug_id();
     let source_code = BytesStr::from_utf8(code.source_code().clone().into_bytes())?;
-    if source_maps
-        && let Some((map, head, contents)) = code.generate_source_map_ref_without_shared_contents()
-        && let Some(minified) = minify_source(
-            source_code.clone(),
-            Some(map),
-            generate_debug_id,
-            mangle,
-            MinifyTarget::ChunkItem,
-            Some((head, contents)),
-        )?
+    let full_map = || code.generate_source_map_ref(None);
+    let (original_map, shared_contents) = if !source_maps {
+        (None, None)
+    } else if let Some((map, head, contents)) =
+        code.generate_source_map_ref_without_shared_contents()
     {
-        return Ok(minified);
-    }
-    let original_map = source_maps.then(|| code.generate_source_map_ref(None));
-    Ok(minify_source(
+        let shared = SharedContents {
+            head,
+            contents,
+            full_map: &full_map,
+        };
+        (Some(map), Some(shared))
+    } else {
+        (Some(full_map()), None)
+    };
+    minify_source(
         source_code,
         original_map,
         generate_debug_id,
         mangle,
         MinifyTarget::ChunkItem,
-        None,
-    )?
-    .expect("minifying without shared contents always succeeds"))
+        shared_contents,
+    )
+}
+
+/// The `sourcesContent` part a chunk item's map was minified without, see [`minify_source`].
+struct SharedContents<'a> {
+    /// The opening `{` and head fields of the map the contents belong to.
+    head: Rope,
+    contents: SharedMapPart,
+    /// The item's whole map, contents included, in case the minified map can't take them back.
+    full_map: &'a dyn Fn() -> Rope,
 }
 
 /// What [`minify_source`] is minifying. Everything except parsing the input and extracting the
@@ -131,10 +139,10 @@ const CHUNK_ITEM_SENTINEL: &str = "__TURBOPACK_CHUNK_ITEM__";
 
 /// Minifies `source_code`, whose source map is `original_map`.
 ///
-/// With `shared_contents` (the opening `{` and head fields of the map the contents belong to,
-/// and the contents), `original_map` is that map without its contents, and the minified map
-/// takes them back (see [`StructuredSourceMap::with_shared_contents`]). Returns `None` if it
-/// can't: the minified map's sources aren't the contents'.
+/// With `shared_contents`, `original_map` is that map without its contents, and the minified map
+/// takes them back (see [`StructuredSourceMap::with_shared_contents`]). If it can't (the minified
+/// map's sources aren't the contents'), the map is generated again from the whole map. The
+/// minified code and its mappings don't depend on the contents, so only the map is redone.
 ///
 /// [`StructuredSourceMap::with_shared_contents`]:
 ///     turbopack_core::source_map::structured::StructuredSourceMap::with_shared_contents
@@ -144,8 +152,8 @@ fn minify_source(
     generate_debug_id: bool,
     mangle: Option<MangleType>,
     target: MinifyTarget,
-    shared_contents: Option<(Rope, SharedMapPart)>,
-) -> Result<Option<Code>> {
+    shared_contents: Option<SharedContents<'_>>,
+) -> Result<Code> {
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let fm = cm.new_source_file(FileName::Anon.into(), source_code);
 
@@ -260,26 +268,32 @@ fn minify_source(
         src_map_buf,
         strict_directive,
     } = output;
-    // `Ok(None)`: the map can't take the shared contents back, see `minify_source`.
-    let source_map = |src_map_buf: Vec<(BytePos, LineCol)>| -> Result<Option<Option<SectionMap>>> {
+    let source_map = |src_map_buf: Vec<(BytePos, LineCol)>| -> Result<Option<SectionMap>> {
         let Some(original_map) = original_map.as_ref() else {
-            return Ok(Some(None));
+            return Ok(None);
         };
-        let map = generate_js_source_map(
-            &*cm,
-            src_map_buf,
-            Some(original_map),
-            true,
-            // We do not inline source contents.
-            // We provide a synthesized value to `cm.new_source_file` above, so it cannot
-            // be the value user expect anyway.
-            false,
-            source_map_names.clone(),
-        )?;
-        Ok(match &shared_contents {
-            None => Some(Some(map.into())),
-            Some((head, contents)) => map.with_shared_contents(head, contents.clone()).map(Some),
-        })
+        let generate = |src_map_buf, original_map: &Rope| {
+            generate_js_source_map(
+                &*cm,
+                src_map_buf,
+                Some(original_map),
+                true,
+                // We do not inline source contents.
+                // We provide a synthesized value to `cm.new_source_file` above, so it cannot
+                // be the value user expect anyway.
+                false,
+                source_map_names.clone(),
+            )
+        };
+        let Some(shared) = &shared_contents else {
+            return Ok(Some(generate(src_map_buf, original_map)?.into()));
+        };
+        let retry_buf = src_map_buf.clone();
+        let map = generate(src_map_buf, original_map)?;
+        if let Some(map) = map.with_shared_contents(&shared.head, shared.contents.clone()) {
+            return Ok(Some(map));
+        }
+        Ok(Some(generate(retry_buf, &(shared.full_map)())?.into()))
     };
 
     let mut builder = CodeBuilder::new(original_map.is_some(), generate_debug_id);
@@ -287,28 +301,20 @@ fn minify_source(
         builder.push_source(&format!("{prefix},").into(), None::<Rope>);
     }
     match strict_directive {
-        None => {
-            let Some(map) = source_map(src_map_buf)? else {
-                return Ok(None);
-            };
-            builder.push_source(&src.into(), map)
-        }
+        None => builder.push_source(&src.into(), source_map(src_map_buf)?),
         Some(directive) => {
             // The directive becomes its own unmapped section, so that a chunk can remove it
             // without rewriting any source map. The code in front of it is the factory's
             // synthetic head (`function(e){` or `e=>{`, unmapped in the unminified factory as
             // well), so it is emitted unmapped too. The mappings of the body move into a section
             // starting right after the directive.
-            let body_map = mappings_after(&src, src_map_buf, directive.end);
-            let Some(body_map) = source_map(body_map)? else {
-                return Ok(None);
-            };
+            let body_map = source_map(mappings_after(&src, src_map_buf, directive.end))?;
             builder.push_source(&src[..directive.start].to_string().into(), None::<Rope>);
             builder.push_strict_directive();
             builder.push_source(&src[directive.end..].to_string().into(), body_map);
         }
     }
-    Ok(Some(builder.build()))
+    Ok(builder.build())
 }
 
 struct MinifiedOutput {
@@ -535,6 +541,7 @@ fn print(
 #[cfg(test)]
 mod tests {
     use swc_sourcemap::{DecodedMap, SourceMapBuilder};
+    use turbo_rcstr::RcStr;
     use turbo_tasks::Vc;
     use turbopack_core::{
         chunk::MangleType,
@@ -812,15 +819,58 @@ mod tests {
 
     /// Minifies the same factory with a split and an inline map.
     #[turbo_tasks::function(operation, root)]
-    async fn minified_pair_operation(maps: usize) -> Result<Vc<MinifiedPair>> {
-        let body = "const value = \"a \\\"quoted\\\" 😀\";\nctx.v(value);";
+    async fn minified_pair_operation(maps: usize, body: RcStr) -> Result<Vc<MinifiedPair>> {
         let split = minify_chunk_item(
-            &factory_with_maps(body, maps, true).await?,
+            &factory_with_maps(&body, maps, true).await?,
             true,
             Some(MangleType::Deterministic),
         )?;
         let inline = minify_chunk_item(
-            &factory_with_maps(body, maps, false).await?,
+            &factory_with_maps(&body, maps, false).await?,
+            true,
+            Some(MangleType::Deterministic),
+        )?;
+        let text = |code: &Code| code.source_code().to_str().unwrap().into_owned();
+        let map = |code: &Code| {
+            code.generate_source_map_ref(None)
+                .to_str()
+                .unwrap()
+                .into_owned()
+        };
+        Ok(MinifiedPair {
+            shared: split
+                .generate_source_map_ref_without_shared_contents()
+                .is_some(),
+            code: (text(&split), text(&inline)),
+            map: (map(&split), map(&inline)),
+        }
+        .cell())
+    }
+
+    /// Minifies a factory with a split map as if its minified map couldn't take the contents
+    /// back (a head that doesn't match the minified map's), and the same factory with an inline
+    /// map: the fallback generates the map again from the whole map, so both are the same.
+    #[turbo_tasks::function(operation, root)]
+    async fn fallback_pair_operation(body: RcStr) -> Result<Vc<MinifiedPair>> {
+        let split_code = factory_with_maps(&body, 1, true).await?;
+        let (map, _, contents) = split_code
+            .generate_source_map_ref_without_shared_contents()
+            .context("the map stores its contents as a part")?;
+        let full_map = || split_code.generate_source_map_ref(None);
+        let split = minify_source(
+            BytesStr::from_utf8(split_code.source_code().clone().into_bytes())?,
+            Some(map),
+            split_code.should_generate_debug_id(),
+            Some(MangleType::Deterministic),
+            MinifyTarget::ChunkItem,
+            Some(SharedContents {
+                head: Rope::from(r#"{"version":3,"sources":["other.js"]"#),
+                contents,
+                full_map: &full_map,
+            }),
+        )?;
+        let inline = minify_chunk_item(
+            &factory_with_maps(&body, 1, false).await?,
             true,
             Some(MangleType::Deterministic),
         )?;
@@ -851,8 +901,9 @@ mod tests {
             turbo_tasks_backend::noop_backing_storage(),
         ))
         .run_once(async {
+            let body = "const value = \"a \\\"quoted\\\" 😀\";\nctx.v(value);";
             for (maps, shared) in [(1, true), (2, false)] {
-                let pair = minified_pair_operation(maps)
+                let pair = minified_pair_operation(maps, body.into())
                     .read_strongly_consistent()
                     .await?;
                 assert_eq!(pair.code.0, pair.code.1);
@@ -860,6 +911,12 @@ mod tests {
                 assert!(pair.map.0.contains("sourcesContent"), "{}", pair.map.0);
                 assert_eq!(pair.shared, shared, "{maps} maps: {}", pair.map.0);
             }
+            let fallback = fallback_pair_operation(body.into())
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(fallback.code.0, fallback.code.1);
+            assert_eq!(fallback.map.0, fallback.map.1);
+            assert!(!fallback.shared, "{}", fallback.map.0);
             anyhow::Ok(())
         })
         .await
