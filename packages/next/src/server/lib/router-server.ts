@@ -56,6 +56,8 @@ import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch-symbol'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
+import { NodeNextRequest, NodeNextResponse } from '../base-http/node'
+import { logRequests } from '../dev/log-requests'
 import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
 import { traceGlobals } from '../../trace/shared'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
@@ -357,6 +359,7 @@ export async function initialize(opts: {
     require('./render-server') as typeof import('./render-server')
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    const requestStart = development ? process.hrtime.bigint() : undefined
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
     const assetPrefix = getAssetPrefix()
 
@@ -665,7 +668,31 @@ export async function initialize(opts: {
         if (statusCode === RedirectStatusCode.PermanentRedirect) {
           res.setHeader('Refresh', `0;url=${destination}`)
         }
-        return res.end(destination)
+        res.end(destination)
+
+        // Redirects finish here without invoking the render server's logger.
+        if (
+          development &&
+          development.config.logging !== false &&
+          requestStart !== undefined
+        ) {
+          try {
+            logRequests(
+              new NodeNextRequest(req),
+              new NodeNextResponse(res),
+              development.config.logging,
+              requestStart,
+              process.hrtime.bigint(),
+              getRequestMeta(req, 'devRequestTimingMiddlewareStart'),
+              getRequestMeta(req, 'devRequestTimingMiddlewareEnd'),
+              undefined, // No render-internals end for redirects.
+              undefined // No generate-params duration for redirects.
+            )
+          } catch (err) {
+            Log.error('Failed to log redirect request:', err)
+          }
+        }
+        return
       }
 
       // handle middleware body response
