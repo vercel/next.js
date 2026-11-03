@@ -104,6 +104,7 @@
   },
   "dependencies": {
     "@next/env": "workspace:*",
+    "@next/safe-image-optimization": "0.0.2",
     "@swc/helpers": "0.5.24",
     "baseline-browser-mapping": "^2.9.19",
     "caniuse-lite": "^1.0.30001579",
