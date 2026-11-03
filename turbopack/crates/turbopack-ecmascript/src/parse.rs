@@ -164,6 +164,13 @@ pub enum ParseResult {
         /// error.
         #[turbo_tasks(debug_ignore)]
         program_source: Rope,
+        /// The file content cell `program_source` was read from, if it is still that cell's
+        /// current content: the module's source map can reference it instead of embedding an
+        /// escaped copy of the source text (see
+        /// [`turbopack_core::source_map::structured::SplitSourceMap::new_with_source_contents`]).
+        /// `None` when the source was parsed from other bytes (e.g. the last successful source in
+        /// `failsafe_parse`).
+        source_content: Option<ResolvedVc<FileContent>>,
     },
     Unparsable {
         messages: Option<Vec<RcStr>>,
@@ -178,7 +185,6 @@ pub enum ParseResult {
 ///
 /// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
 /// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
-#[instrument(level = "info", name = "generate source map", skip_all)]
 pub fn generate_js_source_map<'a>(
     files_map: &impl Files,
     mappings: Vec<(BytePos, LineCol)>,
@@ -187,6 +193,32 @@ pub fn generate_js_source_map<'a>(
     inline_sources_content: bool,
     names: FxHashMap<BytePos, Atom>,
 ) -> Result<StructuredSourceMap> {
+    Ok(generate_js_source_map_with_sources(
+        files_map,
+        mappings,
+        original_source_maps,
+        original_source_maps_complete,
+        inline_sources_content,
+        names,
+        &[],
+    )?
+    .0)
+}
+
+/// Like [`generate_js_source_map`], but also returns, for each `sourcesContent` entry, the file in
+/// `sources` holding exactly that entry's text, see
+/// [`StructuredSourceMap::from_swc_map_with_sources`]. `sources` are the parsed sources' texts
+/// with the file content cells they were read from.
+#[instrument(level = "info", name = "generate source map", skip_all)]
+pub fn generate_js_source_map_with_sources<'a>(
+    files_map: &impl Files,
+    mappings: Vec<(BytePos, LineCol)>,
+    original_source_maps: impl IntoIterator<Item = &'a Rope>,
+    original_source_maps_complete: bool,
+    inline_sources_content: bool,
+    names: FxHashMap<BytePos, Atom>,
+    sources: &[(Rope, ResolvedVc<FileContent>)],
+) -> Result<(StructuredSourceMap, Vec<Option<ResolvedVc<FileContent>>>)> {
     let original_source_maps = original_source_maps
         .into_iter()
         .map(|map| map.to_bytes())
@@ -219,7 +251,7 @@ pub fn generate_js_source_map<'a>(
         // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
         // need to adjust mappings
         add_default_ignore_list(&mut new_mappings);
-        StructuredSourceMap::from_swc_map(new_mappings)
+        StructuredSourceMap::from_swc_map_with_sources(new_mappings, sources)
     } else if fast_path_single_original_source_map {
         let mut map = original_source_maps.into_iter().next().unwrap();
         // TODO: Make this more efficient
@@ -229,14 +261,18 @@ pub fn generate_js_source_map<'a>(
         // add_default_ignore_list(&mut map);
         let map = map.into_raw_sourcemap();
         // The fallback covers raw maps with fields the structured form does not know.
-        StructuredSourceMap::from_serialize(&map)
-            .or_else(|_| StructuredSourceMap::from_json_slice(&serde_json::to_vec(&map)?))
+        // The original map's contents are kept as they are (not the parsed source's text).
+        Ok((
+            StructuredSourceMap::from_serialize(&map)
+                .or_else(|_| StructuredSourceMap::from_json_slice(&serde_json::to_vec(&map)?))?,
+            Vec::new(),
+        ))
     } else {
         let mut map = new_mappings.adjust_mappings_from_multiple(original_source_maps);
 
         add_default_ignore_list(&mut map);
 
-        StructuredSourceMap::from_swc_map(map)
+        StructuredSourceMap::from_swc_map_with_sources(map, sources)
     }
 }
 
@@ -342,12 +378,13 @@ async fn parse_internal(
         }
     };
     Ok(match &*content {
-        AssetContent::File(file) => match &*file.await? {
+        AssetContent::File(file_cell) => match &*file_cell.await? {
             FileContent::NotFound => ParseResult::NotFound.cell(),
             FileContent::Content(file) => {
                 let transforms = &*transforms.await?;
                 match parse_file_content(
                     file.content().clone(),
+                    Some(*file_cell),
                     fs_path,
                     ident,
                     source_ident.query.clone(),
@@ -378,6 +415,7 @@ async fn parse_internal(
 
 async fn parse_file_content(
     program_source: Rope,
+    source_content: Option<ResolvedVc<FileContent>>,
     fs_path: &FileSystemPath,
     ident: &str,
     query: RcStr,
@@ -624,6 +662,7 @@ async fn parse_file_content(
                 source_map,
                 source_mapping_url: source_mapping_url.map(|s| s.into()),
                 program_source,
+                source_content,
             })
         },
         |f, cx| GLOBALS.set(globals_ref, || HANDLER.set(&handler, || f.poll(cx))),
@@ -775,6 +814,7 @@ pub async fn parse_from_rope(
     let transforms = &*transforms.await?;
     parse_file_content(
         rope,
+        None,
         &ident_ref.path,
         ident,
         query,
