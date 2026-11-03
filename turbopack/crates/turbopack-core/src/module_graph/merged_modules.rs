@@ -41,6 +41,7 @@ pub struct MergedModuleGroups(
 #[turbo_tasks::value(transparent)]
 pub struct OptionMergedModuleGroups(pub Option<ResolvedVc<MergedModuleGroups>>);
 
+/// Source modules sharing one scope-hoisted factory and its original entry identity.
 #[turbo_tasks::value]
 pub struct MergedModuleGroup {
     pub modules: ResolvedVc<MergeableModulesExposed>,
@@ -50,8 +51,6 @@ pub struct MergedModuleGroup {
 
 #[turbo_tasks::value_impl]
 impl MergedModuleGroup {
-    // Give each group its own task boundary: rebuilding the global analysis must not change
-    // an unchanged group's identity just because another group was added or reordered.
     #[turbo_tasks::function]
     pub fn new(
         modules: ResolvedVc<MergeableModulesExposed>,

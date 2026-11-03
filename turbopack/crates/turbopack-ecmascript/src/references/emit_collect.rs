@@ -268,14 +268,10 @@ impl CollectReferenceCodeGen {
         // just `getList` again.
         let export =
             match ReferencedAsset::from_resolve_result(self.reference.resolve_reference()).await? {
-                ReferencedAsset::Some(module) => {
-                    // Collect modules are synthetic, non-mergeable modules; PatternMapping above
-                    // already addresses their own namespace.
-                    export_info(*module, chunking_context)
-                        .await?
-                        .export_name(&COLLECT_LIST_EXPORT)
-                        .clone()
-                }
+                ReferencedAsset::Some(module) => export_info(*module, chunking_context)
+                    .await?
+                    .export_name(&COLLECT_LIST_EXPORT)
+                    .clone(),
                 _ => COLLECT_LIST_EXPORT,
             };
 
