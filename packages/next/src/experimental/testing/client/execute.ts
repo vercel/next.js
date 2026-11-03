@@ -348,16 +348,25 @@ export async function executeClient(
         const actionPage = page
         const actionFrame = testFrame ?? actionPage
         if (commandTarget.kind === 'viewport') {
+          const chromiumMainFrame =
+            engine === 'chromium' &&
+            !options.testFrame &&
+            !testFrame &&
+            actionFrame === actionPage
+          const firefoxOwnedFrame =
+            engine === 'firefox' &&
+            options.testFrame === true &&
+            testFrame !== undefined &&
+            frameOwner?.engine === 'firefox' &&
+            actionFrame === testFrame
           if (
-            engine !== 'chromium' ||
-            options.testFrame ||
-            testFrame ||
             options.userCancelSignal ||
-            actionFrame !== actionPage
+            (!chromiumMainFrame && !firefoxOwnedFrame)
           )
             throw new Error(
-              'Browser viewport commands require a Chromium main-frame one-shot session.'
+              'Browser viewport commands require a Chromium main frame or owned Firefox frame in a one-shot session.'
             )
+          if (firefoxOwnedFrame) frameOwner!.assertCurrent()
           await runAction(() =>
             actionPage.setViewportSize({
               width: command.args[0] as number,
