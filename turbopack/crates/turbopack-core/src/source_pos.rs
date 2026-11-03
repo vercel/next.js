@@ -1,6 +1,7 @@
 use bincode::{Decode, Encode};
 use memchr::memchr3_iter;
 use serde::Serialize;
+use simd_utf16_len::utf16_len_bytes;
 use turbo_tasks_hash::DeterministicHash;
 
 #[turbo_tasks::task_input]
@@ -87,8 +88,8 @@ impl SourcePos {
             }
         }
         match line_start {
-            Some(start) => self.column = simd_utf16_len::utf16_len_bytes(&code[start..]) as u32,
-            None => self.column += simd_utf16_len::utf16_len_bytes(code) as u32,
+            Some(start) => self.column = utf16_len_bytes(&code[start..]) as u32,
+            None => self.column += utf16_len_bytes(code) as u32,
         }
     }
 }
