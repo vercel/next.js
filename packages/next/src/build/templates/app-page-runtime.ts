@@ -1320,10 +1320,11 @@ export function createAppPageEntrypoint({
             pageIsDynamic &&
             (isProduction || !isPrerendered)
           ) {
-            // Serve the fallback for document and static RSC requests. Dynamic
-            // RSC requests render separately and can reuse the RDC from cached
-            // postponed state.
-            if (isRoutePPREnabled && !isDynamicRSCRequest) {
+            // Serve the fallback for document and prefetch requests. A static
+            // navigation is never resumed, so it blocks on a concrete prerender
+            // instead. Dynamic RSC requests render separately and can reuse the
+            // RDC from cached postponed state.
+            if (isRoutePPREnabled && (!isRSCRequest || isPrefetchRSCRequest)) {
               const cacheKey =
                 isProduction && typeof prerenderInfo?.fallback === 'string'
                   ? prerenderInfo.fallback
