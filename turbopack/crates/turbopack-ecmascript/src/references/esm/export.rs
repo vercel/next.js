@@ -654,9 +654,8 @@ async fn compact_reference_target(
     let referenced_asset =
         ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?;
     let Some(ReferencedAssetIdent::Module {
-        namespace_ident,
         ctxt,
-        import_source: ImportSource::Module { asset },
+        import_source: import_source @ ImportSource::Module { asset, .. },
         ..
     }) = referenced_asset
         .get_ident(chunking_context, None, scope_hoisting_context)
@@ -664,7 +663,10 @@ async fn compact_reference_target(
     else {
         return Ok(None);
     };
-    Ok(Some(((namespace_ident, ctxt), asset)))
+    Ok(Some((
+        (import_source.namespace_ident().into_owned(), ctxt),
+        asset,
+    )))
 }
 
 /// Collects the exports into one group per source module, or returns `None` if any export does not
@@ -774,10 +776,9 @@ async fn build_compact_reexports(
         let referenced_asset =
             ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
         let Some(ReferencedAssetIdent::Module {
-            namespace_ident,
             ctxt,
             export: Some(imported_key),
-            import_source: ImportSource::Module { asset },
+            import_source: import_source @ ImportSource::Module { asset, .. },
         }) = referenced_asset
             .get_ident(
                 chunking_context,
@@ -790,6 +791,7 @@ async fn build_compact_reexports(
             // these are a property read off an imported namespace.
             return Ok(None);
         };
+        let namespace_ident = import_source.namespace_ident().into_owned();
 
         let exported_key = mangled_names
             .and_then(|names| names.get(exported))
@@ -1035,7 +1037,7 @@ impl EsmExports {
 
             for dynamic_export_asset in &expanded.dynamic_exports {
                 let ident = ReferencedAsset::get_ident_from_placeable(
-                    dynamic_export_asset,
+                    **dynamic_export_asset,
                     chunking_context,
                 )
                 .await?;
