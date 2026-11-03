@@ -486,6 +486,13 @@ function assignDefaultsAndValidate(
     },
   }
 
+  // Copy so a push in `modifyConfig` can't change the shared default or a
+  // cached user config.
+  result.instrumentationInject = [...(result.instrumentationInject ?? [])]
+  result.instrumentationClientInject = [
+    ...(result.instrumentationClientInject ?? []),
+  ]
+
   result.experimental.strictRouteMatching =
     !result.deprecated.looseRouteMatching
 
@@ -494,6 +501,14 @@ function assignDefaultsAndValidate(
   // therefore also restore the legacy matcher behavior.
   if (!result.experimental.explicitParallelRouteChildren) {
     result.experimental.strictRouteMatching = false
+  }
+
+  if (result.experimental.goRoutes) {
+    if (result.output) {
+      throw new Error(
+        'experimental.goRoutes does not support standalone or static export output'
+      )
+    }
   }
 
   // Normalize prefetchInlining: true | { maxSize?, maxBundleSize? } into a

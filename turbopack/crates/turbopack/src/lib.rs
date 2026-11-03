@@ -1017,11 +1017,6 @@ impl AssetContext for ModuleAssetContext {
         let this = self.await?;
 
         let replace_externals = this.replace_externals;
-        let import_externals = this
-            .module_options_context
-            .await?
-            .ecmascript
-            .import_externals;
 
         let result = result.await?;
 
@@ -1105,6 +1100,12 @@ impl AssetContext for ModuleAssetContext {
                                     CachedExternalTracingMode::Untraced
                                 };
 
+                                // Only read here, so other resolve results don't depend on it.
+                                let import_externals = self
+                                    .module_options_context()
+                                    .await?
+                                    .ecmascript
+                                    .import_externals;
                                 replace_external(&name, ty, target, import_externals, analyze_mode)
                                     .await?
                             } else {
