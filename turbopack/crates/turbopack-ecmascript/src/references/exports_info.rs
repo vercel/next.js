@@ -61,22 +61,22 @@ impl ExportsInfoBinding {
                     let is_used = export_usage_info.is_export_used(e);
                     let used: Expr = is_used.into();
                     // `canMangle` is true exactly when this export is a genuine candidate for
-                    // mangling: the module has to be eligible at all (which is what a `Some` map
-                    // means — see `export_info`) and the export itself has to be used, as
+                    // mangling: the module has to be eligible (see `ExportInfo::can_mangle_names`)
+                    // and the export itself has to be used, as
                     // an unused export is never emitted and so was never a candidate.
                     // `mangledName` is then always a string — the assigned key when mangling
                     // actually renamed it, or the export's own name when it was considered but
                     // kept itself (e.g. already short enough) — and only `null` when `canMangle`
                     // is false.
-                    let can_mangle_names = info.mangled_names().filter(|_| is_used);
-                    let can_mangle_expr: Expr = can_mangle_names.is_some().into();
-                    let mangled_name: Expr =
-                        match can_mangle_names {
-                            Some(names) => Expr::Lit(names.get(e).unwrap_or(e).as_str().into()),
-                            None => Expr::Lit(swc_core::ecma::ast::Lit::Null(
-                                swc_core::ecma::ast::Null { span: DUMMY_SP },
-                            )),
-                        };
+                    let can_mangle_names = info.can_mangle_names() && is_used;
+                    let can_mangle_expr: Expr = can_mangle_names.into();
+                    let mangled_name: Expr = if can_mangle_names {
+                        Expr::Lit(info.export_name(e).as_str().into())
+                    } else {
+                        Expr::Lit(swc_core::ecma::ast::Lit::Null(swc_core::ecma::ast::Null {
+                            span: DUMMY_SP,
+                        }))
+                    };
                     PropOrSpread::Prop(Box::new(swc_core::ecma::ast::Prop::KeyValue(
                         KeyValueProp {
                             key: PropName::Str(e.as_str().into()),

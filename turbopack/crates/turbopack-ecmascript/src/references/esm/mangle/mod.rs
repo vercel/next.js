@@ -8,13 +8,21 @@
 //! shared scope, with distinct keys for each `(module, export)` binding. Other members keep their
 //! own source-module namespaces.
 //!
-//! [`export_info`] resolves the namespace target and export names together. Producers, consumers
-//! and export metadata all use the same per-source-module decision, whether the module shares a
-//! flat table, mangles independently, or keeps its original namespace and names.
+//! [`export_info`] is the single source of truth for the namespace target and export names. Both
+//! the producer ([`super::export::EsmExports::code_generation`]) and the consumer
+//! ([`super::base::ReferencedAsset`]) ask it about the module that produces the binding, so they
+//! cannot disagree. Export metadata uses the same per-source-module decision, whether the module
+//! shares a flat table, mangles independently, or keeps its original namespace and names. Callers
+//! looking up an output key do not need to branch on eligibility: [`ExportInfo::export_name`] falls
+//! back to the original name when there is no mapping.
 //!
-//! Code generation that spells an export access out **as a string** must use both
-//! [`ExportInfo::namespace`] and [`ExportInfo::export_name`] from that result.
-//! `ReferencedAssetIdent` handles this automatically for generated ESM imports.
+//! **Every** piece of code generation that materializes an export access **as a string** must use
+//! both [`ExportInfo::namespace`] and [`ExportInfo::export_name`] from that result. This includes
+//! generated source text (`__turbopack_require__(id)["default"](…)` and friends) and AST built by
+//! hand. A hard-coded `["someExport"]` silently misses once the target's exports are mangled, and
+//! using the original module ID can address the wrong namespace when exports share a flat table.
+//! `ReferencedAssetIdent` handles this automatically for generated ESM imports. For a re-export,
+//! resolve to the module that actually produces the binding before calling [`export_info`].
 
 mod table;
 
@@ -35,9 +43,19 @@ use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 #[turbo_tasks::value]
 pub struct ExportInfo {
     namespace: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    /// `None` means ineligible for mangling; `Some` also includes eligible but unchanged names.
-    /// Standalone maps omit unchanged keys, while flat tables can explicitly map names to
-    /// themselves.
+    /// Original export name -> the key actually used in the output.
+    ///
+    /// `None` means the module is ineligible for mangling and keeps every original name (see
+    /// [`export_info`] for the conditions). `Some` means eligible, not necessarily renamed:
+    /// standalone maps contain only names that actually changed, omitting names that kept
+    /// themselves (for example, because they were already short enough). Flat tables explicitly
+    /// cover every export and can map a name to itself, since their computation keys include
+    /// source-module identity. A missing key always means "use the original name".
+    ///
+    /// Callers that only need the output key use [`Self::export_name`] without checking
+    /// eligibility. The `canMangle` reporting in [`crate::references::exports_info`] instead
+    /// needs to distinguish "ineligible" from "eligible but unchanged", which is what
+    /// [`Self::can_mangle_names`] exposes.
     names: Option<FrozenMap<RcStr, RcStr>>,
     flat: bool,
 }
@@ -63,9 +81,10 @@ impl ExportInfo {
             .unwrap_or(name)
     }
 
-    /// Distinguishes ineligible modules from eligible modules whose names happen to be unchanged.
-    pub fn mangled_names(&self) -> Option<&FrozenMap<RcStr, RcStr>> {
-        self.names.as_ref()
+    /// Whether the module's export names are eligible for mangling, even if none actually changed.
+    /// An individual export must also be used to be a candidate; unused exports are not emitted.
+    pub fn can_mangle_names(&self) -> bool {
+        self.names.is_some()
     }
 
     pub fn is_flat(&self) -> bool {
@@ -126,9 +145,13 @@ pub(crate) async fn compute_export_names(
     let mut exports_to_name = Vec::new();
     let mut eligible_modules = Vec::new();
     for (index, module) in modules {
+        // Non-static export shapes need their existing runtime representation without
+        // excluding eligible peers from the shared table.
         let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
             continue;
         };
+        // Disabled for the module that owns these exports, independently of minification:
+        // mangling and minification are separate concerns, and callers may want either alone.
         // An observable namespace needs original names and a distinct object, not the
         // shared table. Its peers can still flatten independently.
         if !exports.await?.mangle_export_names {
@@ -150,14 +173,16 @@ pub(crate) async fn compute_export_names(
             continue;
         }
         let expanded = exports.expand_exports(*usage.export_usage).await?;
-        // Runtime re-exports discover their names dynamically, so we cannot compute collision-free
-        // keys for them or rewrite every access to the shared table ahead of time.
+        // Runtime re-exports such as `export * from "./some-dynamic-cjs"` discover names
+        // dynamically and access properties by their original names. We cannot compute
+        // collision-free keys or rewrite every access to the shared table ahead of time.
         if !expanded.dynamic_exports.is_empty() || (!flat && expanded.exports.is_empty()) {
             continue;
         }
         // Preserve even a flat member with no used exports, since imports must still target
         // the shared factory and agree with its empty registration. Standalone modules with
-        // nothing to rename keep their unmangled representation.
+        // no used exports, or whose used set resolves to no actual exports, have nothing to
+        // rename and keep their unmangled representation.
         eligible_modules.push(module);
         for name in expanded.exports.keys() {
             let key = if flat {
@@ -176,9 +201,15 @@ pub(crate) async fn compute_export_names(
     else {
         return Ok(Vc::cell(None));
     };
-    // Every emitted export participates, including `default` and `__esModule`: these are
-    // ordinary names for static ESM exports. CommonJS and dynamic re-exports keep their
-    // original names via the checks above. Reserved output keys are excluded by `table`.
+    // Every emitted export participates, including `default` and `__esModule`.
+    //
+    // Neither is a runtime contract *as an export name*. The runtime paths that look `default` up
+    // by name — CommonJS interop in `esmNamespaceObject` and the proxy traps in
+    // `ensureDynamicExports` — only apply to CommonJS targets and modules with dynamic
+    // re-exports, which keep their original names via the checks above. `__esModule` signals
+    // CommonJS interop to ESM, so an ESM module exporting it is just using an ordinary export
+    // name. However, `__esModule` cannot be assigned as an output key to another export because
+    // the runtime defines that property itself; see `RESERVED_KEYS` in `table`.
     let computed_names = shorten_to_unique_names(exports_to_name.iter().map(|(_, _, key)| key));
     let mut names = eligible_modules
         .into_iter()
@@ -210,6 +241,8 @@ pub(crate) async fn compute_export_names(
 
 /// Resolves the namespace target, output keys and registration mode of `module` together.
 /// For a re-export, pass the source module that actually produces the binding.
+/// Scope-hoisting membership comes from the analysis already stored on the chunking context,
+/// read through a keyed lookup for this module rather than depending on the entire groups map.
 ///
 /// Both the producing and the consuming side call this for the same `module`, which is what
 /// guarantees they agree. The mapping covers the module's *used* exports: unused exports are not
@@ -231,8 +264,8 @@ pub(crate) async fn compute_export_names(
 /// 4. its exports are not statically known ECMAScript exports, or contain dynamic re-exports.
 ///
 /// None of these depend on the individual export, so "is `e` a candidate for mangling" is exactly
-/// "is `mangled_names()` `Some`, and is `e` used" — the per-name step (hashing into a short
-/// identifier) never itself excludes a name.
+/// "does [`ExportInfo::can_mangle_names`] return true, and is `e` used" — the per-name step
+/// (hashing into a short identifier and resolving collisions) never itself excludes a name.
 #[turbo_tasks::function]
 pub async fn export_info(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
