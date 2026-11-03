@@ -37,6 +37,7 @@ import type {
   CaseResult,
 } from 'next/dist/experimental/testing/reporting/events'
 import type { TestEntry } from 'next/dist/experimental/testing/contracts'
+import type { Suite } from 'next/dist/experimental/testing/runner/tasks'
 
 const entry: TestEntry = {
   id: 'node:example',
@@ -4472,8 +4473,8 @@ it('retains actual collected hierarchy and live task identities before following
   })
   c.api.afterAll(
     // eslint-disable-next-line no-empty-pattern -- Suite hooks require the fixture context before their Suite.
-    ({}, task: import('next/dist/experimental/testing/runner/tasks').Suite) => {
-      Object.assign(task.meta, { fileFinished: true })
+    ({}, task?: Suite) => {
+      Object.assign(task!.meta, { fileFinished: true })
     }
   )
   await c.settle()
