@@ -1360,47 +1360,38 @@ impl EcmascriptModuleContent {
             // regards to minify_type and chunking_context.
             let options = module_options.last().unwrap().await?;
             let first_entry = entry_points.first().unwrap().0;
-            let flat_group = if let Some(groups) =
-                *options.chunking_context.merged_modules().await?
-                && let Some(group) = groups
-                    .get(&ResolvedVc::upcast(first_entry))
-                    .await?
-                    .as_deref()
-            {
-                if let Some(flat_group) = *references::esm::mangle::compute_export_names(
-                    references::esm::mangle::ExportNamesScope::Group(*group),
-                    *options.chunking_context,
-                )
-                .await?
-                {
-                    Some(flat_group.await?)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-            let additional_ids: SmallVec<[ModuleId; 1]> = modules
-                .keys()
+            let export_infos = modules
+                .iter()
+                .filter(|(_, exposure)| **exposure == MergeableModuleExposure::External)
+                .map(async |(module, _)| {
+                    Ok((
+                        *module,
+                        references::esm::mangle::export_info(**module, *options.chunking_context)
+                            .await?,
+                    ))
+                })
+                .try_join()
+                .await?;
+            let flat_namespace = export_infos
+                .iter()
+                .find_map(|(_, info)| info.is_flat().then(|| info.namespace()));
+            let additional_ids: SmallVec<[ModuleId; 1]> = export_infos
+                .iter()
                 // Flat members share one namespace ID. Only its target and independently
                 // exposed namespaces need aliases for imports that instantiate this factory.
-                .filter(|m| {
-                    **m != first_entry
-                        && *modules.get(*m).unwrap() == MergeableModuleExposure::External
-                        && flat_group
-                            .as_ref()
-                            .is_none_or(|group| **m == group.entry || !group.names.contains_key(*m))
+                .filter(|(m, info)| {
+                    *m != first_entry && (!info.is_flat() || *m == info.namespace())
                 })
-                .map(|m| m.chunk_item_id(*options.chunking_context))
+                .map(|(m, _)| m.chunk_item_id(*options.chunking_context))
                 .try_join()
                 .await?
                 .into();
             // With multiple factory registrations, the caller may use any alias. Target the
             // flat namespace explicitly rather than whichever alias instantiated the factory.
-            let flat_export_id = if let Some(group) = &flat_group
+            let flat_export_id = if let Some(namespace) = flat_namespace
                 && !additional_ids.is_empty()
             {
-                Some(group.entry.chunk_item_id(*options.chunking_context).await?)
+                Some(namespace.chunk_item_id(*options.chunking_context).await?)
             } else {
                 None
             };
@@ -1409,7 +1400,7 @@ impl EcmascriptModuleContent {
                     contents,
                     &entry_points,
                     &globals_merged,
-                    flat_group.is_some(),
+                    flat_namespace.is_some(),
                     flat_export_id.as_ref(),
                 )
                 .await?;

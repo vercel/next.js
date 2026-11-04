@@ -42,6 +42,8 @@ use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 /// The namespace and names used to register and read a source module's exports.
 #[turbo_tasks::value]
 pub struct ExportInfo {
+    /// Module whose namespace holds these exports: the shared target for flat members,
+    /// otherwise the source module itself.
     namespace: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// Original export name -> the key actually used in the output.
     ///
@@ -69,6 +71,8 @@ impl ExportInfo {
         }
     }
 
+    /// The module whose namespace is used to register and read these exports.
+    /// Eligible scope-hoisted members share a target; other modules use their own namespace.
     pub fn namespace(&self) -> ResolvedVc<Box<dyn EcmascriptChunkPlaceable>> {
         self.namespace
     }
@@ -96,28 +100,28 @@ impl ExportInfo {
 /// index, so two source modules exporting the same name still get distinct output properties.
 #[turbo_tasks::task_input]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Encode, Decode)]
-pub(crate) enum ExportNamesScope {
+enum ExportNamesScope {
     Single(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
     Group(ResolvedVc<MergedModuleGroup>),
 }
 
 /// Computed export names and the source-module identity used for their namespace.
 #[turbo_tasks::value]
-pub(crate) struct ComputedExportNames {
+struct ComputedExportNames {
     /// The source-module identity used for the namespace. In mixed groups this may differ
     /// from the merged factory's original entry, which needs its own namespace.
-    pub entry: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub names: rustc_hash::FxHashMap<
+    entry: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    names: rustc_hash::FxHashMap<
         ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         FrozenMap<RcStr, RcStr>,
     >,
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct OptionComputedExportNames(pub Option<ResolvedVc<ComputedExportNames>>);
+struct OptionComputedExportNames(Option<ResolvedVc<ComputedExportNames>>);
 
 #[turbo_tasks::function]
-pub(crate) async fn compute_export_names(
+async fn compute_export_names(
     scope: ExportNamesScope,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<OptionComputedExportNames>> {
