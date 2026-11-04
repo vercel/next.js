@@ -1514,18 +1514,22 @@ export async function createHotReloaderTurbopack(
   const startVersionInfoRequest = () => {
     if (versionInfoRequested) return
     versionInfoRequested = true
-    void getVersionInfo().then((versionInfo) => {
-      resolvedVersionInfo = versionInfo
-      for (const client of [
-        ...clientsWithoutHtmlRequestId,
-        ...clientsByHtmlRequestId.values(),
-      ]) {
-        sendToClient(client, {
-          type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO,
-          versionInfo,
-        })
-      }
-    })
+    getVersionInfo()
+      .then((versionInfo) => {
+        resolvedVersionInfo = versionInfo
+        for (const client of [
+          ...clientsWithoutHtmlRequestId,
+          ...clientsByHtmlRequestId.values(),
+        ]) {
+          sendToClient(client, {
+            type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO,
+            versionInfo,
+          })
+        }
+      })
+      .catch((error) => {
+        console.error(error)
+      })
   }
 
   let devtoolsFrontendUrl: string | undefined

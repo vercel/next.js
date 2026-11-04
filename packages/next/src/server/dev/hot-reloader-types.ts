@@ -274,7 +274,7 @@ export interface VulnerabilityInsightMessage {
 
 /**
  * Sent when the version staleness info resolves after the client already
- * received a placeholder in the `sync` message. The npm registry request
+ * received a placeholder in the `sync` message. The registry request
  * behind it is never awaited before `sync`, so a slow registry cannot delay
  * the dev overlay.
  */

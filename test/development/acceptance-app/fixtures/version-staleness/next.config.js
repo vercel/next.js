@@ -1,8 +1,10 @@
-// Mocks the npm registry that the dev server queries for version staleness
+// Mocks the package registry that the dev server queries for version staleness
 // (see `getVersionInfo()` in `packages/next/src/server/dev/hot-reloader-shared-utils.ts`).
-// The fake dist-tags are a newer major than any installed version, so the
-// installed `next` is always reported as outdated, without network access.
-const DIST_TAGS_URL = 'https://registry.npmjs.org/-/package/next/dist-tags'
+// The registry comes from the package manager config, so any URL ending in the
+// dist-tags path is intercepted. The fake dist-tags are a newer major than any
+// installed version, so the installed `next` is always reported as outdated,
+// without network access.
+const DIST_TAGS_PATH = '/-/package/next/dist-tags'
 
 if (!globalThis.__mockRegistryInstalled) {
   globalThis.__mockRegistryInstalled = true
@@ -14,7 +16,7 @@ if (!globalThis.__mockRegistryInstalled) {
         ? String(input)
         : input.url
 
-    if (url !== DIST_TAGS_URL) {
+    if (!new URL(url).pathname.endsWith(DIST_TAGS_PATH)) {
       return originalFetch.call(this, input, init)
     }
 

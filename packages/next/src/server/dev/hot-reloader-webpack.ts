@@ -103,6 +103,7 @@ import {
   type ReactDebugChannelForBrowser,
 } from './debug-channel'
 import {
+  getPendingVersionInfo,
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
@@ -257,8 +258,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   protected appDir?: string
   private telemetry: Telemetry
   private resetFetch: () => void
-  // Resolves once the npm registry responds. Never awaited during start-up so a
-  // slow registry cannot delay the dev server or the dev overlay.
+  // Resolves once the registry lookup settles, with the placeholder info if it
+  // fails. Never awaited during start-up so a slow registry cannot delay the
+  // dev server or the dev overlay.
   private versionInfo!: Promise<VersionInfo>
   private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
@@ -878,7 +880,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    this.versionInfo = this.tracedGetVersionInfo(startSpan)
+    // Not awaited, so a slow registry doesn't delay startup. The catch is
+    // attached right away: nothing subscribes to this promise until the hot
+    // middleware is created.
+    this.versionInfo = this.tracedGetVersionInfo(startSpan).catch((error) => {
+      console.error(error)
+      return getPendingVersionInfo()
+    })
 
     const inspectorURLRaw = inspector.url()
     if (inspectorURLRaw !== undefined) {

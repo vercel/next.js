@@ -1,7 +1,7 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { getRedboxDescription, retry, waitForRedbox } from 'next-test-utils'
 
-// The fixture's next.config.js makes the dev server's npm registry request
+// The fixture's next.config.js makes the dev server's registry request
 // (used for the version staleness indicator) hang until the test creates the
 // `release-registry` marker file.
 

@@ -102,15 +102,19 @@ export class WebpackHotMiddleware {
     private devToolsConfig: DevToolsConfig,
     hasVulnerabilityInsight: Promise<boolean>
   ) {
-    // Clients that connected before the npm registry responded received the
+    // Clients that connected before the registry responded received the
     // placeholder in `sync`. Later clients get the resolved info in `sync`.
-    versionInfo.then((resolvedVersionInfo) => {
-      this.versionInfo = resolvedVersionInfo
-      this.publish({
-        type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO,
-        versionInfo: resolvedVersionInfo,
+    versionInfo
+      .then((resolvedVersionInfo) => {
+        this.versionInfo = resolvedVersionInfo
+        this.publish({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO,
+          versionInfo: resolvedVersionInfo,
+        })
       })
-    })
+      .catch((error) => {
+        console.error(error)
+      })
     hasVulnerabilityInsight.then((enabled) => {
       if (enabled) {
         this.hasVulnerabilityInsight = true

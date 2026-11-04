@@ -12,7 +12,7 @@ const bundlerName = process.env.IS_TURBOPACK_TEST
     : 'Webpack'
 
 describe('Error Overlay version staleness', () => {
-  // The fixture's next.config.js mocks the npm registry with a newer major
+  // The fixture's next.config.js mocks the package registry with a newer major
   // version, so the installed version is always reported as outdated.
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'version-staleness')),

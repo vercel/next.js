@@ -1,10 +1,12 @@
 const fs = require('fs')
 const path = require('path')
 
-// Simulates an npm registry that does not respond: the dev server's
+// Simulates a package registry that does not respond: the dev server's
 // version-staleness request hangs until the test creates the marker file.
-// The fake dist-tags then mark the installed version as outdated.
-const DIST_TAGS_URL = 'https://registry.npmjs.org/-/package/next/dist-tags'
+// The fake dist-tags then mark the installed version as outdated. The registry
+// comes from the package manager config, so any URL ending in the dist-tags
+// path is intercepted.
+const DIST_TAGS_PATH = '/-/package/next/dist-tags'
 const releaseMarker = path.join(__dirname, 'release-registry')
 
 if (!globalThis.__hangingRegistryInstalled) {
@@ -17,7 +19,7 @@ if (!globalThis.__hangingRegistryInstalled) {
         ? String(input)
         : input.url
 
-    if (url !== DIST_TAGS_URL) {
+    if (!new URL(url).pathname.endsWith(DIST_TAGS_PATH)) {
       return originalFetch.call(this, input, init)
     }
 
