@@ -63,14 +63,6 @@ export function RequestInsightsPanel() {
     saveDevToolsConfig({ requestInsights: patch })
   }
   const toggleFilter = (filter: RequestInsightFilter) => {
-    if (
-      filter === 'activity:instant-insights' &&
-      !activeFilters.includes(filter) &&
-      !showInternal
-    ) {
-      setRequestInsightsConfig({ showInternal: true })
-    }
-
     setActiveFilters((filters) => toggleRequestInsightFilter(filters, filter))
   }
   const filterResult = useMemo(
