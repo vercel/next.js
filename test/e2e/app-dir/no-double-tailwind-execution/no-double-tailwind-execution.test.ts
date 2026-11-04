@@ -8,8 +8,8 @@ describe('no-double-tailwind-execution', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      '@tailwindcss/postcss': '^4',
-      tailwindcss: '^4',
+      '@tailwindcss/postcss': '4.3.3',
+      tailwindcss: '4.3.3',
     },
     env: {
       DEBUG: 'tailwindcss',
