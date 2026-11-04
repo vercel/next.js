@@ -35,6 +35,7 @@
   "audit": [
     "agent-062-activity-popover",
     "agent-063-activity-form-reset",
-    "agent-064-activity-playwright-locators"
+    "agent-064-activity-playwright-locators",
+    "agent-065-activity-hidden-notification"
   ]
 }

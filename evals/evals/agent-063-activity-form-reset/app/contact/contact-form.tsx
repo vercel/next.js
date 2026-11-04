@@ -1,31 +1,31 @@
 'use client'
 
 import Link from 'next/link'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 
 export function ContactForm() {
   const [message, setMessage] = useState('')
+  const [count, setCount] = useState(0)
   const [status, setStatus] = useState<'idle' | 'success'>('idle')
-  const shouldReset = useRef(false)
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setStatus('success')
-    shouldReset.current = true
   }
 
   useLayoutEffect(() => {
     return () => {
-      if (shouldReset.current) {
-        shouldReset.current = false
-        setMessage('')
-        setStatus('idle')
-      }
+      setMessage('')
+      setStatus('idle')
     }
   }, [])
 
   return (
     <form onSubmit={handleSubmit}>
+      <button type="button" onClick={() => setCount((value) => value + 1)}>
+        Increment
+      </button>
+      <p data-testid="count">{count}</p>
       <label>
         Message
         <textarea

@@ -34,8 +34,8 @@ export async function startNextServer({
   detached = false,
   logFile = undefined,
 } = {}) {
-  if (detached && (!port || !logFile)) {
-    throw new Error('Detached servers require a port and log file')
+  if (detached && !logFile) {
+    throw new Error('Detached servers require a log file')
   }
 
   const log = logFile ? openSync(logFile, 'a') : undefined
@@ -82,7 +82,9 @@ export async function startNextServer({
       if (server.exitCode !== null || server.signalCode !== null) break
       const url = port
         ? `http://127.0.0.1:${port}`
-        : output.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]
+        : (logFile ? readFileSync(logFile, 'utf8') : output).match(
+            /http:\/\/127\.0\.0\.1:\d+/
+          )?.[0]
       if (url) {
         try {
           const response = await fetch(url, {

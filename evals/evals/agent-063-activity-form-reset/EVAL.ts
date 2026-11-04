@@ -1,64 +1,74 @@
-/**
- * Activity form reset
- *
- * Based on the reproduced development behavior where an Effect cleanup can
- * run again as Activity reveals a route. The agent must reset completed form
- * state from the user action that owns the transition while preserving drafts
- * on unrelated navigation.
- */
-
-import { chromium, expect as playwrightExpect } from '@playwright/test'
+import { chromium, expect as browserExpect } from '@playwright/test'
 import { expect, test } from 'vitest'
-import { readFileSync } from 'fs'
-import { join } from 'path'
-import { startNextServer } from './__agent_eval__/next-test-utils.mjs'
-
-const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf-8')
+import { readFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import {
+  buildNextApp,
+  startNextServer,
+} from './__agent_eval__/next-test-utils.mjs'
 
 test('keeps Cache Components enabled', () => {
-  expect(config).toMatch(/cacheComponents\s*:\s*true/)
+  expect(readFileSync('next.config.ts', 'utf8')).toMatch(
+    /cacheComponents\s*:\s*true/
+  )
 })
 
-test('preserves unrelated state and resets only when the flow completes', async () => {
-  process.env.__NEXT_TEST_MODE = '1'
-  const server = await startNextServer({ mode: 'dev' })
-  const browser = await chromium.launch({ headless: true })
-
-  try {
-    const page = await browser.newPage()
-    await page.goto(`${server.url}/contact`)
-    await page.waitForFunction(
-      () =>
-        (globalThis as { __NEXT_HYDRATED?: boolean }).__NEXT_HYDRATED === true
-    )
-
-    const message = 'Keep this message until the flow is complete'
-    await page.getByLabel('Message').fill(message)
-    await page.getByRole('link', { name: 'About' }).click()
-    await page.waitForURL('**/about')
-    await page.goBack({ waitUntil: 'commit' })
-    await page.waitForURL('**/contact')
-    await playwrightExpect(page.getByLabel('Message')).toHaveValue(message)
-
-    await page.getByRole('button', { name: 'Send' }).click()
-    await playwrightExpect(page.getByText('Message sent!')).toBeVisible()
-
-    await page.getByRole('link', { name: 'About' }).click()
-    await page.waitForURL('**/about')
-    await page.goBack({ waitUntil: 'commit' })
-    await page.waitForURL('**/contact')
-    await playwrightExpect(page.getByLabel('Message')).toHaveValue(message)
-    await playwrightExpect(page.getByText('Message sent!')).toBeVisible()
-
-    await page.getByRole('link', { name: 'Done' }).click()
-    await page.waitForURL('**/inbox')
-    await page.goBack({ waitUntil: 'commit' })
-    await page.waitForURL('**/contact')
-    await playwrightExpect(page.getByLabel('Message')).toHaveValue('')
-    await playwrightExpect(page.getByText('Message sent!')).toHaveCount(0)
-  } finally {
-    await browser.close()
-    await server.stop()
-    delete process.env.__NEXT_TEST_MODE
-  }
-}, 180_000)
+for (const mode of ['dev', 'start'] as const) {
+  test(`preserves drafts and resets completed forms on leaving in ${mode}`, async () => {
+    if (mode === 'start') await buildNextApp()
+    const server = await startNextServer({
+      mode,
+      detached: true,
+      logFile: join(tmpdir(), `activity-${randomUUID()}.log`),
+    })
+    const browser = await chromium.launch({ headless: true })
+    try {
+      for (const exit of ['link', 'back', 'done']) {
+        const context = await browser.newContext()
+        try {
+          const page = await context.newPage()
+          await page.goto(`${server.url}/about`)
+          await page.getByRole('link', { name: 'Contact', exact: true }).click()
+          await page.waitForURL('**/contact')
+          const message = page.getByRole('textbox', { name: 'Message' })
+          await message.fill('Keep my unfinished draft')
+          await page.getByRole('button', { name: 'Increment' }).click()
+          await browserExpect(page.getByTestId('count')).toHaveText('1')
+          await page.getByRole('link', { name: 'About', exact: true }).click()
+          await page.waitForURL('**/about')
+          await browserExpect(page.locator('[name="message"]')).toHaveCount(1)
+          await page.goBack({ waitUntil: 'commit' })
+          await page.waitForURL('**/contact')
+          await browserExpect(message).toHaveValue('Keep my unfinished draft')
+          await page.getByRole('button', { name: 'Send', exact: true }).click()
+          await browserExpect(
+            page.getByText('Message sent!', { exact: true })
+          ).toBeVisible()
+          if (exit === 'back') await page.goBack({ waitUntil: 'commit' })
+          else
+            await page
+              .getByRole('link', {
+                name: exit === 'done' ? 'Done' : 'About',
+                exact: true,
+              })
+              .click()
+          await browserExpect(page).not.toHaveURL(/\/contact$/)
+          await page.getByRole('link', { name: 'Contact', exact: true }).click()
+          await page.waitForURL('**/contact')
+          await browserExpect(message).toHaveValue('')
+          await browserExpect(
+            page.getByText('Message sent!', { exact: true })
+          ).not.toBeVisible()
+          await browserExpect(page.getByTestId('count')).toHaveText('1')
+        } finally {
+          await context.close()
+        }
+      }
+    } finally {
+      await browser.close()
+      await server.stop()
+    }
+  }, 240_000)
+}
