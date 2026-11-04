@@ -193,7 +193,7 @@ impl EcmascriptBrowserEvaluateChunk {
             // Detect async modules from the whole-app graph in production. In development the graph
             // is per-page, so always include the machinery.
             let include_async_module_runtime = if matches!(runtime_type, RuntimeType::Production) {
-                !this.module_graph.async_module_info().await?.is_empty()
+                *this.module_graph.has_async_modules().await?
             } else {
                 true
             };
