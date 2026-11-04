@@ -237,10 +237,11 @@ async function startWatcher(
   const lockfile = await Lockfile.acquireWithRetriesOrExit(
     path.join(distDir, 'lock'),
     'next dev',
-    true,
-    JSON.stringify(serverInfo),
-    opts.dir,
-    opts.nextConfig.distDir
+    {
+      content: JSON.stringify(serverInfo),
+      projectDir: opts.dir,
+      relativeDistDir: opts.nextConfig.distDir,
+    }
   )
 
   const validFileMatcher = createValidFileMatcher(
