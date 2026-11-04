@@ -234,7 +234,7 @@ fn minify_source(
                 generate_js_source_map(
                     &*cm,
                     src_map_buf,
-                    Some(original_map),
+                    Some((None, original_map)),
                     true,
                     // We do not inline source contents.
                     // We provide a synthesized value to `cm.new_source_file` above, so it cannot

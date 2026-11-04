@@ -1467,7 +1467,7 @@ async fn merge_modules(
     Program,
     Vec<CodeGenResultComments>,
     Vec<CodeGenResultSourceMap>,
-    SmallVec<[ResolvedVc<Box<dyn GenerateSourceMap>>; 1]>,
+    SmallVec<[OriginalSourceMap; 1]>,
     Arc<Mutex<Vec<ModulePosition>>>,
 )> {
     struct SetSyntaxContextVisitor<'a> {
@@ -1838,12 +1838,12 @@ async fn merge_modules(
 
     let original_source_maps = contents
         .iter_mut()
-        .flat_map(|(_, content)| match content.original_source_map {
+        .flat_map(|(_, content)| match &content.original_source_map {
             CodeGenResultOriginalSourceMap::ScopeHoisting(_) => unreachable!(
                 "Didn't expect nested CodeGenResultOriginalSourceMap::ScopeHoisting: {:?}",
                 content.original_source_map
             ),
-            CodeGenResultOriginalSourceMap::Single(map) => map,
+            CodeGenResultOriginalSourceMap::Single(map) => map.clone(),
         })
         .collect();
 
@@ -2184,7 +2184,19 @@ async fn process_parse_result(
                 },
                 is_esm,
                 strict,
-                original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
+                original_source_map: CodeGenResultOriginalSourceMap::Single(
+                    original_source_map
+                        .map(|map| {
+                            let file_name = source_map
+                                .files()
+                                .first()
+                                .context("Parsed source map has no source file")?
+                                .name
+                                .clone();
+                            anyhow::Ok((file_name, map))
+                        })
+                        .transpose()?,
+                ),
                 minify,
                 scope_hoisting_syntax_contexts: retain_syntax_context
                     // TODO ideally don't clone here
@@ -2419,13 +2431,15 @@ async fn emit_content(
     let source_map = if generate_source_map {
         let original_source_maps = original_source_map
             .iter()
-            .map(|map| map.generate_source_map())
+            .map(async |(file_name, map)| anyhow::Ok((file_name, map.generate_source_map().await?)))
             .try_join()
             .await?;
         let original_source_maps = original_source_maps
             .iter()
-            .filter_map(|map| map.as_content())
-            .map(|map| map.content())
+            .filter_map(|(file_name, map)| {
+                map.as_content()
+                    .map(|map| (Some(*file_name), map.content()))
+            })
             .collect::<Vec<_>>();
 
         Some(generate_js_source_map(
@@ -2912,20 +2926,21 @@ impl SourceMapperExt for CodeGenResultSourceMap {
     }
 }
 
+type OriginalSourceMap = (Arc<FileName>, ResolvedVc<Box<dyn GenerateSourceMap>>);
+
 #[derive(Debug)]
 enum CodeGenResultOriginalSourceMap {
-    Single(Option<ResolvedVc<Box<dyn GenerateSourceMap>>>),
-    ScopeHoisting(SmallVec<[ResolvedVc<Box<dyn GenerateSourceMap>>; 1]>),
+    Single(Option<OriginalSourceMap>),
+    ScopeHoisting(SmallVec<[OriginalSourceMap; 1]>),
 }
 
 impl CodeGenResultOriginalSourceMap {
-    fn iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn GenerateSourceMap>>> {
-        match self {
-            CodeGenResultOriginalSourceMap::Single(map) => Either::Left(map.iter().copied()),
-            CodeGenResultOriginalSourceMap::ScopeHoisting(maps) => {
-                Either::Right(maps.iter().copied())
-            }
-        }
+    fn iter(&self) -> impl Iterator<Item = (&FileName, ResolvedVc<Box<dyn GenerateSourceMap>>)> {
+        let maps = match self {
+            CodeGenResultOriginalSourceMap::Single(map) => Either::Left(map.iter()),
+            CodeGenResultOriginalSourceMap::ScopeHoisting(maps) => Either::Right(maps.iter()),
+        };
+        maps.map(|(file_name, map)| (file_name.as_ref(), *map))
     }
 }
 
