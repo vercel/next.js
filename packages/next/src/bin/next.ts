@@ -16,6 +16,7 @@ import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { createTestTypecheckCliArguments } from '../experimental/testing/typecheck-cli'
 import {
   getParsedDebugAddress,
   parseValidPositiveInteger,
@@ -80,6 +81,8 @@ if (
 process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
 class NextRootCommand extends Command {
+  declare rawArgs: string[]
+
   createCommand(name: string) {
     const command = new Command(name)
 
@@ -682,6 +685,8 @@ program
     )
   })
 
+const testTypecheckArguments = createTestTypecheckCliArguments()
+
 let testWatchArgument: boolean | boolean[] | undefined
 function appendTestWatchArgument(value: boolean) {
   testWatchArgument =
@@ -848,6 +853,34 @@ program
     '--typecheck.only',
     'Check type-test files without running runtime tests.'
   )
+  .addOption(
+    new Option(
+      '--no-typecheck.only',
+      'Run runtime tests alongside type tests.'
+    ).default(undefined)
+  )
+  .option(
+    '--typecheck.spawnTimeout [time]',
+    'Maximum wait in milliseconds for spawning the TypeScript checker.'
+  )
+  .addOption(
+    new Option(
+      '--no-typecheck.spawnTimeout',
+      'Use the native minimum checker spawn deadline.'
+    ).default(undefined)
+  )
+  .on('option:typecheck', () => testTypecheckArguments.enabled(true))
+  .on('option:no-typecheck', () => testTypecheckArguments.enabled(false, true))
+  .on('option:typecheck.only', () => testTypecheckArguments.only(true))
+  .on('option:no-typecheck.only', () =>
+    testTypecheckArguments.only(false, true)
+  )
+  .on('option:typecheck.spawnTimeout', (value: string | null | undefined) =>
+    testTypecheckArguments.timeout(value)
+  )
+  .on('option:no-typecheck.spawnTimeout', () =>
+    testTypecheckArguments.noTimeout()
+  )
   .option(
     '--inspect [address]',
     'Inspect the actual test worker at [host:]port (default 127.0.0.1:9229).'
@@ -987,12 +1020,16 @@ program
         throw new Error(
           `Expected a single value for option "--coverage ", received [${testCoverageArgument.join(', ')}]`
         )
+      const typecheck = testTypecheckArguments.resolve(program.rawArgs)
       const { nextTestRunner } = await import('../cli/next-test-runner.js')
       const explicitCache = command.getOptionValueSource('cache') === 'cli'
       const explicitFileParallelism =
         command.getOptionValueSource('fileParallelism') === 'cli'
       await nextTestRunner(directory, {
         ...options,
+        typecheck: typecheck.enabled,
+        'typecheck.only': typecheck.only,
+        'typecheck.spawnTimeout': typecheck.spawnTimeout,
         fileParallelism: explicitFileParallelism
           ? options.fileParallelism
           : undefined,
@@ -1298,7 +1335,11 @@ if (argv[2] === 'test') {
       testArgv.push(...argv.slice(index))
       break
     }
-    if (
+    if (argument === '--typecheck.spawnTimeout=') {
+      if (argv[index + 1] !== undefined && !argv[index + 1].startsWith('-')) {
+        testArgv.push('--typecheck.spawnTimeout', argv[++index])
+      } else testArgv.push('--typecheck.spawnTimeout')
+    } else if (
       (argument === '--coverage' ||
         argument === '--watch' ||
         argument === '-w') &&

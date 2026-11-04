@@ -85,6 +85,7 @@ export interface NextTestRunnerOptions {
   coverage?: boolean
   typecheck?: boolean
   'typecheck.only'?: boolean
+  'typecheck.spawnTimeout'?: string | number | boolean
   'coverage.reporter'?: string[]
   'coverage.provider'?: string
   'coverage.include'?: string[]
@@ -131,12 +132,18 @@ function executionOverrides(
     allowOnly: options.allowOnly,
     passWithNoTests:
       options.passWithNoTests ?? (options.related ? true : undefined),
-    typecheck: options['typecheck.only']
-      ? { enabled: true, only: true }
-      : options.typecheck === undefined
-        ? undefined
-        : { enabled: options.typecheck },
   }
+  const typecheck: NonNullable<TestConfigOverrides['typecheck']> = {}
+  if (options.typecheck !== undefined) typecheck.enabled = options.typecheck
+  if (options['typecheck.only'] !== undefined) {
+    typecheck.only = options['typecheck.only']
+    typecheck.enabled ??= true
+  }
+  if (options['typecheck.spawnTimeout'] !== undefined) {
+    // The public option is numeric; authored CLI values use native timer coercion.
+    typecheck.spawnTimeout = options['typecheck.spawnTimeout'] as number
+  }
+  if (Object.keys(typecheck).length) overrides.typecheck = typecheck
   const headless = options['browser.headless']
   if (headless !== undefined) {
     if (
