@@ -152,7 +152,9 @@ pub(crate) async fn build_server_actions_loader(
         )?;
     }
 
-    let path = project_path.join(&format!(".next-internal/server/app{page_name}/actions.js"))?;
+    // NOTE: use .mjs so that ESM syntax is valid even if package.json specifies `"type":
+    // "commonjs"`
+    let path = project_path.join(&format!(".next-internal/server/app{page_name}/actions.mjs"))?;
     let file = File::from(contents.build());
     let source = VirtualSource::new_with_ident(
         AssetIdent::from_path(path)
