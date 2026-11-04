@@ -665,7 +665,10 @@ mod tests {
                         resolved.push((format!("{parent} -> {i} free var"), JsValue::FreeVar(var)));
                         0
                     }
-                    Effect::TypeOf { mut arg, .. } => {
+                    Effect::TypeOf {
+                        mut arg, effects, ..
+                    } => {
+                        queue.extend(BumpVec::from(effects).into_iter().rev().map(|e| (i, e)));
                         let (arg, steps) = resolve(
                             &arena,
                             &var_graph,
@@ -735,11 +738,17 @@ mod tests {
                         ));
                         0
                     }
+                    Effect::Member {
+                        base_effects: effects,
+                        ..
+                    }
+                    | Effect::In { effects, .. } => {
+                        queue.extend(BumpVec::from(effects).into_iter().rev().map(|e| (i, e)));
+                        0
+                    }
                     Effect::ImportMeta { .. }
                     | Effect::ImportedBinding { .. }
-                    | Effect::Member { .. }
-                    | Effect::DestructuredMember { .. }
-                    | Effect::In { .. } => 0,
+                    | Effect::DestructuredMember { .. } => 0,
                 };
                 let time = start.elapsed();
                 if time.as_millis() > 1 {

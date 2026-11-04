@@ -68,17 +68,7 @@ export interface ImageOptimizerTransformLogger {
 }
 
 export interface ImageOptimizerTransformOptions {
-  previousOutput?: {
-    buffer: Buffer
-    maxAge?: number
-    etag: string
-    upstreamEtag: string
-  }
   logger?: ImageOptimizerTransformLogger
-  handleDevOutput?: (
-    buffer: Buffer,
-    contentType: string
-  ) => Promise<{ buffer: Buffer; contentType: string }>
 }
 
 export interface ImageOptimizerResult {
@@ -87,6 +77,12 @@ export interface ImageOptimizerResult {
   maxAge: number
   etag: string
   upstreamEtag: string
+  /**
+   * `true` when `buffer` was produced by sharp. `false` when the upstream
+   * image was passed through (animated, a bypassed type, or optimization
+   * failed).
+   */
+  optimized: boolean
   error?: unknown
 }
 
@@ -247,6 +243,7 @@ export async function imageOptimizerTransform(
       maxAge,
       etag: upstreamEtag,
       upstreamEtag,
+      optimized: false,
     }
   }
   if (BYPASS_TYPES.includes(upstreamType)) {
@@ -256,6 +253,7 @@ export async function imageOptimizerTransform(
       maxAge,
       etag: upstreamEtag,
       upstreamEtag,
+      optimized: false,
     }
   }
 
@@ -270,18 +268,8 @@ export async function imageOptimizerTransform(
     contentType = upstreamType
   }
 
-  if (opts.previousOutput) {
-    return {
-      buffer: opts.previousOutput.buffer,
-      contentType,
-      maxAge: opts.previousOutput.maxAge || maxAge,
-      etag: opts.previousOutput.etag,
-      upstreamEtag: opts.previousOutput.upstreamEtag,
-    }
-  }
-
   try {
-    let optimizedBuffer = await optimizeImage({
+    const optimizedBuffer = await optimizeImage({
       buffer: upstreamBuffer,
       contentType,
       quality,
@@ -293,17 +281,13 @@ export async function imageOptimizerTransform(
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
       mozjpeg: nextConfig.experimental.imgOptMozjpeg,
     })
-    if (opts.handleDevOutput) {
-      const output = await opts.handleDevOutput(optimizedBuffer, contentType)
-      optimizedBuffer = output.buffer
-      contentType = output.contentType
-    }
     return {
       buffer: optimizedBuffer,
       contentType,
       maxAge,
       etag: getImageEtag(optimizedBuffer),
       upstreamEtag,
+      optimized: true,
     }
   } catch (error) {
     // If we fail to optimize, fallback to the original image
@@ -313,6 +297,7 @@ export async function imageOptimizerTransform(
       maxAge: nextConfig.images.minimumCacheTTL,
       etag: upstreamEtag,
       upstreamEtag,
+      optimized: false,
       error,
     }
   }

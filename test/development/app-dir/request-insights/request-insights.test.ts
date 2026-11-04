@@ -10,14 +10,27 @@ import {
 type RequestInsight = {
   requestId: string
   kind?: 'request' | 'instant-insights'
+  source:
+    | 'page'
+    | 'app-route'
+    | 'pages-api'
+    | 'image'
+    | 'asset'
+    | 'proxy'
+    | 'instant-insights'
+    | 'unknown'
+  proxyStatus?: 'matched' | 'bypassed'
   htmlRequestId: string
   route: string
+  url?: string
   startTime: number
   status: 'ok'
   spans: Array<{
     name?: string
+    traceId?: string
     spanId?: string
     parentSpanId?: string
+    status?: 'ok' | 'error'
     attributes?: Record<string, string | number | boolean>
   }>
   fetches: Array<{
@@ -30,13 +43,14 @@ type RequestInsight = {
 }
 
 describe('request insights', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
   function createRequest(index: number, fetchCount = 0): RequestInsight {
     return {
       requestId: `request-${index}`,
+      source: 'page',
       htmlRequestId: `page-${index}`,
       route: `/route-${index}`,
       startTime: index,
@@ -170,6 +184,61 @@ describe('request insights', () => {
     })
   })
 
+  it('classifies static files as assets in the serialized snapshot', async () => {
+    const response = await next.fetch('/request-insights-asset.svg')
+    expect(response.status).toBe(200)
+    await response.text()
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const request = snapshot.requests.find(
+        (candidate) =>
+          candidate.url === '/request-insights-asset.svg' &&
+          candidate.kind !== 'instant-insights'
+      )
+
+      expect(request).toEqual(expect.objectContaining({ source: 'asset' }))
+    })
+  })
+
+  it('does not classify an asset URL rewritten by proxy as an asset', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((insightsResponse) => insightsResponse.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+
+    const response = await next.fetch(
+      '/request-insights-asset.svg?rewrite-to-page=1'
+    )
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('behind proxy')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const request = snapshot.requests.find(
+        (candidate) =>
+          candidate.route === '/behind-proxy' &&
+          !existingRequestIds.has(candidate.requestId) &&
+          candidate.kind !== 'instant-insights'
+      )
+
+      expect(request).toEqual(expect.objectContaining({ source: 'page' }))
+    })
+  })
+
   it('does not attribute Request Insights bookkeeping to the app', async () => {
     const outputIndex = next.cliOutput.length
     const browser = await next.browser('/safe-clock')
@@ -257,6 +326,69 @@ describe('request insights', () => {
           rootSpans?.some((rootSpan) => rootSpan.spanId === span.parentSpanId)
         ).toBe(true)
       }
+
+      const runValidationSpan = pipelineSpans?.find(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+          'AppRender.instantInsights.runValidation'
+      )
+      const workerLoadSpan = instantInsights?.spans.find(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+          'LoadComponents.loadRouteModule'
+      )
+      for (const spanType of [
+        'AppRender.instantInsights.warmup',
+        'AppRender.instantInsights.staticShell',
+      ]) {
+        const phase = instantInsights?.spans.find(
+          (span) => span.attributes?.['next.span_type'] === spanType
+        )
+        expect(phase).toEqual(
+          expect.objectContaining({
+            parentSpanId: runValidationSpan?.spanId,
+            traceId: runValidationSpan?.traceId,
+            status: 'ok',
+            durationMs: expect.any(Number),
+          })
+        )
+      }
+      if (isTurbopack) {
+        const spansById = new Map(
+          instantInsights?.spans.flatMap((span) =>
+            span.spanId ? [[span.spanId, span] as const] : []
+          )
+        )
+        const expectDescendantOfRunValidation = (
+          span: RequestInsight['spans'][number] | undefined
+        ) => {
+          const visited = new Set<string>()
+          let ancestor = span
+          while (
+            ancestor?.parentSpanId &&
+            ancestor.parentSpanId !== runValidationSpan?.spanId
+          ) {
+            expect(visited.has(ancestor.parentSpanId)).toBe(false)
+            visited.add(ancestor.parentSpanId)
+            ancestor = spansById.get(ancestor.parentSpanId)
+          }
+          expect(ancestor?.parentSpanId).toBe(runValidationSpan?.spanId)
+        }
+
+        expect(workerLoadSpan).toEqual(
+          expect.objectContaining({
+            name: 'load route module',
+            traceId: runValidationSpan?.traceId,
+            status: 'ok',
+          })
+        )
+        expectDescendantOfRunValidation(workerLoadSpan)
+      } else {
+        // The dev validation worker only runs with Turbopack. Do not invent a
+        // worker span for the in-process Webpack validation path.
+        expect(workerLoadSpan).toBeUndefined()
+      }
+
       expect(
         request?.spans.some(
           (span) =>
@@ -277,6 +409,7 @@ describe('request insights', () => {
     function getSettingsMenuState(): Promise<{
       open: boolean
       checked: string | null
+      diagnosisVisible: boolean
     }> {
       return browser.eval(() => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
@@ -289,6 +422,9 @@ describe('request insights', () => {
             item
               ?.querySelector('.request-insights-settings-checkbox')
               ?.getAttribute('data-checked') ?? null,
+          diagnosisVisible: Boolean(
+            root?.querySelector('.request-insights-diagnosis')
+          ),
         }
       })
     }
@@ -321,6 +457,7 @@ describe('request insights', () => {
       expect(await getSettingsMenuState()).toEqual({
         open: true,
         checked: null,
+        diagnosisVisible: false,
       })
     })
 
@@ -340,6 +477,7 @@ describe('request insights', () => {
       expect(await getSettingsMenuState()).toEqual({
         open: true,
         checked: 'true',
+        diagnosisVisible: true,
       })
       expect(await getSpanRowCount()).toBeGreaterThan(defaultSpanRowCount)
     })
@@ -364,6 +502,7 @@ describe('request insights', () => {
       expect(await getSettingsMenuState()).toEqual({
         open: true,
         checked: 'true',
+        diagnosisVisible: true,
       })
     })
   })
@@ -412,6 +551,7 @@ describe('request insights', () => {
     await browser.elementByCss('.request-insights-settings-trigger').click()
     await retry(async () => {
       expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Pause updates', checked: null },
         { label: 'Internal activity', checked: null },
         { label: 'Verbose traces', checked: null },
       ])
@@ -429,26 +569,26 @@ describe('request insights', () => {
       .click()
 
     await retry(async () => {
-      const nestedRows = await browser.eval(() => {
+      const internalRows = await browser.eval(() => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
         return Array.from(
-          root?.querySelectorAll('.request-insights-row[data-nested="true"]') ??
-            []
+          root?.querySelectorAll(
+            '.request-insights-row[data-internal="true"]'
+          ) ?? []
         ).map((row) => ({
-          internal: row.getAttribute('data-internal'),
-          hasArrow: !!row.querySelector('.request-insights-nested-arrow'),
+          nested: row.hasAttribute('data-nested'),
           label: row.textContent ?? '',
         }))
       })
 
       expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Pause updates', checked: null },
         { label: 'Internal activity', checked: 'true' },
         { label: 'Verbose traces', checked: 'true' },
       ])
-      expect(nestedRows.length).toBeGreaterThan(0)
-      for (const row of nestedRows) {
-        expect(row.internal).toBe('true')
-        expect(row.hasArrow).toBe(true)
+      expect(internalRows.length).toBeGreaterThan(0)
+      expect(internalRows.some((row) => row.nested)).toBe(true)
+      for (const row of internalRows) {
         expect(row.label).toContain('Instant Insights')
       }
     })
@@ -470,9 +610,247 @@ describe('request insights', () => {
 
     await retry(async () => {
       expect(await getSettingsMenuItems()).toEqual([
+        { label: 'Pause updates', checked: null },
         { label: 'Internal activity', checked: 'true' },
         { label: 'Verbose traces', checked: 'true' },
       ])
+    })
+  })
+
+  it('shows Instant Insights without persisting the internal activity setting', async () => {
+    await patchRequestInsightsConfig({ showInternal: false })
+    const browser = await next.browser('/instant-insights')
+    shouldResetRequestInsightsConfig = true
+
+    await openRequestInsightsPanel(browser)
+    await browser.elementByCss('.request-insights-filter-trigger').click()
+    await browser
+      .elementByCss(
+        '.request-insights-filter-item[data-filter-value="activity:instant-insights"]'
+      )
+      .click()
+
+    await retry(async () => {
+      const internalRowCount = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return (
+          root?.querySelectorAll('.request-insights-row[data-internal="true"]')
+            .length ?? 0
+        )
+      })
+      const config = JSON.parse(
+        await next.readFile('build/dev/cache/next-devtools-config.json')
+      )
+
+      expect(internalRowCount).toBeGreaterThan(0)
+      expect(config.requestInsights?.showInternal).toBe(false)
+    })
+
+    await browser.elementByCss('.request-insights-details').click()
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+
+    await retry(async () => {
+      const checked = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const item = Array.from(
+          root?.querySelectorAll('.request-insights-settings-item') ?? []
+        ).find((element) => element.textContent?.includes('Internal activity'))
+        return item
+          ?.querySelector('.request-insights-settings-checkbox')
+          ?.getAttribute('data-checked')
+      })
+
+      expect(checked).toBeNull()
+    })
+
+    await browser.elementByCss('.request-insights-details').click()
+    await browser.elementByCss('.request-insights-filter-trigger').click()
+    await browser
+      .elementByCss(
+        '.request-insights-filter-item[data-filter-value="activity:instant-insights"]'
+      )
+      .click()
+
+    await retry(async () => {
+      const internalRowCount = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return root?.querySelectorAll(
+          '.request-insights-row[data-internal="true"]'
+        ).length
+      })
+      expect(internalRowCount).toBe(0)
+    })
+    const config = JSON.parse(
+      await next.readFile('build/dev/cache/next-devtools-config.json')
+    )
+    expect(config.requestInsights?.showInternal).toBe(false)
+  })
+
+  it('filters typed request rows and pauses live updates', async () => {
+    const browser = await next.browser('/instant-insights')
+    expect((await next.fetch('/api/source?before=pause')).status).toBe(200)
+
+    await openRequestInsightsPanel(browser)
+    await browser.elementByCss('.request-insights-filter-trigger').click()
+    await browser
+      .elementByCss(
+        '.request-insights-filter-item[data-filter-value="source:api"]'
+      )
+      .click()
+
+    await retry(async () => {
+      const rowTypes = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return Array.from(
+          root?.querySelectorAll('.request-insights-request-type') ?? []
+        ).map((type) => type.textContent?.trim())
+      })
+      expect(rowTypes.length).toBeGreaterThan(0)
+      expect(new Set(rowTypes)).toEqual(new Set(['API']))
+    })
+
+    await browser.elementByCss('.request-insights-details').click()
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+    await browser
+      .elementByCss('.request-insights-settings-item:has-text("Pause updates")')
+      .click()
+
+    const pausedRowCount = await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      return root?.querySelectorAll('.request-insights-row').length ?? 0
+    })
+    expect((await next.fetch('/api/source?while=paused')).status).toBe(200)
+
+    await retry(async () => {
+      const pausedState = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return {
+          paused: root?.querySelector('.request-insights-paused-state')
+            ?.textContent,
+          rowCount: root?.querySelectorAll('.request-insights-row').length ?? 0,
+        }
+      })
+      expect(pausedState).toEqual({
+        paused: 'Paused',
+        rowCount: pausedRowCount,
+      })
+    })
+
+    await browser
+      .elementByCss('.request-insights-settings-item:has-text("Pause updates")')
+      .click()
+    await retry(async () => {
+      const state = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return {
+          paused: root?.querySelector('.request-insights-paused-state'),
+          rowCount: root?.querySelectorAll('.request-insights-row').length ?? 0,
+        }
+      })
+      expect(state.paused).toBeNull()
+      expect(state.rowCount).toBeGreaterThan(pausedRowCount)
+    })
+  })
+
+  it('classifies an App Route before its handler completes', async () => {
+    const waitKey = `active-${Date.now()}`
+    const requestPath = `/api/app-stream-lifecycle?wait=${waitKey}`
+    const responsePromise = next.fetch(requestPath)
+
+    try {
+      await retry(async () => {
+        const snapshot = (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+        const matchingRequests = snapshot.requests.filter(
+          (request) => request.url === requestPath
+        )
+
+        expect(matchingRequests).toHaveLength(1)
+        expect(matchingRequests[0]).toEqual(
+          expect.objectContaining({
+            source: 'app-route',
+            proxyStatus: 'matched',
+          })
+        )
+      }, 30_000)
+    } finally {
+      await retry(async () => {
+        const release = await next.fetch(
+          `/api/app-stream-lifecycle?release=${waitKey}`,
+          { method: 'POST' }
+        )
+        expect(release.status).toBe(204)
+      }, 30_000)
+    }
+
+    const response = await responsePromise
+    expect(response.status).toBe(202)
+    expect(await response.text()).toContain('finished')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const matchingRequests = snapshot.requests.filter(
+        (request) =>
+          request.url === requestPath && request.kind !== 'instant-insights'
+      )
+
+      expect(matchingRequests).toHaveLength(1)
+      expect(
+        matchingRequests[0].spans.map(
+          (span) => span.attributes?.['next.span_type']
+        )
+      ).toEqual(
+        expect.arrayContaining([
+          'Middleware.execute',
+          'BaseServer.handleRequest',
+          'AppRouteRouteHandlers.runHandler',
+        ])
+      )
+    })
+  })
+
+  it('classifies a Page after proxy completes', async () => {
+    const requestPath = `/api/proxied-page?run=${Date.now()}`
+    const response = await next.fetch(requestPath)
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('proxied page')
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const matchingRequests = snapshot.requests.filter(
+        (request) =>
+          request.url === requestPath && request.kind !== 'instant-insights'
+      )
+
+      expect(matchingRequests).toHaveLength(1)
+      expect(matchingRequests[0]).toEqual(
+        expect.objectContaining({
+          source: 'page',
+          proxyStatus: 'matched',
+        })
+      )
+      expect(
+        matchingRequests[0].spans.map(
+          (span) => span.attributes?.['next.span_type']
+        )
+      ).toEqual(
+        expect.arrayContaining([
+          'Middleware.execute',
+          'BaseServer.handleRequest',
+          'AppRender.getBodyResult',
+        ])
+      )
     })
   })
 

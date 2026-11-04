@@ -28,6 +28,7 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     ident::{AssetIdent, Layer},
     issue::{IssueExt, IssueSource, module::ModuleIssue},
+    loader::{WebpackLoaderItem, WebpackLoaderItems},
     module::{Module, ModuleSideEffects},
     node_addon_module::NodeAddonModule,
     output::{ExpandedOutputAssets, OutputAsset},
@@ -56,7 +57,7 @@ use turbopack_ecmascript::{
         CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
     },
 };
-use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
+use turbopack_node::transforms::webpack::WebpackLoaders;
 use turbopack_resolve::{
     resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
     typescript::type_resolve,

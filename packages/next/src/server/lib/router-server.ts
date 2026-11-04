@@ -72,7 +72,15 @@ import { isCI } from '../ci-info'
 import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
+  recordRequestInsightSource,
 } from './trace/request-insights'
+import {
+  NEXT_HTML_REQUEST_ID_HEADER,
+  NEXT_REQUEST_ID_HEADER,
+} from '../../client/components/app-router-headers'
+import { nanoid } from 'next/dist/compiled/nanoid'
+import { filterInvalidDevRequestIdHeaders } from './dev-request-id'
+import { resolveRequestInsightsIdentity } from './trace/request-insights-identity'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -368,6 +376,15 @@ export async function initialize(opts: {
     if (opts.dev && req.url) {
       if (config.experimental.requestInsights) {
         process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+        filterInvalidDevRequestIdHeaders(req.headers)
+        const identity = resolveRequestInsightsIdentity({
+          previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
+          requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
+          htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+          url: req.url,
+          createRequestId: nanoid,
+        })
+        addRequestMeta(req, 'requestInsightsIdentity', identity)
       }
 
       const urlParts = req.url.split('?', 1)
@@ -730,6 +747,15 @@ export async function initialize(opts: {
         }
 
         try {
+          if (config.experimental.requestInsights) {
+            const requestInsightsIdentity = getRequestMeta(
+              req,
+              'requestInsightsIdentity'
+            )
+            if (requestInsightsIdentity) {
+              recordRequestInsightSource(requestInsightsIdentity, 'asset')
+            }
+          }
           return await serveStatic(req, res, matchedOutput.itemPath, {
             root: matchedOutput.itemsRoot,
             // Ensures that etags are not generated for static files when disabled.

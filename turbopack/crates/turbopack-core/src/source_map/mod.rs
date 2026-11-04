@@ -504,14 +504,44 @@ impl SourceMap {
     }
 }
 
-#[turbo_tasks::function]
-fn sourcemap_content_fs_root() -> Vc<FileSystemPath> {
-    VirtualFileSystem::new_with_name(rcstr!("sourcemap-content")).root()
+/// Splits a source URL of the form `turbopack:///[<fs name>]/<path>` (as written by
+/// [`SourceMap::with_resolved_sources`] and [`utils::resolve_source_map_sources`]) into the file
+/// system name and the path. Returns `None` for any other form.
+fn split_turbopack_source_url(url: &str) -> Option<(&str, &str)> {
+    let rest = url
+        .strip_prefix(SOURCE_URL_PROTOCOL.as_str())?
+        .strip_prefix("///[")?;
+    let (fs_name, path) = rest.split_once("]/")?;
+    (!fs_name.is_empty() && !path.is_empty()).then_some((fs_name, path))
 }
 
+/// The root of a virtual file system for embedded source-map contents. `name` is either
+/// `sourcemap-content` (for arbitrary source URLs) or the name of the original file system, so
+/// sources placed in it present with the same `[name]/path` as the original files.
+#[turbo_tasks::function]
+fn sourcemap_content_fs_root(name: RcStr) -> Vc<FileSystemPath> {
+    VirtualFileSystem::new_with_name(name).root()
+}
+
+/// Creates a source for the embedded `sourcesContent` of a source-map source.
+///
+/// The path is the source's URL. For Turbopack's own `turbopack:///[<fs>]/<path>` URLs the source
+/// is placed at `<path>` in a virtual file system named `<fs>`, so it presents (e.g. in issues) as
+/// the original file `[<fs>]/<path>`. Any other URL is placed verbatim in the `sourcemap-content`
+/// virtual file system.
 #[turbo_tasks::function]
 async fn sourcemap_content_source(path: RcStr, content: RcStr) -> Result<Vc<Box<dyn Source>>> {
-    let path = sourcemap_content_fs_root().await?.join(&path)?;
+    let path = if let Some((fs_name, fs_path)) = split_turbopack_source_url(&path)
+        && let Some(path) = sourcemap_content_fs_root(fs_name.into())
+            .await?
+            .try_join_inside(fs_path)
+    {
+        path
+    } else {
+        sourcemap_content_fs_root(rcstr!("sourcemap-content"))
+            .await?
+            .join(&path)?
+    };
     let content = AssetContent::file(FileContent::new(File::from(content)).cell());
     Ok(Vc::upcast(VirtualSource::new(path, content)))
 }
@@ -713,3 +743,35 @@ impl<Context> Decode<Context> for CrateMapWrapper {
 }
 
 bincode::impl_borrow_decode!(CrateMapWrapper);
+
+#[cfg(test)]
+mod tests {
+    use super::split_turbopack_source_url;
+
+    #[test]
+    fn splits_turbopack_source_urls() {
+        assert_eq!(
+            split_turbopack_source_url("turbopack:///[project]/app/a.js"),
+            Some(("project", "app/a.js"))
+        );
+        assert_eq!(
+            split_turbopack_source_url("turbopack:///[next]/dist/x.js"),
+            Some(("next", "dist/x.js"))
+        );
+    }
+
+    #[test]
+    fn rejects_other_source_urls() {
+        for url in [
+            "webpack://app/a.js",
+            "app/a.js",
+            "turbopack:///app/a.js",
+            "turbopack:///[]/a.js",
+            "turbopack:///[project]",
+            "turbopack:///[project]/",
+            "turbopack://[project]/a.js",
+        ] {
+            assert_eq!(split_turbopack_source_url(url), None, "{url}");
+        }
+    }
+}

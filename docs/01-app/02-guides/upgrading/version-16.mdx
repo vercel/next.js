@@ -1263,6 +1263,15 @@ For the full migration path, see [Migrating to Cache Components](/docs/app/guide
 
 The `unstable_rootParams` function has been removed. Use [`next/root-params`](/docs/app/api-reference/functions/next-root-params) instead.
 
+### Other experimental flags removed in Next.js 16
+
+The following experimental flags were removed in later Next.js 16 minor releases. Remove them from your Next config when upgrading to the corresponding version.
+
+| Flag                               | Version history                                                            | Migration                                                                                                                                              |
+| ---------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `experimental.viewTransition`      | Introduced in 15.2.0 and removed in 16.3.0.                                | Remove the flag. View transitions work in the App Router without configuration.                                                                        |
+| `experimental.appNewScrollHandler` | Introduced in 16.2.0, enabled by default in 16.3.0, and removed in 16.4.0. | Remove the flag. The `true` value already matched the default. The `false` opt-out is no longer available, and the new handler leaves focus unchanged. |
+
 </AppOnly>
 
 ## Troubleshooting

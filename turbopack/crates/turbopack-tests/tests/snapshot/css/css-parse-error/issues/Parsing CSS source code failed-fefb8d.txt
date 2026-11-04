@@ -1,4 +1,4 @@
-warning - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css:21:14  Parsing CSS source code failed
+warning - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css:21:15  Parsing CSS source code failed
       17 | .carousel {
       18 |   scroll-marker-group: after;
       19 | }

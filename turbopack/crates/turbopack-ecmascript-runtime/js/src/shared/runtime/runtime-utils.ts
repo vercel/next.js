@@ -82,6 +82,13 @@ contextPrototype.M = moduleFactories
 
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
 
+/**
+ * The keys of a context and their module ids, flattened: `[key, id, ...]`. Each
+ * module is required by its id from the module that created the context. The id
+ * is `undefined` for a module that is ignored (e.g. mapped to `false`).
+ */
+type ModuleContextIds = Array<string | ModuleId | undefined>
+
 interface ModuleContextEntry {
   id: () => ModuleId
   module: () => any
@@ -695,7 +702,29 @@ function parseRequest(request: string): string {
 /**
  * `require.context` and require/import expression runtime.
  */
-function moduleContext(map: ModuleContextMap): ModuleContext {
+function moduleContext(
+  this: TurbopackBaseContext<Module>,
+  mapOrIds: ModuleContextMap | ModuleContextIds
+): ModuleContext {
+  let map: ModuleContextMap
+  if (Array.isArray(mapOrIds)) {
+    const parentModule = this.m
+    map = {}
+    for (let i = 0; i < mapOrIds.length; i += 2) {
+      const id = mapOrIds[i + 1] as ModuleId | undefined
+      map[mapOrIds[i] as string] = {
+        id: () => id as ModuleId,
+        // inlined require implementation, which gives an ignored module empty exports
+        module: () =>
+          id === undefined
+            ? {}
+            : getOrInstantiateModuleFromParent(id, parentModule).exports,
+      }
+    }
+  } else {
+    map = mapOrIds
+  }
+
   function moduleContext(id: string): Exports {
     id = parseRequest(id)
     if (hasOwnProperty.call(map, id)) {

@@ -1,6 +1,11 @@
-import type { RequestInsight } from '../../../shared/request-insights'
+import {
+  REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+  type RequestInsight,
+} from '../../../shared/request-insights'
+import { getRequestInsightFilterResult } from './request-filters'
 import {
   getActiveRequestKey,
+  getRequestInsightRowType,
   getRequestListEntries,
   isPageLoadRequest,
 } from './request-list'
@@ -11,6 +16,7 @@ function createRequest(
 ): RequestInsight {
   return {
     requestId: 'request-1',
+    source: 'unknown',
     htmlRequestId: 'html-1',
     startTime: 100,
     durationMs: 100,
@@ -61,7 +67,7 @@ describe('request insights trace viewer', () => {
     ])
   })
 
-  it('nests internal records directly after their request row', () => {
+  it('nests internal records under their owning request', () => {
     const newerRequest = createRequest({ requestId: 'newer' })
     const olderRequest = createRequest({ requestId: 'older' })
     const newerInstantInsights = createRequest({
@@ -91,42 +97,82 @@ describe('request insights trace viewer', () => {
     ])
   })
 
-  it('keeps orphaned internal records top-level and in root ordering', () => {
-    const request = createRequest({ requestId: 'present' })
-    const presentInstantInsights = createRequest({
-      requestId: 'present',
-      kind: 'instant-insights',
-    })
-    const orphanInstantInsights = createRequest({
-      requestId: 'evicted',
+  it('keeps internal records without a retained owner at the root', () => {
+    const instantInsights = createRequest({
+      requestId: 'orphan',
       kind: 'instant-insights',
     })
 
-    const entries = getRequestListEntries(
-      [presentInstantInsights, orphanInstantInsights, request],
-      true
-    )
-
-    expect(entries).toEqual([
-      { request: orphanInstantInsights, nested: false },
-      { request, nested: false },
-      { request: presentInstantInsights, nested: true },
+    expect(getRequestListEntries([instantInsights], true)).toEqual([
+      { request: instantInsights, nested: false },
     ])
-    // Every record appears exactly once.
-    expect(new Set(entries.map((entry) => entry.request)).size).toBe(
-      entries.length
-    )
-    expect(entries).toHaveLength(3)
+  })
+
+  it('labels and filters normalized request activity', () => {
+    const requestSpan = (rsc: boolean) => ({
+      name: 'GET',
+      startTime: 100,
+      attributes: {
+        'next.span_type': REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+        'next.rsc': rsc,
+      },
+    })
+    const page = createRequest({
+      requestId: 'page',
+      source: 'page',
+      spans: [requestSpan(false)],
+      fetches: [{ cacheStatus: 'miss' }],
+    })
+    const rsc = createRequest({
+      requestId: 'rsc',
+      source: 'page',
+      spans: [requestSpan(true)],
+    })
+    const api = createRequest({ requestId: 'api', source: 'app-route' })
+    const asset = createRequest({ requestId: 'asset', source: 'asset' })
+
+    expect(getRequestInsightRowType(page, true).label).toBe('Page load')
+    expect(getRequestInsightRowType(rsc).label).toBe('RSC')
+    expect(getRequestInsightRowType(api).label).toBe('API')
+    expect(getRequestInsightRowType(asset).label).toBe('Asset')
+    expect(
+      getRequestInsightFilterResult(
+        [page, rsc, api],
+        ['source:page', 'cache:miss']
+      ).requests
+    ).toEqual([page])
+    expect(
+      getRequestInsightFilterResult([page, rsc, api, asset], ['source:api'])
+        .requests
+    ).toEqual([api])
+    expect(
+      getRequestInsightFilterResult([page, rsc, api, asset], ['source:asset'])
+        .requests
+    ).toEqual([asset])
   })
 
   it('only marks the exact initial document request as the page load', () => {
     const initialRequestId = 'document-request'
+    const htmlSpan = {
+      name: 'GET',
+      startTime: 100,
+      attributes: {
+        'next.span_type': REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+        'next.rsc': false,
+      },
+    }
+    const rscSpan = {
+      ...htmlSpan,
+      attributes: { ...htmlSpan.attributes, 'next.rsc': true },
+    }
 
     expect(
       isPageLoadRequest(
         createRequest({
-          requestId: initialRequestId,
+          requestId: 'server-owned-request',
+          source: 'page',
           htmlRequestId: initialRequestId,
+          spans: [htmlSpan],
         }),
         initialRequestId
       )
@@ -135,7 +181,9 @@ describe('request insights trace viewer', () => {
       isPageLoadRequest(
         createRequest({
           requestId: 'related-rsc-request',
+          source: 'page',
           htmlRequestId: initialRequestId,
+          spans: [rscSpan],
         }),
         initialRequestId
       )
@@ -144,7 +192,9 @@ describe('request insights trace viewer', () => {
       isPageLoadRequest(
         createRequest({
           requestId: initialRequestId,
+          source: 'instant-insights',
           kind: 'instant-insights',
+          spans: [htmlSpan],
         }),
         initialRequestId
       )
@@ -184,6 +234,16 @@ describe('request insights trace viewer', () => {
             'next.span_type': 'AppRender.instantInsights.runValidation',
           },
         },
+        ...['warmup', 'staticShell', 'validate'].map((phase, index) => ({
+          name: phase,
+          spanId: `phase-${phase}`,
+          parentSpanId: 'validate',
+          startTime: 126 + index,
+          durationMs: 1,
+          attributes: {
+            'next.span_type': `AppRender.instantInsights.${phase}`,
+          },
+        })),
       ],
     })
 
@@ -196,7 +256,35 @@ describe('request insights trace viewer', () => {
       { label: 'Instant Insights', depth: 0 },
       { label: 'Prepare validation inputs', depth: 1 },
       { label: 'Run validation', depth: 1 },
+      { label: 'warmup', depth: 2 },
+      { label: 'static shell', depth: 2 },
+      { label: 'validate', depth: 2 },
     ])
+  })
+
+  it('uses Proxy terminology without changing the recorded OTel span', () => {
+    const middlewareSpan = {
+      name: 'middleware POST',
+      startTime: 100,
+      durationMs: 10,
+      attributes: {
+        'http.method': 'POST',
+        'next.span_name': 'middleware POST',
+        'next.span_type': 'Middleware.execute',
+      },
+    }
+    const request = createRequest({ spans: [middlewareSpan] })
+
+    expect(getTraceItems(request, false)[0]?.label).toBe('proxy POST')
+    expect(middlewareSpan).toEqual(
+      expect.objectContaining({
+        name: 'middleware POST',
+        attributes: expect.objectContaining({
+          'next.span_name': 'middleware POST',
+          'next.span_type': 'Middleware.execute',
+        }),
+      })
+    )
   })
 
   it('orders spans by their recorded parent-child hierarchy', () => {

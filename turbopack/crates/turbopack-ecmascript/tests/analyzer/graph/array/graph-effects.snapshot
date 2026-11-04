@@ -33,6 +33,112 @@
                 ),
             ),
         ),
+        base_effects: [
+            Member {
+                obj: FreeVar(
+                    "global",
+                ),
+                prop: Constant(
+                    Str(
+                        Atom(
+                            "index",
+                        ),
+                    ),
+                ),
+                base_effects: [
+                    FreeVar {
+                        var: "global",
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                            MemberExpr(
+                                Prop,
+                            ),
+                            MemberProp(
+                                Computed,
+                            ),
+                            ComputedPropName(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                            MemberExpr(
+                                Obj,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 50..56,
+                    },
+                ],
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            1,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Prop,
+                    ),
+                    MemberProp(
+                        Computed,
+                    ),
+                    ComputedPropName(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                ],
+                span: 50..62,
+                in_truthiness_context: false,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -64,108 +170,6 @@
         in_truthiness_context: false,
     },
     Member {
-        obj: FreeVar(
-            "global",
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "index",
-                ),
-            ),
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Prop,
-            ),
-            MemberProp(
-                Computed,
-            ),
-            ComputedPropName(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 50..62,
-        in_truthiness_context: false,
-    },
-    FreeVar {
-        var: "global",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Prop,
-            ),
-            MemberProp(
-                Computed,
-            ),
-            ComputedPropName(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 50..56,
-    },
-    Member {
         obj: Variable(
             (
                 "d1",
@@ -185,6 +189,112 @@
                 ),
             ),
         ),
+        base_effects: [
+            Member {
+                obj: FreeVar(
+                    "global",
+                ),
+                prop: Constant(
+                    Str(
+                        Atom(
+                            "index",
+                        ),
+                    ),
+                ),
+                base_effects: [
+                    FreeVar {
+                        var: "global",
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    3,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                            MemberExpr(
+                                Prop,
+                            ),
+                            MemberProp(
+                                Computed,
+                            ),
+                            ComputedPropName(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                            MemberExpr(
+                                Obj,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 103..109,
+                    },
+                ],
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            3,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Prop,
+                    ),
+                    MemberProp(
+                        Computed,
+                    ),
+                    ComputedPropName(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                ],
+                span: 103..115,
+                in_truthiness_context: false,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -216,108 +326,6 @@
         in_truthiness_context: false,
     },
     Member {
-        obj: FreeVar(
-            "global",
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "index",
-                ),
-            ),
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Prop,
-            ),
-            MemberProp(
-                Computed,
-            ),
-            ComputedPropName(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 103..115,
-        in_truthiness_context: false,
-    },
-    FreeVar {
-        var: "global",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Prop,
-            ),
-            MemberProp(
-                Computed,
-            ),
-            ComputedPropName(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 103..109,
-    },
-    Member {
         obj: Variable(
             (
                 "d1",
@@ -331,6 +339,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -375,6 +384,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
