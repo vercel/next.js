@@ -339,6 +339,17 @@ export async function runDevValidation(
     needsManifestsForLegacyReasons: true,
   })
 
+  // The settled render can contain client references whose RSC proxy factories
+  // arrived through a dynamic import. Reloading the route entry does not run
+  // user components, so it only registers the async loader for those modules,
+  // not the separate chunk containing the proxy factory. Register the chunks
+  // that the main app-page runtime had loaded before replaying its Flight data.
+  const pendingChunkLoads: Promise<unknown>[] = []
+  for (const chunk of message.loadedServerChunks) {
+    pendingChunkLoads.push(ComponentMod.__next_app__.loadChunk(chunk))
+  }
+  await Promise.all(pendingChunkLoads)
+
   await registerAdditionalClientReferenceManifests(
     message.distDir,
     message.additionalClientReferenceManifestPages
