@@ -311,6 +311,7 @@ impl JsValue<'_> {
                             | WellKnownFunctionKind::OsPlatform
                             | WellKnownFunctionKind::PathDirname
                             | WellKnownFunctionKind::PathToFileUrl
+                            | WellKnownFunctionKind::FileUrlToPath
                             | WellKnownFunctionKind::ProcessCwd,
                     )
                 ) =>
