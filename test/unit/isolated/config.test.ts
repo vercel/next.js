@@ -129,6 +129,19 @@ describe('config', () => {
     expect(loadedIgnore.test('/healthz')).toBe(true)
   })
 
+  it('Should deeply freeze the shared defaults in test mode without loading config', async () => {
+    // `beforeEach` imports `config.ts`; reset so only `config-shared.ts` loads.
+    jest.resetModules()
+    const { defaultConfig } = await import('next/dist/server/config-shared')
+    const { imageConfigDefault } = await import(
+      'next/dist/shared/lib/image-config'
+    )
+
+    expect(Object.isFrozen(defaultConfig.experimental)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault.deviceSizes)).toBe(true)
+  })
+
   it('Should enable the TypeScript CLI by default and allow opting out', async () => {
     const defaultConfig = await loadConfig(
       PHASE_DEVELOPMENT_SERVER,
