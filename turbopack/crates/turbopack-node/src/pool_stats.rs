@@ -150,7 +150,7 @@ impl NodeJsPoolStats {
         }
     }
 
-    #[cfg(any(feature = "process_pool", feature = "worker_pool"))]
+    #[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
     pub fn snapshot(&self) -> PoolStatsSnapshot {
         PoolStatsSnapshot {
             bootup_count: self.bootup_count,
@@ -182,7 +182,8 @@ impl Debug for NodeJsPoolStats {
     }
 }
 
-/// A snapshot of pool statistics, useful for testing and diagnostics.
+/// A snapshot of pool statistics for process-pool tests.
+#[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PoolStatsSnapshot {
     /// Total number of processes ever successfully booted.

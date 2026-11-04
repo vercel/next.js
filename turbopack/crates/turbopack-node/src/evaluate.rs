@@ -41,7 +41,6 @@ use crate::{
     emit, emit_package_json,
     format::FormattingMode,
     internal_assets_for_source_mapping,
-    pool_stats::PoolStatsSnapshot,
     source_map::StructuredError,
 };
 
@@ -50,8 +49,8 @@ use crate::{
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
 pub enum EvaluateArg {
     Vc(ResolvedVc<JsonValue>),
-    /// Passed as a string: A path relative to [`EvaluateContext::cwd`] when both are on the same
-    /// filesystem, otherwise an absolute system path (e.g. for an additional root).
+    /// Passed as a string: A path relative to the evaluation working directory when both are on the
+    /// same filesystem, otherwise an absolute system path (e.g. for an additional root).
     ///
     /// This is converted when the evaluation runs, so that machine-specific system paths aren't
     /// stored in task inputs or cells.
@@ -113,6 +112,9 @@ enum EvalJavaScriptIncomingMessage {
     Error(StructuredError),
 }
 
+#[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
+use crate::pool_stats::PoolStatsSnapshot;
+
 #[turbo_tasks::value(
     cell = "new",
     serialization = "skip",
@@ -120,7 +122,7 @@ enum EvalJavaScriptIncomingMessage {
     eq = "manual",
     shared
 )]
-pub struct EvaluatePool {
+pub(crate) struct EvaluatePool {
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     pool: Box<dyn EvaluateOperation>,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
@@ -144,22 +146,24 @@ impl EvaluatePool {
         }
     }
 
-    pub async fn operation(&self) -> Result<Box<dyn Operation>> {
+    pub(crate) async fn operation(&self) -> Result<Box<dyn Operation>> {
         self.pool.operation().await
     }
 
-    pub fn stats(&self) -> PoolStatsSnapshot {
+    #[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
+    pub(crate) fn stats(&self) -> PoolStatsSnapshot {
         self.pool.stats()
     }
 
-    pub fn pre_warm(&self) {
+    pub(crate) fn pre_warm(&self) {
         self.pool.pre_warm()
     }
 }
 
 #[async_trait::async_trait]
-pub trait EvaluateOperation: Send + Sync {
+pub(crate) trait EvaluateOperation: Send + Sync {
     async fn operation(&self) -> Result<Box<dyn Operation>>;
+    #[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
     fn stats(&self) -> PoolStatsSnapshot;
     /// Eagerly spawn a Node.js worker so it's ready when the first [`Self::operation`] is called.
     /// The worker should go into the idle queue.
@@ -170,7 +174,7 @@ pub trait EvaluateOperation: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait Operation: Send {
+pub(crate) trait Operation: Send {
     async fn recv(&mut self) -> Result<Bytes>;
 
     async fn send(&mut self, data: Bytes) -> Result<()>;
@@ -263,7 +267,7 @@ pub enum EnvVarTracking {
 #[turbo_tasks::function(operation, root)]
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
-pub async fn get_evaluate_pool(
+pub(crate) async fn get_evaluate_pool(
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
@@ -347,7 +351,7 @@ async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<EnvMap>> {
 
 /// A Node.js process could not connect back to us over the loopback interface.
 ///
-/// Backends return this from [`EvaluateOperation::operation`] so that it can be
+/// Backends return this when acquiring a worker operation so that it can be
 /// reported as an actionable issue. This is not a bug in the evaluated code and
 /// retrying will not help, it usually means a sandbox blocks local networking.
 #[derive(Debug)]
@@ -398,7 +402,7 @@ impl futures_retry::ErrorHandler<anyhow::Error> for PoolErrorHandler {
     }
 }
 
-pub trait EvaluateContext {
+pub(crate) trait EvaluateContext {
     type InfoMessage: DeserializeOwned;
     type RequestMessage: DeserializeOwned;
     type ResponseMessage: Serialize;
@@ -445,7 +449,9 @@ pub trait EvaluateContext {
     }
 }
 
-pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<Vc<Option<RcStr>>> {
+pub(crate) async fn custom_evaluate(
+    evaluate_context: impl EvaluateContext,
+) -> Result<Vc<Option<RcStr>>> {
     let pool_op = evaluate_context.pool();
     let mut state = Default::default();
 

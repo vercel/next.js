@@ -1,7 +1,10 @@
 |name, initial| {
   use std::hash::BuildHasher;
-  let path = std::path::PathBuf::from(
-    format!("{}/.cache/{}", env!("CARGO_TARGET_TMPDIR"), rustc_hash::FxBuildHasher.hash_one(name)));
+  // Cargo only defines CARGO_TARGET_TMPDIR for integration tests and benches, not unit tests.
+  let temp_dir = option_env!("CARGO_TARGET_TMPDIR")
+    .map(std::path::PathBuf::from)
+    .unwrap_or_else(|| std::env::temp_dir().join(format!("turbopack-node-tests-{}", std::process::id())));
+  let path = temp_dir.join(format!(".cache/{}", rustc_hash::FxBuildHasher.hash_one(name)));
   if initial {
     let _ = std::fs::remove_dir_all(&path);
   }

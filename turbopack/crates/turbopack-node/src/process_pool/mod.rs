@@ -30,16 +30,20 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, Vc, duration_span};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
+#[cfg(test)]
+use crate::pool_stats::PoolStatsSnapshot;
 use crate::{
     AssetsForSourceMapping,
-    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend, sealed::Sealed},
     evaluate::{EvaluateOperation, EvaluatePool, NodeJsConnectError, Operation},
     format::FormattingMode,
-    pool_stats::{AcquiredPermits, NodeJsPoolStats, PoolStatsSnapshot},
+    pool_stats::{AcquiredPermits, NodeJsPoolStats},
     source_map::apply_source_mapping,
 };
 
 mod heap_queue;
+#[cfg(test)]
+mod tests;
 use heap_queue::HeapQueue;
 
 struct NodeJsPoolProcess {
@@ -625,7 +629,7 @@ impl ProcessArgs {
     eq = "manual",
     shared
 )]
-pub struct ChildProcessPool {
+pub(crate) struct ChildProcessPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
     env: FxHashMap<RcStr, RcStr>,
@@ -653,7 +657,7 @@ pub struct ChildProcessPool {
 impl ChildProcessPool {
     /// * debug: Whether to automatically enable Node's `--inspect-brk` when spawning it. Note:
     ///   automatically overrides concurrency to 1.
-    pub fn create(
+    pub(crate) fn create(
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: FxHashMap<RcStr, RcStr>,
@@ -703,6 +707,19 @@ impl NodeBackend for ChildProcessesBackend {
         rcstr!("child_process/globals.ts")
     }
 
+    fn scale_down(&self) -> Result<()> {
+        ChildProcessPool::scale_down();
+        Ok(())
+    }
+
+    fn scale_zero(&self) -> Result<()> {
+        ChildProcessPool::scale_zero();
+        Ok(())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Sealed for ChildProcessesBackend {
     fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture {
         Box::pin(async move {
             let CreatePoolOptions {
@@ -728,16 +745,6 @@ impl NodeBackend for ChildProcessesBackend {
             ))
         })
     }
-
-    fn scale_down(&self) -> Result<()> {
-        ChildProcessPool::scale_down();
-        Ok(())
-    }
-
-    fn scale_zero(&self) -> Result<()> {
-        ChildProcessPool::scale_zero();
-        Ok(())
-    }
 }
 
 #[async_trait::async_trait]
@@ -762,6 +769,7 @@ impl EvaluateOperation for ChildProcessPool {
     }
 
     /// Returns a snapshot of the pool's internal statistics.
+    #[cfg(test)]
     fn stats(&self) -> PoolStatsSnapshot {
         self.stats.lock().snapshot()
     }

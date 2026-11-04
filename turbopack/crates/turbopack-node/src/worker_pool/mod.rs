@@ -17,11 +17,13 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, duration_span};
 use turbo_tasks_fs::FileSystemPath;
 
+#[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
+use crate::pool_stats::PoolStatsSnapshot;
 use crate::{
     AssetsForSourceMapping,
-    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend, sealed::Sealed},
     evaluate::{EvaluateOperation, EvaluatePool, Operation},
-    pool_stats::{AcquiredPermits, PoolStatsSnapshot},
+    pool_stats::AcquiredPermits,
     worker_pool::{
         operation::{
             PoolState, TaskChannels, WORKER_POOL_OPERATION, WorkerOperation, WorkerOptions,
@@ -168,6 +170,19 @@ impl NodeBackend for WorkerThreadsBackend {
         rcstr!("worker_thread/globals.ts")
     }
 
+    fn scale_down(&self) -> Result<()> {
+        WorkerThreadPool::scale_down();
+        Ok(())
+    }
+
+    fn scale_zero(&self) -> Result<()> {
+        WorkerThreadPool::scale_zero();
+        Ok(())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Sealed for WorkerThreadsBackend {
     fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture {
         Box::pin(async move {
             let CreatePoolOptions {
@@ -193,16 +208,6 @@ impl NodeBackend for WorkerThreadsBackend {
             )
             .await)
         })
-    }
-
-    fn scale_down(&self) -> Result<()> {
-        WorkerThreadPool::scale_down();
-        Ok(())
-    }
-
-    fn scale_zero(&self) -> Result<()> {
-        WorkerThreadPool::scale_zero();
-        Ok(())
     }
 }
 
@@ -262,6 +267,7 @@ impl EvaluateOperation for WorkerThreadPool {
     }
 
     /// Returns a snapshot of the pool's internal statistics.
+    #[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
     fn stats(&self) -> PoolStatsSnapshot {
         self.state.stats.lock().snapshot()
     }
