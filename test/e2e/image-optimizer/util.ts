@@ -1198,6 +1198,13 @@ export function runTests(ctx: RunTestsCtx) {
     )
   })
 
+  it('should fail when url has malformed percent encoding', async () => {
+    const query = { url: `/%`, w: ctx.w, q: ctx.q }
+    const res = await next.fetch(`/_next/image?${toQueryString(query)}`)
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(`"url" parameter is invalid`)
+  })
+
   describe('recursive url is not allowed', () => {
     it('should fail with relative next image url', async () => {
       const query = {
