@@ -287,8 +287,12 @@ impl RequireContextAssetReference {
         .await?;
 
         // One dependency per key: `require.resolve` evaluates to the id of its module at
-        // compile time, which the runtime requires.
-        let mut code = String::from("module.exports = __turbopack_module_context__([\n");
+        // compile time, which the runtime requires. Creating the context doesn't evaluate
+        // any of the modules, so the synthetic module has no side effects.
+        let mut code = String::from(
+            "\"use turbopack: no side effects\";\nmodule.exports = \
+             __turbopack_module_context__([\n",
+        );
         for key in keys.iter() {
             let key = StringifyJs(key);
             writeln!(code, "  {key}, require.resolve({key}),")?;

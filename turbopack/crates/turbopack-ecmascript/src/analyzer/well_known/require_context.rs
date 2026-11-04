@@ -80,6 +80,7 @@ impl RequireContextValue {
         origin_dir: &FileSystemPath,
         context_dir: &FileSystemPath,
     ) -> Result<Self> {
+        // The context directory is joined to `origin_dir`, so it's on the same filesystem.
         let prefix = origin_dir
             .get_relative_request_to(context_dir)
             .context("the context directory must be on the filesystem of the calling module")?;
