@@ -29,13 +29,12 @@ pub mod transforms;
 #[cfg(feature = "worker_pool")]
 mod worker_pool;
 
-use backend::NodeBackend;
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
-pub fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
+pub fn child_process_backend() -> Vc<Box<dyn backend::NodeBackend>> {
     Vc::upcast(process_pool::ChildProcessesBackend.cell())
 }
 #[cfg(feature = "worker_pool")]
-pub fn worker_threads_backend() -> Vc<Box<dyn NodeBackend>> {
+pub fn worker_threads_backend() -> Vc<Box<dyn backend::NodeBackend>> {
     Vc::upcast(worker_pool::WorkerThreadsBackend.cell())
 }
 
