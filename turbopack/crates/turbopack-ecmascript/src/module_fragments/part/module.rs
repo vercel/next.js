@@ -1,13 +1,13 @@
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
-    resolve::{ExportUsage, ModulePart},
+    reference::ModuleReferences,
+    resolve::ModulePart,
 };
 
 use crate::{
@@ -103,6 +103,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
             generate_source_map,
             original_source_map: analyze_ref.source_map,
             exports: self.get_exports().to_resolved().await?,
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())
@@ -111,7 +112,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptModulePartAsset {
-    /// Create a new instance of [Vc<EcmascriptModulePartAsset>], which consists
+    /// Create a new instance of [`Vc<EcmascriptModulePartAsset>`], which consists
     /// of a pointer to the full module and the [ModulePart] pointing the part
     /// of the module.
     #[turbo_tasks::function]
@@ -163,7 +164,12 @@ impl EcmascriptModulePartAsset {
                 ));
             }
 
-            ModulePart::Export(export) => {
+            part @ (ModulePart::Export(_) | ModulePart::PartialExport { .. }) => {
+                let (export, namespace_member) = match part {
+                    ModulePart::Export(export) => (export, None),
+                    ModulePart::PartialExport { export, member } => (export, Some(member)),
+                    _ => unreachable!(),
+                };
                 if entrypoints.contains_key(&Key::Export(export.clone())) {
                     return Ok(Vc::upcast(
                         EcmascriptModulePartAsset::new_with_resolved_part(
@@ -199,7 +205,12 @@ impl EcmascriptModulePartAsset {
                     ResolvedVc::upcast(
                         EcmascriptModuleRenameModule::new(
                             **final_module,
-                            ModulePart::renamed_namespace(export.clone()),
+                            match namespace_member {
+                                Some(member) => {
+                                    ModulePart::renamed_partial_namespace(export.clone(), member)
+                                }
+                                None => ModulePart::renamed_namespace(export.clone()),
+                            },
                         )
                         .to_resolved()
                         .await?,
@@ -309,40 +320,15 @@ impl Module for EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
-            let export = match &part {
-                ModulePart::Export(export) => ExportUsage::named(export.clone()),
-                ModulePart::Evaluation => ExportUsage::evaluation(),
-                _ => ExportUsage::all(),
-            };
-
-            Vc::upcast(SingleChunkableModuleReference::new(
-                Vc::upcast(EcmascriptModulePartAsset::new_with_resolved_part(
-                    *self.full_module,
-                    part,
-                )),
-                rcstr!("part reference"),
-                export,
-            ))
-        };
-
-        if let ModulePart::Facade = self.part {
-            // Facade depends on evaluation and re-exports
-            let mut references = vec![];
-            references.push(part_dep(ModulePart::evaluation()).to_resolved().await?);
-            references.push(part_dep(ModulePart::exports()).to_resolved().await?);
-            return Ok(Vc::cell(references));
-        }
-
         let analyze = analyze_ecmascript_module(*self.full_module, Some(self.part.clone()));
 
         Ok(analyze.references())
     }
 
     #[turbo_tasks::function]
-    async fn side_effects(&self) -> Vc<ModuleSideEffects> {
+    fn side_effects(&self) -> Vc<ModuleSideEffects> {
         match self.part {
-            ModulePart::Exports | ModulePart::Export(..) => {
+            ModulePart::Exports | ModulePart::Export(_) | ModulePart::PartialExport { .. } => {
                 ModuleSideEffects::SideEffectFree.cell()
             }
             _ => self.full_module.side_effects(),

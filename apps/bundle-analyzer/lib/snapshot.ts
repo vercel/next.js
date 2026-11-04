@@ -4,7 +4,7 @@
  * sync.
  */
 export interface SnapshotMetadata {
-  id: string
+  name: string
   createdAt: string
   nextVersion?: string
   gitBranch?: string
@@ -15,8 +15,6 @@ export interface SnapshotMetadata {
   gitMessage?: string
   appDirOnly?: boolean
   noMangling?: boolean
-  /** User-supplied baseline name, overriding branch/sha in display. See `--baseline-name`. */
-  baselineName?: string
   routeCount: number
 }
 
@@ -25,20 +23,30 @@ export interface HistoryIndex {
   snapshots: SnapshotMetadata[]
 }
 
-/**
- * Returns a short, human-friendly label for a snapshot. Used by the picker
- * and the diff header bar. Format prefers branch + short sha, falling back to
- * timestamp when neither is available.
- */
+/** Null selects the live build; undefined means no valid selection. */
+export function decodeBuildSelection(
+  value: string | null
+): string | null | undefined {
+  if (value === 'latest') return null
+  if (value?.startsWith('snapshot:') && value.length > 'snapshot:'.length) {
+    return value.slice('snapshot:'.length)
+  }
+  return undefined
+}
+
+/** Tag saved names so even a snapshot named "latest" is distinct from the live build. */
+export function encodeBuildSelection(name: string | null): string {
+  return name === null ? 'latest' : `snapshot:${name}`
+}
+
+/** The snapshot's name is both its selection key and its display label. */
 export function formatSnapshotLabel(metadata: SnapshotMetadata): string {
-  if (metadata.baselineName) return metadata.baselineName
-  const sha = metadata.gitShortSha ? metadata.gitShortSha : null
-  const branch = metadata.gitBranch ?? null
-  if (branch && sha)
-    return `${branch}@${sha}${metadata.gitDirty ? ' (dirty)' : ''}`
-  if (sha) return `${sha}${metadata.gitDirty ? ' (dirty)' : ''}`
-  if (branch) return branch
-  return formatRelativeTime(metadata.createdAt)
+  return metadata.name
+}
+
+/** Mirror the build's snapshotDirectory encoding, then escape the segment for HTTP. */
+export function snapshotBaseDir(metadata: SnapshotMetadata): string {
+  return `/history/${encodeURIComponent(`snapshot-${encodeURIComponent(metadata.name)}`)}`
 }
 
 /**

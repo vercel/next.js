@@ -4,13 +4,10 @@ import * as Log from './utils/log'
 import { waitForNoRedbox, retry } from '../../../../lib/next-test-utils'
 
 describe('after() in generateStaticParams', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // reading CLI logs to observe after
     skipStart: true,
   })
-
-  if (skipped) return
 
   let currentCliOutputIndex = 0
   beforeEach(() => {
@@ -49,8 +46,7 @@ describe('after() in generateStaticParams', () => {
     })
   } else {
     it('runs after callbacks for each page during build', async () => {
-      const buildResult = await next.build()
-      expect(buildResult?.exitCode).toBe(0)
+      await next.start()
 
       {
         // after should run at build time
@@ -62,6 +58,6 @@ describe('after() in generateStaticParams', () => {
           source: '[generateStaticParams] /two/[myParam]',
         })
       }
-    })
+    }, 240_000)
   }
 })

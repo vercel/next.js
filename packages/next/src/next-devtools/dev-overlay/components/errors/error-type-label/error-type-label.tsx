@@ -4,6 +4,7 @@ export type ErrorType =
   | `Console ${string}`
   | `Recoverable ${string}`
   | 'Blocking Route'
+  | 'Static Route'
   | 'Ambiguous Metadata'
   | 'Instant'
 

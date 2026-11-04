@@ -19,7 +19,7 @@ import {
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
-import { APP_CLIENT_INTERNALS, RSC_MODULE_TYPES } from '../shared/lib/constants'
+import { APP_CLIENT_INTERNALS } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
@@ -64,6 +64,8 @@ import { MissingCanonicalInterceptionRoutesError } from '../shared/lib/errors/mi
 import { IncompatibleParallelRouteSlotsError } from '../shared/lib/errors/incompatible-parallel-route-slots-error'
 import { findMissingCanonicalInterceptionRoutes } from '../shared/lib/router/utils/interception-routes'
 import { findPageFile } from '../server/lib/find-page-file'
+import * as Log from './output/log'
+import { getStrictRouteMatchingDefaultWarning } from '../server/lib/router-utils/strict-route-matching-config'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
@@ -508,6 +510,12 @@ export async function createEntrypoints(
         )
       )
     }
+    if (routeMatchingErrors.length > 0) {
+      const warning = getStrictRouteMatchingDefaultWarning(config)
+      if (warning) {
+        Log.warnOnce(warning)
+      }
+    }
     if (routeMatchingErrors.length === 1) {
       throw routeMatchingErrors[0]
     }
@@ -588,10 +596,6 @@ export async function createEntrypoints(
         page,
       })
 
-      // TODO(timneutkens): remove this
-      const isServerComponent =
-        isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
-
       if (isMiddlewareFile(page)) {
         middlewareMatchers = staticInfo.middleware?.matchers ?? [
           { regexp: '.*', originalSource: '/:path*' },
@@ -619,8 +623,8 @@ export async function createEntrypoints(
         pageRuntime: staticInfo.runtime,
         pageType: pagesType,
         onClient: () => {
-          if (isServerComponent || isInsideAppDir) {
-            // We skip the initial entries for server component pages and let the
+          if (isInsideAppDir) {
+            // We skip the initial entries for app pages and let the
             // server compiler inject them instead.
           } else {
             client[clientBundlePath] = getClientEntry({
@@ -670,7 +674,7 @@ export async function createEntrypoints(
               absolutePagePath: absolutePagePath,
               bundlePath: clientBundlePath,
               isDev: false,
-              isServerComponent,
+              isServerComponent: isInsideAppDir,
               page,
               middleware: staticInfo?.middleware,
               pagesType,
@@ -753,7 +757,7 @@ export async function createEntrypoints(
               absolutePagePath: absolutePagePath,
               bundlePath: clientBundlePath,
               isDev: false,
-              isServerComponent,
+              isServerComponent: isInsideAppDir,
               page,
               middleware: staticInfo?.middleware,
               pagesType,

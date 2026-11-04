@@ -3,14 +3,9 @@ import { nextTestSetup } from 'e2e-utils'
 process.env.__TEST_SENTINEL = 'at buildtime'
 
 describe('dynamic-data', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/main',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render the dynamic apis dynamically when used in a top-level scope', async () => {
     const $ = await next.render$(

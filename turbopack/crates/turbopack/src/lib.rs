@@ -28,6 +28,7 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     ident::{AssetIdent, Layer},
     issue::{IssueExt, IssueSource, module::ModuleIssue},
+    loader::{WebpackLoaderItem, WebpackLoaderItems},
     module::{Module, ModuleSideEffects},
     node_addon_module::NodeAddonModule,
     output::{ExpandedOutputAssets, OutputAsset},
@@ -56,7 +57,7 @@ use turbopack_ecmascript::{
         CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
     },
 };
-use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
+use turbopack_node::transforms::webpack::WebpackLoaders;
 use turbopack_resolve::{
     resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
     typescript::type_resolve,
@@ -65,7 +66,7 @@ use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
 use crate::{
-    evaluate_context::node_evaluate_asset_context,
+    evaluate_context::{config_tracing_module_context, node_evaluate_asset_context},
     module_options::{
         CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
         package_import_map_from_context, package_import_map_from_import_mapping,
@@ -688,6 +689,7 @@ async fn process_default_internal(
             rename_as.clone(),
             *resolve_options_context,
             source_maps,
+            config_tracing_module_context(*execution_context),
         )
         .to_resolved()
         .await?;
@@ -871,6 +873,7 @@ pub async fn externals_tracing_module_context(
     compile_time_info: Vc<CompileTimeInfo>,
     resolve_typescript: bool,
     prune: Option<(FileSystemPath, ResolvedVc<Glob>)>,
+    trace_file_references: bool,
 ) -> Result<Vc<ModuleAssetContext>> {
     let mut extensions = vec![rcstr!(".js"), rcstr!(".node"), rcstr!(".json")];
     if resolve_typescript {
@@ -924,7 +927,10 @@ pub async fn externals_tracing_module_context(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            analyze_mode: AnalyzeMode::Tracing,
+            analyze_mode: AnalyzeMode {
+                is_codegen: false,
+                trace_file_references,
+            },
             module_rules: prune_rules,
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
@@ -1012,11 +1018,6 @@ impl AssetContext for ModuleAssetContext {
         let this = self.await?;
 
         let replace_externals = this.replace_externals;
-        let import_externals = this
-            .module_options_context
-            .await?
-            .ecmascript
-            .import_externals;
 
         let result = result.await?;
 
@@ -1080,8 +1081,9 @@ impl AssetContext for ModuleAssetContext {
                                     let origin = PlainResolveOrigin::new(
                                         Vc::upcast(externals_tracing_module_context(
                                             *options.compile_time_info,
-                                            false,
-                                            None,
+                                            /* resolve_typescript */ false,
+                                            /* prune */ None,
+                                            /* trace_file_references */ true,
                                         )),
                                         // If target is specified, a symlink will be created to
                                         // make the folder
@@ -1099,6 +1101,12 @@ impl AssetContext for ModuleAssetContext {
                                     CachedExternalTracingMode::Untraced
                                 };
 
+                                // Only read here, so other resolve results don't depend on it.
+                                let import_externals = self
+                                    .module_options_context()
+                                    .await?
+                                    .ecmascript
+                                    .import_externals;
                                 replace_external(&name, ty, target, import_externals, analyze_mode)
                                     .await?
                             } else {

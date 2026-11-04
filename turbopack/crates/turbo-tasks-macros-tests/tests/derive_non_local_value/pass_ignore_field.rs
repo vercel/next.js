@@ -6,7 +6,7 @@ struct UnannotatedValue<T>(PhantomData<T>);
 
 #[derive(NonLocalValue)]
 struct ContainsIgnore<T> {
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     a: UnannotatedValue<T>,
 }
 

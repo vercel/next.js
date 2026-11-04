@@ -9,6 +9,9 @@ pub const ANNOTATION_CHUNKING_TYPE: &str = "turbopack-chunking-type";
 /// Enables a specified transition for the annotated import
 pub const ANNOTATION_TRANSITION: &str = "turbopack-transition";
 
+/// Forwards the importing module's used exports to the referenced module
+pub const ANNOTATION_EXPORT_USAGE: &str = "turbopack-export-usage";
+
 pub fn with_clause<'a>(
     entries: impl IntoIterator<Item = &'a (&'a str, &'a str)>,
 ) -> Box<ObjectLit> {

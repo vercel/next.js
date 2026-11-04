@@ -3,15 +3,18 @@ use std::{cmp::max, num::NonZeroU32};
 use rustc_hash::FxHashSet;
 use turbo_tasks::TaskId;
 
-use crate::backend::operation::{
-    AggregationUpdateJob, AggregationUpdateQueue, TaskGuard, is_aggregating_node, is_root_node,
+use crate::backend::{
+    operation::{
+        AggregationUpdateJob, AggregationUpdateQueue, TaskGuard, is_aggregating_node, is_root_node,
+    },
+    storage_schema::TaskStorageAccessors,
 };
 
 const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 3;
 
 pub fn prepare_new_children(
     parent_task_id: TaskId,
-    parent_task: &mut impl TaskGuard,
+    parent_task: &mut TaskGuard<'_>,
     new_children: &FxHashSet<TaskId>,
     queue: &mut AggregationUpdateQueue,
 ) -> u32 {

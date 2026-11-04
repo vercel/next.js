@@ -5,8 +5,32 @@ import {
   getDevCliValidationOutput,
 } from 'e2e-utils/instant-validation'
 import { type InstantValidationCaseContext } from './harness.util'
+import { ErrorSnapshot, RedboxSnapshot } from '../../../lib/add-redbox-matchers'
+import { getPrerenderOutput } from '../cache-components-errors/utils'
 
 const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
+
+const INSTANT_INSIGHT_PATTERNS = {
+  urlData: /Next\.js encountered URL data/,
+  prefetch: /Next\.js encountered `?prefetch\(\)`?/,
+  navigation: /Next\.js encountered `?navigation\(\)`?/,
+  runtimeData: /Next\.js encountered runtime data/,
+  uncachedData: /Next\.js encountered uncached data/,
+}
+
+function expectInsightsToMatchPattern(
+  insights: RedboxSnapshot,
+  pattern: RegExp
+) {
+  const errorSnapshotMatcher = expect.objectContaining<Partial<ErrorSnapshot>>({
+    description: expect.stringMatching(pattern),
+  })
+  if (!Array.isArray(insights)) {
+    expect(insights).toEqual(errorSnapshotMatcher)
+  } else {
+    expect(insights).toContain(errorSnapshotMatcher)
+  }
+}
 
 export function registerHeadAndReportingTests(
   ctx: InstantValidationCaseContext
@@ -18,6 +42,7 @@ export function registerHeadAndReportingTests(
     warmCachesAndNavigateTo,
     restartDevServerToEnsureColdCaches,
     expectNoDevValidationErrors,
+    getInstantInsight,
     getCliOutputSinceMark,
     prerender,
   } = ctx
@@ -62,7 +87,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/head/invalid-runtime-viewport-in-static'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -120,7 +145,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/head/invalid-dynamic-viewport-in-runtime'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -216,7 +241,7 @@ export function registerHeadAndReportingTests(
           '/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static'
         )
         // TODO(instant-validation): why aren't we pointing to `await connection()` here?
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -287,7 +312,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/static/multi-depth-deferred-fallback/inner'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
@@ -344,7 +369,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/static/test-firstmod/inter/inner'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
@@ -399,7 +424,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/static/test-multi-unrendered'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
@@ -530,7 +555,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/disable-validation/disable-build'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -617,7 +642,7 @@ export function registerHeadAndReportingTests(
       it('invalid - unguarded params in a runtime-prefetchable shell', async () => {
         if (isNextDev) {
           const browser = await navigateTo('/shells/invalid-runtime-params/123')
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -724,7 +749,7 @@ export function registerHeadAndReportingTests(
                }"
               `)
           } else {
-            await expect(browser).toDisplayCollapsedRedbox(`
+            expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
              {
                "cause": [
                  {
@@ -785,7 +810,7 @@ export function registerHeadAndReportingTests(
             '/shells/invalid-static-with-gsp-metadata/123'
           )
 
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -833,7 +858,7 @@ export function registerHeadAndReportingTests(
           const browser = await navigateTo(
             '/shells/invalid-static-with-gsp/123'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -908,7 +933,7 @@ export function registerHeadAndReportingTests(
           it('with cold caches', async () => {
             if (isNextDev) {
               const browser = await navigateTo(routeInBrowser)
-              await expect(browser).toDisplayCollapsedRedbox(`
+              expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
                {
                  "cause": [
                    {
@@ -963,7 +988,7 @@ export function registerHeadAndReportingTests(
             it('with warm caches', async () => {
               const browser = await warmCachesAndNavigateTo(routeInBrowser)
 
-              await expect(browser).toDisplayCollapsedRedbox(`
+              expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
                {
                  "cause": [
                    {
@@ -1052,7 +1077,7 @@ export function registerHeadAndReportingTests(
           const browser = await navigateTo(
             '/shells/invalid-navigation-without-suspense'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1066,7 +1091,7 @@ export function registerHeadAndReportingTests(
                  ],
                },
              ],
-             "description": "Next.js encountered unstable_navigation() outside of Suspense.",
+             "description": "Next.js encountered navigation() outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/shells/(default)/invalid-navigation-without-suspense/page.tsx (23:19) @ NavigationContent
@@ -1084,15 +1109,15 @@ export function registerHeadAndReportingTests(
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/shells/invalid-navigation-without-suspense": Next.js encountered \`unstable_navigation()\` during prerendering or a navigation.
+           "Error: Route "/shells/invalid-navigation-without-suspense": Next.js encountered \`navigation()\` during prerendering or a navigation.
 
-           \`unstable_navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+           \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`
              - [block] Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+           Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                at main (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -1125,7 +1150,7 @@ export function registerHeadAndReportingTests(
           const browser = await navigateTo(
             '/shells/invalid-prefetch-without-suspense'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1139,14 +1164,14 @@ export function registerHeadAndReportingTests(
                  ],
                },
              ],
-             "description": "Next.js encountered URL data outside of Suspense.",
+             "description": "Next.js encountered prefetch() outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Instant",
-             "source": "app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (23:26) @ PrefetchContent
-           > 23 |   await unstable_prefetch()
-                |                          ^",
+             "source": "app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (23:22) @ PrefetchContent
+           > 23 |   await prefetchStage()
+                |                      ^",
              "stack": [
-               "PrefetchContent app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (23:26)",
+               "PrefetchContent app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (23:22)",
                "Page app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (17:7)",
              ],
            }
@@ -1157,15 +1182,15 @@ export function registerHeadAndReportingTests(
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/shells/invalid-prefetch-without-suspense": Next.js encountered URL data during prerendering or a navigation.
+           "Error: Route "/shells/invalid-prefetch-without-suspense": Next.js encountered \`prefetch()\` during prerendering or a navigation.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+           \`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`
              - [block] Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+           Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                at main (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -1219,6 +1244,989 @@ export function registerHeadAndReportingTests(
           )
           expectNoBuildValidationErrors(result)
         }
+      })
+
+      describe('ensureStatic', () => {
+        describe('cookies in shell without suspense', () => {
+          const errorPattern = INSTANT_INSIGHT_PATTERNS.runtimeData
+
+          const getUrlInDev = (ensureStaticConfig: string | false) =>
+            `/shells/ensure-static/${ensureStaticConfig}/session-data-without-suspense`
+          const getRouteInBuild = (ensureStaticConfig: string | false) =>
+            `/shells/(default)/ensure-static/${ensureStaticConfig}/session-data-without-suspense`
+
+          it('valid with `ensureStatic = false`', async () => {
+            const ensureStaticConfig = false
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              await expectNoDevValidationErrors(browser, await browser.url())
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              expectNoBuildValidationErrors(result)
+            }
+          })
+
+          it('invalid with `ensureStatic = "shell"`', async () => {
+            const ensureStaticConfig = 'shell'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(insights, errorPattern)
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/shell/session-data-without-suspense/page.tsx (7:33) @ instant
+               >  7 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/shell/session-data-without-suspense/page.tsx (7:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered runtime data during a navigation.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/session-data-without-suspense/page.base.tsx (25:16) @ Cookies
+               > 25 |   await cookies()
+                    |                ^",
+                 "stack": [
+                   "Cookies app/shells/(default)/ensure-static/_base/session-data-without-suspense/page.base.tsx (25:16)",
+                   "Page app/shells/(default)/ensure-static/_base/session-data-without-suspense/page.base.tsx (19:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(errorPattern)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/shell/session-data-without-suspense": Next.js encountered runtime data during prerendering or a navigation.
+
+               \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/shell/session-data-without-suspense".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/shell/session-data-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+
+          it('invalid with `ensureStatic = "prefetch"`', async () => {
+            const ensureStaticConfig = 'prefetch'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(insights, errorPattern)
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/prefetch/session-data-without-suspense/page.tsx (7:33) @ instant
+               >  7 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/prefetch/session-data-without-suspense/page.tsx (7:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered runtime data during a navigation.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/session-data-without-suspense/page.base.tsx (25:16) @ Cookies
+               > 25 |   await cookies()
+                    |                ^",
+                 "stack": [
+                   "Cookies app/shells/(default)/ensure-static/_base/session-data-without-suspense/page.base.tsx (25:16)",
+                   "Page app/shells/(default)/ensure-static/_base/session-data-without-suspense/page.base.tsx (19:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(errorPattern)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/prefetch/session-data-without-suspense": Next.js encountered runtime data during prerendering or a navigation.
+
+               \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/prefetch/session-data-without-suspense".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/prefetch/session-data-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+
+          it('invalid with `ensureStatic = "navigation"`', async () => {
+            // NOTE: this fails during the prerender, not during instant validation, so
+            // we need a different error pattern, because the prerender can't distinguish
+            // runtime and uncached data. We include it here for completeness.
+            // There's more coverage of that validation in:
+            //   test/e2e/app-dir/ensure-static-navigation/ensure-static-navigation.test.ts
+            const errorPattern = {
+              dev: /Next\.js encountered runtime data on a route that must be fully static/,
+              build:
+                /Next\.js encountered uncached or runtime data on a route that must be fully static/,
+            }
+
+            const ensureStaticConfig = 'navigation'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(insights, errorPattern.dev)
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "description": "Next.js encountered runtime data on a route that must be fully static.",
+                 "environmentLabel": "Server",
+                 "label": "Static Route",
+                 "source": "app/shells/(default)/ensure-static/_base/session-data-without-suspense/page.base.tsx (25:16) @ Cookies
+               > 25 |   await cookies()
+                    |                ^",
+                 "stack": [
+                   "Cookies app/shells/(default)/ensure-static/_base/session-data-without-suspense/page.base.tsx (25:16)",
+                   "Page app/shells/(default)/ensure-static/_base/session-data-without-suspense/page.base.tsx (19:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              // NOTE: this fails during the prerender, not during instant validation, so
+              // we need to use `getPrerenderOutput` instead of `extractBuildValidationError`.
+              const error = getPrerenderOutput(result.cliOutput, {
+                isMinified: true,
+              })
+              expect(error).toMatch(errorPattern.build)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/navigation/session-data-without-suspense": Next.js encountered uncached or runtime data on a route that must be fully static.
+
+               This route is configured to be fully static, but some data requires rendering at request time.
+
+               Ways to fix this:
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [remove] Remove the data access
+                 - [client] Read the data on the client
+
+               Learn more: https://nextjs.org/docs/messages/static-route-dynamic
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/navigation/session-data-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Error occurred prerendering page "/shells/ensure-static/navigation/session-data-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
+               Export encountered an error on /shells/(default)/ensure-static/navigation/session-data-without-suspense/page: /shells/ensure-static/navigation/session-data-without-suspense, exiting the build."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+        })
+        describe('static params without suspense', () => {
+          const errorPattern = INSTANT_INSIGHT_PATTERNS.urlData
+
+          const getUrlInDev = (ensureStaticConfig: string | false) =>
+            `/shells/ensure-static/${ensureStaticConfig}/static-params-without-suspense/123`
+          const getRouteInBuild = (ensureStaticConfig: string | false) =>
+            `/shells/(default)/ensure-static/${ensureStaticConfig}/static-params-without-suspense/[slug]`
+
+          it('invalid with `ensureStatic = false`', async () => {
+            const ensureStaticConfig = false
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(insights, errorPattern)
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/false/static-params-without-suspense/[slug]/page.tsx (10:33) @ instant
+               > 10 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/false/static-params-without-suspense/[slug]/page.tsx (10:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (30:20) @ Slug
+               > 30 |   const { slug } = await params
+                    |                    ^",
+                 "stack": [
+                   "Slug app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (30:20)",
+                   "Page app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (24:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(errorPattern)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/false/static-params-without-suspense/[slug]": Next.js encountered URL data during prerendering or a navigation.
+
+               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/false/static-params-without-suspense/[slug]".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/false/static-params-without-suspense/[slug]" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+
+          it('invalid with `ensureStatic = "shell"`', async () => {
+            const ensureStaticConfig = 'shell'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(insights, errorPattern)
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/shell/static-params-without-suspense/[slug]/page.tsx (10:33) @ instant
+               > 10 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/shell/static-params-without-suspense/[slug]/page.tsx (10:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (30:20) @ Slug
+               > 30 |   const { slug } = await params
+                    |                    ^",
+                 "stack": [
+                   "Slug app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (30:20)",
+                   "Page app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (24:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(errorPattern)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/shell/static-params-without-suspense/[slug]": Next.js encountered URL data during prerendering or a navigation.
+
+               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/shell/static-params-without-suspense/[slug]".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/shell/static-params-without-suspense/[slug]" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+
+          it('invalid with `ensureStatic = "prefetch"`', async () => {
+            const ensureStaticConfig = 'prefetch'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(insights, errorPattern)
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/prefetch/static-params-without-suspense/[slug]/page.tsx (10:33) @ instant
+               > 10 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/prefetch/static-params-without-suspense/[slug]/page.tsx (10:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (30:20) @ Slug
+               > 30 |   const { slug } = await params
+                    |                    ^",
+                 "stack": [
+                   "Slug app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (30:20)",
+                   "Page app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (24:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(errorPattern)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/prefetch/static-params-without-suspense/[slug]": Next.js encountered URL data during prerendering or a navigation.
+
+               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/prefetch/static-params-without-suspense/[slug]".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/prefetch/static-params-without-suspense/[slug]" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+
+          it('invalid with `ensureStatic = "navigation"`', async () => {
+            const ensureStaticConfig = 'navigation'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(insights, errorPattern)
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/navigation/static-params-without-suspense/[slug]/page.tsx (10:33) @ instant
+               > 10 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/navigation/static-params-without-suspense/[slug]/page.tsx (10:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (30:20) @ Slug
+               > 30 |   const { slug } = await params
+                    |                    ^",
+                 "stack": [
+                   "Slug app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (30:20)",
+                   "Page app/shells/(default)/ensure-static/_base/static-params-without-suspense/[slug]/page.base.tsx (24:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(errorPattern)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/navigation/static-params-without-suspense/[slug]": Next.js encountered URL data during prerendering or a navigation.
+
+               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/navigation/static-params-without-suspense/[slug]".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/navigation/static-params-without-suspense/[slug]" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+        })
+
+        describe('prefetch() without suspense', () => {
+          const getUrlInDev = (ensureStaticConfig: string | false) =>
+            `/shells/ensure-static/${ensureStaticConfig}/prefetch-without-suspense`
+          const getRouteInBuild = (ensureStaticConfig: string | false) =>
+            `/shells/(default)/ensure-static/${ensureStaticConfig}/prefetch-without-suspense`
+
+          // A static app shell resolves both prefetch() and URL data in the
+          // PrefetchStatic stage, so those ensureStatic variants cannot
+          // distinguish between them.
+
+          it('invalid with `ensureStatic = false`', async () => {
+            const ensureStaticConfig = false
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(
+                insights,
+                INSTANT_INSIGHT_PATTERNS.prefetch
+              )
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/false/prefetch-without-suspense/page.tsx (7:33) @ instant
+               >  7 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/false/prefetch-without-suspense/page.tsx (7:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered prefetch() outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17) @ Prefetch
+               > 26 |   await prefetch()
+                    |                 ^",
+                 "stack": [
+                   "Prefetch app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17)",
+                   "Page app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (20:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(INSTANT_INSIGHT_PATTERNS.prefetch)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/false/prefetch-without-suspense": Next.js encountered \`prefetch()\` during prerendering or a navigation.
+
+               \`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/false/prefetch-without-suspense".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/false/prefetch-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+
+          it('invalid with `ensureStatic = "shell"`', async () => {
+            const ensureStaticConfig = 'shell'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(
+                insights,
+                INSTANT_INSIGHT_PATTERNS.prefetch
+              )
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/shell/prefetch-without-suspense/page.tsx (7:33) @ instant
+               >  7 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/shell/prefetch-without-suspense/page.tsx (7:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered prefetch() outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17) @ Prefetch
+               > 26 |   await prefetch()
+                    |                 ^",
+                 "stack": [
+                   "Prefetch app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17)",
+                   "Page app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (20:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(INSTANT_INSIGHT_PATTERNS.prefetch)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/shell/prefetch-without-suspense": Next.js encountered \`prefetch()\` during prerendering or a navigation.
+
+               \`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/shell/prefetch-without-suspense".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/shell/prefetch-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+
+          it('invalid with `ensureStatic = "prefetch"`', async () => {
+            const ensureStaticConfig = 'prefetch'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(
+                insights,
+                INSTANT_INSIGHT_PATTERNS.prefetch
+              )
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/prefetch/prefetch-without-suspense/page.tsx (7:33) @ instant
+               >  7 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/prefetch/prefetch-without-suspense/page.tsx (7:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered prefetch() outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17) @ Prefetch
+               > 26 |   await prefetch()
+                    |                 ^",
+                 "stack": [
+                   "Prefetch app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17)",
+                   "Page app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (20:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(INSTANT_INSIGHT_PATTERNS.prefetch)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/prefetch/prefetch-without-suspense": Next.js encountered \`prefetch()\` during prerendering or a navigation.
+
+               \`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/prefetch/prefetch-without-suspense".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/prefetch/prefetch-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+
+          it('invalid with `ensureStatic = "navigation"`', async () => {
+            const ensureStaticConfig = 'navigation'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(
+                insights,
+                INSTANT_INSIGHT_PATTERNS.prefetch
+              )
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/navigation/prefetch-without-suspense/page.tsx (7:33) @ instant
+               >  7 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/navigation/prefetch-without-suspense/page.tsx (7:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered prefetch() outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17) @ Prefetch
+               > 26 |   await prefetch()
+                    |                 ^",
+                 "stack": [
+                   "Prefetch app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17)",
+                   "Page app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (20:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(INSTANT_INSIGHT_PATTERNS.prefetch)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/navigation/prefetch-without-suspense": Next.js encountered \`prefetch()\` during prerendering or a navigation.
+
+               \`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/navigation/prefetch-without-suspense".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/navigation/prefetch-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+        })
+
+        describe('navigation() without suspense', () => {
+          const errorPattern = INSTANT_INSIGHT_PATTERNS.navigation
+
+          const getUrlInDev = (ensureStaticConfig: string | false) =>
+            `/shells/ensure-static/${ensureStaticConfig}/navigation-without-suspense`
+          const getRouteInBuild = (ensureStaticConfig: string | false) =>
+            `/shells/(default)/ensure-static/${ensureStaticConfig}/navigation-without-suspense`
+
+          it('invalid with `ensureStatic = false`', async () => {
+            const ensureStaticConfig = false
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(insights, errorPattern)
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/false/navigation-without-suspense/page.tsx (7:33) @ instant
+               >  7 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/false/navigation-without-suspense/page.tsx (7:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered navigation() outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:19) @ Navigation
+               > 26 |   await navigation()
+                    |                   ^",
+                 "stack": [
+                   "Navigation app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:19)",
+                   "Page app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (20:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(errorPattern)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/false/navigation-without-suspense": Next.js encountered \`navigation()\` during prerendering or a navigation.
+
+               \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/false/navigation-without-suspense".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/false/navigation-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+
+          it('invalid with `ensureStatic = "shell"`', async () => {
+            const ensureStaticConfig = 'shell'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(insights, errorPattern)
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/shell/navigation-without-suspense/page.tsx (7:33) @ instant
+               >  7 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/shell/navigation-without-suspense/page.tsx (7:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered navigation() outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:19) @ Navigation
+               > 26 |   await navigation()
+                    |                   ^",
+                 "stack": [
+                   "Navigation app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:19)",
+                   "Page app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (20:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(errorPattern)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/shell/navigation-without-suspense": Next.js encountered \`navigation()\` during prerendering or a navigation.
+
+               \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/shell/navigation-without-suspense".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/shell/navigation-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+
+          it('invalid with `ensureStatic = "prefetch"`', async () => {
+            const ensureStaticConfig = 'prefetch'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(insights, errorPattern)
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/prefetch/navigation-without-suspense/page.tsx (7:33) @ instant
+               >  7 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/prefetch/navigation-without-suspense/page.tsx (7:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered navigation() outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:19) @ Navigation
+               > 26 |   await navigation()
+                    |                   ^",
+                 "stack": [
+                   "Navigation app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:19)",
+                   "Page app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (20:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(errorPattern)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/prefetch/navigation-without-suspense": Next.js encountered \`navigation()\` during prerendering or a navigation.
+
+               \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/prefetch/navigation-without-suspense".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/prefetch/navigation-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+
+          it('invalid with `ensureStatic = "navigation"`', async () => {
+            const ensureStaticConfig = 'navigation'
+            if (isNextDev) {
+              const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
+              const insights = await getInstantInsight(browser)
+              expectInsightsToMatchPattern(insights, errorPattern)
+              expect(insights).toMatchInlineSnapshot(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/ensure-static/navigation/navigation-without-suspense/page.tsx (7:33) @ instant
+               >  7 | export const instant: Instant = {
+                    |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/ensure-static/navigation/navigation-without-suspense/page.tsx (7:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered navigation() outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:19) @ Navigation
+               > 26 |   await navigation()
+                    |                   ^",
+                 "stack": [
+                   "Navigation app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (26:19)",
+                   "Page app/shells/(default)/ensure-static/_base/navigation-without-suspense/page.base.tsx (20:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(
+                getRouteInBuild(ensureStaticConfig)
+              )
+              const error = extractBuildValidationError(result.cliOutput)
+              expect(error).toMatch(errorPattern)
+              expect(error).toMatchInlineSnapshot(`
+               "Error: Route "/shells/ensure-static/navigation/navigation-without-suspense": Next.js encountered \`navigation()\` during prerendering or a navigation.
+
+               \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               Build-time instant validation failed for route "/shells/ensure-static/navigation/navigation-without-suspense".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/navigation/navigation-without-suspense" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+        })
       })
     })
   } else {
@@ -1309,7 +2317,7 @@ export function registerHeadAndReportingTests(
           it('with cold caches', async () => {
             if (isNextDev) {
               const browser = await navigateTo(route)
-              await expect(browser).toDisplayCollapsedRedbox(`
+              expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
                {
                  "cause": [
                    {
@@ -1365,7 +2373,7 @@ export function registerHeadAndReportingTests(
             it('with warm caches', async () => {
               const browser = await warmCachesAndNavigateTo(route)
 
-              await expect(browser).toDisplayCollapsedRedbox(`
+              expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
                {
                  "cause": [
                    {
@@ -1404,7 +2412,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/blocking-attribution/dynamic-then-dynamic'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -1465,7 +2473,7 @@ export function registerHeadAndReportingTests(
           '/suspense-in-root/blocking-attribution/runtime-then-runtime'
         )
         if (partialPrefetching) {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1492,7 +2500,7 @@ export function registerHeadAndReportingTests(
            }
           `)
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1580,7 +2588,7 @@ export function registerHeadAndReportingTests(
         const browser = await navigateTo(
           '/suspense-in-root/blocking-attribution/session-then-dynamic'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {

@@ -1,11 +1,11 @@
 import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../shared'
 import { connection } from 'next/server'
+import { ForceRuntimeShell } from '../../../../components/force-runtime-shell'
 
 export const instant = {
   unstable_samples: [{ searchParams: { searchParam: 'value' } }],
 }
-export const prefetch = 'partial'
 
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 
@@ -16,6 +16,8 @@ export default async function Page({
 }) {
   return (
     <main>
+      {/* Search params are URL data and don't force a runtime shell on their own. */}
+      <ForceRuntimeShell />
       <DebugRenderKind />
       <p>
         This page uses search params and some uncached IO, so parts of it should

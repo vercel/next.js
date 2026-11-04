@@ -1,6 +1,12 @@
-import { retry } from '../next-test-utils'
+import { openRedbox, retry } from '../next-test-utils'
+import {
+  createRedboxSnapshot,
+  type RedboxSnapshot,
+} from '../add-redbox-matchers'
 import { getDeterministicOutput } from '../../e2e/app-dir/cache-components-errors/utils'
 import { inspect } from 'util'
+import type { Playwright } from '../browsers/playwright'
+import type { NextInstance } from '../next-modes/base'
 import type {
   ValidationEvent,
   ValidationStartEvent,
@@ -114,6 +120,8 @@ export function normalizeValidationUrl(url: string): string {
   return parsed.pathname + parsed.search + parsed.hash
 }
 
+const MAX_VALIDATION_WAIT = 5000
+
 export async function waitForValidationStart(
   targetUrl: string,
   getOutput: () => string
@@ -130,10 +138,12 @@ export async function waitForValidationStart(
           e.type === 'validation_start' &&
           normalizeValidationUrl(e.url) === relativeTargetUrl
       )
-      expect(start).toBeDefined()
-      return start! as ValidationStartEvent
+      if (start === undefined) {
+        throw new Error('Could not find "validation_start" marker')
+      }
+      return start as ValidationStartEvent
     },
-    undefined,
+    MAX_VALIDATION_WAIT,
     undefined,
     `wait for validation of '${relativeTargetUrl}' to start`
   )
@@ -153,10 +163,12 @@ export async function waitForValidationEnd(
       const end = events.find(
         (e) => e.type === 'validation_end' && e.requestId === start.requestId
       )
-      expect(end).toBeDefined()
+      if (end === undefined) {
+        throw new Error('Could not find "validation_end" marker')
+      }
       return end as ValidationEndEvent
     },
-    undefined,
+    MAX_VALIDATION_WAIT,
     undefined,
     'wait for validation to end'
   )
@@ -177,6 +189,19 @@ export async function waitForValidation(url: string, getOutput: () => string) {
   const start = await waitForValidationStart(url, getOutput)
   const end = await waitForValidationEnd(start, getOutput)
   return { start, end }
+}
+
+export function createGetInstantInsight(
+  getOutput: () => string,
+  next: NextInstance
+): (browser: Playwright) => Promise<RedboxSnapshot> {
+  return async function getInstantInsight(browser) {
+    // Wait for instant validation to actually run before asserting on it.
+    // This reduces flakiness in case a redbox is slow to open in CI.
+    await waitForValidation(await browser.url(), getOutput)
+    await openRedbox(browser)
+    return createRedboxSnapshot(browser, next)
+  }
 }
 
 type PrerenderResult = {

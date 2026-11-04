@@ -3,20 +3,21 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, MinifyType},
+    chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    chunk::{
+        ChunkMinification, EcmascriptChunkContent, EcmascriptChunkContentEntries,
+        strict_chunk_wrapper, strict_factory_mode, write_module_factories,
+    },
     hmr::{
         EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
         version::EcmascriptChunkVersion,
     },
-    minify::minify,
-    utils::StringifyJs,
 };
 
 use super::chunk::EcmascriptBuildNodeChunk;
@@ -53,38 +54,45 @@ impl EcmascriptNodeChunkContent {
 impl EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     async fn code(&self) -> Result<Vc<Code>> {
-        use std::io::Write;
         let source_maps = *self
             .chunking_context
             .reference_chunk_source_maps(*ResolvedVc::upcast(self.chunk))
             .await?;
 
         let mut code = CodeBuilder::new(true, *self.chunking_context.debug_ids_enabled().await?);
-
-        write!(code, "module.exports = [")?;
-
+        let supports_arrow_functions = *self
+            .chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?;
         let content = self.content.await?;
-        let mut chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
-        chunk_items.sort_by(|a, b| {
-            a.first()
-                .map(|(id, _, path)| (path, id))
-                .cmp(&b.first().map(|(id, _, path)| (path, id)))
-        });
-        for item in &chunk_items {
-            for (id, item_code, _) in &**item {
-                write!(code, "\n{}, ", StringifyJs(id))?;
-                code.push_code(item_code);
-                write!(code, ",")?;
-            }
+        let minification =
+            ChunkMinification::for_chunking_context(Vc::upcast(*self.chunking_context)).await?;
+        let chunk_items = content
+            .chunk_item_code_module_ids_and_paths(minification, source_maps)
+            .await?;
+        let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
+        let strict_chunk_wrapper =
+            strict_chunk_wrapper(strict_factory_mode, supports_arrow_functions);
+        if let Some((prefix, _)) = strict_chunk_wrapper {
+            code += prefix;
+        }
+        // The scaffolding is written in minified form, so it needs no minification pass of its
+        // own when the factories are minified individually.
+        code += "module.exports=[";
+        write_module_factories(
+            &mut code,
+            &chunk_items,
+            strict_factory_mode,
+            supports_arrow_functions,
+        )?;
+        code += "];";
+        if let Some((_, suffix)) = strict_chunk_wrapper {
+            code += suffix;
         }
 
-        write!(code, "\n];")?;
-
-        let mut code = code.build();
-
-        if let MinifyType::Minify { mangle } = *self.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
-        }
+        let code = minification.finish_chunk(code.build(), source_maps)?;
 
         Ok(code.cell())
     }

@@ -263,6 +263,7 @@
             ),
         ],
         span: 296..329,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "platformKey",
@@ -524,6 +525,7 @@
             ),
         ],
         span: 515..530,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "require",

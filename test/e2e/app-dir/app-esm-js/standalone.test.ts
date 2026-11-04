@@ -1,4 +1,4 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextStart } from 'e2e-utils'
 import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
@@ -9,13 +9,14 @@ import {
   fetchViaHTTP,
 } from 'next-test-utils'
 
-if (!(globalThis as any).isNextStart) {
+if (!isNextStart) {
   it('should skip for non-next start', () => {})
 } else {
   describe('output: standalone with ESM app dir', () => {
     const { next, skipped } = nextTestSetup({
       files: {
         app: new FileRef(path.join(__dirname, 'app')),
+        lib: new FileRef(path.join(__dirname, 'lib')),
         pages: new FileRef(path.join(__dirname, 'pages')),
         public: new FileRef(path.join(__dirname, 'public')),
         'next.config.js': 'export default {"output": "standalone"}',

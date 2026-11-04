@@ -4,7 +4,6 @@ import React, {
   useRef,
   useEffect,
   useContext,
-  useMemo,
   useState,
   forwardRef,
   use,
@@ -20,20 +19,13 @@ import type {
   OnLoadingComplete,
   PlaceholderValue,
 } from '../shared/lib/get-img-props'
-import type {
-  ImageConfigComplete,
-  ImageLoaderProps,
-} from '../shared/lib/image-config'
-import { imageConfigDefault } from '../shared/lib/image-config'
-import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
+import type { ImageLoaderProps } from '../shared/lib/image-config'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
+import { useImageConfig } from './use-image-config'
 
 // This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 import { useMergedRef } from './use-merged-ref'
-
-// This is replaced by webpack define plugin
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 
 if (typeof window === 'undefined') {
   ;(globalThis as any).__NEXT_IMAGE_IMPORTED = true
@@ -380,28 +372,7 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     // We're in the app directory if there is no pages router.
     const isAppRouter = !pagesRouter
 
-    const configContext = useContext(ImageConfigContext)
-    const config = useMemo(() => {
-      const c = configEnv || configContext || imageConfigDefault
-
-      const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-      const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-      const qualities = c.qualities?.sort((a, b) => a - b)
-      return {
-        ...c,
-        allSizes,
-        deviceSizes,
-        qualities,
-        // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
-        // security sensitive configs like `localPatterns`, which is needed
-        // during the server render to ensure it's validated. Therefore use
-        // configContext, which holds the config from the server for validation.
-        localPatterns:
-          typeof window === 'undefined'
-            ? configContext?.localPatterns
-            : c.localPatterns,
-      }
-    }, [configContext])
+    const config = useImageConfig()
 
     const { onLoad, onLoadingComplete } = props
     const onLoadRef = useRef(onLoad)

@@ -1,4 +1,5 @@
 mod counter;
+mod memory_footprint;
 mod memory_pressure;
 
 use std::{
@@ -96,7 +97,7 @@ impl TurboMalloc {
     /// Without the `custom_allocator` feature this is a process-wide live-bytes counter instead,
     /// which is approximate because threads buffer their updates.
     pub fn memory_usage() -> usize {
-        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
         {
             // `current_commit` is a relaxed atomic load, but `mi_process_info` also calls
             // `_mi_prim_process_info`, which is a `getrusage` (plus a `task_info` on macOS). All
@@ -117,7 +118,7 @@ impl TurboMalloc {
             }
             current_commit
         }
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         {
             self::counter::get()
         }
@@ -139,11 +140,11 @@ impl TurboMalloc {
     /// force=true: do all the work of `process=false` and then process global shared structures and
     /// return memory to the OS if possible, this is much slower and should only be done rarely.
     pub fn collect(force: bool) {
-        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
         unsafe {
             libmimalloc_sys::mi_collect(force);
         }
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         {
             let _ = force;
         }
@@ -173,22 +174,35 @@ impl TurboMalloc {
     pub fn memory_pressure() -> Option<u8> {
         memory_pressure::memory_pressure()
     }
+
+    /// Returns the resident memory size of the current process in bytes, or
+    /// `None` when the current platform does not expose a memory footprint
+    /// signal or a query for it failed.
+    ///
+    /// - On Linux this is the resident set size from `/proc/self/statm`.
+    /// - On macOS this is `rusage_info_v0::ri_phys_footprint` from `proc_pid_rusage` (what Apple
+    ///   calls "memory footprint" / Activity Monitor's "Memory" column).
+    /// - On Windows this is `PROCESS_MEMORY_COUNTERS::WorkingSetSize`.
+    /// - On other platforms this returns `None`.
+    pub fn memory_footprint() -> Option<usize> {
+        memory_footprint::memory_footprint()
+    }
 }
 
 /// Get the allocator for this platform that we should wrap with TurboMalloc.
 #[inline]
 fn base_alloc() -> &'static impl GlobalAlloc {
-    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
     return &mimalloc::MiMalloc;
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
     return &std::alloc::System;
 }
 
 #[allow(unused_variables)]
 unsafe fn base_alloc_size(ptr: *const u8, layout: Layout) -> usize {
-    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
     return unsafe { mimalloc::MiMalloc.usable_size(ptr) };
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
     return layout.size();
 }
 
@@ -271,7 +285,7 @@ mod tests {
 
         // On all supported platforms the value must be reported.
         #[cfg(any(
-            all(target_os = "linux", not(target_family = "wasm")),
+            all(target_os = "linux", not(target_family = "wasm"), not(miri)),
             target_os = "macos",
             windows,
         ))]
@@ -279,7 +293,7 @@ mod tests {
 
         // On unsupported platforms we expect None and have nothing further to assert.
         #[cfg(not(any(
-            all(target_os = "linux", not(target_family = "wasm")),
+            all(target_os = "linux", not(target_family = "wasm"), not(miri)),
             target_os = "macos",
             windows,
         )))]

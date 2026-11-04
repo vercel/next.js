@@ -6,8 +6,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::LoaderRuleItem;
-use turbopack_core::issue::IssueExt;
-use turbopack_node::transforms::webpack::WebpackLoaderItem;
+use turbopack_core::{issue::IssueExt, loader::WebpackLoaderItem};
 
 use crate::{
     next_config::NextConfig, next_shared::webpack_rules::ManuallyConfiguredBuiltinLoaderIssue,

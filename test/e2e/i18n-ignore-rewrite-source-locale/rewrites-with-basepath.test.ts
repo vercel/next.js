@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDeploy } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import fs from 'fs-extra'
@@ -6,14 +6,9 @@ import fs from 'fs-extra'
 const locales = ['', '/en', '/sv', '/nl']
 
 describe('i18n-ignore-rewrite-source-locale with basepath', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   test.each(locales)(
     'get public file by skipping locale in rewrite, locale: %s',
@@ -38,7 +33,7 @@ describe('i18n-ignore-rewrite-source-locale with basepath', () => {
   )
 
   // build artifacts aren't available on deploy
-  if (!(global as any).isNextDeploy) {
+  if (!isNextDeploy) {
     // chunks are not written to disk with TURBOPACK
     ;(process.env.IS_TURBOPACK_TEST ? it.skip.each : it.each)(locales)(
       'get _next/static/ files by skipping locale in rewrite, locale: %s',

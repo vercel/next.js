@@ -3,16 +3,16 @@ import { nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP, startStaticServer, waitFor } from 'next-test-utils'
 import { AddressInfo, Server } from 'net'
 
+// This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+// @force-gate !deploy
 describe('SSG Prerender export', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     dependencies: {
       firebase: '7.14.5',
     },
   })
-  if (skipped) return
 
   let server: Server
   let appPort: number

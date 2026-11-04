@@ -8,9 +8,12 @@ it('should keep a CommonJS consumer of an ESM module working', () => {
   expect(someLongExportName).toBe('esm-1')
 })
 
-it('should not mangle a module that a CommonJS module requires', () => {
-  // The `esm.someLongExportName` accesses in `cjs-consumer.js` are user source, so the names have
-  // to stay as written.
-  expect(exportsInfo.someLongExportName.canMangle).toBe(false)
+it('should keep a CommonJS consumer working with original export names', () => {
+  // The public facade keeps the original names for user-source `esm.someLongExportName` reads,
+  // even though the backing module can mangle its local export keys.
+  expect(exportsInfo.someLongExportName.canMangle).toBe(true)
+  expect(exportsInfo.someLongExportName.mangledName).not.toBe(
+    'someLongExportName'
+  )
   expect(keys()).toContain('someLongExportName')
 })

@@ -33,8 +33,8 @@ export function refreshReducer(
     process.env.__NEXT_EXPOSE_TESTING_API && action.bypassCacheInvalidation
   if (!bypassCacheInvalidation) {
     const currentNextUrl = state.nextUrl
-    const currentRouterState = state.tree
-    invalidateSegmentCacheEntries(currentNextUrl, currentRouterState)
+    const currentRoot = state.root
+    invalidateSegmentCacheEntries(currentNextUrl, currentRoot)
   }
   // A full refresh has no HMR generation to cancel.
   return refreshDynamicData(state, FreshnessPolicy.RefreshAll, undefined)
@@ -83,6 +83,7 @@ export function refreshDynamicData(
     true,
     null,
     currentRenderedSearch,
+    null,
     UnknownDynamicStaleTime
   )
 
@@ -99,8 +100,7 @@ export function refreshDynamicData(
     refreshSeed,
     currentUrl,
     currentRenderedSearch,
-    state.cache,
-    currentFlightRouterState,
+    state.root,
     freshnessPolicy,
     nextUrlForRefresh,
     scrollBehavior,
@@ -114,6 +114,8 @@ export function refreshDynamicData(
     // mismatch occurs, the retry handler will traverse the known route tree
     // to find and mark the entry.
     null,
-    signal
+    signal,
+    // Not part of a prepared navigation.
+    null
   )
 }

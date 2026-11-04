@@ -160,7 +160,7 @@ impl EcmascriptBuildNodeEntryChunk {
         // modules would strip a helper that another graph's chunks call, and which variant lands
         // on disk depends on emission order.
         let include_async_module_runtime = *self.chunking_context.shared_runtime_chunk().await?
-            || !self.module_graph.async_module_info().await?.is_empty();
+            || *self.module_graph.has_async_modules().await?;
         Ok(EcmascriptBuildNodeRuntimeChunk::new(
             *self.chunking_context,
             include_async_module_runtime,

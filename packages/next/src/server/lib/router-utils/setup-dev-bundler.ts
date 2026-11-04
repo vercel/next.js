@@ -2,12 +2,13 @@ import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { ProxyMatcher } from '../../../build/analysis/get-page-static-info'
-import type { RoutesManifest } from '../../../build'
+import type { PrerenderManifest, RoutesManifest } from '../../../build'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
+import type { AppGoRouteRouteDefinition } from '../../route-definitions/app-go-route-route-definition'
 import type { LocaleRouteDefinition } from '../../route-definitions/locale-route-definition'
 
 import { createDefineEnv } from '../../../build/swc'
@@ -30,6 +31,7 @@ import {
 } from '../../../telemetry/events'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
+import { getConventionFileBaseName } from '../../../build/get-convention-file-base-name'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
@@ -87,10 +89,10 @@ import {
 } from '../../../shared/lib/turbopack/utils'
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
-import { normalizePath } from '../../../lib/normalize-path'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
   JSON_CONTENT_TYPE_HEADER,
+  INSTRUMENTATION_HOOK_FILENAME,
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
 } from '../../../lib/constants'
@@ -102,6 +104,7 @@ import { UnmatchedAppPagesError } from '../../../shared/lib/errors/unmatched-app
 import { MissingCanonicalInterceptionRoutesError } from '../../../shared/lib/errors/missing-canonical-interception-routes-error'
 import { IncompatibleParallelRouteSlotsError } from '../../../shared/lib/errors/incompatible-parallel-route-slots-error'
 import { findMissingCanonicalInterceptionRoutes } from '../../../shared/lib/router/utils/interception-routes'
+import { getStrictRouteMatchingDefaultWarning } from './strict-route-matching-config'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -140,6 +143,7 @@ export type SetupOpts = {
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
   serverFastRefresh?: boolean
+  hasVulnerabilityInsight: Promise<boolean>
 }
 
 export interface DevRoutesManifest {
@@ -216,31 +220,28 @@ async function startWatcher(
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
-  let lockfile
-  if (opts.nextConfig.experimental.lockDistDir) {
-    fs.mkdirSync(distDir, { recursive: true })
+  fs.mkdirSync(distDir, { recursive: true })
 
-    // Create server info to store in the lockfile itself
-    // This allows other processes to discover the running server
-    const appUrl =
-      process.env.__NEXT_PRIVATE_ORIGIN ?? `http://localhost:${opts.port}`
-    const serverInfo: DevServerInfo = {
-      pid: process.pid,
-      port: opts.port,
-      hostname: new URL(appUrl).hostname,
-      appUrl,
-      startedAt: Date.now(),
-    }
-
-    lockfile = await Lockfile.acquireWithRetriesOrExit(
-      path.join(distDir, 'lock'),
-      'next dev',
-      true,
-      JSON.stringify(serverInfo),
-      opts.dir,
-      opts.nextConfig.distDir
-    )
+  // Create server info to store in the lockfile itself
+  // This allows other processes to discover the running server
+  const appUrl =
+    process.env.__NEXT_PRIVATE_ORIGIN ?? `http://localhost:${opts.port}`
+  const serverInfo: DevServerInfo = {
+    pid: process.pid,
+    port: opts.port,
+    hostname: new URL(appUrl).hostname,
+    appUrl,
+    startedAt: Date.now(),
   }
+
+  const lockfile = await Lockfile.acquireWithRetriesOrExit(
+    path.join(distDir, 'lock'),
+    'next dev',
+    true,
+    JSON.stringify(serverInfo),
+    opts.dir,
+    opts.nextConfig.distDir
+  )
 
   const validFileMatcher = createValidFileMatcher(
     nextConfig.pageExtensions,
@@ -253,6 +254,14 @@ async function startWatcher(
   consoleStore.setState({
     logging: nextConfig.logging !== false,
   })
+
+  const hasInstrumentationInject =
+    (nextConfig.instrumentationInject?.length ?? 0) > 0
+  // Turbopack reports instrumentation through its entrypoints
+  // (turbopack-utils.ts). Webpack has no such list.
+  if (hasInstrumentationInject && !opts.turbo) {
+    serverFields.actualInstrumentationHookFile = `/${INSTRUMENTATION_HOOK_FILENAME}`
+  }
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
     ? await (async () => {
@@ -293,6 +302,8 @@ async function startWatcher(
           resetFetch,
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
+          hasVulnerabilityInsight: opts.hasVulnerabilityInsight,
+          hasInstrumentationInject,
         })
       })()
 
@@ -331,10 +342,7 @@ async function startWatcher(
     i18n: nextConfig.i18n || undefined,
     skipProxyUrlNormalize: nextConfig.skipProxyUrlNormalize,
   }
-  await fs.promises.writeFile(
-    routesManifestPath,
-    JSON.stringify(routesManifest)
-  )
+  fs.writeFileSync(routesManifestPath, JSON.stringify(routesManifest))
 
   const previewPropsManifestPath = path.join(
     distDir,
@@ -342,24 +350,23 @@ async function startWatcher(
     PREVIEW_PROPS_MANIFEST
   )
   fs.mkdirSync(path.join(distDir, SERVER_DIRECTORY), { recursive: true })
-  await fs.promises.writeFile(
+  fs.writeFileSync(
     previewPropsManifestPath,
     JSON.stringify(opts.fsChecker.previewProps, null, 2)
   )
 
+  const prerenderManifest: Omit<PrerenderManifest, 'preview'> = {
+    version: 4,
+    routes: {},
+    dynamicRoutes: {},
+    notFoundRoutes: [],
+    // Technically required in the manifest type, but we don't provide it here
+    // preview: ...
+  }
   const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
-  await fs.promises.writeFile(
+  fs.writeFileSync(
     prerenderManifestPath,
-    JSON.stringify(
-      {
-        version: 4,
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-      },
-      null,
-      2
-    )
+    JSON.stringify(prerenderManifest, null, 2)
   )
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
@@ -544,7 +551,8 @@ async function startWatcher(
           continue
         }
 
-        const { name: fileBaseName, dir: fileDir } = path.parse(fileName)
+        const { base: fileBase, dir: fileDir } = path.parse(fileName)
+        const fileBaseName = getConventionFileBaseName(fileBase)
 
         const isAtConventionLevel =
           fileDir === dir || fileDir === path.join(dir, 'src')
@@ -696,7 +704,10 @@ async function startWatcher(
 
         let pageName = absolutePathToPage(fileName, {
           dir: isAppPath ? appDir! : pagesDir!,
-          extensions: nextConfig.pageExtensions,
+          extensions:
+            fileName.endsWith('route.go') && isAppPath
+              ? ['go']
+              : nextConfig.pageExtensions,
           keepIndex: isAppPath,
           pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
@@ -904,8 +915,8 @@ async function startWatcher(
         clientRouterFilters = createClientRouterFilter(
           Object.keys(appPaths),
           nextConfig.experimental.clientRouterFilterRedirects
-            ? ((nextConfig as any)._originalRedirects || []).filter(
-                (r: any) => !r.internal
+            ? (opts.fsChecker.originalRedirects || []).filter(
+                (r) => !r.internal
               )
             : [],
           nextConfig.experimental.clientRouterFilterAllowedRate
@@ -940,10 +951,6 @@ async function startWatcher(
             opts.fsChecker.rewrites.beforeFiles.length > 0 ||
             opts.fsChecker.rewrites.fallback.length > 0
 
-          const rootPath =
-            opts.nextConfig.turbopack?.root ||
-            opts.nextConfig.outputFileTracingRoot ||
-            opts.dir
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
               isTurbopack: true,
@@ -959,8 +966,6 @@ async function startWatcher(
               projectPath: opts.dir,
               rewrites: opts.fsChecker.rewrites,
             }),
-            rootPath,
-            projectPath: normalizePath(path.relative(rootPath, dir)),
           })
         } else {
           let tsconfigResult:
@@ -1152,6 +1157,10 @@ async function startWatcher(
         for (const error of routeMatchingErrors) {
           Log.error(error.message)
         }
+        const warning = getStrictRouteMatchingDefaultWarning(nextConfig)
+        if (warning) {
+          Log.warnOnce(warning)
+        }
       }
       // Turbopack reports route-matching failures as app-structure issues.
       // Webpack needs an HMR server error so dev can finish booting and surface
@@ -1225,17 +1234,30 @@ async function startWatcher(
         }),
         ...appRouteHandlers.map(({ route, page, filePath }) => {
           return {
-            kind: RouteKind.APP_ROUTE,
+            kind: filePath.endsWith('.go')
+              ? RouteKind.APP_ROUTE_GO
+              : RouteKind.APP_ROUTE,
             pathname: route,
             page,
             bundlePath: path.posix.join('app', normalizePagePath(page)),
             filename: filePath,
-          } satisfies AppRouteRouteDefinition
+          } satisfies AppRouteRouteDefinition | AppGoRouteRouteDefinition
         }),
-      ] satisfies Array<AppPageRouteDefinition | AppRouteRouteDefinition>
+      ] satisfies Array<
+        | AppPageRouteDefinition
+        | AppRouteRouteDefinition
+        | AppGoRouteRouteDefinition
+      >
 
       opts.fsChecker.setRouteDefinitions('pageFile', pageRouteDefinitions)
       opts.fsChecker.setRouteDefinitions('appFile', appRouteDefinitions)
+
+      const routeKinds = new Map(
+        [...pageRouteDefinitions, ...appRouteDefinitions].map((definition) => [
+          definition.pathname,
+          definition.kind,
+        ])
+      )
 
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareMatchers
@@ -1319,6 +1341,9 @@ async function startWatcher(
               routeKeys: regex.routeKeys,
               match: getRouteMatcher(regex),
               page,
+              kind:
+                routeKinds.get(page) ??
+                (isAPIRoute(page) ? RouteKind.PAGES_API : RouteKind.PAGES),
             }
           }
         )
@@ -1348,6 +1373,9 @@ async function startWatcher(
                 : new RegExp(route.dataRouteRegex),
               groups: routeRegex.groups,
             }),
+            kind: isAPIRoute(route.page)
+              ? RouteKind.PAGES_API
+              : RouteKind.PAGES,
           })
         }
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)

@@ -66,7 +66,8 @@ describe('action-only fallback resume data cache', () => {
       const metadata = await next.readJSON(`.next/server/app${route}.meta`)
       const postponed = metadata.postponed as string
       expect(postponed).toEqual(expect.any(String))
-      expect(postponed).toMatch(/^\d+:\d+\[\["id",/)
+      // Resume metadata records which params are deferred, not their placeholders.
+      expect(postponed).toMatch(/^\d+:\d+\["id"\]\[/)
 
       const manifest = await next.readJSON(
         '.next/server/server-reference-manifest.json'

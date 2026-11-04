@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment, reference_type::ReferenceType, source::Source,
@@ -18,7 +18,7 @@ use turbopack_wasm::source::WebAssemblySourceType;
 
 use crate::module_options::{CustomModuleType, RuleCondition, match_mode::MatchMode};
 
-#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ModuleRule {
     condition: RuleCondition,
     effects: Vec<ModuleRuleEffect>,
@@ -99,7 +99,6 @@ pub enum ModuleType {
         main: ResolvedVc<EcmascriptInputTransforms>,
         /// Transforms to run last: JSX, preset-env, scan for imports, ...
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
-        #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Typescript {
@@ -113,7 +112,6 @@ pub enum ModuleType {
         tsx: bool,
         // follow references to imported types.
         analyze_types: bool,
-        #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     TypescriptDeclaration {
@@ -123,7 +121,6 @@ pub enum ModuleType {
         main: ResolvedVc<EcmascriptInputTransforms>,
         /// Transforms to run last: JSX, preset-env, scan for imports, ...
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
-        #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     EcmascriptExtensionless {
@@ -133,7 +130,6 @@ pub enum ModuleType {
         main: ResolvedVc<EcmascriptInputTransforms>,
         /// Transforms to run last: JSX, preset-env, scan for imports, ...
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
-        #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Raw,
