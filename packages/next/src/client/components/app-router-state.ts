@@ -427,7 +427,11 @@ function navigateUsingPrefetchedRouteTree(
   map: CacheMap<SegmentCacheEntry>,
   preparation: PreparedNavigationRecord | null
 ): AppRouterState {
-  const canonicalUrl = route.canonicalUrl + url.hash
+  // Strip any hash already on the entry's canonical URL before appending the
+  // target hash. Entries are meant to be hashless, but some are written with
+  // the hash of the URL they were discovered from (the initial page load, a
+  // server action redirect, or a tree-mismatch retry).
+  const canonicalUrl = route.canonicalUrl.split('#')[0] + url.hash
   const renderedSearch = route.renderedSearch
   const prefetchSeed: NavigationSeed = {
     renderedSearch,

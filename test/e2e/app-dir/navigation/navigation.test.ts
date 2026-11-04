@@ -397,6 +397,80 @@ describe('app dir - navigation', () => {
     })
   })
 
+  // https://github.com/vercel/next.js/issues/101168
+  describe('same-page hash navigation after a load with a hash', () => {
+    const pathname = '/hash-initial-load'
+
+    // Click a link and wait for the router to write the new URL to history.
+    // Waiting on the URL alone isn't enough: when the target hash is the one
+    // already in the URL, it matches before the navigation has committed.
+    async function clickAndWaitForHistoryUpdate(
+      browser: Awaited<ReturnType<typeof next.browser>>,
+      selector: string
+    ) {
+      await browser.eval(() => {
+        const urls: string[] = []
+        ;(window as any).__historyUrls = urls
+        for (const method of ['pushState', 'replaceState'] as const) {
+          const original = history[method]
+          history[method] = function (...args) {
+            urls.push(String(args[2]))
+            return original.apply(this, args)
+          }
+        }
+      })
+      await browser.elementByCss(selector).click()
+      await retry(async () => {
+        expect(
+          await browser.eval(() => (window as any).__historyUrls.length)
+        ).toBeGreaterThan(0)
+      })
+    }
+
+    it.each([
+      {
+        name: 'bare hash link after loading at a different hash',
+        initialUrl: pathname + '#faq',
+        link: '#link-to-details-hash-only',
+        expectedUrl: pathname + '#details',
+      },
+      {
+        name: 'bare hash link after loading at the same hash',
+        initialUrl: pathname + '#details',
+        link: '#link-to-details-hash-only',
+        expectedUrl: pathname + '#details',
+      },
+      {
+        name: 'full href link to the current page',
+        initialUrl: pathname + '?x=y#faq',
+        link: '#link-to-details-full-href',
+        expectedUrl: pathname + '?x=y#details',
+      },
+    ])(
+      'should replace the hash: $name',
+      async ({ initialUrl, link, expectedUrl }) => {
+        const browser = await next.browser(initialUrl)
+        expect(await browser.url()).toBe(next.url + initialUrl)
+
+        await clickAndWaitForHistoryUpdate(browser, link)
+        expect(await browser.url()).toBe(next.url + expectedUrl)
+      }
+    )
+
+    it('should replace the hash after a server action redirect to a hash', async () => {
+      const browser = await next.browser(pathname + '/action')
+
+      await browser.elementByCss('#redirect-with-hash').click()
+      await retry(async () => {
+        expect(await browser.url()).toBe(next.url + pathname + '#faq')
+      })
+      await browser.waitForElementByCss('#hash-initial-load')
+
+      await clickAndWaitForHistoryUpdate(browser, '#link-to-details-hash-only')
+      expect(await browser.url()).toBe(next.url + pathname + '#details')
+    })
+  })
+
   describe('not-found', () => {
     it('should trigger not-found in a server component', async () => {
       const browser = await next.browser('/not-found/servercomponent')
