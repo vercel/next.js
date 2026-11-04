@@ -11,6 +11,7 @@ const {
 } = require('next/dist/compiled/commander')
 import { ModuleKind, transpileModule } from 'typescript'
 import watchReference from './reference.json'
+import { createTestTypecheckCliArguments } from 'next/dist/experimental/testing/typecheck-cli'
 import {
   normalizeTestConfig,
   openTestConfiguration,
@@ -81,7 +82,7 @@ it.each(parserCases)(
       path.join(__dirname, '../../../packages/next/src/bin/next.ts'),
       'utf8'
     )
-    const start = source.indexOf('let testWatchArgument:')
+    const start = source.indexOf('const testTypecheckArguments =')
     const end = source.indexOf(
       '      const { nextTestRunner } = await import',
       start
@@ -103,6 +104,7 @@ it.each(parserCases)(
       program: new Command().exitOverride(),
       Option,
       InvalidArgumentError,
+      createTestTypecheckCliArguments,
       process: { argv: ['node', 'next', 'test', ...flags] },
       completion: undefined as Promise<unknown> | undefined,
       capture(value: { watch?: boolean }) {
