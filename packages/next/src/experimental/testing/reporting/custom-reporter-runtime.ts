@@ -71,7 +71,8 @@ export interface CustomReporterRuntimeOptions {
 export function createCustomReporterRuntime(
   options: CustomReporterRuntimeOptions
 ) {
-  const reporterWorkerFilename = require.resolve('./custom-reporter-worker')
+  // The native import() below belongs to this module in every reporter realm.
+  const reporterImporterFilename = __filename
   let reporters: Reporter[] = []
   const closeCallbacks: (() => unknown)[] = []
   const retainedFinishCallbacks: Promise<PromiseSettledResult<unknown>[]>[] = []
@@ -779,13 +780,13 @@ export function createCustomReporterRuntime(
           const shim = `import hooks from ${JSON.stringify(loader)};export const initialize=hooks.initialize,resolve=hooks.resolve,load=hooks.load;`
           register(
             `data:text/javascript,${encodeURIComponent(shim)}`,
-            pathToFileURL(reporterWorkerFilename).href,
+            pathToFileURL(reporterImporterFilename).href,
             {
-              parentURL: pathToFileURL(reporterWorkerFilename).href,
+              parentURL: pathToFileURL(reporterImporterFilename).href,
               data: {
                 entries: typedEntries,
                 packages: packageEntries,
-                issuer: pathToFileURL(reporterWorkerFilename).href,
+                issuer: pathToFileURL(reporterImporterFilename).href,
                 projectURL: pathToFileURL(
                   root.endsWith(sep) ? root : root + sep
                 ).href,
