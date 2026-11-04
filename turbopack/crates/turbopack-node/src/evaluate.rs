@@ -129,6 +129,7 @@ pub struct EvaluatePool {
 }
 
 impl EvaluatePool {
+    #[cfg(any(feature = "process_pool", feature = "worker_pool"))]
     pub(crate) fn new(
         pool: Box<dyn EvaluateOperation>,
         assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,

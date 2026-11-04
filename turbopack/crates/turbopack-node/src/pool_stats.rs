@@ -37,15 +37,18 @@ impl NodeJsPoolStats {
         self.bootup_count += 1;
     }
 
+    #[cfg(any(feature = "process_pool", feature = "worker_pool"))]
     pub fn add_booting_worker(&mut self) {
         self.booting_workers += 1;
         self.workers += 1;
     }
 
+    #[cfg(any(feature = "process_pool", feature = "worker_pool"))]
     pub fn finished_booting_worker(&mut self) {
         self.booting_workers = self.booting_workers.saturating_sub(1);
     }
 
+    #[cfg(any(feature = "process_pool", feature = "worker_pool"))]
     pub fn remove_worker(&mut self) {
         self.workers = self.workers.saturating_sub(1);
     }
@@ -147,6 +150,7 @@ impl NodeJsPoolStats {
         }
     }
 
+    #[cfg(any(feature = "process_pool", feature = "worker_pool"))]
     pub fn snapshot(&self) -> PoolStatsSnapshot {
         PoolStatsSnapshot {
             bootup_count: self.bootup_count,
