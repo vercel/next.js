@@ -1,5 +1,9 @@
 import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
 import { getOrCreateGlobalAsyncLocalStorage } from '../../app-render/async-local-storage'
+import type {
+  RequestInsightProxyStatus,
+  RequestInsightSource,
+} from '../../../shared/lib/request-insights'
 
 export type SpanStoreAttributeValue =
   | string
@@ -34,6 +38,8 @@ export type SpanStoreRecord = {
   parentSpanId?: string
   requestId?: string
   requestInsightKind?: RequestInsightKind
+  requestInsightSource?: RequestInsightSource
+  requestInsightProxyStatus?: RequestInsightProxyStatus
   htmlRequestId?: string
   route?: string
   url?: string
