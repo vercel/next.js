@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoConsoleErrors } from 'next-test-utils'
+import { assertNoConsoleErrors, gate, retry } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
@@ -19,6 +19,25 @@ describe('fallback-shells', () => {
       // If we didn't use the fallback shell, then we didn't postpone the
       // response, and therefore shouldn't have sent the postponed header.
       expect(headers['x-nextjs-postponed']).not.toBe('1')
+    })
+
+    it('hydrates a page with an unused dynamic param', async () => {
+      const strictCsp = await gate((c) => c.externalBrowserRuntime && !c.dev)
+      const { browser, response } = await next.browserWithResponse(
+        '/without-io/unused-param/world',
+        { waitHydration: false }
+      )
+      expect(response.headers()['content-security-policy']).toBe(
+        strictCsp ? "script-src 'self' https://vercel.live" : undefined
+      )
+      if (strictCsp) {
+        // FIXME: the page should hydrate under CSP without unsafe-inline.
+        expect(await browser.elementById('hydrated').text()).toBe('false')
+      } else {
+        await retry(async () => {
+          expect(await browser.elementById('hydrated').text()).toBe('true')
+        })
+      }
     })
 
     // Coverage for the head (metadata) surviving hydration of a fallback
