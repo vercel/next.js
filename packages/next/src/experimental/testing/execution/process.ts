@@ -14,6 +14,14 @@ export interface TestProcessOptions {
   /** Omit only when a parent lease owns the lifetime and cancellation. */
   timeoutMs?: number
   shutdownGraceMs?: number
+  /** Bounds only OS spawning. An omitted policy leaves existing owners unchanged. */
+  startup?: {
+    /** Native timer semantics apply, including an undefined delay. */
+    timeoutMs: number | undefined
+    timeoutError: Error
+  }
+  /** The actual child process spawned; independent of parent IPC readiness. */
+  onSpawn?: () => void
   /** Parent-owned sessions may send further requests through the same lease. */
   onReady?: (
     send: (message: unknown) => Promise<void>,
@@ -94,6 +102,9 @@ export function runTestProcess(
       if (!failures.includes(error)) failures.push(error)
     }
     let closed = false
+    let spawned = false
+    let stopped = false
+    let startupTimer: ReturnType<typeof setTimeout> | undefined
     let groupTerminated = false
     let killTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -120,7 +131,9 @@ export function runTestProcess(
     }
 
     const stop = (nextReason: TestProcessExit['reason']) => {
+      clearTimeout(startupTimer)
       if (closed || killTimer) return
+      stopped = true
       reason = nextReason
       killTimer = setTimeout(() => {
         killGroup()
@@ -145,7 +158,19 @@ export function runTestProcess(
     options.signal?.addEventListener('abort', cancel, { once: true })
 
     child.on('error', fail)
+    child.once('spawn', () => {
+      spawned = true
+      clearTimeout(startupTimer)
+      if (closed || stopped || failures.length) return
+      try {
+        options.onSpawn?.()
+      } catch (error) {
+        fail(error instanceof Error ? error : new Error(String(error)))
+      }
+    })
     child.once('exit', () => {
+      stopped = true
+      clearTimeout(startupTimer)
       clearTimeout(deadline)
       // A successful or cooperative worker may leave descendants behind too.
       // Reclaim them while preserving already-buffered output until close.
@@ -172,6 +197,7 @@ export function runTestProcess(
     }
     child.once('close', (code, signal) => {
       closed = true
+      clearTimeout(startupTimer)
       clearTimeout(deadline)
       clearTimeout(killTimer)
       options.signal?.removeEventListener('abort', cancel)
@@ -186,6 +212,13 @@ export function runTestProcess(
       else resolve({ code, signal, reason })
     })
     try {
+      const startup = options.startup
+      if (startup) {
+        startupTimer = setTimeout(() => {
+          if (closed || spawned || stopped || failures.length) return
+          fail(startup.timeoutError)
+        }, startup.timeoutMs)
+      }
       options.onReady?.(
         (message) =>
           new Promise<void>((sent, failed) => {
@@ -196,6 +229,8 @@ export function runTestProcess(
         () => {
           if (closed || reason !== 'exit' || killTimer)
             throw new Error('Test process cannot terminate after interruption.')
+          stopped = true
+          clearTimeout(startupTimer)
           if (!child.kill('SIGTERM'))
             throw new Error(
               'Test process could not terminate after completion.'

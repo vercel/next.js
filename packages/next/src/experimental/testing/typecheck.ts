@@ -17,6 +17,7 @@ export interface TestTypecheckConfig {
   allowJs: boolean
   ignoreSourceErrors: boolean
   tsconfig?: string
+  spawnTimeout?: number
 }
 
 export function parseTestTypecheckConfig(
@@ -38,6 +39,7 @@ export function parseTestTypecheckConfig(
         'allowJs',
         'ignoreSourceErrors',
         'tsconfig',
+        'spawnTimeout',
       ].includes(key)
     )
       throw new Error(
@@ -71,6 +73,9 @@ export function parseTestTypecheckConfig(
     exclude: patterns('exclude', ['**/node_modules/**', '**/.git/**']),
     allowJs: config.allowJs === true,
     ignoreSourceErrors: config.ignoreSourceErrors === true,
+    ...(Object.hasOwn(config, 'spawnTimeout')
+      ? { spawnTimeout: config.spawnTimeout as number | undefined }
+      : {}),
     ...(config.tsconfig === undefined
       ? {}
       : { tsconfig: config.tsconfig as string }),
@@ -220,6 +225,10 @@ export async function runTypecheckProject(
     input: request,
     signal: options.signal,
     timeoutMs: project.fileTimeout,
+    startup: {
+      timeoutMs: project.typecheck?.spawnTimeout,
+      timeoutError: new Error('tsc spawn timed out'),
+    },
     onMessage(message) {
       const response = message as {
         type?: string
