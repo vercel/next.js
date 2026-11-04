@@ -51,7 +51,11 @@ import {
   imageOptimizerTransform,
   type ImageUpstream,
 } from './image-optimizer/transform'
-import { extractEtag, getHash } from './image-optimizer/extract-etag'
+import {
+  extractEtag,
+  getHash,
+  getImageEtag,
+} from './image-optimizer/extract-etag'
 import { getMaxAge } from './image-optimizer/get-max-age'
 import { getPreviouslyCachedImageOrNull } from './image-optimizer/get-previously-cached-image-or-null'
 import { getImageSize } from './image-optimizer/get-image-size'
@@ -1102,15 +1106,34 @@ export async function imageOptimizer(
     }
   }
 
-  return imageOptimizerTransform(imageUpstream, paramsResult, nextConfig, {
-    logger: opts.silent ? undefined : Log,
-    handleDevOutput:
-      opts.isDev &&
-      paramsResult.width <= BLUR_IMG_SIZE &&
-      paramsResult.quality === BLUR_QUALITY
-        ? makeBlurPlaceholder
-        : undefined,
-  })
+  const result = await imageOptimizerTransform(
+    imageUpstream,
+    paramsResult,
+    nextConfig,
+    { logger: opts.silent ? undefined : Log }
+  )
+
+  // Images passed through unoptimized (SVG, animated, or failed) are served
+  // as-is rather than wrapped in a blur placeholder.
+  if (
+    opts.isDev &&
+    paramsResult.width <= BLUR_IMG_SIZE &&
+    paramsResult.quality === BLUR_QUALITY &&
+    result.optimized
+  ) {
+    const placeholder = await makeBlurPlaceholder(
+      result.buffer,
+      result.contentType
+    )
+    return {
+      ...result,
+      buffer: placeholder.buffer,
+      contentType: placeholder.contentType,
+      etag: getImageEtag(placeholder.buffer),
+    }
+  }
+
+  return result
 }
 
 function getFileNameWithExtension(

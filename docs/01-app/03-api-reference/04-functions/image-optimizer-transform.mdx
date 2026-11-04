@@ -107,23 +107,23 @@ See [`images` configuration](/docs/app/api-reference/config/next-config-js/image
 
 #### opts
 
-| Field             | Type       | Description                                                                                                 |
-| ----------------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
-| `logger`          | `object`   | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs.                    |
-| `handleDevOutput` | `function` | An async hook `(buffer, contentType) => ({ buffer, contentType })` that post-processes the optimized image. |
+| Field    | Type     | Description                                                                              |
+| -------- | -------- | ---------------------------------------------------------------------------------------- |
+| `logger` | `object` | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs. |
 
 #### Returns
 
 `Promise<ImageOptimizerResult>` with the following fields:
 
-| Field          | Type      | Description                                                                        |
-| -------------- | --------- | ---------------------------------------------------------------------------------- |
-| `buffer`       | `Buffer`  | The optimized image, or the upstream image when optimization is skipped or failed. |
-| `contentType`  | `string`  | The MIME type of `buffer`.                                                         |
-| `maxAge`       | `number`  | The cache lifetime in seconds.                                                     |
-| `etag`         | `string`  | The ETag for the returned buffer.                                                  |
-| `upstreamEtag` | `string`  | The ETag of the upstream image.                                                    |
-| `error`        | `unknown` | Present only when optimization failed and the upstream image was returned instead. |
+| Field          | Type      | Description                                                                               |
+| -------------- | --------- | ----------------------------------------------------------------------------------------- |
+| `buffer`       | `Buffer`  | The optimized image, or the upstream image when optimization is skipped or failed.        |
+| `contentType`  | `string`  | The MIME type of `buffer`.                                                                |
+| `maxAge`       | `number`  | The cache lifetime in seconds.                                                            |
+| `etag`         | `string`  | The ETag for the returned buffer.                                                         |
+| `upstreamEtag` | `string`  | The ETag of the upstream image.                                                           |
+| `optimized`    | `boolean` | `true` when `buffer` was produced by sharp, `false` when the upstream image was returned. |
+| `error`        | `unknown` | Present only when optimization failed and the upstream image was returned instead.        |
 
 The function runs the following steps in order:
 
@@ -133,7 +133,7 @@ The function runs the following steps in order:
 4. Returns animated WebP, PNG, and GIF sources unoptimized, and calls `logger.warnOnce`.
 5. Returns SVG, ICO, ICNS, BMP, JXL, and HEIC sources unmodified.
 6. Selects the output type: `paramsResult.mimeType` when non-empty, `image/jpeg` for WebP or AVIF sources when no type is requested, otherwise the detected source type.
-7. Optimizes with [`optimizeImage`](#optimizeimage) using the `experimental.imgOpt*` values, then applies `opts.handleDevOutput` when provided.
+7. Optimizes with [`optimizeImage`](#optimizeimage) using the `experimental.imgOpt*` values.
 8. On failure, returns the upstream buffer and content type with `maxAge` set to `images.minimumCacheTTL` and the caught value on `result.error`. The failure does not throw.
 
 ### optimizeImage
