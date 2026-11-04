@@ -49,8 +49,9 @@ const source = readSourceFiles(process.cwd()).join('\n---FILE---\n')
 const config = stripComments(
   readFileSync(join(process.cwd(), 'next.config.ts'), 'utf-8')
 )
-test('keeps Cache Components enabled', () => {
+test('keeps Cache Components and Partial Prefetching enabled', () => {
   expect(config).toMatch(/cacheComponents\s*:\s*true/)
+  expect(config).toMatch(/partialPrefetching\s*:\s*true/)
   expect(config).not.toMatch(/\bstaleTimes\s*:/)
 })
 

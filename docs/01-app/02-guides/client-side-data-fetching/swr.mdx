@@ -289,6 +289,8 @@ async function ProductData({ id }) {
 
 `expire: 0` prevents Next.js from reusing the `ProductData` output from the server cache in production. Because this profile omits `stale`, it inherits the [`default` cache profile's](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) client stale time, which is five minutes unless you redefine that profile in `next.config.ts`. During that time, the Next.js router can reuse the RSC payload without requesting it again.
 
+With [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), a default `<Link>` prefetches the route's App Shell. Set `prefetch={true}` on a product link to fetch this cached, URL-specific payload before the click. Otherwise, the first navigation can request `ProductData`, and later navigations can reuse the result for its client stale time.
+
 If you [provide fallback data from the server](#provide-initial-data-from-a-server-component), keep the existing `<SWRConfig>` inside `ProductData`. Its fallback becomes part of the cached RSC payload.
 
 Use this profile when the RSC payload must not be shared across requests. If the data is safe to cache on the server, [cache it across requests](#cache-server-data-across-requests) to improve initial and direct loads.

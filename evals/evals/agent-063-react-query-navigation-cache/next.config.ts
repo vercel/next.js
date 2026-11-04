@@ -2,11 +2,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  experimental: {
-    staleTimes: {
-      dynamic: 300,
-    },
-  },
+  partialPrefetching: true,
 }
 
 export default nextConfig

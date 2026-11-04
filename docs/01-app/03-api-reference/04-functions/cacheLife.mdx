@@ -285,7 +285,7 @@ This 30-second minimum prevents prefetched data from expiring before users can c
 
 When you call revalidation functions from a Server Action ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag), [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath), [`updateTag`](/docs/app/api-reference/functions/updateTag), or [`refresh`](/docs/app/api-reference/functions/refresh)), the entire client cache is immediately cleared, bypassing the stale time.
 
-> **Good to know**: Do not configure [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) when Cache Components is enabled. Use the `stale` property in `cacheLife` to control client cache reuse for each cached function or route.
+> **Good to know**: With Cache Components, prefer `cacheLife` over [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes). Set `stale` on an individual cache, or redefine the `default` cache profile for an app-wide value. When `cacheLife.default.stale` is omitted, `staleTimes.static` still provides its value.
 
 ### Prerendering behavior
 
