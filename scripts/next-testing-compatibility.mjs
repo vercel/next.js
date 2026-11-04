@@ -131,6 +131,7 @@ const entries = {
   'vitest/config': 'packages/next/src/experimental/testing/config-api.ts',
   'vitest/browser':
     'packages/next/src/experimental/testing/client/browser-context.ts',
+  'vitest/node': 'packages/next/experimental/testing/vitest-node.d.ts',
 }
 const nextProgram = ts.createProgram(
   Object.values(entries).map((file) => join(root, file)),
@@ -156,6 +157,46 @@ const facades = new Map(
     ]
   })
 )
+// This shipped opt-in currently exposes only the reviewed type-only leaves.
+// Derive availability from its symbols, and fail closed on new class/controller
+// exports until their separate public contracts have been reviewed.
+const nodeLeafNames = new Set([
+  'TestResult',
+  'TestResultPassed',
+  'TestResultFailed',
+  'TestResultSkipped',
+  'TestResultPending',
+  'TestState',
+  'TestSuiteState',
+  'TestModuleState',
+])
+const nodeFacade = facades.get('vitest/node')
+if (!nodeFacade || nodeFacade.exports.size !== nodeLeafNames.size)
+  throw new Error('The shipped Node leaf type surface drifted.')
+for (const [name, exported] of nodeFacade.exports) {
+  const resolved =
+    exported.flags & ts.SymbolFlags.Alias
+      ? nextChecker.getAliasedSymbol(exported)
+      : exported
+  if (
+    !nodeLeafNames.has(name) ||
+    !(resolved.flags & ts.SymbolFlags.Type) ||
+    resolved.flags & ts.SymbolFlags.Value
+  )
+    throw new Error(`Unreviewed Node type/value export: ${name}`)
+}
+for (const name of [
+  'Reporter',
+  'ReportedHookContext',
+  'HookContext',
+  'TestCase',
+  'TestSuite',
+  'TestModule',
+  'TestSpecification',
+]) {
+  if (nodeFacade.exports.has(name))
+    throw new Error(`Unqualified Node controller/class export: ${name}`)
+}
 function availability(row) {
   const match = /^(vitest(?:\/[^:]+)?):([^.]+)(?:\.(.+))?$/.exec(row.api)
   if (!match) return { status: 'not-applicable' }
@@ -163,7 +204,10 @@ function availability(row) {
   const facade = facades.get(module)
   const exported = facade?.exports.get(name)
   if (!exported)
-    return { status: 'absent', ...(facade && { entry: facade.file }) }
+    return {
+      status: 'absent',
+      ...(facade && module !== 'vitest/node' && { entry: facade.file }),
+    }
   const resolved =
     exported.flags & ts.SymbolFlags.Alias
       ? nextChecker.getAliasedSymbol(exported)

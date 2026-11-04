@@ -13,17 +13,14 @@ is recorded in the generated inventory and lockfile. The supported stable range
 is undecided, `stableReady` remains false, and no stable exception is approved.
 This is an implementation checkpoint, not graduation of the experiment.
 
-## Current recorded status — 34 signed local implementation/control steps, November 4, 2026
+## Current recorded status — 36 signed local implementation/control steps, November 4, 2026
 
-The latest recorded committed implementation checkpoint is `c797c8986463e6cd2641b13ff17c8732f7bfcef2`.
-The signed steps and four metadata-only commits total **38 local commits**
-since the last independently verified pushed checkpoint, before this consolidated
-metadata-only update. The C/B/RunStart/final-exit followups below retain their own
-actual physical qualification scopes; the combined SDK predates later E changes.
-Protected-input history and every historical failed acceptance remain separate.
-No whole mixed Root/carrier is qualified and no push occurred. Last verified
-draft PR #98869 publication remains `1558a982296b23763d2174b27aa4cbd69e8e5455`.
-Metadata adds no product functionality.
+Latest committed implementation is `47e931579adf2b0e8daa12150f0b205aa4f0a6b5`: **41 local commits**
+(**36 implementation/control + five metadata**) since last verified publication
+`1558a982296b23763d2174b27aa4cbd69e8e5455`. Node Suite/Hook/task-pack behavior
+and eight Node type leaves have separate measured scopes below. SDK2ce excludes
+the new types. Frozen484 regression is failed and focused70 remains active; no
+full green/release or push is claimed.
 
 All 776 original API names, surfaces, overloads and release classifications are
 retained. Ten root types are newly available: the six benchmark/error metadata
@@ -33,12 +30,14 @@ IDs; the other nine measured type rows are scoped. `snapshotFormat` remains
 partial. The existing `config.test.browser.locators` row remains partial for
 measured `errorFormat` and TestId subsets; exact and wider fields remain gaps. Configured inspect and compiler startup retain
 their bounded partial scopes; ordered CLI and TestId evidence below does not
-promote either entire API. Counts are **102 scoped,
-277 partial, 377 missing, 20 unreviewed**; declarations **307 available,
-275 absent, 194 not applicable**. All 776 complete API rows and statuses, including missing `typecheck.build`,
-remain exact, and release-compatible remains zero. Type presence
-qualifies no benchmark execution, runtime event/heap/log producer, full recursive
-Task alias, extra subpath or global bridge.
+promote either entire API. Counts are **110 scoped,
+277 partial, 369 missing, 20 unreviewed**; declarations **315 available,
+267 absent, 194 not applicable**. All 776 complete API rows are retained; only the eight measured Node type leaves
+change declaration/implementation status. Other rows, including missing
+`typecheck.build`, remain exact, and release-compatible remains zero. Type
+presence qualifies no benchmark execution, runtime event/heap/log producer, full
+recursive Task alias, additional Node controller/class surface or broader global
+bridge.
 
 Closed scoped results:
 
@@ -297,6 +296,18 @@ Counts stay **102 scoped / 277 partial / 377 missing / 20 unreviewed** and all77
 API rows remain exact. Stable readiness is false, supported range null and
 exceptions empty. Documentation/migrations remain last; Linux and performance
 stay deferred.
+
+## Verified Node Suite/Hook batches and eight type leaves, November 4, 2026
+
+Signed e6d7aae9cf implements actual Suite/Hook reporter events, 100ms pending task-pack batching and record drains in the measured ordinary isolated Node scope. Thirteen normal controls, seven producer cases, nine real reporter sessions and two causal record sessions pass. Original full C pilot matches all seven fields with two cases/eleven callbacks; sixteen development C profiles match 40 cases/40 rows/288 require-events/192 callbacks, and eight production C profiles match 16 cases/16 rows/56 require-events/88 callbacks. Annotation32 preservation retains52 actual callbacks/56 getter reads/165 complete trace rows; legacy/captured retention2 passes without an internal copy-count claim. Seventeen actual public Suite/Hook profiles span Node20/22/24/26 and both modes: sixteen complete trace comparisons plus one causal profile. The exact user-approved old Ready tuple correction is applied. The failed watch remains historical; explicit core/Next/root types/style and all actual Native-owner joins are authoritative. Browser/watch/coverage hooks, broader execution profiles, full runtime classes and whole JSON schema parity remain unqualified.
+
+Signed 47e931579a exposes exactly eight type-only vitest/node leaf contracts through the shipped package opt-in: TestResult, its passed/failed/skipped/pending variants, TestState, TestSuiteState and TestModuleState. Twenty-four unchanged genuine-matched TypeScript6.0.2 programs pass with six accepted/eighteen rejected, complete diagnostics and AST spans equal. Actual ordinary package resolution and the normal typecheck worker pass; ten normal tests (nine preserved plus one new), core, Next/root types and style pass. This is Source-only evidence: SDK2ce predates these exports. Reporter, ReportedHookContext/HookContext, TestCase/TestSuite/TestModule/TestSpecification runtime classes, controllers and the remaining vitest/node surface remain absent or unqualified.
+
+SDK2ce/f179 formal qualification is physically closed for the same coherent E family76 only:25 C whole seven-field Source/SDK comparisons (development16/production8/original1),17 Suite/Hook profiles (sixteen complete plus one causal),32 annotation roles (52 actual callbacks/56 getter reads/165 rows) and two functional retention roles with exact bytes. All371 recorded PIDs/339 groups are absent,81 owned roots retire and strict whole opening/closing bytes hold. The consumer has31597 entries/9751 package entries/9659 compiled files/1946 declarations/1744 non-Next entries, with private f179 inode930705757. One prelaunch support failure with zero CLI calls remains retained; no actual profile rerun or material mutation occurred. The package qualifies e6 scope only, contains none of the new eight Node types, and does not freshly revalidate be930 B8/D10, broader Browser/watch/coverage, runtime classes or whole JSON schemas.
+
+Frozen484 has **179 initial phase passes** and failed regression **233/264 (31 failures)**. Exact title comparison against D188 identifies **22 new preservation regressions / nine old failures / twelve old failures now passing**. **Focused70 is still running**. The live log has only two completed suite headlines, both failed: coverage2724.613s with178 printed failure titles and CLI430.234s with three printed failures (all three titles previously passed D188). No final JSON or aggregate focused counts exist yet; original47 Browser replay and the missing full15 historical model remain open. The primary generated-map phantom removed-inline-comment end in collector has only a private Work4 candidate under coverage_preservation, with no Root implementation credit; that snapshot branch is not a Root ancestor. Every historical failed/full scope remains retained.
+
+Only eight qualified type-only Node rows change declaration absent→available and implementation missing→scoped. Expected generated counts are **110 scoped / 277 partial / 369 missing / 20 unreviewed**, declarations **315 available / 267 absent / 194 not applicable**, release-compatible **zero**. The generic controller/reporter group and all unrelated whole rows stay unchanged. Stable readiness remains false, range null and exceptions empty; documentation/migrations, Linux and performance stay deferred.
 
 ## Consolidated committed B/C/D/E checkpoint, November 4, 2026
 
