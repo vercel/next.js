@@ -373,6 +373,8 @@ Inside the callback, an initial page load shows the static UI and a client navig
 
 For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
 
+Keep the production `<Link>` and its `href` in the test, including links that redirect. Next.js follows the redirect and uses the resulting canonical URL to fetch the destination's segments. Wait for the final pathname and query before asserting on the UI. For repeat and back or forward navigations, use [visibility-aware selectors](/docs/app/guides/preserving-ui-state#testing) because preserved routes can be hidden in the DOM. Assert each independently suspended region separately.
+
 Run these against `next dev`, where the testing API is enabled automatically. For CI with a production build, enable [`exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) only for the test build:
 
 ```ts filename="next.config.ts" highlight={3,8}
