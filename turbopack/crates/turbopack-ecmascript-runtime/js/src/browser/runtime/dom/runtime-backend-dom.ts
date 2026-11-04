@@ -12,7 +12,10 @@
 function getAssetSuffixFromScriptSrc() {
   // TURBOPACK_ASSET_SUFFIX is set in web workers
   if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX
-  const src = document?.currentScript?.getAttribute?.('src') ?? ''
+  const src =
+    typeof document === 'undefined'
+      ? ''
+      : (document.currentScript?.getAttribute?.('src') ?? '')
   const qi = src.indexOf('?')
   return qi >= 0 ? src.slice(qi) : ''
 }
@@ -52,15 +55,26 @@ function matchesChunkUrl(
 
 /**
  * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
+ * External scripts also match equivalent absolute and relative URLs.
  */
-function findChunkScripts(url: string): HTMLScriptElement[] {
+function findChunkScripts(
+  url: string,
+  external: boolean = false
+): HTMLScriptElement[] {
   const decodedUrl = decodeURI(url)
+  const requested = external ? new URL(url, document.baseURI).href : undefined
   const scripts = document.head.getElementsByTagName('script')
   const result: HTMLScriptElement[] = []
   for (let i = 0; i < scripts.length; i++) {
     const script = scripts[i]
-    if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+    const src = script.getAttribute('src')
+    if (matchesChunkUrl(src, url, decodedUrl)) {
       result.push(script)
+    } else if (requested !== undefined && src !== null) {
+      const existing = new URL(src, document.baseURI).href
+      if (existing === requested || existing.startsWith(`${requested}?`)) {
+        result.push(script)
+      }
     }
   }
   return result
@@ -99,13 +113,19 @@ function findChunkStylesheets(url: string): HTMLLinkElement[] {
   return findChunkLinks(url, true)
 }
 
+type LazyChunkPromise = {
+  promise?: Promise<void>
+  resolve?: () => void
+  reject?: (error?: Error) => void
+}
+
 type ChunkResolver = {
-  resolved: boolean
+  loaded: boolean
+  registered: boolean
   loadingStarted: boolean
   retryAttempts: number
-  resolve: () => void
-  reject: (error?: Error) => void
-  promise: Promise<any>
+  load: LazyChunkPromise
+  registration: LazyChunkPromise
 }
 
 let BACKEND: RuntimeBackend
@@ -123,7 +143,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       if (chunk != null) {
         chunkPath = getPathFromScript(chunk)
         const resolver = getOrCreateResolver(getUrlFromScript(chunk))
-        resolver.resolve()
+        markChunkRegistered(resolver)
       }
 
       if (params == null) {
@@ -156,34 +176,63 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
      */
-    loadChunkCached(sourceType: SourceType, chunkUrl: ChunkUrl) {
-      return doLoadChunk(sourceType, chunkUrl)
+    loadChunkCached(
+      sourceType: SourceType,
+      chunkUrl: ChunkUrl,
+      resolveOnLoad = false
+    ) {
+      return doLoadChunk(sourceType, chunkUrl, resolveOnLoad)
     },
   }
 
   function getOrCreateResolver(chunkUrl: ChunkUrl): ChunkResolver {
     let resolver = chunkResolvers.get(chunkUrl)
     if (!resolver) {
-      let resolve: () => void
-      let reject: (error?: Error) => void
-      const promise = new Promise<void>((innerResolve, innerReject) => {
-        resolve = innerResolve
-        reject = innerReject
-      })
       resolver = {
-        resolved: false,
+        loaded: false,
+        registered: false,
         loadingStarted: false,
         retryAttempts: 0,
-        promise,
-        resolve: () => {
-          resolver!.resolved = true
-          resolve()
-        },
-        reject: reject!,
+        load: {},
+        registration: {},
       }
       chunkResolvers.set(chunkUrl, resolver)
     }
     return resolver
+  }
+
+  function getOrCreatePromise(
+    state: LazyChunkPromise,
+    completed: boolean
+  ): Promise<void> {
+    if (completed) return Promise.resolve()
+    if (!state.promise) {
+      state.promise = new Promise<void>((resolve, reject) => {
+        state.resolve = resolve
+        state.reject = reject
+      })
+    }
+    return state.promise
+  }
+
+  function getResolverPromise(
+    resolver: ChunkResolver,
+    resolveOnLoad: boolean
+  ): Promise<void> {
+    return resolveOnLoad
+      ? getOrCreatePromise(resolver.load, resolver.loaded)
+      : getOrCreatePromise(resolver.registration, resolver.registered)
+  }
+
+  function markChunkLoaded(resolver: ChunkResolver) {
+    resolver.loaded = true
+    resolver.load.resolve?.()
+  }
+
+  function markChunkRegistered(resolver: ChunkResolver) {
+    resolver.registered = true
+    markChunkLoaded(resolver)
+    resolver.registration.resolve?.()
   }
 
   /**
@@ -199,7 +248,8 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     if (chunkResolvers.get(chunkUrl) === resolver) {
       chunkResolvers.delete(chunkUrl)
     }
-    resolver.reject(error)
+    resolver.load.reject?.(error)
+    resolver.registration.reject?.(error)
   }
 
   function getChunkLoadRetryDelayMs() {
@@ -240,14 +290,14 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       // if this chunk is being fetched multiple times, and one of those
       // attempts succeeds. or, if this chunk has another resolver
       // mapped to it - it's safe to skip retrying.
-      if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
+      if (resolver.loaded || chunkResolvers.get(chunkUrl) !== resolver) {
         return
       }
       if (reload) {
         reload()
       } else {
         resolver.loadingStarted = false
-        doLoadChunk(sourceType, chunkUrl)
+        doLoadChunk(sourceType, chunkUrl, resolver.registration.promise == null)
       }
     }, getChunkLoadRetryDelayMs())
   }
@@ -256,10 +306,15 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
    */
-  function doLoadChunk(sourceType: SourceType, chunkUrl: ChunkUrl) {
+  function doLoadChunk(
+    sourceType: SourceType,
+    chunkUrl: ChunkUrl,
+    resolveOnLoad = false
+  ) {
     const resolver = getOrCreateResolver(chunkUrl)
+    const promise = getResolverPromise(resolver, resolveOnLoad)
     if (resolver.loadingStarted) {
-      return resolver.promise
+      return promise
     }
 
     if (sourceType === SourceType.Runtime) {
@@ -270,24 +325,27 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       if (isCss(chunkUrl)) {
         // CSS chunks do not register themselves, and as such must be marked as
         // loaded instantly.
-        resolver.resolve()
+        markChunkRegistered(resolver)
       }
 
       // We need to wait for JS chunks to register themselves within `registerChunk`
       // before we can start instantiating runtime modules, hence the absence of
-      // `resolver.resolve()` in this branch.
+      // `markChunkRegistered()` in this branch.
 
-      return resolver.promise
+      return promise
     }
 
+    resolver.loadingStarted = true
+
     if (typeof importScripts === 'function') {
-      // We're in a web worker
+      // We're in a classic web worker.
       if (isCss(chunkUrl)) {
         // ignore
       } else if (isJs(chunkUrl)) {
         self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
         try {
           importScripts(chunkUrl)
+          markChunkLoaded(resolver)
         } catch (error) {
           onChunkLoadError(sourceType, chunkUrl, resolver, error as Error)
         }
@@ -296,13 +354,13 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           `can't infer type of chunk from URL ${chunkUrl} in worker`
         )
       }
-    } else {
+    } else if (typeof document !== 'undefined') {
       if (isCss(chunkUrl)) {
         const previousLinks = findChunkStylesheets(chunkUrl)
         if (previousLinks.length > 0) {
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
-          resolver.resolve()
+          markChunkRegistered(resolver)
         } else {
           const createLink = () => {
             const link = document.createElement('link')
@@ -321,7 +379,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
             link.onload = () => {
               // CSS chunks do not register themselves, and as such must be marked as
               // loaded instantly.
-              resolver.resolve()
+              markChunkRegistered(resolver)
             }
             return link
           }
@@ -329,9 +387,12 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           document.head.appendChild(createLink())
         }
       } else if (isJs(chunkUrl)) {
-        const previousScripts = findChunkScripts(chunkUrl)
+        const previousScripts = findChunkScripts(chunkUrl, resolveOnLoad)
         if (previousScripts.length > 0) {
           for (const script of previousScripts) {
+            script.addEventListener('load', () => markChunkLoaded(resolver), {
+              once: true,
+            })
             script.addEventListener(
               'error',
               () => {
@@ -346,9 +407,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           const script = document.createElement('script')
           script.crossOrigin = CROSS_ORIGIN
           script.src = chunkUrl
-          // We'll only mark the chunk as loaded once the script has been executed,
-          // which happens in `registerChunk`. Hence the absence of `resolve()` in
-          // this branch.
+          script.onload = () => markChunkLoaded(resolver)
           script.onerror = () => {
             // Drop the failed tag so a retry can re-add it cleanly.
             script.remove()
@@ -360,9 +419,10 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       } else {
         throw new Error(`can't infer type of chunk from URL ${chunkUrl}`)
       }
+    } else {
+      throw new Error('chunk loading is not supported in module workers')
     }
 
-    resolver.loadingStarted = true
-    return resolver.promise
+    return promise
   }
 })()

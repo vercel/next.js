@@ -200,6 +200,11 @@ var REEXPORTED_OBJECTS = new WeakMap();
 }
 var contextPrototype = Context.prototype;
 contextPrototype.M = moduleFactories;
+contextPrototype.R = {
+    shareScopes: Object.create(null),
+    initScopes: Object.create(null),
+    remoteInitializations: Object.create(null)
+};
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 var toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
@@ -1317,6 +1322,13 @@ var loadedChunk = Promise.resolve(undefined);
 var instrumentedBackendLoadChunks = new WeakMap();
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(chunkEntry) {
+    var resolveOnLoad = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : false;
+    if (resolveOnLoad) {
+        if (typeof chunkEntry !== 'string') {
+            return Promise.reject(new Error('External scripts cannot use merged chunk metadata'));
+        }
+        return BACKEND.loadChunkCached(SourceType.Parent, chunkEntry, true);
+    }
     return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry);
 }
 browserContextPrototype.L = loadChunkByUrl;
@@ -1450,7 +1462,7 @@ function loadChunkPath(sourceType, sourceData, chunkPath) {
     var exported = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
     return (_ref = exported === null || exported === void 0 ? void 0 : exported.default) !== null && _ref !== void 0 ? _ref : exported;
 }
-browserContextPrototype.R = resolvePathFromModule;
+browserContextPrototype.p = resolvePathFromModule;
 /**
  * no-op for browser
  * @param modulePath
@@ -1758,10 +1770,10 @@ function _ts_generator(thisArg, body) {
 /// <reference path="../../../shared/runtime/runtime-types.d.ts" />
 function getAssetSuffixFromScriptSrc() {
     var _ref;
-    var _document_currentScript_getAttribute, _document_currentScript, _document;
+    var _document_currentScript_getAttribute, _document_currentScript;
     // TURBOPACK_ASSET_SUFFIX is set in web workers
     if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX;
-    var src = (_ref = (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.call(_document_currentScript, 'src')) !== null && _ref !== void 0 ? _ref : '';
+    var src = typeof document === 'undefined' ? '' : (_ref = (_document_currentScript = document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.call(_document_currentScript, 'src')) !== null && _ref !== void 0 ? _ref : '';
     var qi = src.indexOf('?');
     return qi >= 0 ? src.slice(qi) : '';
 }
@@ -1787,14 +1799,23 @@ function getAssetSuffixFromScriptSrc() {
 // CSS-escaped.
 /**
  * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
+ * External scripts also match equivalent absolute and relative URLs.
  */ function findChunkScripts(url) {
+    var external = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : false;
     var decodedUrl = decodeURI(url);
+    var requested = external ? new URL(url, document.baseURI).href : undefined;
     var scripts = document.head.getElementsByTagName('script');
     var result = [];
     for(var i = 0; i < scripts.length; i++){
         var script = scripts[i];
-        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+        var src = script.getAttribute('src');
+        if (matchesChunkUrl(src, url, decodedUrl)) {
             result.push(script);
+        } else if (requested !== undefined && src !== null) {
+            var existing = new URL(src, document.baseURI).href;
+            if (existing === requested || existing.startsWith(`${requested}?`)) {
+                result.push(script);
+            }
         }
     }
     return result;
@@ -1838,7 +1859,7 @@ var BACKEND;
                             if (chunk != null) {
                                 chunkPath = getPathFromScript(chunk);
                                 resolver = getOrCreateResolver(getUrlFromScript(chunk));
-                                resolver.resolve();
+                                markChunkRegistered(resolver);
                             }
                             if (params == null) {
                                 return [
@@ -1910,42 +1931,60 @@ var BACKEND;
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
      */ loadChunkCached: function loadChunkCached(sourceType, chunkUrl) {
-            return doLoadChunk(sourceType, chunkUrl);
+            var resolveOnLoad = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : false;
+            return doLoadChunk(sourceType, chunkUrl, resolveOnLoad);
         }
     };
     function getOrCreateResolver(chunkUrl) {
         var resolver = chunkResolvers.get(chunkUrl);
         if (!resolver) {
-            var resolve;
-            var reject;
-            var promise = new Promise(function(innerResolve, innerReject) {
-                resolve = innerResolve;
-                reject = innerReject;
-            });
             resolver = {
-                resolved: false,
+                loaded: false,
+                registered: false,
                 loadingStarted: false,
                 retryAttempts: 0,
-                promise: promise,
-                resolve: function resolve1() {
-                    resolver.resolved = true;
-                    resolve();
-                },
-                reject: reject
+                load: {},
+                registration: {}
             };
             chunkResolvers.set(chunkUrl, resolver);
         }
         return resolver;
+    }
+    function getOrCreatePromise(state, completed) {
+        if (completed) return Promise.resolve();
+        if (!state.promise) {
+            state.promise = new Promise(function(resolve, reject) {
+                state.resolve = resolve;
+                state.reject = reject;
+            });
+        }
+        return state.promise;
+    }
+    function getResolverPromise(resolver, resolveOnLoad) {
+        return resolveOnLoad ? getOrCreatePromise(resolver.load, resolver.loaded) : getOrCreatePromise(resolver.registration, resolver.registered);
+    }
+    function markChunkLoaded(resolver) {
+        var _resolver_load_resolve, _resolver_load;
+        resolver.loaded = true;
+        (_resolver_load_resolve = (_resolver_load = resolver.load).resolve) === null || _resolver_load_resolve === void 0 ? void 0 : _resolver_load_resolve.call(_resolver_load);
+    }
+    function markChunkRegistered(resolver) {
+        var _resolver_registration_resolve, _resolver_registration;
+        resolver.registered = true;
+        markChunkLoaded(resolver);
+        (_resolver_registration_resolve = (_resolver_registration = resolver.registration).resolve) === null || _resolver_registration_resolve === void 0 ? void 0 : _resolver_registration_resolve.call(_resolver_registration);
     }
     /**
    * Rejects a chunk resolver and drops it from the cache.
    * We don't want to cache failed chunk loads: a later
    * request for the same chunk should try again.
    */ function rejectChunkResolver(chunkUrl, resolver, error) {
+        var _resolver_load_reject, _resolver_load, _resolver_registration_reject, _resolver_registration;
         if (chunkResolvers.get(chunkUrl) === resolver) {
             chunkResolvers.delete(chunkUrl);
         }
-        resolver.reject(error);
+        (_resolver_load_reject = (_resolver_load = resolver.load).reject) === null || _resolver_load_reject === void 0 ? void 0 : _resolver_load_reject.call(_resolver_load, error);
+        (_resolver_registration_reject = (_resolver_registration = resolver.registration).reject) === null || _resolver_registration_reject === void 0 ? void 0 : _resolver_registration_reject.call(_resolver_registration, error);
     }
     function getChunkLoadRetryDelayMs() {
         var jitter = Math.floor(Math.random() * (CHUNK_LOAD_RETRY_MAX_JITTER_MS + 1));
@@ -1966,14 +2005,14 @@ var BACKEND;
             // if this chunk is being fetched multiple times, and one of those
             // attempts succeeds. or, if this chunk has another resolver
             // mapped to it - it's safe to skip retrying.
-            if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
+            if (resolver.loaded || chunkResolvers.get(chunkUrl) !== resolver) {
                 return;
             }
             if (reload) {
                 reload();
             } else {
                 resolver.loadingStarted = false;
-                doLoadChunk(sourceType, chunkUrl);
+                doLoadChunk(sourceType, chunkUrl, resolver.registration.promise == null);
             }
         }, getChunkLoadRetryDelayMs());
     }
@@ -1981,9 +2020,11 @@ var BACKEND;
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
    */ function doLoadChunk(sourceType, chunkUrl) {
+        var resolveOnLoad = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : false;
         var resolver = getOrCreateResolver(chunkUrl);
+        var promise = getResolverPromise(resolver, resolveOnLoad);
         if (resolver.loadingStarted) {
-            return resolver.promise;
+            return promise;
         }
         if (sourceType === SourceType.Runtime) {
             // We don't need to load chunks references from runtime code, as they're already
@@ -1992,34 +2033,36 @@ var BACKEND;
             if (isCss(chunkUrl)) {
                 // CSS chunks do not register themselves, and as such must be marked as
                 // loaded instantly.
-                resolver.resolve();
+                markChunkRegistered(resolver);
             }
             // We need to wait for JS chunks to register themselves within `registerChunk`
             // before we can start instantiating runtime modules, hence the absence of
-            // `resolver.resolve()` in this branch.
-            return resolver.promise;
+            // `markChunkRegistered()` in this branch.
+            return promise;
         }
+        resolver.loadingStarted = true;
         if (typeof importScripts === 'function') {
-            // We're in a web worker
+            // We're in a classic web worker.
             if (isCss(chunkUrl)) {
             // ignore
             } else if (isJs(chunkUrl)) {
                 self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
                 try {
                     importScripts(chunkUrl);
+                    markChunkLoaded(resolver);
                 } catch (error) {
                     onChunkLoadError(sourceType, chunkUrl, resolver, error);
                 }
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
-        } else {
+        } else if (typeof document !== 'undefined') {
             if (isCss(chunkUrl)) {
                 var previousLinks = findChunkStylesheets(chunkUrl);
                 if (previousLinks.length > 0) {
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
-                    resolver.resolve();
+                    markChunkRegistered(resolver);
                 } else {
                     var createLink = function createLink1() {
                         var link = document.createElement('link');
@@ -2038,7 +2081,7 @@ var BACKEND;
                         link.onload = function() {
                             // CSS chunks do not register themselves, and as such must be marked as
                             // loaded instantly.
-                            resolver.resolve();
+                            markChunkRegistered(resolver);
                         };
                         return link;
                     };
@@ -2046,12 +2089,17 @@ var BACKEND;
                     document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
-                var previousScripts = findChunkScripts(chunkUrl);
+                var previousScripts = findChunkScripts(chunkUrl, resolveOnLoad);
                 if (previousScripts.length > 0) {
                     var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
                     try {
                         var _loop = function() {
                             var script = _step.value;
+                            script.addEventListener('load', function() {
+                                return markChunkLoaded(resolver);
+                            }, {
+                                once: true
+                            });
                             script.addEventListener('error', function() {
                                 // Drop the failed tag so a retry can re-add it cleanly.
                                 script.remove();
@@ -2079,9 +2127,9 @@ var BACKEND;
                     var script = document.createElement('script');
                     script.crossOrigin = CROSS_ORIGIN;
                     script.src = chunkUrl;
-                    // We'll only mark the chunk as loaded once the script has been executed,
-                    // which happens in `registerChunk`. Hence the absence of `resolve()` in
-                    // this branch.
+                    script.onload = function() {
+                        return markChunkLoaded(resolver);
+                    };
                     script.onerror = function() {
                         // Drop the failed tag so a retry can re-add it cleanly.
                         script.remove();
@@ -2093,9 +2141,10 @@ var BACKEND;
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);
             }
+        } else {
+            throw new Error('chunk loading is not supported in module workers');
         }
-        resolver.loadingStarted = true;
-        return resolver.promise;
+        return promise;
     }
 })();
 globalThis["TURBOPACK"] = { push: registerChunk };
