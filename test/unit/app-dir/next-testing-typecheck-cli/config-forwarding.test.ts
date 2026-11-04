@@ -307,6 +307,58 @@ describe('actual CLI options reach configured typecheck projects', () => {
       before
     )
   })
+
+  it.each([
+    ['dotted false', ['--typecheck.enabled=false'], false, false, true],
+    ['dotted true', ['--typecheck.enabled=true'], true, false, false],
+    ['negative alias', ['--no-typecheck.enabled'], false, false, true],
+    [
+      'dotted false with only',
+      ['--typecheck.enabled=false', '--typecheck.only'],
+      false,
+      true,
+      false,
+    ],
+    [
+      'later parent with only',
+      ['--typecheck.enabled=false', '--typecheck', '--typecheck.only'],
+      true,
+      true,
+      false,
+    ],
+    [
+      'later dotted false with only',
+      ['--typecheck', '--typecheck.enabled=false', '--typecheck.only'],
+      false,
+      true,
+      true,
+    ],
+  ] as const)(
+    'forwards %s through actual root config, discovery and execution selection',
+    async (_name, argv, enabled, only, authoredEnabled) => {
+      const { config, projects } = await reachExecution(argv, {
+        enabled: authoredEnabled,
+      })
+      expect(config.projects[0].typecheck).toMatchObject({
+        enabled,
+        only,
+        spawnTimeout: 99,
+        tsconfig: './tsconfig.json',
+        include: ['**/*.test-d.ts'],
+        exclude: ['**/excluded/**'],
+      })
+      expect(projects[0].entries.map((entry) => entry.id)).toEqual(
+        enabled
+          ? only
+            ? ['default:typescript:example.test-d.ts']
+            : [
+                'default:runtime.test.mjs',
+                'default:typescript:example.test-d.ts',
+              ]
+          : ['default:runtime.test.mjs']
+      )
+    }
+  )
 })
 
 describe('CLI leaf overrides preserve current project ownership data', () => {

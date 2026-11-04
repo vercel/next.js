@@ -287,3 +287,129 @@ describe('actual test command runner failure rendering', () => {
     expect(result.exitCode).toBeUndefined()
   })
 })
+
+describe('actual test command dotted enabled aliases', () => {
+  it.each([
+    ['bare', ['--typecheck.enabled'], { enabled: true }],
+    ['true', ['--typecheck.enabled=true'], { enabled: true }],
+    ['false', ['--typecheck.enabled=false'], { enabled: false }],
+    ['empty', ['--typecheck.enabled='], { enabled: true }],
+    [
+      'empty followed by true',
+      ['--typecheck.enabled=', 'true'],
+      { enabled: true },
+    ],
+    [
+      'empty followed by false',
+      ['--typecheck.enabled=', 'false'],
+      { enabled: false },
+    ],
+    ['split true', ['--typecheck.enabled', 'true'], { enabled: true }],
+    ['split false', ['--typecheck.enabled', 'false'], { enabled: false }],
+    ['negative alias', ['--no-typecheck.enabled'], { enabled: false }],
+    [
+      'repeated negative alias',
+      ['--no-typecheck.enabled', '--no-typecheck.enabled'],
+      { enabled: false },
+    ],
+    [
+      'positive then negation',
+      ['--typecheck.enabled', '--no-typecheck.enabled'],
+      { enabled: false },
+    ],
+    [
+      'parent then dotted false',
+      ['--typecheck', '--typecheck.enabled=false'],
+      { enabled: false },
+    ],
+    [
+      'dotted false then parent',
+      ['--typecheck.enabled=false', '--typecheck'],
+      { enabled: true },
+    ],
+    [
+      'disabled parent then dotted true',
+      ['--no-typecheck', '--typecheck.enabled'],
+      { enabled: true },
+    ],
+    [
+      'dotted true then disabled parent',
+      ['--typecheck.enabled', '--no-typecheck'],
+      { enabled: false },
+    ],
+    [
+      'only then dotted false',
+      ['--typecheck.only', '--typecheck.enabled=false'],
+      { enabled: false, only: true },
+    ],
+    [
+      'dotted false then only',
+      ['--typecheck.enabled=false', '--typecheck.only'],
+      { enabled: false, only: true },
+    ],
+    [
+      'not-only then dotted false',
+      ['--no-typecheck.only', '--typecheck.enabled=false'],
+      { enabled: false, only: false },
+    ],
+    [
+      'negative alias and only',
+      ['--no-typecheck.enabled', '--typecheck.only'],
+      { enabled: false, only: true },
+    ],
+    [
+      'parent after timeout clears dotted siblings',
+      [
+        '--typecheck.enabled=false',
+        '--typecheck.spawnTimeout=1',
+        '--typecheck',
+      ],
+      { enabled: true },
+    ],
+    [
+      'timeout after parent is retained',
+      [
+        '--typecheck.enabled=false',
+        '--typecheck',
+        '--typecheck.spawnTimeout=1',
+      ],
+      { enabled: true, spawnTimeout: 1 },
+    ],
+  ] as const)(
+    'forwards %s through real Commander',
+    async (_name, argv, expected) => {
+      const result = await parseActualTestCommand(argv)
+      expect(result.parserError).toBeUndefined()
+      expect(result.messages).toEqual([])
+      expect(result.exitCode).toBeUndefined()
+      expect(result.nextTestRunner).toHaveBeenCalledTimes(1)
+      expect(typecheckOptions(result.nextTestRunner.mock.calls[0][1])).toEqual(
+        expected
+      )
+    }
+  )
+
+  it.each([
+    [
+      'two positive values',
+      ['--typecheck.enabled=true', '--typecheck.enabled=false'],
+      '[true, false]',
+    ],
+    [
+      'negative alias then positive',
+      ['--no-typecheck.enabled', '--typecheck.enabled'],
+      '[false, true]',
+    ],
+  ] as const)(
+    'rejects %s before runner dispatch',
+    async (_name, argv, values) => {
+      const result = await parseActualTestCommand(argv)
+      expect(result.parserError).toBeUndefined()
+      expect(result.nextTestRunner).not.toHaveBeenCalled()
+      expect(result.exitCode).toBe(1)
+      expect(result.messages).toEqual([
+        `Expected a single value for option "--typecheck.enabled", received ${values}`,
+      ])
+    }
+  )
+})

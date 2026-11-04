@@ -1,6 +1,6 @@
 type Scalar = string | number | boolean
 type Argument = Scalar | Scalar[]
-type Key = 'typecheck' | 'only' | 'spawnTimeout'
+type Key = 'typecheck' | 'enabled' | 'only' | 'spawnTimeout'
 
 export interface TestTypecheckCliOptions {
   enabled?: boolean
@@ -39,9 +39,11 @@ export function createTestTypecheckCliArguments() {
       const command =
         key === 'typecheck'
           ? '--typecheck '
-          : key === 'spawnTimeout'
-            ? '--typecheck.spawnTimeout <time>'
-            : '--typecheck.only'
+          : key === 'enabled'
+            ? '--typecheck.enabled'
+            : key === 'spawnTimeout'
+              ? '--typecheck.spawnTimeout <time>'
+              : '--typecheck.only'
       const received = value
         .map((item) => (typeof item === 'string' ? `"${item}"` : item))
         .join(', ')
@@ -65,6 +67,7 @@ export function createTestTypecheckCliArguments() {
     for (const [key, value] of argumentsByKey) {
       const selected = scalar(key, value)
       if (key === 'typecheck') options = { enabled: selected as boolean }
+      else if (key === 'enabled') options.enabled = selected as boolean
       else if (key === 'only') options.only = selected as boolean
       else options.spawnTimeout = selected
     }
@@ -83,6 +86,8 @@ export function createTestTypecheckCliArguments() {
   return {
     enabled: (value: boolean, negated = false) =>
       record('typecheck', value, negated),
+    dottedEnabled: (value: boolean, negated = false) =>
+      record('enabled', value, negated),
     only: (value: boolean, negated = false) => record('only', value, negated),
     timeout,
     noTimeout: () => record('spawnTimeout', false, true),

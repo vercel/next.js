@@ -849,6 +849,15 @@ program
     'Check type-test files with the project TypeScript compiler.'
   )
   .option('--no-typecheck', 'Disable configured type-test checking.')
+  .option('--typecheck.enabled', 'Enable configured type-test checking.')
+  .addOption(new Option('--typecheck.enabled=true').hideHelp())
+  .addOption(new Option('--typecheck.enabled=false').hideHelp())
+  .addOption(
+    new Option(
+      '--no-typecheck.enabled',
+      'Disable configured type-test checking.'
+    ).default(undefined)
+  )
   .option(
     '--typecheck.only',
     'Check type-test files without running runtime tests.'
@@ -871,6 +880,18 @@ program
   )
   .on('option:typecheck', () => testTypecheckArguments.enabled(true))
   .on('option:no-typecheck', () => testTypecheckArguments.enabled(false, true))
+  .on('option:typecheck.enabled', () =>
+    testTypecheckArguments.dottedEnabled(true)
+  )
+  .on('option:typecheck.enabled=true', () =>
+    testTypecheckArguments.dottedEnabled(true)
+  )
+  .on('option:typecheck.enabled=false', () =>
+    testTypecheckArguments.dottedEnabled(false)
+  )
+  .on('option:no-typecheck.enabled', () =>
+    testTypecheckArguments.dottedEnabled(false, true)
+  )
   .on('option:typecheck.only', () => testTypecheckArguments.only(true))
   .on('option:no-typecheck.only', () =>
     testTypecheckArguments.only(false, true)
@@ -1352,8 +1373,13 @@ if (argv[2] === 'test') {
       if (argv[index + 1] !== undefined && !argv[index + 1].startsWith('-')) {
         testArgv.push('--typecheck.spawnTimeout', argv[++index])
       } else testArgv.push('--typecheck.spawnTimeout')
+    } else if (argument === '--typecheck.enabled=') {
+      if (argv[index + 1] === 'true' || argv[index + 1] === 'false') {
+        testArgv.push(`--typecheck.enabled=${argv[++index]}`)
+      } else testArgv.push('--typecheck.enabled')
     } else if (
       (argument === '--coverage' ||
+        argument === '--typecheck.enabled' ||
         argument === '--watch' ||
         argument === '-w') &&
       (argv[index + 1] === 'true' || argv[index + 1] === 'false')
