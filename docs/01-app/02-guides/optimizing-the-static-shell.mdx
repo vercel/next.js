@@ -294,7 +294,7 @@ Use an empty fallback only when the resolved component also has no visual footpr
 
 ### Cache reusable work
 
-After isolating work that would block the page, consider whether the result actually needs to be recomputed for every request. When it can be reused, cache the function or component so its completed UI can render in the static shell. Give the result a lifetime based on how fresh the data needs to be:
+After isolating work that would block the page, consider whether each async subtree actually needs to be recomputed for every request. Caching a function or component does not cache its parents or siblings. When a result can be reused, cache the function or component so its completed UI can render in the static shell. Give the result a lifetime based on how fresh the data needs to be:
 
 ```tsx filename="app/products/product-list.tsx"
 // Before: the query runs for every request
