@@ -1,5 +1,9 @@
 import { resolve } from 'node:path'
-import { getSourceMappedStackFrames } from '../../../server/patch-error-inspect'
+import {
+  getTestStackFrames,
+  isTestFrameIgnored,
+  isTestFrameOriginal,
+} from '../reporting/test-stack-frames'
 import type { RegistrationOrigin } from './registration-origin'
 import type { Suite } from '../runner/tasks'
 import type { ReporterTaskResultProjection } from '../reporting/task-updates'
@@ -16,14 +20,24 @@ export function createCapturedStackMapper(
   registrationOrigin: (stack: string) => RegistrationOrigin | undefined
 ): (stack: string) => CapturedErrorStack[] {
   return (stack) => {
-    const frames = getSourceMappedStackFrames(stack)
+    const frames = getTestStackFrames(stack, {
+      reportInvalidSourceMaps: false,
+    })
     const helper = frames.findLastIndex((frame) =>
-      frame.methodName?.includes('__VITEST_HELPER__')
+      frame.frame.methodName?.includes('__VITEST_HELPER__')
     )
-    const selected = frames.find((frame) => frame.original && !frame.ignored)
+    const selected = frames.find(
+      (frame) => isTestFrameOriginal(frame) && !isTestFrameIgnored(frame)
+    )
     const origin = registrationOrigin(stack)
-    return frames.slice(helper + 1).flatMap((frame) => {
-      if (frame.ignored || !frame.file || !frame.line1 || !frame.column1)
+    return frames.slice(helper + 1).flatMap((captured) => {
+      const frame = captured.frame
+      if (
+        isTestFrameIgnored(captured) ||
+        !frame.file ||
+        !frame.line1 ||
+        !frame.column1
+      )
         return []
       let file = frame.file
       if (file.startsWith('file://')) {
@@ -38,7 +52,7 @@ export function createCapturedStackMapper(
         ? file.replace(/\\/g, '/')
         : resolve(file)
       const actualOrigin =
-        frame === selected && origin?.location.file === file
+        captured === selected && origin?.location.file === file
           ? origin.location
           : undefined
       return [

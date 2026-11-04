@@ -1,3 +1,4 @@
+import { restoreNodeStackTrace } from './node-stack-trace'
 import {
   captureJUnitSuiteTask,
   assertJUnitSuiteRole,
@@ -849,10 +850,21 @@ async function run({
         )
       artifactPath(artifact.rootDir, path)
     }
+    const useNativeNodeStackTrace =
+      artifact.kind === 'node' &&
+      artifact.profile.environment === 'node' &&
+      artifact.profile.route === undefined &&
+      artifact.profile.browserClient === undefined &&
+      !artifact.cohort &&
+      (!options.entry.executionEnvironment ||
+        options.entry.executionEnvironment.name === 'node')
     // Shared through Next's process-global callback, including bundled mapper
     // copies. Keep the revision's files alive until this process has closed.
     setBundlerFindSourceMapImplementation(
-      createArtifactSourceMapLookup(artifact)
+      createArtifactSourceMapLookup(
+        artifact,
+        useNativeNodeStackTrace ? options.entry.file : undefined
+      )
     )
     registrationOrigin = createArtifactRegistrationOriginMapper(
       artifact,
@@ -902,6 +914,12 @@ async function run({
       mockTesting?: typeof import('../mocking/runtime')
     }
     moduleFailurePhase = undefined
+    if (useNativeNodeStackTrace) {
+      // Next's server formatter deliberately keeps raw stacks unmapped. The
+      // entry bootstrap is complete; authored Node modules should instead use
+      // the worker's original formatter and its already enabled source maps.
+      restoreNodeStackTrace()
+    }
     // The actual emitted entry has initialized Next's runtime env bindings.
     // Setup and authored modules remain deferred until collection below.
     restoreProjectEnvironment = applyNodeProjectEnvironment(options.env)

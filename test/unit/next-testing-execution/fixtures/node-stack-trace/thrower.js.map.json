@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "file": "thrower.js",
+  "sourceRoot": "",
+  "sources": ["thrower.ts"],
+  "names": [],
+  "mappings": ";;AAEA,0BAaC;AACD,kCAAkE;AAOlE,kCAEC;AACD,gCAIC;AA9BD,MAAM,MAAM,GAAG,EAAE,IAAI,EAAE,CAAC,EAAE,OAAO,EAAE,CAAC,EAAE,CAAA;AACtC,MAAM,aAAc,SAAQ,KAAK;CAAG;AACpC,SAAgB,OAAO;IACrB,MAAM,QAAQ,GAAG,IAAI,aAAa,CAAC,yBAAyB,CAAC,CAAA;IAC7D,MAAM,CAAC,gBAAgB,CAAC,QAAQ,EAAE;QAChC,IAAI,EAAE;YACJ,YAAY,EAAE,IAAI;YAClB,GAAG,KAAK,MAAM,CAAC,IAAI,EAAE,CAAC,CAAC,OAAO,eAAe,CAAA,CAAC,CAAC;SAChD;QACD,OAAO,EAAE;YACP,YAAY,EAAE,IAAI;YAClB,GAAG,KAAK,MAAM,CAAC,OAAO,EAAE,CAAC,CAAC,OAAO,yBAAyB,CAAA,CAAC,CAAC;SAC7D;KACF,CAAC,CAAA;IACF,OAAO,EAAE,QAAQ,EAAE,MAAM,EAAE,CAAA;AAC7B,CAAC;AACD,SAAgB,WAAW,KAAK,MAAM,CAAC,IAAI,GAAG,MAAM,CAAC,OAAO,GAAG,CAAC,CAAA,CAAC,CAAC;AAElE,SAAS,YAAY;IACnB,MAAM,MAAM,GAAG,IAAI,KAAK,CAAC,sBAAsB,CAAC,CAAA;IAChD,KAAK,CAAC,iBAAiB,CAAC,MAAM,EAAE,YAAY,CAAC,CAAA;IAC7C,OAAO,MAAM,CAAA;AACf,CAAC;AACD,SAAgB,WAAW;IACzB,OAAO,YAAY,EAAE,CAAA;AACvB,CAAC;AACD,SAAgB,UAAU;IACxB,MAAM,GAAG,GAAG,CAAC,CAAA;IACb,MAAM,GAAG,GAAG,GAAG,GAAG,CAAC,CAAA;IACnB,OAAO,IAAI,KAAK,CAAC,oBAAoB,GAAG,GAAG,CAAC,CAAA;AAC9C,CAAC",
+  "sourcesContent": [
+    "const counts = { name: 0, message: 0 }\nclass ObservedError extends Error {}\nexport function capture() {\n  const original = new ObservedError('authored original error')\n  Object.defineProperties(original, {\n    name: {\n      configurable: true,\n      get() { counts.name++; return 'ObservedError' },\n    },\n    message: {\n      configurable: true,\n      get() { counts.message++; return 'authored original error' },\n    },\n  })\n  return { original, counts }\n}\nexport function resetCounts() { counts.name = counts.message = 0 }\n\nfunction recordOrigin() {\n  const origin = new Error('declaration original')\n  Error.captureStackTrace(origin, recordOrigin)\n  return origin\n}\nexport function declaration() {\n  return recordOrigin()\n}\nexport function separators() {\r  const one = 1   const two = one + 1   return new Error('actual separators ' + two)\r\n}\n"
+  ]
+}

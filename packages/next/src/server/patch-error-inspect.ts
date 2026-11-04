@@ -285,7 +285,8 @@ function ignoreListAnonymousStackFramesIfSandwiched(
 function getSourcemappedFrameIfPossible(
   frame: SourcemappableStackFrame,
   sourceMapCache: SourceMapCache,
-  inspectOptions: util.InspectOptions
+  inspectOptions: util.InspectOptions,
+  reportInvalidSourceMaps: boolean = true
 ): SourceMappedFrame {
   const sourceMapCacheEntry = sourceMapCache.get(frame.file)
   let sourceMapConsumer: SyncSourceMapConsumer
@@ -330,9 +331,10 @@ function getSourcemappedFrameIfPossible(
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
       // this codepath during error inspection and could lead to infinite recursion.
-      console.error(
-        `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
-      )
+      if (reportInvalidSourceMaps)
+        console.error(
+          `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
+        )
       // If loading fails once, it'll fail every time.
       // So set the cache to avoid duplicate errors.
       sourceMapCache.set(frame.file, null)
@@ -369,9 +371,10 @@ function getSourcemappedFrameIfPossible(
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
       // this codepath during error inspection and could lead to infinite recursion.
-      console.error(
-        `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
-      )
+      if (reportInvalidSourceMaps)
+        console.error(
+          `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
+        )
       // If creating the consumer fails once, it'll fail every time.
       // So set the cache to avoid duplicate errors.
       sourceMapCache.set(frame.file, null)
@@ -421,7 +424,11 @@ function getSourcemappedFrameIfPossible(
 
   // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
   if (applicableSourceMap === undefined) {
-    console.error('No applicable source map found in sections for frame', frame)
+    if (reportInvalidSourceMaps)
+      console.error(
+        'No applicable source map found in sections for frame',
+        frame
+      )
   } else if (!ignored && shouldIgnoreListOriginalFrame(sourcePosition.source)) {
     // Externals may be libraries that don't ship ignoreLists.
     // This is really taking control away from libraries.
@@ -487,7 +494,10 @@ function getSourcemappedFrameIfPossible(
  */
 export function getSourceMappedStackFrames(
   stack: string,
-  options: { includeSourceContent?: boolean } = {}
+  options: {
+    includeSourceContent?: boolean
+    reportInvalidSourceMaps?: boolean
+  } = {}
 ): Array<
   StackFrame & {
     original: boolean
@@ -504,7 +514,8 @@ export function getSourceMappedStackFrames(
       const mapped = getSourcemappedFrameIfPossible(
         frame as SourcemappableStackFrame,
         cache,
-        { colors: false }
+        { colors: false },
+        options.reportInvalidSourceMaps
       )
       return {
         ...mapped.stack,

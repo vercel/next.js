@@ -28,7 +28,12 @@ import type { TestArtifactLocation } from '../runner/tasks'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
 import type { SnapshotStateOptions } from '../../../compiled/next-test-primitives'
-import { getSourceMappedStackFrames } from '../../../server/patch-error-inspect'
+import {
+  getTestStackFrames,
+  getTestFrameSource,
+  isTestFrameIgnored,
+  isTestFrameOriginal,
+} from './test-stack-frames'
 import { serializeDiagnostic, type DiagnosticOptions } from './diagnostics'
 import type { SerializedDiagnostic } from './events'
 import type { RegistrationOrigin } from '../execution/registration-origin'
@@ -51,7 +56,7 @@ function sourceExcerpt(
   ) {
     return
   }
-  const lines = source.split(/\r?\n/)
+  const lines = source.split(/\r\n|[\n\r\u2028\u2029]/)
   if (line > lines.length || column > lines[line - 1].length + 1) return
   const excerpt: string[] = []
   for (
@@ -83,21 +88,24 @@ export function serializeSourceMappedDiagnostic(
   return serializeDiagnostic(error, {
     ...diagnosticOptions,
     mapStack(stack) {
-      const frames = getSourceMappedStackFrames(stack, {
+      const frames = getTestStackFrames(stack, {
         includeSourceContent: true,
       })
       const helperIndex = frames.findLastIndex((frame) =>
-        frame.methodName?.includes('__VITEST_HELPER__')
+        frame.frame.methodName?.includes('__VITEST_HELPER__')
       )
       let capturedExcerpt = false
-      const selected = frames.find((frame) => frame.original && !frame.ignored)
-      return frames.slice(helperIndex + 1).flatMap((frame) => {
+      const selected = frames.find(
+        (frame) => isTestFrameOriginal(frame) && !isTestFrameIgnored(frame)
+      )
+      return frames.slice(helperIndex + 1).flatMap((captured) => {
+        const frame = captured.frame
         if (frame.file === null) return []
         const origin =
           registrationOrigin &&
           error instanceof Error &&
           stack === error.stack &&
-          frame === selected &&
+          captured === selected &&
           (frame.file.startsWith('file:')
             ? fileURLToPath(frame.file)
             : resolve(frame.file)) === registrationOrigin.location.file
@@ -112,10 +120,10 @@ export function serializeSourceMappedDiagnostic(
           )
           capturedExcerpt = codeFrame !== undefined
         }
-        if (!capturedExcerpt && frame.getSourceContent) {
+        if (!capturedExcerpt) {
           try {
             codeFrame = sourceExcerpt(
-              frame.getSourceContent(),
+              getTestFrameSource(captured),
               frame.line1,
               frame.column1
             )
@@ -130,8 +138,8 @@ export function serializeSourceMappedDiagnostic(
             line: origin?.location.line ?? frame.line1 ?? undefined,
             column: origin?.location.column ?? frame.column1 ?? undefined,
             methodName: frame.methodName,
-            original: frame.original,
-            ignored: frame.ignored,
+            original: isTestFrameOriginal(captured),
+            ignored: isTestFrameIgnored(captured),
             ...(codeFrame === undefined ? {} : { codeFrame }),
           },
         ]
@@ -144,10 +152,17 @@ export function serializeSourceMappedDiagnostic(
 export const mapSnapshotLocation: NonNullable<
   SnapshotStateOptions['snapshotEnvironment']['processStackTrace']
 > = (stack) => {
-  const [frame] = getSourceMappedStackFrames(
+  const [selected] = getTestStackFrames(
     `Error\n    at ${stack.method || '<anonymous>'} (${stack.file}:${stack.line}:${stack.column})`
   )
-  if (!frame?.original || !frame.file || !frame.line1 || !frame.column1) {
+  const frame = selected?.frame
+  if (
+    !selected ||
+    !isTestFrameOriginal(selected) ||
+    !frame?.file ||
+    !frame.line1 ||
+    !frame.column1
+  ) {
     throw new Error(
       'Inline snapshots require an original source location from the compiled test artifact.'
     )
@@ -168,19 +183,21 @@ export function mapTestAnnotationLocation(
   testPath: string
 ): TestArtifactLocation | undefined {
   if (!error.stack) return
-  const frame = getSourceMappedStackFrames(error.stack).find((candidate) => {
+  const selected = getTestStackFrames(error.stack).find((candidate) => {
+    const frame = candidate.frame
     if (
-      !candidate.original ||
-      !candidate.file ||
-      !candidate.line1 ||
-      !candidate.column1
+      !isTestFrameOriginal(candidate) ||
+      !frame.file ||
+      !frame.line1 ||
+      !frame.column1
     )
       return false
-    const file = candidate.file.startsWith('file:')
-      ? fileURLToPath(candidate.file)
-      : resolve(candidate.file)
+    const file = frame.file.startsWith('file:')
+      ? fileURLToPath(frame.file)
+      : resolve(frame.file)
     return file === resolve(testPath)
   })
+  const frame = selected?.frame
   if (!frame?.file || !frame.line1 || !frame.column1) return
   return {
     file: frame.file.startsWith('file:')

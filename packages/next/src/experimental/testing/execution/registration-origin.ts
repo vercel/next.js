@@ -8,7 +8,11 @@ import { readFileSync, realpathSync } from 'node:fs'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { parseStack } from '../../../server/lib/parse-stack'
-import { getSourceMappedStackFrames } from '../../../server/patch-error-inspect'
+import {
+  getTestStackFrames,
+  isTestFrameIgnored,
+  isTestFrameOriginal,
+} from '../reporting/test-stack-frames'
 import type { ModernSourceMapPayload } from '../../../server/lib/source-maps'
 import type { CompiledTestArtifact } from '../contracts'
 import type { TestArtifactLocation } from '../runner/tasks'
@@ -187,10 +191,39 @@ export function createArtifactRegistrationOriginMapper(
     try {
       if (!readStack()) return
       // An imported registration helper must not borrow its caller's origin.
-      const first = getSourceMappedStackFrames(readStack()!).find(
-        (frame) => frame.original && !frame.ignored
+      const firstSource = getTestStackFrames(
+        readStack()!,
+        typeof error === 'string'
+          ? { reportInvalidSourceMaps: false }
+          : undefined
+      ).find(
+        (frame) => isTestFrameOriginal(frame) && !isTestFrameIgnored(frame)
       )
+      const first = firstSource?.frame
       if (!first?.file || filename(first.file) !== selected) return
+      if (firstSource?.kind === 'authored' && first.line1 && first.column1) {
+        // Node already supplied original coordinates. This path retains those
+        // exact coordinates and bytes; it does not infer a generated callee or
+        // apply the separate generated-AST correction below.
+        if (firstSource.source.sha256 !== artifact.sourceHash) return
+        const point = { line: first.line1, column: first.column1 - 1 }
+        const declarations = calls(firstSource.source.content, selected).filter(
+          (call) =>
+            call.callee?.type === 'Identifier' &&
+            call.callee.loc &&
+            compare(call.callee.loc.start, point) <= 0 &&
+            compare(point, call.callee.loc.end) <= 0
+        )
+        if (declarations.length !== 1) return
+        return {
+          location: {
+            file: selected,
+            line: first.line1,
+            column: first.column1,
+          },
+          source: firstSource.source.content,
+        }
+      }
       for (const frame of parseStack(readStack()!)) {
         if (!frame.file || !frame.line1 || !frame.column1) continue
         const chunk = filename(frame.file)

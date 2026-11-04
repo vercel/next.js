@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
-import { getSourceMappedStackFrames } from '../../../server/patch-error-inspect'
+import { getTestStackFrames, isTestFrameOriginal } from './test-stack-frames'
 import type { TaskLocation } from '../runner/tasks'
 
 /** Declaration positions preserve the actual engine column of the selected frame. */
@@ -15,19 +15,21 @@ export function mapTestDeclarationLocation(
     return
   }
   if (typeof stack !== 'string') return
-  const frame = getSourceMappedStackFrames(stack).find((candidate) => {
+  const selected = getTestStackFrames(stack).find((candidate) => {
+    const frame = candidate.frame
     if (
-      !candidate.original ||
-      !candidate.file ||
-      !candidate.line1 ||
-      !candidate.column1
+      !isTestFrameOriginal(candidate) ||
+      !frame.file ||
+      !frame.line1 ||
+      !frame.column1
     )
       return false
-    const file = candidate.file.startsWith('file:')
-      ? fileURLToPath(candidate.file)
-      : resolve(candidate.file)
+    const file = frame.file.startsWith('file:')
+      ? fileURLToPath(frame.file)
+      : resolve(frame.file)
     return file === resolve(testPath)
   })
+  const frame = selected?.frame
   if (frame?.line1 && frame.column1)
     return { line: frame.line1, column: frame.column1 }
 }

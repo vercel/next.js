@@ -10177,3 +10177,45 @@ describe('actual pre-call pending completion lifecycle publication', () => {
     130000
   )
 })
+
+it.each([undefined, true, false])(
+  'forwards source-map diagnostic policy %s through the real frame consumer',
+  async (reportInvalidSourceMaps) => {
+    const { getTestStackFrames } = await import(
+      'next/dist/experimental/testing/reporting/test-stack-frames'
+    )
+    const malformed = JSON.parse('{}')
+    const stack = [
+      'Error: retained mapper input',
+      '    at first (/__next_testing_map_policy__/chunk.js:3:5)',
+      '    at second (/__next_testing_map_policy__/chunk.js:4:7)',
+    ].join('\n')
+    const error = new Error('retained mapper input')
+    error.stack = stack
+    const descriptors = Object.getOwnPropertyDescriptors(error)
+    const warning = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const options =
+      reportInvalidSourceMaps === undefined ? {} : { reportInvalidSourceMaps }
+    try {
+      setBundlerFindSourceMapImplementation(() => malformed)
+      const direct = getSourceMappedStackFrames(stack, options)
+      const forwarded = getTestStackFrames(stack, options).map(
+        ({ frame }) => frame
+      )
+      expect(forwarded).toEqual(direct)
+      expect(direct).toMatchObject([
+        { methodName: 'first', line1: 3, column1: 5, original: false },
+        { methodName: 'second', line1: 4, column1: 7, original: false },
+      ])
+      expect(warning).toHaveBeenCalledTimes(
+        reportInvalidSourceMaps === false ? 0 : 2
+      )
+      for (const [message] of warning.mock.calls)
+        expect(message).toContain('Invalid source map.')
+      expect(Object.getOwnPropertyDescriptors(error)).toEqual(descriptors)
+    } finally {
+      warning.mockRestore()
+      setBundlerFindSourceMapImplementation(() => undefined)
+    }
+  }
+)

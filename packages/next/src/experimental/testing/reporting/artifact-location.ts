@@ -1,7 +1,11 @@
 import { parse } from 'next/dist/compiled/babel/parser'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
-import { getSourceMappedStackFrames } from '../../../server/patch-error-inspect'
+import {
+  getTestStackFrames,
+  getTestFrameSource,
+  isTestFrameOriginal,
+} from './test-stack-frames'
 import type { TestArtifactLocation } from '../runner/tasks'
 import { mapArtifactCallLocation as mapWithSyntax } from './artifact-call-location'
 
@@ -32,22 +36,24 @@ export function mapTestArtifactLocation(
   testPath: string
 ): TestArtifactLocation | undefined {
   if (!error.stack) return
-  const frame = getSourceMappedStackFrames(error.stack, {
+  const selected = getTestStackFrames(error.stack, {
     includeSourceContent: true,
   }).find((candidate) => {
+    const frame = candidate.frame
     if (
-      !candidate.original ||
-      !candidate.file ||
-      !candidate.line1 ||
-      !candidate.column1
+      !isTestFrameOriginal(candidate) ||
+      !frame.file ||
+      !frame.line1 ||
+      !frame.column1
     )
       return false
-    const file = candidate.file.startsWith('file:')
-      ? fileURLToPath(candidate.file)
-      : resolve(candidate.file)
+    const file = frame.file.startsWith('file:')
+      ? fileURLToPath(frame.file)
+      : resolve(frame.file)
     return file === resolve(testPath)
   })
-  if (!frame?.file || !frame.line1 || !frame.column1) return
+  const frame = selected?.frame
+  if (!selected || !frame?.file || !frame.line1 || !frame.column1) return
   const location = {
     file: frame.file.startsWith('file:')
       ? fileURLToPath(frame.file)
@@ -56,7 +62,7 @@ export function mapTestArtifactLocation(
     column: frame.column1,
   }
   try {
-    const source = frame.getSourceContent?.()
+    const source = getTestFrameSource(selected)
     return typeof source === 'string'
       ? mapArtifactCallLocation(source, location.file, location)
       : location
