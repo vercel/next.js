@@ -10,8 +10,8 @@
   },
   "checkpoint": {
     "recordedOn": "2026-11-04",
-    "implementationCommit": "9ffd91802221685027ef617e2439b5e31726a0de",
-    "implementation": "Twenty-two signed local implementation/control steps through compiler startup timeout9ffd, plus metadata-only075ecc and7dcd:24 local commits since the last verified pushed checkpoint. Prior twenty-one steps through735 remain bounded as recorded. Signed9ffd commits exactly five paths and passes75 focused controls after an awake rerun with original bodies/selectors/deadlines; the earlier74/75 sleep-correlated result is retained. Core, Next/root types and style pass. Only authored typecheck.spawnTimeout is added within the one-shot compiler-only tsc owner. Separate Source9 passes75 normal controls; genuine/Source3/SDK3 positive profiles cover actual Node26 development, TypeScript6.0.2, omitted/0/1. Standard non-time report fields match; genuine absent assertion duration versus Next0 and unobserved public compiler-worker PID remain explicit gaps. CLI alias privateV2 is not implemented in Root. Other Nodes, production positive CLI, expiry/malformed end-to-end, watch/build/vue-tsc and broader typecheck contracts remain unqualified. Four dirty D1 inputs remain; no whole-Root/carrier, full acceptance, release readiness or new push is claimed.",
+    "implementationCommit": "8e8512ebb6acc0efed20c81facbe3565a9c82fa6",
+    "implementation": "Twenty-four signed local implementation/control steps through D19 8e8512ebb6, plus three metadata-only commits075ecc/7dcd/c4ce: 27 local commits since the last verified pushed checkpoint, before this metadata update. Signed632d6c595d adds ordered typecheck CLI overrides across the actual Commander registration, root/project config merge and existing compiler startup owner. Normal Root core/Next/root types/style and all48 maintained controls pass. Six genuine plus six actual Root CLI runs on Node26.12.1 development/TypeScript6.0.2 match all standard non-clock report fields, with four positive typecheck cases and two empty-selection profiles per lane. Actual actions prove leaf-only non-enablement, only:false enablement and explicit-disable precedence. Parent-last reset99 and raw false identity retain the prior ordered parser/forwarding evidence; direct resolved-config/timer observation is not newly claimed. The raw missing-versus0 assertion-duration gap, individual public compiler-worker PID/all-descendant observation, other Nodes/production, expiry/malformed/alias breadth and build/vue-tsc/watch remain open. Signed8e8512ebb6 D19 commits21 paths, including exactly two derived Browser primitive NCC outputs, for measured testIdAttribute and protected base.elementLocator behavior. Normal Root five outer controls pass:10 TestId profiles/16 cases/16 rows, six prior default-DOM profiles and three strict-type wrappers. Core, Next/root types and style pass; Source305/dist9626/Native45/index/protectedD1 and CLI bytes hold. TestId string/default configuration, development root-to-child-to-instance nullish inheritance, and development/production state/getter-order/public-replacement/new-selector versus retained initial element-engine models match the unchanged original projections. All runtime owners join and fixtures retire. Locators.exact, unknown/nonstring/root-null/container/legacy and wider engine/profile behavior remain open; raw stack-string parity and whole-carrier/release qualification are not claimed. Four protected dirty D1 inputs and every historical full-acceptance failure remain separate. No whole Root/carrier, release readiness or new push is claimed.",
     "lastFullAcceptance": {
       "revision": 155,
       "focusedTests": 2947,
@@ -21,14 +21,14 @@
       "browserArtifacts": 6
     },
     "implementationCommitFullAcceptance": false,
-    "scope": "All776 reference names, surfaces, overloads and release classifications are unchanged. Ten root type declarations remain available: nine scoped rows and partial recursive RunnerTaskBase; snapshotFormat, locator errorFormat and configured inspect retain their prior partial scope. Only config.test.typecheck.spawnTimeout additionally becomes partial for its bounded compiler startup owner. Counts102 scoped/277 partial/377 missing/20 unreviewed; declarations307 available/275 absent/194 not applicable. All other775 whole capability rows remain exact, including missing typecheck.build. Counts are not completion percentages; release-compatible remains0.",
+    "scope": "All776 original API names, surfaces, overloads, declarations and implementation/release classifications are retained. Existing partial locator and compiler-startup groups gain bounded evidence only; no full API is promoted. Counts102 scoped/277 partial/377 missing/20 unreviewed; declarations307 available/275 absent/194 not applicable; release-compatible0. Counts are not completion percentages.",
     "publication": {
       "pr": "https://github.com/vercel/next.js/pull/98869",
       "headRefName": "codex/experiment-next-test",
       "lastVerifiedRemoteCommit": "1558a982296b23763d2174b27aa4cbd69e8e5455",
       "lastVerifiedOn": "2026-11-03",
       "draftAtLastVerification": true,
-      "scope": "Last independently verified authorized draft PR98869 publication remains1558a982 at the recorded time. Twenty-two later signed local implementation/control steps through9ffd plus metadata-only075ecc and7dcd total24 local commits; no newer remote head or push is claimed.",
+      "scope": "Last independently verified authorized draft PR98869 publication remains1558a982 at the recorded time. Twenty-four later signed implementation/control steps plus metadata-only075ecc/7dcd/c4ce total27 local commits before this metadata update; no newer remote head or push is claimed.",
       "remoteSandboxSourceExport": false
     },
     "latestFullAcceptanceAttempt": {
@@ -579,7 +579,7 @@
       }
     ],
     "currentNative": {
-      "name": "Root testing304/compiled9623 native45c8 through signed735 with bounded V2/Around/D25/Frame5/inspect proof",
+      "name": "Root testing305/compiled9626 native45c8 at closed CLI632 qualification; later D19 is separately bounded",
       "sha256": "45c8e35e6e6d55ad6ab6a26ba106ebe1752abb4803f9c48600eec36b4d9d953f",
       "nativeInputs": 59,
       "rawRuntimeCount": 10,
@@ -593,11 +593,11 @@
       "SDKPrivateInodeAtV2Qualification": 926356429,
       "sourceAndInstalledHaveSeparateNativeFiles": true,
       "qualifiedFallbackNativeSHA256": "29ac20213ed9678f56b247a79586995d8333214961bcd0765800c1cb8ef6260c",
-      "scope": "Root45c8/testing304/compiled9623 retains its mixed physical integration scope through signed735. Existing V2/Around/D25 proofs remain bounded; signed Frame5 adds actual Root normal1/six Chromium profiles/42 cases/42 semantic rows and42 nonempty raw native stacks, with raw stack-string parity unqualified. Setup/type/File2 control corrections add no product runtime or Native functionality. SDK01d remains functionally incomplete; independent Work1 epoch18 and Source312/SDK5433/native6c211 measurements retain separate scopes. Qualified fallback96a/29ac is unchanged. Inspector735 changes no Native bytes; its Root48/public28 subset is separate from earlier four-engine Source/installed112 inspector corpora. No whole-debugger or whole-carrier qualification."
+      "scope": "Root45c8/testing304/compiled9623 retains its mixed physical integration scope through signed735. Existing V2/Around/D25 proofs remain bounded; signed Frame5 adds actual Root normal1/six Chromium profiles/42 cases/42 semantic rows and42 nonempty raw native stacks, with raw stack-string parity unqualified. Setup/type/File2 control corrections add no product runtime or Native functionality. SDK01d remains functionally incomplete; independent Work1 epoch18 and Source312/SDK5433/native6c211 measurements retain separate scopes. Qualified fallback96a/29ac is unchanged. Inspector735 changes no Native bytes; its Root48/public28 subset is separate from earlier four-engine Source/installed112 inspector corpora. No whole-debugger or whole-carrier qualification. CLI632 changes no native bytes; its actual Root6/genuine6 public pairs and48 normal components are separate bounded proof on testing305/compiled9626. Source315/mainSDKec0d B8/D10/privatefc observations remain their own physical revisions, not Root Native45c8 or full-carrier qualification."
     },
     "scopedVerification": {
-      "implementationCommit": "9ffd91802221685027ef617e2439b5e31726a0de",
-      "scope": "Twenty-two signed local implementation/control steps through compiler startup timeout9ffd, plus metadata-only075ecc and7dcd:24 local commits since the last verified pushed checkpoint. Prior twenty-one steps through735 remain bounded as recorded. Signed9ffd commits exactly five paths and passes75 focused controls after an awake rerun with original bodies/selectors/deadlines; the earlier74/75 sleep-correlated result is retained. Core, Next/root types and style pass. Only authored typecheck.spawnTimeout is added within the one-shot compiler-only tsc owner. Separate Source9 passes75 normal controls; genuine/Source3/SDK3 positive profiles cover actual Node26 development, TypeScript6.0.2, omitted/0/1. Standard non-time report fields match; genuine absent assertion duration versus Next0 and unobserved public compiler-worker PID remain explicit gaps. CLI alias privateV2 is not implemented in Root. Other Nodes, production positive CLI, expiry/malformed end-to-end, watch/build/vue-tsc and broader typecheck contracts remain unqualified. Four dirty D1 inputs remain; no whole-Root/carrier, full acceptance, release readiness or new push is claimed.",
+      "implementationCommit": "8e8512ebb6acc0efed20c81facbe3565a9c82fa6",
+      "scope": "Twenty-four signed local implementation/control steps through D19 8e8512ebb6, plus three metadata-only commits075ecc/7dcd/c4ce: 27 local commits since the last verified pushed checkpoint, before this metadata update. Signed632d6c595d adds ordered typecheck CLI overrides across the actual Commander registration, root/project config merge and existing compiler startup owner. Normal Root core/Next/root types/style and all48 maintained controls pass. Six genuine plus six actual Root CLI runs on Node26.12.1 development/TypeScript6.0.2 match all standard non-clock report fields, with four positive typecheck cases and two empty-selection profiles per lane. Actual actions prove leaf-only non-enablement, only:false enablement and explicit-disable precedence. Parent-last reset99 and raw false identity retain the prior ordered parser/forwarding evidence; direct resolved-config/timer observation is not newly claimed. The raw missing-versus0 assertion-duration gap, individual public compiler-worker PID/all-descendant observation, other Nodes/production, expiry/malformed/alias breadth and build/vue-tsc/watch remain open. Signed8e8512ebb6 D19 commits21 paths, including exactly two derived Browser primitive NCC outputs, for measured testIdAttribute and protected base.elementLocator behavior. Normal Root five outer controls pass:10 TestId profiles/16 cases/16 rows, six prior default-DOM profiles and three strict-type wrappers. Core, Next/root types and style pass; Source305/dist9626/Native45/index/protectedD1 and CLI bytes hold. TestId string/default configuration, development root-to-child-to-instance nullish inheritance, and development/production state/getter-order/public-replacement/new-selector versus retained initial element-engine models match the unchanged original projections. All runtime owners join and fixtures retire. Locators.exact, unknown/nonstring/root-null/container/legacy and wider engine/profile behavior remain open; raw stack-string parity and whole-carrier/release qualification are not claimed. Four protected dirty D1 inputs and every historical full-acceptance failure remain separate. No whole Root/carrier, release readiness or new push is claimed.",
       "signedLocalSteps": [
         "ab20978d97cbce5a5f3b6fc3f2672bf0b2c5ba26",
         "b8171d384b9337aa3c447ca6eca1d3ac52dff792",
@@ -620,7 +620,9 @@
         "bdf45493eaf914b47c252bf0e735a23e56235a02",
         "220a7062207ca7711a34a43ff9bccb0ab603623a",
         "735369be673c2be6767f49ca2ca0736f358aafa4",
-        "9ffd91802221685027ef617e2439b5e31726a0de"
+        "9ffd91802221685027ef617e2439b5e31726a0de",
+        "632d6c595d0954f75214975eaa822313ae62ce11",
+        "8e8512ebb6acc0efed20c81facbe3565a9c82fa6"
       ],
       "committedSnapshot": {
         "sourceFilesAtQualification": 318,
@@ -632,8 +634,8 @@
         "oldGeneratedNextScratchUntouched": true,
         "qualifiedBaseline13Commit": "f43369758c4a5f14c72a7e72bb2e8a294a6d5eb6",
         "scope": "The following clean-source and 96-file byte-preservation facts apply at f433 only. V2 later commits exactly 11 paths while preserving the remaining dirty Source78; it does not make live Root clean or the entire dirty batch qualified.",
-        "currentLocalCommit": "9ffd91802221685027ef617e2439b5e31726a0de",
-        "currentSignedLocalSteps": 22,
+        "currentLocalCommit": "8e8512ebb6acc0efed20c81facbe3565a9c82fa6",
+        "currentSignedLocalSteps": 24,
         "currentV2CommitPaths": 11,
         "remainingDirtySource78PreservedAtV2Commit": true,
         "boundedAroundCommitPaths": 30,
@@ -647,7 +649,9 @@
           "bdf45493eaf914b47c252bf0e735a23e56235a02",
           "220a7062207ca7711a34a43ff9bccb0ab603623a",
           "735369be673c2be6767f49ca2ca0736f358aafa4",
-          "9ffd91802221685027ef617e2439b5e31726a0de"
+          "9ffd91802221685027ef617e2439b5e31726a0de",
+          "632d6c595d0954f75214975eaa822313ae62ce11",
+          "8e8512ebb6acc0efed20c81facbe3565a9c82fa6"
         ],
         "latestFollowupKinds": [
           "approved test setup corrections",
@@ -655,20 +659,25 @@
           "bounded Browser document structure implementation",
           "approved File-message outer assertions",
           "bounded configured Node inspect implementation",
-          "bounded typecheck compiler startup timeout implementation"
+          "bounded typecheck compiler startup timeout implementation",
+          "ordered typecheck CLI override implementation",
+          "bounded configured Browser testIdAttribute implementation"
         ],
-        "latestSourceTestingFiles": 304,
-        "latestCompiledFiles": 9623,
+        "latestSourceTestingFiles": 305,
+        "latestCompiledFiles": 9626,
         "otherDirty10PreservedAtFile2Commit": true,
         "metadataOnlyCommits": [
           "075ecc4cb5dcce155d96ef7d1bb5c8ab1554f184",
-          "7dcd2a4fe2732e7c23409b7658ad970c8637a07b"
+          "7dcd2a4fe2732e7c23409b7658ad970c8637a07b",
+          "c4ce00139923f17a1eb9f44572b8f7a757b7f051"
         ],
-        "localCommitsSinceLastVerifiedPushIncludingMetadata": 24,
+        "localCommitsSinceLastVerifiedPushIncludingMetadata": 27,
         "inspectCommitPaths": 10,
         "inspectD1FourUnstagedHeld": true,
         "typecheckStartupCommitPaths": 5,
-        "typecheckStartupD1FourUnstagedHeld": true
+        "typecheckStartupD1FourUnstagedHeld": true,
+        "CLIOverrideCommitPaths": 9,
+        "CLIOverrideProtectedD1FourHeld": true
       },
       "SDK442": {
         "archiveSHA256": "96aed8a10a1dd1a725f511db8d14c43af38d2d8c649291b030e8f82e427a44cb",
@@ -792,7 +801,15 @@
         "/private/tmp/next-testing-c2-v2-commit-packet-20261103/QUALIFIED-BOUNDED11-COMMIT-HANDOFF.json",
         "/private/tmp/next-testing-around-local-commit-20261103/COMMITTED-LOCAL.json",
         "/private/tmp/next-testing-acceptance-resume-fresh-closure-20261103.json",
-        "/private/tmp/next-testing-dformat25-local-commit-20261103/COMMITTED-LOCAL.json"
+        "/private/tmp/next-testing-dformat25-local-commit-20261103/COMMITTED-LOCAL.json",
+        "/private/tmp/next-testing-cli-root-20261104/COMMITTED-LOCAL.json",
+        "/private/tmp/next-testing-cli-public-20261104/SIX-PAIR-PUBLIC-CLI-HANDOFF.json",
+        "/private/tmp/next-testing-public-cross-source315fc-20261104/QUALIFIED-SOURCE8-PHYSICAL-LEASE-CLOSED.json",
+        "/private/tmp/next-testing-public-cross-sdk-ec0d-20261104/QUALIFIED-SDK8-PHYSICAL-LEASE-CLOSED.json",
+        "/private/tmp/next-testing-d-testid-replay-next-material-20261104/source/QUALIFIED-SOURCE10-PHYSICAL-LEASE-CLOSED.json",
+        "/private/tmp/next-testing-d-testid-replay-next-material-20261104/sdk/QUALIFIED-SDK10-SOURCE10-PHYSICAL-LEASE-CLOSED.json",
+        "/private/tmp/next-testing-main-sdk-source315fc-20261104/D885-EXACT2-RETIREMENT-PHYSICALLY-CLOSED.json",
+        "/private/tmp/next-testing-d-testid-root-admission-20261104/COMMITTED-LOCAL.json"
       ],
       "fullAcceptanceResultReplaced": false,
       "releaseReady": false,
@@ -1242,7 +1259,153 @@
         "wholeRootOrSDKCarrierQualified": false,
         "fullAcceptance": false,
         "releaseReady": false,
+        "noPush": true,
+        "qualificationSnapshotAtCommit": "Historical9ffd qualification: the two false CLI fields below describe that commit only and are superseded for current Root by signed632/typecheckCLIOverridesRoot. Prior measurements and raw evidence remain unchanged."
+      },
+      "typecheckCLIOverridesRoot": {
+        "commit": "632d6c595d0954f75214975eaa822313ae62ce11",
+        "committedFiles": 9,
+        "commitReceipt": "/private/tmp/next-testing-cli-root-20261104/COMMITTED-LOCAL.json",
+        "normalControlsPassed": 48,
+        "normalBinRegistrationControls": 30,
+        "normalConfigForwardingControls": 18,
+        "coreNextRootTypesAndStylePassed": true,
+        "allEarlierRealRootBuildTypeAndHelperRedsRetained": true,
+        "scope": "Ordered sparse typecheck/only/spawnTimeout CLI overrides through existing config/project and E5 compiler startup owner; local rawArgs declaration is accurate and emits no runtime field.",
+        "actualNode": "26.12.1",
+        "mode": "development",
+        "TypeScript": "6.0.2",
+        "checker": "tsc",
+        "build": false,
+        "genuinePublicRuns": 6,
+        "RootPublicRuns": 6,
+        "positiveTypecheckCasesPerLane": 4,
+        "emptySelectionProfilesPerLane": 2,
+        "publicCaseIds": [
+          "only-zero",
+          "root-false-timer",
+          "leaf-does-not-enable",
+          "parent-last",
+          "only-false-enables",
+          "explicit-disabled-wins"
+        ],
+        "allStandardNonClockFieldsExact": true,
+        "fullRawReportsRetained": true,
+        "rawTimingGap": "Positive genuine assertion duration absent; Next0. No full raw-byte/duration identity claim.",
+        "actualActionEvidence": [
+          "leaf alone does not enable typechecking",
+          "only:false enables when enabled is unspecified",
+          "explicit disabled wins"
+        ],
+        "parentLastResetAndRawFalseIdentity": "Prior ordered parser/forwarding evidence; public functional outcomes match but no new direct config/timer observation.",
+        "RootTestingSourceFilesAtPublicQualification": 305,
+        "RootCompiledFilesAtPublicQualification": 9626,
+        "RootNativeUnchanged": true,
+        "allTwelveCLIRootsAndObservedGroupsClosed": true,
+        "allTwelveFixturesRemoved": true,
+        "publicReadIntervalsReturned": true,
+        "individualCompilerPIDObserved": false,
+        "independentAllDescendantClosureClaimed": false,
+        "normalUnitExternalLockBoundary": "48 controls mock only the external native run-lock owner, retaining other actual scheduling/config/discovery behavior and exact execution/process seams; six public CLI pairs exercise the actual product path.",
+        "publicReceipt": "/private/tmp/next-testing-cli-public-20261104/SIX-PAIR-PUBLIC-CLI-HANDOFF.json",
+        "noNewSDKOrOtherSourceQualification": true,
+        "wholeCarrierQualified": false,
+        "fullAcceptance": false,
+        "releaseReady": false,
         "noPush": true
+      },
+      "locatorTestIdRoot": {
+        "status": "SIGNED_LOCAL_ROOT_D19_SCOPED_QUALIFICATION",
+        "commit": "8e8512ebb6acc0efed20c81facbe3565a9c82fa6",
+        "committedFiles": 21,
+        "receipt": "/private/tmp/next-testing-d-testid-root-admission-20261104/COMMITTED-LOCAL.json",
+        "guardReceipt": "/private/tmp/next-testing-d-testid-root-admission-20261104/GUARD-CLOSED.json",
+        "runtimeReceipt": "/private/tmp/next-testing-d-testid-root-admission-20261104/testid/VERIFIED.json",
+        "normalResult": "/private/tmp/next-testing-d-testid-root-admission-20261104/jest-results.json",
+        "normalOuterControlsPassed": 5,
+        "normalOuterControlsFailed": 0,
+        "TestIdProfiles": 10,
+        "TestIdCases": 16,
+        "TestIdRows": 16,
+        "priorDefaultDOMProfiles": 6,
+        "strictTypeWrappers": 3,
+        "coreNextRootTypesStylePassed": true,
+        "RootTestingSourceFiles": 305,
+        "RootCompiledFiles": 9626,
+        "RootNative45Unchanged": true,
+        "protectedD1FourCLIBytesAndIndexHeld": true,
+        "NCCWholeFiles": 24,
+        "NCCExactDerivedOutputs": 2,
+        "NCCOther22AndNodeBundleHeld": true,
+        "allOriginalBodiesGettersReferencesSelectionsAndDeadlinesHeld": true,
+        "completeOriginalProjectedModelsExact": true,
+        "noRawStackStringParityClaim": true,
+        "allOwnersJoined": true,
+        "allFixturesRemoved": true,
+        "observedMaxConcurrentCLIs": 1,
+        "perCLIDeadlineMs": 120000,
+        "signedLocalOnly": true,
+        "noPush": true,
+        "fullAcceptance": false,
+        "wholeRootOrSourceSDKCarrierQualified": false,
+        "releaseReady": false,
+        "metadataSummary": "Signed8e8512ebb6 D19 commits21 paths, including exactly two derived Browser primitive NCC outputs, for measured testIdAttribute and protected base.elementLocator behavior. Normal Root five outer controls pass:10 TestId profiles/16 cases/16 rows, six prior default-DOM profiles and three strict-type wrappers. Core, Next/root types and style pass; Source305/dist9626/Native45/index/protectedD1 and CLI bytes hold. TestId string/default configuration, development root-to-child-to-instance nullish inheritance, and development/production state/getter-order/public-replacement/new-selector versus retained initial element-engine models match the unchanged original projections. All runtime owners join and fixtures retire. Locators.exact, unknown/nonstring/root-null/container/legacy and wider engine/profile behavior remain open; raw stack-string parity and whole-carrier/release qualification are not claimed.",
+        "profileSummary": "Signed Root8e8512 Node26 Chromium D19: normal5 including10 TestId profiles/16 cases/16 rows,6 default-DOM preservation profiles and3 strict type wrappers; Source315/mainSDKec0d D10 remain separate physical proofs.",
+        "qualificationEvidence": "Signed8e8512ebb6 D19 commits21 paths, including exactly two derived Browser primitive NCC outputs, for measured testIdAttribute and protected base.elementLocator behavior. Normal Root five outer controls pass:10 TestId profiles/16 cases/16 rows, six prior default-DOM profiles and three strict-type wrappers. Core, Next/root types and style pass; Source305/dist9626/Native45/index/protectedD1 and CLI bytes hold. TestId string/default configuration, development root-to-child-to-instance nullish inheritance, and development/production state/getter-order/public-replacement/new-selector versus retained initial element-engine models match the unchanged original projections. All runtime owners join and fixtures retire. Locators.exact, unknown/nonstring/root-null/container/legacy and wider engine/profile behavior remain open; raw stack-string parity and whole-carrier/release qualification are not claimed."
+      },
+      "Source315MainSDKEc0dSeparate": {
+        "scope": "Coherent dirty Work1 Source315/privatefc and installed mainSDKec0d/privatefc only; not current Root, bare HEAD or a whole-carrier/release claim. Prior Source312/SDK5433 and old Source315 reds remain raw historical evidence.",
+        "SourceTestingFiles": 315,
+        "SourceSelectedFiles": 391,
+        "compiledFilesPerLane": 9656,
+        "mainSDKArchiveSHA256": "ec0d3043d7015ce02a87c8abc494429e14cfef1055f2de667e51d8ef440ded03",
+        "SDKInstalledEntries": 9748,
+        "SDKNonNextEntries": 1744,
+        "nativeSHA256": "fc360cdfb39f62acf9f78e02c75cbc4b395f8edddd38bf8311a13e7c8be7b952",
+        "SourceNativeInode": 928979850,
+        "SDKNativeInode": 928712335,
+        "B8": {
+          "profilesPerLane": 8,
+          "actualNodeMajors": [20, 22, 24, 26],
+          "modes": ["development", "production"],
+          "casesPerLane": 8,
+          "rowsPerLane": 64,
+          "terminalCallbacksPerLane": 24,
+          "unchangedPublicGraphCapsulePins": 81,
+          "completeStandardPublicModelsExact": true,
+          "knownIdentitiesAndGroupsClosedPerLane": 40,
+          "fixturesRemovedPerLane": 8,
+          "SourceReceipt": "/private/tmp/next-testing-public-cross-source315fc-20261104/QUALIFIED-SOURCE8-PHYSICAL-LEASE-CLOSED.json",
+          "SDKReceipt": "/private/tmp/next-testing-public-cross-sdk-ec0d-20261104/QUALIFIED-SDK8-PHYSICAL-LEASE-CLOSED.json",
+          "rawInternalTaskAndStackOrBroaderReporterCarrierQualified": false
+        },
+        "D10": {
+          "profilesPerLane": 10,
+          "casesPerLane": 16,
+          "rowsPerLane": 16,
+          "node": "26.12.1",
+          "engine": "Chromium",
+          "completeOriginalProjectedModelsExact": true,
+          "originalBodiesReferencesGettersSelectionAndDeadlinesHeld": true,
+          "SourceReceipt": "/private/tmp/next-testing-d-testid-replay-next-material-20261104/source/QUALIFIED-SOURCE10-PHYSICAL-LEASE-CLOSED.json",
+          "SDKReceipt": "/private/tmp/next-testing-d-testid-replay-next-material-20261104/sdk/QUALIFIED-SDK10-SOURCE10-PHYSICAL-LEASE-CLOSED.json",
+          "SourceAndSDKDependencyProfilesRecordedSeparately": true,
+          "rawStackStringOrWiderExecutionQualified": false
+        },
+        "B8D10ActualReadersClosed": true,
+        "wholeSourceSDKOrRootCarrierQualified": false,
+        "releaseReady": false,
+        "SDKCleanupPhysicalState": {
+          "receipt": "/private/tmp/next-testing-main-sdk-source315fc-20261104/D885-EXACT2-RETIREMENT-PHYSICALLY-CLOSED.json",
+          "removedExactGeneratedTargets": 2,
+          "logicalBytesRetired": 255636713,
+          "wholeConsumerEntriesAtQualification": 31609,
+          "wholeConsumerEntriesAfterCleanup": 21862,
+          "onlyObsoleteLeavesRemoved": 9747,
+          "currentEc0dQualified96a29acFallbackAndNativeHeld": true,
+          "functionalCreditFromCleanup": false,
+          "physicalDiskReclamationBytesClaimed": false
+        }
       }
     },
     "pendingIntegration": [
@@ -1254,7 +1417,7 @@
           "remaining full Task/Test/Suite/File types, recursive worker/concurrency IDs, runtime event/log/heap producers",
           "custom resolveSnapshotPath and custom snapshot environments"
         ],
-        "status": "Signed bounded AroundAll remains qualified within Source32/SDK32; cross8, Error.stacks, ungated disposal/full reports, Browser/cohort/quiet URI and ancestry breadth remain open. Separate Source312/SDK5433 Node26 Chai development/production each pass48 cases/120 authored rows/168 frame obligations with the accepted bounded classifier; internal function-label/framework stack-string parity, other Nodes, Browser/watch and --no-cache stay open. Resolver realm/order remains red. Actual SuiteEvents first Source/SDK pilots remain red with missing capture; private correction is unintegrated/unqualified and diagnostics credit no functionality."
+        "status": "Signed bounded AroundAll remains qualified within Source32/SDK32; cross8, Error.stacks, ungated disposal/full reports, Browser/cohort/quiet URI and ancestry breadth remain open. Separate Source312/SDK5433 Node26 Chai development/production each pass48 cases/120 authored rows/168 frame obligations with the accepted bounded classifier; internal function-label/framework stack-string parity, other Nodes, Browser/watch and --no-cache stay open. Resolver realm/order remains red. Actual SuiteEvents first Source/SDK pilots remain red with missing capture; private correction is unintegrated/unqualified and diagnostics credit no functionality. Separate Source315/mainSDKec0d B8 now passes the exact public Graph8 models, but full internal Task views, transient callbacks/raw stacks and current Root replay remain unqualified; old Source312 reds are retained."
       },
       {
         "workstream": "mocking",
@@ -1267,12 +1430,12 @@
       {
         "workstream": "browser-rendering",
         "features": [
-          "remaining locator testIdAttribute/exact, broader server/configuration and serialization roles",
+          "locators.exact and unmeasured testIdAttribute values/container/legacy/wider server-configuration roles",
           "broader optional-container/default-body Browser/rendering profiles",
           "Browser absent-option testTimeout15000/hookTimeout30000 versus explicit option presence/inheritance",
           "PW1.64/WebKit2370 startup, zero viewport, arbitrary frames/watch/cancellation and unresolved historical Native641 Source timeout"
         ],
-        "status": "Signed D25 keeps locators.errorFormat partial within its measured Source72/state16/privateSDK82 and Root normal2/type6 proof. Signed Frame5 bdf adds Root normal1/six Chromium profiles/42 cases/42 semantic rows across aria/html/all and both modes;42 nonempty raw native stacks are retained, not compared as strings. Only the existing locator configuration row is partial; all fourteen other missing Browser configuration rows remain unchanged. Whole Root/carrier, broader configuration/engine/profile contracts and Browser absent-default15s/30s option presence/inheritance remain open."
+        "status": "Signed D25 keeps locators.errorFormat partial within its measured Source72/state16/privateSDK82 and Root normal2/type6 proof. Signed Frame5 bdf adds Root normal1/six Chromium profiles/42 cases/42 semantic rows across aria/html/all and both modes;42 nonempty raw native stacks are retained, not compared as strings. Only the existing locator configuration row is partial; all fourteen other missing Browser configuration rows remain unchanged. Whole Root/carrier, broader configuration/engine/profile contracts and Browser absent-default15s/30s option presence/inheritance remain open. Signed8e8512ebb6 D19 commits21 paths, including exactly two derived Browser primitive NCC outputs, for measured testIdAttribute and protected base.elementLocator behavior. Normal Root five outer controls pass:10 TestId profiles/16 cases/16 rows, six prior default-DOM profiles and three strict-type wrappers. Core, Next/root types and style pass; Source305/dist9626/Native45/index/protectedD1 and CLI bytes hold. TestId string/default configuration, development root-to-child-to-instance nullish inheritance, and development/production state/getter-order/public-replacement/new-selector versus retained initial element-engine models match the unchanged original projections. All runtime owners join and fixtures retire. Locators.exact, unknown/nonstring/root-null/container/legacy and wider engine/profile behavior remain open; raw stack-string parity and whole-carrier/release qualification are not claimed."
       },
       {
         "workstream": "scheduling-tooling",
@@ -1280,9 +1443,9 @@
           "first-authored-line breaks, configured inspectBrk/inspector, long debugger pauses and broader debug/profile contracts",
           "shared RSC production/watch expansion",
           "dynamic watch transitions, project worker budgets and broader editor/debug/sharding/configuration combinations",
-          "typecheck spawnTimeout CLI alias, other Node/production positive profiles, expiry/malformed public values, build/vue-tsc/watch and broader typechecking"
+          "remaining typecheck aliases and direct resolved-config/timer observation; other Node/production positive profiles, expiry/malformed public values, build/vue-tsc/watch and broader typechecking"
         ],
-        "status": "Signed735 integrates configured root inspect boolean/address and CLI precedence for serial isolated ordinary Node one-shot development/production:Root48 controls/public28 profiles24 passing cases/four reference refusals. Earlier Source112 and SDK112 four-engine corpora retain their own physical revisions, not a fresh current Root full-matrix proof. First-line breaks, inspectBrk/inspector, long pauses, watch/Browser/RSC/shared debugging remain unqualified. Production shared RSC Node26 one-shot2file/2case/2HTTP-row proof remains separate; wider cohorts/watch/rendering remain open. Signed9ffd separately integrates authored typecheck.spawnTimeout with Root75 controls/core/both types/style. Source9 normal75 and genuine/Source3/SDK3 Node26 development compiler-only omitted/0/1 positives remain separate physical proofs. CLI alias privateV2 is unimplemented in Root; public expiry/malformed values, other Nodes/production, watch/build/vue-tsc, duration identity and individual public compiler-worker observation remain unqualified."
+        "status": "Signed735 integrates configured root inspect boolean/address and CLI precedence for serial isolated ordinary Node one-shot development/production:Root48 controls/public28 profiles24 passing cases/four reference refusals. Earlier Source112 and SDK112 four-engine corpora retain their own physical revisions, not a fresh current Root full-matrix proof. First-line breaks, inspectBrk/inspector, long pauses, watch/Browser/RSC/shared debugging remain unqualified. Production shared RSC Node26 one-shot2file/2case/2HTTP-row proof remains separate; wider cohorts/watch/rendering remain open. Signed9ffd separately integrates authored typecheck.spawnTimeout with Root75 controls/core/both types/style. Source9 normal75 and genuine/Source3/SDK3 Node26 development compiler-only omitted/0/1 positives remain separate physical proofs. Signed632 adds ordered CLI overrides with48 normal controls and six genuine/Root public case pairs; leaf-only non-enablement, only:false enablement and explicit-disable precedence have actual action evidence. Public expiry/malformed values, unimplemented dotted aliases, direct resolved-config/timer observation, other Nodes/production, watch/build/vue-tsc, duration identity and individual compiler-worker observation remain unqualified."
       },
       {
         "workstream": "coverage",
@@ -2209,7 +2372,7 @@
       "Historical full passing155 is separate from closed failed421:7051/7068 focused,240/264 regression and35/36 incremental. Bridge79, rendering35, snapshot29,18-task bootstrap and root types pass. All ordinary result JSONs exist; six baseline title matches remain unreconciled. Original47 Browser whole-oracle recovery remains incomplete. No new full green checkpoint is declared.",
       "The newer integrated426 lifecycle suite remains369/372 with three original helper timeouts. A later10-profile observer pass proves neither a product fix nor the cause of the historical shutdown delays; four historical owner receipts remain incomplete.",
       "Complete authoring/assertion/fixture/clock/snapshot, CommonJS reset/runtime/hoisted-cycle, Browser realm/event/rendering, dynamic watch/editor/debug/sharding and coverage mapping/provider/report/aggregation/profile contracts remain required. Unsupported-feature diagnostics do not complete them.",
-      "Twenty-two signed local implementation/control steps remain scoped. Configured inspect is partial only for serial isolated ordinary Node one-shot root boolean/address and CLI precedence; first-line breaks, inspectBrk/inspector, long pauses and wider profiles remain open. Bounded AroundAll, configured errorFormat and measured Frame5 are qualified only within their recorded physical revisions. Setup6/type-only/File2 corrections add no new product functionality. Separate Source312/SDK5433 ChaiNode26 and C3 standard semantic passes do not qualify Root or original full custom callbacks. Resolver realm/order, SuiteEvents missing capture, public cross stacks, remaining D1, recursive types/producers, private C4/URL runtime and wider profiles remain required. Signed9ffd adds partial authored typecheck.spawnTimeout only in the bounded compiler startup owner; CLI alias and broader public startup/typecheck profiles remain unqualified.",
+      "Scoped signed local implementation/control steps remain scoped. Configured inspect is partial only for serial isolated ordinary Node one-shot root boolean/address and CLI precedence; first-line breaks, inspectBrk/inspector, long pauses and wider profiles remain open. Bounded AroundAll, configured errorFormat and measured Frame5 are qualified only within their recorded physical revisions. Setup6/type-only/File2 corrections add no new product functionality. Separate Source312/SDK5433 ChaiNode26 and C3 standard semantic passes do not qualify Root or original full custom callbacks. Resolver realm/order, SuiteEvents missing capture, public cross stacks, remaining D1, recursive types/producers, private C4/URL runtime and wider profiles remain required. Signed9ffd adds partial authored typecheck.spawnTimeout only in the bounded compiler startup owner; Signed632 adds the bounded ordered CLI/public6/normal48 subset; broader startup/typecheck profiles and aliases remain unqualified. Separate Source315/mainSDKec0d B8/D10 passes and D885 generated cleanup qualify no current Root or full carrier.",
       "Full supported Node/OS/architecture/browser/CI qualification, sustained cleanup stress, production omission breadth, supported version range and release decisions remain open. No stable exception is approved."
     ],
     "deferred": [
@@ -2220,14 +2383,16 @@
     "evidence": [
       "NEXT_TESTING_STABLE_PROGRESS.md",
       "NEXT_TESTING_STABLE_RELEASE.md",
-      "Last independently verified authorized publication:1558a982296b23763d2174b27aa4cbd69e8e5455 to draft PR98869. Twenty-two local implementation/control steps through9ffd plus metadata-only075ecc and7dcd total24 local commits; no new push is claimed.",
+      "Last independently verified authorized draft PR98869 publication remains1558a982 at the recorded time. Twenty-four later signed implementation/control steps plus metadata-only075ecc/7dcd/c4ce total27 local commits before this metadata update; no newer remote head or push is claimed.",
       "Suite bfcab2f93b:32 installed whole Node profiles,112 actual installed strict programs and6 installed Browser profiles; original Source369/372 lifecycle failures remain recorded separately.",
       "Custom21eef2d7b4/c0de101fbc:9 complete Source and9 installed lifecycle models plus72 ownership/protocol controls.",
       "Browsera0c9425fa3/d1a103d6fd and shared-watch9401e3f2a6: measured viewport/poll/global override profiles and three complete shared development RSC watch generations, with native owner joins and original bounds.",
       "Closed frozen421 ordinary results and held final source/native/reference graph/temp checks; retention reconciliation and every original failure remain required. Earlier390/340/155 records are preserved as history.",
       "A1-A4 integrated implementation a13626a8624faaa6fff9afd5bd2994cceb5af5d1: actual closed Source and installed qualification is recorded in checkpoint.priorScopedVerificationA430. All earlier full acceptance failures and broader feature gaps remain required.",
       "Closed SDK442/96a/29ac remains qualified scoped fallback. Existing signed V2/AroundAll/D25 results retain exact physical scopes; SDK01d cross8 is incomplete. Signed c289 setup6 passes49; c1eb is type-only with whole-module emit identical and RootTSC0; Frame5 bdf passes Root normal1/six Chromium profiles/42 semantic rows with42 nonempty native stacks and no raw stack-string parity; approved File2/220 normal2 passes expected Next exits1/1. Separate Source312/SDK5433 pass scoped ChaiNode26 development/production48 cases/120 rows/168 authored-frame obligations per lane and C3 standard4/8cases/8rows/28events per lane; original custom11 and actual SuiteEvents remain open/red. Frozen0aeb final regression243/264 and focused7147/7179 remain failed, with64 suites60pass/fourfail; incremental36 exit and historical closure limits remain unresolved. All776 API rows/classes/counts remain unchanged. No full green or release-ready claim. Signed735 commits bounded configured inspect after current Root48/public28 profiles24 cases/four refusals, retaining distinct earlier Source112/SDK112 proofs. Only config.test.inspect becomes partial; other775 rows, broader debugger requirements and all release failures remain unchanged.",
-      "Signed9ffd compiler startup timeout:Root75/75 focused, core/Next/root types/style pass; original sleep-correlated74/75 result remains retained. Separate Source9 normal75 and genuine/Source3/SDK3 positive profiles qualify Node26 development compiler-only TypeScript6.0.2 omitted/0/1 only. Standard non-time JSON fields match; absent-versus0 assertion duration and unobserved public compiler-worker PID remain gaps. Only config.test.typecheck.spawnTimeout becomes partial; other775 whole API rows/declarations and all prior release failures remain exact. CLI alias privateV2, uncommitted Work1/coherent Work4/final-exit and C4 observations add no Root implementation credit."
+      "Signed9ffd compiler startup timeout:Root75/75 focused, core/Next/root types/style pass; original sleep-correlated74/75 result remains retained. Separate Source9 normal75 and genuine/Source3/SDK3 positive profiles qualify Node26 development compiler-only TypeScript6.0.2 omitted/0/1 only. Standard non-time JSON fields match; absent-versus0 assertion duration and unobserved public compiler-worker PID remain gaps. Only config.test.typecheck.spawnTimeout becomes partial; other775 whole API rows/declarations and all prior release failures remain exact. CLI alias privateV2, uncommitted Work1/coherent Work4/final-exit and C4 observations add no Root implementation credit.",
+      "Signed632: nine paths; core/Next/root types/style and48 normal controls pass. Six genuine/six Root Node26 development TypeScript6.0.2 public CLI pairs match standard non-clock fields and actual action selection. Raw timing and owner-observation gaps remain; no new SDK/public-other-engine/production/full-acceptance credit.",
+      "Signed8e8512ebb6 D19 commits21 paths, including exactly two derived Browser primitive NCC outputs, for measured testIdAttribute and protected base.elementLocator behavior. Normal Root five outer controls pass:10 TestId profiles/16 cases/16 rows, six prior default-DOM profiles and three strict-type wrappers. Core, Next/root types and style pass; Source305/dist9626/Native45/index/protectedD1 and CLI bytes hold. TestId string/default configuration, development root-to-child-to-instance nullish inheritance, and development/production state/getter-order/public-replacement/new-selector versus retained initial element-engine models match the unchanged original projections. All runtime owners join and fixtures retire. Locators.exact, unknown/nonstring/root-null/container/legacy and wider engine/profile behavior remain open; raw stack-string parity and whole-carrier/release qualification are not claimed."
     ]
   },
   "groups": [
@@ -6050,12 +6215,13 @@
       "status": "partial",
       "capabilityPaths": [],
       "profiles": [
-        "Measured Chromium ordinary Browser Node26 development/production; root, child project and selected instance option resolution; canonical per-file server.config effects"
+        "Measured Chromium ordinary Browser Node26 development/production; root, child project and selected instance option resolution; canonical per-file server.config effects",
+        "Signed Root8e8512 Node26 Chromium D19: normal5 including10 TestId profiles/16 cases/16 rows,6 default-DOM preservation profiles and3 strict type wrappers; Source315/mainSDKec0d D10 remain separate physical proofs."
       ],
       "workstream": "browser-rendering",
-      "implemented": "Signed b04cb42189 configures locators.errorFormat through the measured root/project/selected-instance data path and initializes the real canonical per-file object before imports. The initial writable server.config alias preserves nested mutation, descriptors, getter read order/identity and original getter Errors; later public config replacement does not retarget the formatter. Actual selector conversion precedes one format read and real ARIA/prettyDOM/native Error construction. The twelve measured values are omitted, undefined, null, aria, html, all, false, zero, empty string, unknown string, empty array and empty object. Earlier physical Source72 single-case profiles and16 state cases match complete frozen models; independently installed772/D188 SDK passes82 runtime profiles/114 cases including26 older DOM preservation cases. Actual merged Root normal2 passes16 state cases/rows plus two strict profiles with six exact genuine diagnostics through both real Next aliases. Public errorFormat is required/writable html|aria|all; runtime permissive data remains bounded to the measured corpus. Earlier matrix/archive proofs and current Root composition proof retain their distinct physical revisions. Native Error behavior and full raw stack strings are retained where recorded; raw stack-string parity is not claimed.",
+      "implemented": "Signed b04cb42189 configures locators.errorFormat through the measured root/project/selected-instance data path and initializes the real canonical per-file object before imports. The initial writable server.config alias preserves nested mutation, descriptors, getter read order/identity and original getter Errors; later public config replacement does not retarget the formatter. Actual selector conversion precedes one format read and real ARIA/prettyDOM/native Error construction. The twelve measured values are omitted, undefined, null, aria, html, all, false, zero, empty string, unknown string, empty array and empty object. Earlier physical Source72 single-case profiles and16 state cases match complete frozen models; independently installed772/D188 SDK passes82 runtime profiles/114 cases including26 older DOM preservation cases. Actual merged Root normal2 passes16 state cases/rows plus two strict profiles with six exact genuine diagnostics through both real Next aliases. Public errorFormat is required/writable html|aria|all; runtime permissive data remains bounded to the measured corpus. Earlier matrix/archive proofs and current Root composition proof retain their distinct physical revisions. Native Error behavior and full raw stack strings are retained where recorded; raw stack-string parity is not claimed. Signed8e8512ebb6 D19 commits21 paths, including exactly two derived Browser primitive NCC outputs, for measured testIdAttribute and protected base.elementLocator behavior. Normal Root five outer controls pass:10 TestId profiles/16 cases/16 rows, six prior default-DOM profiles and three strict-type wrappers. Core, Next/root types and style pass; Source305/dist9626/Native45/index/protectedD1 and CLI bytes hold. TestId string/default configuration, development root-to-child-to-instance nullish inheritance, and development/production state/getter-order/public-replacement/new-selector versus retained initial element-engine models match the unchanged original projections. All runtime owners join and fixtures retire. Locators.exact, unknown/nonstring/root-null/container/legacy and wider engine/profile behavior remain open; raw stack-string parity and whole-carrier/release qualification are not claimed.",
       "remaining": [
-        "locators.testIdAttribute/exact and broader locator/server configuration/API behavior remain unimplemented or unqualified.",
+        "locators.exact, unknown/nonstring/root-null/container/legacy testIdAttribute values and broader locator/server configuration/API behavior remain unimplemented or unqualified.",
         "NaN, negative zero, Infinity, functions, symbols, bigint, cycles and other unmeasured serialization values are outside this corpus.",
         "Multi-project ordering/worker budgets and broader execution/engine/rendering/shared/watch/cancellation/coverage profiles remain open.",
         "Signed Frame5 now has separate measured Root six-profile optional/default-container semantic proof. This configuration group does not claim its broader body/rendering contract, raw stack-string parity or full release compatibility."
@@ -6070,7 +6236,9 @@
         "test/unit/app-dir/next-testing-browser-dom-utilities/next-testing-browser-dom-utilities.test.ts",
         "test/unit/app-dir/next-testing-browser-dom-utilities/verify-error-format-options.mjs",
         "test/unit/app-dir/next-testing-browser-dom-utilities/verify-error-format-state.mjs",
-        "test/unit/app-dir/next-testing-browser-dom-utilities/verify-error-format-types.mjs"
+        "test/unit/app-dir/next-testing-browser-dom-utilities/verify-error-format-types.mjs",
+        "test/unit/app-dir/next-testing-browser-dom-utilities/verify-testid-attribute.mjs",
+        "test/unit/app-dir/next-testing-browser-dom-utilities/test-id-attribute-driver.mjs"
       ],
       "rowApi": ["config.test.browser.locators"]
     },
@@ -6108,12 +6276,13 @@
       "status": "partial",
       "capabilityPaths": ["authoring.typeAssertionScope"],
       "profiles": [
-        "One-shot compiler-only TypeScript6.0.2, actual Node26.12.1/development, enabled+only/checker=tsc/build=false; genuine/Source9/installedSDK9 omitted/zero/one positive parameter profiles. Root75 focused controls remain separate from the Source/SDK public profiles."
+        "One-shot compiler-only TypeScript6.0.2, actual Node26.12.1/development, enabled+only/checker=tsc/build=false; genuine/Source9/installedSDK9 omitted/zero/one positive parameter profiles. Root75 focused controls remain separate from the Source/SDK public profiles.",
+        "Signed Root632 Node26.12.1 development/TypeScript6.0.2 ordered CLI:48 normal controls and six genuine/six Root public case pairs; no new Source/SDK CLI qualification."
       ],
       "workstream": "scheduling-tooling",
-      "implemented": "Signed9ffd918022 admits authored typecheck.spawnTimeout and bounds actual OS ChildProcess spawn through the existing TypeScript API worker; parent onReady and full fileTimeout are independent. Typecheck omitted/zero uses native timer coercion1ms without a10s fallback/disable or new finite/range validation; existing process owners without a startup policy gain no timer. Root75/75 focused controls, core/Next/root types and style pass after an awake rerun retaining the original74/75 sleep-correlated result and unchanged assertions/bodies/deadlines. Separate Source9 passes38 new plus37 preservation controls. Genuine/Source3/installedSDK3 positive profiles on Node26 development/compiler-only tsc6.0.2 with omitted/0/1 match all standard non-time JSON fields; complete raw reports are retained. Actual CLI roots/groups close, but the public compiler-worker PID was not individually observed. Source/SDK physical revisions and public qualification do not claim a fresh Root public replay.",
+      "implemented": "Signed9ffd918022 admits authored typecheck.spawnTimeout and bounds actual OS ChildProcess spawn through the existing TypeScript API worker; parent onReady and full fileTimeout are independent. Typecheck omitted/zero uses native timer coercion1ms without a10s fallback/disable or new finite/range validation; existing process owners without a startup policy gain no timer. Root75/75 focused controls, core/Next/root types and style pass after an awake rerun retaining the original74/75 sleep-correlated result and unchanged assertions/bodies/deadlines. Separate Source9 passes38 new plus37 preservation controls. Genuine/Source3/installedSDK3 positive profiles on Node26 development/compiler-only tsc6.0.2 with omitted/0/1 match all standard non-time JSON fields; complete raw reports are retained. Actual CLI roots/groups close, but the public compiler-worker PID was not individually observed. Source/SDK physical revisions and public qualification do not claim a fresh Root public replay. Signed632d6c595d adds ordered typecheck CLI overrides across the actual Commander registration, root/project config merge and existing compiler startup owner. Normal Root core/Next/root types/style and all48 maintained controls pass. Six genuine plus six actual Root CLI runs on Node26.12.1 development/TypeScript6.0.2 match all standard non-clock report fields, with four positive typecheck cases and two empty-selection profiles per lane. Actual actions prove leaf-only non-enablement, only:false enablement and explicit-disable precedence. Parent-last reset99 and raw false identity retain the prior ordered parser/forwarding evidence; direct resolved-config/timer observation is not newly claimed. The raw missing-versus0 assertion-duration gap, individual public compiler-worker PID/all-descendant observation, other Nodes/production, expiry/malformed/alias breadth and build/vue-tsc/watch remain open.",
       "remaining": [
-        "The typecheck.spawnTimeout CLI alias remains unimplemented in Root; privateV2 CLI work is separate.",
+        "Unimplemented typecheck.enabled=false dotted alias and broader CLI alias grammar; only the measured ordered typecheck/only/spawnTimeout subset is qualified.",
         "Other Node engines, production positive CLI profiles, startup expiry/malformed raw values end-to-end, build:true/vue-tsc/watch and broader typechecking remain unqualified.",
         "Genuine assertion duration is absent while Next emits0; full raw JSON/duration identity remains a gap.",
         "Individual public compiler-worker PID observation and independent all-descendant closure remain unqualified; product close-fence/preservation controls are separate evidence.",
@@ -6127,7 +6296,12 @@
         "test/unit/app-dir/next-testing-typecheck-spawn/typecheck-config.test.ts",
         "test/unit/app-dir/next-testing-typecheck-spawn/held-worker.cjs",
         "test/unit/next-testing-execution/next-testing-execution.test.ts",
-        "test/unit/next-testing-cli/next-testing-cli.test.ts"
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "packages/next/src/bin/next.ts",
+        "packages/next/src/experimental/testing/typecheck-cli.ts",
+        "test/unit/app-dir/next-testing-typecheck-cli/actual-bin-command.ts",
+        "test/unit/app-dir/next-testing-typecheck-cli/bin-registration.test.ts",
+        "test/unit/app-dir/next-testing-typecheck-cli/config-forwarding.test.ts"
       ],
       "rowApi": ["config.test.typecheck.spawnTimeout"]
     }

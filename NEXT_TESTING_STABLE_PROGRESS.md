@@ -13,21 +13,17 @@ is recorded in the generated inventory and lockfile. The supported stable range
 is undecided, `stableReady` remains false, and no stable exception is approved.
 This is an implementation checkpoint, not graduation of the experiment.
 
-## Current recorded status — twenty-two signed local implementation/control steps, November 4, 2026
+## Current recorded status — twenty-four signed local implementation/control steps, November 4, 2026
 
-The latest local checkpoint is `9ffd91802221685027ef617e2439b5e31726a0de`.
-The prior sixteen implementation steps through errorFormat `b04cb42189` are now
-followed by approved setup6 `c289d4822c`, type-only hook probe `c1ebd44eb6`,
-Browser document structure/Frame5 `bdf45493ea`, and File-message outer ownership
-`220a706220`, bounded configured inspect `735369be` and compiler startup
-timeout `9ffd918022`: twenty-two signed implementation/control steps. The
-separate metadata-only commits `075ecc4cb5dcce155d96ef7d1bb5c8ab1554f184` and
-`7dcd2a4fe2732e7c23409b7658ad970c8637a07b` make 24 local commits since the last
-verified pushed checkpoint. Setup/type/File2 corrections
-add no product functionality. Root testing304/compiled9623/native45c8
-remains a mixed physical integration revision with four unrelated dirty D1
-inputs, not bare HEAD or a wholly qualified batch. No push occurred. Last
-independently verified draft PR #98869 publication remains
+The latest committed implementation checkpoint is `8e8512ebb6acc0efed20c81facbe3565a9c82fa6`.
+The prior twenty-two implementation/control steps through compiler startup
+`9ffd918022` are followed by ordered CLI overrides `632d6c595d` and D19 TestId `8e8512ebb6`.
+Three separate metadata-only commits `075ecc4cb5`, `7dcd2a4fe2` and `c4ce001399`
+make **27 local commits** since the last verified pushed checkpoint, before
+this metadata-only update. Setup/type/File2 corrections add no product
+functionality. Each result below belongs to its recorded physical revision;
+protected dirty D1 inputs remain, and no whole mixed Root/carrier is qualified.
+No push occurred. Last independently verified draft PR #98869 publication remains
 `1558a982296b23763d2174b27aa4cbd69e8e5455`. Metadata adds no functionality.
 
 All 776 original API names, surfaces, overloads and release classifications are
@@ -35,13 +31,13 @@ retained. Ten root types are newly available: the six benchmark/error metadata
 exports plus four runner data types. `RunnerTaskBase` is **partial** because its
 actual recursive Suite/File model still lacks genuine numeric worker/concurrency
 IDs; the other nine measured type rows are scoped. `snapshotFormat` remains
-partial. The existing `config.test.browser.locators` row becomes partial for
-`errorFormat` only; its other fields remain gaps. Configured inspect retains its bounded partial scope. Only
-`config.test.typecheck.spawnTimeout` additionally becomes partial for the
-compiler startup owner below. Counts are **102 scoped,
+partial. The existing `config.test.browser.locators` row remains partial for
+measured `errorFormat` and TestId subsets; exact and wider fields remain gaps. Configured inspect and compiler startup retain
+their bounded partial scopes; ordered CLI and TestId evidence below does not
+promote either entire API. Counts are **102 scoped,
 277 partial, 377 missing, 20 unreviewed**; declarations **307 available,
-275 absent, 194 not applicable**. All other 775 complete API rows, including missing `typecheck.build`, remain
-exact, and release-compatible remains zero. Type presence
+275 absent, 194 not applicable**. All 776 complete API rows and statuses, including missing `typecheck.build`,
+remain exact, and release-compatible remains zero. Type presence
 qualifies no benchmark execution, runtime event/heap/log producer, full recursive
 Task alias, extra subpath or global bridge.
 
@@ -117,7 +113,7 @@ diagnostics** through both actual Next aliases; no redundant72 rerun is claimed.
 Public errorFormat is required/writable `html | aria | all`; runtime permissive
 values stay bounded to the twelve measured inputs. Only the existing locator
 configuration row becomes partial; all fourteen other Browser configuration
-rows remain unchanged. testIdAttribute/exact, broader server/configuration,
+rows remain unchanged. D19 TestId is recorded separately below; exact, broader server/configuration,
 unmeasured serialization and wider engine/profile roles remain open. Raw native
 Error stacks are retained where recorded; raw stack-string parity is unqualified.
 
@@ -224,8 +220,8 @@ no fresh Root public replay or whole-carrier acceptance.
 Only `config.test.typecheck.spawnTimeout` moves from missing to partial in a
 separate group. `typecheck.build` remains missing; all other775 whole API rows
 remain exact.
-The CLI alias privateV2 is unimplemented in Root. Other Node engines, production
-positive public profiles, expiry/malformed raw values end-to-end,
+The later signed CLI632 subset is qualified separately below. Other Node
+engines, production positive public profiles, expiry/malformed raw values end-to-end,
 watch/build/vue-tsc and broader typecheck behavior remain unqualified. Four
 unrelated dirty D1 inputs and all historical failures remain unchanged; no new
 push or release readiness is claimed.
@@ -256,6 +252,51 @@ scoped results replace none of those failures or retention requirements.
 
 Stable readiness remains false, supported range null and exceptions empty.
 Documentation/migrations remain last; Linux and performance work stay deferred.
+
+## Ordered CLI632 and bounded TestId followup, November 4, 2026
+
+Signed `632d6c595d` commits nine files for ordered `typecheck`, `typecheck.only`
+and `typecheck.spawnTimeout` CLI overrides. Normal core, Next and Root types,
+style and **48 maintained controls** pass. Those controls preserve the actual
+registration/action, config/project merge, execution seam and unrelated project
+ownership; their external native run-lock owner is a unit boundary.
+
+Six genuine and six actual Root CLI programs pass on Node26.12.1 development
+with TypeScript6.0.2: **four positive typecheck cases and two empty-selection
+profiles per lane**. All standard non-clock fields match. Actual actions prove
+leaf-only non-enablement, `only:false` enablement and explicit-disable precedence.
+Parent-last reset99 and raw false identity retain the earlier parser/forwarding
+proof; no new direct config/timer observation is inferred. Raw duration absence
+versus Next0, individual compiler-worker observation, other Nodes/production,
+expiry/malformed values, dotted aliases and build/vue-tsc/watch remain open.
+Earlier failed build/type/helper attempts are retained. Root testing305,
+compiled9626 and Native45c8 stayed exact across the public programs; all twelve
+roots/groups close and fixtures retire. This adds no Source/SDK or full-carrier
+qualification. Receipts: `/private/tmp/next-testing-cli-root-20261104/COMMITTED-LOCAL.json`
+and `/private/tmp/next-testing-cli-public-20261104/SIX-PAIR-PUBLIC-CLI-HANDOFF.json`.
+
+Signed8e8512ebb6 D19 commits21 paths, including exactly two derived Browser primitive NCC outputs, for measured testIdAttribute and protected base.elementLocator behavior. Normal Root five outer controls pass:10 TestId profiles/16 cases/16 rows, six prior default-DOM profiles and three strict-type wrappers. Core, Next/root types and style pass; Source305/dist9626/Native45/index/protectedD1 and CLI bytes hold. TestId string/default configuration, development root-to-child-to-instance nullish inheritance, and development/production state/getter-order/public-replacement/new-selector versus retained initial element-engine models match the unchanged original projections. All runtime owners join and fixtures retire. Locators.exact, unknown/nonstring/root-null/container/legacy and wider engine/profile behavior remain open; raw stack-string parity and whole-carrier/release qualification are not claimed.
+
+Separate dirty Work1 Source315/privatefc and installed mainSDKec0d/privatefc
+pass **B8: eight profiles / eight cases / 64 rows / 24 terminal callbacks per
+lane**, across Node20/22/24/26 and both modes, with the unchanged public Graph8
+capsule. **D10: ten profiles / 16 cases / 16 rows per lane** match the original
+Node26 Chromium TestId projected models. Source and SDK retain their own
+physical and dependency profiles. Old Source312/SDK5433 and old Source315 reds
+remain historical; full internal Task views, transient callbacks, raw stack
+strings and broader profiles remain open. These results do not certify Root,
+all of Source315, SDKec0d, or release readiness.
+
+The exact obsolete D885 archive/virtual pair is physically retired with current
+ec0d, qualified96a/29ac fallback and Native held. Consumer entries change from
+31609 to21862 only by the9747 old leaves; **255636713 logical bytes** are retired,
+with no physical disk-reclamation or functional-credit claim. Original
+qualification receipts remain point-in-time records.
+
+Counts stay **102 scoped / 277 partial / 377 missing / 20 unreviewed** and all776
+API rows remain exact. Stable readiness is false, supported range null and
+exceptions empty. Documentation/migrations remain last; Linux and performance
+stay deferred.
 
 ## Historical A1–A4 integration record, November 3, 2026
 
