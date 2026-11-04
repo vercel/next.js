@@ -172,8 +172,17 @@ fn client_references_by_server_component(
 
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
+    /// The client chunk group of the last segment that renders the client reference, which
+    /// includes the chunks of all parent layouts.
     #[bincode(with = "turbo_bincode::indexmap")]
     pub client_component_client_chunks:
+        FxIndexMap<ClientReferenceType, ResolvedVc<ChunkGroupResult>>,
+    /// The client chunk group of the first segment that renders the client reference. This is
+    /// where its module is chunked, and so where the async loaders of its `next/dynamic` imports
+    /// are created: later segments, e.g. a page rendering a client component that its layout
+    /// renders too, see the module as already available.
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub client_component_first_client_chunks:
         FxIndexMap<ClientReferenceType, ResolvedVc<ChunkGroupResult>>,
     #[bincode(with = "turbo_bincode::indexmap")]
     pub client_component_ssr_chunks:
@@ -304,6 +313,7 @@ pub async fn get_app_client_references_chunks(
             let mut layout_segment_client_chunks = FxIndexMap::default();
             let mut client_component_ssr_chunks = FxIndexMap::default();
             let mut client_component_client_chunks = FxIndexMap::default();
+            let mut client_component_first_client_chunks = FxIndexMap::default();
 
             for (server_component, client_references) in
                 client_references_by_server_component.into_iter()
@@ -462,6 +472,9 @@ pub async fn get_app_client_references_chunks(
                         {
                             client_component_client_chunks
                                 .insert(client_reference.ty, client_chunk_group);
+                            client_component_first_client_chunks
+                                .entry(client_reference.ty)
+                                .or_insert(client_chunk_group);
                         }
                     }
                 }
@@ -492,6 +505,7 @@ pub async fn get_app_client_references_chunks(
 
             Ok(ClientReferencesChunks {
                 client_component_client_chunks,
+                client_component_first_client_chunks,
                 client_component_ssr_chunks,
                 layout_segment_client_chunks,
             }
