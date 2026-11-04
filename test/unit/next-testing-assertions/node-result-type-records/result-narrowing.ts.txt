@@ -1,0 +1,14 @@
+import type { TestResult } from 'vitest/node'
+declare const result: TestResult
+if (result.state === 'failed') {
+  const messages: string[] = result.errors.map(error => error.message)
+} else if (result.state === 'skipped') {
+  const note: string | undefined = result.note
+  const errors: undefined = result.errors
+} else if (result.state === 'pending') {
+  const errors: undefined = result.errors
+} else {
+  const messages: string[] | undefined = result.errors?.map(error => error.message)
+}
+declare function test(name: string, body: () => void): void
+test('type authoring', () => {})

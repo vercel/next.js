@@ -1642,3 +1642,23 @@ it('matches genuine public runner task data and update pack types', async () => 
     ],
   })
 }, 35000)
+
+it('matches genuine Node result types through both normal consumer paths', async () => {
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [join(__dirname, 'node-result-types.cjs')],
+    { timeout: 60000 }
+  )
+  expect(stderr).toBe('')
+  expect(JSON.parse(stdout)).toEqual({
+    programs: 24,
+    accepted: 6,
+    rejected: 18,
+    namedTypeOnlyExports: 8,
+    exactDiagnosticsAndAstSpans: true,
+    rootConfigAndGlobalAugmentations: true,
+    publishedOptInWithoutPaths: true,
+    normalTypecheckWorkerWithoutOptIn: true,
+    noExternalVitestViteDeclarations: true,
+  })
+}, 65000)

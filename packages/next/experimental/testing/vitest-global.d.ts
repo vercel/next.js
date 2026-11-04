@@ -6,3 +6,7 @@ declare module 'vitest' {
 declare module 'vitest/config' {
   export * from 'next/dist/experimental/testing/config-api'
 }
+
+declare module 'vitest/node' {
+  export type * from 'next/experimental/testing/vitest-node'
+}

@@ -73,6 +73,7 @@
     "web-vitals.d.ts",
     "experimental/testing/vitest.js",
     "experimental/testing/vitest.d.ts",
+    "experimental/testing/vitest-node.d.ts",
     "experimental/testing/vitest-global.d.ts",
     "experimental/testing/vitest-globals.d.ts",
     "experimental/testing/vitest-import-meta.d.ts",

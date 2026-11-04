@@ -290,6 +290,12 @@ function check(request: TypecheckRequest): TypecheckCompletion {
       'vitest/config',
       require.resolve('./config-api').replace(/\.js$/, '.d.ts'),
     ],
+    [
+      'vitest/node',
+      require
+        .resolve('./reporting/public-result-types')
+        .replace(/\.js$/, '.d.ts'),
+    ],
   ])
   // Only compatibility imports resolve to the matching shipped Next facade.
   // Existing compiler paths, project aliases and ordinary application imports
