@@ -733,7 +733,8 @@ export async function nextTestRunner(
       !options.changed &&
       !projects.some((project) => project.entries.length) &&
       !options.watch &&
-      !(options.list && options.json) &&
+      options.list &&
+      !options.json &&
       !projects.every((project) => project.passWithNoTests === true)
     ) {
       throw new Error(
@@ -1291,7 +1292,11 @@ export async function nextTestRunner(
         )
         controller.signal.throwIfAborted()
       }
-      if (machine.captureModuleStart && !preparePublicSnapshots)
+      if (
+        entries.length > 0 &&
+        machine.captureModuleStart &&
+        !preparePublicSnapshots
+      )
         throw new Error(
           'Module Start reporters require one isolated ordinary JavaScript file with actual public snapshot preparation and JSON output.'
         )
@@ -1348,13 +1353,13 @@ export async function nextTestRunner(
           process.env.CI
             ? { captureOneShotV8ReadOnlySnapshots: true as const }
             : {}),
-          ...(machine.captureModuleStart
+          ...(entries.length > 0 && machine.captureModuleStart
             ? { captureModuleStart: true as const }
             : {}),
-          ...(machine.captureModuleCollected
+          ...(entries.length > 0 && machine.captureModuleCollected
             ? { captureModuleCollected: true as const }
             : {}),
-          ...(machine.captureModuleQueued
+          ...(entries.length > 0 && machine.captureModuleQueued
             ? { onModuleQueued: machine.onModuleQueued }
             : {}),
           captureTaskResults: machine.captureTaskResults,
@@ -1595,6 +1600,15 @@ export async function nextTestRunner(
           )
         }
       }
+      // Empty selection still invokes RunEnd before a later JSON writer.
+      const firstJsonReporter = reporters.indexOf('json')
+      if (
+        entries.length === 0 &&
+        firstJsonReporter > 0 &&
+        reporters.slice(0, firstJsonReporter).every(isCustomResultReporter) &&
+        reporters.slice(firstJsonReporter).every((name) => name === 'json')
+      )
+        await machine.beginCustomCompletionPrefix()
       try {
         await machine.finish(
           interruptedExecutionJson

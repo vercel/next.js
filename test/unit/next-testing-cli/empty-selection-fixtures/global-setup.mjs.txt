@@ -1,0 +1,6 @@
+import { appendFileSync } from 'node:fs'
+const trace = kind => appendFileSync(process.env.EMPTY_TRACE, JSON.stringify({ kind }) + '\n')
+export default function setup() {
+  trace('global-setup')
+  return () => trace('global-teardown')
+}

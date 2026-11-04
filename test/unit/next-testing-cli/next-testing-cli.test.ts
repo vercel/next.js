@@ -13490,3 +13490,73 @@ describe('reporter initialization exit ownership', () => {
     20000
   )
 })
+
+it.each([
+  ['ordinary', false],
+  ['ordinary', true],
+  ['filtered', false],
+  ['filtered', true],
+  ['config-error', false],
+  ['discovery-error', false],
+  ['invalid-root', false],
+  ['listing', false],
+  ['policy-output-sink', false],
+  ['start-getter', false],
+  ['start-throw', false],
+  ['start-reject', false],
+  ['end-getter', false],
+  ['end-throw', false],
+  ['end-reject', false],
+] as const)(
+  'preserves the empty-file reporting lifecycle for %s with passWithNoTests=%s',
+  async (role, passing) => {
+    const output = await mkdtemp(
+      path.join(os.tmpdir(), 'next-empty-selection-')
+    )
+    try {
+      await new Promise<void>((resolve, reject) => {
+        execFile(
+          process.execPath,
+          [
+            path.join(__dirname, 'empty-selection-lifecycle.cjs'),
+            output,
+            role,
+            String(passing),
+          ],
+          {
+            env: {
+              ...process.env,
+              NODE_ENV: 'development',
+              CI: '1',
+              NO_COLOR: '1',
+            },
+            timeout: 30000,
+            encoding: 'utf8',
+          },
+          (error, stdout, stderr) =>
+            error
+              ? reject(new Error(stderr || stdout || error.message))
+              : resolve()
+        )
+      })
+      const result = JSON.parse(
+        await readFile(path.join(output, 'VERIFIED.json'), 'utf8')
+      )
+      expect(result).toMatchObject({
+        role,
+        passing,
+        success: true,
+        nativeCompilerOrExecutionAttempts: 0,
+      })
+      expect(
+        result.children.every(
+          (child: { joined: boolean; groupAbsent: boolean }) =>
+            child.joined && child.groupAbsent
+        )
+      ).toBe(true)
+    } finally {
+      await rm(output, { recursive: true, force: true })
+    }
+  },
+  45000
+)

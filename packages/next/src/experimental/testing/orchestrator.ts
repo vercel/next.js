@@ -1798,10 +1798,18 @@ export async function runTests(
     if (
       !projects.some((project) => project.entries.length) &&
       !options.passWithNoTests
-    )
-      diagnostic(new Error('No test files selected.'), 'configuration')
+    ) {
+      // No selected files is a failed run policy, not an unhandled Error.
+      failed = true
+      onEvent({
+        ...envelope(),
+        type: 'output',
+        stream: 'stderr',
+        text: 'No test files selected.\n',
+      })
+    }
     if (!selected.length) {
-      // Successful empty selection still emits a complete machine report.
+      // Empty selection still emits a complete machine report.
     } else if (
       modes.size === 1 &&
       previousNodeEnv &&
