@@ -1,4 +1,6 @@
+#![feature(current_thread_id)]
 #![feature(deref_patterns)]
+#![feature(thread_id_value)]
 
 mod backend;
 mod backing_storage;

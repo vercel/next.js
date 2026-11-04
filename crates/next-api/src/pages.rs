@@ -58,7 +58,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -828,8 +828,7 @@ impl PageEndpoint {
         // availability, so both entry groups have to live in the same graph. Build a graph
         // "chain" for app, page -- the same layout segment optimization `ssr_module_graph` uses
         // for document, app, page.
-        let should_trace = *project.should_write_nft_manifests().await?;
-        let should_read_binding_usage = project.next_mode().await?.is_production();
+        let graph_options = project.module_graph_options().await?;
 
         let mut graphs = vec![];
         let mut visited_modules = VisitedModules::empty();
@@ -846,8 +845,7 @@ impl PageEndpoint {
                     heuristics: EntryHeuristics::default(),
                 }]),
                 visited_modules,
-                should_trace,
-                should_read_binding_usage,
+                graph_options,
             );
             graphs.push(graph);
             visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -859,8 +857,7 @@ impl PageEndpoint {
                 heuristics: EntryHeuristics::default(),
             }]),
             visited_modules,
-            should_trace,
-            should_read_binding_usage,
+            graph_options,
         );
         graphs.push(graph);
 
@@ -874,9 +871,11 @@ impl PageEndpoint {
 
         if *project.per_page_module_graph().await? {
             let next_mode = project.next_mode();
-            let next_mode_ref = next_mode.await?;
-            let should_trace = *project.should_write_nft_manifests().await?;
-            let should_read_binding_usage = next_mode_ref.is_production();
+            let remove_unused_imports = *project
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?;
+            let graph_options = project.module_graph_options().await?;
 
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
@@ -894,8 +893,7 @@ impl PageEndpoint {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     GraphEntries::from_chunk_groups(vec![layout_chunk_group_entry(module)]),
                     visited_modules,
-                    should_trace,
-                    should_read_binding_usage,
+                    graph_options,
                 );
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -907,19 +905,18 @@ impl PageEndpoint {
                     heuristics: EntryHeuristics::default(),
                 }]),
                 visited_modules,
-                should_trace,
-                should_read_binding_usage,
+                graph_options,
             );
             graphs.push(graph);
 
-            let remove_unused_imports = *project
-                .next_config()
-                .turbopack_remove_unused_imports(next_mode)
-                .await?;
-
             let graph = if remove_unused_imports {
                 let graph = ModuleGraph::from_graphs(graphs.clone(), None);
-                let binding_usage_info = compute_binding_usage_info(graph, true);
+                // This is a per-route graph: a module that is unused here might still be code
+                // generated via another graph, so dropping its data would only cause re-parses.
+                let binding_usage_info = compute_binding_usage_info(
+                    graph, /* remove_unused_imports */ true,
+                    /* drop_unused_module_data */ false,
+                );
                 ModuleGraph::from_graphs(graphs, Some(binding_usage_info))
             } else {
                 ModuleGraph::from_graphs(graphs, None)
@@ -942,21 +939,31 @@ impl PageEndpoint {
             let module_graph = self.client_module_graph();
 
             let evaluatable_assets = client_entry_modules(self.client_evaluatable_assets()).await?;
-            // Like App Router layouts, `/_app` is always loaded before the page. Chunk it first so
-            // the page's chunks don't include modules that the browser already downloaded with
-            // `/_app`.
+            // Like App Router layouts, `/_app` is always loaded before the page. Treat it as
+            // already available so the page's chunks don't include modules that the browser
+            // already downloaded with `/_app`. `client_module_graph` chains `/_app`'s entry group
+            // into this page's graph, so the group resolves within the very graph this page is
+            // chunked with.
             let availability_info = if this.pathname == "/_app" {
                 AvailabilityInfo::root()
             } else {
-                this.pages_project
-                    .app_page_endpoint()
-                    .client_chunk_group()
+                AvailabilityInfo::root()
+                    .with_chunk_group(
+                        module_graph.to_resolved().await?,
+                        ChunkGroupKey::Entry(
+                            client_entry_modules(
+                                this.pages_project
+                                    .app_page_endpoint()
+                                    .client_evaluatable_assets(),
+                            )
+                            .await?,
+                        ),
+                    )
                     .await?
-                    .availability_info
             };
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
-                ChunkGroup::Entry(evaluatable_assets),
+                ChunkGroupKey::Entry(evaluatable_assets),
                 module_graph,
                 OutputAssets::empty(),
                 availability_info,
@@ -1159,7 +1166,7 @@ impl PageEndpoint {
                     // Registered as an entry group by `layout_chunk_group_entry`.
                     let chunk_group = chunking_context.chunk_group(
                         layout.ident(),
-                        smallvec![ChunkGroup::Entry(vec![layout])],
+                        smallvec![ChunkGroupKey::Entry(vec![layout])],
                         ssr_module_graph,
                         current_chunk_group.await?.availability_info,
                     );
@@ -1179,7 +1186,7 @@ impl PageEndpoint {
             if is_edge {
                 let chunk_assets = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
-                    ChunkGroup::Entry(vec![ssr_module]),
+                    ChunkGroupKey::Entry(vec![ssr_module]),
                     ssr_module_graph,
                     OutputAssets::empty(),
                     current_chunk_group.await?.availability_info,
@@ -1208,7 +1215,7 @@ impl PageEndpoint {
                 let ssr_entry_chunk = node_chunking_context
                     .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
-                        ChunkGroup::Entry(vec![ssr_module]),
+                        ChunkGroupKey::Entry(vec![ssr_module]),
                         ssr_module_graph,
                         current_chunk_group.primary_assets(),
                         current_chunk_group.referenced_assets(),
@@ -1436,6 +1443,8 @@ impl PageEndpoint {
             client_relative_path,
             pages,
             polyfill_files: Default::default(),
+            // App Router only for now; the Pages Router still inlines React's instructions.
+            external_browser_runtime_file: None,
             root_main_files: Default::default(),
             root_main_files_per_page: Default::default(),
             pages_chunk_group_bootstrap_params,
@@ -1790,7 +1799,7 @@ pub struct InternalSsrChunkModule {
 /// A layout is an entry group of its own, like the standalone `/_document` and `/_app`
 /// endpoints register their module, so the graph never has to choose between a shared and an
 /// entry group for the same module and `internal_ssr_chunk` can always chunk it as
-/// `ChunkGroup::Entry(vec![layout])`. Default heuristics keep a page's clusters off the layout
+/// `ChunkGroupKey::Entry(vec![layout])`. Default heuristics keep a page's clusters off the layout
 /// groups shared between pages.
 fn layout_chunk_group_entry(layout: ResolvedVc<Box<dyn Module>>) -> ChunkGroupEntry {
     ChunkGroupEntry::Entry {

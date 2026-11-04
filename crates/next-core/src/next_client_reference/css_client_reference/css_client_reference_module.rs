@@ -13,6 +13,8 @@ use turbopack_core::{
 };
 use turbopack_css::chunk::CssChunkPlaceable;
 
+use crate::next_client_reference::CLIENT_MERGE_TAG;
+
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which
 /// client reference should appear in the client reference manifest.
 #[turbo_tasks::value]
@@ -106,7 +108,7 @@ impl ModuleReference for CssClientReference {
     fn chunking_type(&self) -> Option<ChunkingType> {
         Some(ChunkingType::Isolated {
             _ty: ChunkGroupType::Evaluated,
-            merge_tag: Some(rcstr!("client")),
+            merge_tag: Some(CLIENT_MERGE_TAG),
         })
     }
 }

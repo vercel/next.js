@@ -152,6 +152,7 @@ import {
 } from './walk-tree-with-flight-router-state'
 import { createFullComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
+import { getExternalBrowserRuntimeSrc } from './get-external-browser-runtime-src'
 import {
   getClientReferenceManifest,
   getServerModuleMap,
@@ -510,11 +511,14 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
       children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
     // Always include global-error so that getGlobalErrorStyles can access it.
-    // When global-not-found is present, use full components.
-    // Otherwise, only include global-error module.
+    // When global-not-found is present, use full components. Otherwise, keep
+    // the root layout to render a complete HTML document.
     hasGlobalNotFound
       ? components
-      : { 'global-error': components['global-error'] },
+      : {
+          layout: components.layout,
+          'global-error': components['global-error'],
+        },
     null, // staticSiblings
   ]
 }
@@ -2859,7 +2863,6 @@ async function renderAppPage(
     implicitTags,
   } = ctx
   const { cacheComponents, setIsrStatus, serverActions } = renderOpts
-  const { cachedNavigations } = renderOpts.experimental
   const {
     isHmrRefresh,
     isPrefetchRequest,
@@ -2884,6 +2887,13 @@ async function renderAppPage(
       : stagedFallbackParams
         ? new Set(stagedFallbackParams.keys())
         : null
+
+  // MPA form submissions need a complete document with the submitted form
+  // state. Their new render can still reuse the extracted RDC.
+  if (isPossibleActionRequest && !serverActionRequestMetadata.isFetchAction) {
+    postponedState = null
+  }
+
   const createRequestStore = createRequestStoreForRender.bind(
     null,
     requestHeaders,
@@ -2947,7 +2957,7 @@ async function renderAppPage(
           createRequestStore,
           stagedFallbackParams
         )
-      } else if (cacheComponents && cachedNavigations) {
+      } else if (shouldUseCachedNavigations(renderOpts, requestStore)) {
         // MARK: RSC cacheComponents
         return generateStagedDynamicFlightRenderResultNode(ctx, requestStore)
       } else {
@@ -3559,7 +3569,6 @@ async function renderToStream(
     cacheComponents,
   } = renderOpts
 
-  const { cachedNavigations } = renderOpts.experimental
   const waitForAllReady = supportsDynamicResponse !== true
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
@@ -3587,6 +3596,16 @@ async function renderToStream(
         noModule: true,
         nonce,
       }))
+
+  const { externalBrowserRuntime } = experimental
+  const externalRuntimeSrc = getExternalBrowserRuntimeSrc(
+    ctx,
+    buildManifest,
+    externalBrowserRuntime,
+    assetPrefix,
+    crossOrigin,
+    subresourceIntegrityManifest
+  )
 
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
     buildManifest,
@@ -3849,7 +3868,7 @@ async function renderToStream(
             requestId
           )
         }
-      } else if (cacheComponents && cachedNavigations) {
+      } else if (shouldUseCachedNavigations(renderOpts, requestStore)) {
         // Production Cache Components + Cached Navigations: use staged
         // rendering so the RSC payload includes the shell byte length (`a`)
         // and, with Partial Prefetching, an embedded runtime prefetch that the
@@ -4109,7 +4128,8 @@ async function renderToStream(
               createNodeInlinedDataStream(
                 reactServerResult.tee(),
                 nonce,
-                formState
+                formState,
+                externalBrowserRuntime
               ),
               turbopackBootstrapScriptContent,
               nonce
@@ -4165,7 +4185,8 @@ async function renderToStream(
                 createNodeInlinedDataStream(
                   reactServerResult.consume(),
                   nonce,
-                  formState
+                  formState,
+                  externalBrowserRuntime
                 ),
                 turbopackBootstrapScriptContent,
                 nonce
@@ -4211,6 +4232,7 @@ async function renderToStream(
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
 
@@ -4230,7 +4252,8 @@ async function renderToStream(
           inlinedDataStream: createNodeInlinedDataStream(
             reactServerResult.consume(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady,
           allReady,
@@ -4252,7 +4275,8 @@ async function renderToStream(
               createWebInlinedDataStream(
                 reactServerResult.tee(),
                 nonce,
-                formState
+                formState,
+                externalBrowserRuntime
               ),
               turbopackBootstrapScriptContent,
               nonce
@@ -4308,7 +4332,8 @@ async function renderToStream(
                 createWebInlinedDataStream(
                   reactServerResult.consume(),
                   nonce,
-                  formState
+                  formState,
+                  externalBrowserRuntime
                 ),
                 turbopackBootstrapScriptContent,
                 nonce
@@ -4352,6 +4377,7 @@ async function renderToStream(
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
 
@@ -4369,7 +4395,8 @@ async function renderToStream(
           inlinedDataStream: createWebInlinedDataStream(
             reactServerResult.consume(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady,
           allReady,
@@ -4516,6 +4543,7 @@ async function renderToStream(
               nonce,
               bootstrapScriptContent: errorBootstrapScriptContent,
               bootstrapScripts: [errorBootstrapScript],
+              unstable_externalRuntimeSrc: externalRuntimeSrc,
               formState,
               onAllReady: finishHtmlRender,
             },
@@ -4529,7 +4557,8 @@ async function renderToStream(
               // render
               reactServerResult.consume(),
               nonce,
-              formState
+              formState,
+              externalBrowserRuntime
             ),
             waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -4609,6 +4638,7 @@ async function renderToStream(
                 nonce,
                 bootstrapScriptContent: errorBootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
               }
             )
@@ -4623,7 +4653,8 @@ async function renderToStream(
               // render
               reactServerResult.consume(),
               nonce,
-              formState
+              formState,
+              externalBrowserRuntime
             ),
             waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -5394,6 +5425,17 @@ interface StagedDevRenderSetup {
 export enum PrefetchingMode {
   LegacySpeculative = 1,
   Partial = 2,
+}
+
+function shouldUseCachedNavigations(
+  renderOpts: RenderOpts,
+  requestStore: RequestStore
+): boolean {
+  return (
+    renderOpts.cacheComponents &&
+    renderOpts.experimental.cachedNavigations === true &&
+    !requestStore.draftMode.isEnabled
+  )
 }
 
 async function getPrefetchingModeForPage(
@@ -8798,6 +8840,7 @@ async function continueStaticPrerenderWithInlinedData(
   reactServerResult: ReactServerPrerenderResult,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   createInlinedDataStream: typeof createWebInlinedDataStream,
+  externalBrowserRuntime: boolean,
   formState: unknown | null,
   nonce: string | undefined,
   getServerInsertedHTML: () => Promise<string>,
@@ -8840,7 +8883,8 @@ async function continueStaticPrerenderWithInlinedData(
       createInlinedDataStream(
         emptyReactServerResult.consumeAsStream(),
         nonce,
-        formState
+        formState,
+        externalBrowserRuntime
       ),
       turbopackBootstrapScriptContent,
       nonce
@@ -8857,7 +8901,8 @@ async function continueStaticPrerenderWithInlinedData(
     createInlinedDataStream(
       reactServerResult.consumeAsStream(),
       nonce,
-      formState
+      formState,
+      externalBrowserRuntime
     ),
     turbopackBootstrapScriptContent,
     nonce
@@ -8976,6 +9021,16 @@ async function prerenderToStream(
         nonce,
       }))
 
+  const { externalBrowserRuntime } = experimental
+  const externalRuntimeSrc = getExternalBrowserRuntimeSrc(
+    ctx,
+    buildManifest,
+    externalBrowserRuntime,
+    assetPrefix,
+    crossOrigin,
+    subresourceIntegrityManifest
+  )
+
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
     buildManifest,
     // Why is assetPrefix optional on renderOpts?
@@ -9028,6 +9083,11 @@ async function prerenderToStream(
   }
 
   const { reactServerErrorsByDigest } = workStore
+  // Collect errors reported by the page's RSC renderer to detect prerender
+  // failures. The work store's `reactServerErrorsByDigest` map also records
+  // errors from cached functions for logging, even when the page catches them.
+  // Those caught errors must not fail prerendering.
+  const renderErrorsByDigest = new Map<string, DigestedError>()
   // We don't report errors during prerendering through our instrumentation hooks
   const reportErrors = !experimental.isRoutePPREnabled
   function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
@@ -9043,7 +9103,9 @@ async function prerenderToStream(
     process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     reactServerErrorsByDigest,
-    onHTMLRenderRSCError
+    onHTMLRenderRSCError,
+    undefined,
+    renderErrorsByDigest
   )
 
   function onHTMLRenderSSRError(err: DigestedError) {
@@ -9499,6 +9561,7 @@ async function prerenderToStream(
             },
             bootstrapScriptContent,
             bootstrapScripts: [bootstrapScript],
+            unstable_externalRuntimeSrc: externalRuntimeSrc,
           }
         )
 
@@ -9982,6 +10045,7 @@ async function prerenderToStream(
                 maxHeadersLength: reactMaxHeadersLength,
                 bootstrapScriptContent,
                 bootstrapScripts: [bootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
               }
             )
 
@@ -10114,7 +10178,7 @@ async function prerenderToStream(
         reactServerResult.consume()
         return {
           error: undefined,
-          digestErrorsMap: reactServerErrorsByDigest,
+          digestErrorsMap: renderErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(htmlStream, {
             getServerInsertedHTML,
@@ -10173,6 +10237,7 @@ async function prerenderToStream(
         reactServerResult,
         fallbackRouteParams,
         createInlinedDataStream,
+        externalBrowserRuntime,
         formState,
         nonce,
         getServerInsertedHTML,
@@ -10188,7 +10253,7 @@ async function prerenderToStream(
 
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream,
         dynamicAccess: consumeDynamicAccess(
@@ -10262,6 +10327,7 @@ async function prerenderToStream(
               : turbopackBootstrapScriptContent
             : bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
         },
         { waitForAllReady: true }
       )
@@ -10286,13 +10352,14 @@ async function prerenderToStream(
       })
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
           inlinedDataStream: createInlinedDataStream(
             reactServerResult.consumeAsStream(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady: true,
           getServerInsertedHTML,
@@ -10589,6 +10656,7 @@ async function prerenderToStream(
                 // Like the regular prerender, the Turbopack bootstrap is left
                 // out of the shell; see `withTurbopackBootstrapScript`.
                 bootstrapScripts: [errorBootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
                 signal: errorClientReactController.signal,
                 onError: (clientError: unknown, errorInfo: ErrorInfo) => {
@@ -10678,7 +10746,7 @@ async function prerenderToStream(
           errorServerResult.consume()
           return {
             error: errorType !== undefined ? undefined : { thrownValue: err },
-            digestErrorsMap: reactServerErrorsByDigest,
+            digestErrorsMap: renderErrorsByDigest,
             ssrErrors: allCapturedErrors,
             stream: await continueDynamicPrerender(errorHtmlStream, {
               getServerInsertedHTML,
@@ -10736,6 +10804,7 @@ async function prerenderToStream(
           originalFlightPrerenderResult,
           fallbackRouteParams,
           createInlinedDataStream,
+          externalBrowserRuntime,
           formState,
           nonce,
           getServerInsertedHTML,
@@ -10752,7 +10821,7 @@ async function prerenderToStream(
         errorServerResult.consume()
         return {
           error: errorType !== undefined ? undefined : { thrownValue: err },
-          digestErrorsMap: reactServerErrorsByDigest,
+          digestErrorsMap: renderErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream,
           dynamicAccess: consumeDynamicAccess(
@@ -10839,6 +10908,7 @@ async function prerenderToStream(
           nonce,
           bootstrapScriptContent: errorBootstrapScriptContent,
           bootstrapScripts: [errorBootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         },
         { waitForAllReady: true }
@@ -10859,13 +10929,14 @@ async function prerenderToStream(
 
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(errorHtmlStream, {
           inlinedDataStream: createInlinedDataStream(
             reactServerPrerenderResult.consumeAsStream(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady: true,
           getServerInsertedHTML: makeGetServerInsertedHTML({

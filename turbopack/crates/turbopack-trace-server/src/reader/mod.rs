@@ -6,12 +6,13 @@ pub(crate) mod turbopack;
 use std::{
     any::Any,
     env,
-    fs::File,
+    fs::{self, File, Metadata},
     io::{self, BufReader, Read, Seek, SeekFrom, Write},
-    path::PathBuf,
+    ops::ControlFlow,
+    path::{Path, PathBuf},
     sync::Arc,
     thread::{self, JoinHandle},
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use anyhow::Result;
@@ -152,6 +153,15 @@ impl TraceFile {
         }
     }
 
+    /// Metadata of the opened file on disk.
+    fn metadata(&self) -> io::Result<Metadata> {
+        match self {
+            Self::Raw(file) => file.get_ref().metadata(),
+            Self::Compressed { file, .. } => file.metadata(),
+            Self::Unloaded => unreachable!(),
+        }
+    }
+
     /// Size of the opened file on disk.
     fn size(&mut self) -> io::Result<u64> {
         match self {
@@ -159,6 +169,39 @@ impl TraceFile {
             Self::Compressed { file, .. } => file.metadata().map(|m| m.len()),
             Self::Unloaded => unreachable!(),
         }
+    }
+}
+
+/// Identifies one version of the trace file on disk, to notice when it is written to, truncated or
+/// replaced. Only uses metadata, so a rewrite that keeps all of these the same isn't noticed.
+#[derive(Debug, PartialEq, Eq)]
+struct FileVersion {
+    len: u64,
+    modified: Option<SystemTime>,
+    created: Option<SystemTime>,
+    /// Device and inode, which identify the file itself on unix.
+    #[cfg(unix)]
+    file_id: (u64, u64),
+}
+
+impl FileVersion {
+    fn from_metadata(metadata: &Metadata) -> Self {
+        Self {
+            len: metadata.len(),
+            modified: metadata.modified().ok(),
+            created: metadata.created().ok(),
+            #[cfg(unix)]
+            file_id: {
+                use std::os::unix::fs::MetadataExt;
+                (metadata.dev(), metadata.ino())
+            },
+        }
+    }
+
+    fn of_path(path: &Path) -> Option<Self> {
+        fs::metadata(path)
+            .ok()
+            .map(|metadata| Self::from_metadata(&metadata))
     }
 }
 
@@ -174,12 +217,35 @@ impl TraceReader {
     }
 
     pub fn run(&mut self) {
-        let mut file_warning_printed = false;
+        // Failures are retried every 500ms, so only report when the error changes
+        let mut last_open_error = None;
+        let mut last_read_error = None;
         loop {
-            let read_success = self.try_read();
-            if !file_warning_printed && !read_success {
-                println!("Unable to read trace file at {:?}, waiting...", self.path);
-                file_warning_printed = true;
+            match File::open(&self.path) {
+                Ok(file) => {
+                    last_open_error = None;
+                    match self.try_read(file) {
+                        Ok(()) => last_read_error = None,
+                        Err(err) => {
+                            if last_read_error != Some(err.kind()) {
+                                println!(
+                                    "Unable to read trace file at {:?}: {err}, waiting...",
+                                    self.path
+                                );
+                                last_read_error = Some(err.kind());
+                            }
+                        }
+                    }
+                }
+                Err(err) => {
+                    if last_open_error != Some(err.kind()) {
+                        println!(
+                            "Unable to open trace file at {:?}: {err}, waiting...",
+                            self.path
+                        );
+                        last_open_error = Some(err.kind());
+                    }
+                }
             }
             thread::sleep(Duration::from_millis(500));
         }
@@ -224,10 +290,9 @@ impl TraceReader {
         })
     }
 
-    fn try_read(&mut self) -> bool {
-        let Ok(mut file) = File::open(&self.path) else {
-            return false;
-        };
+    /// Reads the trace file until it is replaced or removed. Returns an error if the file couldn't
+    /// be read.
+    fn try_read(&mut self, mut file: File) -> io::Result<()> {
         println!("Trace file opened");
         let stop_at = env::var("STOP_AT")
             .unwrap_or_default()
@@ -249,16 +314,8 @@ impl TraceReader {
             .seek(SeekFrom::End(0))
             .ok()
             .map(|total| (total, Instant::now()));
-        if file.seek(SeekFrom::Start(0)).is_err() {
-            return false;
-        }
-        let mut file = match self.trace_file_from_file(file) {
-            Ok(f) => f,
-            Err(err) => {
-                println!("Error opening trace file for reading: {err}");
-                return false;
-            }
-        };
+        file.seek(SeekFrom::Start(0))?;
+        let mut file = self.trace_file_from_file(file)?;
 
         let mut buffer = Vec::new();
         let mut index = 0;
@@ -269,12 +326,15 @@ impl TraceReader {
                 Ok(bytes_read) => {
                     if bytes_read == 0 {
                         self.store.write().optimize();
-                        if let Some(value) = self.wait_for_more_data(
-                            &mut file,
-                            &mut initial_read,
-                            format.as_ref().map(|(f, _)| f),
-                        ) {
-                            return value;
+                        if self
+                            .wait_for_more_data(
+                                &mut file,
+                                &mut initial_read,
+                                format.as_ref().map(|(f, _)| f),
+                            )
+                            .is_break()
+                        {
+                            return Ok(());
                         }
                     } else {
                         // If we have partially consumed some data, and we are at buffer capacity,
@@ -290,8 +350,9 @@ impl TraceReader {
                                 // Not enough data yet
                                 Ok(None) => continue,
                                 Err(err) => {
-                                    println!("Trace file error: {err}");
-                                    return true;
+                                    println!("Trace file error: {err:?}");
+                                    self.wait_for_file_change(&file);
+                                    return Ok(());
                                 }
                             };
                             let erased_format = match kind {
@@ -317,8 +378,9 @@ impl TraceReader {
                                     index += bytes_read;
                                 }
                                 Err(err) => {
-                                    println!("Trace file error: {err}");
-                                    return true;
+                                    println!("Trace file error: {err:?}");
+                                    self.wait_for_file_change(&file);
+                                    return Ok(());
                                 }
                             }
                             if self.store.want_to_read() {
@@ -367,7 +429,7 @@ impl TraceReader {
                                      Waiting for new file..."
                                 );
                                 self.wait_for_new_file(&mut file);
-                                return true;
+                                return Ok(());
                             }
                         }
                     }
@@ -377,31 +439,35 @@ impl TraceReader {
                         || err.kind() == io::ErrorKind::InvalidInput
                     {
                         self.store.write().optimize();
-                        if let Some(value) = self.wait_for_more_data(
-                            &mut file,
-                            &mut initial_read,
-                            format.as_ref().map(|(f, _)| f),
-                        ) {
-                            return value;
+                        if self
+                            .wait_for_more_data(
+                                &mut file,
+                                &mut initial_read,
+                                format.as_ref().map(|(f, _)| f),
+                            )
+                            .is_break()
+                        {
+                            return Ok(());
                         }
                     } else {
                         // Error reading file, maybe it was removed
-                        println!("Error reading trace file: {err:?}");
-                        return true;
+                        return Err(err);
                     }
                 }
             }
         }
     }
 
+    /// Waits until the file has more data ([`ControlFlow::Continue`]) or was replaced or removed
+    /// ([`ControlFlow::Break`]).
     fn wait_for_more_data(
         &mut self,
         file: &mut TraceFile,
         initial_read: &mut Option<(u64, Instant)>,
         format: Option<&ErasedTraceFormat>,
-    ) -> Option<bool> {
+    ) -> ControlFlow<()> {
         let Ok(pos) = file.stream_position() else {
-            return Some(true);
+            return ControlFlow::Break(());
         };
         if let Some((total, start)) = initial_read.take() {
             // Erase the in-place progress line (printed with a leading `\r` and
@@ -426,19 +492,31 @@ impl TraceReader {
             // No more data to read, sleep for a while to wait for more data
             thread::sleep(Duration::from_millis(100));
             let Ok(mut real_file) = File::open(&self.path) else {
-                return Some(true);
+                return ControlFlow::Break(());
             };
             let Ok(end) = real_file.seek(SeekFrom::End(0)) else {
-                return Some(true);
+                return ControlFlow::Break(());
             };
             if end < pos {
                 // new file
-                return Some(true);
+                return ControlFlow::Break(());
             } else if end != pos {
                 // file has more data
-                return None;
+                return ControlFlow::Continue(());
             }
         }
+    }
+
+    /// Waits until the file at the trace path differs from `file`, which was rejected with a
+    /// format error, so the same error isn't reported again and again. Only checks metadata, at
+    /// most once per second. Also returns when the file is removed.
+    fn wait_for_file_change(&self, file: &TraceFile) {
+        println!("Waiting for the trace file to change...");
+        let version = file
+            .metadata()
+            .ok()
+            .map(|metadata| FileVersion::from_metadata(&metadata));
+        wait_for_file_version_change(&self.path, version.as_ref(), Duration::from_secs(1));
     }
 
     fn wait_for_new_file(&self, file: &mut TraceFile) {
@@ -453,6 +531,18 @@ impl TraceReader {
             if end < pos {
                 return;
             }
+        }
+    }
+}
+
+/// Polls the metadata of `path` every `interval` until it no longer matches `version`, or the file
+/// is removed.
+fn wait_for_file_version_change(path: &Path, version: Option<&FileVersion>, interval: Duration) {
+    loop {
+        thread::sleep(interval);
+        match FileVersion::of_path(path) {
+            Some(current) if Some(&current) == version => {}
+            _ => return,
         }
     }
 }
@@ -532,7 +622,7 @@ mod tests {
         dir: PathBuf,
         path: PathBuf,
         store: Arc<StoreContainer>,
-        thread: Option<JoinHandle<bool>>,
+        thread: Option<JoinHandle<io::Result<()>>>,
     }
 
     impl ReaderFixture {
@@ -547,13 +637,37 @@ mod tests {
                 store: store.clone(),
                 path: path.clone(),
             };
-            let thread = thread::spawn(move || reader.try_read());
+            let file = File::open(&path).unwrap();
+            let thread = thread::spawn(move || reader.try_read(file));
             Self {
                 dir,
                 path,
                 store,
                 thread: Some(thread),
             }
+        }
+
+        fn is_finished(&self) -> bool {
+            self.thread
+                .as_ref()
+                .is_none_or(|thread| thread.is_finished())
+        }
+
+        /// Waits for the current [`TraceReader::try_read`] pass to return, then starts the next
+        /// one on the same file, like [`TraceReader::run`] does.
+        fn restart_after_return(&mut self) {
+            let start = Instant::now();
+            while !self.is_finished() {
+                assert!(start.elapsed() < TIMEOUT, "reader did not return");
+                thread::sleep(Duration::from_millis(20));
+            }
+            self.thread.take().unwrap().join().unwrap().unwrap();
+            let mut reader = TraceReader {
+                store: self.store.clone(),
+                path: self.path.clone(),
+            };
+            let file = File::open(&self.path).unwrap();
+            self.thread = Some(thread::spawn(move || reader.try_read(file)));
         }
 
         fn append(&self, data: &[u8]) {
@@ -589,7 +703,9 @@ mod tests {
             if let Some(thread) = self.thread.take() {
                 let result = thread.join();
                 if !thread::panicking() {
-                    result.expect("reader thread panicked");
+                    result
+                        .expect("reader thread panicked")
+                        .expect("reader failed");
                 }
             }
             let _ = std::fs::remove_dir_all(&self.dir);
@@ -639,6 +755,92 @@ mod tests {
                 "{name}: loaded more than the prefix"
             );
         }
+    }
+
+    /// A file that is rejected with a format error is not read again until it changes, so the
+    /// error isn't repeated twice a second. Replacing it with a valid trace loads that trace.
+    #[test]
+    fn waits_for_change_after_format_error() {
+        for (name, data) in [
+            // Unsupported version (header detection error)
+            ("old-version.trace", b"TRACEv0\x00\x01\x02".to_vec()),
+            // Corrupt data after a valid header (decode error)
+            ("corrupt.trace", [TRACE_HEADER, &[0xff; 12]].concat()),
+        ] {
+            let mut reader = ReaderFixture::new(name, &data);
+            // Previously, `try_read` returned right away and `run` read the file again after
+            // 500 ms. Several of those retry intervals pass here without the file changing.
+            thread::sleep(Duration::from_millis(2_500));
+            assert!(
+                !reader.is_finished(),
+                "{name}: reader returned without the file changing"
+            );
+            std::fs::write(&reader.path, trace(1_000)).unwrap();
+            reader.restart_after_return();
+            reader.wait_for_span_count(1_000);
+        }
+    }
+
+    /// Each kind of change to a rejected file ends the wait: a different size, a rewrite with the
+    /// same size (new modification time), a replacement by another file, and removal.
+    #[test]
+    fn file_version_detects_changes() {
+        let dir = env::temp_dir().join(format!("trace-server-test-{}-version", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("version.trace");
+        let version = |path: &Path| FileVersion::of_path(path).unwrap();
+        let modified_at = |path: &Path, time: SystemTime| {
+            File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_modified(time)
+                .unwrap();
+        };
+        let time = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
+
+        fs::write(&path, b"aaaa").unwrap();
+        modified_at(&path, time);
+        let original = version(&path);
+        assert_eq!(version(&path), original, "unchanged file");
+
+        fs::write(&path, b"aaaaa").unwrap();
+        modified_at(&path, time);
+        assert_ne!(version(&path), original, "different size");
+
+        fs::write(&path, b"bbbb").unwrap();
+        modified_at(&path, time + Duration::from_secs(1));
+        assert_ne!(version(&path), original, "same size, rewritten");
+
+        fs::write(&path, b"aaaa").unwrap();
+        modified_at(&path, time);
+        let before_replace = version(&path);
+        let replacement = dir.join("replacement.trace");
+        fs::write(&replacement, b"aaaa").unwrap();
+        modified_at(&replacement, time);
+        fs::rename(&replacement, &path).unwrap();
+        // Same size and modification time, but on unix another inode.
+        #[cfg(unix)]
+        assert_ne!(version(&path), before_replace, "replaced file");
+        #[cfg(not(unix))]
+        let _ = before_replace;
+
+        // Waiting returns once the file is removed.
+        let waiting_for = version(&path);
+        let wait_path = path.clone();
+        let waiter = thread::spawn(move || {
+            wait_for_file_version_change(&wait_path, Some(&waiting_for), Duration::from_millis(20))
+        });
+        thread::sleep(Duration::from_millis(200));
+        assert!(!waiter.is_finished(), "returned for an unchanged file");
+        fs::remove_file(&path).unwrap();
+        let start = Instant::now();
+        while !waiter.is_finished() {
+            assert!(start.elapsed() < TIMEOUT, "did not return after removal");
+            thread::sleep(Duration::from_millis(20));
+        }
+        waiter.join().unwrap();
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

@@ -381,4 +381,65 @@ describe('createPatchedFetcher', () => {
       }
     }
   })
+  it('shares a 204 response between fetches deduped during a foreground revalidate', async () => {
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
+    mockFetch.mockImplementation(
+      async () => new Response(null, { status: 204 })
+    )
+
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+
+    // A stale entry makes the fetch revalidate in the foreground, because the
+    // consumer will persist the result in a server cache.
+    const incrementalCache = {
+      get: jest.fn(async () => ({
+        isStale: true,
+        value: {
+          kind: 'FETCH',
+          data: { body: '', headers: {}, status: 200, url: '' },
+          revalidate: 1,
+        },
+      })),
+      set: jest.fn(),
+      generateCacheKey: jest.fn(() => 'test-cache-key'),
+      lock: jest.fn(() => () => {}),
+    } as unknown as IncrementalCache
+
+    const workStore: Partial<WorkStore> = {
+      page: '/',
+      route: '/',
+      incrementalCache,
+    }
+
+    const workUnitStore = {
+      type: 'prerender-legacy',
+      phase: 'render',
+      rootParams: {},
+      implicitTags: { tags: [], expirationsByCacheKind: new Map() },
+      revalidate: 1,
+      expire: Infinity,
+      stale: Infinity,
+      tags: [],
+    } as unknown as WorkUnitStore
+
+    await workAsyncStorage.run(workStore as WorkStore, () =>
+      workUnitAsyncStorage.run(workUnitStore, async () => {
+        const responses = await Promise.all([
+          patchedFetch('https://example.com', { cache: 'force-cache' }),
+          patchedFetch('https://example.com', { cache: 'force-cache' }),
+        ])
+
+        expect(mockFetch).toHaveBeenCalledTimes(1)
+        for (const response of responses) {
+          expect(response.status).toBe(204)
+          expect(response.body).toBeNull()
+        }
+      })
+    )
+  })
 })

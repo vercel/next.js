@@ -719,20 +719,32 @@ export class AppRouteRouteModule extends RouteModule<
 
               responseHandled = true
 
-              let bodyHandled = false
-              result.arrayBuffer().then((body) => {
-                if (!bodyHandled) {
-                  bodyHandled = true
+              const init: ResponseInit = {
+                headers: result.headers,
+                status: result.status,
+                statusText: result.statusText,
+              }
 
-                  resolve(
-                    new Response(body, {
-                      headers: result.headers,
-                      status: result.status,
-                      statusText: result.statusText,
-                    })
-                  )
-                }
-              }, reject)
+              // There's nothing to buffer, and rebuilding with the empty buffer
+              // from `arrayBuffer()` would throw for null body statuses (e.g.
+              // the 204 from an auto-implemented OPTIONS handler).
+              if (result.body === null) {
+                resolve(new Response(null, init))
+                return
+              }
+
+              let bodyHandled = false
+              result
+                .arrayBuffer()
+                .then((body) => {
+                  if (!bodyHandled) {
+                    bodyHandled = true
+                    resolve(new Response(body, init))
+                  }
+                })
+                // Ensure anything thrown above rejects instead of becoming an
+                // unhandled rejection that leaves the prerender hanging.
+                .catch(reject)
               scheduleImmediate(() => {
                 if (!bodyHandled) {
                   bodyHandled = true

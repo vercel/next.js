@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'fs/promises'
+import { chmod, mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import {
   writeAgentFeedbackFiles,
@@ -8,6 +8,7 @@ import {
 import {
   resolveNextTgzFilename,
   run,
+  getPreferencesDir,
   useTempDir,
   projectFilesShouldExist,
   projectFilesShouldNotExist,
@@ -51,7 +52,10 @@ describe('create-next-app', () => {
       const Conf = require('next/dist/compiled/conf')
 
       await useTempDir(async (cwd) => {
-        const conf = new Conf({ projectName: 'create-next-app' })
+        const conf = new Conf({
+          projectName: 'create-next-app',
+          cwd: getPreferencesDir(cwd),
+        })
         conf.clear()
         const projectName = 'cache-components'
         const res = await run(
@@ -124,42 +128,50 @@ describe('create-next-app', () => {
 
     await useTempDir(async (cwd) => {
       const projectName = 'dir-not-writable'
+      // Create writable preferences before restricting the app's parent directory.
+      await mkdir(getPreferencesDir(cwd))
 
-      // if the folder isn't able to be write restricted we can't test so skip
-      if (
-        await writeFile(join(cwd, 'test'), 'hello')
-          .then(() => true)
-          .catch(() => false)
-      ) {
-        console.warn(
-          `Test folder is not write restricted skipping write permission test`
-        )
-        return
-      }
+      try {
+        await chmod(cwd, 0o500)
 
-      const res = await run(
-        [
-          projectName,
-          '--ts',
-          '--app',
-          '--eslint',
-          '--no-tailwind',
-          '--no-src-dir',
-          '--no-import-alias',
-          '--no-react-compiler',
-          '--no-agents-md',
-          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
-        ],
-        nextTgzFilename,
-        {
-          cwd,
-          reject: false,
+        // if the folder isn't able to be write restricted we can't test so skip
+        if (
+          await writeFile(join(cwd, 'test'), 'hello')
+            .then(() => true)
+            .catch(() => false)
+        ) {
+          console.warn(
+            `Test folder is not write restricted skipping write permission test`
+          )
+          return
         }
-      )
 
-      expect(res.stderr).toMatch(expectedErrorMessage)
-      expect(res.exitCode).toBe(1)
-    }, 0o500).catch((err) => {
+        const res = await run(
+          [
+            projectName,
+            '--ts',
+            '--app',
+            '--eslint',
+            '--no-tailwind',
+            '--no-src-dir',
+            '--no-import-alias',
+            '--no-react-compiler',
+            '--no-agents-md',
+            ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+          ],
+          nextTgzFilename,
+          {
+            cwd,
+            reject: false,
+          }
+        )
+
+        expect(res.stderr).toMatch(expectedErrorMessage)
+        expect(res.exitCode).toBe(1)
+      } finally {
+        await chmod(cwd, 0o700)
+      }
+    }).catch((err) => {
       if (!expectedErrorMessage.test(err.message)) {
         throw err
       }

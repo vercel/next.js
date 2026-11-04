@@ -109,7 +109,7 @@ pub(crate) fn invalidate_db(base_path: &Path, reason_code: &str) -> anyhow::Resu
 /// This should be run with the base (non-versioned) path.
 ///
 /// In most cases, you should prefer a higher-level API like
-/// [`crate::KeyValueDatabaseBackingStorage::open_versioned_on_disk`] to this one.
+/// [`TurboBackingStorage::open_versioned_on_disk`](crate::TurboBackingStorage::open_versioned_on_disk) to this one.
 pub(crate) fn check_db_invalidation_and_cleanup(
     base_path: &Path,
 ) -> anyhow::Result<StartupCacheState> {

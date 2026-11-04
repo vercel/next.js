@@ -119,8 +119,8 @@ On top of the dimensions the test matrix already has (mode, bundler, React
 version), the suites run once plainly and once per _test axis_ — a fixed,
 lettered set of alternate flag configurations marked by `__NEXT_TEST_AXIS`.
 (Today there is one axis, `A`, an alias for the `--experimental` /
-`__NEXT_CACHE_COMPONENTS` run; see `scripts/run-jest.sh`.) A fixture can key
-an experimental flag on an axis instead of pinning it — enabled by default,
+`__NEXT_CACHE_COMPONENTS` run; see `test/jest-global-setup.ts`.) A fixture can
+key an experimental flag on an axis instead of pinning it — enabled by default,
 disabled on that axis:
 
 ```js
@@ -149,8 +149,8 @@ dimension. The gate itself keeps working either way — lazy conditions read the
 _resolved_ config, so they observe whatever the fixture decided, not how it
 decided it.
 
-To reproduce the disabled (axis) state locally, set the marker the same way
-CI does:
+To reproduce the disabled (axis) state locally, set the marker. CI sets
+`__NEXT_CACHE_COMPONENTS=true` instead, which has the same effect:
 
 ```sh
 __NEXT_TEST_AXIS=A NEXT_SKIP_ISOLATE=1 pnpm test-start-webpack test/e2e/app-dir/concurrent-router-queue/concurrent-router-queue.test.ts

@@ -93,6 +93,9 @@ describe('deployment lifecycle', () => {
       .spyOn(NextDeployInstance.prototype as any, 'preparePnpmSettings')
       .mockReturnValue(undefined)
     jest
+      .spyOn(NextDeployInstance.prototype as any, 'pinNodeVersion')
+      .mockReturnValue(undefined)
+    jest
       .spyOn(NextDeployInstance.prototype as any, 'configureProxyAddress')
       .mockResolvedValue(undefined)
 
