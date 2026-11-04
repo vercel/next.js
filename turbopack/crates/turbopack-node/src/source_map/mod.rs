@@ -31,6 +31,11 @@ mod trace;
 
 const MAX_CODE_FRAMES: usize = 3;
 
+// Only the child-process pool maps stack traces in process output.
+#[cfg_attr(
+    not(all(feature = "process_pool", not(target_family = "wasm"))),
+    allow(dead_code)
+)]
 pub(crate) async fn apply_source_mapping(
     text: &'_ str,
     assets_for_source_mapping: Vc<AssetsForSourceMapping>,
