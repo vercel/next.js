@@ -20,6 +20,7 @@ pub mod raw;
 pub mod removal;
 pub mod require_context;
 pub mod service_worker;
+pub mod synthetic_source;
 #[cfg(test)]
 mod tests;
 pub mod type_issue;
@@ -2559,16 +2560,31 @@ where
                     return Ok(());
                 }
             };
+            // The directory must be on the filesystem of the calling module, which it
+            // leaves with too many `../`.
+            let origin_dir = origin.into_trait_ref().await?.origin_path().parent();
+            if let Err(err) = origin_dir.join(&options.dir) {
+                let (args, _) = explain_args(args);
+                handler.span_err_with_code(
+                    span,
+                    &format!(
+                        "require.context({args}) can't be resolved: {}",
+                        PrettyPrintError(&err)
+                    ),
+                    DiagnosticId::Error(
+                        errors::failed_to_analyze::ecmascript::REQUIRE_CONTEXT.to_string(),
+                    ),
+                );
+                return Ok(());
+            }
 
             analysis.add_reference_code_gen(
                 RequireContextAssetReference::new(
-                    source,
                     origin,
                     options.dir,
                     options.include_subdirs,
                     options.filter.cell(),
                     Some(issue_source(source, span)),
-                    error_mode,
                 )
                 .await?,
                 analysis.intern_path(ast_path),
@@ -4487,8 +4503,12 @@ async fn require_context_visitor<'a>(
     origin_path: &FileSystemPath,
     args: BumpVec<'a, JsValue<'a>>,
 ) -> Result<JsValue<'a>> {
-    let options = match parse_require_context(&args) {
-        Ok(options) => options,
+    let parsed = parse_require_context(&args).and_then(|options| {
+        let dir = origin_path.parent().join(options.dir.as_str())?;
+        Ok((options, dir))
+    });
+    let (options, dir) = match parsed {
+        Ok(parsed) => parsed,
         Err(err) => {
             return Ok(JsValue::unknown(
                 JsValue::call_from_parts(
@@ -4502,20 +4522,16 @@ async fn require_context_visitor<'a>(
         }
     };
 
-    let dir = origin_path.parent().join(options.dir.as_str())?;
-
     let map = RequireContextMap::generate(
-        origin,
-        dir,
+        dir.clone(),
         options.include_subdirs,
         options.filter.cell(),
-        None,
-        ResolveErrorMode::Warn,
+        origin.into_trait_ref().await?.resolve_options(),
     );
 
     Ok(JsValue::WellKnownFunction(
         WellKnownFunctionKind::RequireContextRequire(Box::new(
-            RequireContextValue::from_context_map(map).await?,
+            RequireContextValue::from_context_map(map, &origin_path.parent(), &dir).await?,
         )),
     ))
 }
