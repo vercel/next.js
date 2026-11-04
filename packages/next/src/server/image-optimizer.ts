@@ -68,8 +68,6 @@ export { ImageError } from './image-optimizer/image-error'
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
 const CACHE_VERSION = 4
-const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
-const BLUR_QUALITY = 70 // should match `next-image-loader`
 
 async function initCacheEntries(
   cacheDir: string
@@ -107,7 +105,7 @@ export interface ImageParamsResult {
    * A dev-only blur placeholder request (`blur=1`) emitted by
    * `next-image-loader`. The response is an SVG that blurs the optimized image.
    */
-  isBlurPlaceholder: boolean
+  isDevBlurPlaceholder: boolean
 }
 
 function getSupportedMimeType(options: string[], accept = ''): string {
@@ -203,7 +201,7 @@ export class ImageOptimizerCache {
     const localPatterns = nextConfig.images?.localPatterns
     const qualities = nextConfig.images?.qualities
     const { url, w, q, blur } = query
-    const isBlurPlaceholder = isDev && blur === '1'
+    const isDevBlurPlaceholder = isDev && blur === '1'
     let href: string
 
     if (domains.length > 0) {
@@ -296,10 +294,9 @@ export class ImageOptimizerCache {
 
     const sizes = [...(deviceSizes || []), ...(imageSizes || [])]
 
-    const isValidSize =
-      sizes.includes(width) || (isBlurPlaceholder && width <= BLUR_IMG_SIZE)
-
-    if (!isValidSize) {
+    // Blur placeholders use the width and quality chosen by
+    // `next-image-loader`, not the configured `sizes` and `qualities`.
+    if (!isDevBlurPlaceholder && !sizes.includes(width)) {
       return {
         errorMessage: `"w" parameter (width) of ${width} is not allowed`,
       }
@@ -314,11 +311,7 @@ export class ImageOptimizerCache {
       }
     }
 
-    if (
-      qualities &&
-      !qualities.includes(quality) &&
-      !(isBlurPlaceholder && quality === BLUR_QUALITY)
-    ) {
+    if (!isDevBlurPlaceholder && qualities && !qualities.includes(quality)) {
       return {
         errorMessage: `"q" parameter (quality) of ${q} is not allowed`,
       }
@@ -341,7 +334,7 @@ export class ImageOptimizerCache {
       quality,
       mimeType,
       minimumCacheTTL,
-      isBlurPlaceholder,
+      isDevBlurPlaceholder,
     }
   }
 
@@ -350,13 +343,13 @@ export class ImageOptimizerCache {
     width,
     quality,
     mimeType,
-    isBlurPlaceholder,
+    isDevBlurPlaceholder,
   }: {
     href: string
     width: number
     quality: number
     mimeType: string
-    isBlurPlaceholder?: boolean
+    isDevBlurPlaceholder?: boolean
   }): string {
     // Only appended for placeholders so other cache keys stay unchanged.
     return getHash([
@@ -365,7 +358,7 @@ export class ImageOptimizerCache {
       width,
       quality,
       mimeType,
-      ...(isBlurPlaceholder ? ['blur'] : []),
+      ...(isDevBlurPlaceholder ? ['blur'] : []),
     ])
   }
 
@@ -1066,7 +1059,7 @@ export async function imageOptimizer(
   imageUpstream: ImageUpstream,
   paramsResult: Pick<
     ImageParamsResult,
-    'href' | 'width' | 'quality' | 'mimeType' | 'isBlurPlaceholder'
+    'href' | 'width' | 'quality' | 'mimeType' | 'isDevBlurPlaceholder'
   >,
   nextConfig: {
     experimental: Pick<
@@ -1127,7 +1120,10 @@ export async function imageOptimizer(
 
   // The transform keeps the upstream etag for images it passes through
   // unoptimized (SVG, animated, or failed). Those are served as-is.
-  if (paramsResult.isBlurPlaceholder && result.etag !== result.upstreamEtag) {
+  if (
+    paramsResult.isDevBlurPlaceholder &&
+    result.etag !== result.upstreamEtag
+  ) {
     const placeholder = await makeBlurPlaceholder(
       result.buffer,
       result.contentType

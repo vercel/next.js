@@ -65,7 +65,7 @@ async function optimizeBlurPlaceholder(
       width: 8,
       quality: 70,
       mimeType: 'image/webp',
-      isBlurPlaceholder: true,
+      isDevBlurPlaceholder: true,
     },
     config,
     { silent: true, previousCacheEntry }
