@@ -109,7 +109,6 @@ See [`images` configuration](/docs/app/api-reference/config/next-config-js/image
 
 | Field             | Type       | Description                                                                                                 |
 | ----------------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
-| `previousOutput`  | `object`   | A previously cached result (`{ buffer, maxAge?, etag, upstreamEtag }`). Returned instead of optimizing.     |
 | `logger`          | `object`   | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs.                    |
 | `handleDevOutput` | `function` | An async hook `(buffer, contentType) => ({ buffer, contentType })` that post-processes the optimized image. |
 
@@ -134,9 +133,8 @@ The function runs the following steps in order:
 4. Returns animated WebP, PNG, and GIF sources unoptimized, and calls `logger.warnOnce`.
 5. Returns SVG, ICO, ICNS, BMP, JXL, and HEIC sources unmodified.
 6. Selects the output type: `paramsResult.mimeType` when non-empty, `image/jpeg` for WebP or AVIF sources when no type is requested, otherwise the detected source type.
-7. Returns `opts.previousOutput` without optimizing when it is provided.
-8. Optimizes with [`optimizeImage`](#optimizeimage) using the `experimental.imgOpt*` values, then applies `opts.handleDevOutput` when provided.
-9. On failure, returns the upstream buffer and content type with `maxAge` set to `images.minimumCacheTTL` and the caught value on `result.error`. The failure does not throw.
+7. Optimizes with [`optimizeImage`](#optimizeimage) using the `experimental.imgOpt*` values, then applies `opts.handleDevOutput` when provided.
+8. On failure, returns the upstream buffer and content type with `maxAge` set to `images.minimumCacheTTL` and the caught value on `result.error`. The failure does not throw.
 
 ### optimizeImage
 
@@ -221,7 +219,6 @@ The error type thrown by `imageOptimizerTransform` for invalid input. `statusCod
 - The module intentionally imports very little so it loads quickly in a separate process, such as a worker or child process. Its file location and exports are a stable public contract.
 - The `contentType` field of `imageUpstream` is not used for detection. The content type is detected from the first bytes of the buffer.
 - Optimization failures do not throw. `imageOptimizerTransform` returns the upstream buffer with `error` set on the result.
-- Passing `previousOutput` skips sharp entirely, but the upstream buffer is still validated first.
 - Animated WebP, PNG, and GIF images are returned unoptimized. SVG, ICO, ICNS, BMP, JXL, and HEIC images are always passed through without optimization.
 
 ## Examples
@@ -312,44 +309,6 @@ const result = await imageOptimizerTransform(
 if (result.error) {
   // Optimization failed. result.buffer contains the upstream image.
 }
-```
-
-### Reusing a previously cached result
-
-Pass `previousOutput` to skip optimization when a cached result already exists.
-
-```ts filename="optimize.ts" switcher
-const result = await imageOptimizerTransform(
-  imageUpstream,
-  params,
-  nextConfig,
-  {
-    previousOutput: {
-      buffer: cachedBuffer,
-      maxAge: 90,
-      etag: 'optimized-etag',
-      upstreamEtag: 'source-etag',
-    },
-  }
-)
-// result.buffer === cachedBuffer, sharp is not invoked.
-```
-
-```js filename="optimize.js" switcher
-const result = await imageOptimizerTransform(
-  imageUpstream,
-  params,
-  nextConfig,
-  {
-    previousOutput: {
-      buffer: cachedBuffer,
-      maxAge: 90,
-      etag: 'optimized-etag',
-      upstreamEtag: 'source-etag',
-    },
-  }
-)
-// result.buffer === cachedBuffer, sharp is not invoked.
 ```
 
 ### Resizing directly with optimizeImage

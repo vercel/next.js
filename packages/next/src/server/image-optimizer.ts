@@ -52,6 +52,7 @@ import {
   type ImageUpstream,
 } from './image-optimizer/transform'
 import { extractEtag, getHash } from './image-optimizer/extract-etag'
+import { getMaxAge } from './image-optimizer/get-max-age'
 import { getPreviouslyCachedImageOrNull } from './image-optimizer/get-previously-cached-image-or-null'
 import { getImageSize } from './image-optimizer/get-image-size'
 import { ImageError } from './image-optimizer/image-error'
@@ -1078,21 +1079,30 @@ export async function imageOptimizer(
   upstreamEtag: string
   error?: unknown
 }> {
+  // If the upstream image is unchanged since the previous cache entry was
+  // optimized, re-running the transform would produce the same output.
   const previouslyCachedImage = getPreviouslyCachedImageOrNull(
     imageUpstream,
     opts.previousCacheEntry
   )
+  const previousContentType =
+    previouslyCachedImage && getContentType(previouslyCachedImage.extension)
+  if (previouslyCachedImage && previousContentType) {
+    return {
+      buffer: previouslyCachedImage.buffer,
+      contentType: previousContentType,
+      maxAge:
+        opts.previousCacheEntry?.cacheControl?.revalidate ||
+        Math.max(
+          nextConfig.images.minimumCacheTTL,
+          getMaxAge(imageUpstream.cacheControl)
+        ),
+      etag: previouslyCachedImage.etag,
+      upstreamEtag: previouslyCachedImage.upstreamEtag,
+    }
+  }
 
   return imageOptimizerTransform(imageUpstream, paramsResult, nextConfig, {
-    previousOutput: previouslyCachedImage
-      ? {
-          buffer: previouslyCachedImage.buffer,
-          maxAge:
-            opts.previousCacheEntry?.cacheControl?.revalidate || undefined,
-          etag: previouslyCachedImage.etag,
-          upstreamEtag: previouslyCachedImage.upstreamEtag,
-        }
-      : undefined,
     logger: opts.silent ? undefined : Log,
     handleDevOutput:
       opts.isDev &&

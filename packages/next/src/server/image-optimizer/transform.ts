@@ -68,12 +68,6 @@ export interface ImageOptimizerTransformLogger {
 }
 
 export interface ImageOptimizerTransformOptions {
-  previousOutput?: {
-    buffer: Buffer
-    maxAge?: number
-    etag: string
-    upstreamEtag: string
-  }
   logger?: ImageOptimizerTransformLogger
   handleDevOutput?: (
     buffer: Buffer,
@@ -268,16 +262,6 @@ export async function imageOptimizerTransform(
     contentType = JPEG
   } else {
     contentType = upstreamType
-  }
-
-  if (opts.previousOutput) {
-    return {
-      buffer: opts.previousOutput.buffer,
-      contentType,
-      maxAge: opts.previousOutput.maxAge || maxAge,
-      etag: opts.previousOutput.etag,
-      upstreamEtag: opts.previousOutput.upstreamEtag,
-    }
   }
 
   try {
