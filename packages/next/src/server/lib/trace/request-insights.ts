@@ -57,7 +57,6 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.fetch.idx',
   'next.route',
   'next.request_insights.omitted_spans',
-  'next.request_source',
   'next.rsc',
   'next.segment',
   'next.span_category',
@@ -474,13 +473,6 @@ function getSourceFromSpan(
   }
 
   const spanType = getStringAttribute(span.attributes?.['next.span_type'])
-  const markedSource = getStringAttribute(
-    span.attributes?.['next.request_source']
-  )
-  if (markedSource === 'image' || markedSource === 'asset') {
-    return markedSource
-  }
-
   if (spanType === 'AppRouteRouteHandlers.runHandler') {
     return 'app-route'
   }
