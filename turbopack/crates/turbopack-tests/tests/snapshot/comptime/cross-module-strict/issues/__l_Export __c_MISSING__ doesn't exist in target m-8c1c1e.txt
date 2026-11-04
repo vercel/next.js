@@ -1,4 +1,4 @@
-error - [bindings] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-strict/input/index.js:1:0  Export MISSING doesn't exist in target module
+error - [bindings] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-strict/input/index.js:1:1  Export MISSING doesn't exist in target module
   
          + v--------------------------------------------------------v
        1 + import { SOME_VALUE, NO_CONSTANT, MISSING } from './other'
