@@ -60,11 +60,14 @@ export function parseDevServerInfo(content: string): DevServerInfo | undefined {
   }
 }
 
-export interface AcquireWithRetriesOrExitOptions {
+export interface TryAcquireOptions {
   /** Whether to unlock the file on process exit. Defaults to `true`. */
   unlockOnExit?: boolean
   /** Content to write to the lockfile (e.g., JSON with server info). */
   content?: string
+}
+
+export interface AcquireWithRetriesOrExitOptions extends TryAcquireOptions {
   /** Project directory, used for enhanced error messages. */
   projectDir?: string
   /** Relative dist directory path (e.g., '.next/dev'). */
@@ -123,13 +126,10 @@ export class Lockfile {
    * - I/O failures throw an error with the lockfile path and filesystem error message.
    *
    * @param path - Path to the lock file
-   * @param unlockOnExit - Whether to unlock the file on process exit
-   * @param content - Optional content to write to the lockfile (e.g., JSON with server info)
    */
   static tryAcquire(
     path: string,
-    unlockOnExit: boolean = true,
-    content?: string
+    { unlockOnExit = true, content }: TryAcquireOptions = {}
   ): Lockfile | undefined {
     const bindings = getBindingsSync()
     if (bindings.isWasm) {
@@ -200,7 +200,7 @@ export class Lockfile {
     let lastError: LockfileError | undefined
     while (Date.now() - startMs < MAX_RETRY_MS) {
       try {
-        lockfile = Lockfile.tryAcquire(path, unlockOnExit, content)
+        lockfile = Lockfile.tryAcquire(path, { unlockOnExit, content })
         lastError = undefined
       } catch (error) {
         if (!(error instanceof LockfileError) || !error.transient) throw error
