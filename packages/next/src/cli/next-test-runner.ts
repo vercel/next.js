@@ -1232,6 +1232,15 @@ export async function nextTestRunner(
       }
       controller.signal.throwIfAborted()
       await machine.initialize({ signal: controller.signal })
+      if (machine.captureRunStart) {
+        await machine.beginRun(
+          projects,
+          specificationOrder.filter((id) =>
+            entries.some((entry) => entry.id === id)
+          )
+        )
+        controller.signal.throwIfAborted()
+      }
       if (machine.captureModuleStart && !preparePublicSnapshots)
         throw new Error(
           'Module Start reporters require one isolated ordinary JavaScript file with actual public snapshot preparation and JSON output.'

@@ -13,6 +13,7 @@ import {
   createQueuedReporterModule,
 } from './custom-reporter-live-tasks'
 import type { ReporterTaskSnapshot } from './live-tasks'
+import { createReporterRunSpecifications } from './custom-reporter-specifications'
 import { pathToFileURL } from 'node:url'
 import { extname, isAbsolute, sep } from 'node:path'
 import { register } from 'node:module'
@@ -26,6 +27,7 @@ import { types as nodeTypes } from 'node:util'
 
 type Reporter = {
   onInit?(context: unknown): unknown
+  onTestRunStart?(specifications: unknown[]): unknown
   onWatcherRerun?(files: string[], trigger?: string): unknown
   onWatcherStart?(files?: unknown[]): unknown
   onTestRemoved?(file: string): unknown
@@ -37,6 +39,7 @@ type Reporter = {
   onTestCaseResult?(test: unknown): unknown
   onTestRunEnd?(modules: unknown[], errors: unknown[], reason: string): unknown
 }
+const applyReporterCallback = Reflect.apply
 let reporters: Reporter[] = []
 const closeCallbacks: (() => unknown)[] = []
 const retainedFinishCallbacks: Promise<PromiseSettledResult<unknown>[]>[] = []
@@ -46,6 +49,9 @@ let queuedProjectRoot: string
 let initialized = false
 let finished = false
 let watching = false
+let runSpecifications:
+  | ReturnType<typeof createReporterRunSpecifications>
+  | undefined
 const watchTrees = new Map<string, ReporterTaskSnapshot>()
 let watchEntryIds: string[] = []
 const consoleErrors: unknown[] = []
@@ -129,6 +135,23 @@ function prepareReportedModules<T>(modules: T[]): T[] {
   return modules
 }
 
+function hasPotentialRunHook(
+  reporter: Reporter,
+  name: 'onTestRunStart' | 'onTestModuleStart'
+): boolean {
+  let current: object | null = reporter
+  while (current !== null) {
+    // Descriptor inspection must not invoke an authored callback getter.
+    if (nodeTypes.isProxy(current)) return true
+    const descriptor = Reflect.getOwnPropertyDescriptor(current, name)
+    if (descriptor)
+      return 'value' in descriptor
+        ? descriptor.value !== undefined && descriptor.value !== null
+        : typeof descriptor.get === 'function'
+    current = Reflect.getPrototypeOf(current)
+  }
+  return false
+}
 function hasPotentialCompletionHook(reporter: Reporter): boolean {
   let current: object | null = reporter
   while (current !== null) {
@@ -371,6 +394,7 @@ async function handle(message: any) {
               /^on[A-Z]/.test(name) &&
               !(
                 [
+                  'onTestRunStart',
                   'onTestModuleQueued',
                   'onTestModuleCollected',
                   'onTestModuleStart',
@@ -401,26 +425,80 @@ async function handle(message: any) {
       )
       await send({
         type: 'custom-reporter-result',
+        captureRunStart:
+          !watching &&
+          reporters.some((reporter) =>
+            hasPotentialRunHook(reporter, 'onTestRunStart')
+          ),
         captureModuleStart: reporters.some(
           (reporter) => typeof reporter.onTestModuleStart === 'function'
         ),
-        captureModuleCollected: reporters.some(
-          (reporter) =>
-            typeof reporter.onTestModuleCollected === 'function' ||
-            typeof reporter.onTestModuleStart === 'function'
+        captureModuleCollected:
+          (!watching &&
+            reporters.some((reporter) =>
+              hasPotentialRunHook(reporter, 'onTestRunStart')
+            )) ||
+          reporters.some(
+            (reporter) =>
+              typeof reporter.onTestModuleCollected === 'function' ||
+              typeof reporter.onTestModuleStart === 'function'
+          ),
+        captureModuleQueued:
+          (!watching &&
+            reporters.some((reporter) =>
+              hasPotentialRunHook(reporter, 'onTestRunStart')
+            )) ||
+          reporters.some(
+            (reporter) => typeof reporter.onTestModuleQueued === 'function'
+          ),
+        captureTaskResults:
+          (!watching &&
+            reporters.some((reporter) =>
+              hasPotentialRunHook(reporter, 'onTestRunStart')
+            )) ||
+          reporters.some(
+            (reporter) =>
+              typeof reporter.onTestModuleCollected === 'function' ||
+              typeof reporter.onTestModuleStart === 'function' ||
+              typeof reporter.onTestCaseResult === 'function' ||
+              typeof reporter.onTestModuleEnd === 'function' ||
+              hasPotentialCompletionHook(reporter) ||
+              (watching && typeof reporter.onWatcherStart === 'function')
+          ),
+      })
+      return
+    }
+    if (message.type === 'run-start' && initialized && !finished) {
+      if (watching || runSpecifications || queuedEntryIds.size)
+        throw new Error(
+          'Run Start requires its actual first selected boundary.'
+        )
+      if (!Array.isArray(message.specifications))
+        throw new Error('Run Start requires actual selected specifications.')
+      runSpecifications = createReporterRunSpecifications(
+        message.specifications,
+        (id) => completedModules.get(id) ?? live.getSelectedModule(id)
+      )
+      // The list is a callback copy. Each selected specification remains shared.
+      const specifications = [...runSpecifications.specifications]
+      await Promise.all(
+        reporters.map((reporter) => {
+          const callback = reporter.onTestRunStart
+          if (callback !== undefined && callback !== null)
+            return applyReporterCallback(callback, reporter, [specifications])
+          return undefined
+        })
+      )
+      runSpecifications.assertUnchangedSelection()
+      await send({
+        type: 'custom-reporter-result',
+        captureModuleStart: reporters.some((reporter) =>
+          hasPotentialRunHook(reporter, 'onTestModuleStart')
         ),
-        captureModuleQueued: reporters.some(
-          (reporter) => typeof reporter.onTestModuleQueued === 'function'
-        ),
-        captureTaskResults: reporters.some(
-          (reporter) =>
-            typeof reporter.onTestModuleCollected === 'function' ||
-            typeof reporter.onTestModuleStart === 'function' ||
-            typeof reporter.onTestCaseResult === 'function' ||
-            typeof reporter.onTestModuleEnd === 'function' ||
-            hasPotentialCompletionHook(reporter) ||
-            (watching && typeof reporter.onWatcherStart === 'function')
-        ),
+        // Retained specifications keep following the actual queued/current File.
+        captureModuleCollected: true,
+        captureModuleQueued: true,
+        captureTaskResults: true,
       })
       return
     }
@@ -678,7 +756,11 @@ async function handle(message: any) {
           )
         ) ??
         prepareReportedModules(
-          createCustomReporterModules(root, completion)
+          createCustomReporterModules(
+            root,
+            completion,
+            runSpecifications?.projectForEntry
+          )
         ).find((item) => item.id === message.entryId)
       if (!module)
         throw new Error(
@@ -711,12 +793,18 @@ async function handle(message: any) {
       const completion: CustomReporterCompletion = message.completion
       if (watching) watchEntryIds = completion.files.map((file) => file.entryId)
       const modules = prepareReportedModules(
-        createCustomReporterModules(root, completion)
+        createCustomReporterModules(
+          root,
+          completion,
+          runSpecifications?.projectForEntry
+        )
       ).map((module) =>
         preparedEntryIds.has(module.id)
           ? (live.get(module.id) ?? module)
           : (completedModules.get(module.id) ?? module)
       )
+      if (runSpecifications)
+        for (const module of modules) completedModules.set(module.id, module)
       const preparationErrors = new Map(
         (completion.snapshotPreparationFailures ?? []).flatMap((record) =>
           record.diagnosticEventIndex !== undefined &&
@@ -807,11 +895,16 @@ process.on('message', (message: any) => {
         (entry.projectName !== undefined &&
           typeof entry.projectName !== 'string') ||
         queuedEntryIds.has(entry.id) ||
-        !reporters.some((reporter) => reporter.onTestModuleQueued)
+        (!runSpecifications &&
+          !reporters.some((reporter) => reporter.onTestModuleQueued))
       )
         throw new Error('Invalid selected module queue occurrence.')
+      if (runSpecifications && !runSpecifications.matchesEntry(entry))
+        throw new Error('Queued module is outside its selected Run Start.')
       queuedEntryIds.add(entry.id)
-      const module = createQueuedReporterModule(queuedProjectRoot, entry)
+      const module = runSpecifications
+        ? live.queue(entry, runSpecifications.projectForEntry(entry.id))
+        : createQueuedReporterModule(queuedProjectRoot, entry)
       queuedCallbacks.push(
         settle(
           reporters.map(
@@ -843,10 +936,11 @@ process.on('message', (message: any) => {
         if (
           watching ||
           collectedEntryIds.has(message.taskTree.id) ||
-          !reporters.some(
-            (reporter) =>
-              reporter.onTestModuleCollected || reporter.onTestModuleStart
-          )
+          (!runSpecifications &&
+            !reporters.some(
+              (reporter) =>
+                reporter.onTestModuleCollected || reporter.onTestModuleStart
+            ))
         )
           throw new Error('Invalid actual module collection occurrence.')
         if (reporters.some((reporter) => reporter.onTestModuleStart)) {

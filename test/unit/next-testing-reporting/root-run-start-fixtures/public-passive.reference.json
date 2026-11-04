@@ -1,0 +1,189 @@
+{
+  "referenceRoot": "/private/tmp/next-testing-root-run-start-public-pair-20261104/v3/genuine/project",
+  "rawTrace": [
+    {
+      "kind": "init",
+      "reads": 0
+    },
+    {
+      "kind": "get-start",
+      "reads": 1
+    },
+    {
+      "kind": "start",
+      "argc": 1,
+      "receiver": true,
+      "array": true,
+      "arrayFrozen": false,
+      "specifications": [
+        {
+          "taskId": "-873429558",
+          "moduleId": "/private/tmp/next-testing-root-run-start-public-pair-20261104/v3/genuine/project/public-passive.test.mjs",
+          "pool": "forks",
+          "projectName": "passive-public",
+          "projectRoot": "/private/tmp/next-testing-root-run-start-public-pair-20261104/v3/genuine/project",
+          "ownPublicKeys": [
+            ["taskId", true],
+            ["project", true],
+            ["moduleId", true],
+            ["pool", true],
+            ["testLines", true],
+            ["testNamePattern", true],
+            ["testIds", true],
+            ["testTagsFilter", true]
+          ],
+          "testModuleUndefined": true,
+          "descriptors": {
+            "taskId": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "accessor": false
+            },
+            "project": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "accessor": false
+            },
+            "moduleId": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "accessor": false
+            },
+            "pool": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "accessor": false
+            },
+            "testLines": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "accessor": false
+            },
+            "testNamePattern": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "accessor": false
+            },
+            "testIds": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "accessor": false
+            },
+            "testTagsFilter": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "accessor": false
+            }
+          },
+          "serialized": [
+            {
+              "name": "passive-public",
+              "root": "/private/tmp/next-testing-root-run-start-public-pair-20261104/v3/genuine/project"
+            },
+            "/private/tmp/next-testing-root-run-start-public-pair-20261104/v3/genuine/project/public-passive.test.mjs",
+            {
+              "pool": "forks"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "start-finished"
+    },
+    {
+      "kind": "evaluate",
+      "startFinished": true
+    },
+    {
+      "kind": "body",
+      "startFinished": true
+    },
+    {
+      "kind": "end",
+      "argc": 3,
+      "reads": 1,
+      "reason": "passed",
+      "errors": [],
+      "modules": [
+        {
+          "id": "-873429558",
+          "relativeModuleId": "public-passive.test.mjs",
+          "state": "passed",
+          "errors": [],
+          "tests": [
+            {
+              "name": "actual passive Run Start body",
+              "fullName": "actual passive Run Start body",
+              "state": "passed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "close",
+      "reads": 1
+    }
+  ],
+  "rawReport": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "snapshot": {
+      "added": 0,
+      "failure": false,
+      "filesAdded": 0,
+      "filesRemoved": 0,
+      "filesRemovedList": [],
+      "filesUnmatched": 0,
+      "filesUpdated": 0,
+      "matched": 0,
+      "total": 0,
+      "unchecked": 0,
+      "uncheckedKeysByFile": [],
+      "unmatched": 0,
+      "updated": 0,
+      "didUpdate": false
+    },
+    "startTime": 1793800851856,
+    "success": true,
+    "testResults": [
+      {
+        "assertionResults": [
+          {
+            "ancestorTitles": [],
+            "fullName": "actual passive Run Start body",
+            "status": "passed",
+            "title": "actual passive Run Start body",
+            "duration": 0.7108339999999984,
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ],
+        "startTime": 1793800851958,
+        "endTime": 1793800851958.711,
+        "status": "passed",
+        "message": "",
+        "name": "/private/tmp/next-testing-root-run-start-public-pair-20261104/v3/genuine/project/public-passive.test.mjs"
+      }
+    ]
+  },
+  "referenceExitCode": 0
+}

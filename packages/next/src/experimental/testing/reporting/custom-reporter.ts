@@ -1,3 +1,4 @@
+import type { ReporterRunSpecification } from './custom-reporter-specifications'
 import type { SnapshotPreparationFailure } from '../execution/snapshot-preparation'
 import { resolve as resolvePath, extname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -120,6 +121,7 @@ export async function openCustomReporters(options: {
     | undefined
   let terminalWatchFailure = false
   let watchHookError: Error | undefined
+  let captureRunStart = false
   let captureTaskResults = false
   let captureModuleQueued = false
   let captureModuleCollected = false
@@ -304,6 +306,8 @@ export async function openCustomReporters(options: {
         throw new Error(
           'Completion failure received a successful final response.'
         )
+      if (message.captureRunStart !== undefined)
+        captureRunStart = message.captureRunStart === true
       if (message.captureModuleStart !== undefined)
         captureModuleStart = message.captureModuleStart === true
       if (message.captureModuleCollected !== undefined)
@@ -491,6 +495,16 @@ export async function openCustomReporters(options: {
   try {
     await loaded
     return {
+      get captureRunStart() {
+        return captureRunStart
+      },
+      async beginRun(specifications: readonly ReporterRunSpecification[]) {
+        if (!captureRunStart || options.watch || closing || closed)
+          throw new Error('Run Start reporter session is unavailable.')
+        await consoleQueue
+        if (consoleFailure) throw consoleFailure
+        await request({ type: 'run-start', specifications })
+      },
       get captureModuleStart() {
         return captureModuleStart
       },

@@ -93,17 +93,21 @@ export type QueuedReporterEntry = Pick<TestEntry, 'id' | 'file' | 'projectName'>
 /** The selected file exists; no collected declaration or result exists yet. */
 export function createQueuedReporterModule(
   projectDir: string,
-  entry: QueuedReporterEntry
+  entry: QueuedReporterEntry,
+  project: View['project'] = { name: entry.projectName ?? '' }
 ) {
+  const meta: ReporterTaskSnapshot['meta'] = {}
   return {
     type: 'module' as const,
     id: entry.id,
     moduleId: entry.file,
     relativeModuleId: relative(projectDir, entry.file).split(sep).join('/'),
-    project: { name: entry.projectName ?? '' },
+    project,
     children: new Collection([]),
     state: () => 'pending' as const,
     errors: (): unknown[] => [],
+    ok: () => true,
+    meta: () => meta,
   }
 }
 
@@ -142,6 +146,13 @@ interface Retained {
 
 /** Stable views follow actual producer snapshots; pending declarations are never guessed. */
 export function createLiveReporterTaskStore(projectDir: string) {
+  const queued = new Map<
+    string,
+    {
+      entry: QueuedReporterEntry
+      view: ReturnType<typeof createQueuedReporterModule>
+    }
+  >()
   const modules = new Map<string, View>()
   const tasks = new Map<string, Retained>()
   const fileOutcomes = new Map<string, { state: State; errors: unknown[] }>()
@@ -208,7 +219,14 @@ export function createLiveReporterTaskStore(projectDir: string) {
       }
       return false
     }
-    const project = { name: tree.projectName ?? '' }
+    const selected = queued.get(tree.id)
+    if (
+      selected &&
+      (tree.filepath !== selected.entry.file ||
+        (tree.projectName ?? '') !== (selected.entry.projectName ?? ''))
+    )
+      throw new Error('Collected module differs from its selected queue entry.')
+    const project = selected?.view.project ?? { name: tree.projectName ?? '' }
     const created = new Set<string>()
     function allocate(value: ReporterTaskSnapshot): View {
       const isRoot = value === tree
@@ -330,6 +348,22 @@ export function createLiveReporterTaskStore(projectDir: string) {
     return module
   }
   return {
+    /** An actual queue occurrence has no captured declaration or outcome yet. */
+    queue(entry: QueuedReporterEntry, project?: View['project']) {
+      if (queued.has(entry.id) || modules.has(entry.id))
+        throw new Error(
+          'Selected reporter module was already queued or collected.'
+        )
+      if (project && project.name !== (entry.projectName ?? ''))
+        throw new Error('Queued reporter module has another selected project.')
+      const view = createQueuedReporterModule(projectDir, entry, project)
+      queued.set(entry.id, { entry: { ...entry }, view })
+      return view
+    },
+    /** A specification follows the currently registered module for its entry. */
+    getSelectedModule(entryId: string) {
+      return modules.get(entryId) ?? queued.get(entryId)?.view
+    },
     update,
     updatePacks(entryId: string, packs: ReporterTaskPack[]) {
       if (!modules.has(entryId))

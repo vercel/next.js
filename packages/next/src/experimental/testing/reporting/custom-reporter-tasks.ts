@@ -173,7 +173,8 @@ export function getActualBrowserRootErrors(
 /** Final task views come from retained producer events, never replayed hooks. */
 export function createCustomReporterModules(
   projectDir: string,
-  completion: CustomReporterCompletion
+  completion: CustomReporterCompletion,
+  projectForEntry?: (entryId: string) => { name: string } | undefined
 ): Task[] {
   const specificationOrder = completion.events.find(
     (event) => event.type === 'run-start'
@@ -188,7 +189,9 @@ export function createCustomReporterModules(
       (suite) => suite.suiteId === entry.id && suite.entryId === entry.id
     )
     const actualErrors = getActualBrowserRootErrors(entry.id, completion)
-    const project = { name: entry.projectName ?? entry.profile.id }
+    const project = projectForEntry?.(entry.id) ?? {
+      name: entry.projectName ?? entry.profile.id,
+    }
     const rootChildren: Task[] = []
     const fileErrors = [
       ...(actualErrors ?? rootResult?.errors ?? []),

@@ -1,3 +1,5 @@
+import type { DiscoveredTestProject } from '../discovery'
+import { selectReporterRunSpecifications } from './custom-reporter-specifications'
 import {
   assertJUnitSuiteObservation,
   formatJUnitSuiteError,
@@ -1081,6 +1083,24 @@ export function createMachineReporter(options: {
   }
   return {
     initialize,
+    get captureRunStart() {
+      return custom?.captureRunStart === true
+    },
+    async beginRun(
+      projects: readonly DiscoveredTestProject[],
+      specificationOrder: readonly string[]
+    ) {
+      if (!initialized)
+        throw new Error('Custom reporters must initialize before Run Start.')
+      if (!custom?.captureRunStart) return
+      await custom.beginRun(
+        selectReporterRunSpecifications(
+          options.projectDir,
+          projects,
+          specificationOrder
+        )
+      )
+    },
     get captureModuleStart() {
       return custom?.captureModuleStart === true
     },

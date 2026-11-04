@@ -10250,3 +10250,322 @@ it.each([
   },
   20000
 )
+
+describe('selected Run Start reporter specifications', () => {
+  const projectRoot = join(tmpdir(), 'next-root-run-start-project')
+  const firstFile = join(projectRoot, 'a.test.mjs')
+  const secondFile = join(projectRoot, 'b.test.mjs')
+  const changedFile = join(projectRoot, 'changed.test.mjs')
+  const facts = [
+    {
+      entryId: 'alpha:a',
+      moduleId: firstFile,
+      projectId: 'alpha',
+      projectName: 'alpha',
+      root: projectRoot,
+      pool: 'forks' as const,
+    },
+    {
+      entryId: 'alpha:b',
+      moduleId: secondFile,
+      projectId: 'alpha',
+      projectName: 'alpha',
+      root: projectRoot,
+      pool: 'forks' as const,
+    },
+    {
+      entryId: 'beta:a',
+      moduleId: firstFile,
+      projectId: 'beta',
+      projectName: 'beta',
+      root: projectRoot,
+      pool: 'forks' as const,
+    },
+  ]
+
+  it('uses selected module/profile facts in the supplied specification order', async () => {
+    const { selectReporterRunSpecifications } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+    )
+    const projects = ['alpha', 'beta'].map((name) => {
+      const profile = {
+        id: name,
+        environment: 'node' as const,
+        mode: 'development' as const,
+        runtime: 'nodejs' as const,
+        bundler: 'turbopack' as const,
+      }
+      return {
+        profile,
+        entries: facts
+          .filter((fact) => fact.projectId === name)
+          .map((fact) => ({
+            id: fact.entryId,
+            file: fact.moduleId,
+            projectName: fact.projectName,
+            profile,
+          })),
+        include: [],
+        exclude: [],
+        setupFiles: [],
+      }
+    }) as unknown as Parameters<typeof selectReporterRunSpecifications>[1]
+    expect(
+      selectReporterRunSpecifications(projectRoot, projects, [
+        'beta:a',
+        'alpha:b',
+        'alpha:a',
+      ])
+    ).toEqual([facts[2], facts[1], facts[0]])
+    expect(() =>
+      selectReporterRunSpecifications(projectRoot, projects, [
+        'alpha:a',
+        'alpha:a',
+        'beta:a',
+      ])
+    ).toThrow('Run Start requires its actual selected specification order.')
+    expect(selectReporterRunSpecifications(projectRoot, [], [])).toEqual([])
+  })
+
+  it('retains the genuine public field descriptors and undefined selector keys', async () => {
+    const { createReporterRunSpecifications } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+    )
+    const views = createReporterRunSpecifications(facts, () => undefined)
+    const spec = views.specifications[0]
+    const keys = [
+      'taskId',
+      'project',
+      'moduleId',
+      'pool',
+      'testLines',
+      'testNamePattern',
+      'testIds',
+      'testTagsFilter',
+    ]
+    expect(Reflect.ownKeys(spec)).toEqual(keys)
+    expect(Object.isFrozen(spec)).toBe(false)
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(spec, key)!
+      expect(descriptor.enumerable).toBe(true)
+      expect(descriptor.configurable).toBe(true)
+      expect(descriptor.writable).toBe(true)
+    }
+    expect(Object.hasOwn(spec, 'testModule')).toBe(false)
+    expect(spec.testModule).toBeUndefined()
+    expect(spec.toJSON()).toEqual([
+      { name: 'alpha', root: projectRoot },
+      firstFile,
+      {
+        pool: 'forks',
+        testLines: undefined,
+        testIds: undefined,
+        testNamePattern: undefined,
+        testTagsFilter: undefined,
+      },
+    ])
+    expect(Object.keys(spec.toJSON()[2])).toEqual([
+      'pool',
+      'testLines',
+      'testIds',
+      'testNamePattern',
+      'testTagsFilter',
+    ])
+  })
+
+  it('shares each actual project and resolves the current module lazily by entry ID', async () => {
+    const { createReporterRunSpecifications } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+    )
+    const current = new Map<string, unknown>()
+    const reads: string[] = []
+    const views = createReporterRunSpecifications(facts, (entryId) => {
+      reads.push(entryId)
+      return current.get(entryId)
+    })
+    expect(reads).toEqual([])
+    const [first, sameProject, otherProject] = views.specifications
+    expect(first.project).toBe(sameProject.project)
+    expect(first.project).not.toBe(otherProject.project)
+    expect(views.projectForEntry('alpha:a')).toBe(first.project)
+    expect(views.projectForEntry('missing')).toBeUndefined()
+    const initialToken = Object.freeze({ token: 'first resolver value' })
+    const currentToken = Object.freeze({ token: 'new resolver value' })
+    expect(first.testModule).toBeUndefined()
+    current.set('alpha:a', initialToken)
+    expect(first.testModule).toBe(initialToken)
+    current.set('alpha:a', currentToken)
+    expect(first.testModule).toBe(currentToken)
+    expect(otherProject.testModule).toBeUndefined()
+    expect(reads).toEqual(['alpha:a', 'alpha:a', 'alpha:a', 'beta:a'])
+    expect(
+      views.matchesEntry({
+        id: 'alpha:a',
+        file: firstFile,
+        projectName: 'alpha',
+      })
+    ).toBe(true)
+    expect(
+      views.matchesEntry({
+        id: 'alpha:a',
+        file: changedFile,
+        projectName: 'alpha',
+      })
+    ).toBe(false)
+    expect(() => views.assertUnchangedSelection()).not.toThrow()
+  })
+
+  it.each([
+    ['testNamePattern', /other a/],
+    ['testIds', []],
+    ['testLines', [6]],
+    ['testTagsFilter', ['missing-tag']],
+    ['moduleId', changedFile],
+    ['project', { name: 'changed', config: { root: '/changed' } }],
+  ] as const)(
+    'keeps the passive adapter limit explicit for mutation %s',
+    async (key, value) => {
+      const { createReporterRunSpecifications } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+      )
+      const views = createReporterRunSpecifications(facts, () => undefined)
+      Object.defineProperty(views.specifications[0], key, { value })
+      expect(() => views.assertUnchangedSelection()).toThrow(
+        'Custom reporter specification mutation requires a Next selection adapter and is not implemented.'
+      )
+    }
+  )
+  it.each(['browser', 'shared', 'typecheck'] as const)(
+    'ignores an unselected %s project and rejects its actual selected spec',
+    async (kind) => {
+      const { selectReporterRunSpecifications } = await import(
+        'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+      )
+      const profile = {
+        id: 'unsupported',
+        environment: kind === 'browser' ? 'browser' : 'node',
+        mode: 'development',
+        runtime: 'nodejs',
+        bundler: 'turbopack',
+      }
+      const project = {
+        profile,
+        entries: [],
+        include: [],
+        exclude: [],
+        setupFiles: [],
+        ...(kind === 'shared' ? { isolate: false } : {}),
+        ...(kind === 'typecheck' ? { typecheck: { enabled: true } } : {}),
+      }
+      const empty = [project] as unknown as Parameters<
+        typeof selectReporterRunSpecifications
+      >[1]
+      expect(selectReporterRunSpecifications(projectRoot, empty, [])).toEqual(
+        []
+      )
+      const selected = [
+        {
+          ...project,
+          entries: [{ id: 'unsupported:a', file: firstFile, profile }],
+        },
+      ] as unknown as Parameters<typeof selectReporterRunSpecifications>[1]
+      expect(() =>
+        selectReporterRunSpecifications(projectRoot, selected, [
+          'unsupported:a',
+        ])
+      ).toThrow(
+        'Run Start reporters require one-shot isolated ordinary Node execution.'
+      )
+    }
+  )
+})
+
+describe('actual Run Start reporter worker occurrences', () => {
+  it.each([
+    'passive',
+    'empty',
+    'getter-throw',
+    'sync-throw',
+    'async-reject',
+    'async-barrier',
+    'mutate-array',
+    'mutate-pattern',
+    'mutate-ids',
+    'mutate-lines',
+    'mutate-tags',
+    'mutate-module',
+    'mutate-project',
+    'remove-start',
+  ])(
+    'checks real owned worker IPC for %s',
+    async (role) => {
+      const directory = await mkdtemp(join(tmpdir(), 'next-root-run-start-'))
+      try {
+        const { runOwnedNode, assertOwnedNodeCompleted } = await import(
+          '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+        )
+        const result = await runOwnedNode(
+          [join(__dirname, 'root-run-start-worker.cjs'), directory, role],
+          {
+            cwd: process.cwd(),
+            env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
+            auditDir: join(directory, 'processes'),
+            timeoutMs: 15000,
+          }
+        )
+        assertOwnedNodeCompleted(result, `Run Start worker ${role}`)
+        if (result.status !== 0)
+          throw new Error([result.stdout, result.stderr].join('\n'))
+        const receipt = JSON.parse(result.stdout)
+        expect(receipt.success).toBe(true)
+        expect(receipt.firstGetterReads).toBe(1)
+        expect(receipt.secondGetterReads).toBe(
+          ['getter-throw', 'sync-throw'].includes(role) ? 0 : 1
+        )
+        expect(receipt.nativeAttempts).toBe(0)
+        expect(receipt.compilerAttempts).toBe(0)
+        expect(receipt.ownedTargetAbsent).toBe(true)
+        if (process.platform !== 'win32') expect(receipt.groupAbsent).toBe(true)
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+    20000
+  )
+})
+
+describe('actual passive public Run Start contract', () => {
+  it('preserves one actual passive public CLI Run Start profile', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'next-run-start-public-'))
+    let passed = false
+    try {
+      const observed = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [join(__dirname, 'root-run-start-public-passive.cjs'), directory],
+          { encoding: 'utf8', timeout: 100000 }
+        )
+      )
+      expect(observed).toMatchObject({
+        actualNextCLI: true,
+        status: 0,
+        traceEqual: true,
+        completeJSONEqual: true,
+        validatedNextExtension: true,
+        wholeModelEqual: true,
+        originalFixturesHeld: true,
+        fieldDropping: false,
+      })
+      passed = true
+    } finally {
+      if (passed) {
+        // Keep the complete trace/report and process receipts for qualification.
+        await rm(join(directory, 'project'), { recursive: true, force: true })
+        await rm(join(directory, 'cache'), { recursive: true, force: true })
+      } else
+        console.error(
+          'Retained actual Run Start public comparison at ' + directory
+        )
+    }
+  }, 110000)
+})
