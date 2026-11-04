@@ -1330,6 +1330,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::Member {
                     mut obj,
                     mut prop,
+                    base_effects,
                     ast_path,
                     span,
                     in_truthiness_context,
@@ -1342,7 +1343,7 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
 
-                    handle_membership(
+                    let replaced = handle_membership(
                         &ast_path,
                         obj,
                         prop,
@@ -1354,6 +1355,9 @@ async fn analyze_ecmascript_module_internal(
                         },
                     )
                     .await?;
+                    if !replaced {
+                        add_effects(&mut queue_stack, BumpVec::from(base_effects));
+                    }
                 }
                 Effect::DestructuredMember {
                     mut obj,
@@ -1395,6 +1399,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::In {
                     mut left,
                     mut right,
+                    effects,
                     ast_path,
                     span,
                 } => {
@@ -1406,7 +1411,7 @@ async fn analyze_ecmascript_module_internal(
                         .link_value(take(&mut *left), ImportAttributes::empty_ref())
                         .await?;
 
-                    handle_membership(
+                    let replaced = handle_membership(
                         &ast_path,
                         right,
                         left,
@@ -1416,6 +1421,9 @@ async fn analyze_ecmascript_module_internal(
                         MembershipType::In,
                     )
                     .await?;
+                    if !replaced {
+                        add_effects(&mut queue_stack, BumpVec::from(effects));
+                    }
                 }
                 Effect::ImportedBinding {
                     esm_reference_index,
@@ -1532,6 +1540,7 @@ async fn analyze_ecmascript_module_internal(
                 }
                 Effect::TypeOf {
                     mut arg,
+                    effects,
                     ast_path,
                     span,
                 } => {
@@ -1542,7 +1551,9 @@ async fn analyze_ecmascript_module_internal(
                     let arg = analysis_state
                         .link_value(take(&mut *arg), ImportAttributes::empty_ref())
                         .await?;
-                    handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
+                    if !handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await? {
+                        add_effects(&mut queue_stack, BumpVec::from(effects));
+                    }
                 }
                 Effect::ImportMeta { ast_path, span: _ } => {
                     debug_assert!(
@@ -3643,7 +3654,7 @@ async fn handle_membership<'a>(
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     ty: MembershipType,
-) -> Result<()> {
+) -> Result<bool> {
     if let Some(prop) = prop.as_str() {
         let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
@@ -3664,9 +3675,10 @@ async fn handle_membership<'a>(
                             .await?
                         {
                             // Inline env var
-                            handle_free_var_reference(ast_path, &value, span, state, analysis)
-                                .await?;
-                            return Ok(());
+                            return handle_free_var_reference(
+                                ast_path, &value, span, state, analysis,
+                            )
+                            .await;
                         }
                     }
                     MembershipType::In => {
@@ -3681,7 +3693,7 @@ async fn handle_membership<'a>(
                                 CompileTimeDefineValue::Bool(true),
                                 analysis.intern_path(ast_path),
                             ));
-                            return Ok(());
+                            return Ok(true);
                         }
                     }
                 }
@@ -3693,7 +3705,7 @@ async fn handle_membership<'a>(
                     MembershipType::Member { .. } => {
                         // Only add references if we are performing codegen
                         if analysis.analyze_mode.is_codegen {
-                            handle_free_var_reference(
+                            return handle_free_var_reference(
                                 ast_path,
                                 // Import the `cache` proxy wrapper helper to satisfy require.cache
                                 // This re-exposes the `Map` the runtime uses as a object.
@@ -3706,7 +3718,7 @@ async fn handle_membership<'a>(
                                 state,
                                 analysis,
                             )
-                            .await?;
+                            .await;
                         }
                     }
                     MembershipType::In => {
@@ -3714,9 +3726,10 @@ async fn handle_membership<'a>(
                             CompileTimeDefineValue::Bool(true),
                             analysis.intern_path(ast_path),
                         ));
+                        return Ok(true);
                     }
                 }
-                return Ok(());
+                return Ok(false);
             }
         }
 
@@ -3745,10 +3758,10 @@ async fn handle_membership<'a>(
                     }
                 }
             }
-            return Ok(());
+            return Ok(false);
         }
     }
-    Ok(())
+    Ok(false)
 }
 
 async fn handle_typeof<'a>(
@@ -3757,7 +3770,7 @@ async fn handle_typeof<'a>(
     span: Span,
     state: &AnalysisState<'a>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
-) -> Result<()> {
+) -> Result<bool> {
     let arg_name = arg.get_definable_name(Some(&state.var_graph));
     if arg_name.len() == 1
         && let Some((mut name, false)) = arg_name.into_iter().next().unwrap()
@@ -3770,12 +3783,11 @@ async fn handle_typeof<'a>(
             .get(&name)
             .await?
         {
-            handle_free_var_reference(ast_path, &value, span, state, analysis).await?;
-            return Ok(());
+            return handle_free_var_reference(ast_path, &value, span, state, analysis).await;
         }
     }
 
-    Ok(())
+    Ok(false)
 }
 
 async fn handle_free_var<'a>(
@@ -3800,6 +3812,7 @@ async fn handle_free_var<'a>(
     Ok(())
 }
 
+/// Returns whether the expression is replaced as a whole.
 async fn handle_free_var_reference(
     ast_path: &[AstParentKind],
     value: &FreeVarReference,
@@ -3942,6 +3955,7 @@ async fn handle_free_var_reference(
                 ))
                 .await;
             }
+            return Ok(false);
         }
     }
     Ok(true)

@@ -10,6 +10,46 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "module",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            3,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Assign,
+                    ),
+                    AssignExpr(
+                        Left,
+                    ),
+                    AssignTarget(
+                        Simple,
+                    ),
+                    SimpleAssignTarget(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 1622..1628,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -40,44 +80,6 @@
         ],
         span: 1622..1636,
         in_truthiness_context: false,
-    },
-    FreeVar {
-        var: "module",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Left,
-            ),
-            AssignTarget(
-                Simple,
-            ),
-            SimpleAssignTarget(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 1622..1628,
     },
     FreeVar {
         var: "md5",
@@ -120,6 +122,7 @@
             reason: "unsupported expression",
             has_side_effects: true,
         },
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -192,6 +195,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -254,6 +258,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -312,6 +317,7 @@
                 #3,
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -543,6 +549,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -786,6 +793,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1029,6 +1037,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1272,6 +1281,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1515,6 +1525,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1758,6 +1769,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2001,6 +2013,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2244,6 +2257,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2487,6 +2501,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2730,6 +2745,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2973,6 +2989,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -3216,6 +3233,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -3459,6 +3477,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -3702,6 +3721,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -3945,6 +3965,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
