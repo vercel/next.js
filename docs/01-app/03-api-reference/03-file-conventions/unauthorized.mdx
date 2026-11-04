@@ -4,6 +4,7 @@ description: API reference for the unauthorized.js special file.
 related:
   links:
     - app/api-reference/functions/unauthorized
+version: experimental
 ---
 
 The **unauthorized** file renders UI when the [`unauthorized`](/docs/app/api-reference/functions/unauthorized) function is invoked.
@@ -43,6 +44,8 @@ export default function Unauthorized() {
 ### Props
 
 `unauthorized.js` components do not accept any props.
+
+> **Good to know**: Next.js sends each `unauthorized.js` file with every route under its segment, even when `unauthorized()` is never called, and loads the Client Components it imports on those pages. Prefer Server Components and [`<Link>`](/docs/app/api-reference/components/link) there over interactive UI.
 
 ## Examples
 
@@ -112,5 +115,4 @@ export default function UnauthorizedPage() {
 
 | Version   | Changes                       |
 | --------- | ----------------------------- |
-| `v16.4.0` | `unauthorized.js` is stable.  |
 | `v15.1.0` | `unauthorized.js` introduced. |

@@ -18,7 +18,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -107,7 +107,7 @@ impl InstrumentationEndpoint {
         let edge_chunking_context = this.project.edge_chunking_context(false);
         Ok(edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            ChunkGroup::Entry(vec![module]),
+            ChunkGroupKey::Entry(vec![module]),
             module_graph,
             OutputAssets::empty(),
             AvailabilityInfo::root(),
@@ -118,7 +118,10 @@ impl InstrumentationEndpoint {
     async fn node_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
         let this = self.await?;
 
-        let chunking_context = this.project.server_chunking_context(false);
+        let chunking_context = this.project.server_chunking_context(
+            false, // client_assets
+            false, // supports_lazy_dynamic_imports
+        );
 
         let userland_module = self.entry_module().to_resolved().await?;
         let module_graph = this.project.module_graph(*userland_module);
@@ -129,7 +132,7 @@ impl InstrumentationEndpoint {
                     .node_root()
                     .await?
                     .join("server/instrumentation.js")?,
-                ChunkGroup::Entry(vec![userland_module]),
+                ChunkGroupKey::Entry(vec![userland_module]),
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),

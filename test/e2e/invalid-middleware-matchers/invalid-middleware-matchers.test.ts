@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
@@ -32,9 +32,8 @@ describe('Errors on invalid custom middleware matchers', () => {
     )
   }
 
-  /** Same branching as integration `runTests(getStderr, isDev)`. */
-  function assertInvalidMatchersStderr(stderr: string, isDev: boolean) {
-    if (isTurbopack && !isDev) {
+  function assertInvalidMatchersStderr(stderr: string) {
+    if (isTurbopack && !isNextDev) {
       expect(stderr).toContain('Turbopack build failed with 10 errors')
 
       let matches = 0
@@ -109,102 +108,91 @@ describe('Errors on invalid custom middleware matchers', () => {
     }
   }
 
-  function runTests(mode: 'dev' | 'start') {
-    const isDevMode = mode === 'dev'
-
-    it('should error when source length is exceeded', async () => {
-      await writeMiddleware([{ source: `/${Array(4096).join('a')}` }])
-      if (isDevMode) {
-        await next.start()
-        try {
-          await next.fetch('/').catch(() => {})
-          await retry(() => {
-            expect(next.cliOutput).toContain(
-              'exceeds max built length of 4096 for route'
-            )
-          })
-        } finally {
-          await next.stop()
-        }
-      } else {
-        await next.build()
-        expect(next.cliOutput).toContain(
-          'exceeds max built length of 4096 for route'
-        )
+  it('should error when source length is exceeded', async () => {
+    await writeMiddleware([{ source: `/${Array(4096).join('a')}` }])
+    if (isNextDev) {
+      await next.start()
+      try {
+        await next.fetch('/').catch(() => {})
+        await retry(() => {
+          expect(next.cliOutput).toContain(
+            'exceeds max built length of 4096 for route'
+          )
+        })
+      } finally {
+        await next.stop()
       }
-    })
-
-    it('should error during next build for invalid matchers', async () => {
-      await writeMiddleware([
-        {
-          // missing source
-        },
-        {
-          // invalid source
-          source: 123,
-        },
-        // missing forward slash in source
-        'hello',
-        {
-          // extra field
-          source: '/hello',
-          destination: '/not-allowed',
-        },
-        // invalid objects
-        null,
-        // invalid has items
-        {
-          source: '/hello',
-          has: [
-            {
-              type: 'cookiee',
-              key: 'loggedIn',
-            },
-          ],
-        },
-        {
-          source: '/hello',
-          has: [
-            {
-              type: 'headerr',
-            },
-            {
-              type: 'queryr',
-              key: 'hello',
-            },
-          ],
-        },
-        {
-          source: '/hello',
-          basePath: false,
-        },
-        {
-          source: '/hello',
-          locale: true,
-        },
-      ])
-
-      if (isDevMode) {
-        await next.start()
-        try {
-          await next.fetch('/').catch(() => {})
-          await retry(async () => {
-            assertInvalidMatchersStderr(next.cliOutput, isDevMode)
-          })
-        } finally {
-          await next.stop()
-        }
-      } else {
-        await next.build()
-        assertInvalidMatchersStderr(next.cliOutput, isDevMode)
-      }
-    })
-  }
-
-  ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    runTests('dev')
+    } else {
+      await next.build()
+      expect(next.cliOutput).toContain(
+        'exceeds max built length of 4096 for route'
+      )
+    }
   })
-  ;(isNextStart ? describe : describe.skip)('production mode', () => {
-    runTests('start')
+
+  it('should error during next build for invalid matchers', async () => {
+    await writeMiddleware([
+      {
+        // missing source
+      },
+      {
+        // invalid source
+        source: 123,
+      },
+      // missing forward slash in source
+      'hello',
+      {
+        // extra field
+        source: '/hello',
+        destination: '/not-allowed',
+      },
+      // invalid objects
+      null,
+      // invalid has items
+      {
+        source: '/hello',
+        has: [
+          {
+            type: 'cookiee',
+            key: 'loggedIn',
+          },
+        ],
+      },
+      {
+        source: '/hello',
+        has: [
+          {
+            type: 'headerr',
+          },
+          {
+            type: 'queryr',
+            key: 'hello',
+          },
+        ],
+      },
+      {
+        source: '/hello',
+        basePath: false,
+      },
+      {
+        source: '/hello',
+        locale: true,
+      },
+    ])
+
+    if (isNextDev) {
+      await next.start()
+      try {
+        await next.fetch('/').catch(() => {})
+        await retry(async () => {
+          assertInvalidMatchersStderr(next.cliOutput)
+        })
+      } finally {
+        await next.stop()
+      }
+    } else {
+      await next.build()
+      assertInvalidMatchersStderr(next.cliOutput)
+    }
   })
 })

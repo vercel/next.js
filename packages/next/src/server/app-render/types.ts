@@ -115,7 +115,6 @@ export interface RenderOptsPartial {
   cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   staticPageGenerationTimeout: number
   isOnDemandRevalidate?: boolean
-  isPossibleServerAction?: boolean
   setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
@@ -171,6 +170,7 @@ export interface RenderOptsPartial {
     parallelRouteMetadata: boolean
     inlineCss: boolean
     prefetchInlining: PrefetchInliningConfig
+    authInterrupts: boolean
     reactBrowserBailout: boolean
     serverComponentsHmrCancellation?: boolean
     useCacheTimeout: number
@@ -195,6 +195,12 @@ export interface RenderOptsPartial {
      * drives instant navigation tests.
      */
     exposeTestingApi: boolean
+
+    /**
+     * Whether React should stream its instruction set as data, applied by the
+     * standalone browser runtime asset, instead of as inline `<script>` tags.
+     */
+    externalBrowserRuntime: boolean
   }
   postponed?: string
 

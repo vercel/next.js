@@ -52,6 +52,11 @@ declare function getOrInstantiateModuleFromParent<M>(
  */
 let createModuleWithDirectionFlag = false
 
+/**
+ * Maps module IDs to the factory functions that instantiate them.
+ */
+const moduleFactories: ModuleFactories = new Map()
+
 const REEXPORTED_OBJECTS = new WeakMap<Module, ReexportedObjects>()
 
 /**
@@ -73,8 +78,16 @@ function Context(
   this.e = exports
 }
 const contextPrototype = Context.prototype as TurbopackBaseContext<Module>
+contextPrototype.M = moduleFactories
 
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
+
+/**
+ * The keys of a context and their module ids, flattened: `[key, id, ...]`. Each
+ * module is required by its id from the module that created the context. The id
+ * is `undefined` for a module that is ignored (e.g. mapped to `false`).
+ */
+type ModuleContextIds = Array<string | ModuleId | undefined>
 
 interface ModuleContextEntry {
   id: () => ModuleId
@@ -112,6 +125,21 @@ function defineProp(
   options: PropertyDescriptor & ThisType<any>
 ) {
   if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options)
+}
+
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */
+function getCachedModule<M extends Module>(
+  moduleCache: ModuleCache<M>,
+  id: ModuleId
+): M | undefined {
+  const module = moduleCache.get(id)
+  if (module?.error) {
+    throw module.error
+  }
+  return module
 }
 
 function getOverwrittenModule(
@@ -622,7 +650,7 @@ function asyncLoader(
   this: TurbopackBaseContext<Module>,
   moduleId: ModuleId
 ): Promise<Exports> {
-  const loader = this.r(moduleId) as (
+  const loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports as (
     importFunction: EsmImport
   ) => Promise<Exports>
   return loader(esmImport.bind(this))
@@ -674,7 +702,29 @@ function parseRequest(request: string): string {
 /**
  * `require.context` and require/import expression runtime.
  */
-function moduleContext(map: ModuleContextMap): ModuleContext {
+function moduleContext(
+  this: TurbopackBaseContext<Module>,
+  mapOrIds: ModuleContextMap | ModuleContextIds
+): ModuleContext {
+  let map: ModuleContextMap
+  if (Array.isArray(mapOrIds)) {
+    const parentModule = this.m
+    map = {}
+    for (let i = 0; i < mapOrIds.length; i += 2) {
+      const id = mapOrIds[i + 1] as ModuleId | undefined
+      map[mapOrIds[i] as string] = {
+        id: () => id as ModuleId,
+        // inlined require implementation, which gives an ignored module empty exports
+        module: () =>
+          id === undefined
+            ? {}
+            : getOrInstantiateModuleFromParent(id, parentModule).exports,
+      }
+    }
+  } else {
+    map = mapOrIds
+  }
+
   function moduleContext(id: string): Exports {
     id = parseRequest(id)
     if (hasOwnProperty.call(map, id)) {
@@ -722,18 +772,12 @@ function getChunkPath(chunkData: ChunkData): ChunkPath {
 function installCompressedModuleFactories(
   chunkModules: CompressedModuleFactories,
   offset: number,
-  moduleFactories: ModuleFactories,
   newModuleId?: (id: ModuleId) => void
 ) {
   let i = offset
   const strictFactories = chunkModules[i]
   if (Array.isArray(strictFactories)) {
-    installCompressedModuleFactories(
-      strictFactories,
-      0,
-      moduleFactories,
-      newModuleId
-    )
+    installCompressedModuleFactories(strictFactories, 0, newModuleId)
     i++
   }
   while (i < chunkModules.length) {

@@ -30,7 +30,7 @@ describe('revalidateTag-rsc', () => {
       if (isNextDev) {
         await waitForRedbox(browser)
         await expect(getRedboxHeader(browser)).resolves.toContain(
-          'Route "/revalidate_via_page": `revalidateTag("data")` can\'t be called during render.'
+          'Route "/revalidate_via_page": `revalidateTag("revalidatetag-rsc:data")` can\'t be called during render.'
         )
       } else {
         await retry(async () => {
@@ -41,7 +41,7 @@ describe('revalidateTag-rsc', () => {
       }
 
       expect(next.cliOutput).toContain(
-        'Route "/revalidate_via_page": `revalidateTag("data")` can\'t be called during render. Call it from a Server Action or Route Handler instead.\nLearn more: https://nextjs.org/docs/messages/revalidate-in-use-cache'
+        'Route "/revalidate_via_page": `revalidateTag("revalidatetag-rsc:data")` can\'t be called during render. Call it from a Server Action or Route Handler instead.\nLearn more: https://nextjs.org/docs/messages/revalidate-in-use-cache'
       )
     })
 
@@ -52,7 +52,7 @@ describe('revalidateTag-rsc', () => {
       if (isNextDev) {
         await waitForRedbox(browser)
         await expect(getRedboxHeader(browser)).resolves.toContain(
-          'Route "/revalidate_via_cache": `revalidateTag("data")` can\'t be called inside a cached function.'
+          'Route "/revalidate_via_cache": `revalidateTag("revalidatetag-rsc:data")` can\'t be called inside a cached function.'
         )
       } else {
         await retry(async () => {
@@ -63,7 +63,7 @@ describe('revalidateTag-rsc', () => {
       }
 
       expect(next.cliOutput).toContain(
-        'Route "/revalidate_via_cache": `revalidateTag("data")` can\'t be called inside a cached function. Call it from a Server Action or Route Handler instead.\nLearn more: https://nextjs.org/docs/messages/revalidate-in-use-cache'
+        'Route "/revalidate_via_cache": `revalidateTag("revalidatetag-rsc:data")` can\'t be called inside a cached function. Call it from a Server Action or Route Handler instead.\nLearn more: https://nextjs.org/docs/messages/revalidate-in-use-cache'
       )
     })
   }

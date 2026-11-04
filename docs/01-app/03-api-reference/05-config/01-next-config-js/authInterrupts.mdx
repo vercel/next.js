@@ -1,6 +1,7 @@
 ---
 title: authInterrupts
-description: Learn about the deprecated authInterrupts configuration option and how to update your configuration.
+description: Learn how to enable the experimental `authInterrupts` configuration option to use `forbidden` and `unauthorized`.
+version: canary
 related:
   links:
     - app/api-reference/functions/forbidden
@@ -9,8 +10,24 @@ related:
     - app/api-reference/file-conventions/unauthorized
 ---
 
-> **Deprecated**: `experimental.authInterrupts` is deprecated as of Next.js 16.4.0.
+The `authInterrupts` configuration option allows you to use [`forbidden`](/docs/app/api-reference/functions/forbidden) and [`unauthorized`](/docs/app/api-reference/functions/unauthorized) APIs in your application. While these functions are experimental, you must enable the `authInterrupts` option in your `next.config.js` file to use them:
 
-The [`forbidden()`](/docs/app/api-reference/functions/forbidden) and [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) APIs are now stable and available by default.
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
 
-Remove `experimental.authInterrupts` from your `next.config.js` or `next.config.ts` file. The option has no effect: setting it to either `true` or `false` does not change the availability of these APIs.
+const nextConfig: NextConfig = {
+  experimental: {
+    authInterrupts: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  experimental: {
+    authInterrupts: true,
+  },
+}
+```

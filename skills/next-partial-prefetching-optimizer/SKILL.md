@@ -90,9 +90,10 @@ prefetch budget instead of creating another rig.
 
 If the project has no rig, use [`rig-template.md`](rig-template.md) to discover
 and record one. The measured run must be a production build or
-preview where `experimental.exposeTestingApiInProductionBuild` is enabled only
-for testing. Development can help diagnose a route, but automatic link
-prefetching is production-only.
+preview where
+[`experimental.exposeTestingApiInProductionBuild`](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)
+is enabled only for testing. Development can help diagnose a route, but
+automatic link prefetching is production-only.
 
 ## Prove the current behavior
 
@@ -106,6 +107,13 @@ Keep one production browser test per source-link, destination, and trigger
 contract. Do not loop over several destinations or collect their readiness
 results in one test. Focused tests can still run serially in one browser worker.
 
+Keep the production Link and its existing `href` in the test, including when
+the destination redirects. Verify the final pathname and query after the
+redirect. For repeat and browser-back contracts, follow the
+[visibility-aware selector guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
+so hidden preserved routes cannot satisfy the assertions. When the contract
+contains independently suspended regions, assert each one separately.
+
 First, run an unlocked scaffold that proves the link reaches the exact pathname
 and query and that the selected UI eventually renders for the test user. Do not
 ship this scaffold.
@@ -117,8 +125,8 @@ eventually render.
 
 Read [`reference/red-test-robustness.md`](reference/red-test-robustness.md)
 before treating this failure as RED. A timeout before the URL changes, a
-missing App Shell, a redirect, missing data, or a stale preview indicates a rig
-or route problem. It does not justify changing prefetching.
+missing App Shell, an unexpected redirect, missing data, or a stale preview
+indicates a rig or route problem. It does not justify changing prefetching.
 
 If the complete desired contract already passes under the lock, stop. Never
 add `prefetch={false}` merely to manufacture a RED.

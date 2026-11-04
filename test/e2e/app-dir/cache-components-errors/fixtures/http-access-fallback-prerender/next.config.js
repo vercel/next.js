@@ -4,6 +4,7 @@
 const nextConfig = {
   cacheComponents: true,
   experimental: {
+    authInterrupts: true,
     instantInsights: {
       validationLevel: 'manual-warning',
     },

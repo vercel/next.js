@@ -1,5 +1,5 @@
 # `single-context-addon` is compiled by node-gyp during install, and pnpm does
-# not run a dependency's build scripts unless they are approved here. The repo
-# root uses the same key for the one package it allows to build.
+# not run a dependency's build scripts unless they are approved here. Local
+# file dependencies require an approval for their full dependency path.
 allowBuilds:
-  single-context-addon: true
+  single-context-addon@file:single-context-addon: true

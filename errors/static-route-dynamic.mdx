@@ -22,7 +22,7 @@ kind: error
 
 A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
 
-During [prerendering](/docs/app/glossary#prerendering), the page or layout performed an uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) request, database call, or [`connection()`](/docs/app/api-reference/functions/connection). Because the operation requires request-time server work, the route cannot be fully prerendered.
+During [prerendering](/docs/app/glossary#prerendering), the page or layout performed an uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) request, database call, or [`connection()`](/docs/app/api-reference/functions/connection). The operation requires rendering at request time, which conflicts with the route's static requirement.
 
 During `next build`, Next.js may link to this page when it cannot distinguish uncached data from runtime data. For a short cache, [extend the cache lifetime](/docs/messages/static-route-runtime#extend-the-cache-lifetime).
 
@@ -166,7 +166,7 @@ The prerender does not include this data, and the browser makes an additional re
 
 ## Verifying the fix
 
-After applying a fix, rerun [`next build`](/docs/app/api-reference/cli/next#next-build-options) and confirm that the route completes prerendering. If the error also appeared in [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), reload the route and confirm that the overlay clears. Wrapping the operation in Suspense or setting `instant = false` does not relax the fully static requirement.
+After applying a fix, rerun [`next build`](/docs/app/api-reference/cli/next#next-build-options) and confirm that the route completes prerendering. If the error also appeared in [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), reload the route and confirm that the overlay clears. Wrapping the operation in Suspense or setting `instant = false` does not relax this static requirement.
 
 In `next dev`, the error overlay points at the failing component with file paths and line numbers. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 

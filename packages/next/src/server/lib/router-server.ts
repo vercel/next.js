@@ -53,7 +53,7 @@ import {
   type AppIsrManifestMessage,
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
-import { NEXT_PATCH_SYMBOL } from './patch-fetch'
+import { NEXT_PATCH_SYMBOL } from './patch-fetch-symbol'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
@@ -254,27 +254,17 @@ export async function initialize(opts: {
         }
       )
       if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
-        // The parent retries if the worker assessment rejects.
-        const [promptAssessment] = await Promise.allSettled([assessment])
-        // TODO: Do not block dev startup while prompting for an upgrade.
-        // Preserve all logs for display after the prompt and stop dev before Update.
-        // The existing dev worker pauses here while its parent owns the menu.
-        await new Promise<void>((resolve) => {
-          const resume = (message: {
-            nextUpgradeContinue: boolean | undefined
-          }) => {
-            if (message.nextUpgradeContinue) {
-              process.off('message', resume)
-              resolve()
-            }
+        // The CLI shows the menu; keep serving instead of waiting for it.
+        void Promise.allSettled([assessment]).then(([promptAssessment]) => {
+          if (process.connected) {
+            process.send!({
+              nextUpgradeContext: upgradeContext,
+              telemetryDisabled: process.env.NEXT_TELEMETRY_DISABLED,
+              ...(promptAssessment.status === 'fulfilled'
+                ? { nextUpgradeAssessment: promptAssessment.value }
+                : {}),
+            })
           }
-          process.on('message', resume)
-          process.send!({
-            nextUpgradeContext: upgradeContext,
-            ...(promptAssessment.status === 'fulfilled'
-              ? { nextUpgradeAssessment: promptAssessment.value }
-              : {}),
-          })
         })
       } else {
         // CI skips the DevTools assessment, but agents still need the nudge.
@@ -787,7 +777,7 @@ export async function initialize(opts: {
 
           // normalize non-allowed status codes
           if (!validErrorStatus) {
-            ;(err as any).statusCode = 400
+            err.statusCode = 400
           }
 
           if (typeof err.statusCode === 'number') {
@@ -826,6 +816,9 @@ export async function initialize(opts: {
           handleIndex,
           {
             invokeOutput: matchedOutput.itemPath,
+            ...(matchedOutput.didMatchLocalePrefixedPath
+              ? { didMatchLocalePrefixedPath: true }
+              : undefined),
             ...(matchedOutput.error
               ? {
                   invokeStatus: 500,
@@ -1175,6 +1168,9 @@ export async function initialize(opts: {
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
     agentFeedback: config.experimental.agentFeedback,
+    agentUpgrade: development
+      ? development.config.experimental.agentUpgrade !== false
+      : undefined,
     devMemoryThresholdRestart,
   }
 }

@@ -1,6 +1,6 @@
 //! A minimal growable vector ([`BumpVec`]) backed by a bump allocator.
 //!
-//! `JsValue` analysis allocates all of its nodes into a per-thread [`Bump`](bumpalo::Bump) that is
+//! `JsValue` analysis allocates all of its nodes into a per-thread [`Bump`] that is
 //! freed in one shot when analysis finishes. For the list children that grow or are rebuilt after
 //! construction, this module provides [`BumpVec`]: a `Send`/`Sync` growable vector that stores a
 //! raw pointer into the arena, a capacity, and a length.

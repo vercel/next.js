@@ -1,3 +1,4 @@
+mod activity;
 mod cell_data;
 mod counter_map;
 mod eviction;
@@ -7,10 +8,6 @@ mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
 
-// Only the `verify_aggregation_graph` feature still uses atomics here; `stopping` is an
-// `RwLock<bool>` so that checking it and acting on it cannot be split (see the field's docs).
-#[cfg(feature = "verify_aggregation_graph")]
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     borrow::Cow,
     fmt::Write,
@@ -22,31 +19,32 @@ use std::{
     time::SystemTime,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::{GcPassResult, GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
-use smallvec::{SmallVec, smallvec};
+use smallvec::SmallVec;
 use tokio::time::{Duration, Instant};
 use tracing::{Span, field::display, trace_span};
-use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
+use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{
-    CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
+    CellId, CellKey, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
     ReadConsistency, ReadOutcome, ReadOutputOptions, ReadTracking, SharedReference,
     TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId,
     TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     backend::{
-        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskExecutionSpec,
-        TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
-        TurboTasksExecutionError, TurboTasksExecutionErrorMessage, TypedCellContent,
-        VerificationMode,
+        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskCollectiblesMap,
+        TaskExecutionSpec, TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError,
+        TurboTasksError, TurboTasksExecutionError, TurboTasksExecutionErrorMessage,
+        TypedCellContent, VerificationMode,
     },
     event::{Event, EventDescription, EventListener},
     macro_helpers::NativeFunction,
     message_queue::{DiagnosticEvent, Severity, TimingEvent, TraceEvent},
+    parallel,
     registry::get_value_type,
     scope_bounded::scope_bounded,
     task_statistics::TaskStatisticsApi,
@@ -57,33 +55,35 @@ use turbo_tasks::{FunctionId, TaskDirtyCause};
 use turbo_tasks_malloc::TurboMalloc;
 
 use self::eviction::EvictionControl;
+#[cfg(test)]
+pub(crate) use self::storage::TrackOutcome;
 pub use self::{
     eviction::EvictionMode,
     storage::{EvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
 };
 use crate::{
     backend::{
+        activity::{ActivityMonitor, BackendActivity, IdleDeadlineStrategy},
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, LeafDistanceUpdateQueue,
             OutdatedEdge, TaskGuard, TaskType, TaskTypeRef, capture_all_edges, cleanup_old_edges,
-            connect_child, connect_children, get_aggregation_number, get_uppers, invalidate,
-            make_task_dirty_internal, prepare_new_children, update_cell,
+            compute_leaf_distance_update, connect_child, connect_children, get_aggregation_number,
+            get_uppers, invalidate, make_task_dirty_internal, prepare_new_children, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
-        storage::Storage,
+        storage::{Storage, StorageOptions, encode_snapshot_item},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::{SnapshotItem, compute_task_type_hash},
+    backing_storage::SnapshotItem,
     data::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
-        InProgressState, InProgressStateInner, OutputValue, TransientTask,
+        InProgressState, InProgressStateInner, LeafDistance, OutputValue, TransientTask,
     },
     error::{TaskError, TaskErrorItem},
     kv_backing_storage::TurboBackingStorage,
     utils::{
         dash_map_entry::{get_in_shard, get_shard, with_entry_in_shard},
         shard_amount::compute_shard_amount,
-        stopwatch::Stopwatch,
     },
 };
 
@@ -154,16 +154,14 @@ pub struct BackendOptions {
     pub eviction_mode: EvictionMode,
 
     /// Whether the reference-counting GC runs for this backend. `None` (default) leaves it off.
-    ///
-    /// In Next.js this is driven by the `experimental.turbopackGc` config option.
     pub gc: Option<bool>,
 
-    /// How long a GC root may go un-anchored before it ages out. `None` (default) uses
-    /// [`DEFAULT_GC_ROOT_TTL`].
+    /// How long a recorded GC root may go without a session-only pin before it ages out. `None`
+    /// (default) uses `DEFAULT_GC_ROOT_TTL`.
     pub gc_root_ttl: Option<Duration>,
 
     /// How long a GC pass runs before it will honour an interrupt. `None` (default) uses
-    /// [`GC_MIN_PROGRESS`].
+    /// `GC_MIN_PROGRESS`.
     pub gc_min_progress: Option<Duration>,
 }
 
@@ -229,6 +227,17 @@ impl SnapshotReason {
     }
 }
 
+/// The outcome of the last persistence cycle. The backend starts at `Ok` in its constructor.
+///
+/// `Failed` is sticky: a failed persist (an error or a panic) leaves the task graph and the
+/// database out of sync (e.g. `save_snapshot` already consumed `persisted_task_cache_log`
+/// entries), so persisting stays disabled for the rest of the session.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LastPersistenceStatus {
+    Ok,
+    Failed,
+}
+
 pub struct TurboTasksBackend {
     options: BackendOptions,
 
@@ -246,22 +255,22 @@ pub struct TurboTasksBackend {
     /// `begin_exclusion` asserts that exclusive phases don't overlap; this mutex
     /// enforces that contract for our callers (background loop and
     /// `stop_and_wait`).
-    snapshot_in_progress: Mutex<()>,
+    ///
+    /// Also holds the [`LastPersistenceStatus`], which disables persisting after a failure.
+    snapshot_in_progress: Mutex<LastPersistenceStatus>,
 
     /// Experimental feature to enable dead tasks to be deleted from storage and ram.
     gc_enabled: bool,
 
     stopping: RwLock<bool>,
-    stopping_event: Event,
-    idle_start_event: Event,
-    idle_end_event: Event,
-    #[cfg(feature = "verify_aggregation_graph")]
-    is_idle: AtomicBool,
+    /// Whether the backend is idle, busy or stopping, when the current idle period began, and the
+    /// accumulated active time. See [`activity`].
+    activity: ActivityMonitor,
 
     task_statistics: TaskStatisticsApi,
 
     backing_storage: TurboBackingStorage,
-    /// How long a GC root may go un-anchored before it ages out.
+    /// How long a recorded GC root may go without a session-only pin before it ages out.
     gc_root_ttl: Duration,
 
     /// How long a GC pass runs before it will honour an interrupt
@@ -349,15 +358,14 @@ impl TurboTasksBackend {
                 TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(),
                 TaskId::MAX,
             ),
-            storage: Storage::new(shard_amount, small_preallocation),
+            storage: Storage::new(StorageOptions {
+                shard_amount,
+                small_preallocation,
+            }),
             snapshot_coord: SnapshotCoordinator::new(),
-            snapshot_in_progress: Mutex::new(()),
+            snapshot_in_progress: Mutex::new(LastPersistenceStatus::Ok),
             stopping: RwLock::new(false),
-            stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
-            idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
-            idle_end_event: Event::new(|| || "TurboTasksBackend::idle_end_event".to_string()),
-            #[cfg(feature = "verify_aggregation_graph")]
-            is_idle: AtomicBool::new(false),
+            activity: ActivityMonitor::new(),
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
             gc_root_ttl,
@@ -372,6 +380,17 @@ impl TurboTasksBackend {
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
     ) -> ExecuteContext<'a> {
         ExecuteContext::new(self, turbo_tasks)
+    }
+
+    /// Like [`TurboTasksBackend::execute_context`], but with an explicit current task priority
+    /// instead of the one from the task-local task state. For work that runs on another thread
+    /// than the calling task.
+    fn execute_context_with_priority<'a>(
+        &'a self,
+        turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
+        current_task_priority: TaskPriority,
+    ) -> ExecuteContext<'a> {
+        ExecuteContext::new(self, turbo_tasks).with_current_task_priority(current_task_priority)
     }
 
     /// Like [`TurboTasksBackend::execute_context`], but refuses to hand out a context once
@@ -426,8 +445,9 @@ impl TurboTasksBackend {
         let snapshot_result = self.snapshot_and_persist(None, SnapshotReason::Test, turbo_tasks);
         let (had_new_data, gc_outcome) = match snapshot_result {
             Ok(Some((_, new_data, gc_outcome))) => (new_data, gc_outcome),
-            Ok(None) => unreachable!("test snapshots wait for operations to settle"),
-            Err(_) => {
+            // Test snapshots wait for operations to settle, so `None` means persisting is
+            // disabled after an earlier failure.
+            Ok(None) | Err(_) => {
                 // Snapshot/persist failed — skip eviction since the data may not
                 // be on disk yet. Evicting now could lose in-memory state that
                 // can't be restored.
@@ -446,6 +466,24 @@ impl TurboTasksBackend {
     #[doc(hidden)]
     pub fn resident_task_count_for_testing(&self) -> usize {
         self.storage.resident_task_count_for_testing()
+    }
+
+    /// The parent priority a dirty task was made dirty with, or `None` if it doesn't exist or is
+    /// not dirty. Test-only hook for verifying invalidation priorities.
+    #[doc(hidden)]
+    pub fn dirty_parent_priority_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<TaskPriority> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::All)?;
+        match task.get_dirty() {
+            Some(Dirtyness::Dirty {
+                parent_priority, ..
+            }) => Some(*parent_priority),
+            _ => None,
+        }
     }
 
     /// The persistent `parent_count` of a resident task (0 if absent or not resident). Test-only
@@ -896,19 +934,37 @@ impl TurboTasksBackend {
                     dependent_task = ?reader
                 )
                 .entered();
-                let mut queue = LeafDistanceUpdateQueue::new();
+                // The reader's updated leaf distance together with its output dependents, which
+                // need to be updated after all locks are released.
+                let mut leaf_distance_propagation: Option<(LeafDistance, SmallVec<[TaskId; 4]>)> =
+                    None;
+                #[cfg(feature = "trace_leaf_distance_update")]
+                let mut leaf_distance_span = None;
                 let reader = reader.unwrap();
                 if task.add_output_dependent(reader) {
-                    // Ensure that dependent leaf distance is strictly monotonic increasing
+                    // Ensure that dependent leaf distance is strictly monotonic increasing.
                     let leaf_distance = task.get_leaf_distance().copied().unwrap_or_default();
-                    let reader_leaf_distance =
-                        reader_task.get_leaf_distance().copied().unwrap_or_default();
-                    if reader_leaf_distance.distance <= leaf_distance.distance {
-                        queue.push(
-                            reader,
-                            leaf_distance.distance,
-                            leaf_distance.max_distance_in_buffer,
-                        );
+                    if let Some(new_reader_leaf_distance) = compute_leaf_distance_update(
+                        reader_task.get_leaf_distance().copied().unwrap_or_default(),
+                        leaf_distance.distance,
+                        leaf_distance.max_distance_in_buffer,
+                    ) {
+                        #[cfg(feature = "trace_leaf_distance_update")]
+                        {
+                            leaf_distance_span = Some(tracing::trace_span!(
+                                "update leaf distance (inline)",
+                                dependencies_distance = leaf_distance.distance,
+                                dependencies_max_distance_in_buffer =
+                                    leaf_distance.max_distance_in_buffer
+                            ));
+                        }
+                        reader_task.set_leaf_distance(new_reader_leaf_distance);
+                        let dependents: SmallVec<[TaskId; 4]> =
+                            reader_task.iter_output_dependent().collect();
+                        if !dependents.is_empty() {
+                            leaf_distance_propagation =
+                                Some((new_reader_leaf_distance, dependents));
+                        }
                     }
                 }
 
@@ -924,7 +980,13 @@ impl TurboTasksBackend {
                 }
                 drop(reader_task);
 
-                queue.execute(&mut ctx);
+                if let Some((reader_leaf_distance, dependents)) = leaf_distance_propagation {
+                    #[cfg(feature = "trace_leaf_distance_update")]
+                    let _guard = leaf_distance_span.map(|span| span.entered());
+                    let mut queue = LeafDistanceUpdateQueue::new();
+                    queue.push_dependents(dependents, reader_leaf_distance);
+                    queue.execute(&mut ctx);
+                }
             } else {
                 drop(task);
             }
@@ -979,15 +1041,18 @@ impl TurboTasksBackend {
             reader: Option<TaskId>,
             reader_task: Option<TaskGuard<'_>>,
             cell: CellId,
-            key: Option<u64>,
+            key: Option<CellKey>,
         ) {
             if let Some(mut reader_task) = reader_task {
                 let reader = reader.unwrap();
                 let reverse = CellRef { task: reader, cell };
-                if let Some(k) = key {
-                    let _ = task.add_cell_dependents_hashed((reverse, k));
-                } else {
-                    let _ = task.add_cell_dependents(reverse);
+                match key {
+                    None => {
+                        let _ = task.add_cell_dependents(reverse);
+                    }
+                    Some(key) => {
+                        let _ = task.add_cell_dependents_keyed((reverse, key));
+                    }
                 }
                 drop(task);
 
@@ -1000,12 +1065,17 @@ impl TurboTasksBackend {
                     task: task_id,
                     cell,
                 };
-                if let Some(k) = key {
-                    if !reader_task.remove_outdated_cell_dependencies_hashed(&(target, k)) {
-                        let _ = reader_task.add_cell_dependencies_hashed((target, k));
+                match key {
+                    None => {
+                        if !reader_task.remove_outdated_cell_dependencies(&target) {
+                            let _ = reader_task.add_cell_dependencies(target);
+                        }
                     }
-                } else if !reader_task.remove_outdated_cell_dependencies(&target) {
-                    let _ = reader_task.add_cell_dependencies(target);
+                    Some(key) => {
+                        if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
+                            let _ = reader_task.add_cell_dependencies_keyed((target, key));
+                        }
+                    }
                 }
                 drop(reader_task);
             }
@@ -1116,6 +1186,122 @@ impl TurboTasksBackend {
         Ok(ReadOutcome::Scheduled(listener))
     }
 
+    fn drop_task_cell_content_hint(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        // Only drop the content, if it's there. A later read recomputes the task, exactly like
+        // after a `final_read_hint` read.
+        let _ = task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence);
+    }
+
+    /// Refines the [`CellKey::Provisional`] dependency of `reader` on `cell` of `task_id` (created
+    /// by a `Vc::keyed_reader()` or `Vc::lazy_reader()` read): it's replaced with
+    /// [`CellKey::Hash`] dependencies on `key_hashes`. With no `key_hashes` (an unaccessed
+    /// `LazyReadRef`), it's removed.
+    ///
+    /// When the cell content is currently missing (e.g. while `update_cell` invalidates its
+    /// dependents), the [`CellKey::Provisional`] dependency is kept, conservatively depending on
+    /// the whole cell.
+    fn refine_provisional_cell_dependency(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &mut dyn Iterator<Item = u64>,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        if !self.should_track_dependencies() || reader == task_id {
+            return;
+        }
+        let mut ctx = self.execute_context(turbo_tasks);
+        let (mut task, mut reader_task) = ctx.task_pair(task_id, reader, TaskDataCategory::All);
+        let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
+        if !immutable && !task.cell_data_contains(&cell) {
+            return;
+        }
+        let reverse = CellRef { task: reader, cell };
+        let target = CellRef {
+            task: task_id,
+            cell,
+        };
+        let provisional = CellKey::Provisional(id);
+        task.remove_cell_dependents_keyed(&(reverse, provisional));
+        reader_task.remove_cell_dependencies_keyed(&(target, provisional));
+        reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
+        // Immutable tasks never need dependency edges and can never be invalidated.
+        if immutable {
+            return;
+        }
+        for k in key_hashes {
+            let key = CellKey::Hash(k);
+            let _ = task.add_cell_dependents_keyed((reverse, key));
+            if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
+                let _ = reader_task.add_cell_dependencies_keyed((target, key));
+            }
+        }
+    }
+
+    /// Converts all [`CellKey::Provisional`] dependencies of `reader` that are still present into
+    /// normal (full) cell dependencies. Called when an execution of `reader` that made
+    /// `Vc::keyed_reader()` or `Vc::lazy_reader()` reads completes, as the ids are only meaningful
+    /// within that execution.
+    ///
+    /// They remain for accessed `LazyReadRef`s, when a `KeyedReadRef` or `LazyReadRef` wasn't
+    /// dropped within the execution (the manager then panics after the execution completed, but
+    /// the dependencies are still kept consistent), or when their refinement was refused (see
+    /// `refine_provisional_cell_dependency`).
+    ///
+    /// A concurrent `update_cell` that collected the [`CellKey::Provisional`] dependent before the
+    /// conversion still invalidates `reader`, as it always invalidates collected
+    /// [`CellKey::Provisional`] dependents.
+    ///
+    /// Unlike [`Self::refine_provisional_cell_dependency`], which narrows a dependency to
+    /// [`CellKey::Hash`] dependencies and refuses while the cell content is missing, this doesn't
+    /// depend on the cell content and converts to a full dependency (or just removes the edge when
+    /// the cell's task is immutable), so it can't reuse that method.
+    fn convert_remaining_provisional_cell_dependencies_at_task_completion(
+        &self,
+        ctx: &mut ExecuteContext<'_>,
+        reader: TaskId,
+    ) {
+        let remaining: SmallVec<[(CellRef, CellKey); 4]> = ctx
+            .task(reader, TaskDataCategory::Data)
+            .iter_cell_dependencies_keyed()
+            .filter(|(_, key)| matches!(key, CellKey::Provisional(_)))
+            .collect();
+        for (target, key) in remaining {
+            let reverse = CellRef {
+                task: reader,
+                cell: target.cell,
+            };
+            if target.task == reader {
+                // Not expected (reads of own cells aren't tracked), but don't leave it behind.
+                let mut reader_task = ctx.task(reader, TaskDataCategory::All);
+                reader_task.remove_cell_dependencies_keyed(&(target, key));
+                reader_task.remove_cell_dependents_keyed(&(reverse, key));
+                continue;
+            }
+            let (mut task, mut reader_task) =
+                ctx.task_pair(target.task, reader, TaskDataCategory::All);
+            task.remove_cell_dependents_keyed(&(reverse, key));
+            reader_task.remove_cell_dependencies_keyed(&(target, key));
+            // Immutable tasks never need dependency edges and can never be invalidated.
+            if task.immutable() && !cfg!(feature = "verify_immutable") {
+                continue;
+            }
+            let _ = task.add_cell_dependents(reverse);
+            if !reader_task.remove_outdated_cell_dependencies(&target) {
+                let _ = reader_task.add_cell_dependencies(target);
+            }
+        }
+    }
+
     fn listen_to_cell(
         &self,
         task: &mut TaskGuard<'_>,
@@ -1150,14 +1336,41 @@ impl TurboTasksBackend {
 
     /// Runs a persistence cycle
     ///
-    /// Returns `None` if the cycle was skipped because operations were active and the reason
-    /// doesn't [wait for them](SnapshotReason::waits_for_operations). Otherwise returns
+    /// Returns `None` if the cycle was skipped: persisting is disabled after an earlier failure, or
+    /// operations were active and the reason doesn't
+    /// [wait for them](SnapshotReason::waits_for_operations). Otherwise returns
     /// `(snapshot_start, had_new_data, gc_outcome)`. `gc_outcome` is `None` when GC is
     /// disabled; it is returned rather than stashed on `self` so a test can inspect the pass it
     /// just triggered without the backend carrying test-only state. Production reads the same
     /// numbers off the `gc` span.
+    ///
+    /// A failure (an error or a panic) disables persisting for the rest of the session: later
+    /// calls return `None` without starting a snapshot or GC.
     #[allow(clippy::type_complexity, reason = "only used for tests")]
     fn snapshot_and_persist(
+        &self,
+        parent_span: Option<tracing::Id>,
+        reason: SnapshotReason,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Result<Option<(Instant, bool, Option<(GcStats, GcPassResult)>)>> {
+        // Serialize snapshots and GC for the entire persistence cycle.
+        let mut status = self.snapshot_in_progress.lock();
+        if *status == LastPersistenceStatus::Failed {
+            return Ok(None);
+        }
+        // Mark the cycle failed up front and only reset it on success: encoding failures panic,
+        // and a panic unwinds past any post-call check (`parking_lot` mutexes don't poison).
+        *status = LastPersistenceStatus::Failed;
+        let result = self.snapshot_and_persist_locked(parent_span, reason, turbo_tasks);
+        if result.is_ok() {
+            *status = LastPersistenceStatus::Ok;
+        }
+        result
+    }
+
+    /// [`Self::snapshot_and_persist`], called while holding `snapshot_in_progress`.
+    #[allow(clippy::type_complexity, reason = "only used for tests")]
+    fn snapshot_and_persist_locked(
         &self,
         parent_span: Option<tracing::Id>,
         reason: SnapshotReason,
@@ -1166,8 +1379,6 @@ impl TurboTasksBackend {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
                 .entered();
-        // Serialize snapshots and GC for the entire persistence cycle.
-        let _snapshot_in_progress = self.snapshot_in_progress.lock();
 
         // One exclusion covers the GC pass and the snapshot that follows it, so the collected
         // tasks' tombstones (derived from the `deleted` flag) ride this same commit and no
@@ -1211,18 +1422,9 @@ impl TurboTasksBackend {
 
         debug_assert!(self.should_persist());
 
-        // Checking after the exclusion begins ensures no concurrent increments can race.
-        let (snapshot_guard, has_modifications) = self.storage.start_snapshot();
+        let snapshot_guard = self.storage.start_snapshot();
 
         let snapshot_time = Instant::now();
-        drop(snapshot_phase);
-
-        if !has_modifications && gc_roots_to_persist.is_none() {
-            // No tasks modified since the last snapshot — drop the guard (which
-            // calls end_snapshot) and skip the expensive O(N) scan.
-            drop(snapshot_guard);
-            return Ok(Some((start, false, gc_outcome)));
-        }
 
         #[cfg(feature = "print_cache_item_size")]
         #[derive(Default)]
@@ -1296,8 +1498,8 @@ impl TurboTasksBackend {
                 self.meta_count += 1;
             }
 
-            fn add_counts(&mut self, storage: &TaskStorage) {
-                let counts = storage.meta_counts();
+            fn add_counts(&mut self, stats: &crate::backing_storage::SnapshotItemStats) {
+                let counts = &stats.counts;
                 self.upper_count += counts.upper;
                 self.collectibles_count += counts.collectibles;
                 self.aggregated_collectibles_count += counts.aggregated_collectibles;
@@ -1305,21 +1507,7 @@ impl TurboTasksBackend {
                 self.followers_count += counts.followers;
                 self.collectibles_dependents_count += counts.collectibles_dependents;
                 self.aggregated_dirty_containers_count += counts.aggregated_dirty_containers;
-                if let Some(output) = storage.get_output() {
-                    use turbo_bincode::turbo_bincode_encode;
-
-                    self.output_size += turbo_bincode_encode(&output)
-                        .map(|data| data.len())
-                        .unwrap_or(0);
-                }
-            }
-
-            /// Returns the task name used as the stats grouping key.
-            fn task_name(storage: &TaskStorage) -> String {
-                storage
-                    .get_persistent_task_type()
-                    .map(|t| t.to_string())
-                    .unwrap_or_else(|| "<unknown>".to_string())
+                self.output_size += stats.output_size;
             }
 
             /// Returns the primary sort key: compressed total when
@@ -1385,133 +1573,88 @@ impl TurboTasksBackend {
         let task_cache_stats: Mutex<FxHashMap<_, TaskCacheStats>> =
             Mutex::new(FxHashMap::default());
 
-        // Encode each task's modified categories. We only encode categories with `modified` set,
-        // meaning the category was actually dirtied. Categories restored from disk but never
-        // modified don't need re-persisting since the on-disk version is still valid.
-        // For tasks accessed during snapshot mode, a frozen copy was made and its `modified`
-        // flags were copied from the live task at snapshot creation time, reflecting which
-        // categories were dirtied before the snapshot was taken.
-        let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
-            let encode_category = |task_id: TaskId,
-                                   data: &TaskStorage,
-                                   category: SpecificTaskDataCategory,
-                                   buffer: &mut TurboBincodeBuffer|
-             -> Option<TurboBincodeBuffer> {
-                match encode_task_data(task_id, data, category, buffer) {
-                    Ok(encoded) => {
-                        #[cfg(feature = "print_cache_item_size")]
-                        {
-                            let mut stats = task_cache_stats.lock();
-                            let entry = stats.entry(TaskCacheStats::task_name(inner)).or_default();
-                            match category {
-                                SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
-                                SpecificTaskDataCategory::Data => entry.add_data(&encoded),
-                            }
-                        }
-                        Some(encoded)
-                    }
-                    Err(err) => {
-                        panic!(
-                            "Serializing task {} failed ({:?}): {:?}",
-                            self.debug_get_task_description(task_id),
-                            category,
-                            err
-                        );
-                    }
-                }
-            };
-            if task_id.is_transient() {
-                unreachable!("transient task_ids should never be enqueued to be persisted");
-            }
-
-            if self.gc_enabled {
-                if inner.flags.deleted() {
-                    debug_assert!(
-                        !inner.flags.new_task(),
-                        "a scanned GC-deleted task must be persisted; new tasks are discarded by \
-                         GC"
-                    );
-                    let task_type_hash = compute_task_type_hash(
-                        inner
-                            .get_persistent_task_type()
-                            .expect("a GC-deleted task must have a task type"),
-                    );
-                    return SnapshotItem::Delete {
-                        task_id,
-                        task_type_hash,
-                    };
-                } else {
-                    debug_assert!(
-                        !inner.gc_collectible(),
-                        "tasks scheduled for persistent must not be collectible, this implies a \
-                         missed task during GC"
-                    );
-                }
-            } else {
-                debug_assert!(
-                    !inner.flags.deleted(),
-                    "Deleted flags should only be set by GC and it is disabled"
+        // Encode each task's captured categories (`category`). Only categories with `modified` set
+        // are captured, meaning the category was actually dirtied. Categories restored from disk
+        // but never modified don't need re-persisting since the on-disk version is still valid.
+        // Captured tasks that were modified again before being persisted were already encoded by
+        // `track_modification` (see `Storage::snapshots`), and are yielded without calling this.
+        // Roots in the map are protected by their TTL, so a collectible one is still persisted.
+        #[cfg(debug_assertions)]
+        let gc_protected_roots: FxHashSet<TaskId> = if !self.gc_enabled {
+            FxHashSet::default()
+        } else if let Some(roots) = &gc_roots_to_persist {
+            roots.iter().map(|(id, _)| *id).collect()
+        } else {
+            self.backing_storage
+                .roots()
+                .expect("reading gc roots should not fail")
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect()
+        };
+        let process = |task_id: TaskId,
+                       inner: &TaskStorage,
+                       category: TaskDataCategory,
+                       buffer: &mut TurboBincodeBuffer| {
+            #[cfg(debug_assertions)]
+            debug_assert!(
+                !self.gc_enabled
+                    || inner.flags.deleted()
+                    || !inner.gc_collectible()
+                    || gc_protected_roots.contains(&task_id),
+                "tasks scheduled for persistent must not be collectible, this implies a missed \
+                 task during GC"
+            );
+            encode_snapshot_item(task_id, inner, category, buffer).unwrap_or_else(|err| {
+                panic!(
+                    "Serializing task {} failed: {:?}",
+                    self.debug_get_task_description(task_id),
+                    err
                 )
-            }
-
-            let encode_meta = inner.flags.meta_modified();
-            let encode_data = inner.flags.data_modified();
-
-            #[cfg(feature = "print_cache_item_size")]
-            if encode_data || encode_meta {
-                task_cache_stats
-                    .lock()
-                    .entry(TaskCacheStats::task_name(inner))
-                    .or_default()
-                    .add_counts(inner);
-            }
-
-            let meta = if encode_meta {
-                encode_category(task_id, inner, SpecificTaskDataCategory::Meta, buffer)
-            } else {
-                None
-            };
-
-            let data = if encode_data {
-                encode_category(task_id, inner, SpecificTaskDataCategory::Data, buffer)
-            } else {
-                None
-            };
-            let task_type_hash = if inner.flags.new_task() {
-                let task_type = inner.get_persistent_task_type().expect(
-                    "It is not possible for a new_task to not have a persistent_task_type.  Task \
-                     creation for persistent tasks uses a single ExecutionContextImpl for \
-                     creating the task (which sets new_task) and connect_child (which sets \
-                     persistent_task_type) and take_snapshot waits for all operations to complete \
-                     before we start snapshotting.  So task creation will always set the \
-                     task_type.",
-                );
-                Some(compute_task_type_hash(task_type))
-            } else {
-                None
-            };
-
-            SnapshotItem::Put {
-                task_id,
-                meta,
-                data,
-                task_type_hash,
-            }
+            })
         };
 
-        let task_snapshots =
-            self.storage
-                .take_snapshot(snapshot_guard, &process, reason.drain_entries());
+        // Called for every item persisted, including the ones encoded by `track_modification`.
+        // The stats were captured when the item was encoded.
+        let inspect_snapshot_item = |item: &SnapshotItem| {
+            #[cfg(feature = "print_cache_item_size")]
+            if let SnapshotItem::Put {
+                meta, data, stats, ..
+            } = item
+                && (meta.is_some() || data.is_some())
+            {
+                let mut task_cache_stats = task_cache_stats.lock();
+                let entry = task_cache_stats.entry(stats.task_name.clone()).or_default();
+                entry.add_counts(stats);
+                if let Some(meta) = meta {
+                    entry.add_meta(meta);
+                }
+                if let Some(data) = data {
+                    entry.add_data(data);
+                }
+            }
+            #[cfg(not(feature = "print_cache_item_size"))]
+            let _ = item;
+        };
+
+        // The scan captures the modified tasks, so it needs the exclusion (`snapshot_phase`).
+        // Encoding happens later, in the returned iterators, after the exclusion ends.
+        let task_snapshots = self.storage.take_snapshot(
+            &snapshot_phase,
+            snapshot_guard,
+            &process,
+            &inspect_snapshot_item,
+            reason.drain_entries(),
+        );
+        drop(snapshot_phase);
 
         drop(snapshot_span);
         let snapshot_duration = start.elapsed();
         let task_count = task_snapshots.len();
 
         if task_snapshots.is_empty() && gc_roots_to_persist.is_none() {
-            // This should be impossible — if we got here, modified_count was nonzero or gc_roots
-            // was present, and every modification that increments the count also failed
-            // during encoding.
-            std::hint::cold_path();
+            // No task was modified since the last snapshot (or every modified task was both new
+            // and deleted), so there is nothing to write.
             return Ok(Some((snapshot_time, false, gc_outcome)));
         }
 
@@ -1663,65 +1806,63 @@ impl TurboTasksBackend {
     fn stopping(&self) {
         // modify via a write guard so we synchronize with top level calls into try_execute_context
         *self.stopping.write() = true;
-        self.stopping_event.notify(usize::MAX);
+        self.activity.publish_stopping();
     }
 
     #[allow(unused_variables)]
     fn stop(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
+        // `stopping` has already published `Stopping`, which makes a concurrent idle verification
+        // pass bail out.
         #[cfg(feature = "verify_aggregation_graph")]
-        {
-            self.is_idle.store(false, Ordering::Release);
-            self.verify_aggregation_graph(turbo_tasks, false);
-        }
+        self.verify_aggregation_graph(turbo_tasks, false);
         // eagerly drop the task cache before persisting
         self.storage.drop_task_cache();
         if self.should_persist()
             && let Err(err) =
                 self.snapshot_and_persist(Span::current().into(), SnapshotReason::Stop, turbo_tasks)
         {
-            eprintln!("Persisting failed during shutdown: {err:?}");
+            // We don't treat this as a failure, just warn that the cache is broken and keep going.
+            eprintln!("WARNING: Saving the filesystem cache failed:\n    {err:#}");
         }
         self.storage.drop_contents();
-        if let Err(err) = self.backing_storage.shutdown() {
-            println!("Shutting down failed: {err}");
-        }
+        // Do final cleanup, this is best effort and unfailable
+        self.backing_storage.shutdown();
     }
 
     #[allow(unused_variables)]
     fn idle_start(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
-        self.idle_start_event.notify(usize::MAX);
+        self.activity.publish_idle_state(|| turbo_tasks.is_idle());
 
         #[cfg(feature = "verify_aggregation_graph")]
         {
             use tokio::select;
 
-            self.is_idle.store(true, Ordering::Release);
             // The spawned task reaches the backend through the pinned `turbo_tasks` handle
             // rather than cloning `self`: pinning keeps the `TurboTasks` (and therefore the
             // backend it owns) alive for the task's lifetime.
             let turbo_tasks = turbo_tasks.pin();
             tokio::task::spawn(async move {
                 let backend = &turbo_tasks.backend();
+                let mut activity = backend.activity.subscribe();
                 select! {
                     _ = tokio::time::sleep(Duration::from_secs(5)) => {
                         // do nothing
                     }
-                    _ = backend.idle_end_event.listen() => {
+                    // Checks the current value first, so this also returns if we are already
+                    // busy or stopping.
+                    _ = activity.wait_for(|activity| !activity.is_idle()) => {
                         return;
                     }
                 }
-                if !backend.is_idle.load(Ordering::Relaxed) {
-                    return;
-                }
+                // If both branches were ready, the walk itself stops once it sees we're no
+                // longer idle.
                 backend.verify_aggregation_graph(&turbo_tasks, true);
             });
         }
     }
 
-    fn idle_end(&self) {
-        #[cfg(feature = "verify_aggregation_graph")]
-        self.is_idle.store(false, Ordering::Release);
-        self.idle_end_event.notify(usize::MAX);
+    fn idle_end(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
+        self.activity.publish_idle_state(|| turbo_tasks.is_idle());
     }
 
     fn get_or_create_task(
@@ -1890,7 +2031,7 @@ impl TurboTasksBackend {
             panic!("Dependency tracking is disabled so invalidation is not allowed");
         }
         invalidate(
-            smallvec![task_id],
+            [task_id],
             #[cfg(feature = "task_dirty_cause")]
             TaskDirtyCause::Invalidator,
             self.execute_context(turbo_tasks),
@@ -1901,12 +2042,25 @@ impl TurboTasksBackend {
         if !self.should_track_dependencies() {
             panic!("Dependency tracking is disabled so invalidation is not allowed");
         }
-        invalidate(
-            tasks.iter().copied().collect(),
-            #[cfg(feature = "task_dirty_cause")]
-            TaskDirtyCause::Unknown,
-            self.execute_context(turbo_tasks),
+        // `invalidate` checks each chunk for duplicates, but a duplicate split across two chunks
+        // would only be seen here.
+        debug_assert!(
+            tasks.len() <= 1 || tasks.iter().collect::<FxHashSet<_>>().len() == tasks.len(),
+            "invalidate_tasks() must not be called with duplicate task ids: {tasks:?}"
         );
+        // Large batches are invalidated in parallel chunks. The chunks may run on other threads,
+        // which don't have the calling task's state, so its priority (the parent priority of the
+        // dirty tasks) is read once here and passed to every chunk.
+        let current_task_priority = turbo_tasks.get_current_task_priority();
+        parallel::for_each_chunk(tasks, |chunk| {
+            invalidate(
+                chunk.iter().copied(),
+                // Called by `TurboTasksApi::invalidate_many*`, i.e. batched `Invalidator`s.
+                #[cfg(feature = "task_dirty_cause")]
+                TaskDirtyCause::Invalidator,
+                self.execute_context_with_priority(turbo_tasks, current_task_priority),
+            );
+        });
     }
 
     fn invalidate_tasks_set(
@@ -1918,7 +2072,7 @@ impl TurboTasksBackend {
             panic!("Dependency tracking is disabled so invalidation is not allowed");
         }
         invalidate(
-            tasks.iter().copied().collect(),
+            tasks.iter().copied(),
             #[cfg(feature = "task_dirty_cause")]
             TaskDirtyCause::Unknown,
             self.execute_context(turbo_tasks),
@@ -2121,8 +2275,8 @@ impl TurboTasksBackend {
                 // dependency registration work if we re-read them
                 let cell_dependencies = task.iter_cell_dependencies().collect();
                 task.set_outdated_cell_dependencies(cell_dependencies);
-                let cell_dependencies_hashed = task.iter_cell_dependencies_hashed().collect();
-                task.set_outdated_cell_dependencies_hashed(cell_dependencies_hashed);
+                let cell_dependencies_keyed = task.iter_cell_dependencies_keyed().collect();
+                task.set_outdated_cell_dependencies_keyed(cell_dependencies_keyed);
 
                 let outdated_output_dependencies = task.iter_output_dependencies().collect();
                 task.set_outdated_output_dependencies(outdated_output_dependencies);
@@ -2176,16 +2330,18 @@ impl TurboTasksBackend {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        has_provisional_reads: bool,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Option<TaskPriority> {
-        // Task completion is a 4 step process:
+        // Task completion is a 3 step process:
         // 1. Remove old edges (dependencies, collectibles, children, cells) and update the
         //    aggregation number of the task and the new children.
         // 2. Connect the new children to the task (and do the relevant aggregation updates).
-        // 3. Remove dirty flag (and propagate that to uppers) and remove the in-progress state.
-        // 4. Shrink the task memory to reduce footprint of the task.
+        // 3. Remove the in-progress state and the dirty flag (and propagate that to uppers), remove
+        //    no longer existing cells and shrink the task memory. The changes to the task itself
+        //    happen under one lock, so the next execution can't start before the cleanup is done.
 
         // The snapshot waits for this entire completion path, including its scoped child work,
         // before it observes the graph.
@@ -2219,6 +2375,29 @@ impl TurboTasksBackend {
         let is_error = result.is_err();
 
         let mut ctx = self.execute_context(turbo_tasks);
+
+        // Normally only the provisional dependencies of accessed `LazyReadRef`s remain here:
+        // dropping a `KeyedReadRef` or an unaccessed `LazyReadRef` within the execution already
+        // refined or removed its dependency. Others only remain when a ref leaked (the manager
+        // panics after this returns) or its refinement was refused because the cell content was
+        // missing (e.g. during a concurrent `update_cell`). Their ids are only meaningful within
+        // this execution, so convert them to normal dependencies first, before the outdated edges
+        // are cleaned up, to keep the dependency graph consistent.
+        if has_provisional_reads && self.should_track_dependencies() {
+            self.convert_remaining_provisional_cell_dependencies_at_task_completion(
+                &mut ctx, task_id,
+            );
+        }
+        // Only checked for executions with `keyed_reader()` or `lazy_reader()` reads, so other
+        // tasks don't pay for it.
+        debug_assert!(
+            !has_provisional_reads
+                || !ctx
+                    .task(task_id, TaskDataCategory::Data)
+                    .iter_cell_dependencies_keyed()
+                    .any(|(_, key)| matches!(key, CellKey::Provisional(_))),
+            "`CellKey::Provisional` dependencies must be converted when the execution completes"
+        );
 
         let TaskExecutionCompletePrepareResult {
             new_children,
@@ -2279,29 +2458,25 @@ impl TurboTasksBackend {
             return Some(stale_priority);
         }
 
-        let (stale_priority, in_progress_cells) = self.task_execution_completed_finish(
-            &mut ctx,
-            task_id,
-            #[cfg(feature = "verify_determinism")]
-            no_output_set,
-            new_output,
-            is_now_immutable,
-            is_session_dependent,
-        );
+        let (stale_priority, in_progress_cells, removed_data) = self
+            .task_execution_completed_finish(
+                &mut ctx,
+                task_id,
+                #[cfg(feature = "verify_determinism")]
+                no_output_set,
+                new_output,
+                is_now_immutable,
+                is_session_dependent,
+                cell_counters,
+                is_error,
+                is_recomputation,
+            );
         if let Some(stale_priority) = stale_priority {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
             span.record("stale", "finish");
             return Some(stale_priority);
         }
-
-        let removed_data = self.task_execution_completed_cleanup(
-            &mut ctx,
-            task_id,
-            cell_counters,
-            is_error,
-            is_recomputation,
-        );
 
         // Drop data outside of critical sections
         drop(removed_data);
@@ -2461,7 +2636,7 @@ impl TurboTasksBackend {
                 // Collect all dependencies on tasks to check if all dependencies are immutable.
                 task.iter_output_dependencies()
                     .chain(task.iter_cell_dependencies().map(|r| r.task))
-                    .chain(task.iter_cell_dependencies_hashed().map(|(r, _)| r.task))
+                    .chain(task.iter_cell_dependencies_keyed().map(|(r, _)| r.task))
                     .collect::<FxHashSet<_>>(),
             )
         } else {
@@ -2498,18 +2673,26 @@ impl TurboTasksBackend {
             // Here at completion, we clean up only the OUTDATED deps (the "before" snapshot).
             // Using iter_* (active) instead would incorrectly clean up deps that are still valid,
             // breaking dependency tracking.
+            old_edges.extend(task.iter_outdated_cell_dependencies().map(|cell| {
+                OutdatedEdge::CellDependency {
+                    dependent: task_id,
+                    cell,
+                }
+            }));
             old_edges.extend(
-                task.iter_outdated_cell_dependencies()
-                    .map(OutdatedEdge::CellDependency),
+                task.iter_outdated_cell_dependencies_keyed()
+                    .map(|(cell, key)| OutdatedEdge::KeyedCellDependency {
+                        dependent: task_id,
+                        cell,
+                        key,
+                    }),
             );
-            old_edges.extend(
-                task.iter_outdated_cell_dependencies_hashed()
-                    .map(|(r, k)| OutdatedEdge::HashedCellDependency(r, k)),
-            );
-            old_edges.extend(
-                task.iter_outdated_output_dependencies()
-                    .map(OutdatedEdge::OutputDependency),
-            );
+            old_edges.extend(task.iter_outdated_output_dependencies().map(|output_task| {
+                OutdatedEdge::OutputDependency {
+                    dependent: task_id,
+                    output_task,
+                }
+            }));
             old_edges.extend(
                 task.iter_outdated_collectibles_dependencies()
                     .map(OutdatedEdge::CollectiblesDependency),
@@ -2809,11 +2992,15 @@ impl TurboTasksBackend {
         new_output: Option<OutputValue>,
         is_now_immutable: bool,
         is_session_dependent: bool,
+        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        is_error: bool,
+        is_recomputation: bool,
     ) -> (
         Option<TaskPriority>,
         Option<
             auto_hash_map::AutoMap<CellId, InProgressCellState, BuildHasherDefault<FxHasher>, 1>,
         >,
+        Vec<SharedReference>,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = task.take_in_progress() else {
@@ -2821,7 +3008,13 @@ impl TurboTasksBackend {
         };
         if matches!(in_progress, InProgressState::Canceled) {
             // Task was canceled in the meantime, so we don't finish it
-            return (None, None);
+            let removed_data = Self::task_execution_completed_cleanup(
+                &mut task,
+                cell_counters,
+                is_error,
+                is_recomputation,
+            );
+            return (None, None, removed_data);
         }
         let InProgressState::InProgress(InProgressStateInner {
             done_event,
@@ -2843,7 +3036,7 @@ impl TurboTasksBackend {
                 reason: TaskExecutionReason::Stale,
             });
             debug_assert!(old.is_none(), "InProgress already exists");
-            return (Some(stale_priority), None);
+            return (Some(stale_priority), None, Vec::new());
         }
 
         // Set the output if it has changed
@@ -2885,19 +3078,29 @@ impl TurboTasksBackend {
                 .then(TaskPriority::leaf);
         #[cfg(not(feature = "verify_determinism"))]
         let stale_priority: Option<TaskPriority> = None;
-        if stale_priority.is_some() {
+        let removed_data = if stale_priority.is_some() {
             let old = task.set_in_progress(InProgressState::Scheduled {
                 done_event,
                 reason: TaskExecutionReason::Stale,
             });
             debug_assert!(old.is_none(), "InProgress already exists");
             drop(task);
+            Vec::new()
         } else {
+            // Clean up before the completion becomes visible: once the guard is dropped, the next
+            // execution can start, and cleaning up after that would remove its state.
+            let removed_data = Self::task_execution_completed_cleanup(
+                &mut task,
+                cell_counters,
+                is_error,
+                is_recomputation,
+            );
             drop(task);
 
             // Notify dependent tasks that are waiting for this task to finish
             done_event.notify(usize::MAX);
-        }
+            removed_data
+        };
 
         drop(old_content);
 
@@ -2906,18 +3109,24 @@ impl TurboTasksBackend {
         }
 
         // We return so the data can be dropped outside of critical sections
-        (stale_priority, in_progress_cells)
+        (stale_priority, in_progress_cells, removed_data)
     }
 
+    /// Removes the cells this execution no longer has and frees the per-execution bookkeeping
+    /// (`cleanup_after_execution`).
+    ///
+    /// Runs under the same task guard that completes the execution, before the completion is
+    /// published (`in_progress` removed and `done_event` notified). Otherwise a waiter could start
+    /// the next execution in between, and this cleanup would remove that execution's state, e.g.
+    /// the outdated dependencies it was just given.
+    ///
+    /// Returns the removed cell data, so it can be dropped outside of the critical section.
     fn task_execution_completed_cleanup(
-        &self,
-        ctx: &mut ExecuteContext<'_>,
-        task_id: TaskId,
+        task: &mut TaskGuard<'_>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         is_error: bool,
         is_recomputation: bool,
     ) -> Vec<SharedReference> {
-        let mut task = ctx.task(task_id, TaskDataCategory::All);
         let mut removed_cell_data = Vec::new();
         // An error is potentially caused by a eventual consistency, so we avoid updating cells
         // after an error as it is likely transient and we want to keep the dependent tasks
@@ -2964,8 +3173,6 @@ impl TurboTasksBackend {
 
         // Free memory now that execution is complete.
         task.cleanup_after_execution();
-
-        drop(task);
 
         // Return so we can drop outside of critical sections
         removed_cell_data
@@ -3037,69 +3244,64 @@ impl TurboTasksBackend {
                     });
 
                     let mut last_snapshot = self.start_time;
-                    let mut idle_start_listener = self.idle_start_event.listen();
-                    let mut idle_end_listener = self.idle_end_event.listen();
-                    // Whether to immediately set an idle timeout if possible.
-                    // Set to false if we don't persist anything in a cycle.
-                    let mut fresh_idle = true;
+                    let mut activity = self.activity.subscribe();
+                    // Which idle periods get an idle deadline in the next cycle. `None`: any idle
+                    // period, but not before a full timeout from the cycle start. `Some(cutoff)`:
+                    // only an idle period that began after `cutoff`; set when a cycle persisted
+                    // nothing, so we don't snapshot the same idle period again.
+                    let mut next_idle_cutoff: Option<Instant> = None;
                     let mut is_first = true;
                     // Owns the eviction policy (mode + threshold state); decides each
                     // cycle whether an eviction sweep is worthwhile.
                     let mut eviction_control = EvictionControl::new(self.options.eviction_mode);
-                    // Accumulated compilation (non-idle) time since the last persisted
-                    // snapshot. Runs while not idle, stops while idle. Used to skip periodic
-                    // snapshots that wouldn't save enough work to justify their fixed
-                    // overhead. Reset after each completed snapshot attempt.
-                    let mut active_time = Stopwatch::new();
                     'outer: loop {
                         const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
-                        let idle_timeout = *IDLE_TIMEOUT;
                         let (time, mut reason) = if is_first {
                             (FIRST_SNAPSHOT_WAIT, SnapshotReason::InitialSnapshotTimeout)
                         } else {
                             (SNAPSHOT_INTERVAL, SnapshotReason::RegularSnapshotInterval)
                         };
 
-                        // Begin (or continue) timing if we're not idle. Transitions below
-                        // keep this in sync via the idle events.
-                        if !turbo_tasks.is_idle() {
-                            active_time.start();
+                        if activity.status() == BackendActivity::Stopping {
+                            return;
                         }
+                        let strategy = match next_idle_cutoff {
+                            None => IdleDeadlineStrategy::Fresh {
+                                not_before: Instant::now(),
+                            },
+                            Some(cutoff) => IdleDeadlineStrategy::After { cutoff },
+                        };
 
                         let until = last_snapshot + time;
                         if until > Instant::now() {
-                            let mut stop_listener = self.stopping_event.listen();
-                            if *self.stopping.read() {
-                                return;
-                            }
-                            let mut idle_time = if turbo_tasks.is_idle() && fresh_idle {
-                                Instant::now() + idle_timeout
-                            } else {
-                                far_future()
-                            };
                             loop {
+                                let current = activity.status();
+                                if current == BackendActivity::Stopping {
+                                    return;
+                                }
+                                let idle_deadline = current
+                                    .idle_deadline(strategy, *IDLE_TIMEOUT)
+                                    .unwrap_or_else(far_future);
                                 tokio::select! {
-                                    _ = &mut stop_listener => {
-                                        return;
-                                    },
-                                    _ = &mut idle_start_listener => {
-                                        // Became idle: stop accumulating active time.
-                                        active_time.stop();
-                                        idle_time = Instant::now() + idle_timeout;
-                                        idle_start_listener = self.idle_start_event.listen()
-                                    },
-                                    _ = &mut idle_end_listener => {
-                                        // Became active: resume accumulating active time.
-                                        active_time.start();
-                                        idle_time = far_future();
-                                        idle_end_listener = self.idle_end_event.listen()
+                                    changed = activity.changed() => {
+                                        // Only fails once the sender (owned by the backend) is
+                                        // gone, i.e. the backend is being dropped.
+                                        if changed.is_err() {
+                                            return;
+                                        }
                                     },
                                     _ = tokio::time::sleep_until(until) => {
                                         break;
                                     },
-                                    _ = tokio::time::sleep_until(idle_time) => {
-                                        if turbo_tasks.is_idle() {
+                                    _ = tokio::time::sleep_until(idle_deadline) => {
+                                        // Decide on the latest value: the idle period may have
+                                        // changed since the deadline was computed. Otherwise, the
+                                        // next iteration recomputes the deadline.
+                                        if activity
+                                            .status()
+                                            .should_snapshot(strategy, *IDLE_TIMEOUT)
+                                        {
                                             reason = SnapshotReason::IdleTimeout;
                                             break;
                                         }
@@ -3114,14 +3316,14 @@ impl TurboTasksBackend {
                         // flush, but they don't run through this loop (Stop is handled in
                         // stop(), Test in snapshot_and_evict_for_testing), so every reason
                         // reaching here is subject to the threshold.
-                        if active_time.elapsed() < *MIN_SNAPSHOT_ACTIVE_TIME {
+                        if self.activity.active_time() < *MIN_SNAPSHOT_ACTIVE_TIME {
                             // Not enough compilation time accumulated — skip the (potentially
                             // expensive) snapshot. Advance scheduling state as if we had run,
-                            // but keep active_time running so it carries toward the next cycle.
-                            // Clear fresh_idle (as a no-data snapshot would) so we don't re-arm
-                            // the short idle timeout every cycle and spin while idle; a new
-                            // active period (idle_end) re-triggers timing and progress.
-                            fresh_idle = false;
+                            // but keep the active time so it carries toward the next cycle.
+                            // Only an idle period that begins after this decision gets an idle
+                            // deadline (as after a no-data snapshot), so we don't restart the
+                            // short idle timeout every cycle and spin while idle.
+                            next_idle_cutoff = Some(Instant::now());
                             is_first = false;
                             last_snapshot = Instant::now();
                             continue 'outer;
@@ -3132,6 +3334,10 @@ impl TurboTasksBackend {
                         // grouped together in trace viewers.
                         let background_span =
                             tracing::info_span!(parent: None, "background snapshot");
+                        // Taken before the attempt: an idle period that begins while it runs
+                        // still gets an idle deadline after a no-data snapshot. (The time
+                        // `snapshot_and_persist` returns is usually taken later, after GC.)
+                        let attempt_start = Instant::now();
                         match self.snapshot_and_persist(background_span.id(), reason, turbo_tasks) {
                             Err(err) => {
                                 // save_snapshot consumed persisted_task_cache_log entries;
@@ -3143,14 +3349,17 @@ impl TurboTasksBackend {
                             Ok(None) => {
                                 // An idle snapshot found operations in flight. Nothing was
                                 // persisted, so keep the accumulated active time and scheduling
-                                // state. Re-arm the idle timeout so we retry if we are still
-                                // idle; otherwise the next idle period or interval picks it up.
-                                fresh_idle = true;
+                                // state. Use a fresh idle deadline, so we retry after a full
+                                // timeout if we are still idle; otherwise the next idle period
+                                // or interval picks it up.
+                                next_idle_cutoff = None;
                                 continue 'outer;
                             }
                             Ok(Some((snapshot_start, new_data, _gc_outcome))) => {
-                                // if we see 'new_data' then the next idle transition is 'fresh'
-                                fresh_idle = new_data;
+                                // With new data, the next idle period is 'fresh'. Without, only
+                                // an idle period that began after this attempt started gets an
+                                // idle deadline (including one from during the attempt).
+                                next_idle_cutoff = (!new_data).then_some(attempt_start);
                                 is_first = false;
                                 last_snapshot = snapshot_start;
                                 // A completed snapshot attempt means the accumulated
@@ -3160,22 +3369,13 @@ impl TurboTasksBackend {
                                 // state. Either way, reset so stale time doesn't carry into the
                                 // next cycle. If still timing an active period, reset() keeps it
                                 // running from now so time before this snapshot isn't counted.
-                                active_time.reset();
+                                self.activity.reset_active_time();
 
-                                // Polls the idle-end event without blocking. Returns
-                                // `true` and refreshes the listener if idle has ended,
-                                // `false` if we are still idle.
+                                // Whether turbo-tasks has stopped being idle (busy or
+                                // stopping), from the latest published activity. Doesn't
+                                // block, and busy periods that already ended don't count.
                                 macro_rules! check_idle_ended {
-                                    () => {{
-                                        tokio::select! {
-                                            biased;
-                                            _ = &mut idle_end_listener => {
-                                                idle_end_listener = self.idle_end_event.listen();
-                                                true
-                                            },
-                                            _ = std::future::ready(()) => false,
-                                        }
-                                    }};
+                                    () => {{ !self.activity.status().is_idle() }};
                                 }
                                 // Evict persisted tasks from memory to reclaim space.
                                 // Like compaction, this runs after snapshot_and_persist
@@ -3397,6 +3597,40 @@ impl TurboTasksBackend {
         );
     }
 
+    fn unemit_collectibles(
+        &self,
+        collectible_type: TraitTypeId,
+        collectibles: &TaskCollectiblesMap,
+        task_id: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        let updates: SmallVec<[_; 1]> = collectibles
+            .iter()
+            .filter(|&(_, &count)| count > 0)
+            .map(|(&collectible, &count)| {
+                self.assert_valid_collectible(task_id, collectible);
+                let Some((collectible_task, cell)) = collectible.as_task_cell() else {
+                    panic!("Collectibles need to be resolved");
+                };
+                (
+                    CollectibleRef {
+                        collectible_type,
+                        cell: CellRef {
+                            task: collectible_task,
+                            cell,
+                        },
+                    },
+                    -count,
+                )
+            })
+            .collect();
+        operation::UpdateCollectibleOperation::run_batch(
+            task_id,
+            updates,
+            self.execute_context(turbo_tasks),
+        );
+    }
+
     fn update_task_cell(
         &self,
         task_id: TaskId,
@@ -3543,7 +3777,7 @@ impl TurboTasksBackend {
                     );
                 }
                 let task = ctx.task(task_id, TaskDataCategory::All);
-                if idle && !self.is_idle.load(Ordering::Relaxed) {
+                if idle && !self.activity.status().is_idle() {
                     return;
                 }
 
@@ -3760,8 +3994,8 @@ impl Backend for TurboTasksBackend {
         self.idle_start(turbo_tasks);
     }
 
-    fn idle_end(&self, _turbo_tasks: &TurboTasks<Self>) {
-        self.idle_end();
+    fn idle_end(&self, turbo_tasks: &TurboTasks<Self>) {
+        self.idle_end(turbo_tasks);
     }
 
     fn get_or_create_task(
@@ -3814,6 +4048,7 @@ impl Backend for TurboTasksBackend {
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        has_provisional_reads: bool,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &TurboTasks<Self>,
@@ -3822,6 +4057,7 @@ impl Backend for TurboTasksBackend {
             task_id,
             result,
             cell_counters,
+            has_provisional_reads,
             #[cfg(feature = "verify_determinism")]
             stateful,
             has_invalidator,
@@ -3860,6 +4096,18 @@ impl Backend for TurboTasksBackend {
         self.try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
     }
 
+    fn refine_provisional_cell_dependency(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &mut dyn Iterator<Item = u64>,
+        turbo_tasks: &TurboTasks<Self>,
+    ) {
+        self.refine_provisional_cell_dependency(task_id, cell, reader, id, key_hashes, turbo_tasks)
+    }
+
     fn try_read_own_task_cell(
         &self,
         task_id: TaskId,
@@ -3867,6 +4115,15 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<TypedCellContent> {
         self.try_read_own_task_cell(task_id, cell, turbo_tasks)
+    }
+
+    fn drop_task_cell_content_hint(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        turbo_tasks: &TurboTasks<Self>,
+    ) {
+        self.drop_task_cell_content_hint(task_id, cell, turbo_tasks)
     }
 
     fn read_task_collectibles(
@@ -3898,6 +4155,16 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &TurboTasks<Self>,
     ) {
         self.unemit_collectible(collectible_type, collectible, count, task_id, turbo_tasks)
+    }
+
+    fn unemit_collectibles(
+        &self,
+        collectible_type: TraitTypeId,
+        collectibles: &TaskCollectiblesMap,
+        task_id: TaskId,
+        turbo_tasks: &TurboTasks<Self>,
+    ) {
+        self.unemit_collectibles(collectible_type, collectibles, task_id, turbo_tasks)
     }
 
     fn update_task_cell(
@@ -3976,39 +4243,57 @@ fn far_future() -> Instant {
     Instant::now() + Duration::from_secs(86400 * 365 * 30)
 }
 
-/// Encodes task data, using the provided buffer as a scratch space.  Returns a new exactly sized
-/// buffer.
-/// This allows reusing the buffer across multiple encode calls to optimize allocations and
-/// resulting buffer sizes.
-///
-/// TODO: The `Result` return type is an artifact of the bincode `Encode` trait requiring
-/// fallible encoding. In practice, encoding to a `SmallVec` is infallible (no I/O), and the only
-/// real failure mode — a `TypedSharedReference` whose value type has no bincode impl — is a
-/// programmer error caught by the panic in the caller. Consider making the bincode encoding trait
-/// infallible (i.e. returning `()` instead of `Result<(), EncodeError>`) to eliminate the
-/// spurious `Result` threading throughout the encode path.
-fn encode_task_data(
-    task: TaskId,
-    data: &TaskStorage,
-    category: SpecificTaskDataCategory,
-    scratch_buffer: &mut TurboBincodeBuffer,
-) -> Result<TurboBincodeBuffer> {
-    scratch_buffer.clear();
-    let mut encoder = new_turbo_bincode_encoder(scratch_buffer);
-    data.encode(category, &mut encoder)?;
+#[cfg(test)]
+mod persist_failure_tests {
+    use turbo_tasks::{TaskId, TurboTasks};
 
-    if cfg!(feature = "verify_serialization") {
-        TaskStorage::new()
-            .decode(
-                category,
-                &mut new_turbo_bincode_decoder(&scratch_buffer[..]),
-            )
-            .with_context(|| {
-                format!(
-                    "expected to be able to decode serialized data for '{category:?}' information \
-                     for {task}"
-                )
-            })?;
+    use crate::{
+        backend::{
+            BackendOptions, LastPersistenceStatus, SnapshotReason, StorageMode, TurboTasksBackend,
+            storage::SpecificTaskDataCategory,
+        },
+        noop_backing_storage,
+    };
+
+    /// A failed persist (the noop backing storage rejects writes) disables persisting for the
+    /// session: a later snapshot doesn't start, so it leaves the task's modification as it is.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn failed_persist_disables_persisting() {
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: Some(StorageMode::ReadWrite),
+                num_workers: Some(1),
+                small_preallocation: true,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ));
+        let backend = tt.backend();
+        let modify = |id: u32| {
+            let task_id = TaskId::new(id).unwrap();
+            let mut task = backend.storage.access_mut(task_id);
+            let _ = task.track_modification(SpecificTaskDataCategory::Data, "test");
+            task_id
+        };
+
+        let status = || *backend.snapshot_in_progress.lock();
+
+        modify(1);
+        assert_eq!(status(), LastPersistenceStatus::Ok);
+        let _ = backend.snapshot_and_evict_for_testing(&tt);
+        assert_eq!(status(), LastPersistenceStatus::Failed);
+
+        let task_id = modify(2);
+        let result = backend
+            .snapshot_and_persist(None, SnapshotReason::Test, &tt)
+            .expect("a disabled persist is skipped, not an error");
+        assert!(result.is_none(), "persisting must stay disabled");
+        assert_eq!(status(), LastPersistenceStatus::Failed);
+        let task = backend.storage.access_mut(task_id);
+        assert!(
+            task.flags.data_modified(),
+            "the second snapshot must not start"
+        );
+        assert!(!task.flags.any_snapshot_pending());
     }
-    Ok(SmallVec::from_slice(scratch_buffer))
 }

@@ -92,9 +92,6 @@ interface DevRuntimeBackend {
   restart: () => void
 }
 
-const moduleFactories: ModuleFactories = new Map()
-contextPrototype.M = moduleFactories
-
 const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
@@ -436,7 +433,8 @@ function resolvePathFromModule(
   this: TurbopackBaseContext<Module>,
   moduleId: string
 ): string {
-  const exported = this.r(moduleId)
+  const exported = getOrInstantiateModuleFromParent(moduleId, this.m)
+    .exports as Exports
   return exported?.default ?? exported
 }
 browserContextPrototype.R = resolvePathFromModule

@@ -42,7 +42,7 @@ describe('getDynamicHTMLPostponedState', () => {
         entry: {
           value: streamFromString('hello'),
           tags: [],
-          stale: 0,
+          stale: 30,
           timestamp: 0,
           expire: 300,
           revalidate: 1,
@@ -328,7 +328,7 @@ describe('parseResumeDataCacheFromPostponedState', () => {
         entry: {
           value: streamFromString('cached value'),
           tags: [],
-          stale: 0,
+          stale: 30,
           timestamp: 0,
           expire: 300,
           revalidate: 1,

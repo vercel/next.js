@@ -68,6 +68,7 @@ type CreateComponentTreeProps = {
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
+  authInterrupts: boolean
   MetadataOutlet: ComponentType<{ tree: LoaderTree }>
   isPrerendering: boolean
   hintTree: PrefetchHints | null
@@ -133,6 +134,7 @@ async function createComponentTreeInternal(
     ctx,
     missingSlots,
     preloadCallbacks,
+    authInterrupts,
     MetadataOutlet,
     isPrerendering,
     hintTree,
@@ -147,6 +149,7 @@ async function createComponentTreeInternal(
     ctx: AppRenderContext
     missingSlots?: Set<string>
     preloadCallbacks: PreloadCallbacks
+    authInterrupts: boolean
     MetadataOutlet: ComponentType<{ tree: LoaderTree }> | null
     isPrerendering: boolean
     hintTree: PrefetchHints | null
@@ -276,25 +279,27 @@ async function createComponentTreeInternal(
       })
     : []
 
-  const [Forbidden, forbiddenStyles] = forbidden
-    ? await createComponentStylesAndScripts({
-        ctx,
-        filePath: forbidden[1],
-        getComponent: forbidden[0],
-        injectedCSS: injectedCSSWithCurrentLayout,
-        injectedJS: injectedJSWithCurrentLayout,
-      })
-    : []
+  const [Forbidden, forbiddenStyles] =
+    authInterrupts && forbidden
+      ? await createComponentStylesAndScripts({
+          ctx,
+          filePath: forbidden[1],
+          getComponent: forbidden[0],
+          injectedCSS: injectedCSSWithCurrentLayout,
+          injectedJS: injectedJSWithCurrentLayout,
+        })
+      : []
 
-  const [Unauthorized, unauthorizedStyles] = unauthorized
-    ? await createComponentStylesAndScripts({
-        ctx,
-        filePath: unauthorized[1],
-        getComponent: unauthorized[0],
-        injectedCSS: injectedCSSWithCurrentLayout,
-        injectedJS: injectedJSWithCurrentLayout,
-      })
-    : []
+  const [Unauthorized, unauthorizedStyles] =
+    authInterrupts && unauthorized
+      ? await createComponentStylesAndScripts({
+          ctx,
+          filePath: unauthorized[1],
+          getComponent: unauthorized[0],
+          injectedCSS: injectedCSSWithCurrentLayout,
+          injectedJS: injectedJSWithCurrentLayout,
+        })
+      : []
 
   let dynamic = layoutOrPageMod?.dynamic
 
@@ -617,6 +622,7 @@ async function createComponentTreeInternal(
               ctx,
               missingSlots,
               preloadCallbacks,
+              authInterrupts,
               MetadataOutlet:
                 experimental.parallelRouteMetadata || isChildrenRouteKey
                   ? MetadataOutlet

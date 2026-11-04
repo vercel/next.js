@@ -23,7 +23,7 @@ export interface RequestData {
     trailingSlash?: boolean
     experimental?: Pick<
       ExperimentalConfig,
-      'cacheLife' | 'clientParamParsingOrigins'
+      'cacheLife' | 'authInterrupts' | 'clientParamParsingOrigins'
     >
   }
   page?: {
@@ -46,6 +46,8 @@ export interface FetchEventResult {
   response: Response
   waitUntil: Promise<any>
   fetchMetrics?: FetchMetrics
+  /** Whether URL normalization added an inferred locale to a rewrite. */
+  rewriteLocaleWasInferred?: boolean
 }
 
 export type NextMiddlewareResult =
