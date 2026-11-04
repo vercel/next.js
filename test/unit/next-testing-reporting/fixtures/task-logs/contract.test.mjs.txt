@@ -1,0 +1,24 @@
+import { beforeAll, afterAll, beforeEach, afterEach, describe, expect, test } from 'vitest'
+import { writeFileSync } from 'node:fs'
+console.log('collection-root')
+beforeAll(() => console.log('root-beforeAll'))
+afterAll(() => console.warn('root-afterAll'))
+describe('outer', () => {
+  beforeAll(() => console.log('suite-beforeAll'))
+  afterAll(() => console.warn('suite-afterAll'))
+  beforeEach(() => console.log('beforeEach'))
+  afterEach(() => console.warn('afterEach'))
+  test('pass', () => console.log('case-pass'))
+  let attempts = 0
+  test('retry', { retry: 1 }, () => {
+    console.log('case-retry-' + attempts)
+    expect(attempts++).toBe(1)
+  })
+  let repeats = 0
+  test('repeat', { repeats: 1 }, () => console.log('case-repeat-' + repeats++))
+  test.skip('skipped', () => console.log('must-not-run'))
+  test('finish', () => {
+    console.log('case-finish')
+    writeFileSync('body-finished', '')
+  })
+})

@@ -11027,3 +11027,31 @@ describe('completion task ownership without authored collection hooks', () => {
     }
   })
 })
+
+it('retains canonical reporter logs from real producer events and watch generations', () => {
+  const stdout = execFileSync(
+    process.execPath,
+    [join(__dirname, 'reporter-task-logs.cjs')],
+    { encoding: 'utf8', timeout: 240000, maxBuffer: 4 * 1024 * 1024 }
+  )
+  expect(JSON.parse(stdout)).toEqual({
+    profiles: 10,
+    oneShotProfiles: 8,
+    watchGenerations: 4,
+    retainedConsoleRows: 142,
+    comparedRows: 128,
+    engineConsoleRows: 7,
+    publicCLIProfiles: 8,
+    engineComponentProfiles: 2,
+    publicWatchReporterAdmission: false,
+    realProducerRows: true,
+    noConsoleObserverRetainsLogs: true,
+    pendingStateAndEventualCallbackRowIdentity: true,
+    freshArraysWithRetainedRows: true,
+    fileLogsSharedAcrossWatchGenerations: true,
+    absentFileListsRetainTheirActualOwner: true,
+    queuedAndCollectedFileSlotsMatchReference: true,
+    priorTestViewsRetainTheirGeneration: true,
+    callbackSchedulingParityClaimed: false,
+  })
+}, 245000)

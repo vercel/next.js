@@ -1,0 +1,3 @@
+import { beforeAll, test } from 'vitest'
+beforeAll(() => console.log('late-root'))
+test('empty collection logs', () => console.log('body'))

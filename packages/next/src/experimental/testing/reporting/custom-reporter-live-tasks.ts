@@ -1,3 +1,7 @@
+import {
+  createReporterTaskLogs,
+  type ReporterConsoleLog,
+} from './custom-reporter-logs'
 import type { TestRecordEvent } from '../contracts'
 import {
   isRunErrorDiagnostic,
@@ -53,6 +57,7 @@ interface View {
   meta(): ReporterTaskSnapshot['meta']
   annotations(): unknown[]
   artifacts(): unknown[]
+  logs(): ReporterConsoleLog[]
 }
 class Collection {
   constructor(private readonly items: View[]) {}
@@ -95,7 +100,8 @@ export type QueuedReporterEntry = Pick<TestEntry, 'id' | 'file' | 'projectName'>
 export function createQueuedReporterModule(
   projectDir: string,
   entry: QueuedReporterEntry,
-  project: View['project'] = { name: entry.projectName ?? '' }
+  project: View['project'] = { name: entry.projectName ?? '' },
+  logs: () => ReporterConsoleLog[] = () => []
 ) {
   const meta: ReporterTaskSnapshot['meta'] = {}
   return {
@@ -109,6 +115,7 @@ export function createQueuedReporterModule(
     errors: (): unknown[] => [],
     ok: () => true,
     meta: () => meta,
+    logs,
   }
 }
 
@@ -146,7 +153,10 @@ interface Retained {
 }
 
 /** Stable views follow actual producer snapshots; pending declarations are never guessed. */
-export function createLiveReporterTaskStore(projectDir: string) {
+export function createLiveReporterTaskStore(
+  projectDir: string,
+  logs = createReporterTaskLogs()
+) {
   const queued = new Map<
     string,
     {
@@ -230,6 +240,7 @@ export function createLiveReporterTaskStore(projectDir: string) {
     )
       throw new Error('Collected module differs from its selected queue entry.')
     const project = selected?.view.project ?? { name: tree.projectName ?? '' }
+    if (!modules.has(tree.id)) logs.collectFile(tree.id)
     const created = new Set<string>()
     function allocate(value: ReporterTaskSnapshot): View {
       const isRoot = value === tree
@@ -281,6 +292,7 @@ export function createLiveReporterTaskStore(projectDir: string) {
           errors,
           ok: () => state() !== 'failed',
           meta: () => tasks.get(value.id)!.meta,
+          logs: isRoot ? logs.forFile(value.id) : () => logs.forTask(value.id),
           result: () => {
             const resultState = view.state()
             if (resultState === 'skipped')
@@ -315,7 +327,6 @@ export function createLiveReporterTaskStore(projectDir: string) {
                 'task',
                 'diagnostic',
                 'toTestSpecification',
-                'logs',
                 'benchmarks',
               ].includes(String(key))
             )
@@ -365,9 +376,25 @@ export function createLiveReporterTaskStore(projectDir: string) {
         )
       if (project && project.name !== (entry.projectName ?? ''))
         throw new Error('Queued reporter module has another selected project.')
-      const view = createQueuedReporterModule(projectDir, entry, project)
+      const view = createQueuedReporterModule(
+        projectDir,
+        entry,
+        project,
+        logs.forFile(entry.id)
+      )
       queued.set(entry.id, { entry: { ...entry }, view })
       return view
+    },
+    /** Logs are retained before callbacks can observe or mutate their actual row. */
+    recordConsoleLog(entryId: string | undefined, log: ReporterConsoleLog) {
+      const id = log.taskId
+      if (!entryId || !id) return
+      const task = tasks.get(id)?.view
+      if (
+        id === entryId ||
+        (task && (task.id === entryId || task.module?.id === entryId))
+      )
+        logs.append(id, log, id === entryId)
     },
     /** A specification follows the currently registered module for its entry. */
     getSelectedModule(entryId: string) {

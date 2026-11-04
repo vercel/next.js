@@ -1,3 +1,8 @@
+import {
+  createReporterTaskLogs,
+  type ReporterTaskLogStore,
+  type ReporterConsoleLog,
+} from './custom-reporter-logs'
 import type { SnapshotPreparationFailure } from '../execution/snapshot-preparation'
 import { assertUnexecutedCaseResult } from './unexecuted-cases'
 import {
@@ -48,6 +53,7 @@ interface Task {
   meta(): NonNullable<CaseResult['meta']>
   annotations?(): unknown[]
   artifacts?(): TestArtifact[]
+  logs(): ReporterConsoleLog[]
 }
 class Collection {
   constructor(private items: Task[]) {}
@@ -88,13 +94,9 @@ function expose(task: Task): Task {
   return new Proxy(task, {
     get(target, key, receiver) {
       if (
-        [
-          'task',
-          'diagnostic',
-          'toTestSpecification',
-          'logs',
-          'benchmarks',
-        ].includes(String(key))
+        ['task', 'diagnostic', 'toTestSpecification', 'benchmarks'].includes(
+          String(key)
+        )
       )
         throw new Error(
           `Custom reporter task.${String(key)} needs a broader Next tooling adapter and is not implemented.`
@@ -174,7 +176,8 @@ export function getActualBrowserRootErrors(
 export function createCustomReporterModules(
   projectDir: string,
   completion: CustomReporterCompletion,
-  projectForEntry?: (entryId: string) => { name: string } | undefined
+  projectForEntry?: (entryId: string) => { name: string } | undefined,
+  logs: ReporterTaskLogStore = createReporterTaskLogs()
 ): Task[] {
   const specificationOrder = completion.events.find(
     (event) => event.type === 'run-start'
@@ -209,6 +212,7 @@ export function createCustomReporterModules(
       type: 'module',
       id: entry.id,
       project,
+      logs: logs.forFile(entry.id),
       moduleId: entry.file,
       relativeModuleId: relative(projectDir, entry.file).split(sep).join('/'),
       children: new Collection(rootChildren),
@@ -242,6 +246,7 @@ export function createCustomReporterModules(
           const task = expose({
             type: 'suite',
             id: ancestor.id,
+            logs: () => logs.forTask(ancestor.id),
             name: ancestor.name,
             project,
             fullName:
@@ -295,6 +300,7 @@ export function createCustomReporterModules(
         expose({
           type: 'test',
           id: test.caseId,
+          logs: () => logs.forTask(test.caseId),
           project,
           name,
           fullName:

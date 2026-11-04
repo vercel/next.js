@@ -1,0 +1,25 @@
+import { appendFileSync } from 'node:fs'
+const record = (value) => appendFileSync('trace.jsonl', JSON.stringify(value) + '\n')
+const snapshot = (module) => ({
+  module: module.logs().map(log => ({ content: log.content, type: log.type, size: log.size, timeIsNumber: Number.isFinite(log.time) })),
+  tests: [...module.children.allTests()].map(test => ({ name: test.name, logs: test.logs().map(log => ({ content: log.content, type: log.type, size: log.size, timeIsNumber: Number.isFinite(log.time) })) })),
+})
+export default class Reporter {
+  onInit(context) {
+    context.onClose(() => record({ hook: 'close', first: snapshot(this.first), last: snapshot(this.last), retainedFirstSnapshotUnchanged: JSON.stringify(snapshot(this.first)) === this.initial, retainedRowIdentity: this.first.logs().every((log,index) => log === this.firstRows[index]) }))
+  }
+  onWatcherStart() { record({ hook: 'ready' }) }
+  onTestModuleEnd(module) {
+    this.last = module
+    record({ hook: 'module', snapshot: snapshot(module) })
+  }
+  onTestRunEnd(modules, errors, reason) {
+    const module = modules[0]
+    if (!this.first) {
+      this.first = module
+      this.initial = JSON.stringify(snapshot(module))
+      this.firstRows = module.logs()
+    }
+    record({ hook: 'end', reason, errors: errors.map(error => error.message), sameAsFirst: module === this.first, first: snapshot(this.first), current: snapshot(module), retainedFirstSnapshotUnchanged: JSON.stringify(snapshot(this.first)) === this.initial, retainedRowIdentity: this.first.logs().every((log,index) => log === this.firstRows[index]) })
+  }
+}

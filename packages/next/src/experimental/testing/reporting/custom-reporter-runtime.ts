@@ -1,3 +1,7 @@
+import {
+  createReporterTaskLogs,
+  type ReporterConsoleLog,
+} from './custom-reporter-logs'
 import type { TestRecordEvent } from '../contracts'
 import type { ReporterCaseEvent, ReporterTaskEvent } from './task-updates'
 import {
@@ -72,6 +76,9 @@ export function createCustomReporterRuntime(
   const closeCallbacks: (() => unknown)[] = []
   const retainedFinishCallbacks: Promise<PromiseSettledResult<unknown>[]>[] = []
   let live: ReturnType<typeof createLiveReporterTaskStore>
+  let logs = createReporterTaskLogs()
+  const pendingConsoleLogs = new Map<number, ReporterConsoleLog>()
+  let latestConsoleLogId = 0
   let root: string
   let queuedProjectRoot: string
   let initialized = false
@@ -745,7 +752,7 @@ export function createCustomReporterRuntime(
         }
         root = message.input.projectDir
         queuedProjectRoot = message.input.queuedProjectRoot
-        live = createLiveReporterTaskStore(root)
+        live = createLiveReporterTaskStore(root, logs)
         const context = contextMember(
           {
             config: contextMember(reporterConfig, 'context.config'),
@@ -955,7 +962,9 @@ export function createCustomReporterRuntime(
         // The parent joins the previous generation's execution owners before
         // retiring these task views. Reporter instances and close callbacks live
         // until the enclosing watch owner disposes this process.
-        live = createLiveReporterTaskStore(root)
+        logs = logs.nextGeneration()
+        pendingConsoleLogs.clear()
+        live = createLiveReporterTaskStore(root, logs)
         completedModules.clear()
         watchTrees.clear()
         watchEntryIds = []
@@ -1043,10 +1052,14 @@ export function createCustomReporterRuntime(
       }
       if (message.type === 'console' && initialized && !finished) {
         try {
-          await settle(
-            reporters.map(
-              (reporter) => () => reporter.onUserConsoleLog?.(message.log)
+          const log = pendingConsoleLogs.get(message.logId)
+          if (!log)
+            throw new Error(
+              'Console callback requires its actual retained row.'
             )
+          pendingConsoleLogs.delete(message.logId)
+          await settle(
+            reporters.map((reporter) => () => reporter.onUserConsoleLog?.(log))
           )
         } catch (error) {
           consoleErrors.push(error)
@@ -1239,7 +1252,8 @@ export function createCustomReporterRuntime(
             createCustomReporterModules(
               root,
               completion,
-              runSpecifications?.projectForEntry
+              runSpecifications?.projectForEntry,
+              logs
             )
           ).find((item) => item.id === message.entryId)
         if (!module)
@@ -1282,7 +1296,8 @@ export function createCustomReporterRuntime(
           createCustomReporterModules(
             root,
             completion,
-            runSpecifications?.projectForEntry
+            runSpecifications?.projectForEntry,
+            logs
           )
         ).map((module) =>
           preparedEntryIds.has(module.id)
@@ -1394,6 +1409,33 @@ export function createCustomReporterRuntime(
   }
   function receive(message: any) {
     if (transportClosed) return
+    if (message?.type === 'console-state' && initialized && !finished) {
+      try {
+        const log = message.log as ReporterConsoleLog
+        if (
+          !Number.isSafeInteger(message.logId) ||
+          message.logId <= latestConsoleLogId ||
+          !log ||
+          typeof log !== 'object' ||
+          typeof log.content !== 'string' ||
+          !['stdout', 'stderr'].includes(log.type) ||
+          !Number.isFinite(log.time) ||
+          !Number.isSafeInteger(log.size) ||
+          log.size < 0 ||
+          (log.taskId !== undefined && typeof log.taskId !== 'string') ||
+          (log.origin !== undefined && typeof log.origin !== 'string') ||
+          (log.browser !== undefined && typeof log.browser !== 'boolean') ||
+          (message.entryId !== undefined && typeof message.entryId !== 'string')
+        )
+          throw new Error('Invalid actual reporter console row.')
+        latestConsoleLogId = message.logId
+        pendingConsoleLogs.set(message.logId, log)
+        live.recordConsoleLog(message.entryId, log)
+      } catch (error) {
+        consoleErrors.push(error)
+      }
+      return
+    }
     if (message?.type === 'task-batch') {
       const preceding = queue
       const operation = preceding.then(async () => {
@@ -1583,7 +1625,12 @@ export function createCustomReporterRuntime(
         queuedEntryIds.add(entry.id)
         const module = runSpecifications
           ? live.queue(entry, runSpecifications.projectForEntry(entry.id))
-          : createQueuedReporterModule(queuedProjectRoot, entry)
+          : createQueuedReporterModule(
+              queuedProjectRoot,
+              entry,
+              undefined,
+              logs.forFile(entry.id)
+            )
         queuedCallbacks.push(
           settle(
             reporters.map(

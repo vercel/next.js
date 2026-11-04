@@ -237,6 +237,7 @@ export async function openCustomReporters(options: {
   let initialCloseFailure: CustomReporterInitialCloseFailure | undefined
   let disposal: Promise<void> | undefined
   let consoleQueue = Promise.resolve()
+  let nextConsoleLogId = 0
   const queuedWrites: Promise<void>[] = []
   const collectedWrites: Promise<void>[] = []
   const preparationWrites: Promise<void>[] = []
@@ -1143,8 +1144,17 @@ export async function openCustomReporters(options: {
               size: event.console.size,
               origin: event.console.origin,
             }
+        const logId = ++nextConsoleLogId
+        // State must reach live task views while an earlier async console
+        // callback remains pending, just as task packs retain live results.
+        void send({
+          type: 'console-state',
+          logId,
+          entryId: event.entryId,
+          log,
+        }).catch(retainConsoleFailure)
         consoleQueue = consoleQueue
-          .then(() => request({ type: 'console', log }))
+          .then(() => request({ type: 'console', logId }))
           .catch(retainConsoleFailure)
       },
       beginFinish(completion: CustomReporterCompletion): {
