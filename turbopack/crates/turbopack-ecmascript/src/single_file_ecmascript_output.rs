@@ -117,7 +117,7 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
         let map = generate_js_source_map(
             &*sm,
             &mappings,
-            None::<&Rope>,
+            None::<(Option<&FileName>, &Rope)>,
             true,
             true,
             &Default::default(),

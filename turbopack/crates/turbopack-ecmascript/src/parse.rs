@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -177,42 +177,33 @@ pub enum ParseResult {
 ///
 /// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
 /// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
+/// Each original map is paired with the parsed file it describes. This is required when composing
+/// maps for merged modules; the map's optional `file` field is not a reliable module identifier.
 #[instrument(level = "info", name = "generate source map", skip_all)]
 pub fn generate_js_source_map<'a>(
     files_map: &impl Files,
     mappings: &[(BytePos, LineCol)],
-    original_source_maps: impl IntoIterator<Item = &'a Rope>,
+    original_source_maps: impl IntoIterator<Item = (Option<&'a FileName>, &'a Rope)>,
     original_source_maps_complete: bool,
     inline_sources_content: bool,
     names: &FxHashMap<BytePos, Atom>,
 ) -> Result<StructuredSourceMap> {
-    let original_source_maps = original_source_maps
-        .into_iter()
-        .map(|map| map.to_bytes())
-        .collect::<Vec<_>>();
-    let original_source_maps = original_source_maps
-        .iter()
-        .map(|map| Ok(swc_sourcemap::lazy::decode(map)?.into_source_map()?))
-        .collect::<Result<Vec<_>>>()?;
+    let original_source_maps = original_source_maps.into_iter().collect::<Vec<_>>();
 
     let fast_path_single_original_source_map =
         original_source_maps.len() == 1 && original_source_maps_complete;
 
-    let mut new_mappings = build_source_map(
-        files_map,
-        mappings,
-        None,
-        &InlineSourcesContentConfig {
-            // If we are going to adjust the source map, we are going to throw the source contents
-            // of this source map away regardless.
-            //
-            // In other words, we don't need the content of `B` in source map chain of A -> B -> C.
-            // We only need the source content of `A`, and a way to map the content of `B` back to
-            // `A`, while constructing the final source map, `C`.
-            inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
-            names,
-        },
-    );
+    let config = InlineSourcesContentConfig {
+        // If we are going to adjust the source map, we are going to throw the source contents
+        // of this source map away regardless.
+        //
+        // In other words, we don't need the content of `B` in source map chain of A -> B -> C.
+        // We only need the source content of `A`, and a way to map the content of `B` back to
+        // `A`, while constructing the final source map, `C`.
+        inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
+        names,
+    };
+    let mut new_mappings = build_source_map(files_map, mappings, None, &config);
 
     if original_source_maps.is_empty() {
         // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
@@ -220,7 +211,9 @@ pub fn generate_js_source_map<'a>(
         add_default_ignore_list(&mut new_mappings);
         StructuredSourceMap::from_swc_map(new_mappings)
     } else if fast_path_single_original_source_map {
-        let mut map = original_source_maps.into_iter().next().unwrap();
+        let (_, original_map) = original_source_maps.into_iter().next().unwrap();
+        let bytes = original_map.to_bytes();
+        let mut map = swc_sourcemap::lazy::decode(&bytes)?.into_source_map()?;
         // TODO: Make this more efficient
         map.adjust_mappings(new_mappings);
 
@@ -231,7 +224,84 @@ pub fn generate_js_source_map<'a>(
         StructuredSourceMap::from_serialize(&map)
             .or_else(|_| StructuredSourceMap::from_json_slice(&serde_json::to_vec(&map)?))
     } else {
-        let mut map = new_mappings.adjust_mappings_from_multiple(original_source_maps);
+        let source_map_bytes = original_source_maps
+            .into_iter()
+            .map(|(file_name, map)| {
+                let file_name = file_name.context("Merged source map has no parsed file name")?;
+                Ok((config.file_name_to_source(file_name), map.to_bytes()))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let mut original_source_maps = source_map_bytes
+            .iter()
+            .map(|(file_name, bytes)| {
+                let map = match swc_sourcemap::decode_slice(bytes)? {
+                    swc_sourcemap::DecodedMap::Regular(map) => map,
+                    swc_sourcemap::DecodedMap::Index(map) => map.flatten()?,
+                    swc_sourcemap::DecodedMap::Hermes(map) => (*map).clone(),
+                };
+                Ok((
+                    file_name.as_str(),
+                    (map, swc_sourcemap::SourceMapBuilder::new(None)),
+                ))
+            })
+            .collect::<Result<FxHashMap<_, _>>>()?;
+        let generated_tokens = new_mappings.tokens().collect::<Vec<_>>();
+        for token in &generated_tokens {
+            if let Some((_, adjustment)) = token
+                .get_source()
+                .and_then(|source| original_source_maps.get_mut(source.as_str()))
+            {
+                adjustment.add_token(token, false);
+            }
+        }
+        // Compose each module's map separately, so mappings from different modules never mix.
+        let original_source_maps = original_source_maps
+            .into_iter()
+            .map(|(file_name, (mut map, adjustment))| {
+                map.adjust_mappings(&adjustment.into_sourcemap());
+                (file_name, map)
+            })
+            .collect::<FxHashMap<_, _>>();
+        let mut merged_tokens = BTreeMap::new();
+        for token in &generated_tokens {
+            let has_original_map = token
+                .get_source()
+                .is_some_and(|source| original_source_maps.contains_key(source.as_str()));
+            // End any preceding mapping even when this input has no original mapping here.
+            merged_tokens.insert(token.get_dst(), (!has_original_map).then_some(*token));
+        }
+        for (file_name, map) in &original_source_maps {
+            for token in map.tokens() {
+                let owner = generated_tokens
+                    .partition_point(|generated| generated.get_dst() <= token.get_dst())
+                    .checked_sub(1)
+                    .and_then(|index| generated_tokens.get(index));
+                if owner.is_some_and(|owner| {
+                    owner.get_dst_line() == token.get_dst_line()
+                        && owner
+                            .get_source()
+                            .is_some_and(|source| source.as_str() == *file_name)
+                }) {
+                    // Never let a composed range spill into another module's generated code.
+                    merged_tokens.insert(token.get_dst(), Some(token));
+                }
+            }
+        }
+        let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
+        for ((line, col), token) in merged_tokens {
+            if let Some(token) = token {
+                let raw = builder.add_token(&token, true);
+                if raw.src_id != !0 && !builder.has_source_contents(raw.src_id) {
+                    builder.set_source_contents(
+                        raw.src_id,
+                        token.get_source_view().map(|view| view.source().clone()),
+                    );
+                }
+            } else {
+                builder.add_raw(line, col, 0, 0, None, None, false);
+            }
+        }
+        let mut map = builder.into_sourcemap();
 
         add_default_ignore_list(&mut map);
 
