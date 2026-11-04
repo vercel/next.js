@@ -130,7 +130,11 @@ export function formatIssue(issue: Issue) {
     documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
   }
 
-  const formattedFilePath = formatFilePath(filePath)
+  // The source location has already been mapped through source maps by Turbopack, so the
+  // source's file can differ from the issue's `filePath` (e.g. when the issue was reported for
+  // generated code). Name the file the location (and code frame) belongs to.
+  // This mirrors `style_issue_source` in turbopack/crates/turbopack-cli-utils/src/issue.rs
+  const formattedFilePath = formatFilePath(source?.source.filePath ?? filePath)
 
   let message = ''
 

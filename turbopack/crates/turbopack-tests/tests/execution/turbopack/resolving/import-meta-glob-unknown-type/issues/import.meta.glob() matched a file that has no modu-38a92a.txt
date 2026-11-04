@@ -1,4 +1,4 @@
-error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-unknown-type/input/index.js:5:14  import.meta.glob() matched a file that has no module type
+error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-unknown-type/input/index.js:5:15  import.meta.glob() matched a file that has no module type
        1 | // A glob that matches a file without a module type must report an error that
        2 | // says which glob pulled the file in. The value of this test is the `issues/`
        3 | // snapshot.
