@@ -1,7 +1,3 @@
-#![allow(unused_imports)]
-#![feature(arbitrary_self_types)]
-#![feature(arbitrary_self_types_pointers)]
-
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -12,51 +8,43 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileSystemPath, VirtualFileSystem};
 use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
-use turbopack_node::{
+
+use crate::{
     AssetsForSourceMapping,
     evaluate::{EvaluatePool, Operation},
 };
 
 static REGISTRATION: Registration = register!();
 
-#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
 fn test_worker(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("tests/{name}"))
 }
 
 /// Create a pool backed by the given test worker JS file.
 async fn create_pool(worker: &str, concurrency: usize) -> Result<EvaluatePool> {
-    #[cfg(feature = "worker_pool")]
-    {
-        let _ = (worker, concurrency);
-        unreachable!("Tests only work with process_pool feature");
-    }
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
-    {
-        use turbopack_node::process_pool::ChildProcessPool;
+    use crate::process_pool::ChildProcessPool;
 
-        let vfs = VirtualFileSystem::new();
-        let fs: Vc<Box<dyn turbo_tasks_fs::FileSystem>> = Vc::upcast(vfs);
-        let fs = fs.to_resolved().await?;
-        let root_path = FileSystemPath {
-            fs,
-            path: RcStr::default(),
-        };
+    let vfs = VirtualFileSystem::new();
+    let fs: Vc<Box<dyn turbo_tasks_fs::FileSystem>> = Vc::upcast(vfs);
+    let fs = fs.to_resolved().await?;
+    let root_path = FileSystemPath {
+        fs,
+        path: RcStr::default(),
+    };
 
-        let assets: Vc<AssetsForSourceMapping> = Vc::cell(Default::default());
-        let assets = assets.to_resolved().await?;
+    let assets: Vc<AssetsForSourceMapping> = Vc::cell(Default::default());
+    let assets = assets.to_resolved().await?;
 
-        Ok(ChildProcessPool::create(
-            std::env::current_dir()?,
-            test_worker(worker),
-            FxHashMap::default(),
-            assets,
-            root_path.clone(),
-            root_path,
-            concurrency,
-            false,
-        ))
-    }
+    Ok(ChildProcessPool::create(
+        std::env::current_dir()?,
+        test_worker(worker),
+        FxHashMap::default(),
+        assets,
+        root_path.clone(),
+        root_path,
+        concurrency,
+        false,
+    ))
 }
 
 /// Shorthand: create a pool with the echo worker.

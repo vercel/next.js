@@ -28,6 +28,7 @@ use turbopack_core::{
     issue::{
         IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
+    loader::{WebpackLoaderItem, WebpackLoaderItems},
     module_graph::{chunk_group_info::EntryHeuristics, style_groups::StyleGroupsAlgorithm},
     resolve::ResolveAliasMap,
 };
@@ -39,7 +40,6 @@ use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
     styled_components::StyledComponentsTransformConfig,
 };
-use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems};
 
 use crate::{
     app_structure::FileSystemPathVec,
