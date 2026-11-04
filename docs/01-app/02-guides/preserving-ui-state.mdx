@@ -64,9 +64,9 @@ function SettingsDropdown() {
 }
 ```
 
-Activity runs this cleanup before hiding the component, so the dropdown is closed when the user returns. Resetting `isOpen` to `false` is safe if cleanup runs again in development.
+Activity runs this cleanup before hiding the component, so the dropdown is closed when the user returns. Resetting `isOpen` to `false` repeatedly is safe.
 
-For browser-managed UI such as a [popover](https://developer.mozilla.org/docs/Web/API/Popover_API), close the element with the same cleanup pattern. Because Activity can keep multiple route instances in the DOM, generate relationship IDs per component instance instead of reusing a fixed ID. This also applies to form IDs. For radio groups without separate forms, give each component instance its own group name. Use [`useId`](https://react.dev/reference/react/useId) in a Client Component:
+For a native [popover](https://developer.mozilla.org/docs/Web/API/Popover_API), call `hidePopover()` in the same cleanup. Activity can keep multiple route instances in the DOM, so use [`useId`](https://react.dev/reference/react/useId) in a Client Component to give each popover a unique target ID:
 
 ```tsx highlight={9-11}
 'use client'
@@ -93,7 +93,7 @@ function SettingsDropdown() {
 }
 ```
 
-When Activity hides this component, the cleanup closes the popover before the route is hidden. Calling `hidePopover()` repeatedly is safe.
+Calling `hidePopover()` repeatedly is safe. Other IDs, such as form IDs, must also be unique across preserved route instances. For radio groups without separate forms, give each instance its own group name.
 
 You can also use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link#onnavigate) callback to close dropdowns immediately when a navigation link is clicked.
 
@@ -278,11 +278,31 @@ This resets all fields whenever the user navigates away.
 
 ### State updated while hidden
 
-State can change while Activity keeps a page hidden. An unconditional reset in Effect cleanup can discard those updates if cleanup runs again when the page becomes visible. In development, Strict Mode runs an extra setup and cleanup cycle, so cleanup must be safe to repeat.
+State can change while Activity keeps a page hidden. An unconditional reset in Effect cleanup can discard those updates if cleanup runs again on reveal. See [Effect reconnection](#distinguishing-first-mount-from-re-show) for the lifecycle and development behavior.
 
-For example, suppose an inbox clears its notification in cleanup when the user leaves. A new notification arrives while the inbox is hidden. If cleanup runs again on return, it clears the new notification before the user sees it.
+For example, an inbox uses Effect cleanup to clear its notification when the user leaves. A new notification arrives while the inbox is hidden. If cleanup runs again on return, it clears the new notification before the user sees it.
 
-In this example, clear the previous notification when leaving the page. Use a navigation event handler, or a persistent layout that observes navigation if the reset must also cover browser controls and links outside the page.
+Clear the previous notification from the navigation handler instead:
+
+```tsx filename="app/inbox/navigation.tsx" highlight={11}
+'use client'
+
+import Link from 'next/link'
+
+export function InboxNavigation({
+  clearNotification,
+}: {
+  clearNotification: () => void
+}) {
+  return (
+    <Link href="/settings" onNavigate={clearNotification}>
+      Settings
+    </Link>
+  )
+}
+```
+
+This clears the notification when navigating through this link. To cover browser controls and other links, [observe route changes from a shared layout](/docs/app/api-reference/functions/use-pathname#do-something-in-response-to-a-route-change) and clear the notification for the page being left.
 
 ## State and authentication
 
@@ -553,7 +573,7 @@ When the component becomes visible again, Effects re-run and playback position i
 
 ### Distinguishing first mount from re-show
 
-Effects run on every hide-to-visible transition, not just the initial mount. If you need to distinguish the first mount from subsequent visibility changes, use a ref:
+Effects run on every hide-to-visible transition, not just the initial mount. A ref can record whether an Effect has run before:
 
 ```tsx
 'use client'
@@ -568,7 +588,7 @@ function TrackedComponent() {
       hasMountedRef.current = true
       console.log('First mount')
     } else {
-      console.log('Became visible again')
+      console.log('Effect ran again')
     }
   }, [])
 
@@ -576,9 +596,7 @@ function TrackedComponent() {
 }
 ```
 
-The ref persists across hide/show cycles, so `hasMountedRef.current` stays `true` after the first setup. When Activity becomes visible again, the Effect takes the `else` branch.
-
-In development, [Strict Mode runs an extra setup and cleanup cycle](https://react.dev/reference/react/StrictMode#fixing-bugs-found-by-re-running-effects-in-development), so this example can also log "Became visible again" on initial mount. The ref records whether the Effect has run before, not why it ran. Make setup and cleanup safe to repeat.
+The ref persists across hide/show cycles. In development, [Strict Mode runs an extra setup and cleanup cycle](https://react.dev/reference/react/StrictMode#fixing-bugs-found-by-re-running-effects-in-development), so the `else` branch can also run on initial mount. This records whether the Effect has run before, not whether navigation occurred. Make setup and cleanup safe to repeat.
 
 ## Examples
 
