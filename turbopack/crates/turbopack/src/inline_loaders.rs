@@ -250,6 +250,7 @@ impl InlineLoaderSource {
         )
         .await?;
         let mut loaders = this.loaders.await?.to_vec();
+        let mut configured_loaders = Vec::new();
         let mut rename_as = None;
         'rules: for rule in &options.rules {
             if rule.matches(source, &path, &reference_type).await? {
@@ -261,7 +262,7 @@ impl InlineLoaderSource {
                                     ResolvedVc::try_downcast_type::<WebpackLoaders>(*transform)
                                 {
                                     if !this.skip_configured_loaders {
-                                        loaders.extend(transform.loaders().await?.iter().cloned());
+                                        configured_loaders.push(transform.loaders().await?);
                                     }
                                     rename_as = (*transform.rename_as().await?).clone();
                                 }
@@ -273,6 +274,11 @@ impl InlineLoaderSource {
                     }
                 }
             }
+        }
+        // Configured transforms run in rule order, but a loader chain runs right to left.
+        // Reverse the groups without reversing the loaders within each group.
+        for configured in configured_loaders.into_iter().rev() {
+            loaders.extend(configured.iter().cloned());
         }
         let source: ResolvedVc<Box<dyn Source>> = ResolvedVc::upcast(self);
         if loaders.is_empty() {
@@ -331,8 +337,12 @@ impl InlineLoaderSource {
             loader_items(loaders),
             *webpack_options.target,
             webpack_options.mode.clone(),
-            // Loader output defaults to JavaScript, even for a CSS or text resource.
-            rename_as.or(Some(rcstr!("*.js"))),
+            // Keep .cjs resources CommonJS. Other loader output defaults to JavaScript,
+            // even for a CSS or text resource.
+            rename_as.or(Some(match path.extension() {
+                Some("cjs") => rcstr!("*.cjs"),
+                _ => rcstr!("*.js"),
+            })),
             asset_context.resolve_options_context(),
             matches!(module_options.ecmascript.source_maps, SourceMapsType::Full),
             config_tracing_module_context(*execution_context),
