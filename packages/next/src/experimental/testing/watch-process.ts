@@ -90,6 +90,9 @@ export type WatchProcessRequest =
       captureModuleStart?: true
       /** Actual logical case preparation, requested by its parent reporter. */
       captureCaseReady?: true
+      /** Actual Node suite and traditional hook-group observations. */
+      captureSuiteEvents?: true
+      captureHookEvents?: true
       compilerTransforms?: Record<
         string,
         import('./compiler/transform-broker').CompilerTransformDescriptor
@@ -355,6 +358,37 @@ export async function runWatchProcess(
   )
     throw new Error(
       'Case Ready requires its isolated ordinary Node task-capture owner.'
+    )
+  if (
+    request.operation === 'run' &&
+    (request.captureSuiteEvents !== undefined ||
+      request.captureHookEvents !== undefined) &&
+    ((request.captureSuiteEvents !== undefined &&
+      request.captureSuiteEvents !== true) ||
+      (request.captureHookEvents !== undefined &&
+        request.captureHookEvents !== true) ||
+      request.captureTaskResults !== true ||
+      request.isolatedProfile !== true ||
+      request.collectOnly ||
+      request.projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.profile.environment !== 'node' ||
+          project.profile.runtime !== 'nodejs' ||
+          project.profile.bundler !== 'turbopack' ||
+          project.profile.route !== undefined ||
+          project.profile.browserClient !== undefined ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.entries.some(
+            (entry) =>
+              entry.executionEnvironment &&
+              entry.executionEnvironment.name !== 'node'
+          )
+      ))
+  )
+    throw new Error(
+      'Suite and hook observations require its isolated ordinary Node task-capture owner.'
     )
   if (
     (options.onTestRecord !== undefined &&
@@ -797,6 +831,12 @@ export async function runWatchProcess(
     const broker = brokerModule?.createExecutionBrokerHost({
       ...(request.operation === 'run' && request.captureCaseReady === true
         ? { captureCaseReady: true as const }
+        : {}),
+      ...(request.operation === 'run' && request.captureSuiteEvents === true
+        ? { captureSuiteEvents: true as const }
+        : {}),
+      ...(request.operation === 'run' && request.captureHookEvents === true
+        ? { captureHookEvents: true as const }
         : {}),
       ...(request.operation === 'run' &&
       request.captureTestRecords === true &&

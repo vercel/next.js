@@ -181,6 +181,12 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       ...(request.captureCaseReady === true
         ? { captureCaseReady: true as const }
         : {}),
+      ...(request.captureSuiteEvents === true
+        ? { captureSuiteEvents: true as const }
+        : {}),
+      ...(request.captureHookEvents === true
+        ? { captureHookEvents: true as const }
+        : {}),
       captureTaskResults: request.captureTaskResults,
       ...(request.captureTestRecords === true
         ? { captureTestRecords: true as const }

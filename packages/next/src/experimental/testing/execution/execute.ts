@@ -86,6 +86,29 @@ export async function executeWithEnvironment(
     throw new Error(
       'Case Ready requires actual task capture from an isolated ordinary Node file worker.'
     )
+  if (
+    (options.captureSuiteEvents !== undefined ||
+      options.captureHookEvents !== undefined) &&
+    ((options.captureSuiteEvents !== undefined &&
+      options.captureSuiteEvents !== true) ||
+      (options.captureHookEvents !== undefined &&
+        options.captureHookEvents !== true) ||
+      options.captureTaskResults !== true ||
+      options.collectOnly ||
+      options.browser ||
+      artifact.kind !== 'node' ||
+      artifact.profile.environment !== 'node' ||
+      artifact.profile.runtime !== 'nodejs' ||
+      artifact.profile.bundler !== 'turbopack' ||
+      artifact.profile.route !== undefined ||
+      artifact.profile.browserClient !== undefined ||
+      artifact.cohort ||
+      (options.entry.executionEnvironment &&
+        options.entry.executionEnvironment.name !== 'node'))
+  )
+    throw new Error(
+      'Suite and hook observations require actual task capture from an isolated ordinary Node file worker.'
+    )
   assertTestRecordRole(artifact, options)
   if (
     (options.captureTestRecords === true) !==

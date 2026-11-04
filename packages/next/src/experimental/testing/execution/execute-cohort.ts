@@ -62,7 +62,14 @@ export async function executeCohortWithEnvironment(
     )
   )
     throw new Error('Test record callbacks require an isolated file worker.')
-  if (options.some((option) => option.captureCaseReady !== undefined))
+  if (
+    options.some(
+      (option) =>
+        option.captureCaseReady !== undefined ||
+        option.captureSuiteEvents !== undefined ||
+        option.captureHookEvents !== undefined
+    )
+  )
     throw new Error('Case Ready requires an isolated file worker.')
   const ownership: {
     starting: boolean

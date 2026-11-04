@@ -10790,3 +10790,300 @@ it('rejects a completed public annotation context with its actual finished task 
   expect(retained.task.annotations).toEqual([])
   expect(lateFailures).toEqual([])
 })
+
+describe('actual reporter suite and hook producers', () => {
+  it('observes inherited hook groups once per retry with canonical task identity', async () => {
+    const c = createCollector('reporter-hook-retry')
+    let attempts = 0
+    let returnedCleanups = 0
+    const tasks = new Map<string, Task>()
+    const hooks: [string, string, string][] = []
+    const ready: string[] = []
+    c.api.beforeEach(() => {})
+    c.api.afterEach(() => {})
+    c.api.describe('nested', () => {
+      c.api.beforeAll(() => {})
+      c.api.afterAll(() => {})
+      c.api.beforeEach(() => () => {
+        returnedCleanups++
+      })
+      c.api.beforeEach(() => {})
+      c.api.afterEach(() => {})
+      c.api.test('retry', { retry: 1 }, () => {
+        if (++attempts === 1) throw new Error('retry once')
+      })
+    })
+    await c.settle()
+    const result = await runCollected(
+      c.close(),
+      {
+        ...options(),
+        onCollected(file) {
+          function visit(task: Task) {
+            tasks.set(task.id, task)
+            if (task.type === 'suite') task.tasks.forEach(visit)
+          }
+          visit(file)
+        },
+        onSuiteReady(task) {
+          expect(tasks.get(task.id)).toBe(task)
+          ready.push(task.name)
+        },
+        onReporterHookOccurrence(task, hook, event) {
+          expect(tasks.get(task.id)).toBe(task)
+          hooks.push([event, task.name, hook])
+        },
+      },
+      () => {}
+    )
+    expect(result.errors).toEqual([])
+    expect(result.cases.map((item) => item.status)).toEqual([
+      'failed',
+      'passed',
+    ])
+    expect(ready).toEqual(['nested'])
+    expect(returnedCleanups).toBe(2)
+    expect(
+      [...tasks.values()].find((task) => task.name === 'nested')!.result!.hooks
+    ).toEqual({ beforeAll: 'pass', afterAll: 'pass' })
+    expect(
+      [...tasks.values()].find((task) => task.name === 'retry')!.result!.hooks
+    ).toEqual({ beforeEach: 'pass', afterEach: 'pass' })
+    expect(hooks.filter((row) => row[1] === 'nested')).toEqual([
+      ['hook-start', 'nested', 'beforeAll'],
+      ['hook-end', 'nested', 'beforeAll'],
+      ['hook-start', 'nested', 'afterAll'],
+      ['hook-end', 'nested', 'afterAll'],
+    ])
+    const attemptHooks = [
+      ['hook-start', 'retry', 'beforeEach'],
+      ['hook-end', 'retry', 'beforeEach'],
+      ['hook-start', 'retry', 'beforeEach'],
+      ['hook-end', 'retry', 'beforeEach'],
+      ['hook-start', 'retry', 'afterEach'],
+      ['hook-end', 'retry', 'afterEach'],
+      ['hook-start', 'retry', 'afterEach'],
+      ['hook-end', 'retry', 'afterEach'],
+    ]
+    expect(hooks.filter((row) => row[1] === 'retry')).toEqual([
+      ...attemptHooks,
+      ...attemptHooks,
+    ])
+  })
+
+  it.each(['stack', 'list', 'parallel'] as const)(
+    'retains an unmatched start when an actual %s hook group rejects',
+    async (sequence) => {
+      const c = createCollector(`reporter-hook-failure-${sequence}`)
+      const hooks: [string, string][] = []
+      let ranBody = false
+      let actualTask: Task | undefined
+      c.api.beforeEach(() => {})
+      c.api.beforeEach(() => {
+        throw new Error('setup rejected')
+      })
+      c.api.afterEach(() => {})
+      c.api.test('blocked body', () => {
+        ranBody = true
+      })
+      const result = await runCollected(
+        c.close(),
+        {
+          ...options(),
+          sequence: { hooks: sequence },
+          onReporterHookOccurrence(task, hook, event) {
+            actualTask = task
+            hooks.push([event, hook])
+          },
+        },
+        () => {}
+      )
+      expect(ranBody).toBe(false)
+      expect(actualTask!.result!.hooks).toEqual({
+        beforeEach: 'run',
+        afterEach: 'pass',
+      })
+      expect(result.cases[0].status).toBe('failed')
+      expect(hooks).toEqual([
+        ['hook-start', 'beforeEach'],
+        ['hook-start', 'afterEach'],
+        ['hook-end', 'afterEach'],
+      ])
+    }
+  )
+
+  it('retains skipped suite preparation without inventing blocked descendant preparation', async () => {
+    const c = createCollector('reporter-suite-preparation')
+    const ready: string[] = []
+    const hooks: [string, string, string][] = []
+    c.api.describe.skip('skipped', () => {
+      c.api.beforeAll(() => {
+        throw new Error('must not run')
+      })
+      c.api.describe('skipped child', () => c.api.test('skip', () => {}))
+    })
+    c.api.describe('blocked', () => {
+      c.api.beforeAll(() => {
+        throw new Error('beforeAll rejected')
+      })
+      c.api.afterAll(() => {})
+      c.api.describe('unprepared child', () => c.api.test('blocked', () => {}))
+    })
+    await c.settle()
+    const result = await runCollected(
+      c.close(),
+      {
+        ...options(),
+        onSuiteReady(task) {
+          ready.push(task.name)
+        },
+        onReporterHookOccurrence(task, hook, event) {
+          hooks.push([event, task.name, hook])
+        },
+      },
+      () => {}
+    )
+    expect(ready).toEqual(['skipped', 'skipped child', 'blocked'])
+    expect(hooks).toEqual([
+      ['hook-start', 'blocked', 'beforeAll'],
+      ['hook-start', 'blocked', 'afterAll'],
+      ['hook-end', 'blocked', 'afterAll'],
+    ])
+    expect(result.cases.map((item) => item.status)).toEqual([
+      'skipped',
+      'skipped',
+    ])
+  })
+
+  it('keeps actual hook task state independent of reporter observation', async () => {
+    const each = createCollector('unobserved-each-hooks')
+    each.api.beforeEach(() => {
+      throw new Error('beforeEach rejected')
+    })
+    each.api.afterEach(() => {})
+    each.api.test('blocked', () => {
+      throw new Error('must not run')
+    })
+    let eachTask!: Task
+    await runCollected(
+      each.close(),
+      {
+        ...options(),
+        onCollected(file) {
+          eachTask = file.tasks[0]
+        },
+      },
+      () => {}
+    )
+    expect(eachTask.result!.hooks).toEqual({
+      beforeEach: 'run',
+      afterEach: 'pass',
+    })
+    const all = createCollector('unobserved-all-hooks')
+    all.api.describe('blocked suite', () => {
+      all.api.beforeAll(() => {
+        throw new Error('beforeAll rejected')
+      })
+      all.api.afterAll(() => {})
+      all.api.test('blocked', () => {})
+    })
+    await all.settle()
+    let allTask!: Task
+    await runCollected(
+      all.close(),
+      {
+        ...options(),
+        onCollected(file) {
+          allTask = file.tasks[0]
+        },
+      },
+      () => {}
+    )
+    expect(allTask.result!.hooks).toEqual({
+      beforeAll: 'run',
+      afterAll: 'pass',
+    })
+  })
+
+  it('batches actual occurrences without blocking execution and joins pending sends at completion', async () => {
+    type Updates =
+      typeof import('next/dist/experimental/testing/reporting/task-updates')
+    let createUpdates!: Updates['createReporterTaskUpdates']
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1000)
+    jest.isolateModules(() => {
+      createUpdates =
+        require('next/dist/experimental/testing/reporting/task-updates').createReporterTaskUpdates
+    })
+    let release!: () => void
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const published: import('next/dist/experimental/testing/reporting/task-updates').ReporterTaskUpdate[] =
+      []
+    const updates = createUpdates({
+      captureSuiteEvents: true,
+      captureHookEvents: true,
+      onUpdate(update) {
+        published.push(update)
+        return held
+      },
+    })
+    const c = createCollector('reporter-batch-file')
+    let ranBody = false
+    c.api.describe('suite', () => {
+      c.api.beforeEach(() => {})
+      c.api.test('body', () => {
+        ranBody = true
+      })
+    })
+    await c.settle()
+    let drain: Promise<void> | undefined
+    try {
+      const result = await runCollected(
+        c.close(),
+        {
+          ...options(),
+          onCollected: updates.collected,
+          onSuiteReady: updates.suiteReady,
+          onReporterHookOccurrence: updates.hookOccurrence,
+          onCaseReady: updates.caseReady,
+          onCaseResult: updates.caseResult,
+          onSuiteEnd(_result, task) {
+            updates.suiteEnd(task)
+          },
+        },
+        () => {}
+      )
+      expect(ranBody).toBe(true)
+      expect(result.cases[0].status).toBe('passed')
+      expect(published).toHaveLength(1)
+      let drained = false
+      drain = updates.finish().then(() => {
+        drained = true
+      })
+      await Promise.resolve()
+      expect(drained).toBe(false)
+      expect(published).toHaveLength(2)
+      const last = published[1]
+      if (last.kind) throw new Error('Expected actual collected task graph.')
+      expect(last.taskTree.tasks![0].result?.state).toBe('pass')
+      expect(last.taskEvents!.map((item) => item.event)).toEqual([
+        'suite-ready',
+        'case-ready',
+        'hook-start',
+        'hook-end',
+        'case-result',
+        'suite-result',
+      ])
+      expect(last.caseEvents!.map((item) => item.event)).toEqual([
+        'ready',
+        'result',
+      ])
+    } finally {
+      release()
+      await drain
+      updates.dispose()
+      now.mockRestore()
+    }
+  })
+})

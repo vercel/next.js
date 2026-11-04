@@ -165,6 +165,9 @@ export function createExecutionBrokerHost(options: {
   captureJUnitSuiteTasks?: true
   /** Actual logical case preparation; absent for legacy task snapshots. */
   captureCaseReady?: true
+  /** Actual Node suite and traditional hook-group observations. */
+  captureSuiteEvents?: true
+  captureHookEvents?: true
   /** Positive parent one-shot authorization, never child-issued. */
   preparePublicSnapshots?: true
   signal: AbortSignal
@@ -256,6 +259,11 @@ export function createExecutionBrokerHost(options: {
     options.captureCaseReady !== true
   )
     throw new Error('Case Ready requires its actual parent capture request.')
+  for (const capture of [options.captureSuiteEvents, options.captureHookEvents])
+    if (capture !== undefined && capture !== true)
+      throw new Error(
+        'Suite and hook capture require their actual parent request.'
+      )
   const maxWorkers = parseMaxWorkers(options.maxWorkers ?? 1)
   const active = new Map<
     string,
@@ -378,6 +386,8 @@ export function createExecutionBrokerHost(options: {
                   execution.browser ||
                   execution.captureTestRecords !== undefined ||
                   execution.captureCaseReady !== undefined ||
+                  execution.captureSuiteEvents !== undefined ||
+                  execution.captureHookEvents !== undefined ||
                   (resolveSnapshotUpdateMode(execution) !== 'none' &&
                     !options.onSnapshotUpdates)
               )
@@ -619,6 +629,16 @@ export function createExecutionBrokerHost(options: {
               (options.captureCaseReady === true)
           )
             throw new Error('Unrequested broker Case Ready capture.')
+          for (const name of [
+            'captureSuiteEvents',
+            'captureHookEvents',
+          ] as const)
+            if (
+              (message.options[name] !== undefined &&
+                message.options[name] !== true) ||
+              (message.options[name] === true) !== (options[name] === true)
+            )
+              throw new Error('Unrequested broker suite or hook capture.')
           assertTestRecordRole(message.artifact, message.options)
           const records = new WeakMap<
             TestRecordEvent,
@@ -1124,7 +1144,14 @@ export function createExecutionBrokerClient(options: {
 
   const executeCohort: ExecuteTestCohort = (cohort, executionOptions) => {
     if (disconnected) return Promise.reject(disconnected)
-    if (executionOptions.some((entry) => entry.captureCaseReady !== undefined))
+    if (
+      executionOptions.some(
+        (entry) =>
+          entry.captureCaseReady !== undefined ||
+          entry.captureSuiteEvents !== undefined ||
+          entry.captureHookEvents !== undefined
+      )
+    )
       return Promise.reject(
         new Error('Case Ready requires isolated file workers.')
       )

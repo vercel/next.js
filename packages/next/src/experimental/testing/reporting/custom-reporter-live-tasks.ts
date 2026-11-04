@@ -426,6 +426,33 @@ export function createLiveReporterTaskStore(projectDir: string) {
       values.push(annotations ? event.annotation : event.artifact)
       return retained.view
     },
+    suite(entryId: string, suiteId: string) {
+      const retained = tasks.get(suiteId)
+      if (
+        !retained ||
+        retained.view.type !== 'suite' ||
+        retained.view.module !== modules.get(entryId)
+      )
+        throw new Error(
+          'Live reporter suite is missing its actual declaration.'
+        )
+      return retained.view
+    },
+    hook(entryId: string, taskId: string, name: string) {
+      const retained = tasks.get(taskId)
+      const module = modules.get(entryId)
+      if (
+        !retained ||
+        !module ||
+        (retained.view !== module && retained.view.module !== module) ||
+        !['beforeAll', 'afterAll', 'beforeEach', 'afterEach'].includes(name) ||
+        (name.endsWith('Each')
+          ? retained.view.type !== 'test'
+          : !['suite', 'module'].includes(retained.view.type))
+      )
+        throw new Error('Live reporter hook is missing its actual declaration.')
+      return retained.view
+    },
     case(entryId: string, caseId: string) {
       const retained = tasks.get(caseId)
       if (

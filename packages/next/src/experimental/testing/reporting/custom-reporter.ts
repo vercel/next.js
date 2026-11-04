@@ -16,7 +16,7 @@ import {
 import type { ResultEvent, SerializedDiagnostic } from './events'
 import type { CustomReporterCompletion } from './custom-reporter-tasks'
 import type { ReporterTaskSnapshot } from './live-tasks'
-import type { ReporterCaseEvent } from './task-updates'
+import type { ReporterCaseEvent, ReporterTaskEvent } from './task-updates'
 
 export interface CustomReporterInvocation {
   count: number
@@ -167,6 +167,29 @@ export async function openCustomReporters(options: {
   let captureModuleCollected = false
   let captureModuleStart = false
   let captureCaseReady = false
+  let captureSuiteEvents = false
+  let captureHookEvents = false
+  let nextBatchId = 0
+  const batchRequests = new Map<
+    number,
+    {
+      runId: string
+      entryId: string
+      revision: string
+      resolve(): void
+      reject(error: unknown): void
+      timer: ReturnType<typeof setTimeout>
+    }
+  >()
+  const batchWrites = new Set<Promise<void>>()
+  const batchEntries = new WeakMap<Promise<void>, string>()
+  function rejectBatchRequests(error: unknown) {
+    for (const batch of batchRequests.values()) {
+      clearTimeout(batch.timer)
+      batch.reject(error)
+    }
+    batchRequests.clear()
+  }
   let captureTestRecords = false
   let nextRecordId = 0
   const recordRequests = new Map<
@@ -180,6 +203,7 @@ export async function openCustomReporters(options: {
   >()
   const recordWrites = new Set<Promise<TestArtifact | undefined>>()
   function rejectRecordRequests(error: unknown) {
+    rejectBatchRequests(error)
     for (const recordRequest of recordRequests.values()) {
       clearTimeout(recordRequest.timer)
       recordRequest.reject(error)
@@ -305,6 +329,31 @@ export async function openCustomReporters(options: {
       send = value
     },
     onMessage(message: any) {
+      if (message?.type === 'custom-reporter-batch-result') {
+        const batch = batchRequests.get(message.batchId)
+        if (!batch && (controller.signal.aborted || closed)) return
+        const outcome = message.outcome
+        if (
+          !batch ||
+          message.runId !== batch.runId ||
+          message.entryId !== batch.entryId ||
+          message.revision !== batch.revision ||
+          !outcome ||
+          !['return', 'throw'].includes(outcome.kind) ||
+          (outcome.kind === 'return'
+            ? !Object.hasOwn(outcome, 'value')
+            : !Object.hasOwn(outcome, 'error')) ||
+          (message.invalidBatch !== undefined &&
+            message.invalidBatch !== true) ||
+          (message.invalidBatch === true) !== (outcome.kind === 'throw')
+        )
+          throw new Error('Invalid custom reporter task batch response.')
+        batchRequests.delete(message.batchId)
+        clearTimeout(batch.timer)
+        if (message.invalidBatch === true) batch.reject(outcome.error)
+        else batch.resolve()
+        return
+      }
       if (message?.type === 'custom-reporter-record-result') {
         const record = recordRequests.get(message.recordId)
         if (!record && (controller.signal.aborted || closed)) return
@@ -439,6 +488,10 @@ export async function openCustomReporters(options: {
         captureRunStart = message.captureRunStart === true
       if (message.captureModuleStart !== undefined)
         captureModuleStart = message.captureModuleStart === true
+      if (message.captureSuiteEvents !== undefined)
+        captureSuiteEvents = message.captureSuiteEvents === true
+      if (message.captureHookEvents !== undefined)
+        captureHookEvents = message.captureHookEvents === true
       if (message.captureCaseReady !== undefined)
         captureCaseReady = message.captureCaseReady === true
       if (message.captureModuleCollected !== undefined)
@@ -622,6 +675,7 @@ export async function openCustomReporters(options: {
       ])
       await consoleQueue
       if (recordWrites.size) await Promise.allSettled([...recordWrites])
+      if (batchWrites.size) await Promise.allSettled([...batchWrites])
       closing = true
       const cleanupErrors: unknown[] = []
       if (!closed && !controller.signal.aborted && !terminalWatchFailure) {
@@ -697,6 +751,12 @@ export async function openCustomReporters(options: {
           ...(coverage ? { coverage: true } : {}),
         })
       },
+      get captureSuiteEvents() {
+        return captureSuiteEvents
+      },
+      get captureHookEvents() {
+        return captureHookEvents
+      },
       get captureCaseReady() {
         return captureCaseReady
       },
@@ -735,7 +795,13 @@ export async function openCustomReporters(options: {
           throw new Error(
             'Test record reporter requires its actual one-shot owner.'
           )
+        // Capture only the actual preceding task-update callbacks for this
+        // file. Later packs and ordinary authored execution remain independent.
+        const precedingBatches = [...batchWrites].filter(
+          (write) => batchEntries.get(write) === event.entryId
+        )
         await consoleQueue
+        await Promise.all(precedingBatches)
         if (consoleFailure) throw consoleFailure
         controller.signal.throwIfAborted()
         if (failure) throw failure
@@ -802,7 +868,8 @@ export async function openCustomReporters(options: {
       async replayFile(
         taskTree: ReporterTaskSnapshot,
         completion: CustomReporterCompletion,
-        caseEvents?: ReporterCaseEvent[]
+        caseEvents?: ReporterCaseEvent[],
+        taskEvents?: ReporterTaskEvent[]
       ) {
         await consoleQueue
         if (consoleFailure) throw consoleFailure
@@ -815,6 +882,7 @@ export async function openCustomReporters(options: {
           taskTree,
           completion,
           ...(caseEvents === undefined ? {} : { caseEvents }),
+          ...(taskEvents === undefined ? {} : { taskEvents }),
         })
       },
       async replayImportedFile(
@@ -840,10 +908,12 @@ export async function openCustomReporters(options: {
       },
       async drainConsole() {
         await consoleQueue
+        if (batchWrites.size) await Promise.allSettled([...batchWrites])
         if (consoleFailure) throw consoleFailure
       },
       async collectErrors() {
         await consoleQueue
+        if (batchWrites.size) await Promise.allSettled([...batchWrites])
         if (options.signal?.aborted) {
           await settleCancellation()
           return structuredClone(reporterErrors)
@@ -885,13 +955,14 @@ export async function openCustomReporters(options: {
             )
           observedModules.add(event.entryId)
           consoleQueue = consoleQueue
-            .then(() =>
-              request({
+            .then(async () => {
+              if (batchWrites.size) await Promise.allSettled([...batchWrites])
+              return request({
                 type: 'module-end',
                 entryId: event.entryId,
                 completion,
               })
-            )
+            })
             .catch(retainConsoleFailure)
           return
         }
@@ -908,7 +979,11 @@ export async function openCustomReporters(options: {
               : {
                   type: 'task-state',
                   taskTree: event.taskTree,
-                  ...(captureModuleStart
+                  ...(captureModuleStart ||
+                  captureSuiteEvents ||
+                  captureHookEvents ||
+                  captureCaseReady ||
+                  captureTaskResults
                     ? {
                         runId: event.runId,
                         entryId: event.entryId,
@@ -925,7 +1000,83 @@ export async function openCustomReporters(options: {
           ).catch(retainConsoleFailure)
           if (event.type === 'file-collected' && captureModuleCollected)
             collectedWrites.push(notification)
-          if (event.type === 'task-update')
+          if (
+            event.type === 'task-update' &&
+            !options.watch &&
+            event.kind === undefined
+          ) {
+            const occurrences: ReporterTaskEvent[] =
+              event.taskEvents ??
+              (
+                event.caseEvents ??
+                event.caseResults.map((result) => ({
+                  event: 'result' as const,
+                  caseId: result.caseId,
+                }))
+              ).map((occurrence) => ({
+                event:
+                  occurrence.event === 'ready'
+                    ? ('case-ready' as const)
+                    : ('case-result' as const),
+                caseId: occurrence.caseId,
+              }))
+            const selected = occurrences.filter((occurrence) =>
+              occurrence.event === 'case-ready'
+                ? captureCaseReady
+                : occurrence.event === 'suite-ready' ||
+                    occurrence.event === 'suite-result'
+                  ? captureSuiteEvents
+                  : occurrence.event === 'hook-start' ||
+                      occurrence.event === 'hook-end'
+                    ? captureHookEvents
+                    : true
+            )
+            if (selected.length) {
+              const batchId = ++nextBatchId
+              const result = new Promise<void>((resolve, reject) => {
+                const timer = setTimeout(() => {
+                  batchRequests.delete(batchId)
+                  reject(new Error('Custom reporter task batch timed out.'))
+                }, 120000)
+                batchRequests.set(batchId, {
+                  runId: event.runId,
+                  entryId: event.entryId,
+                  revision: event.revision,
+                  resolve,
+                  reject,
+                  timer,
+                })
+              })
+              batchEntries.set(result, event.entryId)
+              batchWrites.add(result)
+              void result.then(
+                () => batchWrites.delete(result),
+                (error) => {
+                  batchWrites.delete(result)
+                  retainConsoleFailure(error)
+                }
+              )
+              // Each actual task pack starts independently. A pending callback
+              // in an earlier pack must not hold authored execution or later packs.
+              void send({
+                type: 'task-batch',
+                batchId,
+                runId: event.runId,
+                entryId: event.entryId,
+                revision: event.revision,
+                taskTree: event.taskTree,
+                taskUpdateIds: event.taskUpdateIds,
+                occurrences: selected,
+              }).catch((error) => {
+                const batch = batchRequests.get(batchId)
+                if (batch) {
+                  batchRequests.delete(batchId)
+                  clearTimeout(batch.timer)
+                  batch.reject(error)
+                }
+              })
+            }
+          } else if (event.type === 'task-update') {
             for (const occurrence of event.caseEvents ??
               event.caseResults.map((result) => ({
                 event: 'result' as const,
@@ -942,6 +1093,7 @@ export async function openCustomReporters(options: {
                 )
                 .catch(retainConsoleFailure)
             }
+          }
           return
         }
         if (event.type === 'file-end') {
@@ -950,15 +1102,16 @@ export async function openCustomReporters(options: {
               'Module reporters require the completed file results.'
             )
           consoleQueue = consoleQueue
-            .then(() =>
-              request({
+            .then(async () => {
+              if (batchWrites.size) await Promise.allSettled([...batchWrites])
+              return request({
                 type: observedModules.has(event.entryId)
                   ? 'module-state'
                   : 'module-end',
                 entryId: event.entryId,
                 completion,
               })
-            )
+            })
             .catch(retainConsoleFailure)
           return
         }

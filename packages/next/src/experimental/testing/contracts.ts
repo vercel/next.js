@@ -472,6 +472,9 @@ export interface ExecuteTestOptions {
   captureModuleStart?: true
   /** Actual logical case preparation; absent for legacy task snapshots. */
   captureCaseReady?: true
+  /** Actual Node suite and traditional hook-group observations. */
+  captureSuiteEvents?: true
+  captureHookEvents?: true
   /** Parent-owned concurrent record RPC; never a serializable callback. */
   captureTestRecords?: true
   onTestRecord?: (event: TestRecordEvent) => Promise<TestArtifact | undefined>

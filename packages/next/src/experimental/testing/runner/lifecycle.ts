@@ -382,6 +382,14 @@ export interface RunnerOptions {
   onCaseEnd?(result: RunnerCaseResult): void | Promise<void>
   /** Once per prepared logical task, before attempt fixtures, repeats and retries. */
   onCaseReady?(task: Test): void
+  /** Actual traditional hook-group boundaries; absent in legacy producers. */
+  onReporterHookOccurrence?(
+    task: Test | Suite,
+    hook: 'beforeAll' | 'afterAll' | 'beforeEach' | 'afterEach',
+    event: 'hook-start' | 'hook-end'
+  ): void
+  /** Actual non-file suite preparation, before its owned hooks. */
+  onSuiteReady?(task: Suite): void
   /** Once per logical case, after retries, repeats and owned attempt closure. */
   onCaseResult?(task: Test, result: RunnerCaseResult): void | Promise<void>
   onSuiteEnd?(
@@ -927,17 +935,21 @@ export async function runCollected(
     onTimeout?: (error: DeadlineError) => void,
     afterFulfilled?: (value: unknown) => unknown | Promise<unknown>,
     createdCarriers?: Set<RunnerFailure>,
-    observeCreatedCarrier?: (failure: RunnerFailure, cause: unknown) => void
+    observeCreatedCarrier?: (failure: RunnerFailure, cause: unknown) => void,
+    observeSettlement?: (fulfilled: boolean) => void
   ) {
     try {
-      return await bounded(
+      const value = await bounded(
         fn,
         timeout,
         onTimeout,
         operationObservation?.bounded,
         afterFulfilled
       )
+      observeSettlement?.(true)
+      return value
     } catch (error) {
+      observeSettlement?.(false)
       if (handleControl?.(error)) return
       if (isExecutionDeadline(error)) {
         hadDeadline = true
@@ -1041,6 +1053,32 @@ export async function runCollected(
     }
   }
 
+  function reporterHookGroup(
+    task: Test | Suite,
+    hook: 'beforeAll' | 'afterAll' | 'beforeEach' | 'afterEach',
+    captures: number
+  ) {
+    if (captures === 0) return
+    task.result ??= { state: 'run' }
+    task.result.hooks ??= {}
+    task.result.hooks[hook] = 'run'
+    options.onReporterHookOccurrence?.(task, hook, 'hook-start')
+    let remaining = captures
+    let fulfilled = true
+    return {
+      settled(value: boolean) {
+        remaining--
+        fulfilled = fulfilled && value
+      },
+      complete() {
+        if (remaining === 0 && fulfilled) {
+          task.result!.hooks![hook] = 'pass'
+          options.onReporterHookOccurrence?.(task, hook, 'hook-end')
+        }
+      },
+    }
+  }
+
   async function invokeSuiteHook(
     context: SuiteHookContext,
     fn: (
@@ -1054,7 +1092,8 @@ export async function runCollected(
     errors: RunnerFailure[],
     timeout: number,
     bodyTimeout = timeout,
-    declaration?: Hook
+    declaration?: Hook,
+    observeSettlement?: (fulfilled: boolean) => void
   ) {
     const asyncScope = createAsyncScope(
       { kind: 'hook', context },
@@ -1111,7 +1150,8 @@ export async function runCollected(
               : undefined,
             undefined,
             undefined,
-            observeCreatedBeforeAllCarrier
+            observeCreatedBeforeAllCarrier,
+            observeSettlement
           )
           for (const failure of errors.slice(previous)) {
             if (observeCreatedBeforeAllCarrier) {
@@ -1412,7 +1452,8 @@ export async function runCollected(
           declaration?: Hook,
           observeCapturedFailure?: (error: unknown) => void,
           observePhaseReturn?: (preserved: boolean) => void,
-          createdCarriers?: Set<RunnerFailure>
+          createdCarriers?: Set<RunnerFailure>,
+          observeSettlement?: (fulfilled: boolean) => void
         ) => {
           const previous = failures.length
           let handledSkip = false
@@ -1420,11 +1461,6 @@ export async function runCollected(
           let hookDeadline: DeadlineError | undefined
           const hook =
             phase === 'beforeEach' || phase === 'afterEach' ? phase : undefined
-          if (hook && publicTask.result) {
-            publicTask.result.hooks ??= {}
-            if (publicTask.result.hooks[hook] !== 'fail')
-              publicTask.result.hooks[hook] = 'run'
-          }
           if (!options.runWithCasePhase) observePhaseReturn?.(true)
           let operation =
             phase === 'test' || !options.runWithCasePhase
@@ -1539,7 +1575,9 @@ export async function runCollected(
             phase === 'test'
               ? integration?.consumePublicTaskPromises
               : undefined,
-            createdCarriers
+            createdCarriers,
+            undefined,
+            observeSettlement
           )
           const added = failures.slice(previous)
           if (bodyDeadline && test.registrationError) {
@@ -1557,12 +1595,6 @@ export async function runCollected(
               })
           }
           publishFailures(added)
-          if (hook && publicTask.result) {
-            publicTask.result.hooks ??= {}
-            if (added.length) publicTask.result.hooks[hook] = 'fail'
-            else if (publicTask.result.hooks[hook] !== 'fail')
-              publicTask.result.hooks[hook] = 'pass'
-          }
           if (!handledSkip && failures.length > previous) currentlyFailed = true
           return value
         }
@@ -1962,6 +1994,13 @@ export async function runCollected(
                     integration?.beforeTry?.()
                     const beforeEachSequence = hookSequence()
                     for (const parent of ancestors) {
+                      const group = reporterHookGroup(
+                        publicTask,
+                        'beforeEach',
+                        beforeEachSequence === 'parallel'
+                          ? Math.min(parent.hooks.beforeEach.length, 1)
+                          : parent.hooks.beforeEach.length
+                      )
                       if (beforeEachSequence === 'parallel') {
                         if (!parent.hooks.beforeEach.length) continue
                         const callbacks = await captureCase(
@@ -1996,12 +2035,18 @@ export async function runCollected(
                               )
                             ),
                           errors,
-                          0
+                          0,
+                          undefined,
+                          undefined,
+                          undefined,
+                          undefined,
+                          group?.settled
                         )
                         if (Array.isArray(callbacks))
                           for (const callback of callbacks)
                             if (typeof callback === 'function')
                               hookCleanups.push(callback)
+                        group?.complete()
                         if (currentlyFailed || skipSignals) break
                         continue
                       }
@@ -2033,7 +2078,8 @@ export async function runCollected(
                                 observation.phaseReturnPreserved = preserved
                               }
                             : undefined,
-                          createdCarriers
+                          createdCarriers,
+                          group?.settled
                         )
                         if (
                           capturedFailure &&
@@ -2069,6 +2115,7 @@ export async function runCollected(
                           )
                         if (currentlyFailed || skipSignals) break
                       }
+                      group?.complete()
                       if (currentlyFailed || skipSignals) break
                     }
                     // callSuiteHook publishes its cleanup list only after the
@@ -2129,7 +2176,15 @@ export async function runCollected(
                     teardownHooks: for (const parent of [
                       ...ancestors,
                     ].reverse()) {
-                      if (hookSequence() === 'parallel') {
+                      const afterEachSequence = hookSequence()
+                      const group = reporterHookGroup(
+                        publicTask,
+                        'afterEach',
+                        afterEachSequence === 'parallel'
+                          ? Math.min(parent.hooks.afterEach.length, 1)
+                          : parent.hooks.afterEach.length
+                      )
+                      if (afterEachSequence === 'parallel') {
                         if (!parent.hooks.afterEach.length) continue
                         const previousSkips = skipSignals
                         const previousErrors = errors.length
@@ -2152,8 +2207,14 @@ export async function runCollected(
                               )
                             ),
                           errors,
-                          0
+                          0,
+                          undefined,
+                          undefined,
+                          undefined,
+                          undefined,
+                          group?.settled
                         )
+                        group?.complete()
                         if (skipSignals !== previousSkips) {
                           skippedTeardown = true
                           break
@@ -2172,7 +2233,11 @@ export async function runCollected(
                           () => invoke(hook.fn, false, 'afterEach'),
                           errors,
                           hook.timeout ?? hookTimeout,
-                          hook
+                          hook,
+                          undefined,
+                          undefined,
+                          undefined,
+                          group?.settled
                         )
                         if (skipSignals !== previousSkips) {
                           skippedTeardown = true
@@ -2183,6 +2248,7 @@ export async function runCollected(
                           break teardownHooks
                         }
                       }
+                      group?.complete()
                     }
                     if (!skippedTeardown && !failedTeardown) {
                       const previousErrors = errors.length
@@ -2743,6 +2809,13 @@ export async function runCollected(
         else selected.set(child, 'skip')
     }
     if (blockChildren) markSkipped(node)
+    if (
+      node !== root &&
+      !collectionBlocked &&
+      !focusFailure &&
+      !inheritedErrors.length
+    )
+      options.onSuiteReady?.(publicSuite)
     if (node === root && options.captureModuleStart === true)
       options.onFilePrepared?.(publicSuite as File)
     const cleanups: { fn: Cleanup; index: number; timeout: number }[] = []
@@ -2810,6 +2883,15 @@ export async function runCollected(
     const runSuiteInner = async () => {
       const setupErrorsStart = errors.length
       const beforeAllSequence = hookSequence()
+      const beforeAllGroup = enter
+        ? reporterHookGroup(
+            publicSuite,
+            'beforeAll',
+            beforeAllSequence === 'parallel'
+              ? Math.min(node.hooks.beforeAll.length, 1)
+              : node.hooks.beforeAll.length
+          )
+        : undefined
       if (
         enter &&
         beforeAllSequence === 'parallel' &&
@@ -2835,7 +2917,9 @@ export async function runCollected(
             ),
           errors,
           hookTimeout,
-          0
+          0,
+          undefined,
+          beforeAllGroup?.settled
         )
         if (Array.isArray(callbacks))
           callbacks.forEach((callback, index) => {
@@ -2856,7 +2940,8 @@ export async function runCollected(
             errors,
             hook.timeout ?? hookTimeout,
             hook.timeout ?? hookTimeout,
-            hook
+            hook,
+            beforeAllGroup?.settled
           )
           if (typeof cleanup === 'function')
             cleanups.push({
@@ -2870,6 +2955,7 @@ export async function runCollected(
       // A failed suite setup belongs to the suite. Its descendants have not
       // executed, so retain the suite errors and report those tasks as skipped.
       result.errors.push(...errors.slice(setupErrorsStart))
+      beforeAllGroup?.complete()
       blockedDescendants = errors.length > setupErrorsStart
       const skipChildren = blockChildren || errors.length > 0
       if (errors.length) {
@@ -2939,6 +3025,13 @@ export async function runCollected(
         if (enter) {
           const teardownErrors: RunnerFailure[] = []
           const afterAllSequence = hookSequence()
+          const afterAllGroup = reporterHookGroup(
+            publicSuite,
+            'afterAll',
+            afterAllSequence === 'parallel'
+              ? Math.min(node.hooks.afterAll.length, 1)
+              : node.hooks.afterAll.length
+          )
           if (afterAllSequence === 'parallel' && node.hooks.afterAll.length)
             await invokeSuiteHook(
               hookContext('afterAll', 0),
@@ -2958,7 +3051,9 @@ export async function runCollected(
                 ),
               teardownErrors,
               hookTimeout,
-              0
+              0,
+              undefined,
+              afterAllGroup?.settled
             )
           for (const [index, hook] of afterAllSequence === 'parallel'
             ? []
@@ -2970,10 +3065,12 @@ export async function runCollected(
               teardownErrors,
               hook.timeout ?? hookTimeout,
               hook.timeout ?? hookTimeout,
-              hook
+              hook,
+              afterAllGroup?.settled
             )
             if (teardownErrors.length) break
           }
+          afterAllGroup?.complete()
           const cleanupSequence = hookSequence()
           if (
             !teardownErrors.length &&

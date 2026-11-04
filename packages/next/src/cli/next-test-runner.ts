@@ -1360,6 +1360,12 @@ export async function nextTestRunner(
                 onTestRecord: machine.onTestRecord,
               }
             : {}),
+          ...(entries.length > 0 && machine.captureSuiteEvents === true
+            ? { captureSuiteEvents: true as const }
+            : {}),
+          ...(entries.length > 0 && machine.captureHookEvents === true
+            ? { captureHookEvents: true as const }
+            : {}),
           ...(entries.length > 0 && machine.captureCaseReady === true
             ? { captureCaseReady: true as const }
             : {}),

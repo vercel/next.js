@@ -3012,10 +3012,26 @@ describe('owned custom completion reporters', () => {
     }
   })
 
+  it('admits the unchanged no-op Ready hook and closes its reporter realm', async () => {
+    const c = await custom('unsupported')
+    try {
+      await c.machine.initialize()
+      const { pid } = JSON.parse(
+        await readFile(join(c.root, 'initialized.json'), 'utf8')
+      )
+      expect(process.kill(pid, 0)).toBe(true)
+      await c.machine.dispose()
+      expect(() => process.kill(pid, 0)).toThrow()
+      expect(await c.trace()).toEqual([{ hook: 'init' }, { hook: 'close' }])
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
   it.each([
     ['constructor', 'reporter constructor failed'],
     ['init', 'reporter init failed'],
-    ['unsupported', 'onTestCaseReady requires actual Next producer events'],
     ['context', 'context.projects needs a broader Next tooling adapter'],
   ])('reclaims the reporter realm after %s failure', async (mode, message) => {
     const c = await custom(mode)
@@ -10725,6 +10741,79 @@ it('keeps inactive observer getters dormant while rejecting unsupported active d
     else
       console.error(
         'Retained failed dormant observer admission at ' + directory
+      )
+  }
+}, 40000)
+
+it('preserves real Suite and Hook callback batches, task identity, raw failures and pending callback ownership', async () => {
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(join(tmpdir(), 'next-suite-hook-batches-'))
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'suite-hook-batches-worker.cjs'),
+        process.cwd(),
+        directory,
+      ],
+      { timeout: 35000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      scenarios: 9,
+      physicalReporterSessions: 9,
+      fastPackFinalState: true,
+      stableTaskIdentity: true,
+      sharedHookArgument: true,
+      exactGetterDispatch: true,
+      rawReporterErrors: true,
+      concurrentBatches: true,
+      finalJoin: true,
+      forgedOwnerRejected: true,
+      allSessionsDisposed: true,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else
+      console.error(
+        'Retained failed actual Suite and Hook batches at ' + directory
+      )
+  }
+}, 40000)
+
+it('drains pending task callback batches before actual context annotation reporter RPCs', async () => {
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(join(tmpdir(), 'next-record-batch-drain-'))
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'record-batch-drain.cjs'), process.cwd(), directory],
+      { timeout: 35000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      scenarios: 2,
+      physicalReporterSessions: 2,
+      actualContextAnnotations: 2,
+      pendingSuiteReadyDrained: true,
+      pendingCaseReadyDrained: true,
+      annotationReporterWaited: true,
+      annotationBodyContinuationWaited: true,
+      ordinaryBodyAndLaterBatchProgressed: true,
+      passingTasks: 4,
+      allSessionsDisposed: true,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else
+      console.error(
+        'Retained failed actual record and batch drain at ' + directory
       )
   }
 }, 40000)

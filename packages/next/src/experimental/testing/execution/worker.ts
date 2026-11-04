@@ -402,6 +402,12 @@ async function run({
           ...(options.captureCaseReady === true
             ? { captureCaseReady: true as const }
             : {}),
+          ...(options.captureSuiteEvents === true
+            ? { captureSuiteEvents: true as const }
+            : {}),
+          ...(options.captureHookEvents === true
+            ? { captureHookEvents: true as const }
+            : {}),
           ...(options.captureModuleStart === true
             ? { captureModuleStart: true as const }
             : {}),
@@ -740,6 +746,26 @@ async function run({
     )
       throw new Error(
         'Case Ready requires actual isolated ordinary Node tasks.'
+      )
+    if (
+      (options.captureSuiteEvents !== undefined ||
+        options.captureHookEvents !== undefined) &&
+      ((options.captureSuiteEvents !== undefined &&
+        options.captureSuiteEvents !== true) ||
+        (options.captureHookEvents !== undefined &&
+          options.captureHookEvents !== true) ||
+        artifact.kind !== 'node' ||
+        artifact.profile.environment !== 'node' ||
+        artifact.profile.route !== undefined ||
+        artifact.profile.browserClient ||
+        artifact.cohort ||
+        options.collectOnly ||
+        (options.entry.executionEnvironment &&
+          options.entry.executionEnvironment.name !== 'node') ||
+        options.captureTaskResults !== true)
+    )
+      throw new Error(
+        'Suite and hook observations require actual isolated ordinary Node tasks.'
       )
     if (
       options.captureModuleStart !== undefined &&
@@ -1547,8 +1573,20 @@ async function run({
               )
             }
           : undefined,
+        onReporterHookOccurrence:
+          options.captureHookEvents === true && taskUpdates
+            ? (task, hook, occurrence) =>
+                taskUpdates.hookOccurrence(task, hook, occurrence)
+            : undefined,
+        onSuiteReady:
+          options.captureSuiteEvents === true && taskUpdates
+            ? (task) => taskUpdates.suiteReady(task)
+            : undefined,
         onCaseReady:
-          taskUpdates && options.captureCaseReady === true
+          taskUpdates &&
+          (options.captureCaseReady === true ||
+            options.captureSuiteEvents === true ||
+            options.captureHookEvents === true)
             ? (task) => taskUpdates.caseReady(task)
             : undefined,
         onCaseStart(context) {

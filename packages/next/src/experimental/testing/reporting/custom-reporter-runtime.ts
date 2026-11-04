@@ -1,5 +1,5 @@
 import type { TestRecordEvent } from '../contracts'
-import type { ReporterCaseEvent } from './task-updates'
+import type { ReporterCaseEvent, ReporterTaskEvent } from './task-updates'
 import {
   invokeTestRecordReporters,
   type ReporterTestRecordOutcome,
@@ -32,6 +32,7 @@ import {
 } from './custom-reporter-tasks'
 import { serializeDiagnostic } from './diagnostics'
 import { types as nodeTypes } from 'node:util'
+import { serializeReporterFailure } from './custom-reporter-errors'
 
 type Reporter = {
   onInit?(context: unknown): unknown
@@ -46,6 +47,10 @@ type Reporter = {
   onTestModuleStart?(module: unknown): unknown
   onTestModuleEnd?(module: unknown): unknown
   onTestCaseReady?(test: unknown): unknown
+  onTestSuiteReady?: unknown
+  onTestSuiteResult?: unknown
+  onHookStart?: unknown
+  onHookEnd?: unknown
   onTestCaseResult?(test: unknown): unknown
   onTestCaseAnnotate?: unknown
   onTestCaseArtifactRecord?: unknown
@@ -74,6 +79,10 @@ export function createCustomReporterRuntime(
   let finished = false
   let watching = false
   let captureTestRecords = false
+  let captureSuiteEvents = false
+  let captureHookEvents = false
+  const batchIds = new Set<number>()
+  const batchCallbacks = new Set<Promise<void>>()
   const recordIds = new Set<number>()
   const recordCallbacks = new Set<Promise<void>>()
   let runSpecifications:
@@ -84,6 +93,19 @@ export function createCustomReporterRuntime(
   const watchTrees = new Map<string, ReporterTaskSnapshot>()
   let watchEntryIds: string[] = []
   const consoleErrors: unknown[] = []
+  // Live task callbacks retain the raw rejection and the pinned controller's
+  // eager per-occurrence projection independently. Other error owners stay raw.
+  const taskCallbackProjections = new Map<number, Record<string, unknown>>()
+  function retainTaskCallbackError(error: unknown) {
+    const index = consoleErrors.length
+    consoleErrors.push(error)
+    taskCallbackProjections.set(index, serializeReporterFailure(error))
+  }
+  function reportedConsoleErrors(): unknown[] {
+    return consoleErrors.map(
+      (error, index) => taskCallbackProjections.get(index) ?? error
+    )
+  }
   const completedModules = new Map<
     string,
     | ReturnType<typeof createCustomReporterModules>[number]
@@ -107,6 +129,9 @@ export function createCustomReporterRuntime(
   const failedCollectedEntryIds = new Set<string>()
   const preparedEntryIds = new Set<string>()
   const queuedEntryIds = new Set<string>()
+  const readySuiteIds = new Set<string>()
+  const completedSuiteIds = new Set<string>()
+  const activeHooks = new Map<string, number>()
   const readyCaseIds = new Set<string>()
   const completedCaseIds = new Set<string>()
   const send = options.send
@@ -186,6 +211,134 @@ export function createCustomReporterRuntime(
     const callback = reporter.onTestCaseReady
     if (callback !== undefined && callback !== null)
       return applyReporterCallback(callback, reporter, [test])
+  }
+  function hasPotentialTaskCallback(
+    reporter: Reporter,
+    name:
+      | 'onTestSuiteReady'
+      | 'onTestSuiteResult'
+      | 'onHookStart'
+      | 'onHookEnd'
+      | 'onTestCaseResult'
+  ): boolean {
+    let current: object | null = reporter
+    while (current !== null) {
+      // Capability discovery must not inspect an authored callback accessor.
+      if (nodeTypes.isProxy(current)) return true
+      const descriptor = Reflect.getOwnPropertyDescriptor(current, name)
+      if (descriptor)
+        return 'value' in descriptor
+          ? descriptor.value !== undefined && descriptor.value !== null
+          : typeof descriptor.get === 'function'
+      current = Reflect.getPrototypeOf(current)
+    }
+    return false
+  }
+  function requestsSuiteEvents(reporter: Reporter): boolean {
+    return (
+      hasPotentialTaskCallback(reporter, 'onTestSuiteReady') ||
+      hasPotentialTaskCallback(reporter, 'onTestSuiteResult')
+    )
+  }
+  function requestsHookEvents(reporter: Reporter): boolean {
+    return (
+      hasPotentialTaskCallback(reporter, 'onHookStart') ||
+      hasPotentialTaskCallback(reporter, 'onHookEnd')
+    )
+  }
+  function prepareTaskOccurrence(
+    entryId: string,
+    occurrence: ReporterTaskEvent,
+    state: {
+      readySuites: Set<string>
+      completedSuites: Set<string>
+      activeHooks: Map<string, number>
+      readyCases: Set<string>
+      completedCases: Set<string>
+    }
+  ): () => Promise<void> {
+    let name:
+      | 'onTestSuiteReady'
+      | 'onTestSuiteResult'
+      | 'onHookStart'
+      | 'onHookEnd'
+      | 'onTestCaseReady'
+      | 'onTestCaseResult'
+    let argument: unknown
+    if ('suiteId' in occurrence) {
+      if (!captureSuiteEvents)
+        throw new Error('Reporter suite occurrences were not requested.')
+      const suite = live.suite(entryId, occurrence.suiteId)
+      const identity = JSON.stringify([entryId, occurrence.suiteId])
+      if (occurrence.event === 'suite-ready') {
+        if (
+          state.readySuites.has(identity) ||
+          state.completedSuites.has(identity)
+        )
+          throw new Error('Suite Ready requires one actual prepared suite.')
+        state.readySuites.add(identity)
+        name = 'onTestSuiteReady'
+      } else {
+        if (
+          !state.readySuites.has(identity) ||
+          state.completedSuites.has(identity)
+        )
+          throw new Error('Suite Result requires its actual prepared suite.')
+        state.completedSuites.add(identity)
+        name = 'onTestSuiteResult'
+      }
+      argument = suite
+    } else if ('taskId' in occurrence) {
+      if (!captureHookEvents)
+        throw new Error('Reporter hook occurrences were not requested.')
+      const entity = live.hook(entryId, occurrence.taskId, occurrence.hook)
+      const key = JSON.stringify([entryId, occurrence.taskId, occurrence.hook])
+      const count = state.activeHooks.get(key) ?? 0
+      if (occurrence.event === 'hook-start') {
+        state.activeHooks.set(key, count + 1)
+        name = 'onHookStart'
+      } else {
+        if (!count)
+          throw new Error('Hook End requires its actual preceding hook group.')
+        if (count === 1) state.activeHooks.delete(key)
+        else state.activeHooks.set(key, count - 1)
+        name = 'onHookEnd'
+      }
+      // The actual occurrence owns one argument shared by every reporter.
+      argument = { name: occurrence.hook, entity }
+    } else {
+      const test = live.case(entryId, occurrence.caseId)
+      const identity = JSON.stringify([entryId, occurrence.caseId])
+      if (occurrence.event === 'case-ready') {
+        if (
+          state.readyCases.has(identity) ||
+          state.completedCases.has(identity)
+        )
+          throw new Error('Case Ready requires one actual prepared task.')
+        state.readyCases.add(identity)
+        name = 'onTestCaseReady'
+      } else {
+        if (state.completedCases.has(identity))
+          throw new Error('Case Result requires one actual logical result.')
+        state.completedCases.add(identity)
+        name = 'onTestCaseResult'
+      }
+      argument = test
+    }
+    return async () => {
+      // A synchronous getter or callback throw aborts this map. A returned
+      // rejection still allows later reporters to run, matching the live owner.
+      await Promise.all(
+        reporters.map((reporter) => {
+          const callback = reporter[name]
+          if (callback !== undefined && callback !== null)
+            return applyReporterCallback(callback as Function, reporter, [
+              argument,
+            ])
+          return undefined
+        })
+      )
+    }
   }
   function hasPotentialCaseReady(reporter: Reporter): boolean {
     let current: object | null = reporter
@@ -287,7 +440,9 @@ export function createCustomReporterRuntime(
   function needsSelectedBoundary(reporter: Reporter): boolean {
     return (
       hasPotentialRunHook(reporter, 'onTestRunStart') ||
-      hasPotentialSelectedDomain(reporter)
+      hasPotentialSelectedDomain(reporter) ||
+      requestsSuiteEvents(reporter) ||
+      requestsHookEvents(reporter)
     )
   }
   async function settle(
@@ -313,6 +468,7 @@ export function createCustomReporterRuntime(
   let initialCloseErrorLogged = false
   async function shutdownOnce(ordinary: boolean) {
     if (recordCallbacks.size) await Promise.allSettled([...recordCallbacks])
+    if (batchCallbacks.size) await Promise.allSettled([...batchCallbacks])
     await Promise.all([
       ...queuedCallbacks,
       ...collectedCallbacks,
@@ -375,8 +531,44 @@ export function createCustomReporterRuntime(
   }
   async function replayCases(
     tree: ReporterTaskSnapshot,
-    occurrences?: ReporterCaseEvent[]
+    occurrences?: ReporterCaseEvent[],
+    taskEvents?: ReporterTaskEvent[]
   ) {
+    if (taskEvents !== undefined) {
+      if (!Array.isArray(taskEvents))
+        throw new Error('Reporter replay requires actual task occurrences.')
+      const state = {
+        readySuites: new Set(readySuiteIds),
+        completedSuites: new Set(completedSuiteIds),
+        activeHooks: new Map(activeHooks),
+        readyCases: new Set(readyCaseIds),
+        completedCases: new Set(completedCaseIds),
+      }
+      for (const occurrence of taskEvents) {
+        if (
+          ('suiteId' in occurrence && !captureSuiteEvents) ||
+          ('taskId' in occurrence && !captureHookEvents)
+        )
+          continue
+        const callback = prepareTaskOccurrence(tree.id, occurrence, state)
+        try {
+          await callback()
+        } catch (error) {
+          consoleErrors.push(error)
+        }
+      }
+      for (const id of state.readySuites) readySuiteIds.add(id)
+      for (const id of state.completedSuites) completedSuiteIds.add(id)
+      activeHooks.clear()
+      for (const [key, count] of state.activeHooks) activeHooks.set(key, count)
+      for (const id of state.readyCases) readyCaseIds.add(id)
+      for (const id of state.completedCases) completedCaseIds.add(id)
+      return
+    }
+    if (captureSuiteEvents || captureHookEvents)
+      throw new Error(
+        'Reporter Suite and Hook replay requires actual recorded task occurrences.'
+      )
     if (occurrences !== undefined) {
       for (const occurrence of occurrences) {
         const test = live.case(tree.id, occurrence.caseId)
@@ -438,7 +630,7 @@ export function createCustomReporterRuntime(
         if (!onPrefix)
           return reporter.onTestRunEnd?.(
             modules,
-            [...errors, ...consoleErrors],
+            [...errors, ...reportedConsoleErrors()],
             reason
           )
         let callback: Reporter['onTestRunEnd']
@@ -463,7 +655,7 @@ export function createCustomReporterRuntime(
         try {
           value = Reflect.apply(callback, reporter, [
             modules,
-            [...errors, ...consoleErrors],
+            [...errors, ...reportedConsoleErrors()],
             reason,
           ])
         } catch (error) {
@@ -618,6 +810,10 @@ export function createCustomReporterRuntime(
                     'onTestModuleCollected',
                     'onTestModuleStart',
                     'onTestCaseReady',
+                    'onTestSuiteReady',
+                    'onTestSuiteResult',
+                    'onHookStart',
+                    'onHookEnd',
                     'onTestCaseAnnotate',
                     'onTestCaseArtifactRecord',
                   ].includes(name) && !watching
@@ -659,9 +855,13 @@ export function createCustomReporterRuntime(
             hasPotentialRecordCallback(reporter, 'onTestCaseAnnotate') ||
             hasPotentialRecordCallback(reporter, 'onTestCaseArtifactRecord')
         )
+        captureSuiteEvents = reporters.some(requestsSuiteEvents)
+        captureHookEvents = reporters.some(requestsHookEvents)
         await send({
           type: 'custom-reporter-result',
           captureTestRecords,
+          captureSuiteEvents,
+          captureHookEvents,
           captureRunStart: !watching && reporters.some(needsSelectedBoundary),
           ...(reporters.some(hasPotentialCaseReady)
             ? { captureCaseReady: true }
@@ -670,6 +870,11 @@ export function createCustomReporterRuntime(
             (reporter) => typeof reporter.onTestModuleStart === 'function'
           ),
           captureModuleCollected:
+            (!watching && reporters.some(hasPotentialCaseReady)) ||
+            (!watching &&
+              reporters.some((reporter) =>
+                hasPotentialTaskCallback(reporter, 'onTestCaseResult')
+              )) ||
             (!watching && reporters.some(needsSelectedBoundary)) ||
             reporters.some(
               (reporter) =>
@@ -684,12 +889,14 @@ export function createCustomReporterRuntime(
           captureTaskResults:
             reporters.some(hasPotentialCaseReady) ||
             captureTestRecords ||
+            captureSuiteEvents ||
+            captureHookEvents ||
             (!watching && reporters.some(needsSelectedBoundary)) ||
             reporters.some(
               (reporter) =>
                 typeof reporter.onTestModuleCollected === 'function' ||
                 typeof reporter.onTestModuleStart === 'function' ||
-                typeof reporter.onTestCaseResult === 'function' ||
+                hasPotentialTaskCallback(reporter, 'onTestCaseResult') ||
                 typeof reporter.onTestModuleEnd === 'function' ||
                 hasPotentialCompletionHook(reporter) ||
                 (watching && typeof reporter.onWatcherStart === 'function')
@@ -732,11 +939,15 @@ export function createCustomReporterRuntime(
           })
         )
         runSpecifications.assertUnchangedSelection()
+        captureSuiteEvents = reporters.some(requestsSuiteEvents)
+        captureHookEvents = reporters.some(requestsHookEvents)
         await send({
           type: 'custom-reporter-result',
           captureModuleStart: reporters.some((reporter) =>
             hasPotentialRunHook(reporter, 'onTestModuleStart')
           ),
+          captureSuiteEvents,
+          captureHookEvents,
           // Retained specifications keep following the actual queued/current File.
           captureModuleCollected: true,
           captureModuleQueued: true,
@@ -753,6 +964,7 @@ export function createCustomReporterRuntime(
         watchTrees.clear()
         watchEntryIds = []
         consoleErrors.length = 0
+        taskCallbackProjections.clear()
         finished = false
         if (message.rerun) {
           if (
@@ -898,6 +1110,7 @@ export function createCustomReporterRuntime(
         return
       }
       if (message.type === 'reporter-errors' && initialized) {
+        if (batchCallbacks.size) await Promise.allSettled([...batchCallbacks])
         await send({
           type: 'custom-reporter-result',
           reporterErrors: consoleErrors.map((error) =>
@@ -919,7 +1132,7 @@ export function createCustomReporterRuntime(
         if (!module)
           throw new Error('Reporter replay requires the actual terminal file.')
         completedModules.set(tree.id, module)
-        await replayCases(tree, message.caseEvents)
+        await replayCases(tree, message.caseEvents, message.taskEvents)
         await settle(
           reporters.map((reporter) => () => reporter.onTestModuleEnd?.(module))
         ).catch((error) => consoleErrors.push(error))
@@ -1004,6 +1217,7 @@ export function createCustomReporterRuntime(
         return
       }
       if (message.type === 'module-end' && initialized && !finished) {
+        if (batchCallbacks.size) await Promise.allSettled([...batchCallbacks])
         if (
           !reporters.some((reporter) => reporter.onTestModuleEnd) &&
           !live.get(message.entryId)
@@ -1061,6 +1275,7 @@ export function createCustomReporterRuntime(
         initialized &&
         !finished
       ) {
+        if (batchCallbacks.size) await Promise.allSettled([...batchCallbacks])
         finished = true
         if (finalExit && message.exitCodeSnapshot)
           process.exitCode = message.exitCodeSnapshot.value
@@ -1183,6 +1398,119 @@ export function createCustomReporterRuntime(
   }
   function receive(message: any) {
     if (transportClosed) return
+    if (message?.type === 'task-batch') {
+      const preceding = queue
+      const operation = preceding.then(async () => {
+        let outcome:
+          | { kind: 'return'; value: undefined }
+          | { kind: 'throw'; error: unknown }
+        let invalidBatch = true
+        try {
+          const owner = collectedStartOwners.get(message.entryId)
+          if (
+            !initialized ||
+            finished ||
+            watching ||
+            !Number.isSafeInteger(message.batchId) ||
+            message.batchId < 1 ||
+            batchIds.has(message.batchId) ||
+            !owner ||
+            owner.runId !== message.runId ||
+            owner.revision !== message.revision ||
+            completedModules.has(message.entryId) ||
+            !message.taskTree ||
+            message.taskTree.id !== message.entryId ||
+            !Array.isArray(message.taskUpdateIds) ||
+            !Array.isArray(message.occurrences) ||
+            message.occurrences.some(
+              (occurrence: ReporterTaskEvent) =>
+                !occurrence ||
+                typeof occurrence !== 'object' ||
+                ('suiteId' in occurrence
+                  ? !['suite-ready', 'suite-result'].includes(
+                      occurrence.event
+                    ) ||
+                    Object.keys(occurrence).length !== 2 ||
+                    typeof occurrence.suiteId !== 'string' ||
+                    !message.taskUpdateIds.includes(occurrence.suiteId)
+                  : 'taskId' in occurrence
+                    ? !['hook-start', 'hook-end'].includes(occurrence.event) ||
+                      Object.keys(occurrence).length !== 3 ||
+                      typeof occurrence.taskId !== 'string' ||
+                      !message.taskUpdateIds.includes(occurrence.taskId) ||
+                      ![
+                        'beforeAll',
+                        'afterAll',
+                        'beforeEach',
+                        'afterEach',
+                      ].includes(occurrence.hook)
+                    : !['case-ready', 'case-result'].includes(
+                        occurrence.event
+                      ) ||
+                      Object.keys(occurrence).length !== 2 ||
+                      typeof occurrence.caseId !== 'string' ||
+                      !message.taskUpdateIds.includes(occurrence.caseId))
+            )
+          )
+            throw new Error(
+              'Reporter task batch requires its actual one-shot owner.'
+            )
+          batchIds.add(message.batchId)
+          prepareReportedModule(
+            live.update(message.taskTree, message.taskUpdateIds)
+          )
+          const state = {
+            readySuites: new Set(readySuiteIds),
+            completedSuites: new Set(completedSuiteIds),
+            activeHooks: new Map(activeHooks),
+            readyCases: new Set(readyCaseIds),
+            completedCases: new Set(completedCaseIds),
+          }
+          const callbacks = (message.occurrences as ReporterTaskEvent[]).map(
+            (occurrence) =>
+              prepareTaskOccurrence(message.entryId, occurrence, state)
+          )
+          for (const id of state.readySuites) readySuiteIds.add(id)
+          for (const id of state.completedSuites) completedSuiteIds.add(id)
+          activeHooks.clear()
+          for (const [key, count] of state.activeHooks)
+            activeHooks.set(key, count)
+          for (const id of state.readyCases) readyCaseIds.add(id)
+          for (const id of state.completedCases) completedCaseIds.add(id)
+          invalidBatch = false
+          for (const callback of callbacks) {
+            try {
+              await callback()
+            } catch (error) {
+              // Reporter failures fail publication without changing authored tests.
+              retainTaskCallbackError(error)
+            }
+          }
+          outcome = { kind: 'return', value: undefined }
+        } catch (error) {
+          outcome = { kind: 'throw', error }
+        }
+        await send({
+          type: 'custom-reporter-batch-result',
+          ...(invalidBatch ? { invalidBatch: true } : {}),
+          batchId: message.batchId,
+          runId: message.runId,
+          entryId: message.entryId,
+          revision: message.revision,
+          outcome,
+        })
+      })
+      batchCallbacks.add(operation)
+      void operation.then(
+        () => batchCallbacks.delete(operation),
+        (error) => {
+          batchCallbacks.delete(operation)
+          console.error(error)
+          void closeTransport(1)
+        }
+      )
+      return
+    }
     if (message?.type === 'test-record') {
       const preceding = queue
       const operation = preceding.then(async () => {
@@ -1294,11 +1622,22 @@ export function createCustomReporterRuntime(
             (!runSpecifications &&
               !reporters.some(
                 (reporter) =>
-                  reporter.onTestModuleCollected || reporter.onTestModuleStart
+                  reporter.onTestModuleCollected ||
+                  reporter.onTestModuleStart ||
+                  hasPotentialTaskCallback(reporter, 'onTestCaseResult') ||
+                  hasPotentialCaseReady(reporter)
               ))
           )
             throw new Error('Invalid actual module collection occurrence.')
-          if (reporters.some((reporter) => reporter.onTestModuleStart)) {
+          if (
+            reporters.some((reporter) => reporter.onTestModuleStart) ||
+            captureSuiteEvents ||
+            captureHookEvents ||
+            reporters.some(hasPotentialCaseReady) ||
+            reporters.some((reporter) =>
+              hasPotentialTaskCallback(reporter, 'onTestCaseResult')
+            )
+          ) {
             if (
               typeof message.runId !== 'string' ||
               typeof message.revision !== 'string' ||

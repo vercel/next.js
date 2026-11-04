@@ -108,6 +108,9 @@ export interface RunTestsOptions {
   captureModuleStart?: true
   /** Actual logical case preparation; absent for legacy task snapshots. */
   captureCaseReady?: true
+  /** Actual Node suite and traditional hook-group observations. */
+  captureSuiteEvents?: true
+  captureHookEvents?: true
   captureTestRecords?: true
   onTestRecord?: ExecuteTestOptions['onTestRecord']
   /** Actual selected-file scheduling; never a collected task snapshot. */
@@ -308,6 +311,35 @@ export async function runTests(
   )
     throw new Error(
       'Case Ready requires actual task capture from isolated ordinary Node execution.'
+    )
+  if (
+    (options.captureSuiteEvents !== undefined ||
+      options.captureHookEvents !== undefined) &&
+    ((options.captureSuiteEvents !== undefined &&
+      options.captureSuiteEvents !== true) ||
+      (options.captureHookEvents !== undefined &&
+        options.captureHookEvents !== true) ||
+      options.captureTaskResults !== true ||
+      options.collectOnly ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.profile.environment !== 'node' ||
+          project.profile.runtime !== 'nodejs' ||
+          project.profile.bundler !== 'turbopack' ||
+          project.profile.route !== undefined ||
+          project.profile.browserClient !== undefined ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.entries.some(
+            (entry) =>
+              entry.executionEnvironment &&
+              entry.executionEnvironment.name !== 'node'
+          )
+      ))
+  )
+    throw new Error(
+      'Suite and hook observations require actual task capture from isolated ordinary Node execution.'
     )
   if (
     options.captureModuleStart !== undefined &&
@@ -1117,6 +1149,12 @@ export async function runTests(
         ...(options.captureCaseReady === true
           ? { captureCaseReady: true as const }
           : {}),
+        ...(options.captureSuiteEvents === true
+          ? { captureSuiteEvents: true as const }
+          : {}),
+        ...(options.captureHookEvents === true
+          ? { captureHookEvents: true as const }
+          : {}),
         captureTaskResults: options.captureTaskResults,
         ...(options.captureTestRecords === true
           ? {
@@ -1602,6 +1640,12 @@ export async function runTests(
             : {}),
           ...(options.captureCaseReady === true
             ? { captureCaseReady: true as const }
+            : {}),
+          ...(options.captureSuiteEvents === true
+            ? { captureSuiteEvents: true as const }
+            : {}),
+          ...(options.captureHookEvents === true
+            ? { captureHookEvents: true as const }
             : {}),
           captureTaskResults: options.captureTaskResults,
           ...(options.captureTestRecords === true

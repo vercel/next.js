@@ -15,7 +15,10 @@ import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
 import {
   assertReporterTaskPacks,
   assertReporterCaseEvents,
+  assertReporterTaskEvents,
+  projectReporterCaseEvents,
   type ReporterCaseEvent,
+  type ReporterTaskEvent,
 } from './task-updates'
 import { randomUUID } from 'node:crypto'
 import {
@@ -1105,6 +1108,12 @@ export function createMachineReporter(options: {
   }
   return {
     initialize,
+    get captureSuiteEvents() {
+      return custom?.captureSuiteEvents === true
+    },
+    get captureHookEvents() {
+      return custom?.captureHookEvents === true
+    },
     get captureCaseReady() {
       return custom?.captureCaseReady === true
     },
@@ -1360,12 +1369,14 @@ export function createMachineReporter(options: {
       )
       const hasRecordedOccurrences = updates.some(
         (event) =>
-          event.type === 'task-update' && event.caseEvents !== undefined
+          event.type === 'task-update' &&
+          (event.caseEvents !== undefined || event.taskEvents !== undefined)
       )
       const caseEvents: ReporterCaseEvent[] | undefined = hasRecordedOccurrences
         ? updates.flatMap((event) =>
             event.type === 'task-update'
-              ? (event.caseEvents ??
+              ? (projectReporterCaseEvents(event.taskEvents) ??
+                event.caseEvents ??
                 event.caseResults.map((result) => ({
                   event: 'result' as const,
                   caseId: result.caseId,
@@ -1373,7 +1384,30 @@ export function createMachineReporter(options: {
               : []
           )
         : undefined
-      await custom.replayFile(taskTree, completion, caseEvents)
+      const taskEvents: ReporterTaskEvent[] | undefined = updates.some(
+        (event) =>
+          event.type === 'task-update' && event.taskEvents !== undefined
+      )
+        ? updates.flatMap((event) =>
+            event.type === 'task-update'
+              ? (event.taskEvents ??
+                (
+                  event.caseEvents ??
+                  event.caseResults.map((result) => ({
+                    event: 'result' as const,
+                    caseId: result.caseId,
+                  }))
+                ).map((item) => ({
+                  event:
+                    item.event === 'ready'
+                      ? ('case-ready' as const)
+                      : ('case-result' as const),
+                  caseId: item.caseId,
+                })))
+              : []
+          )
+        : undefined
+      await custom.replayFile(taskTree, completion, caseEvents, taskEvents)
     },
     snapshotClosedFiles(
       entryIds: ReadonlySet<string>
@@ -1768,6 +1802,9 @@ export async function mergeResultReports(
     const endedAttempts = new Set<string>()
     const logicalCases = new Set<string>()
     const readyCases = new Map<string, Set<string>>()
+    const readySuites = new Map<string, Set<string>>()
+    const completedReporterSuites = new Map<string, Set<string>>()
+    const activeReporterHooks = new Map<string, Map<string, number>>()
     const collectedFiles = new Set<string>()
     const endedCases = new Set<string>()
     const endedSuites = new Set<string>()
@@ -1900,9 +1937,11 @@ export async function mergeResultReports(
         } else {
           const ids = new Set<string>()
           const caseIds = new Set<string>()
+          const suiteIds = new Set<string>()
           const visit = (task: import('./live-tasks').ReporterTaskSnapshot) => {
             ids.add(task.id)
             if (task.type === 'test') caseIds.add(task.id)
+            else if (task.id !== event.entryId) suiteIds.add(task.id)
             task.tasks?.forEach(visit)
           }
           if (failedCollectionPacks) {
@@ -1934,19 +1973,50 @@ export async function mergeResultReports(
             throw new Error(
               `Result-only task packs contain case occurrences: ${name}`
             )
+          if (failedCollectionPacks && event.taskEvents !== undefined)
+            throw new Error(
+              `Result-only task packs contain task occurrences: ${name}`
+            )
           const previouslyReady =
             readyCases.get(event.entryId) ?? new Set<string>()
-          assertReporterCaseEvents(event.caseEvents, {
+          const previouslyReadySuites =
+            readySuites.get(event.entryId) ?? new Set<string>()
+          const previouslyCompletedSuites =
+            completedReporterSuites.get(event.entryId) ?? new Set<string>()
+          const previousHooks =
+            activeReporterHooks.get(event.entryId) ?? new Map<string, number>()
+          assertReporterTaskEvents(event.taskEvents, {
             caseIds,
+            suiteIds,
             taskUpdateIds: event.taskUpdateIds,
-            resultIds: event.caseResults.map(
-              (result: CaseResult) => result.caseId
+            caseEvents: event.caseEvents,
+            hookSuiteIds: new Set([event.entryId, ...suiteIds]),
+            activeHooks: previousHooks,
+            readySuites: previouslyReadySuites,
+            completedSuites: previouslyCompletedSuites,
+            finishedSuiteIds: new Set(
+              [...suiteIds].filter((id) =>
+                endedSuites.has(JSON.stringify([event.entryId, id]))
+              )
             ),
-            readyCases: previouslyReady,
-            completed: (id) =>
-              logicalCases.has(JSON.stringify([event.entryId, id])),
           })
+          assertReporterCaseEvents(
+            projectReporterCaseEvents(event.taskEvents) ?? event.caseEvents,
+            {
+              caseIds,
+              taskUpdateIds: event.taskUpdateIds,
+              resultIds: event.caseResults.map(
+                (result: CaseResult) => result.caseId
+              ),
+              readyCases: previouslyReady,
+              completed: (id) =>
+                logicalCases.has(JSON.stringify([event.entryId, id])),
+            }
+          )
           readyCases.set(event.entryId, previouslyReady)
+          readySuites.set(event.entryId, previouslyReadySuites)
+          completedReporterSuites.set(event.entryId, previouslyCompletedSuites)
+          activeReporterHooks.set(event.entryId, previousHooks)
           for (const result of event.caseResults) {
             if (!failedCollectionPacks)
               assertReporterTaskTree(
