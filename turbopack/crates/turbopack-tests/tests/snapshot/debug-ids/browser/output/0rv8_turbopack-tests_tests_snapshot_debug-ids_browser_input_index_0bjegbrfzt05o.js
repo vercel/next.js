@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="20d0207a-ceb9-d748-c00e-ce0caf8d6076")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="88a3c672-3908-7f32-4647-60b478dc99ac")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -540,6 +540,10 @@ contextPrototype.r = commonJsRequire;
         let id;
         let module;
         if (typeof entry === 'function') {
+            // A function is given for a module without an id to load it by: mostly a
+            // request that throws an error (e.g. one that can't be resolved), and also an
+            // external. As there is no id, `resolve` calls the function too, so that it
+            // throws the same error.
             id = module = entry;
         } else {
             id = ()=>entry;
@@ -2687,5 +2691,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=20d0207a-ceb9-d748-c00e-ce0caf8d6076
+//# debugId=88a3c672-3908-7f32-4647-60b478dc99ac
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

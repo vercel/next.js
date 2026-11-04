@@ -320,7 +320,9 @@ fn create_context(
     })
 }
 
-// The values of `ModuleContextMode` in the runtime.
+// The values of `ModuleContextMode` in
+// `turbopack/crates/turbopack-ecmascript-runtime/js/src/shared/runtime/runtime-utils.ts`,
+// which must be kept in sync.
 const CONTEXT_MODE_REQUIRE: u8 = 0;
 const CONTEXT_MODE_IMPORT: u8 = 1;
 const CONTEXT_MODE_ASYNC_LOADER: u8 = 2;

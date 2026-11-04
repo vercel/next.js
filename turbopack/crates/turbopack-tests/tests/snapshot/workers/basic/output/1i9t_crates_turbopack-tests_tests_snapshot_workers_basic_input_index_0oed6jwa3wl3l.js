@@ -539,6 +539,10 @@ contextPrototype.r = commonJsRequire;
         let id;
         let module;
         if (typeof entry === 'function') {
+            // A function is given for a module without an id to load it by: mostly a
+            // request that throws an error (e.g. one that can't be resolved), and also an
+            // external. As there is no id, `resolve` calls the function too, so that it
+            // throws the same error.
             id = module = entry;
         } else {
             id = ()=>entry;
