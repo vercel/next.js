@@ -1288,7 +1288,8 @@ export async function nextTestRunner(
           projects,
           specificationOrder.filter((id) =>
             entries.some((entry) => entry.id === id)
-          )
+          ),
+          options.coverage === true || customProjects.length > 0
         )
         controller.signal.throwIfAborted()
       }

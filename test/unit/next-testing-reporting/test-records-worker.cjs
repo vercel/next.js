@@ -67,6 +67,10 @@ async function main() {
     await verifyReadyDispatchOrder({ project, output })
     return
   }
+  if (only === 'dormant-observer-admission') {
+    await verifyDormantObserverAdmission({ project, output })
+    return
+  }
   const fixture = path.join(__dirname, 'fixtures/test-record-reporters')
   const model = require('./fixtures/test-record-reporters/genuine-models.json')
   const selected = only
@@ -812,4 +816,339 @@ export default class Reporter {
     JSON.stringify(facts, null, 2) + '\n'
   )
   console.log(JSON.stringify(facts))
+}
+
+/** Dormant declarations do not imply that their actual callback domain exists. */
+async function verifyDormantObserverAdmission({ project, output }) {
+  const req = createRequire(path.join(project, 'package.json'))
+  const next = path.dirname(req.resolve('next/package.json'))
+  const { createCustomReporterRuntime } = req(
+    next + '/dist/experimental/testing/reporting/custom-reporter-runtime'
+  )
+  const { createCollector } = req(
+    next + '/dist/experimental/testing/runner/collector'
+  )
+  const { runCollected } = req(
+    next + '/dist/experimental/testing/runner/lifecycle'
+  )
+  const { createReporterTaskUpdates } = req(
+    next + '/dist/experimental/testing/reporting/task-updates'
+  )
+  const { captureReporterTaskTree } = req(
+    next + '/dist/experimental/testing/reporting/live-tasks'
+  )
+  const { selectReporterRunSpecifications } = req(
+    next + '/dist/experimental/testing/reporting/custom-reporter-specifications'
+  )
+  const dormant = [
+    'onBrowserInit',
+    'onTestRemoved',
+    'onWatcherStart',
+    'onWatcherRerun',
+    'onServerRestart',
+    'onCoverage',
+    'onTestCaseBenchmark',
+  ]
+  const key = 'dormant-observers-' + process.pid
+  const state = (globalThis[key] = {
+    reads: {},
+    ready: 0,
+    result: 0,
+    coverageReads: 0,
+    watchReads: 0,
+    rows: [],
+  })
+  const profile = {
+    id: key,
+    mode: 'development',
+    environment: 'node',
+    runtime: 'nodejs',
+    bundler: 'turbopack',
+  }
+  const entry = { id: key, file: path.join(output, 'actual.test.mjs'), profile }
+  const planned = { profile, isolate: true, entries: [entry] }
+  const specifications = selectReporterRunSpecifications(
+    output,
+    [planned],
+    [entry.id]
+  )
+  const mismatches = []
+  let sessionsDisposed = 0,
+    unsupportedDomains = 0
+  async function session(mode, source, body) {
+    const dir = path.join(output, mode)
+    fs.mkdirSync(dir)
+    const filename = path.join(dir, 'reporter.mjs')
+    fs.writeFileSync(filename, source)
+    let response,
+      closed = 0
+    const runtime = createCustomReporterRuntime({
+      async send(message) {
+        if (response) {
+          const resolve = response
+          response = undefined
+          resolve(message)
+        }
+      },
+      closeTransport() {
+        closed++
+      },
+    })
+    async function request(message) {
+      assert.equal(response, undefined)
+      const reply = new Promise((resolve) => {
+        response = resolve
+      })
+      runtime.receive(message)
+      return reply
+    }
+    try {
+      await body(runtime, request, filename, dir)
+    } catch (error) {
+      mismatches.push({ mode, message: error.message })
+    } finally {
+      const closedReply = await request({ type: 'shutdown' })
+      assert.equal(closedReply.type, 'custom-reporter-result')
+      await new Promise((resolve) => setImmediate(resolve))
+      assert.equal(closed, 1)
+      sessionsDisposed++
+    }
+  }
+  try {
+    await session(
+      'ordinary',
+      `const state=globalThis[${JSON.stringify(key)}];export default class Reporter {
+constructor(){for(const name of ${JSON.stringify(dormant)})Object.defineProperty(this,name,{get(){state.reads[name]=(state.reads[name]||0)+1;throw new Error('Dormant getter read: '+name)}})}
+onTestCaseReady(test){state.ready++;state.readyTest=test;state.rows.push(['ready',test.id,this instanceof Reporter])}
+onTestCaseResult(test){state.result++;state.resultTest=test;state.rows.push(['result',test.id,this instanceof Reporter])}
+}`,
+      async (runtime, request, filename, dir) => {
+        const initialized = await request({
+          type: 'run',
+          input: { projectDir: dir, queuedProjectRoot: dir, files: [filename] },
+        })
+        assert.equal(
+          initialized.type,
+          'custom-reporter-result',
+          JSON.stringify(initialized)
+        )
+        assert.equal(
+          initialized.captureRunStart,
+          true,
+          'Dormant domain declarations require the actual selected Node boundary'
+        )
+        assert.equal(initialized.captureCaseReady, true)
+        assert.deepEqual(state.reads, {})
+        const started = await request({
+          type: 'run-start',
+          specifications,
+        })
+        assert.equal(
+          started.type,
+          'custom-reporter-result',
+          JSON.stringify(started)
+        )
+        let initialTree
+        const packets = []
+        const updates = createReporterTaskUpdates({
+          captureCaseReady: true,
+          onUpdate(value) {
+            packets.push(value)
+          },
+        })
+        try {
+          const collector = createCollector(entry.id)
+          collector.api.test('actual ordinary Node task', () => {})
+          const result = await runCollected(
+            collector.close(),
+            {
+              runId: key,
+              signal: new AbortController().signal,
+              filePath: entry.file,
+              onCollected(file) {
+                initialTree = captureReporterTaskTree(file)
+                updates.collected(file)
+              },
+              onCaseReady(test) {
+                updates.caseReady(test)
+              },
+              onCaseStart(context) {
+                updates.caseStart(context.testId)
+              },
+              onCaseResult(test, value) {
+                updates.caseResult(test, value)
+              },
+              onSuiteEnd(_value, suite) {
+                updates.suiteEnd(suite)
+              },
+            },
+            () => {}
+          )
+          await updates.finish()
+          assert.deepEqual(
+            result.cases.map((value) => value.status),
+            ['passed']
+          )
+          runtime.receive({ type: 'task-state', taskTree: initialTree })
+          for (const packet of packets) {
+            runtime.receive({
+              type: 'task-state',
+              taskTree: packet.taskTree,
+              taskUpdateIds: packet.taskUpdateIds,
+            })
+            for (const event of packet.caseEvents || []) {
+              const reply = await request({
+                type: 'case-' + event.event,
+                entryId: initialTree.id,
+                caseId: event.caseId,
+              })
+              assert.equal(
+                reply.type,
+                'custom-reporter-result',
+                JSON.stringify(reply)
+              )
+            }
+          }
+          assert.equal(state.ready, 1)
+          assert.equal(state.result, 1)
+          assert.equal(state.readyTest, state.resultTest)
+          assert.deepEqual(
+            state.rows.map((row) => row[2]),
+            [true, true]
+          )
+          assert.deepEqual(state.reads, {})
+          const errors = await request({ type: 'reporter-errors' })
+          assert.deepEqual(errors.reporterErrors, [])
+        } finally {
+          updates.dispose()
+        }
+      }
+    )
+    // The same actual selector used by machine.beginRun rejects Browser role
+    // before a reporter runtime can receive any selected-specification request.
+    assert.throws(
+      () =>
+        selectReporterRunSpecifications(
+          output,
+          [
+            {
+              ...planned,
+              profile: {
+                ...profile,
+                environment: 'browser',
+                browserClient: true,
+              },
+              entries: [
+                {
+                  ...entry,
+                  profile: {
+                    ...profile,
+                    environment: 'browser',
+                    browserClient: true,
+                  },
+                },
+              ],
+            },
+          ],
+          [entry.id]
+        ),
+      /one-shot isolated ordinary Node/
+    )
+    unsupportedDomains++
+    await session(
+      'watch',
+      `const state=globalThis[${JSON.stringify(key)}];export default class Reporter {get onBrowserInit(){state.watchReads++;return function(){throw new Error('Browser callback must not run in watch')}}}`,
+      async (_runtime, request, filename, dir) => {
+        const initialized = await request({
+          type: 'run',
+          input: {
+            projectDir: dir,
+            queuedProjectRoot: dir,
+            files: [filename],
+            watch: true,
+          },
+        })
+        assert.equal(initialized.type, 'custom-reporter-failed')
+        assert.match(
+          initialized.error.message,
+          /requires actual Next producer events/
+        )
+        assert.equal(state.watchReads, 1)
+        unsupportedDomains++
+      }
+    )
+    await session(
+      'coverage',
+      `const state=globalThis[${JSON.stringify(key)}];export default class Reporter {get onCoverage(){state.coverageReads++;throw new Error('Coverage getter must stay unread until an implemented producer')}}`,
+      async (_runtime, request, filename, dir) => {
+        const initialized = await request({
+          type: 'run',
+          input: { projectDir: dir, queuedProjectRoot: dir, files: [filename] },
+        })
+        assert.equal(
+          initialized.type,
+          'custom-reporter-result',
+          JSON.stringify(initialized)
+        )
+        assert.equal(initialized.captureRunStart, true)
+        assert.equal(state.coverageReads, 0)
+        const started = await request({
+          type: 'run-start',
+          specifications,
+          coverage: true,
+        })
+        assert.equal(started.type, 'custom-reporter-failed')
+        assert.match(started.error.message, /onCoverage.*actual coverage/)
+        assert.equal(state.coverageReads, 0)
+        unsupportedDomains++
+      }
+    )
+    const facts = {
+      dormantObservers: dormant.length,
+      dormantGetterReads: Object.values(state.reads).reduce((a, b) => a + b, 0),
+      activeReadyCallbacks: state.ready,
+      activeResultCallbacks: state.result,
+      unsupportedDomains,
+      coverageGetterReads: state.coverageReads,
+      identityPreserved:
+        state.readyTest !== undefined && state.readyTest === state.resultTest,
+      sessionsDisposed,
+    }
+    fs.writeFileSync(
+      path.join(output, 'DORMANT-ROWS.json'),
+      JSON.stringify(
+        {
+          facts,
+          rows: state.rows,
+          reads: state.reads,
+          watchReads: state.watchReads,
+          mismatches,
+        },
+        null,
+        2
+      ) + '\n'
+    )
+    if (mismatches.length)
+      throw new AggregateError(
+        mismatches.map((value) => new Error(value.mode + ': ' + value.message)),
+        'Dormant observer admission mismatches'
+      )
+    assert.deepEqual(facts, {
+      dormantObservers: 7,
+      dormantGetterReads: 0,
+      activeReadyCallbacks: 1,
+      activeResultCallbacks: 1,
+      unsupportedDomains: 3,
+      coverageGetterReads: 0,
+      identityPreserved: true,
+      sessionsDisposed: 3,
+    })
+    fs.writeFileSync(
+      path.join(output, 'VERIFIED.json'),
+      JSON.stringify(facts, null, 2) + '\n'
+    )
+    console.log(JSON.stringify(facts))
+  } finally {
+    delete globalThis[key]
+  }
 }

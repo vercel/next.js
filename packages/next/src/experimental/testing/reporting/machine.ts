@@ -823,9 +823,13 @@ export function createMachineReporter(options: {
                       return errors.map((childError) => {
                         // The target uses the bare message when no stack exists.
                         if (!childError.stack) return childError.message
-                        // Helper trimming belongs to human presentation. Vitest's
-                        // JSON reporter retains the complete saved helper stack.
-                        if (childError.stack.includes('__VITEST_HELPER__'))
+                        // Browser JSON retains the native saved stack, as do
+                        // public task results. Mapped frames remain in next.events.
+                        // Helper trimming also belongs to human presentation.
+                        if (
+                          entry.profile.environment === 'browser' ||
+                          childError.stack.includes('__VITEST_HELPER__')
+                        )
                           return childError.stack
                         const message = formatDiagnostic(
                           childError,
@@ -1119,7 +1123,8 @@ export function createMachineReporter(options: {
     },
     async beginRun(
       projects: readonly DiscoveredTestProject[],
-      specificationOrder: readonly string[]
+      specificationOrder: readonly string[],
+      coverage = false
     ) {
       if (!initialized)
         throw new Error('Custom reporters must initialize before Run Start.')
@@ -1129,7 +1134,8 @@ export function createMachineReporter(options: {
           options.projectDir,
           projects,
           specificationOrder
-        )
+        ),
+        coverage
       )
     },
     get captureModuleStart() {

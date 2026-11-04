@@ -683,12 +683,19 @@ export async function openCustomReporters(options: {
       get captureRunStart() {
         return captureRunStart
       },
-      async beginRun(specifications: readonly ReporterRunSpecification[]) {
+      async beginRun(
+        specifications: readonly ReporterRunSpecification[],
+        coverage = false
+      ) {
         if (!captureRunStart || options.watch || closing || closed)
           throw new Error('Run Start reporter session is unavailable.')
         await consoleQueue
         if (consoleFailure) throw consoleFailure
-        await request({ type: 'run-start', specifications })
+        await request({
+          type: 'run-start',
+          specifications,
+          ...(coverage ? { coverage: true } : {}),
+        })
       },
       get captureCaseReady() {
         return captureCaseReady

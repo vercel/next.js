@@ -255,6 +255,41 @@ export function createCustomReporterRuntime(
     }
     return false
   }
+  // The selected one-shot Node boundary proves these domains have no occurrence.
+  // Known declarations remain unread until their actual domain is selected.
+  const selectedDomainNames = [
+    'onBrowserInit',
+    'onTestRemoved',
+    'onWatcherStart',
+    'onWatcherRerun',
+    'onServerRestart',
+    'onCoverage',
+    'onTestCaseBenchmark',
+  ] as const
+  function hasPotentialSelectedDomain(
+    reporter: Reporter,
+    name?: (typeof selectedDomainNames)[number]
+  ): boolean {
+    return (name ? [name] : selectedDomainNames).some((key) => {
+      let current: object | null = reporter
+      while (current !== null) {
+        if (nodeTypes.isProxy(current)) return true
+        const descriptor = Reflect.getOwnPropertyDescriptor(current, key)
+        if (descriptor)
+          return 'value' in descriptor
+            ? descriptor.value !== undefined && descriptor.value !== null
+            : typeof descriptor.get === 'function'
+        current = Reflect.getPrototypeOf(current)
+      }
+      return false
+    })
+  }
+  function needsSelectedBoundary(reporter: Reporter): boolean {
+    return (
+      hasPotentialRunHook(reporter, 'onTestRunStart') ||
+      hasPotentialSelectedDomain(reporter)
+    )
+  }
   async function settle(
     callbacks: (() => unknown)[],
     invoked?: () => Promise<void>
@@ -587,6 +622,11 @@ export function createCustomReporterRuntime(
                     'onTestCaseArtifactRecord',
                   ].includes(name) && !watching
                 ) &&
+                !(
+                  selectedDomainNames.includes(
+                    name as (typeof selectedDomainNames)[number]
+                  ) && !watching
+                ) &&
                 !(name === 'onProcessTimeout' && finalExit) &&
                 ![
                   'onInit',
@@ -622,11 +662,7 @@ export function createCustomReporterRuntime(
         await send({
           type: 'custom-reporter-result',
           captureTestRecords,
-          captureRunStart:
-            !watching &&
-            reporters.some((reporter) =>
-              hasPotentialRunHook(reporter, 'onTestRunStart')
-            ),
+          captureRunStart: !watching && reporters.some(needsSelectedBoundary),
           ...(reporters.some(hasPotentialCaseReady)
             ? { captureCaseReady: true }
             : {}),
@@ -634,30 +670,21 @@ export function createCustomReporterRuntime(
             (reporter) => typeof reporter.onTestModuleStart === 'function'
           ),
           captureModuleCollected:
-            (!watching &&
-              reporters.some((reporter) =>
-                hasPotentialRunHook(reporter, 'onTestRunStart')
-              )) ||
+            (!watching && reporters.some(needsSelectedBoundary)) ||
             reporters.some(
               (reporter) =>
                 typeof reporter.onTestModuleCollected === 'function' ||
                 typeof reporter.onTestModuleStart === 'function'
             ),
           captureModuleQueued:
-            (!watching &&
-              reporters.some((reporter) =>
-                hasPotentialRunHook(reporter, 'onTestRunStart')
-              )) ||
+            (!watching && reporters.some(needsSelectedBoundary)) ||
             reporters.some(
               (reporter) => typeof reporter.onTestModuleQueued === 'function'
             ),
           captureTaskResults:
             reporters.some(hasPotentialCaseReady) ||
             captureTestRecords ||
-            (!watching &&
-              reporters.some((reporter) =>
-                hasPotentialRunHook(reporter, 'onTestRunStart')
-              )) ||
+            (!watching && reporters.some(needsSelectedBoundary)) ||
             reporters.some(
               (reporter) =>
                 typeof reporter.onTestModuleCollected === 'function' ||
@@ -681,6 +708,19 @@ export function createCustomReporterRuntime(
           message.specifications,
           (id) => completedModules.get(id) ?? live.getSelectedModule(id)
         )
+        if (message.coverage !== undefined && message.coverage !== true)
+          throw new Error(
+            'Run Start requires an actual coverage selection fact.'
+          )
+        if (
+          message.coverage === true &&
+          reporters.some((reporter) =>
+            hasPotentialSelectedDomain(reporter, 'onCoverage')
+          )
+        )
+          throw new Error(
+            'Custom reporter onCoverage requires its actual coverage publication adapter and is not implemented.'
+          )
         // The list is a callback copy. Each selected specification remains shared.
         const specifications = [...runSpecifications.specifications]
         await Promise.all(

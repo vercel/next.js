@@ -1786,6 +1786,58 @@ describe('Next machine result reporters', () => {
     machine.dispose()
   })
 
+  it('retains the saved Browser hook stack in JSON with its mapped origin and public task results', async () => {
+    // Unmodified events captured from the real Browser parameter-default failure.
+    const events: ResultEvent[] = JSON.parse(
+      await readFile(
+        join(__dirname, 'fixtures/browser-hook-error.events.json'),
+        'utf8'
+      )
+    )
+    const before = structuredClone(events)
+    const started = events.find((event) => event.type === 'file-start')!
+    const ended = events.find((event) => event.type === 'case-end')!
+    const error = ended.errors[0]
+    const machine = createMachineReporter({
+      projectDir: join(started.entry.file, '..'),
+      reporters: ['json'],
+    })
+    try {
+      for (const event of events) machine.onEvent(event)
+      const report = machine.getJson()
+      expect(report.testResults[0].assertionResults[0].failureMessages).toEqual(
+        [error.stack]
+      )
+      expect(error.frames).toEqual([
+        {
+          file: started.entry.file,
+          line: 2,
+          column: 35,
+          original: true,
+        },
+      ])
+      const actualEnded = report.next.events.find(
+        (event) => event.type === 'case-end'
+      )!
+      expect(actualEnded.errors).toEqual(ended.errors)
+      const taskUpdates = report.next.events.filter(
+        (event) => event.type === 'task-update'
+      )
+      expect(taskUpdates).toEqual(
+        before.filter((event) => event.type === 'task-update')
+      )
+      for (const update of taskUpdates.slice(1)) {
+        expect(update.taskTree.tasks![0].result!.errors![0].stack).toBe(
+          error.stack
+        )
+      }
+      expect(report.next.events).toEqual(before)
+      expect(events).toEqual(before)
+    } finally {
+      machine.dispose()
+    }
+  })
+
   it('a runtime skip overrides earlier repeat failures while retaining all error evidence', () => {
     const machine = createMachineReporter({
       projectDir: '/project',
@@ -10634,5 +10686,45 @@ it('preserves Ready synchronous abort and asynchronous fan-out in live and recor
   } finally {
     if (completed) await rm(directory, { recursive: true, force: true })
     else console.error('Retained failed Ready dispatch order at ' + directory)
+  }
+}, 40000)
+
+it('keeps inactive observer getters dormant while rejecting unsupported active domains', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(join(tmpdir(), 'next-dormant-observer-'))
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'test-records-worker.cjs'),
+        process.cwd(),
+        directory,
+        'dormant-observer-admission',
+      ],
+      { timeout: 35000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      dormantObservers: 7,
+      dormantGetterReads: 0,
+      activeReadyCallbacks: 1,
+      activeResultCallbacks: 1,
+      unsupportedDomains: 3,
+      coverageGetterReads: 0,
+      identityPreserved: true,
+      sessionsDisposed: 3,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else
+      console.error(
+        'Retained failed dormant observer admission at ' + directory
+      )
   }
 }, 40000)
