@@ -22,7 +22,9 @@ use crate::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
-    references::esm::{EsmExport, EsmExports, Liveness, mangle::generated_export_key},
+    references::esm::{
+        EsmExport, EsmExports, Liveness, export::LocalBinding, mangle::generated_export_key,
+    },
     runtime_functions::{TURBOPACK_ESM, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
@@ -175,7 +177,12 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
             EsmExports {
                 exports: [(
                     COLLECT_LIST_EXPORT,
-                    EsmExport::LocalBinding(COLLECT_LIST_EXPORT, Liveness::Constant),
+                    EsmExport::LocalBinding(LocalBinding {
+                        name: COLLECT_LIST_EXPORT,
+                        liveness: Liveness::Constant,
+                        // A generated array, not a function, so nothing can observe `this`.
+                        maybe_uses_this: false,
+                    }),
                 )]
                 .into(),
                 star_exports: vec![],

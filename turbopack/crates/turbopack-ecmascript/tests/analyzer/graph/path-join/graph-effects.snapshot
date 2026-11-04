@@ -1099,6 +1099,7 @@
         member: Some(
             "join",
         ),
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -1143,6 +1144,7 @@
             "join",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,

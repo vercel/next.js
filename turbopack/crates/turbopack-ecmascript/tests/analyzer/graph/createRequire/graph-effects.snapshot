@@ -159,6 +159,9 @@
             "createRequire",
         ),
         member: None,
+        namespace_access: Some(
+            Call,
+        ),
         ast_path: [
             Program(
                 Module,

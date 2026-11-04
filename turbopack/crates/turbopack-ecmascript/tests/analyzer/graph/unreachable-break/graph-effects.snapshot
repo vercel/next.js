@@ -5,6 +5,7 @@
             "calledA1",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -177,6 +178,7 @@
             "unreachableA3",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -300,6 +302,7 @@
             "unreachableB1",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -500,6 +503,7 @@
             "calledB1",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -623,6 +627,7 @@
             "calledC1",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -823,6 +828,7 @@
             "calledC2",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,

@@ -19,6 +19,7 @@
             "named",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -139,6 +140,7 @@
             "named",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,

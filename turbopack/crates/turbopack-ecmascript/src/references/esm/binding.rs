@@ -3,7 +3,7 @@ use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use swc_core::ecma::{
     ast::{Expr, KeyValueProp, Prop, PropName, SimpleAssignTarget},
-    visit::fields::{CalleeField, PropField},
+    visit::{AstParentKind, fields::PropField},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc};
@@ -11,6 +11,10 @@ use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     ScopeHoistingContext,
+    analyzer::graph::{
+        NamespaceAccess,
+        namespace_access::{enclosing_position, is_this_receiver_position},
+    },
     ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::CodeGeneration,
     create_visitor,
@@ -24,7 +28,16 @@ use crate::{
 struct EsmBinding {
     export: Option<RcStr>,
     ast_path: AstPathId,
-    keep_this: bool,
+    namespace_access: Option<NamespaceAccess>,
+}
+
+impl EsmBinding {
+    /// Whether the access has to go through the namespace, see
+    /// [`NamespaceAccess::keeps_namespace`]. Anything but a namespace member access never does.
+    fn keeps_namespace(&self, maybe_uses_this: bool) -> bool {
+        self.namespace_access
+            .is_some_and(|access| access.keeps_namespace(maybe_uses_this))
+    }
 }
 
 #[derive(Default, Clone, Debug)]
@@ -39,11 +52,15 @@ pub struct EsmBindings {
 }
 
 impl EsmBindingsBuilder {
+    /// `namespace_access` says how a namespace member access such as `ns.f` is used, which decides
+    /// whether it has to keep going through the namespace. It is `None` when the binding is not
+    /// one.
     pub fn add(
         &mut self,
         reference: ResolvedVc<EsmAssetReference>,
         export: Option<RcStr>,
         ast_path: AstPathId,
+        namespace_access: Option<NamespaceAccess>,
     ) {
         self.bindings
             .entry(reference)
@@ -51,24 +68,7 @@ impl EsmBindingsBuilder {
             .push(EsmBinding {
                 export,
                 ast_path,
-                keep_this: false,
-            });
-    }
-
-    /// Where possible, bind the namespace to `this` when the named import is called.
-    pub fn add_keep_this(
-        &mut self,
-        reference: ResolvedVc<EsmAssetReference>,
-        export: Option<RcStr>,
-        ast_path: AstPathId,
-    ) {
-        self.bindings
-            .entry(reference)
-            .or_default()
-            .push(EsmBinding {
-                export,
-                ast_path,
-                keep_this: true,
+                namespace_access,
             });
     }
 
@@ -116,12 +116,10 @@ impl EsmBindings {
                 Empty,
                 Unresolvable,
             }
-            for EsmBinding {
-                export,
-                ast_path,
-                keep_this,
-            } in bindings
-            {
+            for binding in bindings {
+                let EsmBinding {
+                    export, ast_path, ..
+                } = binding;
                 let imported_ident = match &imported_module {
                     ReferencedAsset::None => ImportedIdent::None,
                     ReferencedAsset::Empty => {
@@ -153,7 +151,7 @@ impl EsmBindings {
                     match trie.get(ast_path) {
                         // Shorthand properties get special treatment because we need to rewrite
                         // them to normal key-value pairs.
-                        Some(swc_core::ecma::visit::AstParentKind::Prop(PropField::Shorthand)) => {
+                        Some(AstParentKind::Prop(PropField::Shorthand)) => {
                             ast_path = trie.parent_or_root(ast_path);
                             visitors.push(create_visitor!(
                                 exact,
@@ -194,15 +192,16 @@ impl EsmBindings {
                             break;
                         }
                         // Any other expression can be replaced with the import accessor.
-                        Some(swc_core::ecma::visit::AstParentKind::Expr(_)) => {
+                        Some(AstParentKind::Expr(_)) => {
                             ast_path = trie.parent_or_root(ast_path);
-                            let in_call = !keep_this
-                                && matches!(
-                                    trie.get(ast_path),
-                                    Some(swc_core::ecma::visit::AstParentKind::Callee(
-                                        CalleeField::Expr
-                                    ))
-                                );
+                            // `ast_path` no longer names the trailing `Expr`, so it starts at the
+                            // position the expression sits in. Nothing is known yet about whether
+                            // the export observes `this`, so a namespace member call keeps the
+                            // namespace as its receiver.
+                            let in_call = !binding.keeps_namespace(true)
+                                && is_this_receiver_position(enclosing_position(
+                                    trie.iter_rev(ast_path),
+                                ));
 
                             visitors.push(create_visitor!(
                                 exact,
@@ -232,7 +231,7 @@ impl EsmBindings {
                         }
                         // We need to handle LHS because of code like
                         // (function (RouteKind1){})(RouteKind || RouteKind = {})
-                        Some(swc_core::ecma::visit::AstParentKind::SimpleAssignTarget(_)) => {
+                        Some(AstParentKind::SimpleAssignTarget(_)) => {
                             ast_path = trie.parent_or_root(ast_path);
 
                             visitors.push(create_visitor!(
