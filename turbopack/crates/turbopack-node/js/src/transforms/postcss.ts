@@ -65,7 +65,8 @@ export default async function transform(
   ipc: TransformIpc,
   cssContent: string,
   name: string,
-  sourceMap: boolean
+  sourceMap: boolean,
+  inputSourceMap: Record<string, unknown> | null
 ) {
   const { css, map, messages } = await processor!.process(cssContent, {
     from: name,
@@ -74,6 +75,7 @@ export default async function transform(
       ? {
           inline: false,
           annotation: false,
+          prev: inputSourceMap ?? undefined,
         }
       : undefined,
   })

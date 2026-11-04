@@ -791,7 +791,12 @@ fn generate_css_source_map(
     let mut builder = SourceMapBuilder::new(None);
 
     for src in source_map.get_sources() {
-        builder.add_source(format!("{SOURCE_URL_PROTOCOL}///{src}").into());
+        let source = if src.starts_with(&*SOURCE_URL_PROTOCOL) {
+            src.clone()
+        } else {
+            format!("{SOURCE_URL_PROTOCOL}///{src}")
+        };
+        builder.add_source(source.into());
     }
 
     for (idx, content) in source_map.get_sources_content().iter().enumerate() {
