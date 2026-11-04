@@ -576,6 +576,15 @@ function parseAndSourceMap(
         inspectOptions
       )
 
+      // A generated owner frame can source-map to an anonymous location even
+      // when the parsed frame originally had a file.
+      if (
+        sourceMappedFrame.stack.file === null ||
+        sourceMappedFrame.stack.file === '<anonymous>'
+      ) {
+        continue
+      }
+
       // A recursive render can produce thousands of identical owner frames.
       // Keep the component chain useful without flooding the terminal.
       const previousFrame = ownerStackFrames.at(-1)
