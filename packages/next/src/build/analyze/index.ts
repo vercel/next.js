@@ -72,13 +72,11 @@ export default async function analyze({
 
     // Lock the directory while capture reads/writes it. Static serving and
     // saved-data replay do not need to hold the capture lock.
-    if (config.experimental.lockDistDir) {
-      mkdirSync(distDir, { recursive: true })
-      lockfile = await Lockfile.acquireWithRetriesOrExit(
-        path.join(distDir, 'lock'),
-        'next analyze'
-      )
-    }
+    mkdirSync(distDir, { recursive: true })
+    lockfile = await Lockfile.acquireWithRetriesOrExit(
+      path.join(distDir, 'lock'),
+      'next analyze'
+    )
     Log.info('Analyzing a production build...')
 
     const analyzeContext: AnalyzeContext = {

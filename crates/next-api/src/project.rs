@@ -50,8 +50,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath,
-    VirtualFileSystem, invalidation,
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystem,
+    FileSystemPath, VirtualFileSystem, invalidation,
 };
 use turbo_unix_path::join_path;
 use turbopack::{
@@ -60,6 +60,7 @@ use turbopack::{
 };
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
+    asset::AssetContent,
     changed::content_changed,
     chunk::{
         ChunkingContext, EvaluatableAssets, UnusedReferences,
@@ -76,7 +77,7 @@ use turbopack_core::{
     },
     module::{Module, Modules},
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph, VisitedModules,
         binding_usage_info::{
             BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
         },
@@ -89,9 +90,11 @@ use turbopack_core::{
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
+    source::{OptionSource, Source},
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
+    virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::async_chunk::proxy::{
     activation_key_from_chunk_path, lazy_compilation_state,
@@ -429,6 +432,7 @@ struct ProjectFileSystemState {
 #[turbo_tasks::value(evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
+    go_sessions: ResolvedVc<turbopack_go::GoSessionPool>,
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
@@ -442,8 +446,10 @@ pub struct ProjectContainer {
 impl ProjectContainer {
     #[turbo_tasks::function(operation, root)]
     pub fn new_operation(name: RcStr, dev: bool) -> Result<Vc<Self>> {
+        let go_sessions = turbopack_go::GoSessionPool::new();
         Ok(ProjectContainer {
             name,
+            go_sessions,
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
@@ -457,6 +463,22 @@ impl ProjectContainer {
             fs_map_init_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
+    }
+}
+
+impl ProjectContainer {
+    /// Attach process-local cleanup after resolving the container. Shutdown hooks must not be
+    /// task inputs: making the container transient also prevents its project graph from persisting.
+    pub fn register_shutdown_hooks(&self, shutdown: &crate::shutdown::ShutdownHooks) {
+        shutdown.on_shutdown(self.go_sessions, |sessions| {
+            Box::pin(async move {
+                sessions
+                    .await?
+                    .shutdown()
+                    .await
+                    .context("shutting down Go compiler sessions")
+            })
+        });
     }
 }
 
@@ -971,6 +993,11 @@ impl ProjectContainer {
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
+            go_sessions: if *next_config.go_routes().await? {
+                Some(self.go_sessions)
+            } else {
+                None
+            },
             root_path,
             project_path,
             watch,
@@ -986,8 +1013,8 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
-            build_id,
-            encryption_key,
+            build_id: ResolvedVc::cell(build_id),
+            encryption_key: ResolvedVc::cell(encryption_key),
             preview_props: ResolvedVc::cell(preview_props),
             no_mangling,
             write_routes_hashes_manifest,
@@ -1034,6 +1061,7 @@ impl ProjectContainer {
 #[derive(Clone)]
 #[turbo_tasks::value]
 pub struct Project {
+    pub(crate) go_sessions: Option<ResolvedVc<turbopack_go::GoSessionPool>>,
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
@@ -1074,9 +1102,14 @@ pub struct Project {
 
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 
-    build_id: RcStr,
+    /// Stored in a separate cell, as it can change between builds. Keeping it out of the
+    /// [`Project`] value avoids invalidating every task that reads the [`Project`].
+    build_id: ResolvedVc<RcStr>,
 
-    encryption_key: RcStr,
+    /// Stored in a separate cell, as it can change between builds (e.g. key rotation or a
+    /// per-build `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`). Keeping it out of the [`Project`] value
+    /// avoids invalidating every task that reads the [`Project`].
+    encryption_key: ResolvedVc<RcStr>,
 
     preview_props: ResolvedVc<DraftModeOptionsValue>,
 
@@ -1170,6 +1203,43 @@ impl Issue for ConflictIssue {
 
     async fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(self.description.owned().await?))
+    }
+}
+
+impl Project {
+    /// Whether the project uses the deterministic module-id strategy, i.e. whether
+    /// `get_global_module_id_strategy` runs (and therefore whether the module graph needs each
+    /// module's stringified ident). `Named` (the dev default, and an opt-in build config) does not.
+    ///
+    /// The strategy only ever runs on the whole-app graph, which is only built when *not* using
+    /// per-page graphs — so this also requires `!per_page_module_graph`. Encoding that here means
+    /// every graph (per-page or whole-app) can derive `include_ident_strings` from this single
+    /// query without the caller having to know which graph it's building.
+    pub(super) async fn uses_deterministic_module_ids(self: Vc<Self>) -> Result<bool> {
+        Ok(!*self.per_page_module_graph().await?
+            && matches!(
+                *self.next_config().module_ids(self.next_mode()).await?,
+                ModuleIdStrategyConfig::Deterministic
+            ))
+    }
+
+    /// Builds the [`ModuleGraphOptions`] shared by all project-config-derived module graphs, so the
+    /// per-page and whole-app graphs can't drift. Every field is derived from project config;
+    /// `include_ident_strings` follows [`Self::uses_deterministic_module_ids`] (the only consumer
+    /// of the stringified idents is `get_global_module_id_strategy`, which runs only on the
+    /// whole-app graph).
+    pub(super) async fn module_graph_options(self: Vc<Self>) -> Result<ModuleGraphOptions> {
+        let next_mode = self.next_mode();
+        Ok(ModuleGraphOptions {
+            include_ident_strings: self.uses_deterministic_module_ids().await?,
+            include_side_effects: *self
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?,
+            include_mergeable: *self.next_config().turbo_scope_hoisting(next_mode).await?,
+            include_traced: *self.should_write_nft_manifests().await?,
+            include_binding_usage: self.next_mode().await?.is_production(),
+        })
     }
 }
 
@@ -1315,6 +1385,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn watch_poll_interval_ms(&self) -> Vc<Option<u64>> {
+        Vc::cell(
+            self.watch
+                .poll_interval
+                .map(|interval| interval.as_millis().try_into().unwrap_or(u64::MAX)),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn should_write_routes_hashes_manifest(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.write_routes_hashes_manifest))
     }
@@ -1339,7 +1418,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn encryption_key(&self) -> Vc<RcStr> {
-        Vc::cell(self.encryption_key.clone())
+        *self.encryption_key
     }
 
     #[turbo_tasks::function]
@@ -1492,7 +1571,8 @@ impl Project {
                         },
                     ));
                 }
-                Route::AppRoute {
+                Route::AppGoRoute { endpoint, .. }
+                | Route::AppRoute {
                     original_name: _,
                     endpoint,
                     ..
@@ -1595,8 +1675,7 @@ impl Project {
                         modules: vec![entry],
                         heuristics: EntryHeuristics::default(),
                     },
-                    /* include_traced */ *self.should_write_nft_manifests().await?,
-                    /* include_binding_usage */ self.next_mode().await?.is_production(),
+                    self.module_graph_options().await?,
                 )],
                 None,
             )
@@ -1625,8 +1704,7 @@ impl Project {
                         heuristics: EntryHeuristics::default(),
                     }])
                     .resolved_cell(),
-                    /* include_traced */ *self.should_write_nft_manifests().await?,
-                    /* include_binding_usage */ self.next_mode().await?.is_production(),
+                    self.module_graph_options().await?,
                 )],
                 None,
             )
@@ -1698,8 +1776,8 @@ impl Project {
     pub(super) async fn edge_env(&self) -> Result<Vc<EnvMap>> {
         let preview_props = self.preview_props.await?;
         let edge_env = fxindexmap! {
-            rcstr!("__NEXT_BUILD_ID") => self.build_id.clone(),
-            rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.clone(),
+            rcstr!("__NEXT_BUILD_ID") => self.build_id.owned().await?,
+            rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.owned().await?,
             rcstr!("__NEXT_PREVIEW_MODE_ID") => preview_props.preview_mode_id.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => preview_props.preview_mode_encryption_key.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => preview_props.preview_mode_signing_key.clone(),
@@ -1733,6 +1811,7 @@ impl Project {
             source_maps: self.next_config().client_source_maps(self.next_mode()),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
@@ -1829,6 +1908,7 @@ impl Project {
             source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), false),
@@ -1878,6 +1958,7 @@ impl Project {
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), false),
@@ -1953,31 +2034,34 @@ impl Project {
         // appears in the module graph, but the synthesized `target.css` module's path suffix does.
         // `ident.path.path` does not include the query string (that lives on `ident.query`), so
         // `ends_with` is the correct matcher here.
-        static FEATURE_MODULE_PATH_SUFFIXES: &[(&str, &str)] = &[
-            ("next/image", "/next/image.js"),
-            ("next/image", "/next/dist/api/image.js"),
-            ("next/image", "/next/dist/esm/api/image.js"),
+        static FEATURE_MODULE_PATH_SUFFIXES: &[(RcStr, &str)] = &[
+            (rcstr!("next/image"), "/next/image.js"),
+            (rcstr!("next/image"), "/next/dist/api/image.js"),
+            (rcstr!("next/image"), "/next/dist/esm/api/image.js"),
             // next/dist/api/image.js re-exports this module. When Turbopack can prove that
             // the re-export has no side effects, it may flatten the re-export
             // chain and leave this as the feature module in the graph.
-            ("next/image", "/next/dist/client/image-component.js"),
-            ("next/image", "/next/dist/esm/client/image-component.js"),
+            (rcstr!("next/image"), "/next/dist/client/image-component.js"),
             (
-                "next/image",
+                rcstr!("next/image"),
+                "/next/dist/esm/client/image-component.js",
+            ),
+            (
+                rcstr!("next/image"),
                 "/next/dist/shared/lib/image-external-get-image-props.js",
             ),
             (
-                "next/image",
+                rcstr!("next/image"),
                 "/next/dist/esm/shared/lib/image-external-get-image-props.js",
             ),
-            ("next/future/image", "/next/future/image.js"),
-            ("next/legacy/image", "/next/legacy/image.js"),
-            ("next/script", "/next/script.js"),
-            ("next/dynamic", "/next/dynamic.js"),
-            ("next/font/google", "/next/font/google/target.css"),
-            ("next/font/local", "/next/font/local/target.css"),
-            ("@next/font/google", "/@next/font/google/target.css"),
-            ("@next/font/local", "/@next/font/local/target.css"),
+            (rcstr!("next/future/image"), "/next/future/image.js"),
+            (rcstr!("next/legacy/image"), "/next/legacy/image.js"),
+            (rcstr!("next/script"), "/next/script.js"),
+            (rcstr!("next/dynamic"), "/next/dynamic.js"),
+            (rcstr!("next/font/google"), "/next/font/google/target.css"),
+            (rcstr!("next/font/local"), "/next/font/local/target.css"),
+            (rcstr!("@next/font/google"), "/@next/font/google/target.css"),
+            (rcstr!("@next/font/local"), "/@next/font/local/target.css"),
         ];
 
         // TODO: useSwcLoader is not being reported as it is not directly corresponds (it checks
@@ -2044,12 +2128,12 @@ impl Project {
         //     to that feature's unique-importer set.
         let module_graph = self.whole_app_module_graphs().await?.full.await?;
 
-        let matching: FxHashMap<ResolvedVc<Box<dyn Module>>, &'static str> = module_graph
-            .iter_nodes()
-            .map(async |node| {
-                let ident = node.ident().await?;
+        let matching: FxHashMap<ResolvedVc<Box<dyn Module>>, &'static RcStr> = module_graph
+            .iter_modules_with_idents()
+            .map(async |(node, ident)| {
+                let ident = ident.await?;
                 let path = &ident.path.path;
-                for &(feature, suffix) in FEATURE_MODULE_PATH_SUFFIXES {
+                for (feature, suffix) in FEATURE_MODULE_PATH_SUFFIXES {
                     if path.ends_with(suffix) {
                         return Ok(Some((node, feature)));
                     }
@@ -2068,8 +2152,8 @@ impl Project {
         // We could filter via `BindingUsageInfo` to only count edges that survive tree-shaking,
         // but staying parallel to webpack lets dashboards compare counts across the two bundlers
         // directly.
-        let mut pairs: FxHashSet<(&'static str, ResolvedVc<Box<dyn Module>>)> =
-            FxHashSet::default();
+        let mut pairs: Vec<(&'static RcStr, ResolvedVc<Box<dyn Module>>)> =
+            Vec::with_capacity(matching.len() * 2);
         module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent_node, _)) = parent
                 && let Some(&feature) = matching.get(&node)
@@ -2077,7 +2161,7 @@ impl Project {
                 // count the external importer, not the internal re-export edge.
                 && matching.get(&parent_node) != Some(&feature)
             {
-                pairs.insert((feature, parent_node));
+                pairs.push((feature, parent_node));
             }
             Ok(())
         })?;
@@ -2089,7 +2173,7 @@ impl Project {
         let parent_source_keys = pairs
             .into_iter()
             .map(async |(feature, parent)| {
-                let ident = parent.ident().await?;
+                let ident = module_graph.module_ident(parent)?.await?;
                 let key = (
                     ident.path.path.clone(),
                     ident.query.clone(),
@@ -2100,13 +2184,13 @@ impl Project {
             .try_join()
             .await?;
 
-        let mut importers: FxHashMap<&'static str, FxHashSet<(RcStr, RcStr, RcStr)>> =
+        let mut importers: FxHashMap<&'static RcStr, FxHashSet<(RcStr, RcStr, RcStr)>> =
             FxHashMap::default();
         for (feature, key) in parent_source_keys {
             importers.entry(feature).or_default().insert(key);
         }
         for (feature, unique_sources) in importers {
-            features.push((RcStr::from(feature), unique_sources.len() as u32));
+            features.push((feature.clone(), unique_sources.len() as u32));
         }
 
         features.sort_by(|a, b| a.0.cmp(&b.0));
@@ -2207,8 +2291,7 @@ impl Project {
             None
         };
 
-        let instrumentation = self.find_instrumentation();
-        let instrumentation = if let FindContextFileResult::Found(..) = *instrumentation.await? {
+        let instrumentation = if self.instrumentation_source().await?.is_some() {
             Some(Instrumentation {
                 node_js: self.instrumentation_endpoint(false).to_resolved().await?,
                 edge: self.instrumentation_endpoint(true).to_resolved().await?,
@@ -2547,16 +2630,68 @@ impl Project {
         ))
     }
 
+    /// The source compiled into the instrumentation slot. Without `instrumentationInject`, that is
+    /// the project's instrumentation file, including one in a parent directory. Otherwise a
+    /// virtual module at the project root requires every `instrumentationInject` entry, so the
+    /// bundler resolves them there, then the project's file, and runs all of their hooks.
+    /// `entrypoints` and `instrumentation_endpoint` both read this.
+    #[turbo_tasks::function]
+    async fn instrumentation_source(self: Vc<Self>) -> Result<Vc<OptionSource>> {
+        let project_file = match &*self.find_instrumentation().await? {
+            FindContextFileResult::Found(fs_path, _) => Some(fs_path.clone()),
+            _ => None,
+        };
+        let inject = self.next_config().instrumentation_inject().await?;
+        if inject.is_empty() {
+            let Some(fs_path) = project_file else {
+                return Ok(Vc::cell(None));
+            };
+            let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(fs_path));
+            return Ok(Vc::cell(Some(source.to_resolved().await?)));
+        }
+        let project_path = self.project_path().owned().await?;
+        let mut specifiers: Vec<RcStr> = inject.iter().cloned().collect();
+        if let Some(fs_path) = &project_file {
+            let request = project_path
+                .get_relative_request_to(fs_path)
+                .context("project instrumentation file is outside the project filesystem")?;
+            specifiers.push(request);
+        }
+        // Keep in sync with
+        // packages/next/src/build/webpack/loaders/next-instrumentation-inject-loader.ts.
+        let requires = specifiers
+            .iter()
+            .map(|spec| {
+                Ok(format!(
+                    "require({})",
+                    serde_json::to_string(spec.as_str())?
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?
+            .join(", ");
+        let source_text = format!(
+            "const {{ combineInstrumentation }} = \
+             require('next/dist/lib/combine-instrumentation');\nmodule.exports = \
+             combineInstrumentation([{requires}]);\n"
+        );
+        // CommonJS so a `type: module` package.json can't change how it parses. Not a convention
+        // file name, so discovery never treats it as a project file.
+        let path = project_path.join("instrumentation.inject.cjs")?;
+        let source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
+            path,
+            AssetContent::file(FileContent::Content(File::from(source_text)).cell()),
+        ));
+        Ok(Vc::cell(Some(source.to_resolved().await?)))
+    }
+
     #[turbo_tasks::function]
     async fn instrumentation_endpoint(
         self: Vc<Self>,
         is_edge: bool,
     ) -> Result<Vc<Box<dyn Endpoint>>> {
-        let instrumentation = self.find_instrumentation();
-        let FindContextFileResult::Found(fs_path, _) = &*instrumentation.await? else {
+        let Some(source) = *self.instrumentation_source().await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
-        let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
@@ -2573,7 +2708,7 @@ impl Project {
         Ok(Vc::upcast(InstrumentationEndpoint::new(
             self,
             instrumentation_asset_context,
-            source,
+            *source,
             is_edge,
             app_dir.clone(),
             ecmascript_client_reference_transition_name,
@@ -2946,21 +3081,18 @@ async fn whole_app_module_graph_operation(
     let span_clone = span.clone();
     let result = async move {
         let next_mode = project.next_mode();
-        let should_trace = *project.should_write_nft_manifests().await?;
-        let should_read_binding_usage = next_mode.await?.is_production();
-        let base_single_module_graph = SingleModuleGraph::new_with_entries(
-            project.get_all_entries().to_resolved().await?,
-            should_trace,
-            should_read_binding_usage,
-        );
-        let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
-
-        let base = ModuleGraph::from_graphs(vec![base_single_module_graph], None);
-
         let turbopack_remove_unused_imports = *project
             .next_config()
             .turbopack_remove_unused_imports(next_mode)
             .await?;
+        let graph_options = project.module_graph_options().await?;
+        let base_single_module_graph = SingleModuleGraph::new_with_entries(
+            project.get_all_entries().to_resolved().await?,
+            graph_options,
+        );
+        let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
+
+        let base = ModuleGraph::from_graphs(vec![base_single_module_graph], None);
 
         let base = if turbopack_remove_unused_imports {
             // TODO suboptimal that we do compute_binding_usage_info twice (once for the base
@@ -2982,8 +3114,7 @@ async fn whole_app_module_graph_operation(
         let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
             additional_entries,
             base_visited_modules,
-            should_trace,
-            should_read_binding_usage,
+            graph_options,
         );
 
         if !span.is_disabled() {

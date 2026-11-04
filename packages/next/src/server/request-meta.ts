@@ -71,6 +71,12 @@ export interface RequestMeta {
   clonableBody?: CloneableBody
 
   /**
+   * Exact byte length of the buffered body replacing the original request.
+   * Unlike Content-Length, this accounts for the proxy body buffering limit.
+   */
+  replayBodySize?: number
+
+  /**
    * True when the request matched a locale domain that was configured in the
    * next.config.js file.
    */

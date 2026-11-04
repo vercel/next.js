@@ -451,6 +451,13 @@ pub trait ChunkingContext {
         MinifyType::NoMinify.cell()
     }
 
+    /// EXPERIMENTAL: minify each chunk item on its own, before the chunk is assembled, instead of
+    /// minifying the finished chunk.
+    #[turbo_tasks::function]
+    fn minify_before_chunking(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     #[turbo_tasks::function]
     fn should_use_absolute_url_references(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)

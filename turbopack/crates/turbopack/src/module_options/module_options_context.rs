@@ -11,7 +11,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
-    environment::Environment, resolve::options::ImportMapping,
+    environment::Environment, loader::WebpackLoaderItems, resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{
     AnalyzeMode, TypeofWindow,
@@ -20,8 +20,7 @@ use turbopack_ecmascript::{
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
-    execution_context::ExecutionContext,
-    transforms::{postcss::PostCssTransformOptions, webpack::WebpackLoaderItems},
+    execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
 };
 
 use super::ModuleRule;

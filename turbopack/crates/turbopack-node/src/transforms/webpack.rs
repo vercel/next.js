@@ -33,7 +33,7 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     module::Module,
     module_graph::{
-        ModuleGraph, SingleModuleGraph,
+        ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
         chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
@@ -92,7 +92,7 @@ struct WebpackLoadersProcessingResult {
     assets: Option<Vec<EmittedAsset>>,
 }
 
-pub use turbopack_core::loader::{WebpackLoaderItem, WebpackLoaderItems};
+use turbopack_core::loader::WebpackLoaderItems;
 
 #[turbo_tasks::value]
 pub struct WebpackLoaders {
@@ -155,6 +155,19 @@ impl SourceTransform for WebpackLoaders {
     }
 }
 
+/// Returns `true` if applying the `rename_as` pattern to `path` would only append an extension the
+/// path already has, e.g. `*.css` on `foo.css` or `foo.module.css`.
+///
+/// [`AssetIdent::rename_as`] replaces `*` with the full path, so without this check `*.css` would
+/// rename `foo.module.css` to `foo.module.css.css`. The renamed path no longer ends in
+/// `.module.css`, so the loader output would be processed as global CSS instead of as a CSS module.
+/// Keeping the original ident makes such a rule behave like one without a rename.
+fn is_redundant_rename(rename_as: &str, path: &str) -> bool {
+    rename_as
+        .strip_prefix('*')
+        .is_some_and(|suffix| !suffix.is_empty() && !suffix.contains('*') && path.ends_with(suffix))
+}
+
 #[turbo_tasks::value]
 struct WebpackLoadersProcessedAsset {
     transform: ResolvedVc<WebpackLoaders>,
@@ -166,18 +179,15 @@ struct WebpackLoadersProcessedAsset {
 impl Source for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(
-            if let Some(rename_as) = self.transform.await?.rename_as.as_deref() {
-                self.source
-                    .ident()
-                    .owned()
-                    .await?
-                    .rename_as(rename_as)
-                    .into_vc()
-            } else {
-                self.source.ident()
-            },
-        )
+        let ident_vc = self.source.ident();
+        let Some(rename_as) = self.transform.await?.rename_as.clone() else {
+            return Ok(ident_vc);
+        };
+        let ident = ident_vc.await?;
+        if is_redundant_rename(&rename_as, &ident.path.path) {
+            return Ok(ident_vc);
+        }
+        Ok(ReadRef::into_owned(ident).rename_as(&rename_as).into_vc())
     }
 
     #[turbo_tasks::function]
@@ -491,8 +501,7 @@ impl WebpackLoadersProcessedAsset {
             let module_graph = ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entries(
                     entries.graph_entries().to_resolved().await?,
-                    false,
-                    false,
+                    ModuleGraphOptions::default(),
                 )],
                 None,
             )
@@ -594,7 +603,7 @@ impl WebpackLoadersProcessedAsset {
 }
 
 #[turbo_tasks::function]
-pub(crate) async fn evaluate_webpack_loader(
+pub(super) async fn evaluate_webpack_loader(
     webpack_loader_context: WebpackLoaderContext,
 ) -> Result<Vc<Option<RcStr>>> {
     custom_evaluate(webpack_loader_context).await
@@ -621,7 +630,7 @@ enum LogType {
 
 #[derive(Deserialize, Debug, PartialEq, Eq, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
-pub struct LogInfo {
+pub(super) struct LogInfo {
     time: u64,
     log_type: LogType,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
@@ -631,7 +640,7 @@ pub struct LogInfo {
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub enum InfoMessage {
+pub(super) enum InfoMessage {
     // Sent to inform Turbopack about the dependencies of the task.
     // All fields are `default` since it is ok for the client to
     // simply omit instead of sending empty arrays.
@@ -674,7 +683,7 @@ pub struct WebpackResolveOptions {
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub enum RequestMessage {
+pub(super) enum RequestMessage {
     #[serde(rename_all = "camelCase")]
     Resolve {
         options: WebpackResolveOptions,
@@ -703,7 +712,7 @@ pub struct ImportModuleChunk {
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
-pub enum ResponseMessage {
+pub(super) enum ResponseMessage {
     Resolve {
         path: RcStr,
     },
@@ -719,23 +728,23 @@ pub enum ResponseMessage {
 
 #[turbo_tasks::task_input]
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
-pub struct WebpackLoaderContext {
-    pub entries: ResolvedVc<EvaluateEntries>,
-    pub cwd: FileSystemPath,
-    pub env: ResolvedVc<Box<dyn ProcessEnv>>,
-    pub node_backend: ResolvedVc<Box<dyn NodeBackend>>,
-    pub context_source_for_issue: ResolvedVc<Box<dyn Source>>,
-    pub module_graph: ResolvedVc<ModuleGraph>,
-    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    pub evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
-    pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
-    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    pub args: Vec<EvaluateArg>,
-    pub additional_invalidation: ResolvedVc<Completion>,
+pub(super) struct WebpackLoaderContext {
+    pub(super) entries: ResolvedVc<EvaluateEntries>,
+    pub(super) cwd: FileSystemPath,
+    pub(super) env: ResolvedVc<Box<dyn ProcessEnv>>,
+    pub(super) node_backend: ResolvedVc<Box<dyn NodeBackend>>,
+    pub(super) context_source_for_issue: ResolvedVc<Box<dyn Source>>,
+    pub(super) module_graph: ResolvedVc<ModuleGraph>,
+    pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub(super) evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    pub(super) resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
+    pub(super) asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    pub(super) args: Vec<EvaluateArg>,
+    pub(super) additional_invalidation: ResolvedVc<Completion>,
     /// Names of the loaders being applied to the source, in pipeline order.
     /// Used to enrich error messages and issue details so users know which
     /// loader chain was running when an error occurred.
-    pub loader_names: Vec<RcStr>,
+    pub(super) loader_names: Vec<RcStr>,
 }
 
 impl WebpackLoaderContext {
@@ -1002,8 +1011,7 @@ impl EvaluateContext for WebpackLoaderContext {
                         modules: vec![module],
                         heuristics: EntryHeuristics::default(),
                     },
-                    false,
-                    false,
+                    ModuleGraphOptions::default(),
                 );
                 let import_module_graph = ModuleGraph::from_graphs(vec![single_graph], None)
                     .connect()
@@ -1217,9 +1225,9 @@ async fn apply_webpack_resolve_options(
 
 /// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
-pub struct BuildDependencyIssue {
-    pub path: FileSystemPath,
-    pub source: IssueSource,
+struct BuildDependencyIssue {
+    path: FileSystemPath,
+    source: IssueSource,
 }
 
 #[async_trait]
@@ -1261,10 +1269,10 @@ impl Issue for BuildDependencyIssue {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct UnresolvedBuildDependencyIssue {
-    pub request: RcStr,
-    pub error: Option<RcStr>,
-    pub source: IssueSource,
+struct UnresolvedBuildDependencyIssue {
+    request: RcStr,
+    error: Option<RcStr>,
+    source: IssueSource,
 }
 
 #[async_trait]
@@ -1308,13 +1316,13 @@ impl Issue for UnresolvedBuildDependencyIssue {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct EvaluateEmittedErrorIssue {
-    pub source: IssueSource,
-    pub severity: IssueSeverity,
-    pub error: StructuredError,
-    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: FileSystemPath,
-    pub project_dir: FileSystemPath,
+struct EvaluateEmittedErrorIssue {
+    source: IssueSource,
+    severity: IssueSeverity,
+    error: StructuredError,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
 }
 
 #[async_trait]
@@ -1356,14 +1364,14 @@ impl Issue for EvaluateEmittedErrorIssue {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct EvaluateErrorLoggingIssue {
-    pub source: IssueSource,
-    pub severity: IssueSeverity,
+struct EvaluateErrorLoggingIssue {
+    source: IssueSource,
+    severity: IssueSeverity,
     #[turbo_tasks(unsafe_ignore)]
-    pub logging: Vec<LogInfo>,
-    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: FileSystemPath,
-    pub project_dir: FileSystemPath,
+    logging: Vec<LogInfo>,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
 }
 
 #[async_trait]

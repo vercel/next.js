@@ -16,7 +16,7 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
-    module_graph::{ModuleGraph, SingleModuleGraph},
+    module_graph::{ModuleGraph, ModuleGraphOptions, SingleModuleGraph},
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
@@ -263,20 +263,16 @@ async fn extra_configs_changed(
 }
 
 #[turbo_tasks::value]
-pub struct JsonSource {
-    pub path: FileSystemPath,
-    pub key: ResolvedVc<Option<RcStr>>,
-    pub allow_json5: bool,
+struct JsonSource {
+    path: FileSystemPath,
+    key: ResolvedVc<Option<RcStr>>,
+    allow_json5: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl JsonSource {
     #[turbo_tasks::function]
-    pub fn new(
-        path: FileSystemPath,
-        key: ResolvedVc<Option<RcStr>>,
-        allow_json5: bool,
-    ) -> Vc<Self> {
+    fn new(path: FileSystemPath, key: ResolvedVc<Option<RcStr>>, allow_json5: bool) -> Vc<Self> {
         JsonSource {
             path,
             key,
@@ -339,7 +335,7 @@ impl Asset for JsonSource {
 }
 
 #[turbo_tasks::function]
-pub(crate) async fn config_loader_source(
+async fn config_loader_source(
     project_path: FileSystemPath,
     postcss_config_path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {
@@ -531,8 +527,7 @@ impl PostCssTransformedAsset {
         let module_graph = ModuleGraph::from_graphs(
             vec![SingleModuleGraph::new_with_entries(
                 entries.graph_entries().to_resolved().await?,
-                false,
-                false,
+                ModuleGraphOptions::default(),
             )],
             None,
         )
