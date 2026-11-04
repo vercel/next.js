@@ -107,11 +107,12 @@ Keep one production browser test per source-link, destination, and trigger
 contract. Do not loop over several destinations or collect their readiness
 results in one test. Focused tests can still run serially in one browser worker.
 
-Keep the production Link and its existing `href` unchanged in the test. Follow
-the [instant-navigation E2E testing
-guidance](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)
-for redirects, URL assertions, repeat navigation, back or forward navigation,
-and multiple suspended regions.
+Keep the production Link and its existing `href` in the test, including when
+the destination redirects. Verify the final pathname and query after the
+redirect. For repeat and browser-back contracts, follow the
+[visibility-aware selector guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
+so hidden preserved routes cannot satisfy the assertions. When the contract
+contains independently suspended regions, assert each one separately.
 
 First, run an unlocked scaffold that proves the link reaches the exact pathname
 and query and that the selected UI eventually renders for the test user. Do not

@@ -371,9 +371,7 @@ Inside the callback, an initial page load shows the static UI and a client navig
 
 > **Good to know:** The start of the `instant()` scope is the same as turning on **Pause on navigations** in the Navigation Inspector, and the end of the scope releases the pause the way **Resume** does.
 
-For client navigations, wait for the final destination URL before asserting on its UI. When a production `<Link>` redirects, keep its original `href` in the test. Next.js follows the redirect during prefetching and uses the resulting canonical URL to fetch the destination's segments. Waiting for the final pathname and query prevents a shared selector from matching the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
-
-Repeat, back, and forward navigations can preserve inactive routes in the DOM. Use [visibility-aware selectors](/docs/app/guides/preserving-ui-state#testing) so hidden UI cannot satisfy assertions. Each `<Suspense>` boundary reveals independently, so assert each region separately when the destination has multiple boundaries.
+For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
 
 Run these against `next dev`, where the testing API is enabled automatically. For CI with a production build, enable [`exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) only for the test build:
 

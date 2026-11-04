@@ -246,9 +246,10 @@ completed UI renders after release. Do not change an existing data source,
 production selector, or required route variant to make the test easier. A
 required contract may not be skipped or weakened.
 
-For contracts that cover repeat navigation, back or forward navigation, or
-multiple suspended regions, follow the [instant-navigation E2E testing
-guidance](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
+For repeat and browser-back contracts, follow the
+[visibility-aware selector guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
+so hidden preserved routes cannot satisfy the assertions. When the contract
+contains independently suspended regions, assert each one separately.
 
 Prefer the self-validating variant when the route has deferred content. If the
 route cannot build while blocked, or a cookie/session read stays GREEN, use the

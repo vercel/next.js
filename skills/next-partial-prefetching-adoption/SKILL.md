@@ -79,11 +79,12 @@ After the target UI is settled, inspect the existing test setup. The `instant()`
 - **No applicable production-mode suite:** set up the production-mode rig in **`rig-template.md`** using the project's package manager and test conventions. This is part of test-backed adoption and does not require a user to be present.
 - **Rig cannot run reliably:** work through **`rig-template.md`** setup and liveness checks. Fall back to manual preservation only for a concrete blocker the repository cannot resolve, such as unavailable credentials or an inaccessible production environment. Record the blocker and the deferred test coverage; do not claim test-backed verification.
 
-Keep the production Link and its existing `href` unchanged in the test. Follow
-the [instant-navigation E2E testing
-guidance](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)
-for redirects, URL assertions, repeat navigation, back or forward navigation,
-and multiple suspended regions.
+Keep the production Link and its existing `href` in the test, including when
+the destination redirects. Verify the final pathname and query after the
+redirect. For repeat and browser-back contracts, follow the
+[visibility-aware selector guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
+so hidden preserved routes cannot satisfy the assertions. When the contract
+contains independently suspended regions, assert each one separately.
 
 No user input is required to reuse an existing suite or create the rig. Ask only when the repository cannot answer an environment question or when the target UI itself is a product decision. If no user is available, use the guide's safe product default and reserve manual verification for a concrete rig blocker. Treat new prefetched UI as step 7 work; verify any deliberate removal separately after adoption.
 
