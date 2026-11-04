@@ -991,6 +991,7 @@ function initializeFile(
           collector.root,
           {
             ...executionOptions,
+            resourceLifetime,
             // Only the actual public File can request the root preparation pack.
             captureModuleStart:
               preparePublicSnapshots === true &&

@@ -326,6 +326,8 @@ export interface RunnerOptions {
   getAnnotationLocation?(error: Error): TestArtifactLocation | undefined
   getArtifactLocation?(error: Error): TestArtifactLocation | undefined
   captureTestRecords?: true
+  /** Private attempt-owned resources retain their original context guards. */
+  resourceLifetime?: 'attempt' | 'file'
   onAnnotation?(
     context: AttemptContext,
     annotation: TestAnnotation
@@ -1302,6 +1304,7 @@ export async function runCollected(
     const ownedContext = (api = 'test context'): AttemptContext => {
       if (
         api === 'annotate()' &&
+        options.resourceLifetime !== 'attempt' &&
         publicTask.result &&
         publicTask.result.state !== 'run'
       )
