@@ -5,24 +5,26 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "postinstall": "prisma generate --no-engine"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "postinstall": "prisma contract emit",
+    "contract:emit": "prisma contract emit",
+    "db:init": "prisma db init",
+    "db:update": "prisma db update",
+    "db:seed": "tsx --env-file=.env prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "latest",
-    "@prisma/extension-accelerate": "latest",
+    "@prisma/orm-postgres": "8.0.0-rc.22",
     "next": "latest",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "temporal-polyfill": "^1.0.4"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.0.0",
     "postcss": "^8",
-    "prisma": "latest",
+    "prisma": "8.0.0-rc.30",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.19.2",
     "typescript": "^5"
