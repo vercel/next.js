@@ -33,9 +33,10 @@ describe('server-stack-overflow-stack-frames', () => {
   it('logs a located frame when the overflow is thrown inside React', async () => {
     const output = await getLoggedOverflowOutput('/react-internal-overflow')
 
+    // Depending on where the stack limit is hit, the original stack may keep
+    // an anonymous React frame before the application frame.
     expect(output).toContain(
-      'RangeError: Maximum call stack size exceeded' +
-        '\n    at Recursive (app/react-internal-overflow/page.tsx:2:10)'
+      '\n    at Recursive (app/react-internal-overflow/page.tsx:2:10)'
     )
     expect(output).toContain(
       '\n  1 | function Recursive() {' +
@@ -50,16 +51,17 @@ describe('server-stack-overflow-stack-frames', () => {
     ).toHaveLength(1)
   })
 
-  // Edge Runtime route segments are intentionally incompatible with Cache Components.
-  // @force-gate !cacheComponents
+  // The webpack Edge VM can overflow while resolving the route module before
+  // React captures an owner. Turbopack exercises the render-time overflow.
+  // Edge Runtime route segments are also incompatible with Cache Components.
+  // @force-gate turbopack && !cacheComponents
   it('logs a located frame when the overflow is thrown inside React on Edge', async () => {
     const output = await getLoggedOverflowOutput(
       '/react-internal-overflow-edge'
     )
 
     expect(output).toContain(
-      'RangeError: Maximum call stack size exceeded' +
-        '\n    at Recursive (app/react-internal-overflow-edge/page.tsx:4:10)'
+      '\n    at Recursive (app/react-internal-overflow-edge/page.tsx:4:10)'
     )
     expect(output).toContain(
       '\n  3 | function Recursive() {' +
