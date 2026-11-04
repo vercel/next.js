@@ -219,7 +219,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "console",
                 ast_path: [

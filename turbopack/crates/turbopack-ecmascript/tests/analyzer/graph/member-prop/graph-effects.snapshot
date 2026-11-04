@@ -10,7 +10,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "A",
                 ast_path: [
@@ -80,7 +80,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "A",
                 ast_path: [
@@ -121,7 +121,7 @@
                         ),
                     ),
                 ),
-                effects: [
+                base_effects: [
                     FreeVar {
                         var: "B",
                         ast_path: [

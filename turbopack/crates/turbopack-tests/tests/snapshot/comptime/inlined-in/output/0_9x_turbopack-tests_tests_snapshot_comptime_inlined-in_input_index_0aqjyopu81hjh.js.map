@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/inlined-in/input/index.js"],"sourcesContent":["// The replaced membership checks must not import the object being checked.\nconsole.log('inlined' in POLYFILLED_GLOBAL)\nconsole.log('NODE_ENV' in process.env)\nconsole.log('cache' in require)\n"],"names":["console","log"],"mappings":"AAAA,2EAA2E;AAC3EA,QAAQC,GAAG;AACXD,QAAQC,GAAG;AACXD,QAAQC,GAAG"}}]
-}

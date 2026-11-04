@@ -13,7 +13,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -58,7 +58,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -272,7 +272,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             Member {
                 obj: Array {
                     total_nodes: 5,
@@ -314,7 +314,7 @@
                         ),
                     ),
                 ),
-                effects: [],
+                base_effects: [],
                 ast_path: [
                     Program(
                         Script,
@@ -620,7 +620,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             Member {
                 obj: Array {
                     total_nodes: 5,
@@ -662,7 +662,7 @@
                         ),
                     ),
                 ),
-                effects: [],
+                base_effects: [],
                 ast_path: [
                     Program(
                         Script,
@@ -920,7 +920,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -965,7 +965,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,

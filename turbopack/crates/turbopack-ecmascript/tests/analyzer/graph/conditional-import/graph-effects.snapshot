@@ -134,7 +134,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             Member {
                 obj: FreeVar(
                     "process",
@@ -146,7 +146,7 @@
                         ),
                     ),
                 ),
-                effects: [
+                base_effects: [
                     FreeVar {
                         var: "process",
                         ast_path: [

@@ -10,7 +10,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "performance",
                 ast_path: [
@@ -344,7 +344,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             Member {
                 obj: Variable(
                     (
@@ -359,7 +359,7 @@
                         ),
                     ),
                 ),
-                effects: [],
+                base_effects: [],
                 ast_path: [
                     Program(
                         Module,
@@ -789,7 +789,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "performance",
                 ast_path: [
@@ -1287,7 +1287,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Module,

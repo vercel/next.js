@@ -111,7 +111,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             ImportedBinding {
                 esm_reference_index: 1,
                 export: Some(
@@ -216,7 +216,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             ImportMeta {
                 ast_path: [
                     Program(
@@ -441,7 +441,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -495,7 +495,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             ImportMeta {
                 ast_path: [
                     Program(
@@ -714,7 +714,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -915,7 +915,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -969,7 +969,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "globalThis",
                 ast_path: [

@@ -10,7 +10,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             ImportMeta {
                 ast_path: [
                     Program(

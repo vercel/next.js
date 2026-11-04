@@ -88,7 +88,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -368,7 +368,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1054,7 +1054,7 @@
                                 ),
                             ),
                         ),
-                        effects: [],
+                        base_effects: [],
                         ast_path: [
                             Program(
                                 Script,
@@ -1669,7 +1669,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2043,7 +2043,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "process",
                 ast_path: [
@@ -2176,7 +2176,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2326,7 +2326,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2546,7 +2546,7 @@
                                 #3,
                             ),
                         ),
-                        effects: [],
+                        base_effects: [],
                         ast_path: [
                             Program(
                                 Script,
@@ -2705,7 +2705,7 @@
                                                 #3,
                                             ),
                                         ),
-                                        effects: [],
+                                        base_effects: [],
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -3319,7 +3319,7 @@
                                 ),
                             ),
                         ),
-                        effects: [
+                        base_effects: [
                             FreeVar {
                                 var: "require",
                                 ast_path: [
@@ -3716,7 +3716,7 @@
                                 ),
                             ),
                         ),
-                        effects: [
+                        base_effects: [
                             FreeVar {
                                 var: "fs",
                                 ast_path: [
@@ -3981,7 +3981,7 @@
                                                 ),
                                             ),
                                         ),
-                                        effects: [
+                                        base_effects: [
                                             FreeVar {
                                                 var: "require",
                                                 ast_path: [
@@ -4674,7 +4674,7 @@
                                                 ),
                                             ),
                                         ),
-                                        effects: [],
+                                        base_effects: [],
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -4756,7 +4756,7 @@
                                                 ),
                                             ),
                                         ),
-                                        effects: [
+                                        base_effects: [
                                             FreeVar {
                                                 var: "require",
                                                 ast_path: [
@@ -5138,7 +5138,7 @@
                                                 ),
                                             ),
                                         ),
-                                        effects: [],
+                                        base_effects: [],
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -5223,7 +5223,7 @@
                                                 ),
                                             ),
                                         ),
-                                        effects: [],
+                                        base_effects: [],
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -5566,7 +5566,7 @@
                                                 ),
                                             ),
                                         ),
-                                        effects: [
+                                        base_effects: [
                                             FreeVar {
                                                 var: "fs",
                                                 ast_path: [
@@ -5831,7 +5831,7 @@
                                                                 ),
                                                             ),
                                                         ),
-                                                        effects: [
+                                                        base_effects: [
                                                             FreeVar {
                                                                 var: "fs",
                                                                 ast_path: [
@@ -6100,7 +6100,7 @@
                                                                 ),
                                                             ),
                                                         ),
-                                                        effects: [
+                                                        base_effects: [
                                                             FreeVar {
                                                                 var: "fs",
                                                                 ast_path: [

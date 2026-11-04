@@ -10,7 +10,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "require",
                 ast_path: [
@@ -227,7 +227,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -348,7 +348,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             Member {
                 obj: Variable(
                     (
@@ -363,7 +363,7 @@
                         ),
                     ),
                 ),
-                effects: [],
+                base_effects: [],
                 ast_path: [
                     Program(
                         Script,

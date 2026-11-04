@@ -197,7 +197,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -322,7 +322,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -447,7 +447,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -572,7 +572,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -697,7 +697,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -1000,7 +1000,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Module,
@@ -1064,7 +1064,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             ImportedBinding {
                 esm_reference_index: 1,
                 export: Some(

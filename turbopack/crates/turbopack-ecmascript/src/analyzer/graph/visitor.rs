@@ -1843,14 +1843,14 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 self.arena,
             )),
         };
-        let effects = self.collect_effects(|this| {
-            member_expr.visit_children_with_ast_path(this, ast_path);
-        });
         if let Some(prop_value) = prop_value {
+            let base_effects = self.collect_effects(|this| {
+                member_expr.visit_children_with_ast_path(this, ast_path);
+            });
             self.add_effect(Effect::Member {
                 obj: obj_value,
                 prop: prop_value,
-                effects,
+                base_effects,
                 ast_path: as_parent_path_in(self.arena, ast_path),
                 span: member_expr.span(),
                 in_truthiness_context: is_in_boolean_context(
@@ -1859,7 +1859,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 ),
             });
         } else {
-            self.effects.extend(self.arena, BumpVec::from(effects));
+            member_expr.visit_children_with_ast_path(self, ast_path);
         }
     }
 

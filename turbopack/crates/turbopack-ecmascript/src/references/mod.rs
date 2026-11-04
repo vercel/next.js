@@ -1329,7 +1329,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::Member {
                     mut obj,
                     mut prop,
-                    effects,
+                    base_effects,
                     ast_path,
                     span,
                     in_truthiness_context,
@@ -1355,7 +1355,7 @@ async fn analyze_ecmascript_module_internal(
                     )
                     .await?;
                     if !replaced {
-                        add_effects(&mut queue_stack, BumpVec::from(effects));
+                        add_effects(&mut queue_stack, BumpVec::from(base_effects));
                     }
                 }
                 Effect::DestructuredMember {

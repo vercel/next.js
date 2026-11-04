@@ -738,7 +738,11 @@ mod tests {
                         ));
                         0
                     }
-                    Effect::Member { effects, .. } | Effect::In { effects, .. } => {
+                    Effect::Member {
+                        base_effects: effects,
+                        ..
+                    }
+                    | Effect::In { effects, .. } => {
                         queue.extend(BumpVec::from(effects).into_iter().rev().map(|e| (i, e)));
                         0
                     }

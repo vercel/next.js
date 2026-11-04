@@ -149,7 +149,7 @@ pub enum Effect<'a> {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
         /// Effects inside the expression, skipped when the whole expression is replaced.
-        effects: BumpBox<'a, [Effect<'a>]>,
+        base_effects: BumpBox<'a, [Effect<'a>]>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
         // Whether this value from this member access only ends up being used as a truthiness check
@@ -249,11 +249,14 @@ impl<'a> Effect<'a> {
                 }
             }
             Effect::Member {
-                obj, prop, effects, ..
+                obj,
+                prop,
+                base_effects,
+                ..
             } => {
                 obj.normalize(arena);
                 prop.normalize(arena);
-                for effect in effects.iter_mut() {
+                for effect in base_effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }

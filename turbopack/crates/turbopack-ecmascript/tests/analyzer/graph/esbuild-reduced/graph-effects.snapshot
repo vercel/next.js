@@ -220,7 +220,7 @@
         prop: FreeVar(
             "platformKey",
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "platformKey",
                 ast_path: [
@@ -464,7 +464,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "require",
                 ast_path: [

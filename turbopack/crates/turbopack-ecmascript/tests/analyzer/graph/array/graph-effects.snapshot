@@ -33,7 +33,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             Member {
                 obj: FreeVar(
                     "global",
@@ -45,7 +45,7 @@
                         ),
                     ),
                 ),
-                effects: [
+                base_effects: [
                     FreeVar {
                         var: "global",
                         ast_path: [
@@ -189,7 +189,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             Member {
                 obj: FreeVar(
                     "global",
@@ -201,7 +201,7 @@
                         ),
                     ),
                 ),
-                effects: [
+                base_effects: [
                     FreeVar {
                         var: "global",
                         ast_path: [
@@ -339,7 +339,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -384,7 +384,7 @@
                 ),
             ),
         ),
-        effects: [],
+        base_effects: [],
         ast_path: [
             Program(
                 Script,

@@ -24,7 +24,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "Math",
                 ast_path: [
@@ -243,7 +243,7 @@
                 ),
             ),
         ),
-        effects: [
+        base_effects: [
             FreeVar {
                 var: "JSON",
                 ast_path: [
