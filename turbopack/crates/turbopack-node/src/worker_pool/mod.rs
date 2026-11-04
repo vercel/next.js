@@ -21,7 +21,7 @@ use turbo_tasks_fs::FileSystemPath;
 use crate::pool_stats::PoolStatsSnapshot;
 use crate::{
     AssetsForSourceMapping,
-    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend, sealed::Sealed},
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
     evaluate::{EvaluateOperation, EvaluatePool, Operation},
     pool_stats::AcquiredPermits,
     worker_pool::{
@@ -170,19 +170,6 @@ impl NodeBackend for WorkerThreadsBackend {
         rcstr!("worker_thread/globals.ts")
     }
 
-    fn scale_down(&self) -> Result<()> {
-        WorkerThreadPool::scale_down();
-        Ok(())
-    }
-
-    fn scale_zero(&self) -> Result<()> {
-        WorkerThreadPool::scale_zero();
-        Ok(())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Sealed for WorkerThreadsBackend {
     fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture {
         Box::pin(async move {
             let CreatePoolOptions {
@@ -208,6 +195,16 @@ impl Sealed for WorkerThreadsBackend {
             )
             .await)
         })
+    }
+
+    fn scale_down(&self) -> Result<()> {
+        WorkerThreadPool::scale_down();
+        Ok(())
+    }
+
+    fn scale_zero(&self) -> Result<()> {
+        WorkerThreadPool::scale_zero();
+        Ok(())
     }
 }
 

@@ -13,7 +13,7 @@ use crate::{AssetsForSourceMapping, evaluate::EvaluatePool};
     not(any(feature = "process_pool", feature = "worker_pool")),
     allow(dead_code)
 )]
-pub(crate) struct CreatePoolOptions {
+pub struct CreatePoolOptions {
     pub(crate) cwd: PathBuf,
     pub(crate) entrypoint: PathBuf,
     pub(crate) env: FxHashMap<RcStr, RcStr>,
@@ -27,21 +27,26 @@ pub(crate) struct CreatePoolOptions {
 pub(crate) type CreatePoolFuture =
     Pin<Box<dyn Future<Output = Result<EvaluatePool>> + Send + 'static>>;
 
-pub(crate) mod sealed {
-    use crate::backend::{CreatePoolFuture, CreatePoolOptions};
-
-    // Pool construction is internal; NodeBackend only exposes backend selection and lifecycle APIs.
+mod sealed {
     #[turbo_tasks::value_trait]
-    pub(crate) trait Sealed {
-        fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture;
-    }
+    pub(crate) trait Sealed {}
 }
+
+#[cfg(feature = "worker_pool")]
+#[turbo_tasks::value_impl]
+impl sealed::Sealed for crate::worker_pool::WorkerThreadsBackend {}
+
+#[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
+#[turbo_tasks::value_impl]
+impl sealed::Sealed for crate::process_pool::ChildProcessesBackend {}
 
 #[turbo_tasks::value_trait]
 pub trait NodeBackend: sealed::Sealed {
     fn runtime_module_path(&self) -> RcStr;
 
     fn globals_module_path(&self) -> RcStr;
+
+    fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture;
 
     fn scale_down(&self) -> Result<()>;
 

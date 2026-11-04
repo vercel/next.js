@@ -122,7 +122,7 @@ use crate::pool_stats::PoolStatsSnapshot;
     eq = "manual",
     shared
 )]
-pub(crate) struct EvaluatePool {
+pub struct EvaluatePool {
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     pool: Box<dyn EvaluateOperation>,
     pub(crate) assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,

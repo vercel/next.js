@@ -34,7 +34,7 @@ use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 use crate::pool_stats::PoolStatsSnapshot;
 use crate::{
     AssetsForSourceMapping,
-    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend, sealed::Sealed},
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
     evaluate::{EvaluateOperation, EvaluatePool, NodeJsConnectError, Operation},
     format::FormattingMode,
     pool_stats::{AcquiredPermits, NodeJsPoolStats},
@@ -707,19 +707,6 @@ impl NodeBackend for ChildProcessesBackend {
         rcstr!("child_process/globals.ts")
     }
 
-    fn scale_down(&self) -> Result<()> {
-        ChildProcessPool::scale_down();
-        Ok(())
-    }
-
-    fn scale_zero(&self) -> Result<()> {
-        ChildProcessPool::scale_zero();
-        Ok(())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Sealed for ChildProcessesBackend {
     fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture {
         Box::pin(async move {
             let CreatePoolOptions {
@@ -744,6 +731,16 @@ impl Sealed for ChildProcessesBackend {
                 debug,
             ))
         })
+    }
+
+    fn scale_down(&self) -> Result<()> {
+        ChildProcessPool::scale_down();
+        Ok(())
+    }
+
+    fn scale_zero(&self) -> Result<()> {
+        ChildProcessPool::scale_zero();
+        Ok(())
     }
 }
 
