@@ -707,7 +707,6 @@ export default class NextNodeServer extends BaseServer<
           )
 
       return imageOptimizer(imageUpstream, paramsResult, this.nextConfig, {
-        isDev: this.dev,
         previousCacheEntry,
       })
     }

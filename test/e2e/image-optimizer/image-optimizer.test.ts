@@ -284,7 +284,7 @@ describe('Image Optimizer', () => {
 
   describe('Server support for headers in next.config.js', () => {
     const size = 96
-    const { next, skipped, isNextDev } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: join(__dirname, 'app'),
       nextConfig: {
         async headers() {
@@ -302,7 +302,6 @@ describe('Image Optimizer', () => {
         },
       },
     })
-    if (skipped) return
 
     it('should set max-age header', async () => {
       const query = { url: '/test.png', w: size, q: 75 }
@@ -347,7 +346,7 @@ describe('Image Optimizer', () => {
   })
 
   describe('next.config.js cloudinary loader', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       nextConfig: {
         images: {
@@ -356,7 +355,6 @@ describe('Image Optimizer', () => {
         },
       },
     })
-    if (skipped) return
 
     it('should 404 when loader is not default', async () => {
       const size = 384
@@ -367,13 +365,12 @@ describe('Image Optimizer', () => {
     })
   })
   describe('images.unoptimized in next.config.js', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       nextConfig: {
         images: { unoptimized: true },
       },
     })
-    if (skipped) return
 
     it('should 404 when unoptimized', async () => {
       const size = 384
@@ -384,13 +381,12 @@ describe('Image Optimizer', () => {
     })
   })
   describe('experimental.imgOptMaxInputPixels in next.config.js', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       nextConfig: {
         experimental: { imgOptMaxInputPixels: 100 },
       },
     })
-    if (skipped) return
 
     it('should fallback to source image when input exceeds imgOptMaxInputPixels', async () => {
       const size = 256
@@ -403,7 +399,7 @@ describe('Image Optimizer', () => {
   })
 
   describe('External rewrite support with for serving static content in images', () => {
-    const { next, skipped, isNextDev } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: join(__dirname, 'app'),
       nextConfig: {
         async rewrites() {
@@ -417,7 +413,6 @@ describe('Image Optimizer', () => {
         },
       },
     })
-    if (skipped) return
 
     it('should return response when image is served from an external rewrite', async () => {
       const imagesDir = join(next.testDir, next.distDir, 'cache', 'images')
@@ -453,10 +448,10 @@ describe('Image Optimizer', () => {
     })
   })
 
-  // Only development accepts the implicit blur-placeholder width and quality.
+  // Only development accepts blur placeholder requests.
   // @gate dev
   describe('dev support for dynamic blur placeholder', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       nextConfig: {
         images: {
@@ -465,14 +460,50 @@ describe('Image Optimizer', () => {
         },
       },
     })
-    if (skipped) return
 
     it('should support width 8 per BLUR_IMG_SIZE with next dev', async () => {
-      const query = { url: '/test.png', w: 8, q: 70 }
+      const query = { url: '/test.png', w: 8, q: 70, blur: 1 }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
       expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toBe('image/svg+xml')
       await expectWidth(res, 320)
+    })
+  })
+
+  // Holds in both dev and prod: without the marker, dev validates the blur
+  // placeholder width and quality (without `&blur=1`) the same way prod does.
+  describe('blur placeholder params without the blur marker', () => {
+    const { next } = nextTestSetup({
+      files: join(__dirname, 'app'),
+      nextConfig: {
+        images: {
+          deviceSizes: [largeSize],
+          imageSizes: [],
+          qualities: [75],
+        },
+      },
+    })
+
+    it('should not allow the blur placeholder width and quality', async () => {
+      const opts = { headers: { accept: 'image/webp' } }
+      const widthRes = await next.fetch(
+        `/_next/image?${toQueryString({ url: '/test.png', w: 8, q: 75 })}`,
+        opts
+      )
+      expect(widthRes.status).toBe(400)
+      expect(await widthRes.text()).toBe(
+        `"w" parameter (width) of 8 is not allowed`
+      )
+
+      const qualityRes = await next.fetch(
+        `/_next/image?${toQueryString({ url: '/test.png', w: largeSize, q: 70 })}`,
+        opts
+      )
+      expect(qualityRes.status).toBe(400)
+      expect(await qualityRes.text()).toBe(
+        `"q" parameter (quality) of 70 is not allowed`
+      )
     })
   })
 })

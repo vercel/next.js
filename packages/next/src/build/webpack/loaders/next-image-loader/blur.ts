@@ -62,6 +62,7 @@ export async function getBlurImage(
       url.searchParams.set('url', outputPath)
       url.searchParams.set('w', String(blurWidth))
       url.searchParams.set('q', String(BLUR_QUALITY))
+      url.searchParams.set('blur', '1') // should match `image-optimizer.ts`
       blurDataURL = url.href.slice(prefix.length)
     } else {
       const resizeImageSpan = tracing('image-resize')

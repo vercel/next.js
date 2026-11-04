@@ -182,7 +182,7 @@ function replaceDataUrl(styles) {
 }
 
 // Webpack dev emits a dynamic blur URL that points at the image optimizer
-// route, e.g. `/_next/image?url=...&w=8&q=70`. Normalize it so the snapshot
+// route, e.g. `/_next/image?url=...&w=8&q=70&blur=1`. Normalize it so the snapshot
 // only asserts the style shape, not the encoded src.
 function replaceBlurUrl(styles) {
   return styles.replace(

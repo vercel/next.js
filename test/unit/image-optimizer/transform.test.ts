@@ -46,7 +46,7 @@ async function transform(
   )
 }
 
-async function transformInDevelopment(
+async function optimizeBlurPlaceholder(
   filename: string,
   previousCacheEntry?: IncrementalResponseCacheEntry
 ) {
@@ -60,9 +60,15 @@ async function transformInDevelopment(
       cacheControl: undefined,
       etag: 'source-etag',
     },
-    { href: `/${filename}`, width: 8, quality: 70, mimeType: 'image/webp' },
+    {
+      href: `/${filename}`,
+      width: 8,
+      quality: 70,
+      mimeType: 'image/webp',
+      isDevBlurPlaceholder: true,
+    },
     config,
-    { isDev: true, silent: true, previousCacheEntry }
+    { silent: true, previousCacheEntry }
   )
 }
 
@@ -131,22 +137,38 @@ describe('imageOptimizerTransform', () => {
     expect(result.contentType).toBe('image/jpeg')
   })
 
-  it('generates blur placeholders in development', async () => {
-    const result = await transformInDevelopment('test.png')
+  it('generates blur placeholders', async () => {
+    const result = await optimizeBlurPlaceholder('test.png')
     expect(result.contentType).toBe('image/svg+xml')
     expect(result.buffer.toString()).toContain('<svg')
   })
 
   it('does not generate blur placeholders for bypassed images', async () => {
     const source = await getImage('test.svg')
-    const result = await transformInDevelopment('test.svg')
+    const result = await optimizeBlurPlaceholder('test.svg')
     expect(result.buffer).toEqual(source)
+    expect(result.contentType).toBe('image/svg+xml')
+  })
+
+  it('keeps the content type of a reused blur placeholder', async () => {
+    const previousBuffer = Buffer.from('<svg></svg>')
+    const result = await optimizeBlurPlaceholder('test.png', {
+      value: {
+        kind: 'IMAGE' as CachedRouteKind.IMAGE,
+        buffer: previousBuffer,
+        etag: 'placeholder-etag',
+        upstreamEtag: 'source-etag',
+        extension: 'svg',
+      },
+      cacheControl: { revalidate: 90, expire: undefined },
+    })
+    expect(result.buffer).toEqual(previousBuffer)
     expect(result.contentType).toBe('image/svg+xml')
   })
 
   it('reuses a previous cache entry without generating a blur placeholder', async () => {
     const previousBuffer = Buffer.from('previous image')
-    const result = await transformInDevelopment('test.png', {
+    const result = await optimizeBlurPlaceholder('test.png', {
       value: {
         kind: 'IMAGE' as CachedRouteKind.IMAGE,
         buffer: previousBuffer,

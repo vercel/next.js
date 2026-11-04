@@ -749,7 +749,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should emit blur svg when width is 8 in dev but not prod', async () => {
-    const query = { url: '/test.png', w: 8, q: 70 }
+    const query = { url: '/test.png', w: 8, q: 70, blur: 1 }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
     if (isDev) {
@@ -765,7 +765,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should emit blur svg when width is less than 8 in dev but not prod', async () => {
-    const query = { url: '/test.png', w: 3, q: 70 }
+    const query = { url: '/test.png', w: 3, q: 70, blur: 1 }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await next.fetch(`/_next/image?${toQueryString(query)}`, opts)
     if (isDev) {
