@@ -2,6 +2,40 @@ import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { MockRegistry } from 'next/dist/experimental/testing/mocking/registry'
 
+function expectFactoryNamespace(namespace: unknown, exports: object) {
+  const object = namespace as object
+  expect(namespace).not.toBe(exports)
+  expect(Object.getPrototypeOf(object)).toBe(Object.getPrototypeOf(exports))
+  expect(Reflect.ownKeys(object)).toEqual(Reflect.ownKeys(exports))
+  expect(Object.getOwnPropertyDescriptors(object)).toEqual(
+    Object.getOwnPropertyDescriptors(exports)
+  )
+  return namespace
+}
+
+function namespaceData(namespace: unknown) {
+  const object = namespace as object
+  const keys = Reflect.ownKeys(object)
+  const descriptors = Object.getOwnPropertyDescriptors(object)
+  for (const key of keys) {
+    if (!('value' in Object.getOwnPropertyDescriptor(object, key)!)) {
+      throw new Error('This unit comparison requires data exports.')
+    }
+  }
+  const carrier = Object.create(Object.getPrototypeOf(object), descriptors)
+  expect(Reflect.ownKeys(carrier)).toEqual(keys)
+  expect(Object.getPrototypeOf(carrier)).toBe(Object.getPrototypeOf(object))
+  for (const key of keys) {
+    const original = Object.getOwnPropertyDescriptor(object, key)!
+    const copied = Object.getOwnPropertyDescriptor(carrier, key)!
+    expect(copied.enumerable).toBe(original.enumerable)
+    expect(copied.configurable).toBe(original.configurable)
+    expect(copied.writable).toBe(original.writable)
+    expect(Object.is(copied.value, original.value)).toBe(true)
+  }
+  return carrier
+}
+
 describe('private module mock registry (not compiler conformance)', () => {
   const original = async () => ({ value: 'original', untouched: true })
 
@@ -555,6 +589,141 @@ describe('compiler-owned runtime mock dispatch components (not native conformanc
       )
     }
   )
+  it('wraps manual runtime factory values without changing exports, getters or held namespaces', async () => {
+    const h = host()
+    const token = {}
+    const raw = {
+      value: 'mocked',
+      default: { token },
+      explicit: undefined,
+      then: undefined,
+      get receiver() {
+        return this === raw
+      },
+    }
+    let calls = 0
+    try {
+      dynamic.doMock('./subject', () => {
+        calls++
+        return raw
+      })
+      const namespace = await h.context.A(3)
+      expect(namespace).not.toBe(raw)
+      expect(namespace.default.token).toBe(token)
+      expect(namespace.receiver).toBe(true)
+      expect(namespace.explicit).toBeUndefined()
+      expect(namespace.then).toBeUndefined()
+      expect(Reflect.get(namespace, Symbol.iterator)).toBeUndefined()
+      expect(Reflect.ownKeys(namespace)).toEqual(Reflect.ownKeys(raw))
+      expect(Object.getOwnPropertyDescriptors(namespace)).toEqual(
+        Object.getOwnPropertyDescriptors(raw)
+      )
+      expect(await h.context.A(3)).toBe(namespace)
+      expect(calls).toBe(1)
+      expect(h.evaluations()).toBe(0)
+      let error: any
+      try {
+        void namespace.absent
+      } catch (cause) {
+        error = cause
+      }
+      expect(error.name).toBe('Error')
+      expect(error.message).toBe(
+        '[vitest] No "absent" export is defined on the "./subject" mock. Did you forget to return it from "vi.mock"?\n' +
+          'If you need to partially mock a module, you can use "importOriginal" helper inside:\n'
+      )
+      expect(error.codeFrame).toBe(
+        'vi.mock(import("./subject"), async (importOriginal) => {\n' +
+          '  const actual = await importOriginal()\n' +
+          '  return {\n' +
+          '    ...actual,\n' +
+          '    // your mocked methods\n' +
+          '  }\n' +
+          '})'
+      )
+      expect(Object.keys(error)).toEqual(['codeFrame'])
+    } finally {
+      h.binding.dispose()
+      h.tracker.dispose()
+    }
+  })
+  it('retains the authored runtime registration request and pending namespace through cache reset', async () => {
+    const h = host()
+    const cacheOwner = cache.initializeModuleCache(
+      h.context,
+      { version: 1, resettable: [2], protected: [1] },
+      () => {}
+    )
+    let enter!: () => void, release!: () => void
+    const entered = new Promise<void>((resolve) => {
+      enter = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const raw = { value: 42 }
+    let calls = 0
+    try {
+      dynamic.doMock('././subject', async () => {
+        calls++
+        enter()
+        await gate
+        return raw
+      })
+      const pending = h.context.A(3)
+      await entered
+      cache.resetModules()
+      release()
+      const namespace = await pending
+      expect(namespace).not.toBe(raw)
+      expect(namespace.value).toBe(42)
+      expect(await h.context.A(3)).toBe(namespace)
+      expect(() => namespace.absent).toThrow(
+        'No "absent" export is defined on the "././subject" mock.'
+      )
+      expect(calls).toBe(1)
+    } finally {
+      release()
+      cacheOwner.dispose()
+      h.binding.dispose()
+      h.tracker.dispose()
+    }
+  })
+  it.each(['null', 'undefined', 'array', 'sync', 'async'] as const)(
+    'preserves %s factory failure causes and retries before publishing a manual namespace',
+    async (mode) => {
+      const h = host()
+      const raw = new Error('namespace factory failure')
+      const value = { token: {} }
+      let calls = 0
+      try {
+        dynamic.doMock('./subject', () => {
+          calls++
+          if (calls > 1) return value
+          if (mode === 'sync') throw raw
+          if (mode === 'async') return Promise.reject(raw)
+          return (
+            mode === 'null' ? null : mode === 'array' ? [] : undefined
+          ) as any
+        })
+        const failure = await h.context.A(3).catch((error: Error) => error)
+        if (mode === 'sync' || mode === 'async') {
+          expect(failure.cause).toBe(raw)
+        } else {
+          expect(failure.cause).toBeInstanceOf(TypeError)
+        }
+        const namespace = await h.context.A(3)
+        expect(namespace).not.toBe(value)
+        expect(namespace.token).toBe(value.token)
+        expect(await h.context.A(3)).toBe(namespace)
+        expect(calls).toBe(2)
+      } finally {
+        h.binding.dispose()
+        h.tracker.dispose()
+      }
+    }
+  )
+
   it('keeps factories lazy, caches aliases and preserves mocked namespaces through actual reset', async () => {
     const h = host(),
       retire = jest.fn()
@@ -894,7 +1063,7 @@ describe('compiler-owned runtime mock dispatch components (not native conformanc
       scope.close({ compilerContinuations: true })
       release()
       const value = await pending
-      expect(value).toMatchObject({ value: 1, mocked: true })
+      expect(namespaceData(value)).toMatchObject({ value: 1, mocked: true })
       expect(h.evaluations()).toBe(1)
       expect(late).toHaveBeenCalledTimes(1)
       expect(h.late).not.toHaveBeenCalled()
@@ -904,6 +1073,40 @@ describe('compiler-owned runtime mock dispatch components (not native conformanc
       h.tracker.dispose()
     }
   })
+  it('matches complete CommonJS reset, replacement and ESM alias rows from the pinned reference', () => {
+    const { mkdtempSync, rmSync } = require('node:fs')
+    const output = mkdtempSync(
+      join(require('node:os').tmpdir(), 'next-runtime-namespace-')
+    )
+    rmSync(output, { recursive: true })
+    let passed = false
+    try {
+      const result = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'verify-runtime-namespace.mjs'),
+            process.cwd(),
+            output,
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 150000 }
+        )
+      )
+      expect(result).toMatchObject({
+        passed: true,
+        cases: 4,
+        rows: 4,
+        completeStandardReportExact: true,
+        completeRowsExact: true,
+        sourceBytesExact: true,
+      })
+      passed = true
+    } finally {
+      if (passed) rmSync(output, { recursive: true, force: true })
+      else console.error('Runtime namespace evidence retained at', output)
+    }
+  }, 180000)
 })
 
 describe('compiler importMock runtime selections (not native compiler conformance)', () => {
@@ -1524,7 +1727,7 @@ describe('native runtime manifest ownership schema', () => {
         const factory = jest.fn(() => ({ value: 73 }))
         dynamic.doMock('package', factory)
         expect(factory).not.toHaveBeenCalled()
-        expect(await host.A(4)).toEqual({ value: 73 })
+        expect(namespaceData(await host.A(4))).toEqual({ value: 73 })
         expect(factory).toHaveBeenCalledTimes(1)
         expect(host.c.size).toBe(0)
         expect(JSON.stringify(manifest)).toBe(encoded)
@@ -1650,7 +1853,7 @@ describe('native runtime manifest ownership schema', () => {
     )
     try {
       dynamic.doMock('./subject', () => ({ value: 73 }))
-      expect(await host.A(4)).toEqual({ value: 73 })
+      expect(namespaceData(await host.A(4))).toEqual({ value: 73 })
       expect(JSON.stringify(manifest)).toBe(encoded)
       expect(manifest.targets[0]).not.toHaveProperty('nativeOriginal')
     } finally {
@@ -1938,12 +2141,12 @@ describe('compiler-certified static runtime import edge components', () => {
       expect(factory).toHaveBeenCalledTimes(1)
       expect(h.consumer.i(2)).toBe(h.original)
       release()
-      expect(await pending).toBe(value)
-      expect(h.consumer.i(2)).toBe(value)
+      const namespace = expectFactoryNamespace(await pending, value)
+      expect(h.consumer.i(2)).toBe(namespace)
       expect(h.foreign.i(2)).toBe(h.original)
       expect(h.consumer.i(5)).toEqual({ id: 5 })
       cache.resetModules()
-      expect(h.consumer.i(2)).toBe(value)
+      expect(h.consumer.i(2)).toBe(namespace)
       dynamic.doUnmock('./subject')
       expect(h.consumer.i(2)).toBe(h.original)
       expect(factory).toHaveBeenCalledTimes(1)
@@ -2191,9 +2394,9 @@ describe('compiler-certified ordered runtime demand components', () => {
       await started.promise
       const independent = h.importer(1).A(12)
       gate.resolve()
-      expect(await pending).toBe(value)
-      expect(await independent).toBe(value)
-      expect(await h.importer(4).D(0, 2)).toBe(value)
+      const namespace = expectFactoryNamespace(await pending, value)
+      expect(await independent).toBe(namespace)
+      expect(await h.importer(4).D(0, 2)).toBe(namespace)
       expect(Object.getOwnPropertyDescriptors(await pending)).toEqual(
         Object.getOwnPropertyDescriptors(value)
       )
@@ -2201,7 +2404,7 @@ describe('compiler-certified ordered runtime demand components', () => {
       expect(factory).toHaveBeenCalledTimes(1)
       expect(h.evaluated).toEqual([])
       cache.resetModules()
-      expect(await h.importer(4).D(0, 2)).toBe(value)
+      expect(await h.importer(4).D(0, 2)).toBe(namespace)
       dynamic.doUnmock('./a')
       expect(await h.importer(4).D(0, 2)).toBe(h.values.get(2))
       expect(h.evaluated).toEqual([2])
@@ -2232,7 +2435,9 @@ describe('compiler-certified ordered runtime demand components', () => {
       await started.promise
       expect(h.evaluated).toEqual([])
       gate.resolve()
-      expect(await body).toEqual({
+      const comparison = namespaceData(await body)
+      comparison.first = namespaceData(comparison.first)
+      expect(comparison).toEqual({
         first: { token: 'a' },
         second: h.values.get(5),
       })
@@ -2277,7 +2482,7 @@ describe('compiler-certified ordered runtime demand components', () => {
       await reached.promise
       expect(h.evaluated).toEqual([2, 5])
       gate.resolve()
-      expect(await pending).toEqual({ token: 'mock-a' })
+      expect(namespaceData(await pending)).toEqual({ token: 'mock-a' })
       expect(observed).toBe(h.values.get(2))
       expect(h.evaluated).toEqual([2, 5, 3])
     } finally {
@@ -2336,8 +2541,8 @@ describe('compiler-certified ordered runtime demand components', () => {
         expect(error).toBeInstanceOf(Error)
         expect(error.cause).toBe(raw)
         expect(error).not.toBe(raw)
-        expect(await load()).toBe(value)
-        expect(await load()).toBe(value)
+        const namespace = expectFactoryNamespace(await load(), value)
+        expect(await load()).toBe(namespace)
         expect(reads).toBe(1)
         expect(factory).toHaveBeenCalledTimes(2)
         expect(h.evaluated).toEqual([])
@@ -2374,8 +2579,8 @@ describe('compiler-certified ordered runtime demand components', () => {
         const error = await load().catch((failure: Error) => failure)
         expect(error.cause).toBe(raw)
         expect(receivers).toEqual([thenable])
-        expect(await load()).toBe(value)
-        expect(await load()).toBe(value)
+        const namespace = expectFactoryNamespace(await load(), value)
+        expect(await load()).toBe(namespace)
         expect(factory).toHaveBeenCalledTimes(2)
         expect(h.evaluated).toEqual([])
       } finally {
@@ -2398,8 +2603,11 @@ describe('compiler-certified ordered runtime demand components', () => {
           .catch((failure: Error) => failure)
         expect(error.cause).toBeInstanceOf(TypeError)
         expect(error.cause.message).toContain('exports object')
-        expect(await h.importer(4).D(0, 2)).toBe(value)
-        expect(await h.importer(1).A(12)).toBe(value)
+        const namespace = expectFactoryNamespace(
+          await h.importer(4).D(0, 2),
+          value
+        )
+        expect(await h.importer(1).A(12)).toBe(namespace)
         expect(factory).toHaveBeenCalledTimes(2)
         expect(h.evaluated).toEqual([])
       } finally {
@@ -2422,10 +2630,10 @@ describe('compiler-certified ordered runtime demand components', () => {
       const pending = h.importer(4).D(0, 2)
       await started.promise
       dynamic.doMock('./a', () => next)
-      expect(await h.importer(1).A(12)).toBe(next)
+      expectFactoryNamespace(await h.importer(1).A(12), next)
       gate.resolve()
-      expect(await pending).toBe(old)
-      expect(await h.importer(4).D(0, 2)).toBe(old)
+      const oldNamespace = expectFactoryNamespace(await pending, old)
+      expect(await h.importer(4).D(0, 2)).toBe(oldNamespace)
     } finally {
       h.close()
     }
@@ -2462,14 +2670,14 @@ describe('compiler-certified ordered runtime demand components', () => {
       expect(a).toHaveBeenCalledTimes(2)
       expect(b).toHaveBeenCalledTimes(1)
       failing = false
-      expect(await h.importer(1).A(13)).toBe(value)
+      const namespace = expectFactoryNamespace(await h.importer(1).A(13), value)
       const third = await h
         .importer(1)
         .A(12)
         .catch((error: Error) => error)
       expect(third.cause).toBe(first.cause)
       cache.resetModules()
-      expect((await h.importer(1).A(12)).dependency).toBe(value)
+      expect((await h.importer(1).A(12)).dependency).toBe(namespace)
       expect(a).toHaveBeenCalledTimes(4)
       expect(b).toHaveBeenCalledTimes(2)
       expect(h.evaluated).toEqual([2, 2])
@@ -2501,7 +2709,7 @@ describe('compiler-certified ordered runtime demand components', () => {
       expect(h.context.c.has(2)).toBe(false)
       gate.resolve()
       const result = await pending
-      expect(result.dependency).toBe(value)
+      expectFactoryNamespace(result.dependency, value)
       expect(await h.importer(1).A(12)).toBe(result)
       expect(h.context.c.get(2)).not.toBe(oldRecord)
       expect(h.evaluated).toEqual([2])
@@ -2543,7 +2751,7 @@ describe('compiler-certified ordered runtime demand components', () => {
       )
       gate.resolve()
       const result = await pending
-      expect(result.dependency).toBe(value)
+      expectFactoryNamespace(result.dependency, value)
       expect(result.ordinary).toBe(h.values.get(5))
       expect(h.evaluated).toEqual([2, 5])
     } finally {
@@ -2577,7 +2785,7 @@ describe('compiler-certified ordered runtime demand components', () => {
         'actual owner and retained factories'
       )
       gate.resolve()
-      expect((await pending).dependency).toBe(value)
+      expectFactoryNamespace((await pending).dependency, value)
       expect(h.evaluated).toEqual([2])
     } finally {
       gate.resolve()
@@ -2895,8 +3103,8 @@ describe('compiler-certified ordered runtime demand components', () => {
       expect(await second).toBe(original)
       expect(rows).toEqual(['original', 'factory-holding'])
       factoryGate.resolve()
-      expect(await first).toBe(mocked)
-      expect(await h.importer(1).A(12)).toBe(mocked)
+      const namespace = expectFactoryNamespace(await first, mocked)
+      expect(await h.importer(1).A(12)).toBe(namespace)
       expect(rows).toEqual(['original', 'factory-holding', 'factory'])
       expect(h.evaluated).toEqual([2])
     } finally {
@@ -2921,7 +3129,7 @@ describe('compiler-certified ordered runtime demand components', () => {
         expect(b).toBe(value)
         return a
       })
-      expect(await h.importer(1).A(12)).toBe(value)
+      expectFactoryNamespace(await h.importer(1).A(12), value)
       expect(h.evaluated).toEqual([2])
     } finally {
       h.close()

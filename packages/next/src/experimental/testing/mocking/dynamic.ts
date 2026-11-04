@@ -1,3 +1,4 @@
+import { createFactoryNamespace } from './factory-namespace'
 import { createDeclarationStorage } from '../runner/collector-platform'
 import {
   assertScopeActive,
@@ -30,6 +31,7 @@ interface Manifest {
   }[]
 }
 interface Registration {
+  request: string
   factory: Factory
   result?: Promise<Namespace>
   pending?: boolean
@@ -488,13 +490,16 @@ export function initializeDynamicModuleMocking(
                   'Runtime module mock factory must return an exports object.'
                 )
               )
+            const namespace = createFactoryNamespace(exports, String(id), {
+              request: registration.request,
+            })
             registration.pending = false
-            registration.value = exports
+            registration.value = namespace
             if (target.pending?.delete(registration)) {
               if (!target.pending.size) target.pending = undefined
-              target.cached = exports
+              target.cached = namespace
             }
-            return exports
+            return namespace
           })
         } catch (error) {
           return rejected(error)
@@ -743,7 +748,7 @@ export function doMock(
     )
   if (typeof factory !== 'function')
     throw new TypeError('Runtime module mocks require an explicit factory.')
-  target.registration = { factory }
+  target.registration = { factory, request }
   state.invalidations.add(target)
   return Symbol.dispose
     ? {

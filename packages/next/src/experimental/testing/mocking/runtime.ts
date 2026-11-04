@@ -1,3 +1,4 @@
+import { createFactoryNamespace } from './factory-namespace'
 import { MockRegistry, type RegistrationInputOwner } from './registry'
 import {
   createFreshModuleMocking,
@@ -145,51 +146,8 @@ export async function importModuleMock(
   }
   // Preserve factory values and cache a factory namespace independently from
   // the consuming ESM wrapper, including the usual missing-export diagnostic.
-  const ignored = new Set<PropertyKey>([
-    '__esModule',
-    Symbol.asyncIterator,
-    Symbol.hasInstance,
-    Symbol.isConcatSpreadable,
-    Symbol.iterator,
-    Symbol.match,
-    Symbol.matchAll,
-    Symbol.replace,
-    Symbol.search,
-    Symbol.split,
-    Symbol.species,
-    Symbol.toPrimitive,
-    Symbol.toStringTag,
-    Symbol.unscopables,
-  ])
   const display = { request: displayRequest }
-  const namespace = new Proxy(exports, {
-    get(moduleExports, key) {
-      const value = Reflect.get(moduleExports, key)
-      if (key !== 'then' && !(key in moduleExports) && !ignored.has(key)) {
-        if (display.request !== undefined) {
-          const error = new Error(
-            `[vitest] No "${String(key)}" export is defined on the "${display.request}" mock. Did you forget to return it from "vi.mock"?\n` +
-              'If you need to partially mock a module, you can use "importOriginal" helper inside:\n'
-          )
-          Object.assign(error, {
-            codeFrame:
-              `vi.mock(import("${display.request}"), async (importOriginal) => {\n` +
-              '  const actual = await importOriginal()\n' +
-              '  return {\n' +
-              '    ...actual,\n' +
-              '    // your mocked methods\n' +
-              '  }\n' +
-              '})',
-          })
-          throw error
-        }
-        throw new Error(
-          `Module mock ${target} does not define export ${JSON.stringify(String(key))}.`
-        )
-      }
-      return value
-    },
-  })
+  const namespace = createFactoryNamespace(exports, target, display)
   // Keep the existing publication point: an older pending factory that finishes
   // last may still publish its own namespace and display cell after registration.
   state.importedMocks.set(target, { namespace, display })

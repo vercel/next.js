@@ -1,0 +1,55 @@
+import { appendFileSync } from 'node:fs'
+import { expect, test, vi } from 'vitest'
+const write = (value) => appendFileSync(process.env.NEXT_MOCK_ROWS, JSON.stringify(value) + '\n')
+const describe = (value) => Reflect.ownKeys(value).map((key) => {
+  const d = Object.getOwnPropertyDescriptor(value, key)
+  return { key: String(key), enumerable: d.enumerable, configurable: d.configurable, writable: d.writable, kind: 'value' in d ? 'data' : 'accessor', type: typeof ('value' in d ? d.value : d.get) }
+})
+const missing = (namespace) => {
+  try { return { returned: namespace.absent === undefined ? 'undefined' : typeof namespace.absent } }
+  catch (error) { return { name: error.name, message: error.message, codeFrame: error.codeFrame, keys: Object.keys(error) } }
+}
+test('ordinary CommonJS runtime namespaces keep valid exports and missing export errors across reset', async () => {
+  const token = {}
+  let calls = 0
+  vi.doMock('./subject.cjs', () => { calls++; return { value: 'mocked', default: { token }, explicit: undefined, method() { return this.value } } })
+  const first = await import('./subject.cjs')
+  const again = await import('./subject.cjs')
+  const absent = missing(first)
+  vi.resetModules()
+  const reset = await import('./subject.cjs')
+  expect(first.value).toBe('mocked')
+  write({ phase: 'cjs-settled', sameAgain: first === again, sameReset: first === reset, defaultToken: first.default.token === token, method: first.method(), receiver: first.method.call({ value: 'receiver' }), explicit: first.explicit === undefined, own: describe(first), absent, missingSymbol: first[Symbol.iterator] === undefined, calls })
+})
+test('a pending CommonJS runtime namespace retains registration through reset', async () => {
+  let enter, release
+  const entered = new Promise((resolve) => { enter = resolve })
+  const gate = new Promise((resolve) => { release = resolve })
+  let calls = 0
+  vi.doMock('./subject.cjs', async () => { calls++; enter(); await gate; return { value: 'pending', default: { pending: true } } })
+  const pending = import('./subject.cjs')
+  await entered
+  vi.resetModules()
+  release()
+  const first = await pending
+  const again = await import('./subject.cjs')
+  expect(first.value).toBe('pending')
+  write({ phase: 'cjs-pending-reset', sameAgain: first === again, own: describe(first), absent: missing(first), calls })
+})
+test('a replacement keeps the older pending namespace and its late cache publication', async () => {
+  let enter, release
+  const entered = new Promise((resolve) => { enter = resolve })
+  const gate = new Promise((resolve) => { release = resolve })
+  let oldCalls = 0, nextCalls = 0
+  vi.doMock('./subject.cjs', async () => { oldCalls++; enter(); await gate; return { value: 'old' } })
+  const pending = import('./subject.cjs')
+  await entered
+  vi.resetModules()
+  vi.doMock('./subject.cjs', () => { nextCalls++; return { value: 'next' } })
+  const next = await import('./subject.cjs')
+  release()
+  const old = await pending
+  const later = await import('./subject.cjs')
+  expect(next.value).toBe('actual')
+  write({ phase: 'cjs-pending-replacement', values: [next.value, old.value, later.value], sameNextOld: next === old, sameOldLater: old === later, oldCalls, nextCalls, nextAbsent: missing(next), oldAbsent: missing(old) })
+})

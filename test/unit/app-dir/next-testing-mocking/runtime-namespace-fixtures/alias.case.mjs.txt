@@ -1,0 +1,11 @@
+import { appendFileSync } from 'node:fs'
+import { expect, test, vi } from 'vitest'
+test('runtime missing export diagnostics retain the authored registration spelling', async () => {
+  vi.doMock('././subject.mjs', () => ({ value: 'alias' }))
+  const namespace = await import('./subject.mjs')
+  let missing
+  try { missing = { returned: namespace.absent === undefined ? 'undefined' : typeof namespace.absent } }
+  catch (error) { missing = { name: error.name, message: error.message, codeFrame: error.codeFrame, keys: Object.keys(error) } }
+  expect(namespace.value).toBe('alias')
+  appendFileSync(process.env.NEXT_MOCK_ROWS, JSON.stringify({ phase: 'alias-display', missing }) + '\n')
+})

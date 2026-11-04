@@ -1,0 +1,801 @@
+{
+  "referenceVersion": "5.0.4",
+  "mode": "development",
+  "files": {
+    "admitted.case.mjs": "6541f7ad383a68d94299462eb5b63dafc231ed966f34464a559a0d7592a97d94",
+    "alias.case.mjs": "1c2d486c162aae1596b93bdec6eb5f831a437b2a156084e2525039374e13650d",
+    "subject.mjs": "f6a3b204df45d7ad2d8908c85809d2ae049e8ab5d71eb5692a9323d7f7e5bba2",
+    "subject.cjs": "21916fac82d2eb024c3995832c23ce54fe1a12bcc7f62695acda6efdf07dd1d4"
+  },
+  "bounds": {
+    "cli": 120000,
+    "test": 5000,
+    "hook": 5000
+  },
+  "models": {
+    "20": {
+      "actualNode": "v20.20.0",
+      "status": 0,
+      "standardReport": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 4,
+        "numPassedTests": 4,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "status": "passed",
+            "message": "",
+            "name": "admitted.case.mjs",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "ordinary CommonJS runtime namespaces keep valid exports and missing export errors across reset",
+                "status": "passed",
+                "title": "ordinary CommonJS runtime namespaces keep valid exports and missing export errors across reset",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "a pending CommonJS runtime namespace retains registration through reset",
+                "status": "passed",
+                "title": "a pending CommonJS runtime namespace retains registration through reset",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "a replacement keeps the older pending namespace and its late cache publication",
+                "status": "passed",
+                "title": "a replacement keeps the older pending namespace and its late cache publication",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ]
+          },
+          {
+            "status": "passed",
+            "message": "",
+            "name": "alias.case.mjs",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "runtime missing export diagnostics retain the authored registration spelling",
+                "status": "passed",
+                "title": "runtime missing export diagnostics retain the authored registration spelling",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ]
+          }
+        ]
+      },
+      "rows": [
+        {
+          "phase": "cjs-settled",
+          "sameAgain": true,
+          "sameReset": true,
+          "defaultToken": true,
+          "method": "mocked",
+          "receiver": "receiver",
+          "explicit": true,
+          "own": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "explicit",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "undefined"
+            },
+            {
+              "key": "method",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "function"
+            }
+          ],
+          "absent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          },
+          "missingSymbol": true,
+          "calls": 1
+        },
+        {
+          "phase": "cjs-pending-reset",
+          "sameAgain": true,
+          "own": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "absent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          },
+          "calls": 1
+        },
+        {
+          "phase": "cjs-pending-replacement",
+          "values": ["actual", "old", "old"],
+          "sameNextOld": false,
+          "sameOldLater": true,
+          "oldCalls": 1,
+          "nextCalls": 0,
+          "nextAbsent": {
+            "returned": "undefined"
+          },
+          "oldAbsent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          }
+        },
+        {
+          "phase": "alias-display",
+          "missing": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"././subject.mjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"././subject.mjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          }
+        }
+      ]
+    },
+    "22": {
+      "actualNode": "v22.12.0",
+      "status": 0,
+      "standardReport": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 4,
+        "numPassedTests": 4,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "status": "passed",
+            "message": "",
+            "name": "admitted.case.mjs",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "ordinary CommonJS runtime namespaces keep valid exports and missing export errors across reset",
+                "status": "passed",
+                "title": "ordinary CommonJS runtime namespaces keep valid exports and missing export errors across reset",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "a pending CommonJS runtime namespace retains registration through reset",
+                "status": "passed",
+                "title": "a pending CommonJS runtime namespace retains registration through reset",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "a replacement keeps the older pending namespace and its late cache publication",
+                "status": "passed",
+                "title": "a replacement keeps the older pending namespace and its late cache publication",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ]
+          },
+          {
+            "status": "passed",
+            "message": "",
+            "name": "alias.case.mjs",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "runtime missing export diagnostics retain the authored registration spelling",
+                "status": "passed",
+                "title": "runtime missing export diagnostics retain the authored registration spelling",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ]
+          }
+        ]
+      },
+      "rows": [
+        {
+          "phase": "cjs-settled",
+          "sameAgain": true,
+          "sameReset": true,
+          "defaultToken": true,
+          "method": "mocked",
+          "receiver": "receiver",
+          "explicit": true,
+          "own": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "explicit",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "undefined"
+            },
+            {
+              "key": "method",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "function"
+            }
+          ],
+          "absent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          },
+          "missingSymbol": true,
+          "calls": 1
+        },
+        {
+          "phase": "cjs-pending-reset",
+          "sameAgain": true,
+          "own": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "absent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          },
+          "calls": 1
+        },
+        {
+          "phase": "cjs-pending-replacement",
+          "values": ["actual", "old", "old"],
+          "sameNextOld": false,
+          "sameOldLater": true,
+          "oldCalls": 1,
+          "nextCalls": 0,
+          "nextAbsent": {
+            "returned": "undefined"
+          },
+          "oldAbsent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          }
+        },
+        {
+          "phase": "alias-display",
+          "missing": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"././subject.mjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"././subject.mjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          }
+        }
+      ]
+    },
+    "24": {
+      "actualNode": "v24.0.0",
+      "status": 0,
+      "standardReport": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 4,
+        "numPassedTests": 4,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "status": "passed",
+            "message": "",
+            "name": "admitted.case.mjs",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "ordinary CommonJS runtime namespaces keep valid exports and missing export errors across reset",
+                "status": "passed",
+                "title": "ordinary CommonJS runtime namespaces keep valid exports and missing export errors across reset",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "a pending CommonJS runtime namespace retains registration through reset",
+                "status": "passed",
+                "title": "a pending CommonJS runtime namespace retains registration through reset",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "a replacement keeps the older pending namespace and its late cache publication",
+                "status": "passed",
+                "title": "a replacement keeps the older pending namespace and its late cache publication",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ]
+          },
+          {
+            "status": "passed",
+            "message": "",
+            "name": "alias.case.mjs",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "runtime missing export diagnostics retain the authored registration spelling",
+                "status": "passed",
+                "title": "runtime missing export diagnostics retain the authored registration spelling",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ]
+          }
+        ]
+      },
+      "rows": [
+        {
+          "phase": "cjs-settled",
+          "sameAgain": true,
+          "sameReset": true,
+          "defaultToken": true,
+          "method": "mocked",
+          "receiver": "receiver",
+          "explicit": true,
+          "own": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "explicit",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "undefined"
+            },
+            {
+              "key": "method",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "function"
+            }
+          ],
+          "absent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          },
+          "missingSymbol": true,
+          "calls": 1
+        },
+        {
+          "phase": "cjs-pending-reset",
+          "sameAgain": true,
+          "own": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "absent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          },
+          "calls": 1
+        },
+        {
+          "phase": "cjs-pending-replacement",
+          "values": ["actual", "old", "old"],
+          "sameNextOld": false,
+          "sameOldLater": true,
+          "oldCalls": 1,
+          "nextCalls": 0,
+          "nextAbsent": {
+            "returned": "undefined"
+          },
+          "oldAbsent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          }
+        },
+        {
+          "phase": "alias-display",
+          "missing": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"././subject.mjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"././subject.mjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          }
+        }
+      ]
+    },
+    "26": {
+      "actualNode": "v26.12.1",
+      "status": 0,
+      "standardReport": {
+        "numTotalTestSuites": 2,
+        "numPassedTestSuites": 2,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 4,
+        "numPassedTests": 4,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "status": "passed",
+            "message": "",
+            "name": "admitted.case.mjs",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "ordinary CommonJS runtime namespaces keep valid exports and missing export errors across reset",
+                "status": "passed",
+                "title": "ordinary CommonJS runtime namespaces keep valid exports and missing export errors across reset",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "a pending CommonJS runtime namespace retains registration through reset",
+                "status": "passed",
+                "title": "a pending CommonJS runtime namespace retains registration through reset",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "a replacement keeps the older pending namespace and its late cache publication",
+                "status": "passed",
+                "title": "a replacement keeps the older pending namespace and its late cache publication",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ]
+          },
+          {
+            "status": "passed",
+            "message": "",
+            "name": "alias.case.mjs",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "runtime missing export diagnostics retain the authored registration spelling",
+                "status": "passed",
+                "title": "runtime missing export diagnostics retain the authored registration spelling",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ]
+          }
+        ]
+      },
+      "rows": [
+        {
+          "phase": "cjs-settled",
+          "sameAgain": true,
+          "sameReset": true,
+          "defaultToken": true,
+          "method": "mocked",
+          "receiver": "receiver",
+          "explicit": true,
+          "own": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "explicit",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "undefined"
+            },
+            {
+              "key": "method",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "function"
+            }
+          ],
+          "absent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          },
+          "missingSymbol": true,
+          "calls": 1
+        },
+        {
+          "phase": "cjs-pending-reset",
+          "sameAgain": true,
+          "own": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "absent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          },
+          "calls": 1
+        },
+        {
+          "phase": "cjs-pending-replacement",
+          "values": ["actual", "old", "old"],
+          "sameNextOld": false,
+          "sameOldLater": true,
+          "oldCalls": 1,
+          "nextCalls": 0,
+          "nextAbsent": {
+            "returned": "undefined"
+          },
+          "oldAbsent": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"./subject.cjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"./subject.cjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          }
+        },
+        {
+          "phase": "alias-display",
+          "missing": {
+            "name": "Error",
+            "message": "[vitest] No \"absent\" export is defined on the \"././subject.mjs\" mock. Did you forget to return it from \"vi.mock\"?\nIf you need to partially mock a module, you can use \"importOriginal\" helper inside:\n",
+            "codeFrame": "vi.mock(import(\"././subject.mjs\"), async (importOriginal) => {\n  const actual = await importOriginal()\n  return {\n    ...actual,\n    // your mocked methods\n  }\n})",
+            "keys": ["codeFrame"]
+          }
+        }
+      ]
+    }
+  }
+}
