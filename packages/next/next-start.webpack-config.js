@@ -19,7 +19,7 @@ const externalModules = [
   'server/web/sandbox',
   'telemetry',
   'trace',
-]
+].map((id) => path.normalize(id))
 
 /** @type {import('@rspack/core').Configuration} */
 module.exports = {
@@ -39,17 +39,19 @@ module.exports = {
       if (!request.startsWith('.') && !path.isAbsolute(request)) {
         return callback(null, request)
       }
-      const relative = path
-        .relative(esmDir, path.resolve(context, request))
-        .replace(/\\/g, '/')
-        .replace(/\.js$/, '')
+      const relative = path.relative(esmDir, path.resolve(context, request))
+      const name = path.basename(relative, '.js')
       if (
-        /\.(external|compiled)$/.test(relative) ||
+        name.endsWith('.external') ||
+        name.endsWith('.compiled') ||
         externalModules.some(
-          (id) => relative === id || relative.startsWith(id + '/')
+          (id) =>
+            relative === id ||
+            relative === id + '.js' ||
+            relative.startsWith(id + path.sep)
         )
       ) {
-        return callback(null, `next/dist/${relative}`)
+        return callback(null, `next/dist/${relative.split(path.sep).join('/')}`)
       }
       callback()
     },
