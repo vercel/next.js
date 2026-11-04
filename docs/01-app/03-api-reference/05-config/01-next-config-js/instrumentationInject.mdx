@@ -1,0 +1,99 @@
+---
+title: instrumentationInject
+description: Inject additional server instrumentation modules before the project's `instrumentation.{js,ts}` file.
+---
+
+`instrumentationInject` is a list of modules that Next.js compiles into the server instrumentation entry, ahead of the project's own [`instrumentation.{js,ts}`](/docs/app/api-reference/file-conventions/instrumentation) file. Each module can export the same `register` and `onRequestError` hooks as that file.
+
+This option is primarily intended for **`next.config.js` plugins** and [deployment adapters](/docs/app/api-reference/adapters/api-reference). It lets them add server instrumentation without asking every project to create or edit an `instrumentation` file. Application code should continue to use the [`instrumentation.{js,ts}`](/docs/app/api-reference/file-conventions/instrumentation) file convention directly.
+
+A plugin typically appends its own module to whatever the project already has configured:
+
+```js filename="withMyInstrumentation.js"
+module.exports = function withMyInstrumentation(nextConfig = {}) {
+  return {
+    ...nextConfig,
+    instrumentationInject: [
+      ...(nextConfig.instrumentationInject ?? []),
+      'my-instrumentation-package/server',
+    ],
+  }
+}
+```
+
+An adapter can do the same in `modifyConfig`. Next.js defaults the option to `[]` and gives each config load its own copy, so pushing to it is safe. An adapter is often not a dependency of the project, so pass an absolute path that resolves from the adapter's own folder:
+
+```js filename="my-adapter.js"
+/** @type {import('next').NextAdapter} */
+const adapter = {
+  name: 'my-adapter',
+  async modifyConfig(config) {
+    config.instrumentationInject.push(
+      require.resolve('my-adapter/instrumentation')
+    )
+    return config
+  },
+}
+
+module.exports = adapter
+```
+
+It can also be set directly:
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+module.exports = {
+  instrumentationInject: [
+    'my-instrumentation-package/server',
+    './lib/instrumentation.js',
+  ],
+}
+```
+
+Each entry is one of:
+
+- A bare npm package name, such as `my-instrumentation-package` or `my-instrumentation-package/server`.
+- A relative path that starts with `./` or `../`, resolved from the project root.
+- An absolute path.
+
+The bundler resolves every entry from the project root, the same way it resolves an import. An entry that doesn't resolve is a compile error. Next.js doesn't install the modules, so the plugin or adapter that adds an entry must make sure it resolves.
+
+Next.js passes package entries to the bundler as package imports. In the Node.js runtime, [`serverExternalPackages`](/docs/app/api-reference/config/next-config-js/serverExternalPackages) and the built-in list of external packages apply to them, and an external package is still included in the server output trace. An absolute path is not a package import, so those lists don't apply to it. The Edge runtime always bundles every entry.
+
+## Execution order
+
+Next.js combines the injected modules and the project's file into a single instrumentation entry. It loads every module in array order, with the project file last, before it calls any hook.
+
+- `register` runs each injected module's `register` in array order, then the project file's. Each call finishes before the next starts, so a later module's `register` can rely on an earlier module's `register`. Top-level code can't, because it runs before any `register`.
+- `onRequestError` runs every module's handler at the same time, including the project file's. A slow handler doesn't delay the others.
+
+Modules that don't export a hook are skipped for that hook. The project file is optional. Without one, only the injected modules run. Next.js finds the project's file the same way it does without this option.
+
+## Errors
+
+One failing module doesn't stop the others:
+
+- If a hook throws, or returns a promise that fails, the remaining hooks still run.
+- If a module that uses top-level `await` fails to load, its error is collected and the remaining hooks still run.
+
+After all hooks have run, the error is rethrown, and Next.js handles it like an error from `instrumentation.js`. When more than one module fails, the error is an `AggregateError` that holds every error.
+
+A module without top-level `await` that throws while loading stops server startup, the same as an `instrumentation.js` file that throws at the top level.
+
+## Runtimes
+
+Injected modules run in both the Node.js and Edge runtimes, like the `instrumentation.js` file. Next.js bundles each module for the Edge runtime too, so its top-level code must not import Node.js-only modules. Use `process.env.NEXT_RUNTIME` to target one runtime:
+
+```js filename="lib/instrumentation.js"
+export async function register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    await import('./instrumentation.node.js')
+  }
+}
+```
+
+## Version history
+
+| Version   | Changes                            |
+| --------- | ---------------------------------- |
+| `v16.5.0` | `instrumentationInject` introduced |
