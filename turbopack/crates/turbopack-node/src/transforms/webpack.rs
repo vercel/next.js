@@ -683,7 +683,7 @@ pub struct WebpackResolveOptions {
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub enum RequestMessage {
+pub(super) enum RequestMessage {
     #[serde(rename_all = "camelCase")]
     Resolve {
         options: WebpackResolveOptions,
@@ -712,7 +712,7 @@ pub struct ImportModuleChunk {
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
-pub enum ResponseMessage {
+pub(super) enum ResponseMessage {
     Resolve {
         path: RcStr,
     },
@@ -773,9 +773,7 @@ impl WebpackLoaderContext {
 
 impl EvaluateContext for WebpackLoaderContext {
     type InfoMessage = InfoMessage;
-    // TODO ideally these internal types wouldn't be part of the public API
     type RequestMessage = RequestMessage;
-    // TODO ideally these internal types wouldn't be part of the public API
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
 

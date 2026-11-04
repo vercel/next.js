@@ -9,11 +9,11 @@ pub fn embed_fs() -> Vc<Box<dyn FileSystem>> {
 }
 
 #[turbo_tasks::function]
-pub async fn embed_file(path: RcStr) -> Result<Vc<FileContent>> {
+pub(crate) async fn embed_file(path: RcStr) -> Result<Vc<FileContent>> {
     Ok(embed_fs().root().await?.join(&path)?.read())
 }
 
 #[turbo_tasks::function]
-pub async fn embed_file_path(path: RcStr) -> Result<Vc<FileSystemPath>> {
+pub(crate) async fn embed_file_path(path: RcStr) -> Result<Vc<FileSystemPath>> {
     Ok(embed_fs().root().await?.join(&path)?.cell())
 }
