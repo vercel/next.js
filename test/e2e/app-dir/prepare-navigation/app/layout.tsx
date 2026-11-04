@@ -10,7 +10,9 @@ export default function Root({ children }: { children: ReactNode }) {
         <PrepareControls
           hrefs={[
             '/target',
+            '/target#target-shell',
             '/static-target',
+            '/static-target#static-target',
             '/static-param/b',
             '/redirect-target',
             '/hub-b',

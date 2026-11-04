@@ -157,110 +157,83 @@ function navigateImpl(
 
   const cacheKey = createCacheKey(href, nextUrl)
   const route = readRouteCacheEntry(now, cacheKey)
+  let routeCacheEntry =
+    route !== null && route.status === EntryStatus.Fulfilled ? route : null
+  let preparedRoute: PreparedNavigationRecord['completedRoute'] = null
   if (
     process.env.__NEXT_PREPARE_NAVIGATION &&
     freshnessPolicy === FreshnessPolicy.CommitPrepared &&
     preparation !== null
   ) {
-    const preparedRoute = preparation.route
-    preparation.route = null
+    const completedRoute = preparation.completedRoute
+    preparation.completedRoute = null
     if (
       (route === null ||
         route.status === EntryStatus.Empty ||
         route.status === EntryStatus.Pending) &&
-      preparedRoute !== null &&
-      preparedRoute.nextUrl === nextUrl &&
+      completedRoute !== null &&
+      completedRoute.nextUrl === nextUrl &&
       preparation.bfcacheVersion === getBFCacheVersion() &&
       preparation.routeCacheVersion === getCurrentRouteCacheVersion()
     ) {
       // Stale prefetch hints don't invalidate this preparation's route data.
       // Keep the shared entry expired so prefetches can obtain current hints.
-      return navigateToKnownRoute(
-        now,
-        state,
-        url,
-        preparedRoute.canonicalUrl,
-        {
-          root: preparedRoute.root,
-          renderedSearch: preparedRoute.renderedSearch,
-          dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
-          treeDivergedFromBase: false,
-        },
-        currentUrl,
-        currentRenderedSearch,
-        currentRoot,
-        freshnessPolicy,
-        nextUrl,
-        scrollBehavior,
-        navigateType,
-        navigationLock,
-        map,
-        null,
-        // This route came from the prepared response, not a prediction.
-        null,
-        undefined,
-        preparation
-      )
+      preparedRoute = completedRoute
     }
   }
-  if (route !== null && route.status === EntryStatus.Fulfilled) {
-    // We have a matching prefetch.
-    return navigateUsingPrefetchedRouteTree(
+
+  // Fall back to the deprecated search-params matching when neither the cache
+  // nor the preparation supplied a route. A rejected entry may reflect a
+  // rewrite or redirect, so don't predict a route from it.
+  if (
+    routeCacheEntry === null &&
+    preparedRoute === null &&
+    !process.env.__NEXT_OPTIMISTIC_ROUTING &&
+    (route === null || route.status !== EntryStatus.Rejected)
+  ) {
+    routeCacheEntry = deprecated_requestOptimisticRouteCacheEntry(
       now,
-      state,
       url,
-      currentUrl,
-      currentRenderedSearch,
-      nextUrl,
-      currentRoot,
-      freshnessPolicy,
-      scrollBehavior,
-      navigateType,
-      route,
-      navigationLock,
-      map,
-      preparation
+      nextUrl
     )
   }
 
-  // There was no matching route tree in the cache. Let's see if we can
-  // construct an "optimistic" route tree using the deprecated search-params
-  // based matching. This is only used when the new optimisticRouting flag is
-  // disabled.
-  //
-  // Do not construct an optimistic route tree if there was a cache hit, but
-  // the entry has a rejected status, since it may have been rejected due to a
-  // rewrite or redirect based on the search params.
-  //
-  // TODO: There are multiple reasons a prefetch might be rejected; we should
-  // track them explicitly and choose what to do here based on that.
-  if (!process.env.__NEXT_OPTIMISTIC_ROUTING) {
-    if (route === null || route.status !== EntryStatus.Rejected) {
-      const optimisticRoute = deprecated_requestOptimisticRouteCacheEntry(
-        now,
-        url,
-        nextUrl
-      )
-      if (optimisticRoute !== null) {
-        // We have an optimistic route tree. Proceed with the normal flow.
-        return navigateUsingPrefetchedRouteTree(
-          now,
-          state,
-          url,
-          currentUrl,
-          currentRenderedSearch,
-          nextUrl,
-          currentRoot,
-          freshnessPolicy,
-          scrollBehavior,
-          navigateType,
-          optimisticRoute,
-          navigationLock,
-          map,
-          preparation
-        )
-      }
+  const routeMetadata = routeCacheEntry ?? preparedRoute
+  if (routeMetadata !== null) {
+    // Cache entries are shared across hashes. A completed preparation already
+    // carries the canonical URL from its own response, including the hash.
+    const canonicalUrl =
+      routeCacheEntry !== null
+        ? routeCacheEntry.canonicalUrl + url.hash
+        : routeMetadata.canonicalUrl
+    const navigationSeed: NavigationSeed = {
+      root: routeMetadata.root,
+      renderedSearch: routeMetadata.renderedSearch,
+      dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
+      treeDivergedFromBase: false,
     }
+    return navigateToKnownRoute(
+      now,
+      state,
+      url,
+      canonicalUrl,
+      navigationSeed,
+      currentUrl,
+      currentRenderedSearch,
+      currentRoot,
+      freshnessPolicy,
+      nextUrl,
+      scrollBehavior,
+      navigateType,
+      navigationLock,
+      map,
+      null,
+      // Prepared metadata comes from the response, not a route prediction.
+      routeCacheEntry,
+      // Not an HMR refresh, so there's no request generation to cancel.
+      undefined,
+      preparation
+    )
   }
 
   // There's no matching prefetch for this route in the cache. We must lazily
@@ -457,54 +430,6 @@ export function navigateToKnownRoute(
   }
   // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
   return completeHardNavigation(state, url, navigateType)
-}
-
-function navigateUsingPrefetchedRouteTree(
-  now: number,
-  state: AppRouterState,
-  url: URL,
-  currentUrl: URL,
-  currentRenderedSearch: string,
-  nextUrl: string | null,
-  currentRoot: RootRouteTree<CacheNode>,
-  freshnessPolicy: FreshnessPolicy,
-  scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace',
-  route: FulfilledRouteCacheEntry,
-  navigationLock: NavigationLock | null,
-  map: CacheMap<SegmentCacheEntry>,
-  preparation: PreparedNavigationRecord | null
-): AppRouterState {
-  const canonicalUrl = route.canonicalUrl + url.hash
-  const renderedSearch = route.renderedSearch
-  const prefetchSeed: NavigationSeed = {
-    renderedSearch,
-    root: route.root,
-    dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
-    // Not derived from a server response; no base to diverge from.
-    treeDivergedFromBase: false,
-  }
-  return navigateToKnownRoute(
-    now,
-    state,
-    url,
-    canonicalUrl,
-    prefetchSeed,
-    currentUrl,
-    currentRenderedSearch,
-    currentRoot,
-    freshnessPolicy,
-    nextUrl,
-    scrollBehavior,
-    navigateType,
-    navigationLock,
-    map,
-    null,
-    route,
-    // Not an HMR refresh, so there's no request generation to cancel.
-    undefined,
-    preparation
-  )
 }
 
 // Used to request all the dynamic data for a route, rather than just a subset,
@@ -726,7 +651,7 @@ async function navigateToUnknownRoute(
     preparation !== null &&
     freshnessPolicy === FreshnessPolicy.Prepare
   ) {
-    preparation.route = {
+    preparation.completedRoute = {
       root: createRootRouteTree(
         stripDataFromRouteTree(navigationSeed.root.tree),
         stripDataFromRouteTree(navigationSeed.root.head)

@@ -124,7 +124,7 @@ export type PreparedNavigationRecord = {
   // Retain this response's route metadata even if stale prefetch hints
   // expire its shared cache entry. Segment data stays in the BFCache so it
   // remains subject to cache eviction.
-  route: {
+  completedRoute: {
     root: RootRouteTree<null>
     canonicalUrl: string
     renderedSearch: NormalizedSearch

@@ -94,20 +94,24 @@ describe('router.experimental_prepare', () => {
       expect(await getHistoryLength(browser)).toBe(historyLength)
     })
 
-    it('committing with push reuses the prepared data', async () => {
+    it('committing with push reuses the prepared data and preserves the hash', async () => {
       const { browser, act } = await startBrowser()
       await prefetchTarget(browser, act)
       const historyLength = await getHistoryLength(browser)
-      await prepareTarget(browser, act)
+      await act(
+        () => click(browser, 'button[data-prepare="/target#target-shell"]'),
+        { includes: 'Dynamic content for /target' }
+      )
 
       // The dynamic stale time is 0, so a regular navigation would refetch the
       // page. The commit reuses the prepared data regardless.
       await act(
-        () => click(browser, 'button[data-commit-push="/target"]'),
+        () => click(browser, 'button[data-commit-push="/target#target-shell"]'),
         'no-requests'
       )
 
       await expectTargetRendered(browser)
+      expect(new URL(await browser.url()).hash).toBe('#target-shell')
       expect(await getHistoryLength(browser)).toBe(historyLength + 1)
     })
 
@@ -189,30 +193,33 @@ describe('router.experimental_prepare', () => {
       await expectTargetRendered(browser)
     })
 
-    it.each(['push', 'replace'] as const)(
-      'committing with %s reuses a completed preparation of a static route',
-      async (method) => {
+    it.each([
+      { method: 'push', href: '/static-target' },
+      { method: 'replace', href: '/static-target' },
+      { method: 'push', href: '/static-target#static-target' },
+      { method: 'replace', href: '/static-target#static-target' },
+    ])(
+      'committing with $method reuses a completed preparation of $href',
+      async ({ method, href }) => {
         const { browser, act } = await startBrowser()
         const historyLength = await getHistoryLength(browser)
 
-        await act(
-          () => click(browser, 'button[data-prepare="/static-target"]'),
-          {
-            includes: 'Static target page',
-          }
-        )
+        await act(() => click(browser, `button[data-prepare="${href}"]`), {
+          includes: 'Static target page',
+        })
         expect(await getPathname(browser)).toBe('/')
 
         await act(
-          () =>
-            click(browser, `button[data-commit-${method}="/static-target"]`),
+          () => click(browser, `button[data-commit-${method}="${href}"]`),
           'no-requests'
         )
 
         expect(await browser.elementById('static-target').text()).toBe(
           'Static target page'
         )
-        expect(await getPathname(browser)).toBe('/static-target')
+        expect(await browser.eval('location.pathname + location.hash')).toBe(
+          href
+        )
         expect(await getHistoryLength(browser)).toBe(
           historyLength + (method === 'push' ? 1 : 0)
         )

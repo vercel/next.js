@@ -190,7 +190,7 @@ export function prepare(href: string): PreparedNavigation {
     routeCacheVersion: getCurrentRouteCacheVersion(),
     inFlightRequest: null,
     inFlightRequestTree: null,
-    route: null,
+    completedRoute: null,
   }
 
   // Resolve the URL now, so a relative href is committed against the location
