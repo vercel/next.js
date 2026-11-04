@@ -27,6 +27,7 @@ function createRequestInsight(
   return {
     requestId: 'shared-request',
     kind,
+    source: kind === 'instant-insights' ? 'instant-insights' : 'page',
     htmlRequestId: 'shared-html',
     route: '/dashboard',
     startTime: 100,
