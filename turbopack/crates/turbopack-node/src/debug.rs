@@ -7,7 +7,7 @@ const DEBUG_JS_VAR: &str = "TURBOPACK_DEBUG_JS";
 ///
 /// This is preferable to manually passing a boolean because recompiling won't
 /// be necessary.
-pub fn should_debug(operation: &str) -> bool {
+pub(crate) fn should_debug(operation: &str) -> bool {
     // TODO(sokra) It's not filesystem cache safe to read an env var this way.
     // This must use turbo_tasks_env instead.
     let Ok(val) = env::var(DEBUG_JS_VAR) else {

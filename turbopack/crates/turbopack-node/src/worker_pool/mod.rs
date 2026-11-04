@@ -45,12 +45,12 @@ static OPERATION_TASK_ID: AtomicU32 = AtomicU32::new(1);
     eq = "manual",
     shared
 )]
-pub(crate) struct WorkerThreadPool {
+struct WorkerThreadPool {
     worker_options: Arc<WorkerOptions>,
     concurrency: usize,
-    pub(crate) assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub(crate) assets_root: FileSystemPath,
-    pub(crate) project_dir: FileSystemPath,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     state: Arc<PoolState>,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
@@ -60,7 +60,7 @@ pub(crate) struct WorkerThreadPool {
 }
 
 impl WorkerThreadPool {
-    pub(crate) async fn create(
+    async fn create(
         cwd: PathBuf,
         entrypoint: PathBuf,
         // The worker thread will inherit env from parent process, so it's not needed
@@ -212,11 +212,11 @@ impl Sealed for WorkerThreadsBackend {
 }
 
 impl WorkerThreadPool {
-    pub fn scale_down() {
+    fn scale_down() {
         let _ = WORKER_POOL_OPERATION.scale_down();
     }
 
-    pub fn scale_zero() {
+    fn scale_zero() {
         let _ = WORKER_POOL_OPERATION.scale_zero();
     }
 }

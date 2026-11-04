@@ -14,33 +14,28 @@ use turbopack_core::{
 };
 
 mod backend;
-pub mod debug;
-pub mod embed_js;
-/// High-level Node.js evaluation. Worker pools are an implementation detail.
-///
-/// ```compile_fail,E0603
-/// use turbopack_node::evaluate::EvaluatePool;
-/// ```
-pub mod evaluate;
-pub mod execution_context;
+mod debug;
+mod embed_js;
+mod evaluate;
+mod execution_context;
 mod format;
 mod pool_stats;
 // The child-process pool needs `tokio::process` and a TCP listener, neither of which exists on
 // wasi, so `process_pool` is inert on wasm and `worker_pool` is the only available backend there.
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 mod process_pool;
-pub mod source_map;
-pub mod transforms;
+mod source_map;
+mod transforms;
 #[cfg(feature = "worker_pool")]
 mod worker_pool;
 
-pub use backend::NodeBackend;
+use backend::NodeBackend;
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
-pub fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
+fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
     Vc::upcast(process_pool::ChildProcessesBackend.cell())
 }
 #[cfg(feature = "worker_pool")]
-pub fn worker_threads_backend() -> Vc<Box<dyn NodeBackend>> {
+fn worker_threads_backend() -> Vc<Box<dyn NodeBackend>> {
     Vc::upcast(worker_pool::WorkerThreadsBackend.cell())
 }
 
@@ -88,7 +83,7 @@ async fn internal_assets(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct AssetsForSourceMapping(FxHashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
+struct AssetsForSourceMapping(FxHashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
 
 /// Extracts a map of "internal" assets ([`internal_assets`]) which implement
 /// the [GenerateSourceMap] trait.

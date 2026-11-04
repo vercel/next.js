@@ -20,14 +20,18 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-pub use crate::source_map::trace::{StackFrame, TraceResult, trace_source_map};
-use crate::{AssetsForSourceMapping, format::FormattingMode};
+pub(crate) use crate::source_map::trace::StackFrame;
+use crate::{
+    AssetsForSourceMapping,
+    format::FormattingMode,
+    source_map::trace::{TraceResult, trace_source_map},
+};
 
-pub mod trace;
+mod trace;
 
 const MAX_CODE_FRAMES: usize = 3;
 
-pub async fn apply_source_mapping(
+pub(crate) async fn apply_source_mapping(
     text: &'_ str,
     assets_for_source_mapping: Vc<AssetsForSourceMapping>,
     root: FileSystemPath,
@@ -266,9 +270,9 @@ async fn resolve_source_mapping(
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Deserialize)]
-pub struct StructuredError {
-    pub name: String,
-    pub message: String,
+pub(crate) struct StructuredError {
+    name: String,
+    message: String,
     #[turbo_tasks(unsafe_ignore)]
     stack: Vec<StackFrame<'static>>,
     cause: Option<Box<StructuredError>>,
@@ -279,7 +283,7 @@ impl StructuredError {
     /// frames or cause. Used when synthesizing an error from contexts that do
     /// not have a real JavaScript stack trace, such as a Node.js subprocess
     /// crash before any response was received.
-    pub fn from_message(name: String, message: String) -> Self {
+    pub(crate) fn from_message(name: String, message: String) -> Self {
         Self {
             name,
             message,
@@ -288,7 +292,7 @@ impl StructuredError {
         }
     }
 
-    pub async fn print(
+    pub(crate) async fn print(
         &self,
         assets_for_source_mapping: Vc<AssetsForSourceMapping>,
         root: FileSystemPath,

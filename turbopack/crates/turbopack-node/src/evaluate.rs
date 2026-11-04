@@ -47,7 +47,7 @@ use crate::{
 /// An argument passed to the evaluated JavaScript.
 #[turbo_tasks::task_input]
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
-pub enum EvaluateArg {
+pub(crate) enum EvaluateArg {
     Vc(ResolvedVc<JsonValue>),
     /// Passed as a string: A path relative to the evaluation working directory when both are on the
     /// same filesystem, otherwise an absolute system path (e.g. for an additional root).
@@ -125,9 +125,9 @@ use crate::pool_stats::PoolStatsSnapshot;
 pub(crate) struct EvaluatePool {
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     pool: Box<dyn EvaluateOperation>,
-    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: FileSystemPath,
-    pub project_dir: FileSystemPath,
+    pub(crate) assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    pub(crate) assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
 }
 
 impl EvaluatePool {
@@ -259,7 +259,7 @@ async fn create_evaluate_pool_assets_operation(
 
 #[turbo_tasks::task_input]
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, Encode, Decode)]
-pub enum EnvVarTracking {
+pub(crate) enum EnvVarTracking {
     WholeEnvTracked,
     Untracked,
 }
@@ -355,10 +355,10 @@ async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<EnvMap>> {
 /// reported as an actionable issue. This is not a bug in the evaluated code and
 /// retrying will not help, it usually means a sandbox blocks local networking.
 #[derive(Debug)]
-pub struct NodeJsConnectError {
+pub(crate) struct NodeJsConnectError {
     /// The error output of the child process, which contains the reason the
     /// connection failed.
-    pub stderr: String,
+    pub(crate) stderr: String,
 }
 
 impl std::fmt::Display for NodeJsConnectError {
@@ -375,7 +375,7 @@ impl std::error::Error for NodeJsConnectError {}
 
 impl NodeJsConnectError {
     /// Finds a [`NodeJsConnectError`] anywhere in the cause chain of `err`.
-    pub fn find(err: &anyhow::Error) -> Option<&Self> {
+    fn find(err: &anyhow::Error) -> Option<&Self> {
         err.chain().find_map(|cause| cause.downcast_ref::<Self>())
     }
 }
@@ -524,7 +524,7 @@ pub(crate) async fn custom_evaluate(
 }
 
 #[turbo_tasks::value]
-pub struct EvaluateEntries {
+pub(crate) struct EvaluateEntries {
     entries: Vec<ResolvedVc<Box<dyn EvaluatableAsset + 'static>>>,
     main_entry_ident: ResolvedVc<AssetIdent>,
 }
@@ -532,7 +532,7 @@ pub struct EvaluateEntries {
 #[turbo_tasks::value_impl]
 impl EvaluateEntries {
     #[turbo_tasks::function]
-    pub async fn graph_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+    pub(crate) async fn graph_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         Ok(
             GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
                 modules: self
@@ -550,7 +550,7 @@ impl EvaluateEntries {
 }
 
 #[turbo_tasks::function]
-pub async fn get_evaluate_entries(
+pub(crate) async fn get_evaluate_entries(
     module_asset: ResolvedVc<Box<dyn Module>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     node_backend: ResolvedVc<Box<dyn NodeBackend>>,
@@ -633,7 +633,7 @@ pub async fn get_evaluate_entries(
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 #[turbo_tasks::function]
-pub async fn evaluate(
+async fn evaluate(
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
@@ -835,16 +835,16 @@ impl EvaluateContext for BasicEvaluateContext {
 
 /// An issue that occurred while evaluating node code.
 #[turbo_tasks::value(shared)]
-pub struct EvaluationIssue {
-    pub source: IssueSource,
-    pub error: StructuredError,
-    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: FileSystemPath,
-    pub root_path: FileSystemPath,
+pub(crate) struct EvaluationIssue {
+    pub(crate) source: IssueSource,
+    pub(crate) error: StructuredError,
+    pub(crate) assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    pub(crate) assets_root: FileSystemPath,
+    pub(crate) root_path: FileSystemPath,
     /// Optional extra context shown only when log details are enabled — e.g.
     /// the loader chain that was running when a webpack-loader subprocess
     /// errored.
-    pub detail: Option<RcStr>,
+    pub(crate) detail: Option<RcStr>,
 }
 
 #[async_trait]
@@ -888,14 +888,14 @@ impl Issue for EvaluationIssue {
 /// Node.js child processes could not connect back to the parent process, which
 /// makes it impossible to run any Node.js code (webpack loaders, PostCSS, ...).
 #[turbo_tasks::value(shared)]
-pub struct NodeJsConnectIssue {
+struct NodeJsConnectIssue {
     /// The source being transformed when the connection failed. The failure is
     /// unrelated to its contents, but this tells the user which transform hit it.
-    pub source: IssueSource,
+    source: IssueSource,
     /// What was being evaluated, e.g. the loader chain.
-    pub crash_context: Option<RcStr>,
+    crash_context: Option<RcStr>,
     /// Error output of the child process, describing why the connection failed.
-    pub stderr: RcStr,
+    stderr: RcStr,
 }
 
 #[async_trait]

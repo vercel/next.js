@@ -1,3 +1,3 @@
-pub mod postcss;
+mod postcss;
 mod util;
-pub mod webpack;
+mod webpack;

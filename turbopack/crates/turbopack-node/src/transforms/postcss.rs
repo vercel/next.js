@@ -47,7 +47,7 @@ struct PostCssProcessingResult {
 
 #[turbo_tasks::task_input]
 #[derive(Default, Copy, Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
-pub enum PostCssConfigLocation {
+enum PostCssConfigLocation {
     /// Searches for postcss config only starting from the project root directory.
     /// Used for foreign code (node_modules) where per-directory configs should be ignored.
     #[default]
@@ -64,10 +64,10 @@ pub enum PostCssConfigLocation {
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
-pub struct PostCssTransformOptions {
-    pub postcss_package: Option<ResolvedVc<ImportMapping>>,
-    pub config_location: PostCssConfigLocation,
-    pub placeholder_for_future_extensions: u8,
+struct PostCssTransformOptions {
+    postcss_package: Option<ResolvedVc<ImportMapping>>,
+    config_location: PostCssConfigLocation,
+    placeholder_for_future_extensions: u8,
 }
 
 #[turbo_tasks::function]
@@ -104,7 +104,7 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
 }
 
 #[turbo_tasks::value]
-pub struct PostCssTransform {
+struct PostCssTransform {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
@@ -115,7 +115,7 @@ pub struct PostCssTransform {
 #[turbo_tasks::value_impl]
 impl PostCssTransform {
     #[turbo_tasks::function]
-    pub fn new(
+    fn new(
         evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
         config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
         execution_context: ResolvedVc<ExecutionContext>,
@@ -263,20 +263,16 @@ async fn extra_configs_changed(
 }
 
 #[turbo_tasks::value]
-pub struct JsonSource {
-    pub path: FileSystemPath,
-    pub key: ResolvedVc<Option<RcStr>>,
-    pub allow_json5: bool,
+struct JsonSource {
+    path: FileSystemPath,
+    key: ResolvedVc<Option<RcStr>>,
+    allow_json5: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl JsonSource {
     #[turbo_tasks::function]
-    pub fn new(
-        path: FileSystemPath,
-        key: ResolvedVc<Option<RcStr>>,
-        allow_json5: bool,
-    ) -> Vc<Self> {
+    fn new(path: FileSystemPath, key: ResolvedVc<Option<RcStr>>, allow_json5: bool) -> Vc<Self> {
         JsonSource {
             path,
             key,
@@ -339,7 +335,7 @@ impl Asset for JsonSource {
 }
 
 #[turbo_tasks::function]
-pub(crate) async fn config_loader_source(
+async fn config_loader_source(
     project_path: FileSystemPath,
     postcss_config_path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {

@@ -6,17 +6,17 @@ use turbopack_core::chunk::ChunkingContext;
 use crate::backend::NodeBackend;
 
 #[turbo_tasks::value]
-pub struct ExecutionContext {
-    pub project_path: FileSystemPath,
-    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    pub env: ResolvedVc<Box<dyn ProcessEnv>>,
-    pub node_backend: ResolvedVc<Box<dyn NodeBackend>>,
+pub(crate) struct ExecutionContext {
+    pub(crate) project_path: FileSystemPath,
+    pub(crate) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub(crate) env: ResolvedVc<Box<dyn ProcessEnv>>,
+    pub(crate) node_backend: ResolvedVc<Box<dyn NodeBackend>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ExecutionContext {
     #[turbo_tasks::function]
-    pub fn new(
+    fn new(
         project_path: FileSystemPath,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         env: ResolvedVc<Box<dyn ProcessEnv>>,
@@ -32,22 +32,22 @@ impl ExecutionContext {
     }
 
     #[turbo_tasks::function]
-    pub fn project_path(&self) -> Vc<FileSystemPath> {
+    fn project_path(&self) -> Vc<FileSystemPath> {
         self.project_path.clone().cell()
     }
 
     #[turbo_tasks::function]
-    pub fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
     }
 
     #[turbo_tasks::function]
-    pub fn env(&self) -> Vc<Box<dyn ProcessEnv>> {
+    fn env(&self) -> Vc<Box<dyn ProcessEnv>> {
         *self.env
     }
 
     #[turbo_tasks::function]
-    pub fn node_backend(&self) -> Vc<Box<dyn NodeBackend>> {
+    fn node_backend(&self) -> Vc<Box<dyn NodeBackend>> {
         *self.node_backend
     }
 }

@@ -14,14 +14,14 @@ use crate::{AssetsForSourceMapping, evaluate::EvaluatePool};
     allow(dead_code)
 )]
 pub(crate) struct CreatePoolOptions {
-    pub cwd: PathBuf,
-    pub entrypoint: PathBuf,
-    pub env: FxHashMap<RcStr, RcStr>,
-    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: FileSystemPath,
-    pub project_dir: FileSystemPath,
-    pub concurrency: usize,
-    pub debug: bool,
+    pub(crate) cwd: PathBuf,
+    pub(crate) entrypoint: PathBuf,
+    pub(crate) env: FxHashMap<RcStr, RcStr>,
+    pub(crate) assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    pub(crate) assets_root: FileSystemPath,
+    pub(crate) project_dir: FileSystemPath,
+    pub(crate) concurrency: usize,
+    pub(crate) debug: bool,
 }
 
 pub(crate) type CreatePoolFuture =
@@ -38,7 +38,7 @@ pub(crate) mod sealed {
 }
 
 #[turbo_tasks::value_trait]
-pub trait NodeBackend: sealed::Sealed {
+pub(crate) trait NodeBackend: sealed::Sealed {
     fn runtime_module_path(&self) -> RcStr;
 
     fn globals_module_path(&self) -> RcStr;

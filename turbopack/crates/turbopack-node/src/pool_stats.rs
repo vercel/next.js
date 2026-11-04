@@ -4,7 +4,7 @@ use std::{cmp::max, fmt::Debug, time::Duration};
 use tokio::sync::OwnedSemaphorePermit;
 
 #[cfg(any(feature = "process_pool", feature = "worker_pool"))]
-pub enum AcquiredPermits {
+pub(crate) enum AcquiredPermits {
     Idle {
         // This is used for drop
         _concurrency_permit: OwnedSemaphorePermit,
@@ -18,61 +18,61 @@ pub enum AcquiredPermits {
 }
 
 #[derive(Default)]
-pub struct NodeJsPoolStats {
-    pub total_bootup_time: Duration,
-    pub bootup_count: u32,
-    pub total_cold_process_time: Duration,
-    pub cold_process_count: u32,
-    pub total_warm_process_time: Duration,
-    pub warm_process_count: u32,
-    pub workers: u32,
-    pub booting_workers: u32,
-    pub queued_tasks: u32,
+pub(crate) struct NodeJsPoolStats {
+    total_bootup_time: Duration,
+    bootup_count: u32,
+    total_cold_process_time: Duration,
+    cold_process_count: u32,
+    total_warm_process_time: Duration,
+    warm_process_count: u32,
+    workers: u32,
+    booting_workers: u32,
+    queued_tasks: u32,
 }
 
 impl NodeJsPoolStats {
     #[allow(unused)]
-    pub fn add_bootup_time(&mut self, time: Duration) {
+    pub(crate) fn add_bootup_time(&mut self, time: Duration) {
         self.total_bootup_time += time;
         self.bootup_count += 1;
     }
 
     #[cfg(any(feature = "process_pool", feature = "worker_pool"))]
-    pub fn add_booting_worker(&mut self) {
+    pub(crate) fn add_booting_worker(&mut self) {
         self.booting_workers += 1;
         self.workers += 1;
     }
 
     #[cfg(any(feature = "process_pool", feature = "worker_pool"))]
-    pub fn finished_booting_worker(&mut self) {
+    pub(crate) fn finished_booting_worker(&mut self) {
         self.booting_workers = self.booting_workers.saturating_sub(1);
     }
 
     #[cfg(any(feature = "process_pool", feature = "worker_pool"))]
-    pub fn remove_worker(&mut self) {
+    pub(crate) fn remove_worker(&mut self) {
         self.workers = self.workers.saturating_sub(1);
     }
 
     #[allow(unused)]
-    pub fn add_queued_task(&mut self) {
+    pub(crate) fn add_queued_task(&mut self) {
         self.queued_tasks += 1;
     }
 
     #[allow(unused)]
-    pub fn add_cold_process_time(&mut self, time: Duration) {
+    pub(crate) fn add_cold_process_time(&mut self, time: Duration) {
         self.total_cold_process_time += time;
         self.cold_process_count += 1;
         self.queued_tasks = self.queued_tasks.saturating_sub(1);
     }
 
     #[allow(unused)]
-    pub fn add_warm_process_time(&mut self, time: Duration) {
+    pub(crate) fn add_warm_process_time(&mut self, time: Duration) {
         self.total_warm_process_time += time;
         self.warm_process_count += 1;
         self.queued_tasks = self.queued_tasks.saturating_sub(1);
     }
 
-    pub fn estimated_bootup_time(&self) -> Duration {
+    fn estimated_bootup_time(&self) -> Duration {
         if self.bootup_count == 0 {
             Duration::from_millis(200)
         } else {
@@ -80,7 +80,7 @@ impl NodeJsPoolStats {
         }
     }
 
-    pub fn estimated_warm_process_time(&self) -> Duration {
+    fn estimated_warm_process_time(&self) -> Duration {
         if self.warm_process_count == 0 {
             self.estimated_cold_process_time()
         } else {
@@ -88,7 +88,7 @@ impl NodeJsPoolStats {
         }
     }
 
-    pub fn estimated_cold_process_time(&self) -> Duration {
+    fn estimated_cold_process_time(&self) -> Duration {
         if self.cold_process_count == 0 {
             // We assume cold processing is half of bootup time
             self.estimated_bootup_time() / 2
@@ -98,7 +98,7 @@ impl NodeJsPoolStats {
     }
 
     #[allow(unused)]
-    pub fn wait_time_before_bootup(&self) -> Duration {
+    pub(crate) fn wait_time_before_bootup(&self) -> Duration {
         if self.workers == 0 {
             return Duration::ZERO;
         }
@@ -151,7 +151,7 @@ impl NodeJsPoolStats {
     }
 
     #[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
-    pub fn snapshot(&self) -> PoolStatsSnapshot {
+    pub(crate) fn snapshot(&self) -> PoolStatsSnapshot {
         PoolStatsSnapshot {
             bootup_count: self.bootup_count,
             warm_operation_count: self.warm_process_count,
@@ -185,15 +185,15 @@ impl Debug for NodeJsPoolStats {
 /// A snapshot of pool statistics for process-pool tests.
 #[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PoolStatsSnapshot {
+pub(crate) struct PoolStatsSnapshot {
     /// Total number of processes ever successfully booted.
-    pub bootup_count: u32,
+    pub(crate) bootup_count: u32,
     /// Number of completed operations that reused an idle process.
-    pub warm_operation_count: u32,
+    pub(crate) warm_operation_count: u32,
     /// Number of completed operations that spawned a fresh process.
-    pub cold_operation_count: u32,
+    pub(crate) cold_operation_count: u32,
     /// Current number of tracked workers (booting + idle + in-use).
-    pub workers: u32,
+    pub(crate) workers: u32,
     /// Current number of workers still booting.
-    pub booting_workers: u32,
+    pub(crate) booting_workers: u32,
 }
