@@ -99,7 +99,13 @@ function isTestArgvBranch(
   )
 }
 
-export async function parseActualTestCommand(args: readonly string[]) {
+export async function parseActualTestCommand(
+  args: readonly string[],
+  runTest?: (
+    directory: string | undefined,
+    options: NextTestRunnerOptions
+  ) => Promise<void>
+) {
   // This is the maintained source path. A private runner stages the same layout
   // with the actual proposed files; it does not import the whole CLI entry.
   const filename = path.resolve(
@@ -218,10 +224,11 @@ export async function parseActualTestCommand(args: readonly string[]) {
     writeErr: (message) => parserOutput.push(message),
   })
   const nextTestRunner = jest.fn(
-    async (
-      _directory: string | undefined,
-      _options: NextTestRunnerOptions
-    ) => {}
+    runTest ??
+      (async (
+        _directory: string | undefined,
+        _options: NextTestRunnerOptions
+      ) => {})
   )
   const javascript = ts.transpileModule(
     `(async () => { ${statementText} })()`,

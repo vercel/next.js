@@ -1008,6 +1008,7 @@ program
   })
   .action(async (directory, options, command: Command) => {
     const finalExit = { observed: false }
+    let testRunnerStarted = false
     try {
       if (Array.isArray(testWatchArgument))
         throw new Error(
@@ -1026,7 +1027,7 @@ program
       const explicitCache = command.getOptionValueSource('cache') === 'cli'
       const explicitFileParallelism =
         command.getOptionValueSource('fileParallelism') === 'cli'
-      await nextTestRunner(directory, {
+      const runnerOptions = {
         ...options,
         onFinalProcessExit() {
           finalExit.observed = true
@@ -1039,7 +1040,9 @@ program
           : undefined,
         cache: explicitCache ? options.cache : undefined,
         cacheDefault: explicitCache ? undefined : options.cache,
-      })
+      }
+      testRunnerStarted = true
+      await nextTestRunner(directory, runnerOptions)
     } catch (error) {
       if (
         error instanceof Error &&
@@ -1058,7 +1061,13 @@ program
           )
         )
       } else {
-        console.error(error instanceof Error ? error.message : String(error))
+        console.error(
+          error instanceof Error
+            ? testRunnerStarted
+              ? (error.stack ?? error.message)
+              : error.message
+            : String(error)
+        )
       }
       if (!finalExit.observed) process.exitCode = 1
     }

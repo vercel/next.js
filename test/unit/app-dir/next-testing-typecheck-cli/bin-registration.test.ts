@@ -208,3 +208,82 @@ describe('actual test command typecheck registration', () => {
     expect(typecheckOptions(result.nextTestRunner.mock.calls[0][1])).toEqual({})
   })
 })
+
+describe('actual test command runner failure rendering', () => {
+  it.each([Error, TypeError])(
+    'retains the original %p stack after runner dispatch',
+    async (ErrorType) => {
+      function reporterEndFailure() {
+        return new ErrorType('empty end throw sentinel')
+      }
+      const failure = reporterEndFailure()
+      const stack = failure.stack
+      const descriptors = Object.getOwnPropertyDescriptors(failure)
+      expect(stack).toContain('reporterEndFailure')
+      const result = await parseActualTestCommand([], async () => {
+        throw failure
+      })
+      expect(result.parserError).toBeUndefined()
+      expect(result.nextTestRunner).toHaveBeenCalledTimes(1)
+      expect(result.messages).toEqual([stack])
+      expect(result.exitCode).toBe(1)
+      expect(Object.getOwnPropertyDescriptors(failure)).toEqual(descriptors)
+    }
+  )
+
+  it('retains a reporter-defined Error name and its actual captured stack', async () => {
+    const failure = new Error('named reporter failure')
+    failure.name = 'ReporterError'
+    const stack = failure.stack
+    const descriptors = Object.getOwnPropertyDescriptors(failure)
+    expect(stack).toContain('ReporterError: named reporter failure')
+    const result = await parseActualTestCommand([], async () => {
+      throw failure
+    })
+    expect(result.parserError).toBeUndefined()
+    expect(result.nextTestRunner).toHaveBeenCalledTimes(1)
+    expect(result.messages).toEqual([stack])
+    expect(result.exitCode).toBe(1)
+    expect(Object.getOwnPropertyDescriptors(failure)).toEqual(descriptors)
+  })
+
+  it('retains the original message when a dispatched Error has no stack', async () => {
+    const failure = new Error('stackless reporter failure')
+    failure.stack = undefined
+    const descriptors = Object.getOwnPropertyDescriptors(failure)
+    const result = await parseActualTestCommand([], async () => {
+      throw failure
+    })
+    expect(result.parserError).toBeUndefined()
+    expect(result.nextTestRunner).toHaveBeenCalledTimes(1)
+    expect(result.messages).toEqual([failure.message])
+    expect(result.exitCode).toBe(1)
+    expect(Object.getOwnPropertyDescriptors(failure)).toEqual(descriptors)
+  })
+
+  it('retains a non-Error rejection without inventing a stack or prefix', async () => {
+    const result = await parseActualTestCommand([], async () => {
+      return Promise.reject('raw reporter rejection')
+    })
+    expect(result.parserError).toBeUndefined()
+    expect(result.nextTestRunner).toHaveBeenCalledTimes(1)
+    expect(result.messages).toEqual(['raw reporter rejection'])
+    expect(result.exitCode).toBe(1)
+  })
+
+  it('retains the observed final-exit receipt while printing the original stack', async () => {
+    const failure = new Error('reporter failure after physical final exit')
+    const stack = failure.stack
+    const result = await parseActualTestCommand(
+      [],
+      async (_directory, options) => {
+        options.onFinalProcessExit?.({ code: 7, signal: null, reason: 'exit' })
+        throw failure
+      }
+    )
+    expect(result.parserError).toBeUndefined()
+    expect(result.nextTestRunner).toHaveBeenCalledTimes(1)
+    expect(result.messages).toEqual([stack])
+    expect(result.exitCode).toBeUndefined()
+  })
+})
