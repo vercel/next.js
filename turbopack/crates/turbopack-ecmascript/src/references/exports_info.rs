@@ -14,7 +14,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
-    references::esm::mangle::export_info,
+    references::esm::mangle::export_info_for_metadata,
 };
 
 /// Responsible for initializing the `ExportsInfoBinding` object binding, so that it may be
@@ -45,12 +45,13 @@ impl ExportsInfoBinding {
             .await?;
         let export_usage_info = export_usage_info.export_usage.await?;
         // The keys of `__webpack_exports_info__` stay the *original* export names — user code
-        // looks them up by name. The emitted key is reported as `mangledName` instead, which is
+        // looks them up by name. The key is reported as `mangledName` instead, including the
+        // historical standalone key for local-only bindings whose table is not emitted. It is
         // always present alongside `canMangle` (`null` when `canMangle` is false), regardless of
         // whether export mangling is enabled at all — see the `map` closure below for exactly
         // what each of the three fields means.
         let exports = exports.await?;
-        let info = export_info(*module, chunking_context).await?;
+        let info = export_info_for_metadata(*module, chunking_context).await?;
 
         let props = if let EcmascriptExports::EsmExports(exports) = &*exports {
             exports

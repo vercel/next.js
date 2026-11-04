@@ -11,10 +11,10 @@
 //! [`export_info`] is the single source of truth for the namespace target and export names. Both
 //! the producer ([`super::export::EsmExports::code_generation`]) and the consumer
 //! ([`super::base::ReferencedAsset`]) ask it about the module that produces the binding, so they
-//! cannot disagree. Export metadata uses the same per-source-module decision, whether the module
-//! shares a flat table, mangles independently, or keeps its original namespace and names. Callers
-//! looking up an output key do not need to branch on eligibility: [`ExportInfo::export_name`] falls
-//! back to the original name when there is no mapping.
+//! cannot disagree. Local-only members emit no table and skip name computation. Export metadata
+//! uses [`export_info_for_metadata`] to preserve their historical standalone names on demand.
+//! Callers looking up an output key do not need to branch on eligibility:
+//! [`ExportInfo::export_name`] falls back to the original name when there is no mapping.
 //!
 //! **Every** piece of code generation that materializes an export access **as a string** must use
 //! both [`ExportInfo::namespace`] and [`ExportInfo::export_name`] from that result. This includes
@@ -39,17 +39,18 @@ use turbopack_core::{
 use self::table::shorten_to_unique_names;
 use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 
-/// The namespace and names used to register and read a source module's exports.
+/// The namespace and computed names for a source module's exports.
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct ExportInfo {
     /// Module whose namespace holds these exports: the shared target for flat members,
     /// otherwise the source module itself.
     namespace: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    /// Original export name -> the key actually used in the output.
+    /// Original export name -> computed namespace key (hypothetical for local-only metadata).
     ///
-    /// `None` means the module is ineligible for mangling and keeps every original name (see
-    /// [`export_info`] for the conditions). `Some` means eligible, not necessarily renamed:
+    /// `None` means no names were computed: the module is ineligible for mangling (see
+    /// [`export_info`] for the conditions), or local-only and emits no table. `Some` means
+    /// eligible, not necessarily renamed:
     /// standalone maps contain only names that actually changed, omitting names that kept
     /// themselves (for example, because they were already short enough). Flat tables explicitly
     /// cover every export and can map a name to itself, since their computation keys include
@@ -86,7 +87,8 @@ impl ExportInfo {
             .unwrap_or(name)
     }
 
-    /// Whether the module's export names are eligible for mangling, even if none actually changed.
+    /// Whether this result has eligible computed export names, even if none actually changed.
+    /// Metadata consumers use [`export_info_for_metadata`] to include local-only bindings.
     /// An individual export must also be used to be a candidate; unused exports are not emitted.
     pub fn can_mangle_names(&self) -> bool {
         self.names.is_some()
@@ -142,9 +144,15 @@ async fn compute_export_names(
     let mut exports_to_name = Vec::new();
     let mut eligible_modules = Vec::new();
     for (index, module, exposure) in modules {
-        // Only externally read members contribute to the shared table. Internal namespaces
-        // keep their source identity; unexposed members only use local bindings.
-        if flat && exposure != MergeableModuleExposure::External {
+        infos.insert(module, ExportInfo::unmangled(module));
+        // Local-only members emit no export table. Metadata computes their historical
+        // standalone names on demand through export_info_for_metadata instead.
+        if flat && exposure == MergeableModuleExposure::None {
+            continue;
+        }
+        // Internal namespaces still emit a table under their source identity and can
+        // mangle independently. Only externally read members share the flat table.
+        if flat && exposure == MergeableModuleExposure::Internal {
             let info = compute_export_names(ExportNamesScope::Single(module), chunking_context)
                 .get(&module)
                 .await?;
@@ -156,7 +164,6 @@ async fn compute_export_names(
             );
             continue;
         }
-        infos.insert(module, ExportInfo::unmangled(module));
         // Non-static export shapes need their existing runtime representation without
         // excluding eligible peers from the shared table.
         let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
@@ -274,9 +281,10 @@ async fn compute_export_names(
 ///    access, so an original name may still be read by user code,
 /// 4. its exports are not statically known ECMAScript exports, or contain dynamic re-exports.
 ///
-/// None of these depend on the individual export, so "is `e` a candidate for mangling" is exactly
-/// "does [`ExportInfo::can_mangle_names`] return true, and is `e` used" — the per-name step
-/// (hashing into a short identifier and resolving collisions) never itself excludes a name.
+/// Local-only group members emit no table and skip name computation here. Metadata instead
+/// uses [`export_info_for_metadata`] to preserve their standalone mangling eligibility and names.
+/// An individual export is a candidate only when that result's [`ExportInfo::can_mangle_names`]
+/// returns true and the export is used; name allocation never itself excludes a name.
 #[turbo_tasks::function]
 pub async fn export_info(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
@@ -295,6 +303,28 @@ pub async fn export_info(
     Ok(info
         .as_deref()
         .context("export information is missing for the selected module scope")?
+        .clone()
+        .cell())
+}
+
+/// Export metadata retains standalone names for local-only bindings even though their table
+/// is not emitted. Compute these historical hypothetical names only when metadata requests them;
+/// emitted tables, including internal namespaces, continue to use [`export_info`].
+#[turbo_tasks::function]
+pub(crate) async fn export_info_for_metadata(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vc<ExportInfo>> {
+    let info = export_info(*module, chunking_context);
+    if info.await?.can_mangle_names() {
+        return Ok(info);
+    }
+    let info = compute_export_names(ExportNamesScope::Single(module), chunking_context)
+        .get(&module)
+        .await?;
+    Ok(info
+        .as_deref()
+        .context("standalone export information is missing for export metadata")?
         .clone()
         .cell())
 }

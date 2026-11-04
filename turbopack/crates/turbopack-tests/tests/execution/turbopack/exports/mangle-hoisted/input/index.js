@@ -1,4 +1,5 @@
 import { Worker } from 'node:worker_threads'
+import { localOnlyLongExportName } from './local-only'
 import * as preserved from './mixed-preserved'
 import {
   someLongExportName as mixedFirst,
@@ -21,6 +22,16 @@ import {
   liveValue,
   increment,
 } from './second'
+
+it('should preserve mangling metadata for a used local-only binding', () => {
+  expect(localOnlyLongExportName).toBe('local-only')
+  const info = globalThis.__localOnlyMangleExportsInfo.localOnlyLongExportName
+  expect(info.used).toBe(true)
+  expect(info.canMangle).toBe(true)
+  expect(info.mangledName).toEqual(expect.any(String))
+  expect(info.mangledName.length).toBeLessThanOrEqual(2)
+  expect(info.mangledName).not.toBe('localOnlyLongExportName')
+})
 
 it('should keep one observable namespace without deoptimizing its flat peers', async () => {
   const lazy = await import(
