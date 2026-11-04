@@ -1146,7 +1146,8 @@ export function createCollector(
           else if (hookName === 'beforeAll' || hookName === 'afterAll')
             hook(hookName)(
               (
-                _context: InternalTestContext,
+                // eslint-disable-next-line no-empty-pattern -- Raw collector hooks have no fixture parameter.
+                {}: InternalTestContext,
                 publicSuite?: Readonly<Suite | File>
               ) => listener(publicSuite)
             )
@@ -1787,7 +1788,11 @@ export function createCollector(
         timeout: timeout ?? config.getRuntimeConfig?.().hookTimeout,
       }
       Object.defineProperty(registered, 'registrationError', {
-        value: new Error(),
+        value:
+          fixtures === undefined &&
+          (name === 'beforeAll' || name === 'afterAll')
+            ? new Error('STACK_TRACE_ERROR')
+            : new Error(),
       })
       currentSuite().hooks[name].push(registered)
     }

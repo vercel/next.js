@@ -1,0 +1,177 @@
+{
+  "rows": [
+    {
+      "value": {
+        "phase": "plainBeforeAll",
+        "trace": [
+          "plainBeforeAll:body"
+        ],
+        "function": {
+          "name": "namedPlainBeforeAll",
+          "length": 0,
+          "ownPrototype": true,
+          "prototypeConstructor": true
+        },
+        "arguments": {
+          "length": 2,
+          "firstType": "object",
+          "firstHasTask": false,
+          "restKeys": null
+        },
+        "newTargetUndefined": true,
+        "receiverUndefined": true
+      },
+      "task": "<file>"
+    },
+    {
+      "value": {
+        "phase": "emptyBeforeAll",
+        "trace": [
+          "plainBeforeAll:body",
+          "emptyBeforeAll:body"
+        ],
+        "function": {
+          "name": "namedEmptyBeforeAll",
+          "length": 1,
+          "ownPrototype": true,
+          "prototypeConstructor": true
+        },
+        "arguments": {
+          "length": 2,
+          "firstType": "object",
+          "firstHasTask": false,
+          "restKeys": null
+        },
+        "newTargetUndefined": true,
+        "receiverUndefined": true
+      },
+      "task": "<file>"
+    },
+    {
+      "value": {
+        "phase": "test",
+        "trace": [
+          "plainBeforeAll:body",
+          "emptyBeforeAll:body",
+          "test:body"
+        ]
+      },
+      "task": "uses original empty-object parameters in direct synchronous suite hooks"
+    },
+    {
+      "value": {
+        "phase": "plainAfterAll",
+        "trace": [
+          "plainBeforeAll:body",
+          "emptyBeforeAll:body",
+          "test:body",
+          "plainAfterAll:body"
+        ],
+        "function": {
+          "name": "namedPlainAfterAll",
+          "length": 0,
+          "ownPrototype": true,
+          "prototypeConstructor": true
+        },
+        "arguments": {
+          "length": 2,
+          "firstType": "object",
+          "firstHasTask": false,
+          "restKeys": null
+        },
+        "newTargetUndefined": true,
+        "receiverUndefined": true
+      },
+      "task": "<file>"
+    },
+    {
+      "value": {
+        "phase": "emptyAfterAll",
+        "trace": [
+          "plainBeforeAll:body",
+          "emptyBeforeAll:body",
+          "test:body",
+          "plainAfterAll:body",
+          "emptyAfterAll:body"
+        ],
+        "function": {
+          "name": "namedEmptyAfterAll",
+          "length": 1,
+          "ownPrototype": true,
+          "prototypeConstructor": true
+        },
+        "arguments": {
+          "length": 2,
+          "firstType": "object",
+          "firstHasTask": false,
+          "restKeys": null
+        },
+        "newTargetUndefined": true,
+        "receiverUndefined": true
+      },
+      "task": "<file>"
+    }
+  ],
+  "cases": [
+    {
+      "name": "uses original empty-object parameters in direct synchronous suite hooks",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "uses original empty-object parameters in direct synchronous suite hooks",
+      "result": {
+        "state": "passed",
+        "errors": []
+      }
+    }
+  ],
+  "moduleFinals": [
+    {
+      "state": "passed",
+      "errors": []
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "passed",
+      "errors": [],
+      "rawUnhandled": [],
+      "files": [
+        {
+          "state": "passed",
+          "tests": [
+            {
+              "name": "uses original empty-object parameters in direct synchronous suite hooks",
+              "result": {
+                "state": "passed",
+                "errors": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "standardFiles": [
+    {
+      "status": "passed",
+      "message": ""
+    }
+  ],
+  "counts": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 1,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 1,
+    "numPassedTests": 1,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "success": true,
+  "exit": 0
+}

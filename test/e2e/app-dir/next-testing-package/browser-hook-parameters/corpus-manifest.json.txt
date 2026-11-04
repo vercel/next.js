@@ -1,0 +1,281 @@
+{
+  "authoritySHA256": "9e4f46b6c139c9d19e8ae29f6e75da19105a66e2b5ea2b5c0fb1b33edd6ccf05",
+  "inputs": [
+    {
+      "id": "valid-success",
+      "classification": "valid-success",
+      "file": "fixtures/valid-success.test.mjs.txt",
+      "sha256": "98614b48c4d815e88b840c633199196657145b6d12798ce242cbe3e9b337f7df",
+      "original": "v3/authored/success.test.mjs"
+    },
+    {
+      "id": "valid-suite-empty",
+      "classification": "valid-success",
+      "file": "fixtures/valid-suite-empty.test.mjs.txt",
+      "sha256": "bc8c74db56014ed89448d8e165d507948f08218a3bdf414126373c1ae7d1813e",
+      "original": "v3/authored/suite-empty.test.mjs"
+    },
+    {
+      "id": "valid-throw-default",
+      "classification": "valid-authored-failure",
+      "file": "fixtures/valid-throw-default.test.mjs.txt",
+      "sha256": "ce51f0523fbcfe49d2f96cd5cae9c6095ea716f9ad3bb03cfef6fa43b083c617",
+      "original": "authored/throw-default.test.mjs"
+    },
+    {
+      "id": "valid-throw-fixture-getter",
+      "classification": "valid-authored-failure",
+      "file": "fixtures/valid-throw-fixture-getter.test.mjs.txt",
+      "sha256": "6041cb4a3e96d39318e7899219634ee769ae2ce76e47141639b371ac9be474ba",
+      "original": "authored/throw-fixture-getter.test.mjs"
+    },
+    {
+      "id": "refusal-suite-nonempty",
+      "classification": "reference-registration-refusal",
+      "file": "fixtures/refusal-suite-nonempty.test.mjs.txt",
+      "sha256": "8d4cba0e32334756c8c029a15862bd632df5902ef2dc71250ff9f8adc236d8e6",
+      "original": "v4-refusals/authored/suite-nonempty.test.mjs"
+    },
+    {
+      "id": "refusal-suite-rest",
+      "classification": "reference-registration-refusal",
+      "file": "fixtures/refusal-suite-rest.test.mjs.txt",
+      "sha256": "59b9083fb4984f8734a49ae7b50b14383b817da244bc5a5b057ae02adc960aaa",
+      "original": "v4-refusals/authored/suite-rest.test.mjs"
+    },
+    {
+      "id": "rejected-original-inline-default",
+      "classification": "original-rejected-inline-default",
+      "file": "fixtures/rejected-original-inline-default.test.mjs.txt",
+      "sha256": "abd2d07b3542dad4ea29a50398550680ba1528dd5eb0349c40527060f23c23ea",
+      "original": "authored/success.test.mjs"
+    },
+    {
+      "id": "rejected-parenthesized-default",
+      "classification": "rejected-parenthesized-default",
+      "file": "fixtures/rejected-parenthesized-default.test.mjs.txt",
+      "sha256": "979f67b9d49388447084fd9942649611b77c86b3161e862ea06c141c1e592f61",
+      "original": "v2/authored/success.test.mjs"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "valid-success",
+      "classification": "valid-success",
+      "mode": "development",
+      "file": "reference/valid-success-development.json.txt",
+      "sha256": "8e7ca330d71691d28d6925a4fe4cc82818638cc5ce20ce638793824a6588dd66",
+      "sourceSHA256": "98614b48c4d815e88b840c633199196657145b6d12798ce242cbe3e9b337f7df",
+      "status": 0,
+      "rows": 6,
+      "cases": 1,
+      "authoredFile": "authored-config/valid-success-development.json.txt",
+      "authoredSHA256": "03a1a8ccf8bd50a1db19946a622801666a2663c02c5b32a0942043ee1b537723"
+    },
+    {
+      "id": "valid-success",
+      "classification": "valid-success",
+      "mode": "production",
+      "file": "reference/valid-success-production.json.txt",
+      "sha256": "8e7ca330d71691d28d6925a4fe4cc82818638cc5ce20ce638793824a6588dd66",
+      "sourceSHA256": "98614b48c4d815e88b840c633199196657145b6d12798ce242cbe3e9b337f7df",
+      "status": 0,
+      "rows": 6,
+      "cases": 1,
+      "authoredFile": "authored-config/valid-success-production.json.txt",
+      "authoredSHA256": "7944e1fe4ad932bfb1081201d537f990fc94235503cc1b0fbeb853cd95ffdf9f"
+    },
+    {
+      "id": "valid-suite-empty",
+      "classification": "valid-success",
+      "mode": "development",
+      "file": "reference/valid-suite-empty-development.json.txt",
+      "sha256": "b9fd032b1828bba559b19c0132de7e779d076dc75a3d10b741cc083a56b61bec",
+      "sourceSHA256": "bc8c74db56014ed89448d8e165d507948f08218a3bdf414126373c1ae7d1813e",
+      "status": 0,
+      "rows": 5,
+      "cases": 1,
+      "authoredFile": "authored-config/valid-suite-empty-development.json.txt",
+      "authoredSHA256": "beda03384aa3542d607fb08cac255cfe4b5f3a2ba3ea7dd00131736b85691ee2"
+    },
+    {
+      "id": "valid-suite-empty",
+      "classification": "valid-success",
+      "mode": "production",
+      "file": "reference/valid-suite-empty-production.json.txt",
+      "sha256": "b9fd032b1828bba559b19c0132de7e779d076dc75a3d10b741cc083a56b61bec",
+      "sourceSHA256": "bc8c74db56014ed89448d8e165d507948f08218a3bdf414126373c1ae7d1813e",
+      "status": 0,
+      "rows": 5,
+      "cases": 1,
+      "authoredFile": "authored-config/valid-suite-empty-production.json.txt",
+      "authoredSHA256": "8eaba76970d7ca68f85ed7dfc56e78af0e6c85f545076c9944d834f6837e84ed"
+    },
+    {
+      "id": "valid-throw-default",
+      "classification": "valid-authored-failure",
+      "mode": "development",
+      "file": "reference/valid-throw-default-development.json.txt",
+      "sha256": "fa26b5bb161dc7a348286d8519ecf1104a1038722ca846f2c16b0d52f1c32531",
+      "sourceSHA256": "ce51f0523fbcfe49d2f96cd5cae9c6095ea716f9ad3bb03cfef6fa43b083c617",
+      "status": 1,
+      "rows": 3,
+      "cases": 1,
+      "authoredFile": "authored-config/valid-throw-default-development.json.txt",
+      "authoredSHA256": "b269cd5b4ed441d6a680ae93ce59de313f74620471c0674bb6141272e456bb7a"
+    },
+    {
+      "id": "valid-throw-default",
+      "classification": "valid-authored-failure",
+      "mode": "production",
+      "file": "reference/valid-throw-default-production.json.txt",
+      "sha256": "13d7e8aa620379a786c3b6bfb4d198ad800916acbe8acb596dadf5f57e7025f4",
+      "sourceSHA256": "ce51f0523fbcfe49d2f96cd5cae9c6095ea716f9ad3bb03cfef6fa43b083c617",
+      "status": 1,
+      "rows": 3,
+      "cases": 1,
+      "authoredFile": "authored-config/valid-throw-default-production.json.txt",
+      "authoredSHA256": "655e6885bfe351f9002717f8c67f37a7a6856d36830284845b479f60d2f267a5"
+    },
+    {
+      "id": "valid-throw-fixture-getter",
+      "classification": "valid-authored-failure",
+      "mode": "development",
+      "file": "reference/valid-throw-fixture-getter-development.json.txt",
+      "sha256": "f7365e79e11a73c1155a1f200f88a1ad94d0f43920d84c3155d08fbafad5fb0e",
+      "sourceSHA256": "6041cb4a3e96d39318e7899219634ee769ae2ce76e47141639b371ac9be474ba",
+      "status": 1,
+      "rows": 3,
+      "cases": 1,
+      "authoredFile": "authored-config/valid-throw-fixture-getter-development.json.txt",
+      "authoredSHA256": "d075ffa5f0f49b2a100fec87c2d61155df483b4f7c3d3dc8b6df73534a34664f"
+    },
+    {
+      "id": "valid-throw-fixture-getter",
+      "classification": "valid-authored-failure",
+      "mode": "production",
+      "file": "reference/valid-throw-fixture-getter-production.json.txt",
+      "sha256": "41973f3954ecda906126279f8f588882c7e121cb2facc3b9919733ec2a66e441",
+      "sourceSHA256": "6041cb4a3e96d39318e7899219634ee769ae2ce76e47141639b371ac9be474ba",
+      "status": 1,
+      "rows": 3,
+      "cases": 1,
+      "authoredFile": "authored-config/valid-throw-fixture-getter-production.json.txt",
+      "authoredSHA256": "bf39b603e8fb8d0f887f1115b199a4442424fcfa8841ab40127d41672dd61773"
+    },
+    {
+      "id": "refusal-suite-nonempty",
+      "classification": "reference-registration-refusal",
+      "mode": "development",
+      "file": "reference/refusal-suite-nonempty-development.json.txt",
+      "sha256": "ffd6fa69cbf48e890e4a77515c0570f854729b4df9eb970b3e16e4f66b840358",
+      "sourceSHA256": "8d4cba0e32334756c8c029a15862bd632df5902ef2dc71250ff9f8adc236d8e6",
+      "status": 1,
+      "rows": 0,
+      "cases": 1,
+      "authoredFile": "authored-config/refusal-suite-nonempty-development.json.txt",
+      "authoredSHA256": "94ac6b967586cdf4b411d5bbb6cfe00e301f6011cb6f2246b52c04a1564cbb79"
+    },
+    {
+      "id": "refusal-suite-nonempty",
+      "classification": "reference-registration-refusal",
+      "mode": "production",
+      "file": "reference/refusal-suite-nonempty-production.json.txt",
+      "sha256": "f46ac7cb99ad49067ea69a02396ca07de7f91e91a47840e83cbf5d7a44595893",
+      "sourceSHA256": "8d4cba0e32334756c8c029a15862bd632df5902ef2dc71250ff9f8adc236d8e6",
+      "status": 1,
+      "rows": 0,
+      "cases": 1,
+      "authoredFile": "authored-config/refusal-suite-nonempty-production.json.txt",
+      "authoredSHA256": "4bc7b93c8d6efc3410fe20e58312b0ddbf7325fcec54167a3531a215b004a7f2"
+    },
+    {
+      "id": "refusal-suite-rest",
+      "classification": "reference-registration-refusal",
+      "mode": "development",
+      "file": "reference/refusal-suite-rest-development.json.txt",
+      "sha256": "26d27a0069ba502dcd61b454aca3aa3a0eb6683e1a13b4a5b959779d7f0a2907",
+      "sourceSHA256": "59b9083fb4984f8734a49ae7b50b14383b817da244bc5a5b057ae02adc960aaa",
+      "status": 1,
+      "rows": 0,
+      "cases": 1,
+      "authoredFile": "authored-config/refusal-suite-rest-development.json.txt",
+      "authoredSHA256": "d5990ee1cef32f6f1204ed02b075727f08ef80c2dab5ec438da1cf84f9586832"
+    },
+    {
+      "id": "refusal-suite-rest",
+      "classification": "reference-registration-refusal",
+      "mode": "production",
+      "file": "reference/refusal-suite-rest-production.json.txt",
+      "sha256": "2e3aa71db709820fa2ee8d7cd8cf89846ff82ded3108fdf57d0d14554412460f",
+      "sourceSHA256": "59b9083fb4984f8734a49ae7b50b14383b817da244bc5a5b057ae02adc960aaa",
+      "status": 1,
+      "rows": 0,
+      "cases": 1,
+      "authoredFile": "authored-config/refusal-suite-rest-production.json.txt",
+      "authoredSHA256": "a300edb2a6f96e797bbfd2c30372b351a1602b2eee5c64ed09d7837b6b47a5f7"
+    },
+    {
+      "id": "rejected-original-inline-default",
+      "classification": "original-rejected-inline-default",
+      "mode": "development",
+      "file": "reference/rejected-original-inline-default-development.json.txt",
+      "sha256": "1a7dd7b4ce9db676285a767958e0d9d3026323e5e895c6a0d76e07e5b6c13f66",
+      "sourceSHA256": "abd2d07b3542dad4ea29a50398550680ba1528dd5eb0349c40527060f23c23ea",
+      "status": 1,
+      "rows": 0,
+      "cases": 1,
+      "authoredFile": "authored-config/rejected-original-inline-default-development.json.txt",
+      "authoredSHA256": "a5dc9510d42742613becae6c101f7f9af1acaa3af062e5f9b880a4aa4b5acac0"
+    },
+    {
+      "id": "rejected-original-inline-default",
+      "classification": "original-rejected-inline-default",
+      "mode": "production",
+      "file": "reference/rejected-original-inline-default-production.json.txt",
+      "sha256": "a30b9cffcd0b80be78bcb6cec79ce412bcdad4860a01ce289a29d50cdfad4df0",
+      "sourceSHA256": "abd2d07b3542dad4ea29a50398550680ba1528dd5eb0349c40527060f23c23ea",
+      "status": 1,
+      "rows": 0,
+      "cases": 1,
+      "authoredFile": "authored-config/rejected-original-inline-default-production.json.txt",
+      "authoredSHA256": "dd2f72886ed9adbdceb45e43853152ad44076f7011b985244a809fd78e14179c"
+    },
+    {
+      "id": "rejected-parenthesized-default",
+      "classification": "rejected-parenthesized-default",
+      "mode": "development",
+      "file": "reference/rejected-parenthesized-default-development.json.txt",
+      "sha256": "be05248fb6efe0117eeafdb40ab8a50a50e7e8ab53c8b59d351bcd858c2147b1",
+      "sourceSHA256": "979f67b9d49388447084fd9942649611b77c86b3161e862ea06c141c1e592f61",
+      "status": 1,
+      "rows": 0,
+      "cases": 1,
+      "authoredFile": "authored-config/rejected-parenthesized-default-development.json.txt",
+      "authoredSHA256": "c05892601c25d5d987be1c5e39d84d3efeecf5e3dfab501dc66cde16f0e94bdd"
+    },
+    {
+      "id": "rejected-parenthesized-default",
+      "classification": "rejected-parenthesized-default",
+      "mode": "production",
+      "file": "reference/rejected-parenthesized-default-production.json.txt",
+      "sha256": "e3e9f7e9c1f71041a13e9436968c9e29f896fff5d808f94f2edc61ce87e9c536",
+      "sourceSHA256": "979f67b9d49388447084fd9942649611b77c86b3161e862ea06c141c1e592f61",
+      "status": 1,
+      "rows": 0,
+      "cases": 1,
+      "authoredFile": "authored-config/rejected-parenthesized-default-production.json.txt",
+      "authoredSHA256": "5fe2fc47a127286b1171b23b2272c3961f28005c9970193745e80c887a4da968"
+    }
+  ],
+  "validProfiles": 8,
+  "validRows": 34,
+  "separateReferenceRefusals": 4,
+  "separateOriginalRejectedProbes": 4,
+  "nativeErrorOriginContract": "HOLD pending errors owner agreement",
+  "defaultSelection": "qualified-success-only",
+  "defaultQualifiedProfilesTotal": 4,
+  "defaultQualifiedRowsTotal": 22,
+  "errorProfilesExecution": "HARD HOLD pending Root-approved native origin/full-stack contract",
+  "separateSuiteIdentitySourceStatus": "pending; genuine-only proof remains separate"
+}

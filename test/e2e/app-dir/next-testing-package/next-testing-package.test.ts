@@ -452,6 +452,109 @@ describe('next-testing-package', () => {
   }
 
   if (isNextDev && isTurbopack) {
+    it.each(['development', 'production'] as const)(
+      'D1 qualified success: preserves original Browser hook parameters in %s',
+      async (mode) => {
+        const retained = process.env.NEXT_TESTING_D1_HOOK_PARAMETERS_EVIDENCE
+        const temporary =
+          retained ??
+          (await mkdtemp(join(tmpdir(), 'next-browser-hook-parameters-')))
+        let complete = false
+        try {
+          const evidence = join(temporary, mode, 'evidence')
+          await promisify(execFile)(
+            process.execPath,
+            [
+              join(__dirname, 'verify-browser-hook-parameters.mjs'),
+              next.testDir,
+              mode,
+              evidence,
+            ],
+            { timeout: 270000, maxBuffer: 1024 * 1024 }
+          )
+          const verified = JSON.parse(
+            await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+          )
+          expect(verified.selectedContract).toBe('qualified-success-only')
+          expect(verified.profiles).toBe(2)
+          expect(verified.cases).toBe(2)
+          expect(verified.rows).toBe(11)
+          expect(verified.completeGenuineSuccessModelsExact).toBe(true)
+          expect(verified.errorProfilesQualified).toBe(false)
+          expect(verified.suiteIdentitySourceQualified).toBe(false)
+          expect(verified.frozenInputsHeld).toBe(true)
+          expect(verified.allOwnersJoined).toBe(true)
+          expect(verified.allFixturesRemoved).toBe(true)
+          complete = true
+        } catch (error) {
+          throw new Error(
+            `D1 successful hook evidence retained at ${temporary}`,
+            {
+              cause: error,
+            }
+          )
+        } finally {
+          if (complete && !retained)
+            await rm(temporary, { recursive: true, force: true })
+        }
+      },
+      300000
+    )
+  }
+
+  if (isNextDev && isTurbopack) {
+    it.each(['development', 'production'] as const)(
+      'D1 qualified Suite arguments: preserves actual Browser Suite hook arguments in %s',
+      async (mode) => {
+        const retained = process.env.NEXT_TESTING_D1_SUITE_ARGUMENTS_EVIDENCE
+        const temporary =
+          retained ??
+          (await mkdtemp(join(tmpdir(), 'next-browser-suite-arguments-')))
+        let complete = false
+        try {
+          const evidence = join(temporary, mode, 'evidence')
+          await promisify(execFile)(
+            process.execPath,
+            [
+              join(__dirname, 'verify-browser-suite-arguments.mjs'),
+              next.testDir,
+              mode,
+              evidence,
+            ],
+            { timeout: 150000, maxBuffer: 1024 * 1024 }
+          )
+          const verified = JSON.parse(
+            await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+          )
+          expect(verified.selectedContract).toBe('qualified-suite-arguments-v2')
+          expect(verified.profiles).toBe(1)
+          expect(verified.cases).toBe(1)
+          expect(verified.rows).toBe(5)
+          expect(verified.completeGenuineV2ModelExact).toBe(true)
+          expect(verified.actualSuiteModuleParentIdentityObserved).toBe(true)
+          expect(verified.unknownIDsRemainRawAndCollisionsRejected).toBe(true)
+          expect(verified.frozenInputsHeld).toBe(true)
+          expect(verified.graphPinsHeld).toBe(true)
+          expect(verified.allOwnersJoined).toBe(true)
+          expect(verified.allFixturesRemoved).toBe(true)
+          complete = true
+        } catch (error) {
+          throw new Error(
+            `D1 Suite argument evidence retained at ${temporary}`,
+            {
+              cause: error,
+            }
+          )
+        } finally {
+          if (complete && !retained)
+            await rm(temporary, { recursive: true, force: true })
+        }
+      },
+      180000
+    )
+  }
+
+  if (isNextDev && isTurbopack) {
     it('matches genuine lazy Browser action shapes, await guards and consumption in the installed package', async () => {
       const temporary = await mkdtemp(
         join(tmpdir(), 'next-browser-lazy-actions-')

@@ -41,6 +41,7 @@ import {
   createFixtureWorker,
   type FixtureWorker,
   resolveFixtureDefinitions,
+  validateSuiteHook,
 } from './fixtures'
 
 const frameworkDateNow = Date.now.bind(Date)
@@ -2745,32 +2746,6 @@ export async function runCollected(
     if (node === root && options.captureModuleStart === true)
       options.onFilePrepared?.(publicSuite as File)
     const cleanups: { fn: Cleanup; index: number; timeout: number }[] = []
-    const context: TestContext = {
-      inject: ((key: string) =>
-        options.inject?.(key as never)) as TestContext['inject'],
-      get task(): Readonly<Test> {
-        throw new Error('context.task requires an active Next test.')
-      },
-      annotate() {
-        throw new Error('annotate() requires an active test.')
-      },
-      bench(): never {
-        throw new Error('context.bench requires an active test.')
-      },
-      get expect(): TestExpect {
-        throw new Error('context.expect requires an active Next test.')
-      },
-      skip() {
-        throw new Error('skip() requires an active test.')
-      },
-      signal: options.signal,
-      onTestFinished() {
-        throw new Error('onTestFinished requires an active test.')
-      },
-      onTestFailed() {
-        throw new Error('onTestFailed requires an active test.')
-      },
-    }
     function runnable(suite: TestSuite): boolean {
       return suite.children.some((child) =>
         child.type === 'suite' ? runnable(child) : selected.get(child) === 'run'
@@ -2802,8 +2777,11 @@ export async function runCollected(
       observeFailure?: (error: unknown) => void
     ) => {
       const invoke = (values: unknown) => {
-        const call = () =>
-          Reflect.apply(hook.fn, undefined, [values, publicSuite])
+        const call = () => {
+          if (hook.fixtures === undefined)
+            validateSuiteHook(hook.fn, name, hook.registrationError)
+          return Reflect.apply(hook.fn, undefined, [values, publicSuite])
+        }
         if (!options.captureCoverageCompletion || !observeFailure) return call()
         return (async () => {
           try {
@@ -2815,12 +2793,7 @@ export async function runCollected(
         })()
       }
       if (hook.fixtures === undefined)
-        return settleSuiteHookResult(
-          options.captureCoverageCompletion && observeFailure
-            ? invoke(context)
-            : Reflect.apply(hook.fn, undefined, [context, publicSuite]),
-          name === 'beforeAll'
-        )
+        return settleSuiteHookResult(invoke({}), name === 'beforeAll')
       const definitions = resolveFixtureDefinitions(hook.fixtures, node)
       const fixtures = fixtureFile.attempt(definitions, {}, name)
       const wrapper = (values: Record<string, unknown>) =>

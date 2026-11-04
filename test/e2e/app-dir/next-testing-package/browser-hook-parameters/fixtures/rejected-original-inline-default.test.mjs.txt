@@ -1,0 +1,27 @@
+import { test, expect, beforeAll, afterAll, beforeEach, afterEach, beforeEach as setup } from 'vitest'
+const trace = []
+function emit(value) { console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value)) }
+function record(phase, fn, args, target, receiver, value, rest) {
+  trace.push(phase + ':body')
+  emit({ phase, trace: [...trace], function: { name: fn.name, length: fn.length, ownPrototype: Object.hasOwn(fn, 'prototype'), prototypeConstructor: fn.prototype.constructor === fn }, arguments: { length: args.length, firstType: typeof args[0], firstHasTask: !!args[0] && 'task' in args[0], restKeys: Object.keys(rest).sort() }, newTargetUndefined: target === undefined, receiverUndefined: receiver === undefined, initializedValue: value })
+}
+beforeAll(function namedBeforeAll({ missing = (trace.push('beforeAll:parameter'), expect(1).toBe(1), 'beforeAll-value'), ...rest }) {
+  record('beforeAll', namedBeforeAll, arguments, new.target, this, missing, rest)
+})
+beforeEach(function namedBeforeEach({ missing = (trace.push('beforeEach:parameter'), expect(1).toBe(1), 'beforeEach-value'), ...rest }) {
+  record('beforeEach', namedBeforeEach, arguments, new.target, this, missing, rest)
+})
+setup(function namedRenamedBeforeEach({ missing = (trace.push('renamedBeforeEach:parameter'), expect(1).toBe(1), 'renamedBeforeEach-value'), ...rest }) {
+  record('renamedBeforeEach', namedRenamedBeforeEach, arguments, new.target, this, missing, rest)
+})
+afterEach(function namedAfterEach({ missing = (trace.push('afterEach:parameter'), expect(1).toBe(1), 'afterEach-value'), ...rest }) {
+  record('afterEach', namedAfterEach, arguments, new.target, this, missing, rest)
+})
+afterAll(function namedAfterAll({ missing = (trace.push('afterAll:parameter'), expect(1).toBe(1), 'afterAll-value'), ...rest }) {
+  record('afterAll', namedAfterAll, arguments, new.target, this, missing, rest)
+})
+test('initializes direct synchronous hook parameters before their original bodies', function namedCase() {
+  trace.push('test:body')
+  expect(trace).toEqual(['beforeAll:parameter', 'beforeAll:body', 'beforeEach:parameter', 'beforeEach:body', 'renamedBeforeEach:parameter', 'renamedBeforeEach:body', 'test:body'])
+  emit({ phase: 'test', trace: [...trace] })
+})

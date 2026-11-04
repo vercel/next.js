@@ -1,0 +1,108 @@
+{
+  "rows": [],
+  "cases": [
+    {
+      "name": "records the pinned direct suite-hook suite-rest refusal",
+      "status": "skipped",
+      "failureMessages": []
+    }
+  ],
+  "caseFinals": [
+    {
+      "name": "records the pinned direct suite-hook suite-rest refusal",
+      "result": {
+        "state": "skipped",
+        "errors": []
+      }
+    }
+  ],
+  "moduleFinals": [
+    {
+      "state": "failed",
+      "errors": [
+        {
+          "stack": "Error: Rest parameters are not supported in fixtures, received \"...rest\".\n    at beforeAll (http://localhost:63315/vite-cache/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-CZAEkGcK.js?v=8f52593c:4403:42)\n    at http://localhost:63315/private/tmp/next-testing-d1-hook-parameters-20261103/v4-refusals/fixture-suite-rest-production/fixtures.test.mjs?import&browserv=1793704756349:3:1",
+          "message": "Rest parameters are not supported in fixtures, received \"...rest\".",
+          "name": "FixtureParseError",
+          "constructor": "Function<FixtureParseError>",
+          "toString": "Function<toString>",
+          "stacks": [
+            {
+              "method": "beforeAll",
+              "file": "/private/tmp/next-testing-d1-hook-parameters-20261103/v4-refusals/fixture-suite-rest-production/vite-cache/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-CZAEkGcK.js?v=8f52593c",
+              "line": 4403,
+              "column": 42
+            },
+            {
+              "method": "",
+              "file": "/private/tmp/next-testing-d1-hook-parameters-20261103/v4-refusals/fixture-suite-rest-production/fixtures.test.mjs",
+              "line": 3,
+              "column": 1
+            }
+          ]
+        },
+        {
+          "stack": "Error: Rest parameters are not supported in fixtures, received \"...rest\".\n    at afterAll (http://localhost:63315/vite-cache/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-CZAEkGcK.js?v=8f52593c:4430:42)\n    at http://localhost:63315/private/tmp/next-testing-d1-hook-parameters-20261103/v4-refusals/fixture-suite-rest-production/fixtures.test.mjs?import&browserv=1793704756349:7:1",
+          "message": "Rest parameters are not supported in fixtures, received \"...rest\".",
+          "name": "FixtureParseError",
+          "constructor": "Function<FixtureParseError>",
+          "toString": "Function<toString>",
+          "stacks": [
+            {
+              "method": "afterAll",
+              "file": "/private/tmp/next-testing-d1-hook-parameters-20261103/v4-refusals/fixture-suite-rest-production/vite-cache/vitest/da39a3ee5e6b4b0d3255bfef95601890afd80709/deps/plugins.DPQHVT0p-CZAEkGcK.js?v=8f52593c",
+              "line": 4430,
+              "column": 42
+            },
+            {
+              "method": "",
+              "file": "/private/tmp/next-testing-d1-hook-parameters-20261103/v4-refusals/fixture-suite-rest-production/fixtures.test.mjs",
+              "line": 7,
+              "column": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "runFinals": [
+    {
+      "reason": "failed",
+      "errors": [],
+      "rawUnhandled": [],
+      "files": [
+        {
+          "state": "failed",
+          "tests": [
+            {
+              "name": "records the pinned direct suite-hook suite-rest refusal",
+              "result": {
+                "state": "skipped",
+                "errors": []
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "standardFiles": [
+    {
+      "status": "failed",
+      "message": "Rest parameters are not supported in fixtures, received \"...rest\"."
+    }
+  ],
+  "counts": {
+    "numTotalTestSuites": 1,
+    "numPassedTestSuites": 0,
+    "numFailedTestSuites": 1,
+    "numPendingTestSuites": 0,
+    "numTotalTests": 1,
+    "numPassedTests": 0,
+    "numFailedTests": 0,
+    "numPendingTests": 1,
+    "numTodoTests": 0
+  },
+  "success": false,
+  "exit": 1
+}

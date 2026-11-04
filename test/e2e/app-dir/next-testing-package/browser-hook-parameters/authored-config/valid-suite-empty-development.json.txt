@@ -1,0 +1,38 @@
+{
+  "args": [
+    "/Users/timneutkens/projects/next-testing-run/integration/production-browser-mocks/reference/node_modules/vitest/vitest.mjs",
+    "run",
+    "--root",
+    "/private/tmp/next-testing-d1-hook-parameters-20261103/v3/fixture-suite-empty-development",
+    "--mode",
+    "development",
+    "--config",
+    "/private/tmp/next-testing-d1-hook-parameters-20261103/v3/fixture-suite-empty-development/vitest.config.mjs",
+    "--configLoader",
+    "native",
+    "--reporter=json",
+    "--reporter=/private/tmp/next-testing-d1-hook-parameters-20261103/v3/fixture-suite-empty-development/reporter.mjs",
+    "--outputFile=/private/tmp/next-testing-d1-hook-parameters-20261103/v3/suite-empty-development/report.raw.json"
+  ],
+  "test": {
+    "include": [
+      "fixtures.test.mjs"
+    ],
+    "maxWorkers": 1,
+    "browser": {
+      "enabled": true,
+      "headless": true,
+      "instances": [
+        {
+          "browser": "chromium"
+        }
+      ]
+    },
+    "testTimeout": 5000,
+    "hookTimeout": 5000,
+    "includeTaskLocation": false
+  },
+  "fixture": "/private/tmp/next-testing-d1-hook-parameters-20261103/v3/fixture-suite-empty-development",
+  "sourceSHA256": "bc8c74db56014ed89448d8e165d507948f08218a3bdf414126373c1ae7d1813e",
+  "cliDeadlineMs": 120000
+}

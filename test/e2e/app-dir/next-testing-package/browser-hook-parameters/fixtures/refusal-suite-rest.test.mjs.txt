@@ -1,0 +1,14 @@
+import { test, beforeAll, afterAll } from 'vitest'
+let bodyCalls = 0
+beforeAll(function namedUnsupportedBeforeAll({ ...rest }) {
+  bodyCalls++
+  console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify({ phase: 'beforeAll-body', bodyCalls }))
+})
+afterAll(function namedUnsupportedAfterAll({ ...rest }) {
+  bodyCalls++
+  console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify({ phase: 'afterAll-body', bodyCalls }))
+})
+test('records the pinned direct suite-hook suite-rest refusal', function namedUnstartedSuiteCase() {
+  bodyCalls++
+  console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify({ phase: 'test-body', bodyCalls }))
+})

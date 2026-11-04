@@ -187,6 +187,101 @@ export function validateFixtureDefinitions(
   }
 }
 
+class FixtureAccessError extends Error {
+  name = 'FixtureAccessError'
+}
+
+class FixtureParseError extends Error {
+  name = 'FixtureParseError'
+}
+
+function suiteHookSource(source: string): string {
+  const result: string[] = []
+  let comment: 'none' | 'singleline' | 'multiline' = 'none'
+  for (let index = 0; index < source.length; index++) {
+    if (comment === 'singleline') {
+      if (source[index] === '\n') comment = 'none'
+    } else if (comment === 'multiline') {
+      if (source[index - 1] === '*' && source[index] === '/') comment = 'none'
+    } else if (source[index] === '/' && source[index + 1] === '/')
+      comment = 'singleline'
+    else if (source[index] === '/' && source[index + 1] === '*') {
+      comment = 'multiline'
+      index += 2
+    } else result.push(source[index])
+  }
+  return result.join('')
+}
+
+function ordinal(index: number): string {
+  const digit = index % 10
+  const pair = index % 100
+  return `${index}${
+    digit === 1 && pair !== 11
+      ? 'st'
+      : digit === 2 && pair !== 12
+        ? 'nd'
+        : digit === 3 && pair !== 13
+          ? 'rd'
+          : 'th'
+  }`
+}
+
+/** Direct suite hooks have no fixture context; validate their original source. */
+export function validateSuiteHook(
+  fn: Function,
+  hook: 'beforeAll' | 'afterAll',
+  sourceError?: Error
+): void {
+  const metadata = fixtureCallbackMetadata.get(fn)
+  const implementation = metadata?.original ?? fn
+  const argument = metadata?.argument ?? 0
+  let source = suiteHookSource(implementation.toString())
+  if (
+    /__async\((?:this|null), (?:null|arguments|\[[_0-9, ]*\]), function\*/.test(
+      source
+    )
+  )
+    source = source.split(/__async\((?:this|null),/)[1]
+  const match = source.match(/[^(]*\(([^)]*)/)
+  if (!match) return
+  // Keep the target's shallow parameter parser: parentheses in defaults end it.
+  const fixtureArgument = splitByComma(match[1], false)[argument]
+  if (!fixtureArgument) return
+  const fail = (error: Error): never => {
+    if (sourceError)
+      error.stack = sourceError.stack?.replace(
+        sourceError.message,
+        error.message
+      )
+    throw error
+  }
+  if (!(fixtureArgument[0] === '{' && fixtureArgument.endsWith('}')))
+    fail(
+      new FixtureParseError(
+        `The ${ordinal(argument + 1)} argument inside a fixture must use object destructuring pattern, e.g. ({ task } => {}). Instead, received "${fixtureArgument}". If you used internal "suite" task as the ${ordinal(argument + 1)} argument previously, access it in the ${ordinal(argument + 2)} argument instead.`
+      )
+    )
+  const properties = splitByComma(
+    fixtureArgument.slice(1, -1).replace(/\s/g, ''),
+    false
+  ).map((property) => property.replace(/:.*|=.*/g, ''))
+  const last = properties.at(-1)
+  if (last?.startsWith('...'))
+    fail(
+      new FixtureParseError(
+        `Rest parameters are not supported in fixtures, received "${last}".`
+      )
+    )
+  const used = new Set(properties)
+  if (used.size)
+    fail(
+      new FixtureAccessError(
+        `The ${hook} hook uses fixtures "${[...used].join('", "')}", but has no access to context. Did you forget to call it as "test.${hook}()" instead of "${hook}()"?\nIf you used internal "suite" task as the first argument previously, access it in the second argument instead. See https://vitest.dev/guide/test-context#suite-level-hooks`
+      )
+    )
+}
+
 /** The first increment deliberately accepts only plain object destructuring. */
 function dependencies(fn: Function): string[] {
   const metadata = fixtureCallbackMetadata.get(fn)
@@ -228,13 +323,17 @@ function dependencies(fn: Function): string[] {
     })
 }
 
-function splitByComma(source: string): string[] {
+function splitByComma(source: string, parentheses = true): string[] {
   const result: string[] = []
   const stack: string[] = []
   let start = 0
   for (let index = 0; index < source.length; index++) {
     const character = source[index]
-    if (character === '{' || character === '[' || character === '(')
+    if (
+      character === '{' ||
+      character === '[' ||
+      (parentheses && character === '(')
+    )
       stack.push(character === '{' ? '}' : character === '[' ? ']' : ')')
     else if (character === stack.at(-1)) stack.pop()
     else if (character === ',' && stack.length === 0) {

@@ -270,8 +270,66 @@ fn runner_concise_test_callbacks(program: &Program, runner_request: Option<&str>
     callbacks.arrows
 }
 
+fn runner_hook_callbacks(program: &Program, runner_request: Option<&str>) -> HashSet<Span> {
+    let mut bindings = HashSet::new();
+    if let (Program::Module(module), Some(request)) = (program, runner_request) {
+        for item in &module.body {
+            let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item else {
+                continue;
+            };
+            if import.type_only || import.src.value != request {
+                continue;
+            }
+            for specifier in &import.specifiers {
+                let ImportSpecifier::Named(named) = specifier else {
+                    continue;
+                };
+                let imported = named
+                    .imported
+                    .as_ref()
+                    .map(|name| name.atom().to_string())
+                    .unwrap_or_else(|| named.local.sym.to_string());
+                if !named.is_type_only
+                    && matches!(
+                        imported.as_str(),
+                        "beforeEach" | "afterEach" | "beforeAll" | "afterAll"
+                    )
+                {
+                    bindings.insert(named.local.to_id());
+                }
+            }
+        }
+    }
+    struct HookCallbacks<'a> {
+        bindings: &'a HashSet<Id>,
+        functions: HashSet<Span>,
+    }
+    impl Visit for HookCallbacks<'_> {
+        fn visit_call_expr(&mut self, call: &CallExpr) {
+            if matches!(&call.callee, Callee::Expr(callee)
+                if matches!(&**callee, Expr::Ident(ident) if self.bindings.contains(&ident.to_id())))
+                && let Some(argument) = call.args.first()
+                && argument.spread.is_none()
+                && let Expr::Fn(function) = &*argument.expr
+                && !function.function.is_async
+                && !function.function.is_generator
+            {
+                self.functions.insert(function.function.span);
+            }
+            call.visit_children_with(self);
+        }
+    }
+    let mut callbacks = HookCallbacks {
+        bindings: &bindings,
+        functions: HashSet::new(),
+    };
+    program.visit_with(&mut callbacks);
+    callbacks.functions
+}
+
 fn creator_scope(program: &mut Program, runner_request: Option<&str>) -> Result<usize> {
     let runner_concise_tests = runner_concise_test_callbacks(program, runner_request);
+    let runner_hooks = runner_hook_callbacks(program, runner_request);
     let mut admission = Admission::default();
     program.visit_with(&mut admission);
     if let Some(reason) = admission.error {
@@ -287,6 +345,7 @@ fn creator_scope(program: &mut Program, runner_request: Option<&str>) -> Result<
         error: None,
         count: 0,
         runner_concise_tests,
+        runner_hooks,
         in_parameters: false,
         in_inline_body: false,
         repeated: false,
@@ -501,6 +560,7 @@ struct CreatorPass {
     error: Option<&'static str>,
     count: usize,
     runner_concise_tests: HashSet<Span>,
+    runner_hooks: HashSet<Span>,
     in_parameters: bool,
     in_inline_body: bool,
     repeated: bool,
@@ -622,7 +682,13 @@ impl CreatorPass {
         }
     }
     fn function(&mut self, function: &mut Function, cell: &Ident) {
-        self.simple(&function.params);
+        // A successful direct hook declaration requires collection scope. Its
+        // original literal retains no attempt/hook creator owner; the actual
+        // runner enters its invocation scope before native parameters. Keep
+        // all nested parameter traversal and placement checks unchanged.
+        if !self.runner_hooks.contains(&function.span) {
+            self.simple(&function.params);
+        }
         if let Some(body) = &mut function.body {
             self.body(body, cell);
         }
@@ -951,6 +1017,126 @@ mod tests {
         let mut program = parse(source);
         program.visit_mut_with(&mut resolver(Mark::new(), Mark::new(), false));
         program
+    }
+
+    #[test]
+    fn direct_selected_runner_hooks_preserve_genuine_parameter_ast() {
+        GLOBALS.set(&Default::default(), || {
+            // These are the successful parameter forms in the frozen genuine
+            // Browser corpus. Suite hooks with fixture properties/rest are not
+            // supported public functionality; their registration errors remain
+            // the actual runtime invocation parser's responsibility.
+            for (imported, local, parameters) in [
+                (
+                    "beforeEach",
+                    "beforeEach",
+                    "{ missing = initializeBeforeEach(), ...rest }",
+                ),
+                (
+                    "afterEach",
+                    "afterEach",
+                    "{ missing = initializeAfterEach(), ...rest }",
+                ),
+                ("beforeAll", "beforeAll", "{}"),
+                ("afterAll", "afterAll", "{}"),
+                (
+                    "beforeEach",
+                    "setup",
+                    "{ missing = initializeRenamedBeforeEach(), ...rest }",
+                ),
+            ] {
+                let source = format!(
+                    "import {{{imported} as {local}}} from 'vitest';{local}(function \
+                     original({parameters}){{return [this, arguments, new.target, original]}})"
+                );
+                let mut program = resolved_runner_program(&source);
+                #[derive(Default)]
+                struct Originals(Vec<FnExpr>);
+                impl Visit for Originals {
+                    fn visit_fn_expr(&mut self, expression: &FnExpr) {
+                        self.0.push(expression.clone());
+                        expression.visit_children_with(self);
+                    }
+                }
+                let mut before = Originals::default();
+                program.visit_with(&mut before);
+                let count = browser_creator_scope_with_runner(&mut program, "vitest").unwrap();
+                let mut after = Originals::default();
+                program.visit_with(&mut after);
+                assert_eq!(count, 1);
+                assert_eq!(before.0.len(), 1);
+                assert_eq!(after.0.len(), 1);
+                assert_eq!(
+                    format!("{:?}", before.0[0].function.params),
+                    format!("{:?}", after.0[0].function.params)
+                );
+                assert_eq!(
+                    format!("{:?}", before.0[0].ident),
+                    format!("{:?}", after.0[0].ident)
+                );
+                assert!(validate_creator_import(&program).unwrap());
+                let output = to_code(&program);
+                assert!(output.contains("new.target"));
+                assert!(output.contains("arguments"));
+                assert!(output.contains("finally"));
+            }
+        });
+    }
+
+    #[test]
+    fn selected_suite_hooks_leave_reference_refusals_to_actual_invocation() {
+        GLOBALS.set(&Default::default(), || {
+            for parameters in ["{ task }", "{ ...rest }"] {
+                let source = format!(
+                    "import {{beforeAll,afterAll}} from 'vitest';beforeAll(function \
+                     originalBefore({parameters}){{}});afterAll(function \
+                     originalAfter({parameters}){{}})"
+                );
+                let mut program = resolved_runner_program(&source);
+                assert_eq!(
+                    browser_creator_scope_with_runner(&mut program, "vitest").unwrap(),
+                    2
+                );
+                let output = to_code(&program);
+                assert!(output.contains("function originalBefore"));
+                assert!(output.contains("function originalAfter"));
+                // This check admits original native functions only. The real
+                // Browser corpus must still require invocation-time FixtureAccessError or
+                // FixtureParseError, no body calls, and the unchanged skipped
+                // case/full failed module report. A compiler HOLD is not parity.
+                assert!(validate_creator_import(&program).unwrap());
+            }
+        });
+    }
+
+    #[test]
+    fn selected_runner_hooks_do_not_admit_generic_or_indirect_parameters() {
+        GLOBALS.set(&Default::default(), || {
+            for source in [
+                "import {beforeEach} from 'other';beforeEach(function({value}){})",
+                "import {beforeEach} from 'vitest';function \
+                 foreign(beforeEach){beforeEach(function({value}){})}",
+                "import {beforeEach} from 'vitest';const \
+                 setup=beforeEach;setup(function({value}){})",
+                "import * as runner from 'vitest';runner.beforeEach(function({value}){})",
+                "import {beforeEach} from 'vitest';beforeEach?.(function({value}){})",
+                "import {beforeEach} from 'vitest';const \
+                 callback=function({value}){};beforeEach(callback)",
+                "import {beforeEach} from 'vitest';beforeEach(function({value = function \
+                 nested(){}}){})",
+                "export const generic=function({value}){}",
+            ] {
+                let mut program = resolved_runner_program(source);
+                assert!(
+                    browser_creator_scope_with_runner(&mut program, "vitest").is_err(),
+                    "accepted {source}"
+                );
+            }
+            let mut program = resolved_runner_program(
+                "import {beforeEach} from 'vitest';beforeEach(function({value}){})",
+            );
+            assert!(browser_creator_scope(&mut program).is_err());
+        });
     }
 
     #[test]
