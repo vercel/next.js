@@ -276,11 +276,13 @@ This resets all fields whenever the user navigates away.
 
 </details>
 
-### Notifications received while hidden
+### State updated while hidden
 
-An inbox might clear its notification when the user leaves. If another notification arrives while the inbox is hidden, it should still be there on return. In development, Strict Mode can run Effect cleanup again when the page becomes visible, so an unconditional reset would clear the new notification too.
+State can change while Activity keeps a page hidden. An unconditional reset in Effect cleanup can discard those updates if cleanup runs again when the page becomes visible. In development, Strict Mode runs an extra setup and cleanup cycle, so cleanup must be safe to repeat.
 
-For this case, tie the reset to leaving the page. Use a navigation event handler, or a persistent layout that observes navigation to also cover browser controls and links outside the page. This clears the previous notification without discarding one that arrives afterward.
+For example, suppose an inbox clears its notification in cleanup when the user leaves. A new notification arrives while the inbox is hidden. If cleanup runs again on return, it clears the new notification before the user sees it.
+
+In this example, clear the previous notification when leaving the page. Use a navigation event handler, or a persistent layout that observes navigation if the reset must also cover browser controls and links outside the page.
 
 ## State and authentication
 
