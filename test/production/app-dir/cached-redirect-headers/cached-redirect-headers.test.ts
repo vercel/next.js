@@ -1,20 +1,9 @@
 import { once } from 'node:events'
 import http from 'node:http'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 const destination = '/destination'
-
-function getRawHeaderValues(rawHeaders: string[], name: string) {
-  const values: string[] = []
-
-  for (let index = 0; index < rawHeaders.length; index += 2) {
-    if (rawHeaders[index].toLowerCase() === name.toLowerCase()) {
-      values.push(rawHeaders[index + 1])
-    }
-  }
-
-  return values
-}
 
 async function getRawResponse(url: URL): Promise<http.IncomingMessage> {
   const response = await new Promise<http.IncomingMessage>(
@@ -33,39 +22,55 @@ function expectSingleRedirect(
   statusCode: 307 | 308
 ) {
   expect(response.statusCode).toBe(statusCode)
-  expect(getRawHeaderValues(response.rawHeaders, 'location')).toEqual([
-    destination,
-  ])
-  expect(
-    getRawHeaderValues(response.rawHeaders, 'x-nextjs-stale-time')
-  ).toHaveLength(1)
+  // Normalized Node headers discard duplicate Location values.
+  expect(response.headersDistinct.location).toEqual([destination])
+  expect(response.headersDistinct['x-nextjs-stale-time']).toHaveLength(1)
 }
 
+// The fixture uses dynamic/revalidate segment config, unsupported by Cache Components.
+// @force-gate !cacheComponents
 describe('cached redirect headers', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
-  it.each([
+  // Plain it calls inherit the suite gate; it.each bypasses it.
+  for (const { pathname, statusCode } of [
     { pathname: '/permanent', statusCode: 308 as const },
     { pathname: '/temporary', statusCode: 307 as const },
-  ])(
-    'does not duplicate force-static $statusCode redirect headers',
-    async ({ pathname, statusCode }) => {
-      const response = await getRawResponse(new URL(pathname, next.url))
+  ]) {
+    it(`does not duplicate force-static ${statusCode} redirect headers`, async () => {
+      const url = new URL(pathname, next.url)
 
-      expectSingleRedirect(response, statusCode)
-    }
-  )
+      for (const cacheStatus of ['MISS', 'HIT']) {
+        const response = await getRawResponse(url)
+        expect(response.headers['x-nextjs-cache']).toBe(cacheStatus)
+        expectSingleRedirect(response, statusCode)
+      }
+    })
+  }
 
-  it('does not duplicate ISR fallback redirect headers', async () => {
+  it('does not duplicate ISR fallback redirect headers across revalidation', async () => {
     const url = new URL('/isr/fallback', next.url)
 
-    expectSingleRedirect(await getRawResponse(url), 308)
-    expectSingleRedirect(await getRawResponse(url), 308)
+    for (const cacheStatus of ['MISS', 'HIT']) {
+      const response = await getRawResponse(url)
+      expect(response.headers['x-nextjs-cache']).toBe(cacheStatus)
+      expectSingleRedirect(response, 308)
+    }
 
-    await new Promise((resolve) => setTimeout(resolve, 1_100))
-
-    expectSingleRedirect(await getRawResponse(url), 308)
+    // Observe expiration and background regeneration instead of assuming timing.
+    for (const cacheStatus of ['STALE', 'HIT']) {
+      const response = await retry(
+        async () => {
+          const response = await getRawResponse(url)
+          expect(response.headers['x-nextjs-cache']).toBe(cacheStatus)
+          return response
+        },
+        5000,
+        100
+      )
+      expectSingleRedirect(response, 308)
+    }
   })
 })

@@ -7,5 +7,5 @@ export function generateStaticParams() {
 }
 
 export default function Page() {
-  permanentRedirect('/destination')
+  return permanentRedirect('/destination')
 }

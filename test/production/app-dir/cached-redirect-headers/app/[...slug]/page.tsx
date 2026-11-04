@@ -10,8 +10,8 @@ export default async function Page({
   const { slug } = await params
 
   if (slug[0] === 'temporary') {
-    redirect('/destination')
+    return redirect('/destination')
   }
 
-  permanentRedirect('/destination')
+  return permanentRedirect('/destination')
 }
