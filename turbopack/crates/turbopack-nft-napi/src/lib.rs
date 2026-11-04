@@ -50,10 +50,6 @@ pub async fn node_file_trace(
         .await
         .map_err(|e| napi::Error::from_reason(format!("{e:#}")))?;
 
-    // Intentionally leak the TurboTasks instance to avoid expensive cleanup,
-    // same pattern as turbopack-nft/src/main.rs
-    std::mem::forget(tt);
-
     Ok(NapiNftResult {
         files: result.files,
         issues: result.issues,
