@@ -739,28 +739,31 @@ pub async fn analyze_route_files(
         .await
         .completed()?;
     let module_index = analyze_module_index(module_graph).resolve().await?;
-    let files: FxHashMap<_, _> = graph
+    let traced: FxIndexSet<_> = routes
+        .iter()
+        .flat_map(|(_, _, paths)| paths.iter().cloned())
+        .collect();
+    let traced = traced
+        .into_iter()
+        .map(|path| {
+            let file = analyze_traced_file(path.clone());
+            async move { anyhow::Ok((path, file.await?)) }
+        })
+        .try_join();
+    let files = graph
         .postorder_topological()
         .filter_map(|input| match *input {
             ExpandOutputAssetsInput::Asset(asset) => Some(asset),
             ExpandOutputAssetsInput::Reference(_) => None,
         })
-        .map(async |asset| Ok((asset, analyze_output_file(*asset, module_index).await?)))
-        .try_join()
-        .await?
-        .into_iter()
-        .collect();
-    let traced: FxIndexSet<_> = routes
-        .iter()
-        .flat_map(|(_, _, paths)| paths.iter().cloned())
-        .collect();
-    let traced: FxHashMap<_, _> = traced
-        .into_iter()
-        .map(async |path| Ok((path.clone(), analyze_traced_file(path).await?)))
-        .try_join()
-        .await?
-        .into_iter()
-        .collect();
+        .map(|asset| {
+            let file = analyze_output_file(*asset, module_index);
+            async move { anyhow::Ok((asset, file.await?)) }
+        })
+        .try_join();
+    let (files, traced) = futures::join!(files, traced);
+    let files: FxHashMap<_, _> = files?.into_iter().collect();
+    let traced: FxHashMap<_, _> = traced?.into_iter().collect();
 
     let mut prepared = FxHashMap::default();
     for (key, assets, paths) in routes {
