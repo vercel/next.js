@@ -22,7 +22,7 @@ test('keeps Cache Components enabled', () => {
   expect(config).toMatch(/cacheComponents\s*:\s*true/)
 })
 
-test('keeps native popovers unique and closed across preserved routes', async () => {
+test('opens each native popover and closes it across preserved routes', async () => {
   await buildNextApp()
   const server = await startNextServer()
   const browser = await chromium.launch({ headless: true })
@@ -38,6 +38,10 @@ test('keeps native popovers unique and closed across preserved routes', async ()
     await playwrightExpect(page.locator('[popover]:popover-open')).toHaveCount(
       1
     )
+
+    await playwrightExpect(
+      page.locator('[popover]:popover-open')
+    ).toContainText('Settings actions')
 
     await page.getByRole('link', { name: 'Switch section' }).click()
     await page.waitForURL('**/profile')
@@ -61,11 +65,26 @@ test('keeps native popovers unique and closed across preserved routes', async ()
       0
     )
 
+    await page.getByRole('button', { name: 'Profile options' }).click()
+    await playwrightExpect(page.locator('[popover]:popover-open')).toHaveCount(
+      1
+    )
+    await playwrightExpect(
+      page.locator('[popover]:popover-open')
+    ).toContainText('Profile actions')
+
     await page.goBack({ waitUntil: 'commit' })
     await page.waitForURL('**/settings')
     await playwrightExpect(page.locator('[popover]:popover-open')).toHaveCount(
       0
     )
+    await settingsTrigger.click()
+    await playwrightExpect(page.locator('[popover]:popover-open')).toHaveCount(
+      1
+    )
+    await playwrightExpect(
+      page.locator('[popover]:popover-open')
+    ).toContainText('Settings actions')
   } finally {
     await browser.close()
     await server.stop()
