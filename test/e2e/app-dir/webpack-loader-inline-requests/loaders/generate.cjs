@@ -40,6 +40,12 @@ module.exports.pitch = function () {
     explicitChain:
       '!!../loaders/append.cjs!../loaders/text.cjs!./input.requestgen',
     combined: `${path.join(__dirname, 'append.cjs')}!./plain.configured.js`,
+    commonJsResource: '!!../loaders/identity.cjs!./esm-package/value.cjs',
+    esmResource: '!!../loaders/identity.cjs!./esm-package/value.mjs',
+    ordered: './order.multi.js',
+    orderedInline: '../loaders/identity.cjs!./order.multi.js',
+    orderedAppend: '../loaders/append.cjs!./order.multi.js',
+    orderedSuppressed: '!!../loaders/identity.cjs!./order.multi.js',
     relative:
       '!!../loaders/value.cjs?label=relative!./input.requestgen?query#fragment',
     absolute: `!!${value}?label=absolute!${this.resourcePath}?query#fragment`,

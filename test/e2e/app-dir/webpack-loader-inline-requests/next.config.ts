@@ -3,6 +3,30 @@ import type { NextConfig } from 'next'
 const rules = {
   '*.requestgen': { loaders: ['./loaders/generate.cjs'], as: '*.js' },
   '*.configured.js': { loaders: ['./loaders/configured.cjs'] },
+  '*.multi.js': {
+    loaders: [
+      {
+        loader: './loaders/append-label.cjs',
+        options: { label: 'first-left' },
+      },
+      {
+        loader: './loaders/append-label.cjs',
+        options: { label: 'first-right' },
+      },
+    ],
+  },
+  '*order.multi.js': {
+    loaders: [
+      {
+        loader: './loaders/append-label.cjs',
+        options: { label: 'second-left' },
+      },
+      {
+        loader: './loaders/append-label.cjs',
+        options: { label: 'second-right' },
+      },
+    ],
+  },
   '*.pitch-request': {
     loaders: [
       './loaders/pitch.cjs',

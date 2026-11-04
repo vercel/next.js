@@ -174,6 +174,38 @@ describe('webpack-loader-inline-requests', () => {
     })
   })
 
+  it('preserves CommonJS exports from .cjs resources without a configured as', async () => {
+    const $ = await next.render$('/')
+    const result = JSON.parse($('#requests').text())
+    expect(result.commonJsResource).toBe('commonjs-resource')
+    expect(result.esmResource.default).toBe('esm-resource')
+
+    const browser = await next.browser('/')
+    const client = JSON.parse(
+      await browser.elementByCss('#client-requests').text()
+    )
+    expect(client.commonJsResource).toBe('commonjs-resource')
+    expect(client.esmResource.default).toBe('esm-resource')
+  })
+
+  it('preserves configured rule order when adding an inline loader', async () => {
+    const assertOrder = (result: Record<string, string>) => {
+      expect(result.ordered).toContain(':first-right:first-left')
+      expect(result.ordered).toContain(':second-right:second-left')
+      expect(result.orderedInline).toBe(result.ordered)
+      expect(result.orderedAppend).toBe(`${result.ordered}:inline`)
+      expect(result.orderedSuppressed).toBe('plain')
+    }
+
+    const $ = await next.render$('/')
+    assertOrder(JSON.parse($('#requests').text()))
+
+    const browser = await next.browser('/')
+    assertOrder(
+      JSON.parse(await browser.elementByCss('#client-requests').text())
+    )
+  })
+
   if (isNextDev) {
     it('updates the generated style-loader dependency through its HMR accept request', async () => {
       const browser = await next.browser('/')
