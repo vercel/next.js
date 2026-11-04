@@ -276,7 +276,11 @@ This resets all fields whenever the user navigates away.
 
 </details>
 
-For notifications that can arrive while a route is hidden, clear the previous notification from the action that leaves the page or from a parent that observes navigation. An unconditional cleanup can erase a newer notification when Effects reconnect in development.
+### Notifications received while hidden
+
+An inbox might clear its notification when the user leaves. If another notification arrives while the inbox is hidden, it should still be there on return. In development, Strict Mode can run Effect cleanup again when the page becomes visible, so an unconditional reset would clear the new notification too.
+
+For this case, tie the reset to leaving the page. Use a navigation event handler, or a persistent layout that observes navigation to also cover browser controls and links outside the page. This clears the previous notification without discarding one that arrives afterward.
 
 ## State and authentication
 
