@@ -13,18 +13,17 @@ is recorded in the generated inventory and lockfile. The supported stable range
 is undecided, `stableReady` remains false, and no stable exception is approved.
 This is an implementation checkpoint, not graduation of the experiment.
 
-## Current recorded status — twenty-four signed local implementation/control steps, November 4, 2026
+## Current recorded status — 34 signed local implementation/control steps, November 4, 2026
 
-The latest committed implementation checkpoint is `8e8512ebb6acc0efed20c81facbe3565a9c82fa6`.
-The prior twenty-two implementation/control steps through compiler startup
-`9ffd918022` are followed by ordered CLI overrides `632d6c595d` and D19 TestId `8e8512ebb6`.
-Three separate metadata-only commits `075ecc4cb5`, `7dcd2a4fe2` and `c4ce001399`
-make **27 local commits** since the last verified pushed checkpoint, before
-this metadata-only update. Setup/type/File2 corrections add no product
-functionality. Each result below belongs to its recorded physical revision;
-protected dirty D1 inputs remain, and no whole mixed Root/carrier is qualified.
-No push occurred. Last independently verified draft PR #98869 publication remains
-`1558a982296b23763d2174b27aa4cbd69e8e5455`. Metadata adds no functionality.
+The latest recorded committed implementation checkpoint is `c797c8986463e6cd2641b13ff17c8732f7bfcef2`.
+The signed steps and four metadata-only commits total **38 local commits**
+since the last independently verified pushed checkpoint, before this consolidated
+metadata-only update. The C/B/RunStart/final-exit followups below retain their own
+actual physical qualification scopes; the combined SDK predates later E changes.
+Protected-input history and every historical failed acceptance remain separate.
+No whole mixed Root/carrier is qualified and no push occurred. Last verified
+draft PR #98869 publication remains `1558a982296b23763d2174b27aa4cbd69e8e5455`.
+Metadata adds no product functionality.
 
 All 776 original API names, surfaces, overloads and release classifications are
 retained. Ten root types are newly available: the six benchmark/error metadata
@@ -226,9 +225,10 @@ watch/build/vue-tsc and broader typecheck behavior remain unqualified. Four
 unrelated dirty D1 inputs and all historical failures remain unchanged; no new
 push or release readiness is claimed.
 
-Private C4+URL Native work passes **32 creator / 186 API controls** and its new
-attested candidate/bootstrap, with functional runtime/installed qualification
-still pending. Resolver realm/order, public cross missing stacks, remaining D1
+The earlier private C4+URL compiler checkpoint is superseded only for the
+bounded signed C28 standard-model subset recorded below: **32 creator / 186
+API controls** and bootstrap pass; broader runtime and full reporter
+qualification remain open. Resolver realm/order, public cross missing stacks, remaining D1
 error/creator/Root replay, Browser absent defaults15s/30s and explicit option
 presence/inheritance, broader debugger contracts, full aliases/producers and wider
 coverage/rendering profiles remain required. Closed96a/29ac stays the qualified
@@ -297,6 +297,82 @@ Counts stay **102 scoped / 277 partial / 377 missing / 20 unreviewed** and all77
 API rows remain exact. Stable readiness is false, supported range null and
 exceptions empty. Documentation/migrations remain last; Linux and performance
 stay deferred.
+
+## Consolidated committed B/C/D/E checkpoint, November 4, 2026
+
+Signedc127733dd8 commits45 paths for retained/direct reset references with actual CommonJS require semantics and same-target ESM factories. Root and combined installedbe930 each pass28 ordinary isolated Node20/22/24/26 profiles,64 authored cases/64rows/372 require-events: four development C3 base roles, eight production direct/retained C4 roles and sixteen development async-arrow/async-function/multiple-consumer/consumer-cycle combinations. Complete maintained six-field standard models and unchanged original require traces match;32 creator/186 unfiltered API controls,18-task bootstrap and25 normal Root controls pass. No original full 11-callback reporter gate or192-callback combination gate, production reset beyond those eight roles, dynamic/alias/global mutation, Browser/RSC/cohort/coverage or wider-cycle qualification is inferred.
+
+Signed6a67773f7e preserves native Node Error stacks plus authentic mapped source origins with18 normal controls (eight original Node, three new policy and seven existing mapper checks); no synthetic framework stack is created. Signedb4ae8df43d adds authentic registration-origin/File-label metadata and passes15 normal controls plus the unchanged public Graph8 capsule across Node20/22/24/26 development/production: eight profiles/eight cases/64 whole authored rows/24 real terminal callbacks. The combinedbe930 installed package passes the same eight Graph8 profiles. Complete standard reports and maintained public graph/error contracts match, with physical owners and fixtures closed. This qualifies only the actual observed fields/origins; internal.raw.task, experimental_getRunnerTask, unsupported transient hooks, full internal raw stack strings and broader Browser/RSC/cohort/release contracts remain open. The committed lifecycle excludes unrelated D1 working hunks; the SDK is explicitly a complete dirty-source capture, not bareHEAD.
+
+Signedb3ec6446ed commits19 paths for actual selected RunStart specifications before test setup. Root normal27 controls pass, including26 original specification/worker controls and one actual passive public CLI profile whose trace and saved reference JSON match with the intentional Next namespace retained. Real selected module/project identities, descriptors, passive selection limits and existing failure-prefix ownership stay bounded to the measured ordinary isolated Node role. Mutation-capable specification/controller behavior, additional execution profiles and a current installed RunStart replay remain unqualified.
+
+Signed57e1c08918 commits36 paths for actual configuration/reporter realm ownership through final process exit, typed final status and timeout callback ownership. Root normal46 controls pass (19 final-exit/initialization controls plus27 RunStart regressions); actual Node26 development/production public pass-preserve profiles match exact report/trace/exit contracts and await the timeout callback once. Core, Next/root types and style pass; original protected D1/RunStart inputs and Native bytes remain held. This has no combinedbe930 installed qualification and no broad reporter/controller, watch or complete error-format claim.
+
+Combined installed **be930/f179** uses one normal pack/offline Next-only install
+of complete **43,497 working source paths / runtime307 / compiled9632** captured
+at signed B-stage2. Its lifecycle includes the preserved dirty D1 bytes; it is
+not bare HEAD and predates RunStart/E0. Installed C28 passes **28 profiles /
+64 cases / 64 rows / 372 require-events**; BGraph8 passes **eight profiles /
+64 rows / 24 terminal callbacks**; DTestId10 passes **ten profiles / 16 cases /
+16 rows**, with all ten original Source/SDK projection files byte exact.
+There are **9,722 published files / 9,724 installed entries / 9,632 compiled
+files / 1,937 declarations / 15 public facades / 1,744 non-Next entries**.
+All actual qualifiers/readers join and fixtures retire. The final consumer
+contains **21,838 entries** after exactly the approved obsolete ec0d archive
+and virtual directory retire; **255,905,797 logical bytes** are retired.
+Current be930, qualified96a/29ac fallback, source, Native and raw evidence
+remain held; physical disk reclamation is unmeasured. The original full
+**11-callback reporter and 192-callback combination** gates and installed later-E qualification stay open.
+
+Signed60046c0dff commits11 paths for actual no-selection reporter lifecycle and passWithNoTests policy without inventing File results or a configuration Error. Core, Next/root types/style,15 normal controls and three compiled-config admission controls pass. Three actual Node26 false/true/customfailure profiles match report presence, complete standard JSON, six-event authored traces and native exits. Full strict functional outcomes are2/3: true passes its original live helper; false is revalidated offline from unchanged saved models after its original supervisor red, with no functional rerun. Customfailure retains the unchanged strict stderr red: Next prints only the sentinel message while genuine includes Error prefix and native frames. All observed owners/groups close and the original false/supervisor failure stays recorded.
+
+Empty-selection custom-reporter failure stderr formatting remains open. No all-three-green helper result, full raw error formatting, installed empty-selection qualification or broader execution-profile compatibility is claimed.
+
+Signed aee2a03d1b commits 98 paths for measured live annotation/artifact record RPC, actual execution/broker ownership and reporter outcomes in ordinary isolated Node. Core, Next/root types/style and 33 normal controls pass. The unchanged genuine-backed public Node26 table passes 32 profiles / 64 authored cases / 52 actual record callbacks / 165 trace rows / 56 getter reads, including actual failure, raw outcome, concurrent request and getter roles; all 128 observed public actors and 46 normal actors join naturally and 32 public fixtures retire. These are record-callback profiles, not a 32-profile Ready matrix. The narrow Ready direct-map correction preserves synchronous callback-abort versus asynchronous fan-out semantics in live/recorded dispatch: six meaningful before/after controls plus the integrated normal wrapper pass. The preserved component-only local copy-count check is not a public retention result. A later functional-only local-retention role passes two actual CLI programs (legacy and captured), one case each, with two captured annotation/artifact callbacks, exact continuations and two SHA1 target files retained; all seven actors join and Native readers return to zero. Source is unchanged. This adds no genuine-backed, internal copy-count or whole-JSON proof.
+
+E1 whole JSON schema parity remains false. Public local retention is functionally verified in the separate legacy/captured role; genuine-backed retention, internal copy-count and all installed E qualification remain unqualified. No full Ready producer/lifecycle, Browser/watch/cohort, total TaskUpdate ordering/awaits, raw error stack-string parity or complete reporter/controller surface is inferred from the annotation/artifact public table.
+
+Signed d66d5a05d1 commits three paths for dispatched CLI Error stack rendering. Core, Next/root types/style and 54 normal controls pass. A single actual replay of the original customfailure profile now passes its unchanged strict Error-prefix check, while the earlier Empty11 stderr red remains historical. The false/true public profiles were not repeated. This closes only the measured native Error prefix/frame presentation path; complete raw Next/Vitest stack-string parity remains false and no installed E qualification is added.
+
+The Empty11 customfailure Error-prefix gap has a later verified FORMAT3 fix; full native stack-string equality, wider error values/renderers and installed E qualification remain open.
+
+Signed 7034882b58 commits the coupled 56-path raw Suite adapter/Browser hook-parameter subset, including the four former dirty D1 product files. The original three regressions and two other affected collector controls pass unchanged, with core/official Next types/Root types/style/Rust formatting green. Four maintained wrappers cover six actual Native-compiled profiles / six cases / 32 authored rows: the unchanged success4 and SuiteArgV2 complete models match. Six independent read-only f179 Native copies qualify their actual carrier ownership, all six fixtures/copies retire, and all 356 known actors/groups close. Historical native bootstrap reds and the original unit3 red remain retained. This is bounded Root Source proof; no fresh installed D1 gate or full D1/error-stack qualification is inferred.
+
+D1's historical p04 still has exactly three raw stack differences; the remaining eleven error profiles are unrun. Full Browser mapper/raw-stack parity, wider hooks/creator grammar/options and whole D1 remain unqualified.
+
+Signed c797c89864 commits seven paths for bounded inactive-observer admission and saved Browser JSON stack coherence. Core, Next/root types/style and six unique focused controls pass (one dormant-admission and five machine-JSON controls). Actual selected one-shot isolated ordinary Node admission leaves all seven recognized dormant hook getters unread; those hooks and the real Suite/Hook feature are not implemented by this admission change. Browser JSON coherence is verified from a fixture retaining 15 real p04 events and the actual saved raw stack, mapped origin and public task results. This is a saved-event component proof, not an actual p04 replay, Next/Vitest raw-stack equality or full Browser/D1 qualification.
+
+Original full-C still requires real Suite/Hook producer events and the actual Ready/task-pack timing/state policy. Dormant-hook admission is not hook implementation. Saved Browser JSON stack coherence does not establish actual p04 replay or full raw stack parity.
+
+The unchanged original full-C pilot at70348 stopped **before collection**
+on inactive `onBrowserInit` admission: **zero rows/events/callbacks**, no
+case report and a retained secondary helper ENOENT. c797 fixes that narrow
+Node admission without implementing dormant hooks. The full eleven-callback
+model and **16-profile / 192-callback** matrix remain unqualified. New
+pristine genuine policy requires **100ms whole-task-pack updates**,
+nonblocking callbacks/later-batch overlap and passing cases despite raw
+falsy reporter failures. Real Suite/Hook and Ready timing/state work is
+private; E1 public32 annotation/artifact roles prove none of that policy.
+
+Browser47 original80 corpus is verified as **20 groups / 47 cases /
+76 rows**. **19 models / 32 cases / 56 rows** survive; the exact full15
+**15-case / 20-row** model with hash
+`a7af60d7e822a0c39bc98c7af8beaec6514d875dcf7fafcaf92c260294dec469`
+is missing. A fresh functional capture is prepared but **not run**, with
+reference equality false. Historical80 remains valid; no new capture or
+partial surviving corpus replaces the missing authority.
+
+All tracked implementation through c797 is committed locally. Current
+coherent committed full acceptance has not run; earlier failed results
+remain unchanged.
+
+All 776 original API names/overloads and unrelated declaration/status rows are
+preserved. Directly affected partial groups gain only the bounded evidence
+above; API counts are derived by the repository generator. Release-compatible
+remains zero, stable readiness false, supported range null and exceptions
+empty. Frozen0aeb/421 and all earlier failed/full acceptance observations
+remain unchanged. Documentation/migrations stay last; Linux and performance
+remain deferred.
 
 ## Historical A1–A4 integration record, November 3, 2026
 
