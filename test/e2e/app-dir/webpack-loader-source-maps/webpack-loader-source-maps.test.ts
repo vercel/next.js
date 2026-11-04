@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// Requires local server source maps; deployments return compiled chunk locations.
+// @force-gate !deploy
 describe('webpack-loader-source-maps', () => {
   const { next } = nextTestSetup({
     files: __dirname,
