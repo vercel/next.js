@@ -835,12 +835,6 @@ async fn analyze_ecmascript_module_internal(
     let (emitter, collector) = IssueEmitter::new(source, source_map.clone(), None);
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
-    let supports_block_scoping = *compile_time_info
-        .environment()
-        .runtime_versions()
-        .supports_block_scoping()
-        .await?;
-
     // TODO: we can do this when constructing the var graph
     let span = tracing::trace_span!("async module handling");
     async {
@@ -886,7 +880,6 @@ async fn analyze_ecmascript_module_internal(
                 program,
                 eval_context,
                 analyze_mode,
-                supports_block_scoping,
                 specified_type,
                 options.cjs_tree_shaking,
                 options.cjs_scope_hoisting,
