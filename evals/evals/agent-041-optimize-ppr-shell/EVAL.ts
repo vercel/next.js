@@ -25,9 +25,11 @@ test('streams the shell and each ready section without waiting for the others', 
   }
   const pending = new Map<string, ServerResponse>()
   let allRequested!: () => void
-  const requestsReady = new Promise<void>((resolve) => {
-    allRequested = resolve
-  })
+  function waitForRequests() {
+    return new Promise<void>((resolve) => {
+      allRequested = resolve
+    })
+  }
   let hold = false
   const api = createServer((request, response) => {
     const section = request.url?.slice(1) as keyof typeof payloads
@@ -47,72 +49,84 @@ test('streams the shell and each ready section without waiting for the others', 
   process.env.DASHBOARD_API_URL = `http://127.0.0.1:${address.port}`
   let app: Awaited<ReturnType<typeof startNextServer>> | undefined
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
-  const abort = new AbortController()
   try {
     await buildNextApp()
     app = await startNextServer()
     browser = await chromium.launch({ headless: true })
-    const page = await browser.newPage()
-    hold = true
-    const timer = setTimeout(() => abort.abort(), 15_000)
-    try {
-      const response = await page.goto(app.url, {
-        waitUntil: 'commit',
-        timeout: 15_000,
-      })
-      expect(response?.ok()).toBe(true)
-      const cards = page.getByText(
-        new RegExp(`^\\$(?:${total.toLocaleString('en-US')}|${total})$`)
-      )
-      const revenue = page.getByText(month)
-      const invoices = page.getByText(customer)
-      function release(section: keyof typeof payloads) {
-        const request = pending.get(section)
-        expect(request, `${section} must load independently`).toBeDefined()
-        pending.delete(section)
-        request!.end(JSON.stringify(payloads[section]))
-      }
-      await browserExpect(
-        page.getByRole('heading', { name: 'Dashboard', exact: true })
-      ).toBeVisible()
-      await browserExpect(cards).not.toBeVisible()
-      await browserExpect(revenue).not.toBeVisible()
-      await browserExpect(invoices).not.toBeVisible()
-      // Start all three requests without awaiting any section first.
-      await Promise.race([
-        requestsReady,
-        new Promise<never>((_, reject) =>
-          abort.signal.addEventListener(
-            'abort',
-            () => reject(new Error('Sections did not start independently')),
-            { once: true }
+    const sections = ['cards', 'revenue', 'invoices'] as const
+    for (const first of sections) {
+      const context = await browser.newContext()
+      const abort = new AbortController()
+      const requestsReady = waitForRequests()
+      hold = true
+      const timer = setTimeout(() => abort.abort(), 15_000)
+      try {
+        const page = await context.newPage()
+        const response = await page.goto(app.url, {
+          waitUntil: 'commit',
+          timeout: 15_000,
+        })
+        expect(response?.ok()).toBe(true)
+        const content = {
+          cards: page.getByText(
+            new RegExp(`^\\$(?:${total.toLocaleString('en-US')}|${total})$`)
+          ),
+          revenue: page.getByText(month),
+          invoices: page.getByText(customer),
+        }
+        function release(section: keyof typeof payloads) {
+          const request = pending.get(section)
+          expect(request, `${section} must load independently`).toBeDefined()
+          pending.delete(section)
+          request!.end(JSON.stringify(payloads[section]))
+        }
+        await browserExpect(
+          page.getByRole('heading', { name: 'Dashboard', exact: true })
+        ).toBeVisible()
+        for (const section of sections) {
+          await browserExpect(content[section]).not.toBeVisible()
+        }
+        await Promise.race([
+          requestsReady,
+          new Promise<never>((_, reject) =>
+            abort.signal.addEventListener(
+              'abort',
+              () => reject(new Error('Sections did not start independently')),
+              { once: true }
+            )
+          ),
+        ])
+        expect([...pending.keys()].sort()).toEqual([...sections].sort())
+        release(first)
+        // Every section must become visible with the other two still blocked.
+        // HTML in React's hidden streaming segments does not count.
+        await browserExpect(
+          content[first],
+          `${first} must reveal before the other sections are ready`
+        ).toBeVisible()
+        for (const section of sections) {
+          if (section !== first) {
+            await browserExpect(content[section]).not.toBeVisible()
+            release(section)
+          }
+        }
+        for (const section of sections) {
+          await browserExpect(content[section]).toBeVisible()
+        }
+      } finally {
+        clearTimeout(timer)
+        abort.abort()
+        hold = false
+        for (const [section, response] of pending) {
+          response.end(
+            JSON.stringify(payloads[section as keyof typeof payloads])
           )
-        ),
-      ])
-      expect([...pending.keys()].sort()).toEqual([
-        'cards',
-        'invoices',
-        'revenue',
-      ])
-      release('cards')
-      // React can send completed HTML in hidden segments before revealing it.
-      // Require visible content while the other sections are still blocked.
-      await browserExpect(cards).toBeVisible()
-      await browserExpect(revenue).not.toBeVisible()
-      await browserExpect(invoices).not.toBeVisible()
-      release('revenue')
-      await browserExpect(revenue).toBeVisible()
-      await browserExpect(cards).toBeVisible()
-      await browserExpect(invoices).not.toBeVisible()
-      release('invoices')
-      await browserExpect(invoices).toBeVisible()
-      await browserExpect(cards).toBeVisible()
-      await browserExpect(revenue).toBeVisible()
-    } finally {
-      clearTimeout(timer)
+        }
+        pending.clear()
+        await context.close()
+      }
     }
   } finally {
-    abort.abort()
     for (const response of pending.values()) response.end('{}')
     await browser?.close()
     await app?.stop()
