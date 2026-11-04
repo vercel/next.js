@@ -62,6 +62,42 @@ describe('config', () => {
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
 
+  it('Should not share image defaults between configs loaded in one process', async () => {
+    const { imageConfigDefault } = await import(
+      'next/dist/shared/lib/image-config'
+    )
+    const defaultPath = imageConfigDefault.path
+
+    // Different directories, so the second load is not served from the config
+    // cache.
+    const docs = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>/docs', {
+      customConfig: { basePath: '/docs' },
+    })
+    const blog = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>/blog', {
+      customConfig: { basePath: '/blog' },
+    })
+
+    expect(docs.images.path).toBe('/docs/_next/image')
+    expect(blog.images.path).toBe('/blog/_next/image')
+    expect(docs.images).not.toBe(blog.images)
+    expect(imageConfigDefault.path).toBe(defaultPath)
+    expect(imageConfigDefault.localPatterns).toBeUndefined()
+  })
+
+  it('Should not modify the customConfig object passed in', async () => {
+    const localPatterns = [{ pathname: '/assets/**', search: '' }]
+    const staleTimes = { static: 300 }
+    await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+      customConfig: {
+        images: { localPatterns },
+        experimental: { staleTimes },
+      },
+    })
+
+    expect(localPatterns).toEqual([{ pathname: '/assets/**', search: '' }])
+    expect(staleTimes).toEqual({ static: 300 })
+  })
+
   it('Should enable the TypeScript CLI by default and allow opting out', async () => {
     const defaultConfig = await loadConfig(
       PHASE_DEVELOPMENT_SERVER,
