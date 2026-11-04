@@ -26,6 +26,7 @@ import type ws from 'next/dist/compiled/ws'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import { isMiddlewareFilename } from '../../build/utils'
 import type { VersionInfo } from './parse-version-info'
+import { getPendingVersionInfo } from './hot-reloader-shared-utils'
 import type {
   HmrMessageSentToBrowser,
   RuntimeErrorStateMessage,
@@ -91,15 +92,25 @@ export class WebpackHotMiddleware {
     null
   private serverLatestStats: { ts: number; stats: webpack.Stats } | null = null
   private hasVulnerabilityInsight = false
+  private versionInfo: VersionInfo = getPendingVersionInfo()
 
   constructor(
     compilers: webpack.Compiler[],
-    private versionInfo: VersionInfo,
+    versionInfo: Promise<VersionInfo>,
     private devtoolsFrontendUrl: string | undefined,
     private config: NextConfigComplete,
     private devToolsConfig: DevToolsConfig,
     hasVulnerabilityInsight: Promise<boolean>
   ) {
+    // Clients that connected before the npm registry responded received the
+    // placeholder in `sync`. Later clients get the resolved info in `sync`.
+    versionInfo.then((resolvedVersionInfo) => {
+      this.versionInfo = resolvedVersionInfo
+      this.publish({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO,
+        versionInfo: resolvedVersionInfo,
+      })
+    })
     hasVulnerabilityInsight.then((enabled) => {
       if (enabled) {
         this.hasVulnerabilityInsight = true
