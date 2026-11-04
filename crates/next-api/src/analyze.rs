@@ -738,7 +738,7 @@ pub async fn analyze_route_files(
         )
         .await
         .completed()?;
-    let module_index = analyze_module_index(module_graph);
+    let module_index = analyze_module_index(module_graph).resolve().await?;
     let files: FxHashMap<_, _> = graph
         .postorder_topological()
         .filter_map(|input| match *input {
