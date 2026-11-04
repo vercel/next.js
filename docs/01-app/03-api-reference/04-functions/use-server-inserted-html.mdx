@@ -82,7 +82,7 @@ Next.js flushes the document in chunks as your tree suspends and resolves, and e
 
 The callback runs whenever Next.js produces an HTML document, on a direct navigation and during any prerender.
 
-Content inserted while the `<head>` is still open goes there. Everything after is included in the body.
+Content inserted before the `<head>` is sent goes into `<head>`. Anything inserted later goes into `<body>`. In this example, `Header` and `Feed` are styled with a CSS-in-JS library, so the registry collects their CSS rules as they render.
 
 ```tsx filename="app/page.tsx"
 import { Suspense } from 'react'
@@ -92,10 +92,10 @@ import { Feed } from './feed'
 export default function Page() {
   return (
     <>
-      {/* Renders before the head closes, so its rules go into <head>. */}
+      {/* Renders before the head closes, so its CSS rules go into <head>. */}
       <Header />
       <Suspense fallback={<p>Loading feed</p>}>
-        {/* Resolves after the head is closed, so its rules go into <body>. */}
+        {/* Resolves after the head is closed, so its CSS rules go into <body>. */}
         <Feed />
       </Suspense>
     </>
@@ -103,7 +103,7 @@ export default function Page() {
 }
 ```
 
-This assumes nothing above `Header` suspends. If something does, `Header` renders after the head has closed and its rules go into `<body>` as well.
+This assumes nothing above `Header` suspends. If something does, `Header` renders after the head has closed and its CSS rules go into `<body>` as well.
 
 In the style registry pattern above, `styled-jsx` collects the CSS rules it finds as your tree renders. On each flush the callback returns the rules gathered so far and clears the registry, so the next one carries only what was found since. Return the same nodes every time instead and the document ends up with one copy of them per flush.
 
@@ -113,12 +113,10 @@ On a client navigation this hook does nothing. Your CSS-in-JS library injects ru
 
 ### Prefer other options for inline scripts
 
-Prefer declaring inline scripts in React Server Components. The hook is for nodes that support the tree being rendered, such as the `<style>` tags a CSS-in-JS registry collects as it renders.
+Prefer declaring inline scripts in React Server Components, as shown in [Preventing a flash before hydration](/docs/app/guides/preventing-flash-before-hydration). The hook is for nodes that support the tree being rendered, such as the `<style>` tags a CSS-in-JS registry collects as it renders.
 
 A script is included in `<head>` only while nothing above it has suspended, so a change to the tree can move it into `<body>` with no error.
 
-If you use the hook, guard the callback with a `useRef` flag so the script is inserted once, not on every flush. Neither a script returned from the hook nor an inline script written in JSX runs on a client navigation, so both only suit preventing a flash of unstyled content or other one-time side effects. React logs a warning in development for the JSX version, while the hook skips it silently.
+If you use the hook, guard the callback with a `useRef` flag so the script is inserted once, not on every flush. Neither a script returned from the hook nor an inline script written in JSX runs on a client navigation, so both only suit preventing a flash of unstyled content or other one-time side effects. React logs a warning in development for a script written in JSX, while the hook skips it silently.
 
-The inline script approach, including applying a stored theme before the browser paints, is developed in [Preventing a flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
-
-Next.js also does not add a [nonce](/docs/app/guides/content-security-policy) to what you return. Under a `script-src` policy that requires one, the script is emitted without a `nonce` attribute and the browser blocks it.
+Next.js does not add a [nonce](/docs/app/guides/content-security-policy) to a script you return. Under a `script-src` policy that requires one, the browser blocks it.
