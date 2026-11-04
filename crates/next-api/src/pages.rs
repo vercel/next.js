@@ -6,7 +6,6 @@ use next_core::{
     app_structure::FileSystemPathVec,
     create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
-    hmr_entry::HmrEntryModule,
     mode::NextMode,
     next_client::{
         ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
@@ -773,22 +772,11 @@ impl PageEndpoint {
     #[turbo_tasks::function]
     async fn client_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
-        let page_loader = create_page_loader_entry_module(
+        Ok(create_page_loader_entry_module(
             Vc::upcast(this.pages_project.client_module_context()),
             self.source(),
             this.pathname.clone(),
-        );
-        if matches!(
-            *this.pages_project.project().next_mode().await?,
-            NextMode::Development
-        ) && let Some(chunkable) = ResolvedVc::try_downcast(page_loader.to_resolved().await?)
-        {
-            return Ok(Vc::upcast(HmrEntryModule::new(
-                AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
-                *chunkable,
-            )));
-        }
-        Ok(page_loader)
+        ))
     }
 
     #[turbo_tasks::function]
