@@ -45,7 +45,12 @@ function originalFilename(sourceURL: string): string | undefined {
  */
 export function createArtifactSourceMapLookup(
   artifact: Pick<CompiledTestArtifact, 'rootDir' | 'files' | 'sourceHash'>,
-  entryFile?: string
+  entryFile?: string,
+  hostSourceMap?: {
+    /** Actual executing module supplied by Node's findSourceMap(__filename). */
+    compiledFile: string
+    payload: ModernSourceMapPayload
+  }
 ): ArtifactSourceMapLookup {
   const root = resolve(artifact.rootDir)
   const canonicalRoot = realpathSync(root)
@@ -129,13 +134,14 @@ export function createArtifactSourceMapLookup(
         const visit = (
           payload: ModernSourceMapPayload,
           mapURL: string,
-          records: Map<string, ArtifactOriginalSource | undefined>
+          records: Map<string, ArtifactOriginalSource | undefined>,
+          explicitIgnoreListOnly = false
         ): boolean => {
           if ('sections' in payload) {
             // Validate the actual indexed map before accepting any of its sources.
             new SourceMapConsumer(payload as unknown as RawSourceMap)
             return payload.sections.every((section) =>
-              visit(section.map, mapURL, records)
+              visit(section.map, mapURL, records, explicitIgnoreListOnly)
             )
           }
           if (
@@ -187,7 +193,8 @@ export function createArtifactSourceMapLookup(
               content,
               sha256,
               ignored:
-                original.includes('node_modules') ||
+                (!explicitIgnoreListOnly &&
+                  original.includes('node_modules')) ||
                 payload.ignoreList?.includes(index) === true,
             })
           }
@@ -207,6 +214,27 @@ export function createArtifactSourceMapLookup(
                 record(originals, file, source)
           } catch {
             // Invalid maps do not provide an original-source identity.
+          }
+        }
+        if (hostSourceMap) {
+          try {
+            const records = new Map<
+              string,
+              ArtifactOriginalSource | undefined
+            >()
+            if (
+              visit(
+                hostSourceMap.payload,
+                pathToFileURL(`${hostSourceMap.compiledFile}.map`).href,
+                records,
+                true
+              )
+            )
+              // The host map must itself supply the existing ignore fact.
+              for (const [file, source] of records)
+                if (source?.ignored) record(originals, file, source)
+          } catch {
+            // An absent or invalid host map cannot invent an ignored source.
           }
         }
         if (selected !== undefined) {

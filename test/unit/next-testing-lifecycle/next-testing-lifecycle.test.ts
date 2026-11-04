@@ -10735,3 +10735,29 @@ describe('empty suite lifecycle completion', () => {
     })
   })
 })
+
+it.each([
+  'default',
+  'authored',
+  'deleted',
+  'frozen',
+  'descriptor',
+  'collection-failure',
+  'shared',
+])(
+  'initializes real File label metadata before setup and preserves authored %s ownership',
+  async (mode) => {
+    const { stdout } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'file-label-meta.cjs'), mode],
+      { timeout: 15000 }
+    )
+    expect(JSON.parse(stdout)).toMatchObject({
+      mode,
+      actualFileMetaIdentity: true,
+      originalCollectorUnchanged: true,
+      childInheritanceAbsent: true,
+    })
+  },
+  20000
+)

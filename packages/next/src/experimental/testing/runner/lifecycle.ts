@@ -222,6 +222,84 @@ export interface CompletedModuleResult {
   readonly finalState: PublishedModuleState | null
 }
 
+export interface RunnerSuiteTaskErrorOrigins {
+  readonly result: NonNullable<Suite['result']>
+  readonly errors: NonNullable<NonNullable<Suite['result']>['errors']>
+  readonly origins: readonly {
+    readonly index: number
+    readonly serializedError: ReturnType<typeof serializeTaskError>
+    readonly registrationError: Error
+  }[]
+}
+
+const SuiteErrorArrayProxy = Proxy
+const readSuiteErrorArray = Reflect.get
+const isSuiteErrorArray = Array.isArray
+const suiteErrorNumber = Number
+const suiteErrorString = String
+const isSuiteErrorInteger = Number.isSafeInteger
+const readSuiteFailureDescriptor = Object.getOwnPropertyDescriptor
+const SuiteRegistrationError = Error
+
+/** Observe the exact occurrences visited by the existing one-level flatten. */
+export function captureSuiteTaskErrors(failures: readonly RunnerFailure[]) {
+  const occurrences: {
+    error: unknown
+    registrationError: Error | undefined
+  }[] = []
+  const origins: RunnerSuiteTaskErrorOrigins['origins'][number][] = []
+  const errors = failures
+    .flatMap((failure) => {
+      const error = failure.error
+      const descriptor = readSuiteFailureDescriptor(
+        failure,
+        'registrationError'
+      )
+      const registrationError =
+        descriptor &&
+        'value' in descriptor &&
+        descriptor.value instanceof SuiteRegistrationError
+          ? (descriptor.value as Error)
+          : undefined
+      const values: unknown =
+        error instanceof AggregateError ? error.errors : [error]
+      const observe = (value: unknown) => {
+        occurrences.push({
+          error: value,
+          registrationError: value === error ? registrationError : undefined,
+        })
+        return value
+      }
+      if (!isSuiteErrorArray(values)) return observe(values)
+      return new SuiteErrorArrayProxy(values, {
+        get(target, key) {
+          // Preserve the actual array/proxy receiver and each original read.
+          const value = readSuiteErrorArray(target, key, target)
+          if (
+            typeof key === 'string' &&
+            suiteErrorString(suiteErrorNumber(key)) === key &&
+            isSuiteErrorInteger(suiteErrorNumber(key)) &&
+            suiteErrorNumber(key) >= 0
+          )
+            observe(value)
+          return value
+        },
+      })
+    })
+    .map((error, index) => {
+      const serializedError = serializeTaskError(error)
+      const occurrence = occurrences[index]
+      if (occurrence?.error === error && occurrence.registrationError)
+        origins.push({
+          index,
+          serializedError,
+          registrationError: occurrence.registrationError,
+        })
+      return serializedError
+    })
+  return { errors, origins }
+}
+
 export interface RunnerOptions {
   /** Public finalized skip/todo modes; private standalone selection is unchanged. */
   finalizePublicTaskModes?: true
@@ -283,6 +361,8 @@ export interface RunnerOptions {
   onUnhandledFailure?(reason: unknown): void
   /** Requested actual root preparation; never an authored reporter acknowledgement. */
   captureModuleStart?: true
+  /** Actual isolated host requests per-occurrence registration capture. */
+  captureSuiteErrorOrigins?: true
   onFilePrepared?(file: File): void
   /** Actual task graph, before authored fixtures, hooks or bodies start. */
   onCollected?(file: File): void | Promise<void>
@@ -296,7 +376,11 @@ export interface RunnerOptions {
   onCaseEnd?(result: RunnerCaseResult): void | Promise<void>
   /** Once per logical case, after retries, repeats and owned attempt closure. */
   onCaseResult?(task: Test, result: RunnerCaseResult): void | Promise<void>
-  onSuiteEnd?(result: RunnerSuiteResult, task: Suite): void | Promise<void>
+  onSuiteEnd?(
+    result: RunnerSuiteResult,
+    task: Suite,
+    origins?: RunnerSuiteTaskErrorOrigins
+  ): void | Promise<void>
 }
 
 class PendingError extends Error {
@@ -3093,6 +3177,7 @@ export async function runCollected(
         blockedDescendants,
         errors,
       }
+      let capturedOrigins: RunnerSuiteTaskErrorOrigins | undefined
       if (publicSuite.result) {
         const publishedState =
           suiteResult.status === 'passed'
@@ -3104,16 +3189,25 @@ export async function runCollected(
         if (moduleObservation && node === root)
           moduleObservation.finalState = publishedState
         publicSuite.result.duration = suiteResult.durationMs
-        if (errors.length)
-          publicSuite.result.errors = errors
-            .flatMap(({ error }) =>
-              error instanceof AggregateError ? error.errors : [error]
-            )
-            .map((error) => serializeTaskError(error))
+        if (errors.length) {
+          if (options.captureSuiteErrorOrigins === true) {
+            const publishedResult = publicSuite.result
+            const captured = captureSuiteTaskErrors(errors)
+            publishedResult.errors = captured.errors
+            capturedOrigins = { result: publishedResult, ...captured }
+          } else
+            publicSuite.result.errors = errors
+              .flatMap(({ error }) =>
+                error instanceof AggregateError ? error.errors : [error]
+              )
+              .map((error) => serializeTaskError(error))
+        }
       }
       suiteResults.set(node.id, suiteResult)
       options.setCurrentTask?.(publicSuite.suite || publicSuite.file)
-      return options.onSuiteEnd?.(suiteResult, publicSuite)
+      return options.captureSuiteErrorOrigins === true
+        ? options.onSuiteEnd?.(suiteResult, publicSuite, capturedOrigins)
+        : options.onSuiteEnd?.(suiteResult, publicSuite)
     }
     const finalizeRoot =
       node === root ? beforeRootSuiteResult?.(result) : undefined

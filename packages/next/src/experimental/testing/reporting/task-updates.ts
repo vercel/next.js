@@ -2,6 +2,7 @@ import type { RunnerCaseResult } from '../runner/lifecycle'
 import type { File, Task, TaskLocation, Test, Suite } from '../runner/tasks'
 import {
   captureReporterTaskTree,
+  projectionCapturesOriginalResult,
   type ReporterTaskSnapshot,
   type ReporterTaskResultProjection,
 } from './live-tasks'
@@ -116,7 +117,12 @@ export function createReporterTaskUpdates<
     )
     if (hasResultProjections)
       [...pendingTasks.values()].forEach((pack, index) => {
-        pack.projectResult?.(pack.task, captured[index][1].result)
+        if (
+          pack.projectResult &&
+          projectionCapturesOriginalResult(pack.projectResult)
+        )
+          pack.projectResult(pack.task, captured[index][1].result, pack.result)
+        else pack.projectResult?.(pack.task, captured[index][1].result)
       })
     return captured
   }

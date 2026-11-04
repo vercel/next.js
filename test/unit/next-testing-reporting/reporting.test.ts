@@ -10219,3 +10219,34 @@ it.each([undefined, true, false])(
     }
   }
 )
+
+it.each([
+  'registration',
+  'scopes',
+  'occurrences',
+  'slots',
+  'host',
+  'globals',
+  'lifecycle',
+  'file-lifecycle',
+])(
+  'preserves actual parsed registration origins and host map roles for %s',
+  (mode) => {
+    const result = JSON.parse(
+      execFileSync(
+        process.execPath,
+        ['--enable-source-maps', join(__dirname, 'parsed-origins.cjs'), mode],
+        {
+          encoding: 'utf8',
+          timeout: 15000,
+        }
+      )
+    )
+    expect(result).toMatchObject({
+      mode,
+      nativeAddonLoads: 0,
+      nativeProjectCalls: 0,
+    })
+  },
+  20000
+)

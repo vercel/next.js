@@ -11,10 +11,34 @@ import type {
 import { getPublishedTaskLocation } from '../runner/tasks'
 
 /** Private projection of an already captured result from an actual producer pack. */
-export type ReporterTaskResultProjection = (
-  actualTask: Task,
-  capturedResult: Task['result']
-) => void
+export type ReporterTaskResultProjection = {
+  (
+    actualTask: Task,
+    capturedResult: Task['result'],
+    originalResult?: Task['result']
+  ): void
+}
+
+const originalResultProjections = new WeakSet<ReporterTaskResultProjection>()
+const rememberOriginalProjection = originalResultProjections.add.bind(
+  originalResultProjections
+)
+const hasOriginalProjection = originalResultProjections.has.bind(
+  originalResultProjections
+)
+
+/** Register this actual host's private source-result consumer, not an Error origin. */
+export function registerOriginalResultProjection(
+  project: ReporterTaskResultProjection
+): void {
+  rememberOriginalProjection(project)
+}
+
+export function projectionCapturesOriginalResult(
+  project: ReporterTaskResultProjection
+): boolean {
+  return hasOriginalProjection(project)
+}
 
 /** Actual collected declarations and current producer state, without runtime contexts. */
 export interface ReporterTaskSnapshot {
@@ -129,7 +153,9 @@ export function captureReporterTaskTree(
     ) {
       const selected = projections!.get(original)
       if (selected) {
-        selected.project(selected.task, copy.result)
+        if (projectionCapturesOriginalResult(selected.project))
+          selected.project(selected.task, copy.result, original.result)
+        else selected.project(selected.task, copy.result)
       }
       original.tasks?.forEach((task, index) =>
         project(task, copy.tasks![index])

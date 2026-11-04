@@ -437,6 +437,8 @@ function initializeFile(
       return fileAssertions.prepareTaskExpect(task)
     },
   })
+  // The actual File owns the pinned label slot before authored setup runs.
+  collector.root.meta.__vitest_label__ = undefined
   if (defaultRetry !== undefined) collector.root.options.retry = defaultRetry
   activeFile = collector
   publicSelectionEnabled = publicTaskSelection === true
@@ -1040,10 +1042,12 @@ function initializeFile(
               : {}),
             ...(captureCompletedModuleResult
               ? {
-                  onSuiteEnd(suite, task) {
+                  onSuiteEnd(suite, task, origins) {
                     if (suite.suiteId === collector.root.id)
                       rootDuration = suite.durationMs
-                    return onSuiteEnd?.(suite, task)
+                    return options.captureSuiteErrorOrigins === true
+                      ? onSuiteEnd?.(suite, task, origins)
+                      : onSuiteEnd?.(suite, task)
                   },
                 }
               : {}),

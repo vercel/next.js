@@ -137,7 +137,7 @@ export function serializeSourceMappedDiagnostic(
             file: frame.file,
             line: origin?.location.line ?? frame.line1 ?? undefined,
             column: origin?.location.column ?? frame.column1 ?? undefined,
-            methodName: frame.methodName,
+            methodName: origin?.methodName ?? frame.methodName,
             original: isTestFrameOriginal(captured),
             ignored: isTestFrameIgnored(captured),
             ...(codeFrame === undefined ? {} : { codeFrame }),

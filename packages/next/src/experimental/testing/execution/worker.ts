@@ -1,4 +1,6 @@
 import { restoreNodeStackTrace } from './node-stack-trace'
+import { findSourceMap } from 'node:module'
+import type { ModernSourceMapPayload } from '../../../server/lib/source-maps'
 import {
   captureJUnitSuiteTask,
   assertJUnitSuiteRole,
@@ -339,7 +341,7 @@ async function run({
     serializeDiagnostic(failure.error, {
       phase: failure.phase === 'cleanup' ? 'cleanup' : 'runtime',
       registrationOrigin: failure.registrationError
-        ? registrationOrigin?.(failure.registrationError)
+        ? registrationOrigin?.(failure.registrationError, 'registration')
         : undefined,
     })
   const reportedSuiteErrors: {
@@ -860,10 +862,19 @@ async function run({
         options.entry.executionEnvironment.name === 'node')
     // Shared through Next's process-global callback, including bundled mapper
     // copies. Keep the revision's files alive until this process has closed.
+    const hostSourceMap = useNativeNodeStackTrace
+      ? findSourceMap(__filename)
+      : undefined
     setBundlerFindSourceMapImplementation(
       createArtifactSourceMapLookup(
         artifact,
-        useNativeNodeStackTrace ? options.entry.file : undefined
+        useNativeNodeStackTrace ? options.entry.file : undefined,
+        hostSourceMap
+          ? {
+              compiledFile: __filename,
+              payload: hostSourceMap.payload as ModernSourceMapPayload,
+            }
+          : undefined
       )
     )
     registrationOrigin = createArtifactRegistrationOriginMapper(
@@ -1278,6 +1289,9 @@ async function run({
         )
       if (options.captureCompletedModuleResult) moduleFailurePhase = 'run'
       const result = await file.run({
+        ...(taskUpdates && useNativeNodeStackTrace
+          ? { captureSuiteErrorOrigins: true as const }
+          : {}),
         ...(options.coverage?.kind === 'node-istanbul'
           ? { captureCoverageCompletion: true as const }
           : {}),
@@ -1381,7 +1395,7 @@ async function run({
               taskUpdates!.collectionFailed(actualFile, operation, error)
             }
           : undefined,
-        onSuiteEnd(suiteResult, task) {
+        onSuiteEnd(suiteResult, task, origins) {
           if (
             artifact.kind === 'node' &&
             artifact.profile.environment === 'node' &&
@@ -1401,12 +1415,17 @@ async function run({
             artifact.profile.environment === 'node' &&
             (!options.entry.executionEnvironment ||
               options.entry.executionEnvironment.name === 'node') &&
-            suiteResult.errors.some((failure) => failure.phase === 'aroundAll')
+            (useNativeNodeStackTrace ||
+              suiteResult.errors.some(
+                (failure) => failure.phase === 'aroundAll'
+              ))
               ? createSuiteErrorResultProjection(
                   task,
                   createCapturedStackMapper((stack) =>
                     registrationOrigin?.(stack)
-                  )
+                  ),
+                  origins,
+                  (error) => registrationOrigin?.(error, 'registration')
                 )
               : undefined
           const reportedTask =

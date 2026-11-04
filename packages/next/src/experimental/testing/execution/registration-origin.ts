@@ -18,12 +18,16 @@ import type { CompiledTestArtifact } from '../contracts'
 import type { TestArtifactLocation } from '../runner/tasks'
 import { createArtifactSourceMapLookup } from './source-maps'
 
+const defineRegistrationScope = Object.defineProperty
+
 type Point = { line: number; column: number }
 type Node = {
   type: string
   loc?: { start: Point; end: Point }
   callee?: Node
   arguments?: Node[]
+  id?: Node | null
+  anonymousScope?: boolean
 }
 type Mapping = {
   generatedLine: number
@@ -35,6 +39,8 @@ type Mapping = {
 export type RegistrationOrigin = {
   location: TestArtifactLocation
   source: string
+  /** Only an actual registration may expose its verified unnamed source scope. */
+  methodName?: ''
 }
 function collectMappings(payload: ModernSourceMapPayload): Mapping[] {
   const mappings: Mapping[] = []
@@ -79,16 +85,41 @@ function contained(root: string, file: string): boolean {
 }
 function calls(source: string, file: string): Node[] {
   const result: Node[] = []
-  const visit = (value: unknown) => {
+  const visit = (value: unknown, parents: Node[] = []) => {
     if (!value || typeof value !== 'object') return
     if (Array.isArray(value)) {
-      value.forEach(visit)
+      value.forEach((child) => visit(child, parents))
       return
     }
     const node = value as Node
-    if (node.type === 'CallExpression') result.push(node)
+    if (node.type === 'CallExpression') {
+      const index = parents.findLastIndex((parent) =>
+        [
+          'FunctionDeclaration',
+          'FunctionExpression',
+          'ArrowFunctionExpression',
+          'ObjectMethod',
+          'ClassMethod',
+          'ClassPrivateMethod',
+        ].includes(parent.type)
+      )
+      const scope = parents[index]
+      const owner = parents[index - 1]
+      const anonymousScope = scope
+        ? (scope.type === 'ArrowFunctionExpression' ||
+            (scope.type === 'FunctionExpression' && !scope.id)) &&
+          (owner?.type === 'CallExpression' ||
+            owner?.type === 'NewExpression') &&
+          (owner.callee === scope || owner.arguments?.includes(scope) === true)
+        : !parents.some((parent) =>
+            ['ClassBody', 'StaticBlock'].includes(parent.type)
+          )
+      defineRegistrationScope(node, 'anonymousScope', { value: anonymousScope })
+      result.push(node)
+    }
     for (const [key, child] of Object.entries(value)) {
-      if (!['loc', 'tokens', 'comments'].includes(key)) visit(child)
+      if (!['loc', 'tokens', 'comments'].includes(key))
+        visit(child, [...parents, node])
     }
   }
   visit(
@@ -115,7 +146,10 @@ function calls(source: string, file: string): Node[] {
 export function createArtifactRegistrationOriginMapper(
   artifact: CompiledTestArtifact,
   entryFile: string
-): (error: Error | string) => RegistrationOrigin | undefined {
+): (
+  error: Error | string,
+  intent?: 'registration'
+) => RegistrationOrigin | undefined {
   if (
     artifact.kind !== 'node' ||
     artifact.profile.environment !== 'node' ||
@@ -186,7 +220,7 @@ export function createArtifactRegistrationOriginMapper(
     }
     return result
   }
-  return (error) => {
+  return (error, intent) => {
     const readStack = () => (typeof error === 'string' ? error : error.stack)
     try {
       if (!readStack()) return
@@ -202,9 +236,9 @@ export function createArtifactRegistrationOriginMapper(
       const first = firstSource?.frame
       if (!first?.file || filename(first.file) !== selected) return
       if (firstSource?.kind === 'authored' && first.line1 && first.column1) {
-        // Node already supplied original coordinates. This path retains those
-        // exact coordinates and bytes; it does not infer a generated callee or
-        // apply the separate generated-AST correction below.
+        // Ordinary native frames retain their exact engine point. Only the
+        // real registration producer can request the verified declaration start;
+        // the generic stack path must not reinterpret an authored call frame.
         if (firstSource.source.sha256 !== artifact.sourceHash) return
         const point = { line: first.line1, column: first.column1 - 1 }
         const declarations = calls(firstSource.source.content, selected).filter(
@@ -215,13 +249,21 @@ export function createArtifactRegistrationOriginMapper(
             compare(point, call.callee.loc.end) <= 0
         )
         if (declarations.length !== 1) return
+        const declaration = declarations[0]
+        const start =
+          intent === 'registration' ? declaration.loc?.start : undefined
         return {
           location: {
             file: selected,
-            line: first.line1,
-            column: first.column1,
+            line: start?.line ?? first.line1,
+            column: start ? start.column + 1 : first.column1,
           },
           source: firstSource.source.content,
+          ...(intent === 'registration' &&
+          declaration.anonymousScope &&
+          first.methodName === '<anonymous>'
+            ? { methodName: '' as const }
+            : {}),
         }
       }
       for (const frame of parseStack(readStack()!)) {
