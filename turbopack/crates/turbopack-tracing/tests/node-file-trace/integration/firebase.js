@@ -8,8 +8,8 @@ const store = firebase.firestore()
 
 async function main() {
   try {
-    // Still load Firestore's gRPC/protobuf files for tracing, but never contact
-    // the backend: its connection errors can differ between the two executions.
+    // Load Firestore's gRPC/protobuf files for tracing without depending on
+    // network access or backend availability.
     await store.disableNetwork()
     const snapshot = await store.collection('users').get()
     assert.strictEqual(snapshot.empty, true)
