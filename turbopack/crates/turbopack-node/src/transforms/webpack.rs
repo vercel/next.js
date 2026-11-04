@@ -92,10 +92,10 @@ struct WebpackLoadersProcessingResult {
     assets: Option<Vec<EmittedAsset>>,
 }
 
-use turbopack_core::loader::{WebpackLoaderItem, WebpackLoaderItems};
+use turbopack_core::loader::WebpackLoaderItems;
 
 #[turbo_tasks::value]
-struct WebpackLoaders {
+pub struct WebpackLoaders {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     loaders: ResolvedVc<WebpackLoaderItems>,
@@ -110,7 +110,7 @@ struct WebpackLoaders {
 #[turbo_tasks::value_impl]
 impl WebpackLoaders {
     #[turbo_tasks::function]
-    fn new(
+    pub fn new(
         evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
         execution_context: ResolvedVc<ExecutionContext>,
         loaders: ResolvedVc<WebpackLoaderItems>,
@@ -669,7 +669,7 @@ pub(super) enum InfoMessage {
 #[turbo_tasks::task_input]
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
-struct WebpackResolveOptions {
+pub struct WebpackResolveOptions {
     alias_fields: Option<Vec<RcStr>>,
     condition_names: Option<Vec<RcStr>>,
     no_package_json: bool,
@@ -683,7 +683,7 @@ struct WebpackResolveOptions {
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub(super) enum RequestMessage {
+pub enum RequestMessage {
     #[serde(rename_all = "camelCase")]
     Resolve {
         options: WebpackResolveOptions,
@@ -700,7 +700,7 @@ pub(super) enum RequestMessage {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct ImportModuleChunk {
+pub struct ImportModuleChunk {
     path: RcStr,
     #[serde(skip_serializing_if = "Option::is_none")]
     code: Option<RcStr>,
@@ -712,7 +712,7 @@ struct ImportModuleChunk {
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
-pub(super) enum ResponseMessage {
+pub enum ResponseMessage {
     Resolve {
         path: RcStr,
     },
@@ -773,7 +773,9 @@ impl WebpackLoaderContext {
 
 impl EvaluateContext for WebpackLoaderContext {
     type InfoMessage = InfoMessage;
+    // TODO ideally these internal types wouldn't be part of the public API
     type RequestMessage = RequestMessage;
+    // TODO ideally these internal types wouldn't be part of the public API
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
 

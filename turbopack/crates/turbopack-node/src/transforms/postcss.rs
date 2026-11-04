@@ -47,7 +47,7 @@ struct PostCssProcessingResult {
 
 #[turbo_tasks::task_input]
 #[derive(Default, Copy, Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
-enum PostCssConfigLocation {
+pub enum PostCssConfigLocation {
     /// Searches for postcss config only starting from the project root directory.
     /// Used for foreign code (node_modules) where per-directory configs should be ignored.
     #[default]
@@ -64,10 +64,10 @@ enum PostCssConfigLocation {
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
-struct PostCssTransformOptions {
-    postcss_package: Option<ResolvedVc<ImportMapping>>,
-    config_location: PostCssConfigLocation,
-    placeholder_for_future_extensions: u8,
+pub struct PostCssTransformOptions {
+    pub postcss_package: Option<ResolvedVc<ImportMapping>>,
+    pub config_location: PostCssConfigLocation,
+    pub placeholder_for_future_extensions: u8,
 }
 
 #[turbo_tasks::function]
@@ -104,7 +104,7 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
 }
 
 #[turbo_tasks::value]
-struct PostCssTransform {
+pub struct PostCssTransform {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
@@ -115,7 +115,7 @@ struct PostCssTransform {
 #[turbo_tasks::value_impl]
 impl PostCssTransform {
     #[turbo_tasks::function]
-    fn new(
+    pub fn new(
         evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
         config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
         execution_context: ResolvedVc<ExecutionContext>,

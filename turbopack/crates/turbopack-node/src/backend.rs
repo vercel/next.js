@@ -38,7 +38,7 @@ pub(crate) mod sealed {
 }
 
 #[turbo_tasks::value_trait]
-pub(crate) trait NodeBackend: sealed::Sealed {
+pub trait NodeBackend: sealed::Sealed {
     fn runtime_module_path(&self) -> RcStr;
 
     fn globals_module_path(&self) -> RcStr;

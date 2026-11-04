@@ -6,17 +6,17 @@ use turbopack_core::chunk::ChunkingContext;
 use crate::backend::NodeBackend;
 
 #[turbo_tasks::value]
-pub(crate) struct ExecutionContext {
-    pub(crate) project_path: FileSystemPath,
-    pub(crate) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    pub(crate) env: ResolvedVc<Box<dyn ProcessEnv>>,
-    pub(crate) node_backend: ResolvedVc<Box<dyn NodeBackend>>,
+pub struct ExecutionContext {
+    pub project_path: FileSystemPath,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub env: ResolvedVc<Box<dyn ProcessEnv>>,
+    pub node_backend: ResolvedVc<Box<dyn NodeBackend>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ExecutionContext {
     #[turbo_tasks::function]
-    fn new(
+    pub fn new(
         project_path: FileSystemPath,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         env: ResolvedVc<Box<dyn ProcessEnv>>,
@@ -32,7 +32,7 @@ impl ExecutionContext {
     }
 
     #[turbo_tasks::function]
-    fn project_path(&self) -> Vc<FileSystemPath> {
+    pub fn project_path(&self) -> Vc<FileSystemPath> {
         self.project_path.clone().cell()
     }
 
@@ -42,7 +42,7 @@ impl ExecutionContext {
     }
 
     #[turbo_tasks::function]
-    fn env(&self) -> Vc<Box<dyn ProcessEnv>> {
+    pub fn env(&self) -> Vc<Box<dyn ProcessEnv>> {
         *self.env
     }
 

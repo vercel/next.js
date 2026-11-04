@@ -47,7 +47,7 @@ use crate::{
 /// An argument passed to the evaluated JavaScript.
 #[turbo_tasks::task_input]
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Encode, Decode)]
-pub(crate) enum EvaluateArg {
+pub enum EvaluateArg {
     Vc(ResolvedVc<JsonValue>),
     /// Passed as a string: A path relative to the evaluation working directory when both are on the
     /// same filesystem, otherwise an absolute system path (e.g. for an additional root).
@@ -524,7 +524,7 @@ pub(crate) async fn custom_evaluate(
 }
 
 #[turbo_tasks::value]
-pub(crate) struct EvaluateEntries {
+pub struct EvaluateEntries {
     entries: Vec<ResolvedVc<Box<dyn EvaluatableAsset + 'static>>>,
     main_entry_ident: ResolvedVc<AssetIdent>,
 }
@@ -532,7 +532,7 @@ pub(crate) struct EvaluateEntries {
 #[turbo_tasks::value_impl]
 impl EvaluateEntries {
     #[turbo_tasks::function]
-    pub(crate) async fn graph_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+    pub async fn graph_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         Ok(
             GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
                 modules: self
@@ -550,7 +550,7 @@ impl EvaluateEntries {
 }
 
 #[turbo_tasks::function]
-pub(crate) async fn get_evaluate_entries(
+pub async fn get_evaluate_entries(
     module_asset: ResolvedVc<Box<dyn Module>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     node_backend: ResolvedVc<Box<dyn NodeBackend>>,
@@ -633,7 +633,7 @@ pub(crate) async fn get_evaluate_entries(
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 #[turbo_tasks::function]
-async fn evaluate(
+pub async fn evaluate(
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,

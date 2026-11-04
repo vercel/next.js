@@ -14,10 +14,10 @@ use turbopack_core::{
 };
 
 mod backend;
-mod debug;
-mod embed_js;
-mod evaluate;
-mod execution_context;
+pub mod debug;
+pub mod embed_js;
+pub mod evaluate;
+pub mod execution_context;
 mod format;
 mod pool_stats;
 // The child-process pool needs `tokio::process` and a TCP listener, neither of which exists on
@@ -25,17 +25,17 @@ mod pool_stats;
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 mod process_pool;
 mod source_map;
-mod transforms;
+pub mod transforms;
 #[cfg(feature = "worker_pool")]
 mod worker_pool;
 
 use backend::NodeBackend;
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
-fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
+pub fn child_process_backend() -> Vc<Box<dyn NodeBackend>> {
     Vc::upcast(process_pool::ChildProcessesBackend.cell())
 }
 #[cfg(feature = "worker_pool")]
-fn worker_threads_backend() -> Vc<Box<dyn NodeBackend>> {
+pub fn worker_threads_backend() -> Vc<Box<dyn NodeBackend>> {
     Vc::upcast(worker_pool::WorkerThreadsBackend.cell())
 }
 
