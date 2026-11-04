@@ -44,10 +44,41 @@ import type { TLSSocket } from 'tls'
 import {
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
+  NEXT_RSC_UNION_QUERY,
   RSC_HEADER,
 } from '../../../client/components/app-router-headers'
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../../../lib/constants'
+import { getRenderedSearch } from '../../../shared/lib/router/utils/querystring'
+import type { ParsedUrlQuery } from 'querystring'
 
 const debug = setupDebug('next:router-server:resolve-routes')
+
+/**
+ * Returns the search string the page will be rendered with for the given
+ * query, excluding keys that are stripped before rendering. This must stay in
+ * sync with the client's `getRenderedSearch`, which compares the
+ * `x-nextjs-rewritten-query` header against the request URL's search.
+ */
+function getRenderedSearchForQuery(query: ParsedUrlQuery): string {
+  const renderedQuery: ParsedUrlQuery = {}
+  for (const key in query) {
+    if (
+      key === NEXT_RSC_UNION_QUERY ||
+      key === 'nextInternalLocale' ||
+      (key !== NEXT_QUERY_PARAM_PREFIX &&
+        key.startsWith(NEXT_QUERY_PARAM_PREFIX)) ||
+      (key !== NEXT_INTERCEPTION_MARKER_PREFIX &&
+        key.startsWith(NEXT_INTERCEPTION_MARKER_PREFIX))
+    ) {
+      continue
+    }
+    renderedQuery[key] = query[key]
+  }
+  return getRenderedSearch(renderedQuery)
+}
 
 export function getResolveRoutes(
   fsChecker: UnwrapPromise<
@@ -933,11 +964,18 @@ export function getResolveRoutes(
               resHeaders[NEXT_REWRITTEN_PATH_HEADER] =
                 parsedDestination.pathname
             }
-            if (parsedUrl.search !== parsedDestination.search) {
+            // `parsedDestination.search` only holds the query declared in the
+            // rewrite destination, while the page renders with the merged
+            // `parsedDestination.query`.
+            const requestSearch = getRenderedSearchForQuery(parsedUrl.query)
+            const renderedSearch = getRenderedSearchForQuery(
+              parsedDestination.query
+            )
+            if (requestSearch !== renderedSearch) {
               res.setHeader(
                 NEXT_REWRITTEN_QUERY_HEADER,
                 // remove the leading ? from the search
-                parsedDestination.search.slice(1)
+                renderedSearch.slice(1)
               )
             }
           }
