@@ -68,28 +68,6 @@ import { verifyDistDir } from '../lib/dist-dir'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 export type { DomainLocale, NextConfig } from './config-shared'
 
-/**
- * Outside stable releases, deeply freezes the shared defaults (this also
- * covers `imageConfigDefault`, which `defaultConfig.images` points to). A write
- * to them would leak into every later `loadConfig` in the process, so make it
- * throw instead. `NEXT_DISABLE_DEFAULT_CONFIG_FREEZE` turns this off, for
- * anyone who hits a write we haven't found yet.
- *
- * Runs after `.env` files are loaded so the opt-out can be set there too.
- */
-function freezeSharedDefaults(phase: PHASE_TYPE): void {
-  if (isStableBuild() || process.env.NEXT_DISABLE_DEFAULT_CONFIG_FREEZE) return
-  // Production servers are not frozen yet, except in tests.
-  if (phase === PHASE_PRODUCTION_SERVER && !process.env.__NEXT_TEST_MODE) return
-
-  // `defaultConfig` itself is already shallowly frozen, which makes
-  // `deepFreeze` stop at the top level, so freeze what it contains. Values that
-  // are already frozen return immediately, so later calls are cheap.
-  for (const value of Object.values(defaultConfig)) {
-    if (value && typeof value === 'object') deepFreeze(value)
-  }
-}
-
 const REACT_18_DEPRECATION_WARNING =
   'React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17. Please upgrade to React 19. Learn more: https://nextjs.org/docs/messages/react-version'
 
@@ -2100,9 +2078,6 @@ async function loadConfigImpl(
     if (process.env.__NEXT_TEST_MODE) {
       deepFreeze(standaloneConfig)
     }
-    // `.env` files are not loaded on this path, so only the process
-    // environment can opt out here.
-    freezeSharedDefaults(phase)
 
     // Cache the standalone config
     configCache.set(cacheKey, {
@@ -2123,7 +2098,6 @@ async function loadConfigImpl(
     : Log
 
   loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-  freezeSharedDefaults(phase)
 
   let configFileName = 'next.config.js'
   const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
