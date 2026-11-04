@@ -324,10 +324,15 @@ export interface RunnerOptions {
   attachmentsDir?: string
   getAnnotationLocation?(error: Error): TestArtifactLocation | undefined
   getArtifactLocation?(error: Error): TestArtifactLocation | undefined
+  captureTestRecords?: true
   onAnnotation?(
     context: AttemptContext,
     annotation: TestAnnotation
-  ): void | Promise<void>
+  ): TestAnnotation | void | Promise<TestAnnotation | void>
+  onTestRecordArtifact?(
+    context: AttemptContext,
+    artifact: TestArtifact
+  ): Promise<TestArtifact>
   onArtifact?(
     context: AttemptContext,
     artifact: TestArtifact
@@ -374,6 +379,8 @@ export interface RunnerOptions {
   ): void | Promise<void>
   onCaseStart?(context: AttemptContext): void | Promise<void>
   onCaseEnd?(result: RunnerCaseResult): void | Promise<void>
+  /** Once per prepared logical task, before attempt fixtures, repeats and retries. */
+  onCaseReady?(task: Test): void
   /** Once per logical case, after retries, repeats and owned attempt closure. */
   onCaseResult?(task: Test, result: RunnerCaseResult): void | Promise<void>
   onSuiteEnd?(
@@ -1252,6 +1259,14 @@ export async function runCollected(
     }
     recoveries.set(test, caseState)
     const ownedContext = (api = 'test context'): AttemptContext => {
+      if (
+        api === 'annotate()' &&
+        publicTask.result &&
+        publicTask.result.state !== 'run'
+      )
+        throw new Error(
+          `Cannot annotate tests outside of the test run. The test "${test.name}" finished running with the "${publicTask.result.state}" state already.`
+        )
       const origin = getOriginatingAttempt()
       if (!origin || origin !== currentContext || origin.testId !== test.id) {
         // Public context identity survives retries; diagnostics still name the
@@ -1278,6 +1293,7 @@ export async function runCollected(
       }
     if (mode === 'run' && !collectionBlocked && !focusFailure)
       selection.start(publicTask)
+    if (!collectionBlocked && !focusFailure) options.onCaseReady?.(publicTask)
     for (let repeat = 0; repeat < repeats; repeat++) {
       const retryOptions = test.options.retry ?? options.retry
       const retries =
@@ -1670,13 +1686,17 @@ export async function runCollected(
                 projectDir: options.projectDir ?? process.cwd(),
                 attachmentsDir: options.attachmentsDir,
               })
-            await options.onAnnotation?.(context, annotation)
+            const recorded = await options.onAnnotation?.(context, annotation)
+            const resolved =
+              options.captureTestRecords === true
+                ? (recorded as TestAnnotation)
+                : annotation
             if (sealed)
               throw new Error(
                 `Annotation belongs to a finished Next test attempt (${context.id}).`
               )
-            publicTask.annotations.push(annotation)
-            return annotation
+            publicTask.annotations.push(resolved)
+            return resolved
           })
           void operation.promise.catch(() => {})
           annotationOperations.push(operation)
@@ -1775,10 +1795,12 @@ export async function runCollected(
             attachmentsDir: options.attachmentsDir,
             isOpen: isArtifactFileOpen,
             record: (artifact) => options.onArtifact?.(context, artifact),
-            transport: options.onBrowserArtifact
-              ? (artifact) =>
-                  options.onBrowserArtifact!(publicTask, artifact, context)
-              : undefined,
+            transport: options.onTestRecordArtifact
+              ? (artifact) => options.onTestRecordArtifact!(context, artifact)
+              : options.onBrowserArtifact
+                ? (artifact) =>
+                    options.onBrowserArtifact!(publicTask, artifact, context)
+                : undefined,
           })
         )
         currentContext = context

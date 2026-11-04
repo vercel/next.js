@@ -7907,3 +7907,85 @@ describe('native-authored Node stack consumers', () => {
     }
   )
 })
+
+describe('isolated Node record RPC ownership and completion', () => {
+  it.each([
+    [
+      'concurrent',
+      { requests: 3, responseOrder: [2, 1, 0], flushJoined: true },
+    ],
+    ['raw outcomes', { rawFailures: 10, rawUndefined: true }],
+    ['send failure', { isolatedSendFailure: true }],
+    [
+      'identity faults',
+      { refusedForeignOrDuplicateResponses: 5, otherRequestsPreserved: true },
+    ],
+    ['abort', { abortedRequests: 2, noLateRequest: true }],
+    [
+      'executor default',
+      {
+        unchangedGenericRecords: 2,
+        noRPCResponse: true,
+        defaultWorkerInputExact: true,
+      },
+    ],
+    [
+      'executor concurrent',
+      {
+        actualEvents: 3,
+        callbacks: 3,
+        responseOrder: [3, 2, 1],
+        callbackStrippedFromInput: true,
+      },
+    ],
+    [
+      'executor raw outcomes',
+      {
+        explicitRawThrownOutcomes: 10,
+        undefinedSuccess: true,
+        noGenericReporterFailure: true,
+      },
+    ],
+    ['executor faults', { rejectedBeforeCallbackOrEvent: 7 }],
+    [
+      'executor abort',
+      {
+        actualEvents: 1,
+        heldCallbackObserved: true,
+        noAcknowledgementAfterOwnerClosed: true,
+      },
+    ],
+    [
+      'executor owner close',
+      {
+        actualEvents: 1,
+        heldCallbackObserved: true,
+        noAcknowledgementAfterOwnerClosed: true,
+      },
+    ],
+    ['executor admission', { refusedBeforeLaunch: 9 }],
+    [
+      'executor cohort admission',
+      { refusedBeforeCohortLaunch: 2, actualForks: 0 },
+    ],
+  ] as const)(
+    'settles actual %s requests without another owner',
+    (mode, expected) => {
+      const stdout = execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'record-rpc-transport.cjs'),
+          path.dirname(require.resolve('next/package.json')),
+          mode,
+        ],
+        { encoding: 'utf8', timeout: 15000 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        mode,
+        ...expected,
+        nativeLoads: 0,
+        protocolOnly: true,
+      })
+    }
+  )
+})

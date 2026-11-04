@@ -51,6 +51,8 @@ import type {
   CompiledTestArtifact,
   ExecuteTest,
   ExecuteTestCohort,
+  ExecuteTestOptions,
+  TestRecordEvent,
   TestEntry,
   TestCompilerSessionOptions,
   TestFileCollection,
@@ -104,6 +106,10 @@ export interface RunTestsOptions {
   captureModuleCollected?: true
   /** Actual prepared root pack; requires the positive one-shot snapshot owner. */
   captureModuleStart?: true
+  /** Actual logical case preparation; absent for legacy task snapshots. */
+  captureCaseReady?: true
+  captureTestRecords?: true
+  onTestRecord?: ExecuteTestOptions['onTestRecord']
   /** Actual selected-file scheduling; never a collected task snapshot. */
   onModuleQueued?: (entry: TestEntry) => void
   captureTaskResults?: boolean
@@ -236,6 +242,72 @@ export async function runTests(
   )
     throw new Error(
       'Public snapshot preparation requires its one-shot isolated ordinary Node JavaScript owner.'
+    )
+  const recordBroker =
+    options.brokerOwnsBrowser === true &&
+    typeof options.execute === 'function' &&
+    typeof options.allocateArtifact === 'function'
+  if (
+    (options.captureTestRecords !== undefined ||
+      options.onTestRecord !== undefined) &&
+    (options.captureTestRecords !== true ||
+      (!recordBroker && typeof options.onTestRecord !== 'function') ||
+      (recordBroker && options.onTestRecord !== undefined) ||
+      (!recordBroker &&
+        (options.execute ||
+          options.executeCohort ||
+          options.allocateArtifact)) ||
+      options.captureTaskResults !== true ||
+      options.collectOnly ||
+      options.userCancelSignal ||
+      options.coverage ||
+      Object.keys(options.customCoverageRequests ?? {}).length > 0 ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.typecheck?.enabled ||
+          project.profile.environment !== 'node' ||
+          project.profile.route !== undefined ||
+          project.profile.browserClient !== undefined ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.entries.some(
+            (entry) =>
+              entry.typecheck ||
+              entry.inSource ||
+              !/\.(?:js|mjs)$/.test(entry.file) ||
+              (entry.executionEnvironment &&
+                entry.executionEnvironment.name !== 'node')
+          )
+      ))
+  )
+    throw new Error(
+      'Test record callbacks require their one-shot isolated ordinary Node parent owner.'
+    )
+  if (
+    options.captureCaseReady !== undefined &&
+    (options.captureCaseReady !== true ||
+      options.captureTaskResults !== true ||
+      options.collectOnly ||
+      projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.profile.environment !== 'node' ||
+          project.profile.runtime !== 'nodejs' ||
+          project.profile.bundler !== 'turbopack' ||
+          project.profile.route !== undefined ||
+          project.profile.browserClient !== undefined ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.entries.some(
+            (entry) =>
+              entry.executionEnvironment &&
+              entry.executionEnvironment.name !== 'node'
+          )
+      ))
+  )
+    throw new Error(
+      'Case Ready requires actual task capture from isolated ordinary Node execution.'
     )
   if (
     options.captureModuleStart !== undefined &&
@@ -1042,7 +1114,18 @@ export async function runTests(
         ...(options.captureModuleStart === true
           ? { captureModuleStart: true as const }
           : {}),
+        ...(options.captureCaseReady === true
+          ? { captureCaseReady: true as const }
+          : {}),
         captureTaskResults: options.captureTaskResults,
+        ...(options.captureTestRecords === true
+          ? {
+              captureTestRecords: true as const,
+              ...(options.onTestRecord
+                ? { onTestRecord: options.onTestRecord }
+                : {}),
+            }
+          : {}),
         ...(options.captureModuleCollected === true
           ? { captureModuleCollected: true as const }
           : {}),
@@ -1484,6 +1567,10 @@ export async function runTests(
   }
 
   async function runIsolatedProject(group: DiscoveredTestProject[]) {
+    const recordDeliveries =
+      options.captureTestRecords === true
+        ? new WeakMap<TestRecordEvent, TestRecordEvent>()
+        : undefined
     const selected = new Set(
       group.flatMap((project) => project.entries.map((entry) => entry.id))
     )
@@ -1513,7 +1600,13 @@ export async function runTests(
           ...(options.captureModuleStart === true
             ? { captureModuleStart: true as const }
             : {}),
+          ...(options.captureCaseReady === true
+            ? { captureCaseReady: true as const }
+            : {}),
           captureTaskResults: options.captureTaskResults,
+          ...(options.captureTestRecords === true
+            ? { captureTestRecords: true as const }
+            : {}),
           ...(options.captureModuleCollected === true
             ? { captureModuleCollected: true as const }
             : {}),
@@ -1657,6 +1750,20 @@ export async function runTests(
                 },
               }
             : {}),
+          ...(options.captureTestRecords === true
+            ? {
+                onTestRecord(event: TestRecordEvent) {
+                  controller.signal.throwIfAborted()
+                  const mapped = recordDeliveries!.get(event)
+                  if (!mapped || !options.onTestRecord)
+                    throw new Error(
+                      'Test record callback lacks its actual delivered event.'
+                    )
+                  recordDeliveries!.delete(event)
+                  return options.onTestRecord(mapped)
+                },
+              }
+            : {}),
           onEvent(event) {
             if (
               event.type === 'file-start' &&
@@ -1664,7 +1771,14 @@ export async function runTests(
             )
               collectionRevisions.set(event.entry.id, event.revision)
             if (event.type === 'run-start' || event.type === 'run-end') return
-            onEvent({ ...event, runId })
+            const mapped = { ...event, runId }
+            if (
+              recordDeliveries &&
+              (event.type === 'test-annotation' ||
+                event.type === 'test-artifact')
+            )
+              recordDeliveries.set(event, mapped as TestRecordEvent)
+            onEvent(mapped)
           },
         }
       )

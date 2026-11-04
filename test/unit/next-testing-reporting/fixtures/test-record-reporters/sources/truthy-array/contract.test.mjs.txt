@@ -1,0 +1,57 @@
+import fs from 'node:fs'
+import { test, recordArtifact } from 'vitest'
+const kind = "caught"
+const record = row => fs.appendFileSync(process.env.AA_TRACE, JSON.stringify({ source: 'body', ...row }) + '\n')
+fs.writeFileSync(process.env.AA_WORKER, JSON.stringify({ pid: process.pid, ppid: process.ppid, version: process.version }) + '\n')
+const values = task => ({ annotations: task.annotations, artifacts: task.artifacts, meta: task.meta })
+const failure = error => ({ valueType: typeof error, isNull: error === null, isUndefined: error === undefined, display: String(error), constructor: error?.constructor?.name, errorInstance: error instanceof Error, rawValue: error instanceof Error ? undefined : error, ownKeys: error != null && (typeof error === 'object' || typeof error === 'function') ? Object.getOwnPropertyNames(error) : [], name: error?.name, message: error?.message, marker: error?.marker, cause: error?.cause?.message })
+test('records', async context => {
+  const task = context.task
+  task.meta.user = 'authored'
+  record({ event: 'begin', taskId: task.id, values: values(task) })
+  if (kind === 'none') return
+  if (kind === 'concurrent') {
+    const input = { type: 'custom:payload', title: 'concurrent-artifact', data: { counter: 1 } }
+    record({ event: 'concurrent-before' })
+    const values = await Promise.all([context.annotate('parallel-one'), context.annotate('parallel-two'), recordArtifact(task, input)])
+    record({ event: 'concurrent-after', values, sameFirst: values[0] === task.annotations.find(a => a.message.startsWith('parallel-one')), sameSecond: values[1] === task.annotations.find(a => a.message.startsWith('parallel-two')), sameArtifact: values[2] === task.artifacts.at(-1), taskValues: task.annotations, artifacts: task.artifacts })
+    return
+  }
+  if (kind === 'internal') {
+    const input = { type: 'internal:annotation', annotation: { message: 'low-level', type: 'notice' }, custom: 'retained' }
+    const result = await recordArtifact(task, input)
+    record({ event: 'internal-return', sameInput: result === input, result, values: values(task) })
+    return
+  }
+  const annotate = async () => {
+    record({ event: 'annotation-before' })
+    const value = await context.annotate('notice-message')
+    record({ event: 'annotation-after', value, sameTaskValue: task.annotations.at(-1) === value, values: values(task) })
+  }
+  const artifact = async () => {
+    const input = { type: 'custom:payload', title: 'artifact-title', data: { counter: 1 } }
+    record({ event: 'artifact-before', input })
+    const value = await recordArtifact(task, input)
+    record({ event: 'artifact-after', value, input, sameInput: value === input, sameTaskValue: task.artifacts.at(-1) === value, values: values(task) })
+  }
+  if (kind === 'unawaited-annotation') { annotate(); record({ event: 'unawaited-return' }); return }
+  if (kind === 'unawaited-artifact') { artifact(); record({ event: 'unawaited-return' }); return }
+  if (kind === 'annotation-uncaught') { await annotate(); return }
+  if (kind === 'artifact-uncaught') { await artifact(); return }
+  if (kind === 'caught' || kind === 'caught-annotation') {
+    try { await annotate() } catch (error) { record({ event: 'annotation-caught', error: failure(error), values: values(task) }) }
+    if (kind === 'caught') try { await artifact() } catch (error) { record({ event: 'artifact-caught', error: failure(error), values: values(task) }) }
+    return
+  }
+  if (kind === 'attachment') {
+    const value = await context.annotate('with-attachment', 'warning', { path: 'https://example.invalid/notice.txt', contentType: 'text/plain' })
+    record({ event: 'attachment-annotation-after', value, values: values(task) })
+    const input = { type: 'custom:payload', title: 'remote-artifact', data: { counter: 1 }, attachments: [{ path: 'https://example.invalid/image.png', name: 'remote-image', contentType: 'image/png' }] }
+    const result = await recordArtifact(task, input)
+    record({ event: 'attachment-artifact-after', result, input, values: values(task) })
+    return
+  }
+  await annotate()
+  await artifact()
+})
+test('following', context => { record({ event: 'following', values: values(context.task) }) })

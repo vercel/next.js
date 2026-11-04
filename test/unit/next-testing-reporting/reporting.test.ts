@@ -10569,3 +10569,70 @@ describe('actual passive public Run Start contract', () => {
     }
   }, 110000)
 })
+
+it('preserves actual annotation and artifact RPC values, failures and concurrent callback ownership', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(join(tmpdir(), 'next-test-record-worker-'))
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [join(__dirname, 'test-records-worker.cjs'), process.cwd(), directory],
+      { timeout: 35000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      scenarios: 33,
+      actualCallbacks: 54,
+      actualGetterReads: 58,
+      completeCallbackRows: 165,
+      globalReporterErrors: 0,
+      allSessionsDisposed: true,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else console.error('Retained failed actual record reporter at ' + directory)
+  }
+}, 40000)
+
+it('preserves Ready synchronous abort and asynchronous fan-out in live and recorded dispatch', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+  const { tmpdir } = await import('node:os')
+  const { promisify } = await import('node:util')
+  const { execFile } = await import('node:child_process')
+  const directory = await mkdtemp(join(tmpdir(), 'next-ready-dispatch-order-'))
+  let completed = false
+  try {
+    const { stdout, stderr } = await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'test-records-worker.cjs'),
+        process.cwd(),
+        directory,
+        'ready-dispatch-order',
+      ],
+      { timeout: 35000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(stderr).toBe('')
+    expect(JSON.parse(stdout)).toEqual({
+      scenarios: 6,
+      live: 3,
+      replay: 3,
+      synchronousStops: 4,
+      asynchronousContinues: 2,
+      identityPreserved: true,
+      singleGetterRead: true,
+      sessionsDisposed: 6,
+    })
+    completed = true
+  } finally {
+    if (completed) await rm(directory, { recursive: true, force: true })
+    else console.error('Retained failed Ready dispatch order at ' + directory)
+  }
+}, 40000)

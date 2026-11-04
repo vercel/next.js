@@ -54,6 +54,16 @@ export async function executeCohortWithEnvironment(
     sourceHash?: string
   ) => Promise<void>
 ): Promise<readonly TestExecutionResult[]> {
+  if (
+    options.some(
+      (option) =>
+        option.captureTestRecords !== undefined ||
+        option.onTestRecord !== undefined
+    )
+  )
+    throw new Error('Test record callbacks require an isolated file worker.')
+  if (options.some((option) => option.captureCaseReady !== undefined))
+    throw new Error('Case Ready requires an isolated file worker.')
   const ownership: {
     starting: boolean
     lease?: Awaited<ReturnType<typeof createTestWorkerLease>>

@@ -1,0 +1,10 @@
+import fs from 'node:fs'
+import { test, recordArtifact } from 'vitest'
+const record = row => fs.appendFileSync(process.env.AA_TRACE, JSON.stringify({ source: 'body', ...row }) + '\n')
+fs.writeFileSync(process.env.AA_WORKER, JSON.stringify({ pid: process.pid, ppid: process.ppid, version: process.version }) + '\n')
+test('records', async context => {
+  context.task.meta.user = 'authored'
+  const annotation = await context.annotate('local-note', 'notice', { path: 'input.txt', contentType: 'text/plain' })
+  const artifact = await recordArtifact(context.task, { type: 'custom:payload', title: 'local-artifact', data: { counter: 1 }, attachments: [{ path: 'input.txt', name: 'owned', contentType: 'text/plain' }] })
+  record({ event: 'local-after', annotation, artifact, annotations: context.task.annotations, artifacts: context.task.artifacts })
+})

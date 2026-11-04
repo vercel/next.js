@@ -24,6 +24,8 @@ import type {
 } from '../contracts'
 import type { FileResult } from '../reporting/events'
 import { drainConsoleCallbacks } from './console-drain'
+import { assertTestRecordRole, assertTestRecordEvent } from './test-records'
+import type { ReporterTestRecordOutcome } from '../reporting/test-records'
 import type { WorkerInput, WorkerMessage } from './protocol'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import { runTestProcess } from './process'
@@ -65,6 +67,35 @@ export async function executeWithEnvironment(
   onWorkerLaunched?: () => void
 ): Promise<TestExecutionResult> {
   const started = performance.now()
+  if (
+    options.captureCaseReady !== undefined &&
+    (options.captureCaseReady !== true ||
+      options.captureTaskResults !== true ||
+      options.collectOnly ||
+      options.browser ||
+      artifact.kind !== 'node' ||
+      artifact.profile.environment !== 'node' ||
+      artifact.profile.runtime !== 'nodejs' ||
+      artifact.profile.bundler !== 'turbopack' ||
+      artifact.profile.route !== undefined ||
+      artifact.profile.browserClient !== undefined ||
+      artifact.cohort ||
+      (options.entry.executionEnvironment &&
+        options.entry.executionEnvironment.name !== 'node'))
+  )
+    throw new Error(
+      'Case Ready requires actual task capture from an isolated ordinary Node file worker.'
+    )
+  assertTestRecordRole(artifact, options)
+  if (
+    (options.captureTestRecords === true) !==
+      (typeof options.onTestRecord === 'function') ||
+    (options.onTestRecord !== undefined &&
+      typeof options.onTestRecord !== 'function')
+  )
+    throw new Error(
+      'Test record callbacks require their actual parent consumer.'
+    )
   assertJUnitSuiteRole(artifact, options)
   assertPublicSnapshotPreparationRole(artifact, options)
   if (
@@ -179,6 +210,7 @@ export async function executeWithEnvironment(
   assertNodeProjectEnvironment(artifact, options)
   const {
     onEvent,
+    onTestRecord,
     onConsoleDrain,
     onCoverage,
     onIstanbulCoverage,
@@ -275,6 +307,26 @@ export async function executeWithEnvironment(
   let taskUpdatesDrainController: AbortController | undefined
   let taskUpdatesDrainFailure: { error: unknown } | undefined
   let customSuite: Promise<void> | undefined
+  const recordRequests = new Set<number>()
+  const recordDispatches = new Set<Promise<void>>()
+  const recordController =
+    options.captureTestRecords === true ? new AbortController() : undefined
+  const abortRecords = () => recordController?.abort(signal.reason)
+  const recordCancellation = recordController
+    ? new Promise<never>((_resolve, reject) => {
+        recordController.signal.addEventListener(
+          'abort',
+          () => reject(recordController.signal.reason),
+          { once: true }
+        )
+      })
+    : undefined
+  void recordCancellation?.catch(() => {})
+  if (recordController) {
+    signal.addEventListener('abort', abortRecords, { once: true })
+    if (signal.aborted) abortRecords()
+  }
+  let recordDispatchFailure: { error: unknown } | undefined
   let observedSnapshotPreparationFailure = false
   let snapshotPreparationHandoff: Promise<void> | undefined
   let snapshotPreparationHandoffFailure: { error: unknown } | undefined
@@ -366,6 +418,54 @@ export async function executeWithEnvironment(
           } catch (error) {
             snapshotPreparationHandoffFailure = { error }
           }
+        } else if (message.type === 'test-record') {
+          if (
+            options.captureTestRecords !== true ||
+            !onTestRecord ||
+            result ||
+            observedSnapshotPreparationFailure ||
+            !Number.isSafeInteger(message.requestId) ||
+            message.requestId < 1 ||
+            recordRequests.has(message.requestId)
+          )
+            throw new Error('Unrequested or duplicate test record RPC.')
+          assertTestRecordEvent(message.event, {
+            runId: options.runId,
+            entryId: artifact.entryId,
+            revision: artifact.revision,
+          })
+          recordRequests.add(message.requestId)
+          // The real event is retained once before the callback observes it.
+          onEvent(message.event)
+          const dispatch = (async () => {
+            let outcome: ReporterTestRecordOutcome
+            recordController!.signal.throwIfAborted()
+            try {
+              const resolvedRecord = await Promise.race([
+                onTestRecord(message.event),
+                recordCancellation!,
+              ])
+              outcome = { kind: 'return', value: resolvedRecord }
+            } catch (error) {
+              outcome = { kind: 'throw', error }
+            }
+            if (recordController!.signal.aborted) return
+            await send({
+              type: 'test-recorded',
+              requestId: message.requestId,
+              runId: options.runId,
+              entryId: artifact.entryId,
+              revision: artifact.revision,
+              outcome,
+            })
+          })()
+          recordDispatches.add(dispatch)
+          void dispatch
+            .catch((error) => {
+              if (!recordController?.signal.aborted)
+                recordDispatchFailure ??= { error }
+            })
+            .finally(() => recordDispatches.delete(dispatch))
         } else if (message.type === 'event') {
           if (
             message.event.version !== 1 ||
@@ -621,15 +721,28 @@ export async function executeWithEnvironment(
           text: chunk.toString('utf8'),
         })
       },
-    }).finally(() =>
+    }).finally(() => {
       userCancelSignal?.removeEventListener('abort', cancelByUser)
-    )
+      if (recordController) {
+        recordController.abort(new Error('Test record file worker closed.'))
+        signal.removeEventListener('abort', abortRecords)
+      }
+    })
     taskUpdatesDrainController?.abort(
       new Error('Test worker closed during task-update drain.')
     )
+    if (recordController) {
+      await Promise.allSettled([...recordDispatches])
+      if (recordDispatchFailure) throw recordDispatchFailure.error
+    }
     await userCancellationSend
     return { ...processExit, userCancellationFinalized }
   }).catch(async (error) => {
+    if (recordController) {
+      recordController.abort(error)
+      signal.removeEventListener('abort', abortRecords)
+      await Promise.allSettled([...recordDispatches])
+    }
     taskUpdatesDrainController?.abort(error)
     if (snapshotPreparationHandoff) await snapshotPreparationHandoff
     if (snapshotPreparationHandoffFailure)

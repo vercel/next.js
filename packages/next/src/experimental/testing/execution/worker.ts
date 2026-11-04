@@ -12,6 +12,9 @@ import {
 } from './snapshot-preparation'
 import { assertUnexecutedCaseResult } from '../reporting/unexecuted-cases'
 import { createReporterTaskUpdates } from '../reporting/task-updates'
+import { createTestRecordClient, assertTestRecordRole } from './test-records'
+import { retainAnnotationAttachment } from '../runner/annotations'
+import type { TestAnnotationArtifact, TestArtifact } from '../runner/tasks'
 import { captureReporterTaskTree } from '../reporting/live-tasks'
 import { captureProductionStaticMockClosure } from '../mocking/production-artifact'
 import type { CustomCoverageCompletion } from '../coverage/custom-types'
@@ -37,12 +40,13 @@ import { mapTestArtifactLocation } from '../reporting/artifact-location'
 import { mapTestDeclarationLocation } from '../reporting/declaration-location'
 import type { CaseResult, ResultEvent, ResultStatus } from '../reporting/events'
 import { getFinalCaseResults } from '../reporting/final-cases'
-import type { RunnerFailure } from '../runner/lifecycle'
+import type { RunnerFailure, AttemptContext } from '../runner/lifecycle'
 import type { RuntimeModuleCompletion } from './completed-module'
-import type { WorkerInput, WorkerMessage } from './protocol'
+import type { WorkerInput, WorkerMessage, TestRecordResponse } from './protocol'
 import type {
   AnyTestCoverageCompletion,
   TestFileCollection,
+  TestRecordEvent,
 } from '../contracts'
 import { setBundlerFindSourceMapImplementation } from '../../../server/patch-error-inspect'
 import { createArtifactSourceMapLookup } from './source-maps'
@@ -85,6 +89,7 @@ let pendingConsoleDrain:
     }
   | undefined
 let pendingTaskUpdatesDrain: typeof pendingConsoleDrain
+let testRecordClient: ReturnType<typeof createTestRecordClient> | undefined
 let pendingCustomSuite:
   | {
       completion: CustomCoverageCompletion
@@ -286,6 +291,34 @@ async function run({
         diagnostic: ReturnType<typeof serializeDiagnostic>
       }
     | undefined
+  assertTestRecordRole(artifact, options)
+  if (options.captureTestRecords === true)
+    testRecordClient = createTestRecordClient({
+      identity: {
+        runId: options.runId,
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+      },
+      signal: controller.signal,
+      send,
+    })
+  const recordEvent = async (
+    payload: Extract<
+      EventPayload,
+      { type: 'test-annotation' | 'test-artifact' }
+    >
+  ) => {
+    if (!testRecordClient)
+      throw new Error('Test record RPC lacks its file owner.')
+    // Mirror the real worker's task-update flush before its record RPC.
+    await taskUpdates?.finish()
+    return testRecordClient.record({
+      ...payload,
+      version: 1,
+      runId: options.runId,
+      timestamp: realDateNow(),
+    } as TestRecordEvent)
+  }
   const event = (payload: EventPayload, timestamp = realDateNow()) =>
     send({
       type: 'event',
@@ -365,6 +398,9 @@ async function run({
       ? createReporterTaskUpdates<CaseResult>({
           ...(carriedRetryOptions
             ? { carriedRetryOptions: true as const }
+            : {}),
+          ...(options.captureCaseReady === true
+            ? { captureCaseReady: true as const }
             : {}),
           ...(options.captureModuleStart === true
             ? { captureModuleStart: true as const }
@@ -690,6 +726,21 @@ async function run({
         'Client Browser Mode artifacts require the parent-owned client executor, never a Node worker.'
       )
     assertArtifactProfile(artifact, options.entry)
+    if (
+      options.captureCaseReady !== undefined &&
+      (options.captureCaseReady !== true ||
+        artifact.kind !== 'node' ||
+        artifact.profile.environment !== 'node' ||
+        artifact.profile.route !== undefined ||
+        artifact.profile.browserClient ||
+        artifact.cohort ||
+        options.collectOnly ||
+        options.entry.executionEnvironment ||
+        options.captureTaskResults !== true)
+    )
+      throw new Error(
+        'Case Ready requires actual isolated ordinary Node tasks.'
+      )
     if (
       options.captureModuleStart !== undefined &&
       (options.captureModuleStart !== true ||
@@ -1309,8 +1360,8 @@ async function run({
         getAnnotationLocation: (error) =>
           mapTestAnnotationLocation(error, options.entry.file),
         onAnnotation(context, annotation) {
-          return event({
-            type: 'test-annotation',
+          const payload = {
+            type: 'test-annotation' as const,
             entryId: artifact.entryId,
             caseId: context.testId,
             attempt: {
@@ -1320,8 +1371,45 @@ async function run({
             },
             revision: artifact.revision,
             annotation,
-          })
+          }
+          if (options.captureTestRecords === true)
+            return recordEvent(payload).then(
+              (resolved) => (resolved as TestAnnotationArtifact).annotation
+            )
+          return event(payload)
         },
+        ...(options.captureTestRecords === true
+          ? {
+              captureTestRecords: true as const,
+              async onTestRecordArtifact(
+                context: AttemptContext,
+                recordedArtifact: TestArtifact
+              ) {
+                const resolved = structuredClone(recordedArtifact)
+                if (Array.isArray(resolved.attachments))
+                  await Promise.all(
+                    resolved.attachments.map((attachment) =>
+                      retainAnnotationAttachment(attachment, '', {
+                        projectDir: options.projectDir,
+                        attachmentsDir: options.attachmentsDir,
+                      })
+                    )
+                  )
+                return recordEvent({
+                  type: 'test-artifact',
+                  entryId: artifact.entryId,
+                  caseId: context.testId,
+                  attempt: {
+                    id: context.id,
+                    retry: context.retry,
+                    repeat: context.repeat,
+                  },
+                  revision: artifact.revision,
+                  artifact: resolved,
+                }) as Promise<typeof resolved>
+              },
+            }
+          : {}),
         getArtifactLocation: (error) =>
           mapTestArtifactLocation(error, options.entry.file),
         onArtifact(context, artifactRecord) {
@@ -1459,6 +1547,10 @@ async function run({
               )
             }
           : undefined,
+        onCaseReady:
+          taskUpdates && options.captureCaseReady === true
+            ? (task) => taskUpdates.caseReady(task)
+            : undefined,
         onCaseStart(context) {
           taskUpdates?.caseStart(context.testId)
           unfinishedAttempts.add(context.id)
@@ -1646,6 +1738,7 @@ async function run({
         status = 'failed'
         if (!lateFailures.has(error)) await diagnostic(error, 'cleanup')
       } finally {
+        if (testRecordClient?.pending) await testRecordClient.flush()
         taskUpdates.dispose()
       }
     }
@@ -2199,7 +2292,15 @@ process.on(
       controller.abort(new Error('Test file cancelled'))
     else if (message.type === 'user-cancel')
       userCancellation.abort(new Error('Test run cancelled by the user.'))
-    else if (message.type === 'console-drained') {
+    else if (message.type === 'test-recorded') {
+      try {
+        if (!testRecordClient)
+          throw new Error('Unrequested test record acknowledgement.')
+        testRecordClient.receive(message as TestRecordResponse)
+      } catch (error) {
+        controller.abort(error)
+      }
+    } else if (message.type === 'console-drained') {
       const pending = pendingConsoleDrain
       if (
         !pending ||
@@ -2249,6 +2350,8 @@ process.on(
       running = true
       run(message.input)
         .finally(() => {
+          testRecordClient?.close()
+          testRecordClient = undefined
           releaseNativeAssertionRecords?.()
           releaseNativeAssertionRecords = undefined
         })

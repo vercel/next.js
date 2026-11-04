@@ -1,3 +1,9 @@
+import type { TestRecordEvent } from '../contracts'
+import type { ReporterCaseEvent } from './task-updates'
+import {
+  invokeTestRecordReporters,
+  type ReporterTestRecordOutcome,
+} from './test-records'
 import { Console } from 'node:console'
 import type { CustomReporterFinalExit } from './custom-reporter-exit'
 import type {
@@ -39,7 +45,10 @@ type Reporter = {
   onTestModuleCollected?(module: unknown): unknown
   onTestModuleStart?(module: unknown): unknown
   onTestModuleEnd?(module: unknown): unknown
+  onTestCaseReady?(test: unknown): unknown
   onTestCaseResult?(test: unknown): unknown
+  onTestCaseAnnotate?: unknown
+  onTestCaseArtifactRecord?: unknown
   onTestRunEnd?(modules: unknown[], errors: unknown[], reason: string): unknown
 }
 const applyReporterCallback = Reflect.apply
@@ -64,6 +73,9 @@ export function createCustomReporterRuntime(
   let initializationCallbacksStarted = false
   let finished = false
   let watching = false
+  let captureTestRecords = false
+  const recordIds = new Set<number>()
+  const recordCallbacks = new Set<Promise<void>>()
   let runSpecifications:
     | ReturnType<typeof createReporterRunSpecifications>
     | undefined
@@ -95,6 +107,8 @@ export function createCustomReporterRuntime(
   const failedCollectedEntryIds = new Set<string>()
   const preparedEntryIds = new Set<string>()
   const queuedEntryIds = new Set<string>()
+  const readyCaseIds = new Set<string>()
+  const completedCaseIds = new Set<string>()
   const send = options.send
   let transportClosed = false
   let transportClose: Promise<void> | undefined
@@ -167,9 +181,48 @@ export function createCustomReporterRuntime(
     return modules
   }
 
+  function invokeCaseReady(reporter: Reporter, test: unknown): unknown {
+    // Capture authored accessors once even under the normal loose transform.
+    const callback = reporter.onTestCaseReady
+    if (callback !== undefined && callback !== null)
+      return applyReporterCallback(callback, reporter, [test])
+  }
+  function hasPotentialCaseReady(reporter: Reporter): boolean {
+    let current: object | null = reporter
+    while (current !== null) {
+      if (nodeTypes.isProxy(current)) return true
+      const descriptor = Reflect.getOwnPropertyDescriptor(
+        current,
+        'onTestCaseReady'
+      )
+      if (descriptor)
+        return 'value' in descriptor
+          ? descriptor.value !== undefined && descriptor.value !== null
+          : typeof descriptor.get === 'function'
+      current = Reflect.getPrototypeOf(current)
+    }
+    return false
+  }
   function hasPotentialRunHook(
     reporter: Reporter,
     name: 'onTestRunStart' | 'onTestModuleStart'
+  ): boolean {
+    let current: object | null = reporter
+    while (current !== null) {
+      // Descriptor inspection must not invoke an authored callback getter.
+      if (nodeTypes.isProxy(current)) return true
+      const descriptor = Reflect.getOwnPropertyDescriptor(current, name)
+      if (descriptor)
+        return 'value' in descriptor
+          ? descriptor.value !== undefined && descriptor.value !== null
+          : typeof descriptor.get === 'function'
+      current = Reflect.getPrototypeOf(current)
+    }
+    return false
+  }
+  function hasPotentialRecordCallback(
+    reporter: Reporter,
+    name: 'onTestCaseAnnotate' | 'onTestCaseArtifactRecord'
   ): boolean {
     let current: object | null = reporter
     while (current !== null) {
@@ -224,6 +277,7 @@ export function createCustomReporterRuntime(
   let ordinaryCloseFailure: 'sync' | 'async' | undefined
   let initialCloseErrorLogged = false
   async function shutdownOnce(ordinary: boolean) {
+    if (recordCallbacks.size) await Promise.allSettled([...recordCallbacks])
     await Promise.all([
       ...queuedCallbacks,
       ...collectedCallbacks,
@@ -278,7 +332,36 @@ export function createCustomReporterRuntime(
   function shutdown(ordinary = false) {
     return (shutdownPromise ??= shutdownOnce(ordinary))
   }
-  async function replayCases(tree: ReporterTaskSnapshot) {
+  function assertRecordReplayOwner() {
+    if (captureTestRecords)
+      throw new Error(
+        'Test record reporter replay requires actual record RPC ownership and is not implemented.'
+      )
+  }
+  async function replayCases(
+    tree: ReporterTaskSnapshot,
+    occurrences?: ReporterCaseEvent[]
+  ) {
+    if (occurrences !== undefined) {
+      for (const occurrence of occurrences) {
+        const test = live.case(tree.id, occurrence.caseId)
+        try {
+          if (occurrence.event === 'ready')
+            await Promise.all(
+              reporters.map((reporter) => invokeCaseReady(reporter, test))
+            )
+          else
+            await settle(
+              reporters.map(
+                (reporter) => () => reporter.onTestCaseResult?.(test)
+              )
+            )
+        } catch (error) {
+          consoleErrors.push(error)
+        }
+      }
+      return
+    }
     async function visit(suite: ReporterTaskSnapshot): Promise<void> {
       for (const task of suite.tasks ?? []) {
         if (task.type === 'suite') await visit(task)
@@ -499,6 +582,9 @@ export function createCustomReporterRuntime(
                     'onTestModuleQueued',
                     'onTestModuleCollected',
                     'onTestModuleStart',
+                    'onTestCaseReady',
+                    'onTestCaseAnnotate',
+                    'onTestCaseArtifactRecord',
                   ].includes(name) && !watching
                 ) &&
                 !(name === 'onProcessTimeout' && finalExit) &&
@@ -528,13 +614,22 @@ export function createCustomReporterRuntime(
         await settle(
           reporters.map((reporter) => () => reporter.onInit?.(context))
         )
+        captureTestRecords = reporters.some(
+          (reporter) =>
+            hasPotentialRecordCallback(reporter, 'onTestCaseAnnotate') ||
+            hasPotentialRecordCallback(reporter, 'onTestCaseArtifactRecord')
+        )
         await send({
           type: 'custom-reporter-result',
+          captureTestRecords,
           captureRunStart:
             !watching &&
             reporters.some((reporter) =>
               hasPotentialRunHook(reporter, 'onTestRunStart')
             ),
+          ...(reporters.some(hasPotentialCaseReady)
+            ? { captureCaseReady: true }
+            : {}),
           captureModuleStart: reporters.some(
             (reporter) => typeof reporter.onTestModuleStart === 'function'
           ),
@@ -557,6 +652,8 @@ export function createCustomReporterRuntime(
               (reporter) => typeof reporter.onTestModuleQueued === 'function'
             ),
           captureTaskResults:
+            reporters.some(hasPotentialCaseReady) ||
+            captureTestRecords ||
             (!watching &&
               reporters.some((reporter) =>
                 hasPotentialRunHook(reporter, 'onTestRunStart')
@@ -718,12 +815,33 @@ export function createCustomReporterRuntime(
         })
         return
       }
-      if (message.type === 'case-result' && initialized && !finished) {
+      if (
+        (message.type === 'case-ready' || message.type === 'case-result') &&
+        initialized &&
+        !finished
+      ) {
         try {
           const test = live.case(message.entryId, message.caseId)
-          await settle(
-            reporters.map((reporter) => () => reporter.onTestCaseResult?.(test))
-          )
+          const identity = JSON.stringify([message.entryId, message.caseId])
+          if (message.type === 'case-ready') {
+            if (
+              watching ||
+              readyCaseIds.has(identity) ||
+              completedCaseIds.has(identity)
+            )
+              throw new Error('Case Ready requires one actual prepared task.')
+            readyCaseIds.add(identity)
+          } else completedCaseIds.add(identity)
+          if (message.type === 'case-ready')
+            await Promise.all(
+              reporters.map((reporter) => invokeCaseReady(reporter, test))
+            )
+          else
+            await settle(
+              reporters.map(
+                (reporter) => () => reporter.onTestCaseResult?.(test)
+              )
+            )
         } catch (error) {
           consoleErrors.push(error)
         }
@@ -749,6 +867,7 @@ export function createCustomReporterRuntime(
         return
       }
       if (message.type === 'replay-file' && initialized && !finished) {
+        assertRecordReplayOwner()
         const tree: ReporterTaskSnapshot = message.taskTree
         if (completedModules.has(tree.id))
           throw new Error('Reporter replay requires one terminal file.')
@@ -760,7 +879,7 @@ export function createCustomReporterRuntime(
         if (!module)
           throw new Error('Reporter replay requires the actual terminal file.')
         completedModules.set(tree.id, module)
-        await replayCases(tree)
+        await replayCases(tree, message.caseEvents)
         await settle(
           reporters.map((reporter) => () => reporter.onTestModuleEnd?.(module))
         ).catch((error) => consoleErrors.push(error))
@@ -768,6 +887,7 @@ export function createCustomReporterRuntime(
         return
       }
       if (message.type === 'imported-file' && initialized && !finished) {
+        assertRecordReplayOwner()
         const tree: ReporterTaskSnapshot = message.taskTree
         if (
           completedModules.has(tree.id) ||
@@ -1023,6 +1143,61 @@ export function createCustomReporterRuntime(
   }
   function receive(message: any) {
     if (transportClosed) return
+    if (message?.type === 'test-record') {
+      const preceding = queue
+      const operation = preceding.then(async () => {
+        const event = message.event as TestRecordEvent
+        let outcome: ReporterTestRecordOutcome
+        try {
+          if (
+            !initialized ||
+            finished ||
+            watching ||
+            !captureTestRecords ||
+            !Number.isSafeInteger(message.recordId) ||
+            message.recordId < 1 ||
+            recordIds.has(message.recordId) ||
+            !event ||
+            !['test-annotation', 'test-artifact'].includes(event.type) ||
+            typeof event.runId !== 'string' ||
+            typeof event.entryId !== 'string' ||
+            typeof event.revision !== 'string' ||
+            typeof event.caseId !== 'string' ||
+            typeof event.attempt?.id !== 'string' ||
+            !Number.isSafeInteger(event.attempt.retry) ||
+            event.attempt.retry < 0 ||
+            !Number.isSafeInteger(event.attempt.repeat) ||
+            event.attempt.repeat < 0
+          )
+            throw new Error(
+              'Reporter test record requires its actual one-shot Test owner.'
+            )
+          recordIds.add(message.recordId)
+          const test = live.record(event)
+          outcome = await invokeTestRecordReporters(reporters, test, event)
+        } catch (error) {
+          outcome = { kind: 'throw', error }
+        }
+        await send({
+          type: 'custom-reporter-record-result',
+          recordId: message.recordId,
+          runId: event?.runId,
+          entryId: event?.entryId,
+          revision: event?.revision,
+          outcome,
+        })
+      })
+      recordCallbacks.add(operation)
+      void operation.then(
+        () => recordCallbacks.delete(operation),
+        (error) => {
+          recordCallbacks.delete(operation)
+          console.error(error)
+          void closeTransport(1)
+        }
+      )
+      return
+    }
     if (message?.type === 'module-queued' && initialized && !finished) {
       try {
         const entry = message.entry

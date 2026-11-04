@@ -9,6 +9,7 @@ import { isSharedRscWatchRun } from './incremental/shared-rsc-cohort'
 import type { WatchDirectories } from './incremental/watch-files'
 import { getTestRunLockPath } from './run-lock'
 import { serializeDiagnostic } from './reporting/diagnostics'
+import { createTestRecordForwarder } from './execution/test-record-forwarding'
 
 class QueuedModuleTransportFailure extends AggregateError {}
 
@@ -70,7 +71,11 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
     const { createExecutionBrokerClient } = await import(
       './execution/broker.js'
     )
+    const testRecords = createTestRecordForwarder()
     broker = createExecutionBrokerClient({
+      ...(request.captureTestRecords === true
+        ? { forwardTestRecordEvent: testRecords.forward }
+        : {}),
       allowCoverage:
         request.isolatedProfile === true ||
         (request.watchCoverage === true && !!request.standardCoverageOptions),
@@ -173,7 +178,13 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       ...(request.captureModuleStart === true
         ? { captureModuleStart: true as const }
         : {}),
+      ...(request.captureCaseReady === true
+        ? { captureCaseReady: true as const }
+        : {}),
       captureTaskResults: request.captureTaskResults,
+      ...(request.captureTestRecords === true
+        ? { captureTestRecords: true as const }
+        : {}),
       ...(request.captureModuleCollected === true
         ? { captureModuleCollected: true as const }
         : {}),
@@ -245,12 +256,16 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       onEvent: (event) => {
         if (!process.connected)
           throw new Error('Test watch coordinator disconnected.')
-        process.send!({ type: 'event', event }, (error: Error | null) => {
-          if (error) {
-            process.exitCode = 1
-            controller.abort(error)
+        const recordId = testRecords.id(event)
+        process.send!(
+          { type: 'event', event, ...(recordId ? { recordId } : {}) },
+          (error: Error | null) => {
+            if (error) {
+              process.exitCode = 1
+              controller.abort(error)
+            }
           }
-        })
+        )
       },
     })
       .catch((error: unknown) => {

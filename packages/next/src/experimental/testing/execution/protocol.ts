@@ -5,7 +5,9 @@ import type {
   ExecuteTestOptions,
   AnyTestCoverageCompletion,
   TestFileCollection,
+  TestRecordEvent,
 } from '../contracts'
+import type { ReporterTestRecordOutcome } from '../reporting/test-records'
 import type { FileResult, ResultEvent } from '../reporting/events'
 import type { SnapshotUpdate } from '../assertions/snapshots'
 import type { RuntimeModuleCompletion } from './completed-module'
@@ -17,6 +19,7 @@ export interface WorkerInput {
     | 'signal'
     | 'userCancelSignal'
     | 'onEvent'
+    | 'onTestRecord'
     | 'onConsoleDrain'
     | 'onCoverage'
     | 'onIstanbulCoverage'
@@ -30,7 +33,23 @@ export interface WorkerInput {
   cacheScope: { type: 'file'; directory: string }
 }
 
+export interface TestRecordRequest {
+  type: 'test-record'
+  requestId: number
+  event: TestRecordEvent
+}
+
+export interface TestRecordResponse {
+  type: 'test-recorded'
+  requestId: number
+  runId: string
+  entryId: string
+  revision: string
+  outcome: ReporterTestRecordOutcome
+}
+
 export type WorkerMessage =
+  | TestRecordRequest
   | {
       type: 'snapshot-preparation-failure'
       failure: SnapshotPreparationFailure

@@ -38,11 +38,13 @@ import type {
 } from './coverage/types'
 import { promisify } from 'node:util'
 import { drainConsoleCallbacks } from './execution/console-drain'
+import { createTestRecordReceipts } from './execution/test-record-forwarding'
 import { randomUUID } from 'crypto'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
 import { join, relative, isAbsolute, resolve as resolvePath } from 'path'
 import type { DiscoveredTestProject } from './discovery'
-import type { TestEntry, TestProfile } from './contracts'
+import type { TestEntry, TestProfile, TestRecordEvent } from './contracts'
+import type { TestArtifact } from './runner/tasks'
 import type { WatchDirectories } from './incremental/watch-files'
 import type { runTests } from './orchestrator'
 import type { ResultEvent, SerializedDiagnostic } from './reporting/events'
@@ -81,9 +83,13 @@ export type WatchProcessRequest =
       /** Private actual scheduler occurrence; no authored callback acknowledgement. */
       captureModuleQueued?: true
       captureTaskResults?: boolean
+      /** Positive actual one-shot parent record callback capture. */
+      captureTestRecords?: true
       captureModuleCollected?: true
       /** Actual prepared root pack; requires the positive one-shot snapshot owner. */
       captureModuleStart?: true
+      /** Actual logical case preparation, requested by its parent reporter. */
+      captureCaseReady?: true
       compilerTransforms?: Record<
         string,
         import('./compiler/transform-broker').CompilerTransformDescriptor
@@ -143,7 +149,7 @@ export type WatchProcessMessage =
     }
   | { type: 'result'; value: WatchProcessResult }
   | { type: 'error'; message: string; queueFailure?: SerializedDiagnostic }
-  | { type: 'event'; event: ResultEvent }
+  | { type: 'event'; event: ResultEvent; recordId?: string }
   | { type: 'module-queued'; entryId: string }
 
 /** Private queue-transport failures retain actual ordered execution/write errors. */
@@ -307,6 +313,8 @@ export async function runWatchProcess(
     onEvent?: (event: ResultEvent) => void
     /** Await actual reporter console callbacks after forwarded output arrives. */
     onConsoleDrain?: () => Promise<void>
+    /** Called with the exact actual event already delivered to onEvent. */
+    onTestRecord?: (event: TestRecordEvent) => Promise<TestArtifact | undefined>
     /** Canonical parent-selected file, issued before its actual compilation. */
     onModuleQueued?: (entry: TestEntry) => void
     onSnapshotPreparationFailure?: (failure: SnapshotPreparationFailure) => void
@@ -321,6 +329,71 @@ export async function runWatchProcess(
     report?: boolean
   }
 ): Promise<WatchProcessResult> {
+  if (
+    request.operation === 'run' &&
+    request.captureCaseReady !== undefined &&
+    (request.captureCaseReady !== true ||
+      request.captureTaskResults !== true ||
+      request.isolatedProfile !== true ||
+      request.collectOnly ||
+      request.projects.some(
+        (project) =>
+          project.isolate === false ||
+          project.profile.environment !== 'node' ||
+          project.profile.runtime !== 'nodejs' ||
+          project.profile.bundler !== 'turbopack' ||
+          project.profile.route !== undefined ||
+          project.profile.browserClient !== undefined ||
+          (project.executionEnvironment &&
+            project.executionEnvironment.name !== 'node') ||
+          project.entries.some(
+            (entry) =>
+              entry.executionEnvironment &&
+              entry.executionEnvironment.name !== 'node'
+          )
+      ))
+  )
+    throw new Error(
+      'Case Ready requires its isolated ordinary Node task-capture owner.'
+    )
+  if (
+    (options.onTestRecord !== undefined &&
+      (request.operation !== 'run' || request.captureTestRecords !== true)) ||
+    (request.operation === 'run' &&
+      request.captureTestRecords !== undefined &&
+      (request.captureTestRecords !== true ||
+        typeof options.onTestRecord !== 'function' ||
+        request.isolatedProfile !== true ||
+        request.watchCoverage ||
+        request.userCancellation ||
+        options.userCancelSignal ||
+        request.collectOnly ||
+        request.coverage ||
+        request.standardCoverageOptions ||
+        Object.keys(request.customCoverageRequests ?? {}).length > 0 ||
+        request.captureTaskResults !== true ||
+        request.projects.some(
+          (project) =>
+            project.isolate === false ||
+            project.typecheck?.enabled ||
+            project.profile.environment !== 'node' ||
+            project.profile.route !== undefined ||
+            project.profile.browserClient !== undefined ||
+            (project.executionEnvironment &&
+              project.executionEnvironment.name !== 'node') ||
+            project.entries.some(
+              (entry) =>
+                entry.typecheck ||
+                entry.inSource ||
+                !/\.(?:js|mjs)$/.test(entry.file) ||
+                (entry.executionEnvironment &&
+                  entry.executionEnvironment.name !== 'node')
+            )
+        )))
+  )
+    throw new Error(
+      'Test record callbacks require their actual isolated one-shot Node parent.'
+    )
   if (
     request.operation === 'run' &&
     request.captureOneShotV8CollectionRestoration !== undefined &&
@@ -646,6 +719,10 @@ export async function runWatchProcess(
     const claimedSourceRevisions = new Set<string>()
     const allocations = new Set<Promise<void>>()
     const consoleDrains = new Map<string, { forwarded(): void }>()
+    const recordReceipts =
+      request.operation === 'run' && request.captureTestRecords === true
+        ? createTestRecordReceipts(options.signal)
+        : undefined
     const reporter =
       request.operation === 'run'
         ? createTestReporter({
@@ -718,6 +795,58 @@ export async function runWatchProcess(
     }
     const customSuiteEntries = new Set<string>()
     const broker = brokerModule?.createExecutionBrokerHost({
+      ...(request.operation === 'run' && request.captureCaseReady === true
+        ? { captureCaseReady: true as const }
+        : {}),
+      ...(request.operation === 'run' &&
+      request.captureTestRecords === true &&
+      options.onTestRecord
+        ? {
+            captureTestRecords: true as const,
+            async onTestRecord(artifact, execution, event, recordId, signal) {
+              if (
+                !artifactRoots.has(artifact.rootDir) ||
+                request.operation !== 'run' ||
+                request.isolatedProfile !== true
+              )
+                throw new Error(
+                  'Test record lacks its actual parent file lease.'
+                )
+              const project = request.projects.find((candidate) =>
+                isDeepStrictEqual(candidate.profile, artifact.profile)
+              )
+              const entry = project?.entries.find(
+                (candidate) =>
+                  candidate.id === artifact.entryId &&
+                  isDeepStrictEqual(candidate, execution.entry)
+              )
+              if (!entry)
+                throw new Error(
+                  'Test record differs from actual parent selection.'
+                )
+              // This waiter is registered synchronously before broker publish.
+              // Its received event, not the independently cloned host value,
+              // is shared by the actual collector and reporter callback.
+              const received = await recordReceipts!.wait(
+                recordId,
+                event,
+                signal
+              )
+              signal.throwIfAborted()
+              if (
+                !runId ||
+                received.runId !== runId ||
+                collectionRevisions.get(artifact.entryId) !==
+                  artifact.revision ||
+                endedFiles.has(artifact.entryId)
+              )
+                throw new Error(
+                  'Test record lacks its actual received file owner.'
+                )
+              return options.onTestRecord!(received)
+            },
+          }
+        : {}),
       ...(request.operation === 'run' && request.captureJUnitSuiteTasks === true
         ? { captureJUnitSuiteTasks: true as const }
         : {}),
@@ -1219,6 +1348,21 @@ export async function runWatchProcess(
         if (value?.type === 'event') {
           try {
             const event = value.event
+            const isRecord =
+              event.type === 'test-annotation' || event.type === 'test-artifact'
+            const wrappedRecord = Object.hasOwn(value, 'recordId')
+            if (
+              wrappedRecord &&
+              (!recordReceipts ||
+                !isRecord ||
+                typeof value.recordId !== 'string' ||
+                !value.recordId)
+            )
+              throw new Error('Unrequested test record forwarding wrapper.')
+            if (recordReceipts && isRecord && !wrappedRecord)
+              throw new Error(
+                'Captured test record lacks its actual forwarding wrapper.'
+              )
             if (
               event.type === 'diagnostic' &&
               event.diagnostic.severity === 'error' &&
@@ -1247,6 +1391,7 @@ export async function runWatchProcess(
               if (
                 request.operation === 'run' &&
                 (request.collectOnly ||
+                  request.captureTestRecords === true ||
                   request.preparePublicSnapshots === true ||
                   options.userCancelSignal ||
                   request.updateSnapshots ||
@@ -1290,6 +1435,12 @@ export async function runWatchProcess(
               if (runEnd)
                 throw new Error('Watch process sent duplicate run-end events.')
               runEnd = event
+            } else if (wrappedRecord) {
+              recordReceipts!.receive(
+                value.recordId!,
+                event as TestRecordEvent,
+                () => emitResult(event)
+              )
             } else emitResult(event)
           } catch (error) {
             fail(error)
@@ -1364,8 +1515,12 @@ export async function runWatchProcess(
         }
       }
     )
-    child.once('disconnect', boundTerminalExit)
+    child.once('disconnect', () => {
+      recordReceipts?.close(new Error('Test record compiler disconnected.'))
+      boundTerminalExit()
+    })
     child.once('exit', () => {
+      recordReceipts?.close(new Error('Test record compiler exited.'))
       exited = true
       if (terminalTimer) clearTimeout(terminalTimer)
       void closeOwnership()

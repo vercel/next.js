@@ -1,4 +1,7 @@
 import type { ReporterRunSpecification } from './custom-reporter-specifications'
+import type { TestRecordEvent } from '../contracts'
+import type { TestArtifact } from '../runner/tasks'
+import type { ReporterTestRecordOutcome } from './test-records'
 import type { SnapshotPreparationFailure } from '../execution/snapshot-preparation'
 import { resolve as resolvePath, extname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -13,6 +16,7 @@ import {
 import type { ResultEvent, SerializedDiagnostic } from './events'
 import type { CustomReporterCompletion } from './custom-reporter-tasks'
 import type { ReporterTaskSnapshot } from './live-tasks'
+import type { ReporterCaseEvent } from './task-updates'
 
 export interface CustomReporterInvocation {
   count: number
@@ -162,6 +166,32 @@ export async function openCustomReporters(options: {
   let captureModuleQueued = false
   let captureModuleCollected = false
   let captureModuleStart = false
+  let captureCaseReady = false
+  let captureTestRecords = false
+  let nextRecordId = 0
+  const recordRequests = new Map<
+    number,
+    {
+      event: TestRecordEvent
+      resolve(value: TestArtifact | undefined): void
+      reject(error: unknown): void
+      timer: ReturnType<typeof setTimeout>
+    }
+  >()
+  const recordWrites = new Set<Promise<TestArtifact | undefined>>()
+  function rejectRecordRequests(error: unknown) {
+    for (const recordRequest of recordRequests.values()) {
+      clearTimeout(recordRequest.timer)
+      recordRequest.reject(error)
+    }
+    recordRequests.clear()
+  }
+  controller.signal.addEventListener(
+    'abort',
+    () => rejectRecordRequests(controller.signal.reason),
+    { once: true }
+  )
+  if (controller.signal.aborted) rejectRecordRequests(controller.signal.reason)
   let reporterErrors: SerializedDiagnostic[] = []
   let cancelledReporterErrors: Error[] | undefined
   let terminalReporterFailure:
@@ -275,6 +305,28 @@ export async function openCustomReporters(options: {
       send = value
     },
     onMessage(message: any) {
+      if (message?.type === 'custom-reporter-record-result') {
+        const record = recordRequests.get(message.recordId)
+        if (!record && (controller.signal.aborted || closed)) return
+        const outcome = message.outcome as ReporterTestRecordOutcome
+        if (
+          !record ||
+          message.runId !== record.event.runId ||
+          message.entryId !== record.event.entryId ||
+          message.revision !== record.event.revision ||
+          !outcome ||
+          !['return', 'throw'].includes(outcome.kind) ||
+          (outcome.kind === 'return'
+            ? !Object.hasOwn(outcome, 'value')
+            : !Object.hasOwn(outcome, 'error'))
+        )
+          throw new Error('Invalid custom reporter record response.')
+        recordRequests.delete(message.recordId)
+        clearTimeout(record.timer)
+        if (outcome.kind === 'throw') record.reject(outcome.error)
+        else record.resolve(outcome.value)
+        return
+      }
       if (message?.type === 'custom-reporter-completion-failure') {
         const record = message.completionFailure
         const invocation = message.invocation
@@ -381,10 +433,14 @@ export async function openCustomReporters(options: {
             message.initialCloseAsyncFailed !== true))
       )
         throw new Error('Invalid custom reporter initial close failure.')
+      if (message.captureTestRecords !== undefined)
+        captureTestRecords = message.captureTestRecords === true
       if (message.captureRunStart !== undefined)
         captureRunStart = message.captureRunStart === true
       if (message.captureModuleStart !== undefined)
         captureModuleStart = message.captureModuleStart === true
+      if (message.captureCaseReady !== undefined)
+        captureCaseReady = message.captureCaseReady === true
       if (message.captureModuleCollected !== undefined)
         captureModuleCollected = message.captureModuleCollected === true
       if (message.captureModuleQueued !== undefined)
@@ -504,9 +560,15 @@ export async function openCustomReporters(options: {
           new Error('Custom reporter process closed.')
       )
       pending = undefined
+      rejectRecordRequests(
+        failure ??
+          options.signal?.reason ??
+          new Error('Custom reporter process closed.')
+      )
     },
     (error) => {
       closed = true
+      rejectRecordRequests(error)
       publicationExitFailure ??= error
       failure ??= error
       retainCancellationFailure(error)
@@ -559,6 +621,7 @@ export async function openCustomReporters(options: {
         ...preparationWrites,
       ])
       await consoleQueue
+      if (recordWrites.size) await Promise.allSettled([...recordWrites])
       closing = true
       const cleanupErrors: unknown[] = []
       if (!closed && !controller.signal.aborted && !terminalWatchFailure) {
@@ -627,6 +690,9 @@ export async function openCustomReporters(options: {
         if (consoleFailure) throw consoleFailure
         await request({ type: 'run-start', specifications })
       },
+      get captureCaseReady() {
+        return captureCaseReady
+      },
       get captureModuleStart() {
         return captureModuleStart
       },
@@ -651,6 +717,49 @@ export async function openCustomReporters(options: {
             },
           }).catch(retainConsoleFailure)
         )
+      },
+      get captureTestRecords() {
+        return captureTestRecords
+      },
+      async onTestRecord(
+        event: TestRecordEvent
+      ): Promise<TestArtifact | undefined> {
+        if (!captureTestRecords || options.watch || closing || closed)
+          throw new Error(
+            'Test record reporter requires its actual one-shot owner.'
+          )
+        await consoleQueue
+        if (consoleFailure) throw consoleFailure
+        controller.signal.throwIfAborted()
+        if (failure) throw failure
+        if (closing || closed)
+          throw new Error('Test record reporter session closed.')
+        const recordId = ++nextRecordId
+        const result = new Promise<TestArtifact | undefined>(
+          (resolve, reject) => {
+            const timer = setTimeout(() => {
+              recordRequests.delete(recordId)
+              reject(new Error('Custom reporter record request timed out.'))
+            }, 120000)
+            recordRequests.set(recordId, { event, resolve, reject, timer })
+          }
+        )
+        recordWrites.add(result)
+        void result.then(
+          () => recordWrites.delete(result),
+          () => recordWrites.delete(result)
+        )
+        void send({ type: 'test-record', recordId, event }).catch((error) => {
+          const record = recordRequests.get(recordId)
+          if (record) {
+            recordRequests.delete(recordId)
+            clearTimeout(record.timer)
+            record.reject(error)
+          }
+          failure ??= error
+          controller.abort(error)
+        })
+        return result
       },
       get captureTaskResults() {
         return captureTaskResults
@@ -685,11 +794,21 @@ export async function openCustomReporters(options: {
       },
       async replayFile(
         taskTree: ReporterTaskSnapshot,
-        completion: CustomReporterCompletion
+        completion: CustomReporterCompletion,
+        caseEvents?: ReporterCaseEvent[]
       ) {
         await consoleQueue
         if (consoleFailure) throw consoleFailure
-        await request({ type: 'replay-file', taskTree, completion })
+        if (captureTestRecords)
+          throw new Error(
+            'Test record reporter replay requires actual record RPC ownership and is not implemented.'
+          )
+        await request({
+          type: 'replay-file',
+          taskTree,
+          completion,
+          ...(caseEvents === undefined ? {} : { caseEvents }),
+        })
       },
       async replayImportedFile(
         taskTree: ReporterTaskSnapshot,
@@ -697,6 +816,10 @@ export async function openCustomReporters(options: {
       ) {
         await consoleQueue
         if (consoleFailure) throw consoleFailure
+        if (captureTestRecords)
+          throw new Error(
+            'Test record reporter replay requires actual record RPC ownership and is not implemented.'
+          )
         await request({ type: 'imported-file', taskTree, relativeModuleId })
       },
       async finishImportedRun(
@@ -796,16 +919,22 @@ export async function openCustomReporters(options: {
           if (event.type === 'file-collected' && captureModuleCollected)
             collectedWrites.push(notification)
           if (event.type === 'task-update')
-            for (const result of event.caseResults)
+            for (const occurrence of event.caseEvents ??
+              event.caseResults.map((result) => ({
+                event: 'result' as const,
+                caseId: result.caseId,
+              }))) {
+              if (occurrence.event === 'ready' && !captureCaseReady) continue
               consoleQueue = consoleQueue
                 .then(() =>
                   request({
-                    type: 'case-result',
+                    type: 'case-' + occurrence.event,
                     entryId: event.entryId,
-                    caseId: result.caseId,
+                    caseId: occurrence.caseId,
                   })
                 )
                 .catch(retainConsoleFailure)
+            }
           return
         }
         if (event.type === 'file-end') {

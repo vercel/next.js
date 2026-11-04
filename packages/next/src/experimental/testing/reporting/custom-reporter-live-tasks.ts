@@ -1,3 +1,4 @@
+import type { TestRecordEvent } from '../contracts'
 import {
   isRunErrorDiagnostic,
   hasOnlyBrowserCleanupFailures,
@@ -156,6 +157,8 @@ export function createLiveReporterTaskStore(projectDir: string) {
   const modules = new Map<string, View>()
   const tasks = new Map<string, Retained>()
   const fileOutcomes = new Map<string, { state: State; errors: unknown[] }>()
+  const recordedAnnotations = new Map<string, unknown[]>()
+  const recordedArtifacts = new Map<string, unknown[]>()
   function update(
     tree: ReporterTaskSnapshot,
     taskUpdateIds?: string[],
@@ -294,8 +297,14 @@ export function createLiveReporterTaskStore(projectDir: string) {
                 resultState === 'passed' ? current().result?.errors : errors(),
             }
           },
-          annotations: () => [...(current().annotations ?? [])],
-          artifacts: () => [...(current().artifacts ?? [])],
+          annotations: () => [
+            ...(recordedAnnotations.get(value.id) ??
+              current().annotations ??
+              []),
+          ],
+          artifacts: () => [
+            ...(recordedArtifacts.get(value.id) ?? current().artifacts ?? []),
+          ],
         }
         if (!isRoot && !view.options)
           view.options = declarationOptions(value, tags, excludedOnly(value))
@@ -392,6 +401,30 @@ export function createLiveReporterTaskStore(projectDir: string) {
     },
     get(entryId: string) {
       return modules.get(entryId)
+    },
+    record(event: TestRecordEvent) {
+      const retained = tasks.get(event.caseId)
+      if (
+        !retained ||
+        retained.view.type !== 'test' ||
+        retained.view.module !== modules.get(event.entryId)
+      )
+        throw new Error('Live reporter record is missing its actual Test.')
+      const annotations = event.type === 'test-annotation'
+      const records = annotations ? recordedAnnotations : recordedArtifacts
+      let values = records.get(event.caseId)
+      if (!values) {
+        values = [
+          ...((annotations
+            ? retained.value.annotations
+            : retained.value.artifacts) ?? []),
+        ]
+        records.set(event.caseId, values)
+      }
+      // These are controller-owned actual occurrences. Later worker snapshots
+      // can lack a value when its reporter callback rejected; keep the record.
+      values.push(annotations ? event.annotation : event.artifact)
+      return retained.view
     },
     case(entryId: string, caseId: string) {
       const retained = tasks.get(caseId)

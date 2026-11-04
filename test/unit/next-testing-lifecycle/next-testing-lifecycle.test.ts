@@ -10761,3 +10761,32 @@ it.each([
   },
   20000
 )
+
+it('rejects a completed public annotation context with its actual finished task state', async () => {
+  const c = createCollector('finished-annotation')
+  let retained!: import('next/dist/experimental/testing/runner/collector').TestContext
+  const lateFailures: unknown[] = []
+  c.api.test('completed task', (context) => {
+    retained = context
+  })
+  c.api.test('later caller', async () => {
+    let rejection: unknown
+    try {
+      await retained.annotate('too late')
+    } catch (error) {
+      rejection = error
+    }
+    expect(rejection).toHaveProperty(
+      'message',
+      'Cannot annotate tests outside of the test run. The test "completed task" finished running with the "pass" state already.'
+    )
+  })
+  const result = await runCollected(
+    c.close(),
+    { ...options(), onLateFailure: (error) => lateFailures.push(error) },
+    () => {}
+  )
+  expect(result.cases.map((test) => test.status)).toEqual(['passed', 'passed'])
+  expect(retained.task.annotations).toEqual([])
+  expect(lateFailures).toEqual([])
+})

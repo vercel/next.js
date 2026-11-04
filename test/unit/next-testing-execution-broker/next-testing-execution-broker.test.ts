@@ -2085,3 +2085,48 @@ describe('actual one-shot V8 readonly snapshot broker owner', () => {
     }
   )
 })
+
+describe('actual test record forwarding through the execution broker', () => {
+  it.each([
+    'scoped wrapper',
+    'foreign receipt',
+    'duplicate receipt',
+    'abort receipt',
+    'already aborted receipt',
+    'collector failure',
+    'ignored observer return',
+    'concurrent records',
+    'raw outcomes',
+    'omitted records',
+    'parent authority',
+    'unowned parent',
+    'duplicate wrapper',
+    'foreign wrapper',
+    'unrequested wrapper',
+    'callback serialization',
+    'unsupported cohort',
+  ])('preserves actual record ownership for %s', async (kind) => {
+    const execution = await import(
+      'next/dist/experimental/testing/execution/execute'
+    )
+    const forwarding = await import(
+      'next/dist/experimental/testing/execution/test-record-forwarding'
+    )
+    const spy = jest
+      .spyOn(execution, 'executeWithEnvironment')
+      .mockResolvedValue(result)
+    try {
+      const verify = require('./record-broker-transport.cjs')
+      await verify(kind, {
+        createExecutionBrokerHost,
+        createExecutionBrokerClient,
+        ...forwarding,
+        setExecutor(implementation: typeof execution.executeWithEnvironment) {
+          spy.mockImplementation(implementation)
+        },
+      })
+    } finally {
+      spy.mockRestore()
+    }
+  })
+})

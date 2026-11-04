@@ -16,9 +16,70 @@ export type ReporterTaskPack = [string, Pick<Task, 'result' | 'meta'>]
 
 export type { ReporterTaskResultProjection } from './live-tasks'
 
+export interface ReporterCaseEvent {
+  event: 'ready' | 'result'
+  caseId: string
+}
+
+/** Occurrences stay ordered even when several transitions share one task pack. */
+export function assertReporterCaseEvents(
+  value: unknown,
+  options: {
+    caseIds: ReadonlySet<string>
+    taskUpdateIds: readonly string[]
+    resultIds: readonly string[]
+    readyCases: Set<string>
+    completed(caseId: string): boolean
+  }
+): asserts value is ReporterCaseEvent[] | undefined {
+  if (value === undefined) return
+  if (!Array.isArray(value))
+    throw new Error('Invalid live reporter case occurrences.')
+  const ready = new Set<string>()
+  const completed = new Set<string>()
+  const results: string[] = []
+  for (const occurrence of value) {
+    if (
+      !occurrence ||
+      typeof occurrence !== 'object' ||
+      Object.keys(occurrence).length !== 2 ||
+      !['ready', 'result'].includes(occurrence.event) ||
+      typeof occurrence.caseId !== 'string' ||
+      !options.caseIds.has(occurrence.caseId) ||
+      !options.taskUpdateIds.includes(occurrence.caseId)
+    )
+      throw new Error('Invalid live reporter case occurrence owner.')
+    if (occurrence.event === 'ready') {
+      if (
+        ready.has(occurrence.caseId) ||
+        options.readyCases.has(occurrence.caseId) ||
+        completed.has(occurrence.caseId) ||
+        options.completed(occurrence.caseId)
+      )
+        throw new Error('Duplicate or completed live reporter case readiness.')
+      ready.add(occurrence.caseId)
+    } else {
+      if (completed.has(occurrence.caseId))
+        throw new Error('Duplicate live reporter case result occurrence.')
+      completed.add(occurrence.caseId)
+      results.push(occurrence.caseId)
+    }
+  }
+  if (
+    results.length !== options.resultIds.length ||
+    results.some((id, index) => id !== options.resultIds[index])
+  )
+    throw new Error(
+      'Live reporter occurrences differ from actual case results.'
+    )
+  for (const id of ready) options.readyCases.add(id)
+}
+
 export type ReporterTaskUpdate<Result = RunnerCaseResult> = {
   taskUpdateIds: string[]
   caseResults: Result[]
+  /** Absent for legacy/default producers without actual readiness capture. */
+  caseEvents?: ReporterCaseEvent[]
 } & (
   | {
       kind?: undefined
@@ -65,6 +126,8 @@ export function assertReporterTaskPacks(
 export function createReporterTaskUpdates<
   Result extends { caseId: string } = RunnerCaseResult,
 >(options: {
+  /** Request actual one-per-logical-case preparation occurrences. */
+  captureCaseReady?: true
   /** Defer the existing leading root pack until its actual preparation. */
   captureModuleStart?: true
   /** Reuse only retry data from the actual initial collected snapshot. */
@@ -72,6 +135,11 @@ export function createReporterTaskUpdates<
   onUpdate(update: ReporterTaskUpdate<Result>): void | Promise<void>
   getTaskLocation?(task: Task): TaskLocation | undefined
 }) {
+  if (
+    options.captureCaseReady !== undefined &&
+    options.captureCaseReady !== true
+  )
+    throw new Error('Invalid reporter case preparation request.')
   if (
     options.captureModuleStart !== undefined &&
     options.captureModuleStart !== true
@@ -90,6 +158,8 @@ export function createReporterTaskUpdates<
   >()
   let hasResultProjections = false
   let caseResults: Result[] = []
+  let caseEvents: ReporterCaseEvent[] = []
+  const readyCases = new Set<string>()
   let timer: ReturnType<typeof setTimeout> | undefined
   let lastUpdate = 0
   let disposed = false
@@ -150,10 +220,12 @@ export function createReporterTaskUpdates<
             ),
             taskUpdateIds: [...pendingTasks.keys()],
             caseResults,
+            ...(options.captureCaseReady === true ? { caseEvents } : {}),
           }
       pendingTasks.clear()
       hasResultProjections = false
       caseResults = []
+      caseEvents = []
       const operation = options.onUpdate(update)
       if (operation === undefined) return
       send = operation
@@ -161,6 +233,7 @@ export function createReporterTaskUpdates<
       pendingTasks.clear()
       hasResultProjections = false
       caseResults = []
+      caseEvents = []
       errors.push(error)
       return
     }
@@ -281,6 +354,23 @@ export function createReporterTaskUpdates<
         }
       schedule(task)
     },
+    caseReady(task: Test) {
+      if (options.captureCaseReady !== true)
+        throw new Error('Reporter case preparation was not requested.')
+      if (options.captureModuleStart === true && !filePrepared)
+        throw new Error(
+          'Reporter case prepared before actual File preparation.'
+        )
+      assertOwned(task)
+      if (collectionFailure || task.type !== 'test' || readyCases.has(task.id))
+        throw new Error('Reporter case readiness requires one actual test.')
+      readyCases.add(task.id)
+      caseEvents.push({ event: 'ready', caseId: task.id })
+      schedule(task)
+      // Freeze the actual prepared own state before fixtures, retries or a body
+      // can mutate it. Sending stays asynchronous and does not await reporters.
+      flush()
+    },
     caseResult(task: Test, result: Result) {
       if (options.captureModuleStart === true && !filePrepared)
         throw new Error(
@@ -290,6 +380,8 @@ export function createReporterTaskUpdates<
       if (task.id !== result.caseId)
         throw new Error('Reporter logical result does not match its task.')
       caseResults.push(result)
+      if (options.captureCaseReady === true)
+        caseEvents.push({ event: 'result', caseId: task.id })
       schedule(task)
     },
     suiteEnd(task: Suite, projectResult?: ReporterTaskResultProjection) {
@@ -316,7 +408,9 @@ export function createReporterTaskUpdates<
       pendingTasks.clear()
       hasResultProjections = false
       preparedSuites.clear()
+      readyCases.clear()
       caseResults = []
+      caseEvents = []
     },
   }
 }

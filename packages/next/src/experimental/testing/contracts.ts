@@ -2,7 +2,7 @@ import type {
   CustomCoverageRequest,
   CustomCoverageCompletion,
 } from './coverage/custom-types'
-import type { TestTagDefinition } from './runner/tasks'
+import type { TestTagDefinition, TestArtifact } from './runner/tasks'
 import type {
   ResultEvent,
   FileResult,
@@ -21,6 +21,11 @@ import type {
   IstanbulCoverageCapture,
   IstanbulInstrumentationDescriptor,
 } from './coverage/istanbul-types'
+
+export type TestRecordEvent = Extract<
+  ResultEvent,
+  { type: 'test-annotation' | 'test-artifact' }
+>
 
 /** Requested Next compilation context, not a replacement compiler configuration. */
 export interface TestProfile {
@@ -465,6 +470,11 @@ export interface ExecuteTestOptions {
   captureModuleCollected?: true
   /** Actual prepared root pack; requires the positive one-shot snapshot owner. */
   captureModuleStart?: true
+  /** Actual logical case preparation; absent for legacy task snapshots. */
+  captureCaseReady?: true
+  /** Parent-owned concurrent record RPC; never a serializable callback. */
+  captureTestRecords?: true
+  onTestRecord?: (event: TestRecordEvent) => Promise<TestArtifact | undefined>
   /** Address for an explicitly requested inspector on this file worker. */
   inspect?: string
   /** Pause the explicitly inspected file worker before entry evaluation. */

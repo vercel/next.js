@@ -1,3 +1,4 @@
+import type { TestRecordEvent } from '../contracts'
 import type { DiscoveredTestProject } from '../discovery'
 import { selectReporterRunSpecifications } from './custom-reporter-specifications'
 import {
@@ -11,7 +12,11 @@ import {
 import { assertUnexecutedCaseResult } from './unexecuted-cases'
 import { isRunErrorDiagnostic, isBrowserCleanupRunError } from './run-errors'
 import { assertReporterTaskTree, type ReporterTaskSnapshot } from './live-tasks'
-import { assertReporterTaskPacks } from './task-updates'
+import {
+  assertReporterTaskPacks,
+  assertReporterCaseEvents,
+  type ReporterCaseEvent,
+} from './task-updates'
 import { randomUUID } from 'node:crypto'
 import {
   mkdir,
@@ -1096,6 +1101,19 @@ export function createMachineReporter(options: {
   }
   return {
     initialize,
+    get captureCaseReady() {
+      return custom?.captureCaseReady === true
+    },
+    get captureTestRecords() {
+      return custom?.captureTestRecords === true
+    },
+    onTestRecord(event: TestRecordEvent) {
+      if (!custom?.captureTestRecords)
+        throw new Error(
+          'Test record reporter requires its actual initialized session.'
+        )
+      return custom.onTestRecord(event)
+    },
     get captureRunStart() {
       return custom?.captureRunStart === true
     },
@@ -1331,7 +1349,25 @@ export function createMachineReporter(options: {
         events: collector!.getEvents(),
         status: 'passed',
       }
-      await custom.replayFile(taskTree, completion)
+      const updates = completion.events.filter(
+        (event) => event.type === 'task-update' && event.entryId === taskTree.id
+      )
+      const hasRecordedOccurrences = updates.some(
+        (event) =>
+          event.type === 'task-update' && event.caseEvents !== undefined
+      )
+      const caseEvents: ReporterCaseEvent[] | undefined = hasRecordedOccurrences
+        ? updates.flatMap((event) =>
+            event.type === 'task-update'
+              ? (event.caseEvents ??
+                event.caseResults.map((result) => ({
+                  event: 'result' as const,
+                  caseId: result.caseId,
+                })))
+              : []
+          )
+        : undefined
+      await custom.replayFile(taskTree, completion, caseEvents)
     },
     snapshotClosedFiles(
       entryIds: ReadonlySet<string>
@@ -1725,6 +1761,7 @@ export async function mergeResultReports(
     const unexecutedAttempts = new Set<string>()
     const endedAttempts = new Set<string>()
     const logicalCases = new Set<string>()
+    const readyCases = new Map<string, Set<string>>()
     const collectedFiles = new Set<string>()
     const endedCases = new Set<string>()
     const endedSuites = new Set<string>()
@@ -1856,8 +1893,10 @@ export async function mergeResultReports(
           collectedFiles.add(event.entryId)
         } else {
           const ids = new Set<string>()
+          const caseIds = new Set<string>()
           const visit = (task: import('./live-tasks').ReporterTaskSnapshot) => {
             ids.add(task.id)
+            if (task.type === 'test') caseIds.add(task.id)
             task.tasks?.forEach(visit)
           }
           if (failedCollectionPacks) {
@@ -1885,6 +1924,23 @@ export async function mergeResultReports(
             !Array.isArray(event.caseResults)
           )
             throw new Error(`Invalid live task update in blob: ${name}`)
+          if (failedCollectionPacks && event.caseEvents !== undefined)
+            throw new Error(
+              `Result-only task packs contain case occurrences: ${name}`
+            )
+          const previouslyReady =
+            readyCases.get(event.entryId) ?? new Set<string>()
+          assertReporterCaseEvents(event.caseEvents, {
+            caseIds,
+            taskUpdateIds: event.taskUpdateIds,
+            resultIds: event.caseResults.map(
+              (result: CaseResult) => result.caseId
+            ),
+            readyCases: previouslyReady,
+            completed: (id) =>
+              logicalCases.has(JSON.stringify([event.entryId, id])),
+          })
+          readyCases.set(event.entryId, previouslyReady)
           for (const result of event.caseResults) {
             if (!failedCollectionPacks)
               assertReporterTaskTree(

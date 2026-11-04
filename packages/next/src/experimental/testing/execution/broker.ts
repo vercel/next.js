@@ -14,11 +14,14 @@ import type {
   ExecuteTestCohort,
   ExecuteTest,
   ExecuteTestOptions,
+  TestRecordEvent,
   TestCoverageCompletion,
   IstanbulCoverageCompletion,
   TestExecutionResult,
 } from '../contracts'
 import type { ResultEvent, SerializedDiagnostic } from '../reporting/events'
+import type { TestArtifact } from '../runner/tasks'
+import { assertTestRecordEvent, assertTestRecordRole } from './test-records'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import { executeWithEnvironment } from './execute'
 import {
@@ -47,6 +50,7 @@ type SerializableOptions = Omit<
   | 'userCancelSignal'
   | 'onEvent'
   | 'onConsoleDrain'
+  | 'onTestRecord'
   | 'onCoverage'
   | 'onIstanbulCoverage'
   | 'onCustomCoverage'
@@ -85,6 +89,13 @@ export type ExecutionBrokerRequest =
   | { type: 'execution-broker-request'; id: string; action: 'cancel' }
 
 export type ExecutionBrokerResponse =
+  | {
+      type: 'execution-broker-response'
+      id: string
+      action: 'test-record-event'
+      recordId: string
+      event: TestRecordEvent
+    }
   | {
       type: 'execution-broker-response'
       id: string
@@ -152,6 +163,8 @@ export interface BrowserApplicationOwnership {
 /** The watch parent owns every detached file worker, including after child crash. */
 export function createExecutionBrokerHost(options: {
   captureJUnitSuiteTasks?: true
+  /** Actual logical case preparation; absent for legacy task snapshots. */
+  captureCaseReady?: true
   /** Positive parent one-shot authorization, never child-issued. */
   preparePublicSnapshots?: true
   signal: AbortSignal
@@ -172,6 +185,15 @@ export function createExecutionBrokerHost(options: {
   send(message: ExecutionBrokerResponse): Promise<void>
   /** Flush forwarded console callbacks in the actual observing parent. */
   onConsoleDrain?: (signal: AbortSignal) => Promise<void>
+  /** Actual one-shot parent; compiler children cannot grant this callback. */
+  captureTestRecords?: true
+  onTestRecord?: (
+    artifact: CompiledTestArtifact,
+    execution: SerializableOptions,
+    event: TestRecordEvent,
+    recordId: string,
+    signal: AbortSignal
+  ) => Promise<TestArtifact | undefined>
   /** One-shot supervisors only. Watch still rejects coverage. */
   allowCoverage?: boolean
   /** One-shot isolated-profile supervisors only; ordinary watch rejects cohorts. */
@@ -220,6 +242,20 @@ export function createExecutionBrokerHost(options: {
     sourceHash?: string
   ) => Promise<void>
 }) {
+  if (
+    (options.captureTestRecords !== undefined &&
+      options.captureTestRecords !== true) ||
+    (options.captureTestRecords === true) !==
+      (typeof options.onTestRecord === 'function')
+  )
+    throw new Error(
+      'Test records require their actual one-shot parent callback.'
+    )
+  if (
+    options.captureCaseReady !== undefined &&
+    options.captureCaseReady !== true
+  )
+    throw new Error('Case Ready requires its actual parent capture request.')
   const maxWorkers = parseMaxWorkers(options.maxWorkers ?? 1)
   const active = new Map<
     string,
@@ -340,6 +376,8 @@ export function createExecutionBrokerHost(options: {
                   execution.customCoverage ||
                   execution.coverage ||
                   execution.browser ||
+                  execution.captureTestRecords !== undefined ||
+                  execution.captureCaseReady !== undefined ||
                   (resolveSnapshotUpdateMode(execution) !== 'none' &&
                     !options.onSnapshotUpdates)
               )
@@ -566,6 +604,26 @@ export function createExecutionBrokerHost(options: {
               'JUnit suite observation requires its positive parent owner.'
             )
           assertPublicSnapshotPreparationRole(message.artifact, message.options)
+          if (
+            (message.options.captureTestRecords !== undefined &&
+              message.options.captureTestRecords !== true) ||
+            (message.options.captureTestRecords === true) !==
+              (options.captureTestRecords === true) ||
+            Object.hasOwn(message.options, 'onTestRecord')
+          )
+            throw new Error('Unrequested broker test record callback.')
+          if (
+            (message.options.captureCaseReady !== undefined &&
+              message.options.captureCaseReady !== true) ||
+            (message.options.captureCaseReady === true) !==
+              (options.captureCaseReady === true)
+          )
+            throw new Error('Unrequested broker Case Ready capture.')
+          assertTestRecordRole(message.artifact, message.options)
+          const records = new WeakMap<
+            TestRecordEvent,
+            Promise<TestArtifact | undefined>
+          >()
           executing = true
           const result = await executeBrokerFile(
             message.artifact,
@@ -588,7 +646,46 @@ export function createExecutionBrokerHost(options: {
                   request.controller.signal
                 )
               },
+              ...(message.options.captureTestRecords === true
+                ? {
+                    onTestRecord(event: TestRecordEvent) {
+                      const reply = records.get(event)
+                      if (!reply)
+                        throw new Error(
+                          'Test record has no actual forwarded event.'
+                        )
+                      records.delete(event)
+                      return reply
+                    },
+                  }
+                : {}),
               onEvent(event) {
+                if (
+                  message.options.captureTestRecords === true &&
+                  (event.type === 'test-annotation' ||
+                    event.type === 'test-artifact')
+                ) {
+                  const recordId = randomUUID()
+                  // Register the rendezvous before this real event can leave the
+                  // host. The actual parent callback later uses its received copy.
+                  const reply = options.onTestRecord!(
+                    message.artifact,
+                    message.options,
+                    event,
+                    recordId,
+                    request.controller.signal
+                  )
+                  records.set(event, reply)
+                  void reply.catch(() => {})
+                  void publish({
+                    type: 'execution-broker-response',
+                    id: message.id,
+                    action: 'test-record-event',
+                    recordId,
+                    event,
+                  }).catch(() => {})
+                  return
+                }
                 void publish({
                   type: 'execution-broker-response',
                   id: message.id,
@@ -784,6 +881,12 @@ export function createExecutionBrokerClient(options: {
   send(message: ExecutionBrokerRequest): Promise<void>
   allowCoverage?: boolean
   allowCohorts?: boolean
+  /** Scope a private record wrapper around the unchanged coordinator observer. */
+  forwardTestRecordEvent?: (
+    recordId: string,
+    event: TestRecordEvent,
+    deliver: () => void
+  ) => void
 }) {
   interface PendingBase {
     reject(error: unknown): void
@@ -796,6 +899,10 @@ export function createExecutionBrokerClient(options: {
     onCustomCoverage?: ExecuteTestOptions['onCustomCoverage']
     onSnapshotPreparationFailure?: ExecuteTestOptions['onSnapshotPreparationFailure']
     snapshotPreparationObserved?: boolean
+    testRecords?: {
+      identity: { runId: string; entryId: string; revision: string }
+      ids: Set<string>
+    }
     coverage: Promise<void>
   }
   type Pending = PendingBase &
@@ -822,6 +929,19 @@ export function createExecutionBrokerClient(options: {
 
   const execute: ExecuteTest = (artifact, executionOptions) => {
     if (disconnected) return Promise.reject(disconnected)
+    if (executionOptions.onTestRecord !== undefined)
+      return Promise.reject(
+        new Error('Test record callbacks must remain in the actual parent.')
+      )
+    if (
+      executionOptions.captureTestRecords === true &&
+      !options.forwardTestRecordEvent
+    )
+      return Promise.reject(
+        new Error(
+          'Test record forwarding requires its actual compiler observer.'
+        )
+      )
     if (
       (executionOptions.preparePublicSnapshots === true) !==
       (typeof executionOptions.onSnapshotPreparationFailure === 'function')
@@ -863,6 +983,7 @@ export function createExecutionBrokerClient(options: {
       userCancelSignal: _userCancelSignal,
       onEvent,
       onConsoleDrain: _onConsoleDrain,
+      onTestRecord: _onTestRecord,
       onCoverage: _onCoverage,
       onIstanbulCoverage: _onIstanbulCoverage,
       onCustomCoverage: _onCustomCoverage,
@@ -901,6 +1022,18 @@ export function createExecutionBrokerClient(options: {
           ? { onIstanbulCoverage: executionOptions.onIstanbulCoverage }
           : {}),
         onCustomCoverage: executionOptions.onCustomCoverage,
+        ...(executionOptions.captureTestRecords === true
+          ? {
+              testRecords: {
+                identity: {
+                  runId: executionOptions.runId,
+                  entryId: artifact.entryId,
+                  revision: artifact.revision,
+                },
+                ids: new Set<string>(),
+              },
+            }
+          : {}),
         ...(executionOptions.preparePublicSnapshots === true
           ? {
               onSnapshotPreparationFailure(
@@ -991,6 +1124,20 @@ export function createExecutionBrokerClient(options: {
 
   const executeCohort: ExecuteTestCohort = (cohort, executionOptions) => {
     if (disconnected) return Promise.reject(disconnected)
+    if (executionOptions.some((entry) => entry.captureCaseReady !== undefined))
+      return Promise.reject(
+        new Error('Case Ready requires isolated file workers.')
+      )
+    if (
+      executionOptions.some(
+        (entry) =>
+          entry.captureTestRecords !== undefined ||
+          entry.onTestRecord !== undefined
+      )
+    )
+      return Promise.reject(
+        new Error('Test record callbacks require isolated file workers.')
+      )
     if (!options.allowCohorts)
       return Promise.reject(
         new Error('Watch execution does not support shared worker cohorts')
@@ -1028,6 +1175,7 @@ export function createExecutionBrokerClient(options: {
         userCancelSignal: _userCancelSignal,
         onEvent: _onEvent,
         onConsoleDrain: _onConsoleDrain,
+        onTestRecord: _onTestRecord,
         onCoverage: _onCoverage,
         onIstanbulCoverage: _onIstanbulCoverage,
         onCustomCoverage: _onCustomCoverage,
@@ -1205,8 +1353,40 @@ export function createExecutionBrokerClient(options: {
         }
         return true
       }
+      if (message.action === 'test-record-event') {
+        try {
+          if (
+            request.kind !== 'file' ||
+            !request.testRecords ||
+            !options.forwardTestRecordEvent ||
+            typeof message.recordId !== 'string' ||
+            !message.recordId ||
+            request.testRecords.ids.has(message.recordId)
+          )
+            throw new Error(
+              'Unrequested or duplicate broker test record event.'
+            )
+          assertTestRecordEvent(message.event, request.testRecords.identity)
+          request.testRecords.ids.add(message.recordId)
+          options.forwardTestRecordEvent(message.recordId, message.event, () =>
+            request.onEvent(message.event)
+          )
+        } catch (error) {
+          request.failure ??= { error }
+          request.onAbort()
+        }
+        return true
+      }
       if (message.action === 'event') {
         try {
+          if (
+            request.testRecords &&
+            (message.event.type === 'test-annotation' ||
+              message.event.type === 'test-artifact')
+          )
+            throw new Error(
+              'Captured test record lacks its actual forwarding wrapper.'
+            )
           request.onEvent(message.event)
         } catch (error) {
           if (request.onSnapshotPreparationFailure && request.failure)

@@ -1353,6 +1353,15 @@ export async function nextTestRunner(
           process.env.CI
             ? { captureOneShotV8ReadOnlySnapshots: true as const }
             : {}),
+          ...(entries.length > 0 && machine.captureTestRecords
+            ? {
+                captureTestRecords: true as const,
+                onTestRecord: machine.onTestRecord,
+              }
+            : {}),
+          ...(entries.length > 0 && machine.captureCaseReady === true
+            ? { captureCaseReady: true as const }
+            : {}),
           ...(entries.length > 0 && machine.captureModuleStart
             ? { captureModuleStart: true as const }
             : {}),
