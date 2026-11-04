@@ -16,6 +16,10 @@ import type {
 import { isThenable } from '../../../shared/lib/is-thenable'
 
 const NEXT_OTEL_PERFORMANCE_PREFIX = process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+
+// Development entrypoints can contain their own tracer copy even though the
+// recorder is externalized. The registry contains only the recorder API; active
+// spans and validation collectors remain scoped by AsyncLocalStorage.
 const LOCAL_SPAN_RECORDER_KEY = Symbol.for(
   `@next/local-span-recorder@${process.env.__NEXT_VERSION}`
 )
@@ -392,6 +396,8 @@ class NextTracerImpl implements NextTracer {
     const localSpanRecorder = getLocalSpanRecorder()
     const localSpanRecordingEnabled =
       localSpanRecorder?.isLocalSpanRecordingEnabled() ?? false
+    const localSpanSinkActive =
+      localSpanRecorder?.isLocalSpanSinkActive() ?? false
 
     if (!tracingEnabled && !localSpanRecordingEnabled) {
       return typeof fnOrOptions === 'function' ? fnOrOptions() : fnOrEmpty()
@@ -423,6 +429,7 @@ class NextTracerImpl implements NextTracer {
         ? parentSpan
         : undefined
     const shouldDelegateSpan =
+      !localSpanSinkActive &&
       !isolatedParentSpan &&
       (NextVanillaSpanAllowlist.has(type) ||
         process.env.NEXT_OTEL_VERBOSE === '1')
@@ -464,7 +471,7 @@ class NextTracerImpl implements NextTracer {
         tracingEnabled && shouldDelegateSpan,
         localSpanRecordingEnabled,
         parentSpan,
-        isolatedParentSpan !== undefined,
+        isolatedParentSpan !== undefined || localSpanSinkActive,
         (span: Span) => {
           let startTime: number | undefined
           if (
@@ -710,13 +717,17 @@ class NextTracerImpl implements NextTracer {
         : context.active()
     const localSpanRecordingEnabled =
       localSpanRecorder?.isLocalSpanRecordingEnabled() ?? false
+    const localSpanSinkActive =
+      localSpanRecorder?.isLocalSpanSinkActive() ?? false
 
     if (!localSpanRecordingEnabled) {
       return this.getTracerInstance().startSpan(type, options, parentContext)
     }
 
     const delegateSpan =
-      !isolatedParentSpan && this.isOpenTelemetryEnabled()
+      !localSpanSinkActive &&
+      !isolatedParentSpan &&
+      this.isOpenTelemetryEnabled()
         ? this.getTracerInstance().startSpan(type, options, parentContext)
         : undefined
 
@@ -726,7 +737,7 @@ class NextTracerImpl implements NextTracer {
       parentContext,
       delegateSpan,
       parentSpan,
-      isolatedParentSpan !== undefined
+      isolatedParentSpan !== undefined || localSpanSinkActive
     )
   }
 
