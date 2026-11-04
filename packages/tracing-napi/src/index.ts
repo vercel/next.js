@@ -59,65 +59,69 @@ const native = require(
   path.join(__dirname, '..', 'native', `turbopack-nft.${nativePlatform()}.node`)
 ) as NativeBinding
 
-export interface Stats {
-  isFile(): boolean
-  isDirectory(): boolean
-  isBlockDevice(): boolean
-  isCharacterDevice(): boolean
-  isSymbolicLink(): boolean
-  isFIFO(): boolean
-  isSocket(): boolean
-  dev: number
-  ino: number
-  mode: number
-  nlink: number
-  uid: number
-  gid: number
-  rdev: number
-  size: number
-  blksize: number
-  blocks: number
-  atimeMs: number
-  mtimeMs: number
-  ctimeMs: number
-  birthtimeMs: number
-  atime: Date
-  mtime: Date
-  ctime: Date
-  birthtime: Date
-}
+// Unsupported option reference type:
+// export interface Stats {
+//   isFile(): boolean
+//   isDirectory(): boolean
+//   isBlockDevice(): boolean
+//   isCharacterDevice(): boolean
+//   isSymbolicLink(): boolean
+//   isFIFO(): boolean
+//   isSocket(): boolean
+//   dev: number
+//   ino: number
+//   mode: number
+//   nlink: number
+//   uid: number
+//   gid: number
+//   rdev: number
+//   size: number
+//   blksize: number
+//   blocks: number
+//   atimeMs: number
+//   mtimeMs: number
+//   ctimeMs: number
+//   birthtimeMs: number
+//   atime: Date
+//   mtime: Date
+//   ctime: Date
+//   birthtime: Date
+// }
 
 export interface NodeFileTraceOptions {
   base?: string
   processCwd?: string
-  exports?: string[]
-  conditions?: string[]
-  exportsOnly?: boolean
-  moduleSyncCatchall?: boolean
-  ignore?: string | string[] | ((path: string) => boolean)
-  analysis?:
-    | boolean
-    | {
-        emitGlobs?: boolean
-        computeFileReferences?: boolean
-        evaluatePureExpressions?: boolean
-      }
-  cache?: any
-  paths?: Record<string, string>
-  ts?: boolean
+  ignore?: (path: string) => boolean
   log?: boolean
-  mixedModules?: boolean
-  readFile?: (path: string) => Promise<Buffer | string | null>
-  stat?: (path: string) => Promise<Stats | null>
-  readlink?: (path: string) => Promise<string | null>
-  resolve?: (
-    id: string,
-    parent: string,
-    job: unknown,
-    cjsResolve: boolean
-  ) => Promise<string | string[]>
-  fileIOConcurrency?: number
-  depth?: number
+
+  // Unsupported @vercel/nft options:
+  // exports?: string[]
+  // conditions?: string[]
+  // exportsOnly?: boolean
+  // moduleSyncCatchall?: boolean
+  // ignore?: string | string[]
+  // analysis?:
+  //   | boolean
+  //   | {
+  //       emitGlobs?: boolean
+  //       computeFileReferences?: boolean
+  //       evaluatePureExpressions?: boolean
+  //     }
+  // cache?: any
+  // paths?: Record<string, string>
+  // ts?: boolean
+  // mixedModules?: boolean
+  // readFile?: (path: string) => Promise<Buffer | string | null>
+  // stat?: (path: string) => Promise<Stats | null>
+  // readlink?: (path: string) => Promise<string | null>
+  // resolve?: (
+  //   id: string,
+  //   parent: string,
+  //   job: unknown,
+  //   cjsResolve: boolean
+  // ) => Promise<string | string[]>
+  // fileIOConcurrency?: number
+  // depth?: number
 }
 
 export type NodeFileTraceReasonType =
@@ -183,7 +187,7 @@ export async function nodeFileTrace(
     absoluteFiles.map((file) => path.relative(projectRoot, file)),
     false,
     Boolean(opts.log),
-    opts.depth
+    undefined
   )
 
   const initialFiles = new Set(
