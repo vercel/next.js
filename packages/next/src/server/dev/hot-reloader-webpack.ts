@@ -257,7 +257,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   protected appDir?: string
   private telemetry: Telemetry
   private resetFetch: () => void
-  private lockfile: Lockfile | undefined
   private versionInfo: VersionInfo = {
     staleness: 'unknown',
     installed: '0.0.0',
@@ -306,7 +305,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir?: string
       telemetry: Telemetry
       resetFetch: () => void
-      lockfile: Lockfile | undefined
+      lockfile: Lockfile
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
       hasVulnerabilityInsight: Promise<boolean>
       hasInstrumentationInject: boolean
@@ -328,7 +327,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.serverPrevDocumentHash = null
     this.telemetry = telemetry
     this.resetFetch = resetFetch
-    this.lockfile = lockfile
     this.hasVulnerabilityInsight = hasVulnerabilityInsight
     this.hasInstrumentationInject = hasInstrumentationInject
 
@@ -349,7 +347,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     fileLogger.initialize(this.distDir, mcpServerEnabled)
 
     onDevServerCleanup?.(async () => {
-      await lockfile?.unlock()
+      await lockfile.unlock()
     })
   }
 
