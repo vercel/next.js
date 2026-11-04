@@ -50,7 +50,10 @@ use crate::{
     chunk::{EcmascriptChunkItemContent, EcmascriptExports, ecmascript_chunk_item},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::pattern_mapping::{PatternMapping, ResolveType},
+    references::{
+        esm::{base::ReferencedAsset, generated_export_key},
+        pattern_mapping::{PatternMapping, ResolveType},
+    },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::module_id_to_lit,
 };
@@ -1112,9 +1115,6 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
         let map = &*self.map().await?;
         let minify = chunking_context.minify_type().await?;
 
-        // In lazy mode each matched module is in its own async chunk group (see
-        // `ImportMetaGlobModuleReference::chunking_type`), so it has to be loaded
-        // through its async loader, like the target of a dynamic `import()`.
         let resolve_type =
             if !this.eager && chunking_context.chunk_loading().await?.can_split_async() {
                 ResolveType::AsyncChunkLoader
@@ -1144,30 +1144,41 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
 
             let key_expr = Expr::Lit(Lit::Str(entry.origin_relative.as_str().into()));
 
-            // Generate the value expression based on eager/lazy and import options
+            // Resolve the actual export name used by the target module.
+            // Export names may be mangled during production builds.
+            let export = if let Some(named) = &this.import {
+                Some(
+                    match ReferencedAsset::from_resolve_result(*entry.result).await? {
+                        ReferencedAsset::Some(module) => {
+                            generated_export_key(module, chunking_context, named).await?
+                        }
+                        _ => named.clone(),
+                    },
+                )
+            } else {
+                None
+            };
+
             let value_expr = if this.eager {
-                // Eager: synchronously evaluate the module and use its ESM namespace,
-                // matching what a static `import * as ns from "..."` would produce.
                 let module_expr = pm.create_esm_require(Cow::Borrowed(&key_expr));
-                // If `import` option is set, access the named export
-                if let Some(named) = &this.import {
+
+                if let Some(export) = &export {
                     quote!(
                         "$module[$named]" as Expr,
                         module: Expr = module_expr,
-                        named: Expr = Expr::Lit(Lit::Str(named.as_str().into()))
+                        named: Expr = Expr::Lit(Lit::Str(export.as_str().into()))
                     )
                 } else {
                     module_expr
                 }
             } else {
-                // Lazy: thunk returning a Promise
                 let import_expr = pm.create_import(Cow::Borrowed(&key_expr), false);
-                if let Some(named) = &this.import {
-                    // Wrap the promise with .then(m => m[named])
+
+                if let Some(export) = &export {
                     quote!(
                         "() => $promise.then((m) => m[$named])" as Expr,
                         promise: Expr = import_expr,
-                        named: Expr = Expr::Lit(Lit::Str(named.as_str().into()))
+                        named: Expr = Expr::Lit(Lit::Str(export.as_str().into()))
                     )
                 } else {
                     quote!(
@@ -1177,8 +1188,6 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
                 }
             };
 
-            // Use the origin-relative path as the key — this is what Vite does
-            // and what the user sees in `Object.keys(modules)`.
             let prop = KeyValueProp {
                 key: PropName::Str(key.as_str().into()),
                 value: Box::new(value_expr),
@@ -1209,6 +1218,7 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
         let mut bytes: Vec<u8> = vec![];
         let mut wr: JsWriter<'_, &mut Vec<u8>> =
             JsWriter::new(source_map.clone(), "\n", &mut bytes, None);
+
         if matches!(*minify, MinifyType::Minify { .. }) {
             wr.set_indent_str("");
         }
