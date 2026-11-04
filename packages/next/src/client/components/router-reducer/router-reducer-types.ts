@@ -1,4 +1,5 @@
 import type { RootRouteTree } from '../segment-cache/cache'
+import type { NormalizedSearch } from '../segment-cache/cache-key'
 import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/decode-server-response'
@@ -112,12 +113,23 @@ export type PreparedNavigationRecord = {
   // action invalidates the BFCache, the version changes, and the commit
   // doesn't reuse the prepared request.
   bfcacheVersion: number
+  // Route-tree invalidation is independent of BFCache invalidation.
+  routeCacheVersion: number
   // For a route that wasn't known when the prepare phase started, the request
   // it's waiting on, and the tree it was made against. Null for a known route,
   // and once the response comes back. A commit that starts before then takes
   // over the request instead of issuing its own, and clears these fields.
   inFlightRequest: Promise<FetchServerResponseResult> | null
   inFlightRequestTree: FlightRouterState | null
+  // Retain this response's route metadata even if stale prefetch hints
+  // expire its shared cache entry. Segment data stays in the BFCache so it
+  // remains subject to cache eviction.
+  route: {
+    root: RootRouteTree<null>
+    canonicalUrl: string
+    renderedSearch: NormalizedSearch
+    nextUrl: string | null
+  } | null
 }
 
 /**

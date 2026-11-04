@@ -189,6 +189,123 @@ describe('router.experimental_prepare', () => {
       await expectTargetRendered(browser)
     })
 
+    it.each(['push', 'replace'] as const)(
+      'committing with %s reuses a completed preparation of a static route',
+      async (method) => {
+        const { browser, act } = await startBrowser()
+        const historyLength = await getHistoryLength(browser)
+
+        await act(
+          () => click(browser, 'button[data-prepare="/static-target"]'),
+          {
+            includes: 'Static target page',
+          }
+        )
+        expect(await getPathname(browser)).toBe('/')
+
+        await act(
+          () =>
+            click(browser, `button[data-commit-${method}="/static-target"]`),
+          'no-requests'
+        )
+
+        expect(await browser.elementById('static-target').text()).toBe(
+          'Static target page'
+        )
+        expect(await getPathname(browser)).toBe('/static-target')
+        expect(await getHistoryLength(browser)).toBe(
+          historyLength + (method === 'push' ? 1 : 0)
+        )
+      }
+    )
+
+    it('commits the prepared URL when a sibling route pattern was prefetched', async () => {
+      const { browser, act } = await startBrowser()
+      await act(
+        () => click(browser, 'input[data-link-accordion="/static-param/a"]'),
+        { includes: 'Static param a' }
+      )
+      await click(browser, 'input[data-link-accordion="/static-param/a"]')
+
+      await act(
+        () => click(browser, 'button[data-prepare="/static-param/b"]'),
+        {
+          includes: 'Static param b',
+        }
+      )
+      await act(
+        () => click(browser, 'button[data-commit-push="/static-param/b"]'),
+        'no-requests'
+      )
+
+      expect(await browser.elementById('static-param').text()).toBe(
+        'Static param b'
+      )
+      expect(await getPathname(browser)).toBe('/static-param/b')
+    })
+
+    it('reuses a completed preparation while a replacement prefetch is pending', async () => {
+      const { browser, act } = await startBrowser()
+      await act(() => click(browser, 'button[data-prepare="/static-target"]'), {
+        includes: 'Static target page',
+      })
+
+      await act(async () => {
+        // Hold the prefetch so commit sees a pending route-cache entry.
+        await act(
+          () => click(browser, 'input[data-link-accordion="/static-target"]'),
+          'block'
+        )
+        await act(
+          () => click(browser, 'button[data-commit-push="/static-target"]'),
+          'no-requests'
+        )
+      })
+
+      expect(await browser.elementById('static-target').text()).toBe(
+        'Static target page'
+      )
+      expect(await getPathname(browser)).toBe('/static-target')
+    })
+
+    it('a refresh invalidates a completed preparation of a static route', async () => {
+      const { browser, act } = await startBrowser()
+      await act(() => click(browser, 'button[data-prepare="/static-target"]'), {
+        includes: 'Static target page',
+      })
+
+      await act(() => click(browser, 'button[data-refresh]'), {
+        includes: 'Hub A',
+      })
+      await act(
+        () => click(browser, 'button[data-commit-push="/static-target"]'),
+        {
+          includes: 'Static target page',
+        }
+      )
+
+      expect(await browser.elementById('static-target').text()).toBe(
+        'Static target page'
+      )
+      expect(await getPathname(browser)).toBe('/static-target')
+    })
+
+    it('a regular navigation does not reuse an expired prepared route', async () => {
+      const { browser, act } = await startBrowser()
+      await act(() => click(browser, 'button[data-prepare="/static-target"]'), {
+        includes: 'Static target page',
+      })
+
+      await act(() => click(browser, 'button[data-push="/static-target"]'), {
+        includes: 'Static target page',
+      })
+
+      expect(await browser.elementById('static-target').text()).toBe(
+        'Static target page'
+      )
+      expect(await getPathname(browser)).toBe('/static-target')
+    })
+
     it('a regular navigation does not reuse prepared data', async () => {
       const { browser, act } = await startBrowser()
       await prefetchTarget(browser, act)

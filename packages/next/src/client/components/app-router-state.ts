@@ -28,6 +28,8 @@ import {
   bufferAndWriteNavigationResponse,
   type FulfilledRouteCacheEntry,
   createRootRouteTree,
+  stripDataFromRouteTree,
+  getCurrentRouteCacheVersion,
 } from './segment-cache/cache'
 import { discoverKnownRoute } from './segment-cache/optimistic-routes'
 import {
@@ -155,6 +157,52 @@ function navigateImpl(
 
   const cacheKey = createCacheKey(href, nextUrl)
   const route = readRouteCacheEntry(now, cacheKey)
+  if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    freshnessPolicy === FreshnessPolicy.CommitPrepared &&
+    preparation !== null
+  ) {
+    const preparedRoute = preparation.route
+    preparation.route = null
+    if (
+      (route === null ||
+        route.status === EntryStatus.Empty ||
+        route.status === EntryStatus.Pending) &&
+      preparedRoute !== null &&
+      preparedRoute.nextUrl === nextUrl &&
+      preparation.bfcacheVersion === getBFCacheVersion() &&
+      preparation.routeCacheVersion === getCurrentRouteCacheVersion()
+    ) {
+      // Stale prefetch hints don't invalidate this preparation's route data.
+      // Keep the shared entry expired so prefetches can obtain current hints.
+      return navigateToKnownRoute(
+        now,
+        state,
+        url,
+        preparedRoute.canonicalUrl,
+        {
+          root: preparedRoute.root,
+          renderedSearch: preparedRoute.renderedSearch,
+          dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
+          treeDivergedFromBase: false,
+        },
+        currentUrl,
+        currentRenderedSearch,
+        currentRoot,
+        freshnessPolicy,
+        nextUrl,
+        scrollBehavior,
+        navigateType,
+        navigationLock,
+        map,
+        null,
+        // This route came from the prepared response, not a prediction.
+        null,
+        undefined,
+        preparation
+      )
+    }
+  }
   if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
     return navigateUsingPrefetchedRouteTree(
@@ -671,6 +719,22 @@ async function navigateToUnknownRoute(
     // before the write. The result of the prepare phase is discarded, so it
     // doesn't matter what state is returned.
     return state
+  }
+
+  if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    preparation !== null &&
+    freshnessPolicy === FreshnessPolicy.Prepare
+  ) {
+    preparation.route = {
+      root: createRootRouteTree(
+        stripDataFromRouteTree(navigationSeed.root.tree),
+        stripDataFromRouteTree(navigationSeed.root.head)
+      ),
+      canonicalUrl: createHrefFromUrl(canonicalUrl),
+      renderedSearch: navigationSeed.renderedSearch,
+      nextUrl,
+    }
   }
 
   return navigateToKnownRoute(

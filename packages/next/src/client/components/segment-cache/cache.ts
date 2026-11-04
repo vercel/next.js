@@ -1489,12 +1489,12 @@ export function createMetadataRouteTree<TData>(
 
 /**
  * Returns an equivalent tree with `data: null` at every node, cloning only
- * the subtrees that carry data. Called when a tree is stored in the route
- * cache: route cache entries live indefinitely, so retaining render output
- * there would pin RSC payloads in memory outside the segment cache's eviction
- * control. See the lifecycle note on RouteTree.
+ * the subtrees that carry data. Route cache entries and prepared navigation
+ * handles can outlive cached segment data, so neither should retain render
+ * output outside the segment cache's eviction control. See the lifecycle
+ * note on RouteTree.
  */
-function stripDataFromRouteTree(
+export function stripDataFromRouteTree(
   tree: RouteTree<RSCSegmentData | null>
 ): RouteTree<null> {
   let clonedSlots: Map<string, RouteTree<null>> | null = null
