@@ -1307,6 +1307,12 @@ export async function runTests(
           ? {
               browserLocatorErrorFormat:
                 project.browserLocatorErrorFormat ?? 'all',
+              ...(project.browserLocatorTestIdAttribute === undefined
+                ? {}
+                : {
+                    browserLocatorTestIdAttribute:
+                      project.browserLocatorTestIdAttribute,
+                  }),
             }
           : {}),
         ...(project.browserEngine === undefined

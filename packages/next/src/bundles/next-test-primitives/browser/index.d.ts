@@ -95,8 +95,11 @@ export declare function createTimerContext(
 ): import('../timers').TimerContext
 
 /** Private pure pinned locator descriptions, strict errors and DOM formatting. */
-export declare function createBrowserLocatorFormatter(): {
+export declare function createBrowserLocatorFormatter(options?: {
+  testIdAttribute?: string
+}): {
   selector(name: string, args: unknown[]): string
+  testIdSelector(attributeName: string, value: unknown): string
   filterText(value: string | RegExp): string
   createQuery(selector: () => string): () => Element[]
   asLocator(selector: string): string

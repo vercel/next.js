@@ -15,9 +15,11 @@ import {
 import { generateAriaTree, renderAriaTree } from './aria'
 
 /** Pure DOM formatting from the pinned Browser primitives; no controller. */
-export function createBrowserLocatorFormatter() {
+export function createBrowserLocatorFormatter({
+  testIdAttribute = 'data-testid',
+} = {}) {
   const engine = SelectorEngine.create({
-    testIdAttribute: 'data-testid',
+    testIdAttribute,
     browser: 'chromium',
     exact: true,
   })
@@ -28,11 +30,14 @@ export function createBrowserLocatorFormatter() {
     PlaceholderText: getByPlaceholderSelector,
     Text: getByTextSelector,
     Title: getByTitleSelector,
-    TestId: (value) => getByTestIdSelector('data-testid', value),
+    TestId: (value) => getByTestIdSelector(testIdAttribute, value),
   }
   return {
     selector(name, args) {
       return selectors[name](...args)
+    },
+    testIdSelector(attributeName, value) {
+      return getByTestIdSelector(attributeName, value)
     },
     filterText(value) {
       return escapeForTextSelector(value)

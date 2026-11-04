@@ -302,6 +302,12 @@ export async function executeClient(
         sourceHash: artifact.sourceHash,
         projectDir: options.projectDir,
         browserLocatorErrorFormat: options.browserLocatorErrorFormat,
+        ...(options.browserLocatorTestIdAttribute === undefined
+          ? {}
+          : {
+              browserLocatorTestIdAttribute:
+                options.browserLocatorTestIdAttribute,
+            }),
         snapshotUpdateMode,
         snapshotFormat: encodeSnapshotFormat(options.snapshotFormat),
         ...(options.captureTaskResults ? { captureTaskResults: true } : {}),

@@ -1,0 +1,22 @@
+export const normalizerCases = [
+  { id: 'omitted-default', root: 'omitted', child: 'omitted', instance: 'omitted' },
+  { id: 'root-qa', root: 'qa', child: 'omitted', instance: 'omitted' },
+  { id: 'child-string', root: 'qa', child: 'child', instance: 'omitted' },
+  { id: 'instance-string', root: 'qa', child: 'child', instance: 'instance' },
+  { id: 'child-undefined', root: 'qa', child: 'undefined', instance: 'omitted' },
+  { id: 'child-null', root: 'qa', child: 'null', instance: 'omitted' },
+  { id: 'instance-undefined', root: 'qa', child: 'child', instance: 'undefined' },
+  { id: 'instance-null', root: 'qa', child: 'child', instance: 'null' },
+]
+const quote = JSON.stringify
+const expressions = { qa: "'data-qa'", child: "'data-child'", instance: "'data-instance'", undefined: 'undefined', null: 'null' }
+const field = kind => kind === 'omitted' ? '' : ',locators:{testIdAttribute:' + expressions[kind] + '}'
+
+export function buildConfiguration(id, { fixture, browserPort }) {
+  const entry = normalizerCases.find(item => item.id === id)
+  if (!entry) throw new Error('Unknown private normalizer input: ' + id)
+  const rootBrowser = "{enabled:true,headless:true,provider:playwright(),instances:[{browser:'chromium',name:" + quote(id + '-root') + '}]' + field(entry.root) + '}'
+  const selected = "{browser:'chromium',name:" + quote(id + '-selected') + field(entry.instance) + '}'
+  const childBrowser = '{instances:[' + selected + ']' + field(entry.child) + '}'
+  return "import{defineConfig}from'vitest/config';import{playwright}from'@vitest/browser-playwright';export default defineConfig({cacheDir:" + quote(fixture + '/vite-cache') + ",test:{include:['fixtures.test.mjs'],maxWorkers:1,testTimeout:5000,hookTimeout:5000,includeTaskLocation:false,browser:" + rootBrowser + ',projects:[{extends:true,cacheDir:' + quote(fixture + '/project-vite-cache') + ',test:{name:' + quote(id + '-project') + ',api:{port:' + browserPort + ",host:'127.0.0.1',strictPort:true},browser:" + childBrowser + '}}]}})\n'
+}

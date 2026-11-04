@@ -529,7 +529,8 @@ function browserElementId(element: Element) {
   return id
 }
 
-const locatorFormatter = createBrowserLocatorFormatter()
+let locatorFormatter = createBrowserLocatorFormatter()
+let initialBrowserTestIdAttribute = 'data-testid'
 async function serializeScreenshotElement(value: Element | ElementLocator) {
   if (!value) throw new Error('Expected element or locator to be defined.')
   if (value instanceof Element) return locatorFormatter.serializeElement(value)
@@ -700,6 +701,19 @@ class ElementLocator {
       this.container
     )
     return child
+  }
+  protected elementLocator(element: Element): ElementLocator {
+    const description = locatorFormatter.generateSelector(element)
+    let locator: ElementLocator
+    locator = new ElementLocator(
+      locatorFormatter.createQuery(() => {
+        const cache = locator as ElementLocator & LocatorCache
+        return cache._pwSelector || locator.selector
+      }),
+      description,
+      element
+    )
+    return locator
   }
   elements() {
     assertBrowserApiScope('browser-native')
@@ -1061,8 +1075,15 @@ function createQueryLocator(
   const query = Reflect.get(queries, `queryAllBy${name}`) as Query
   if (typeof query !== 'function')
     throw new Error(`Unsupported browser query ${name}.`)
+  const testIdDescription =
+    name === 'TestId'
+      ? locatorFormatter.testIdSelector(
+          server.config.browser.locators.testIdAttribute,
+          args[0]
+        )
+      : undefined
   const parent = root instanceof ElementLocator ? root.selector : ''
-  const description = locatorFormatter.selector(name, args)
+  const description = testIdDescription ?? locatorFormatter.selector(name, args)
   if (serializedClickTargets) {
     let locator: ElementLocator
     locator = new ElementLocator(
@@ -1452,9 +1473,12 @@ interface BrowserServerConfiguration {
     }
   }
 }
-function createBrowserConfiguration(errorFormat: unknown) {
+function createBrowserConfiguration(
+  errorFormat: unknown,
+  testIdAttribute = 'data-testid'
+) {
   return {
-    browser: { locators: { testIdAttribute: 'data-testid', errorFormat } },
+    browser: { locators: { testIdAttribute, errorFormat } },
   }
 }
 let browserConfiguration = createBrowserConfiguration('all')
@@ -1588,19 +1612,32 @@ export function initializeBrowserContext(
   send: NonNullable<typeof command>,
   callbacks?: BrowserActionCallbacks,
   transport?: { serializedClickTargets?: true },
-  configuration?: { browserLocatorErrorFormat?: unknown }
+  configuration?: {
+    browserLocatorErrorFormat?: unknown
+    browserLocatorTestIdAttribute?: string
+  }
 ) {
   if (command || deferredCommands.size)
     throw new Error('Browser context already has an owner.')
   const previousConfiguration = browserConfiguration
+  const previousLocatorFormatter = locatorFormatter
+  const previousTestIdAttribute = initialBrowserTestIdAttribute
   const previousPublicConfig = Object.getOwnPropertyDescriptor(
     server,
     'config'
   )!
+  initialBrowserTestIdAttribute =
+    configuration?.browserLocatorTestIdAttribute === undefined
+      ? 'data-testid'
+      : configuration.browserLocatorTestIdAttribute
+  locatorFormatter = createBrowserLocatorFormatter({
+    testIdAttribute: initialBrowserTestIdAttribute,
+  })
   browserConfiguration = createBrowserConfiguration(
     configuration === undefined
       ? 'all'
-      : configuration.browserLocatorErrorFormat
+      : configuration.browserLocatorErrorFormat,
+    initialBrowserTestIdAttribute
   )
   Object.defineProperty(server, 'config', {
     configurable: true,
@@ -1627,6 +1664,11 @@ export function initializeBrowserContext(
       actionCallbacks = undefined
       serializedClickTargets = false
       browserConfiguration = previousConfiguration
+      createBrowserLocatorFormatter({
+        testIdAttribute: previousTestIdAttribute,
+      })
+      initialBrowserTestIdAttribute = previousTestIdAttribute
+      locatorFormatter = previousLocatorFormatter
       Object.defineProperty(server, 'config', previousPublicConfig)
       releaseDeferredLocators()
     },

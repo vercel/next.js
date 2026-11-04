@@ -1,0 +1,27 @@
+import { test } from 'vitest'
+import { page, server } from 'vitest/browser'
+
+const emit = value => console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value))
+const actualError = error => ({ name: error.name, message: error.message, stack: error.stack, constructor: error.constructor?.name, ownKeys: Reflect.ownKeys(error).map(String) })
+
+test('records actual initial TestId configuration and literal query targets', () => {
+  const options = server.config.browser.locators
+  const value = options.testIdAttribute
+  const property = Object.getOwnPropertyDescriptor(options, 'testIdAttribute')
+  const host = document.createElement('section'), target = document.createElement('button')
+  const attributes = { 'data-testid': 'legacy-id', 'data-qa': 'root-id', 'data-child': 'child-id', 'data-instance': 'instance-id', undefined: 'undefined-id', null: 'null-id' }
+  for (const [name, content] of Object.entries(attributes)) target.setAttribute(name, content)
+  host.append(target)
+  document.body.append(host)
+  try {
+    const queries = ['legacy-id', 'root-id', 'child-id', 'instance-id', 'undefined-id', 'null-id'].map(input => {
+      try {
+        const locator = page.getByTestId(input)
+        return { input, kind: 'return', selector: locator.selector, queryIsTarget: locator.query() === target }
+      } catch (error) {
+        return { input, kind: 'error', error: actualError(error) }
+      }
+    })
+    emit({ phase: 'initial-normalizer', attribute: { own: Object.hasOwn(options, 'testIdAttribute'), type: typeof value, isNull: value === null, string: String(value), rawValuePresent: value !== undefined, ...(value === undefined ? {} : { rawValue: value }), descriptor: property ? { enumerable: property.enumerable, configurable: property.configurable, writable: property.writable, isData: 'value' in property, hasGet: typeof property.get === 'function', hasSet: typeof property.set === 'function' } : null }, literalDOMAttributes: attributes, queries })
+  } finally { host.remove() }
+})

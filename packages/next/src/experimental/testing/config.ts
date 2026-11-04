@@ -66,6 +66,7 @@ export interface TestProjectConfig {
   browserViewport?: BrowserViewport
   /** Resolved authored data; public types declare html, aria, or all. */
   browserLocatorErrorFormat?: unknown
+  browserLocatorTestIdAttribute?: string
   /** Explicit enabled Browser launch mode; omission keeps the existing default. */
   browserHeadless?: boolean
   fakeTimers?: FakeTimerOptions
@@ -179,7 +180,7 @@ function browserLocatorErrorFormat(
   fallback: unknown
 ): unknown {
   const locators = value == null ? {} : object(value, label)
-  keys(locators, ['errorFormat'], label)
+  keys(locators, ['errorFormat', 'testIdAttribute'], label)
   const format = locators.errorFormat ?? fallback
   try {
     structuredClone(format)
@@ -188,6 +189,16 @@ function browserLocatorErrorFormat(
     invalid(`${label}.errorFormat must contain serializable data.`)
   }
   return format
+}
+
+function browserLocatorTestIdAttribute(
+  value: unknown,
+  label: string,
+  fallback?: string
+): string | undefined {
+  const locators = value == null ? {} : object(value, label)
+  const attribute = locators.testIdAttribute
+  return (attribute ?? fallback) as string | undefined
 }
 
 function keys(
@@ -346,6 +357,7 @@ export function parseTestConfig(
       browser: TestBrowserEngine
       name?: string
       browserLocatorErrorFormat?: unknown
+      browserLocatorTestIdAttribute?: string
     }[]
   >()
   const normalized: TestConfig = {
@@ -450,6 +462,12 @@ export function parseTestConfig(
             'all'
           )
         : undefined
+      const resolvedBrowserLocatorTestIdAttribute = browserClient
+        ? browserLocatorTestIdAttribute(
+            browser.locators,
+            `${label}.browser.locators`
+          )
+        : undefined
       const expandsBrowserInstances =
         browserClient && browser.instances !== undefined
       if (
@@ -482,8 +500,16 @@ export function parseTestConfig(
               typeof instance.name !== 'string'
             )
               invalid(`${instanceLabel}.name must be a string.`)
+            const instanceTestIdAttribute = browserLocatorTestIdAttribute(
+              instance.locators,
+              `${instanceLabel}.locators`,
+              resolvedBrowserLocatorTestIdAttribute
+            )
             return {
               browser: instance.browser,
+              ...(instanceTestIdAttribute === undefined
+                ? {}
+                : { browserLocatorTestIdAttribute: instanceTestIdAttribute }),
               ...(instance.name === undefined
                 ? {}
                 : { name: instance.name as string }),
@@ -877,6 +903,12 @@ export function parseTestConfig(
         ...(browserClient
           ? { browserLocatorErrorFormat: resolvedBrowserLocatorErrorFormat }
           : {}),
+        ...(resolvedBrowserLocatorTestIdAttribute === undefined
+          ? {}
+          : {
+              browserLocatorTestIdAttribute:
+                resolvedBrowserLocatorTestIdAttribute,
+            }),
         ...(browserClient && browser.headless !== undefined
           ? { browserHeadless: browser.headless as boolean }
           : {}),
@@ -947,6 +979,12 @@ export function parseTestConfig(
       browserInstance: parentName === undefined ? {} : { parentName },
       profile: { ...project.profile },
       browserLocatorErrorFormat: instance.browserLocatorErrorFormat,
+      ...(instance.browserLocatorTestIdAttribute === undefined
+        ? {}
+        : {
+            browserLocatorTestIdAttribute:
+              instance.browserLocatorTestIdAttribute,
+          }),
     }))
   })
   assignBrowserInstanceIds(normalized.projects)
@@ -1072,6 +1110,9 @@ export function normalizeTestConfig(value: unknown): TestConfig {
                         locators: {
                           ...inheritedLocators,
                           ...projectLocators,
+                          testIdAttribute:
+                            projectLocators.testIdAttribute ??
+                            inheritedLocators.testIdAttribute,
                           errorFormat:
                             projectLocators.errorFormat ??
                             inheritedLocators.errorFormat,

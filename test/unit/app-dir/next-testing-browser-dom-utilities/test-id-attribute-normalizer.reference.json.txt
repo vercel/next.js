@@ -1,0 +1,1077 @@
+{
+  "inputSHA256": "c9bfc026fb4960e4e28104d7f3d81001cee7e06ef330080b6e0d2ab25f562778",
+  "models": {
+    "omitted-default": {
+      "rows": [
+        {
+          "value": {
+            "phase": "initial-normalizer",
+            "attribute": {
+              "own": true,
+              "type": "string",
+              "isNull": false,
+              "string": "data-testid",
+              "rawValuePresent": true,
+              "rawValue": "data-testid",
+              "descriptor": {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "isData": true,
+                "hasGet": false,
+                "hasSet": false
+              }
+            },
+            "literalDOMAttributes": {
+              "data-testid": "legacy-id",
+              "data-qa": "root-id",
+              "data-child": "child-id",
+              "data-instance": "instance-id",
+              "undefined": "undefined-id",
+              "null": "null-id"
+            },
+            "queries": [
+              {
+                "input": "legacy-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-testid=\"legacy-id\"s]",
+                "queryIsTarget": true
+              },
+              {
+                "input": "root-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-testid=\"root-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "child-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-testid=\"child-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "instance-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-testid=\"instance-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "undefined-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-testid=\"undefined-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "null-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-testid=\"null-id\"s]",
+                "queryIsTarget": false
+              }
+            ]
+          },
+          "task": "records actual initial TestId configuration and literal query targets"
+        }
+      ],
+      "cases": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "records actual initial TestId configuration and literal query targets",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    },
+    "root-qa": {
+      "rows": [
+        {
+          "value": {
+            "phase": "initial-normalizer",
+            "attribute": {
+              "own": true,
+              "type": "string",
+              "isNull": false,
+              "string": "data-qa",
+              "rawValuePresent": true,
+              "rawValue": "data-qa",
+              "descriptor": {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "isData": true,
+                "hasGet": false,
+                "hasSet": false
+              }
+            },
+            "literalDOMAttributes": {
+              "data-testid": "legacy-id",
+              "data-qa": "root-id",
+              "data-child": "child-id",
+              "data-instance": "instance-id",
+              "undefined": "undefined-id",
+              "null": "null-id"
+            },
+            "queries": [
+              {
+                "input": "legacy-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"legacy-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "root-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"root-id\"s]",
+                "queryIsTarget": true
+              },
+              {
+                "input": "child-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"child-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "instance-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"instance-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "undefined-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"undefined-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "null-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"null-id\"s]",
+                "queryIsTarget": false
+              }
+            ]
+          },
+          "task": "records actual initial TestId configuration and literal query targets"
+        }
+      ],
+      "cases": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "records actual initial TestId configuration and literal query targets",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    },
+    "child-string": {
+      "rows": [
+        {
+          "value": {
+            "phase": "initial-normalizer",
+            "attribute": {
+              "own": true,
+              "type": "string",
+              "isNull": false,
+              "string": "data-child",
+              "rawValuePresent": true,
+              "rawValue": "data-child",
+              "descriptor": {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "isData": true,
+                "hasGet": false,
+                "hasSet": false
+              }
+            },
+            "literalDOMAttributes": {
+              "data-testid": "legacy-id",
+              "data-qa": "root-id",
+              "data-child": "child-id",
+              "data-instance": "instance-id",
+              "undefined": "undefined-id",
+              "null": "null-id"
+            },
+            "queries": [
+              {
+                "input": "legacy-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"legacy-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "root-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"root-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "child-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"child-id\"s]",
+                "queryIsTarget": true
+              },
+              {
+                "input": "instance-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"instance-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "undefined-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"undefined-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "null-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"null-id\"s]",
+                "queryIsTarget": false
+              }
+            ]
+          },
+          "task": "records actual initial TestId configuration and literal query targets"
+        }
+      ],
+      "cases": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "records actual initial TestId configuration and literal query targets",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    },
+    "instance-string": {
+      "rows": [
+        {
+          "value": {
+            "phase": "initial-normalizer",
+            "attribute": {
+              "own": true,
+              "type": "string",
+              "isNull": false,
+              "string": "data-instance",
+              "rawValuePresent": true,
+              "rawValue": "data-instance",
+              "descriptor": {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "isData": true,
+                "hasGet": false,
+                "hasSet": false
+              }
+            },
+            "literalDOMAttributes": {
+              "data-testid": "legacy-id",
+              "data-qa": "root-id",
+              "data-child": "child-id",
+              "data-instance": "instance-id",
+              "undefined": "undefined-id",
+              "null": "null-id"
+            },
+            "queries": [
+              {
+                "input": "legacy-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-instance=\"legacy-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "root-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-instance=\"root-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "child-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-instance=\"child-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "instance-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-instance=\"instance-id\"s]",
+                "queryIsTarget": true
+              },
+              {
+                "input": "undefined-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-instance=\"undefined-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "null-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-instance=\"null-id\"s]",
+                "queryIsTarget": false
+              }
+            ]
+          },
+          "task": "records actual initial TestId configuration and literal query targets"
+        }
+      ],
+      "cases": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "records actual initial TestId configuration and literal query targets",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    },
+    "child-undefined": {
+      "rows": [
+        {
+          "value": {
+            "phase": "initial-normalizer",
+            "attribute": {
+              "own": true,
+              "type": "string",
+              "isNull": false,
+              "string": "data-qa",
+              "rawValuePresent": true,
+              "rawValue": "data-qa",
+              "descriptor": {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "isData": true,
+                "hasGet": false,
+                "hasSet": false
+              }
+            },
+            "literalDOMAttributes": {
+              "data-testid": "legacy-id",
+              "data-qa": "root-id",
+              "data-child": "child-id",
+              "data-instance": "instance-id",
+              "undefined": "undefined-id",
+              "null": "null-id"
+            },
+            "queries": [
+              {
+                "input": "legacy-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"legacy-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "root-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"root-id\"s]",
+                "queryIsTarget": true
+              },
+              {
+                "input": "child-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"child-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "instance-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"instance-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "undefined-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"undefined-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "null-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"null-id\"s]",
+                "queryIsTarget": false
+              }
+            ]
+          },
+          "task": "records actual initial TestId configuration and literal query targets"
+        }
+      ],
+      "cases": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "records actual initial TestId configuration and literal query targets",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    },
+    "child-null": {
+      "rows": [
+        {
+          "value": {
+            "phase": "initial-normalizer",
+            "attribute": {
+              "own": true,
+              "type": "string",
+              "isNull": false,
+              "string": "data-qa",
+              "rawValuePresent": true,
+              "rawValue": "data-qa",
+              "descriptor": {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "isData": true,
+                "hasGet": false,
+                "hasSet": false
+              }
+            },
+            "literalDOMAttributes": {
+              "data-testid": "legacy-id",
+              "data-qa": "root-id",
+              "data-child": "child-id",
+              "data-instance": "instance-id",
+              "undefined": "undefined-id",
+              "null": "null-id"
+            },
+            "queries": [
+              {
+                "input": "legacy-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"legacy-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "root-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"root-id\"s]",
+                "queryIsTarget": true
+              },
+              {
+                "input": "child-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"child-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "instance-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"instance-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "undefined-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"undefined-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "null-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-qa=\"null-id\"s]",
+                "queryIsTarget": false
+              }
+            ]
+          },
+          "task": "records actual initial TestId configuration and literal query targets"
+        }
+      ],
+      "cases": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "records actual initial TestId configuration and literal query targets",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    },
+    "instance-undefined": {
+      "rows": [
+        {
+          "value": {
+            "phase": "initial-normalizer",
+            "attribute": {
+              "own": true,
+              "type": "string",
+              "isNull": false,
+              "string": "data-child",
+              "rawValuePresent": true,
+              "rawValue": "data-child",
+              "descriptor": {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "isData": true,
+                "hasGet": false,
+                "hasSet": false
+              }
+            },
+            "literalDOMAttributes": {
+              "data-testid": "legacy-id",
+              "data-qa": "root-id",
+              "data-child": "child-id",
+              "data-instance": "instance-id",
+              "undefined": "undefined-id",
+              "null": "null-id"
+            },
+            "queries": [
+              {
+                "input": "legacy-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"legacy-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "root-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"root-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "child-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"child-id\"s]",
+                "queryIsTarget": true
+              },
+              {
+                "input": "instance-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"instance-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "undefined-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"undefined-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "null-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"null-id\"s]",
+                "queryIsTarget": false
+              }
+            ]
+          },
+          "task": "records actual initial TestId configuration and literal query targets"
+        }
+      ],
+      "cases": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "records actual initial TestId configuration and literal query targets",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    },
+    "instance-null": {
+      "rows": [
+        {
+          "value": {
+            "phase": "initial-normalizer",
+            "attribute": {
+              "own": true,
+              "type": "string",
+              "isNull": false,
+              "string": "data-child",
+              "rawValuePresent": true,
+              "rawValue": "data-child",
+              "descriptor": {
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "isData": true,
+                "hasGet": false,
+                "hasSet": false
+              }
+            },
+            "literalDOMAttributes": {
+              "data-testid": "legacy-id",
+              "data-qa": "root-id",
+              "data-child": "child-id",
+              "data-instance": "instance-id",
+              "undefined": "undefined-id",
+              "null": "null-id"
+            },
+            "queries": [
+              {
+                "input": "legacy-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"legacy-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "root-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"root-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "child-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"child-id\"s]",
+                "queryIsTarget": true
+              },
+              {
+                "input": "instance-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"instance-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "undefined-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"undefined-id\"s]",
+                "queryIsTarget": false
+              },
+              {
+                "input": "null-id",
+                "kind": "return",
+                "selector": "internal:testid=[data-child=\"null-id\"s]",
+                "queryIsTarget": false
+              }
+            ]
+          },
+          "task": "records actual initial TestId configuration and literal query targets"
+        }
+      ],
+      "cases": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "records actual initial TestId configuration and literal query targets",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "records actual initial TestId configuration and literal query targets",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 1,
+        "numPassedTests": 1,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    }
+  }
+}

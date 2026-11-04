@@ -209,6 +209,7 @@ export function createExecutionBrokerHost(options: {
     | 'browserEngine'
     | 'browserHeadless'
     | 'browserLocatorErrorFormat'
+    | 'browserLocatorTestIdAttribute'
     | 'includeTaskLocation'
   >[]
   /** Explicit parent authorization; plans are committed after generation cleanup. */
@@ -397,10 +398,13 @@ export function createExecutionBrokerHost(options: {
                       isDeepStrictEqual(
                         project.browserLocatorErrorFormat ?? 'all',
                         message.options.browserLocatorErrorFormat ?? 'all'
-                      )
+                      ) &&
+                      project.browserLocatorTestIdAttribute ===
+                        message.options.browserLocatorTestIdAttribute
                     : message.options.browserEngine === undefined &&
                       message.options.browserHeadless === undefined &&
-                      message.options.browserLocatorErrorFormat ===
+                      message.options.browserLocatorErrorFormat === undefined &&
+                      message.options.browserLocatorTestIdAttribute ===
                         undefined) &&
                   project.includeTaskLocation ===
                     message.options.includeTaskLocation &&
@@ -1296,6 +1300,7 @@ async function executeBrokerFile(
         | 'browserEngine'
         | 'browserHeadless'
         | 'browserLocatorErrorFormat'
+        | 'browserLocatorTestIdAttribute'
         | 'includeTaskLocation'
       >
     | undefined,

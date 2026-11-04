@@ -518,6 +518,8 @@ export interface ExecuteTestOptions {
   browserViewport?: BrowserViewport
   /** Authored Browser locator formatting data, carried without enum coercion. */
   browserLocatorErrorFormat?: unknown
+  /** Initial Browser TestId selector attribute; omission keeps the default. */
+  browserLocatorTestIdAttribute?: string
   /** Explicit actual Browser client launch mode. */
   browserHeadless?: boolean
   /** Normalized enabled-client instance; omission preserves Chromium. */

@@ -1,0 +1,1197 @@
+{
+  "inputSHA256": "1abd459400d8878fd2854ae877f1687105adccde6d470d212418226c57d7ba47",
+  "models": {
+    "development": {
+      "rows": [
+        {
+          "value": {
+            "phase": "initial",
+            "publicConfig": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "isData": true,
+              "valueType": "object",
+              "hasGet": false,
+              "hasSet": false
+            },
+            "testIdAttribute": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "isData": true,
+              "valueType": "string",
+              "hasGet": false,
+              "hasSet": false,
+              "value": "data-qa"
+            },
+            "samePublicAlias": true,
+            "attribute": "data-qa",
+            "page": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "child": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "wrapperChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedPage": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedBase": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            }
+          },
+          "task": "initial custom attribute has public alias and captured selectors"
+        },
+        {
+          "value": {
+            "phase": "nested-mutation",
+            "samePublicAlias": true,
+            "attribute": "data-next",
+            "oldPage": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "oldChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "newPage": {
+              "selector": "internal:testid=[data-next=\"changed\"s]",
+              "string": "internal:testid=[data-next=\"changed\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('changed')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('changed')"
+              },
+              "elementIsTarget": true
+            },
+            "newChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('group').getByTestId('changed')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('group').getByTestId('changed')"
+              },
+              "elementIsTarget": true
+            },
+            "newWrapperChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('group').getByTestId('changed')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('group').getByTestId('changed')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedPage": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedBase": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            }
+          },
+          "task": "nested mutation retargets new calls and retains old selectors and initial engine"
+        },
+        {
+          "value": {
+            "phase": "public-replacement",
+            "sameReplacement": true,
+            "initialAliasDiffers": true,
+            "retainedAliasAttribute": "data-next",
+            "replacementAttribute": "data-replacement",
+            "oldPage": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "oldChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "newPage": {
+              "selector": "internal:testid=[data-replacement=\"replaced\"s]",
+              "string": "internal:testid=[data-replacement=\"replaced\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('replaced')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('replaced')"
+              },
+              "elementIsTarget": true
+            },
+            "newChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('group').getByTestId('replaced')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('group').getByTestId('replaced')"
+              },
+              "elementIsTarget": true
+            },
+            "newWrapperChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('group').getByTestId('replaced')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('group').getByTestId('replaced')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedPage": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedBase": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            }
+          },
+          "task": "public replacement retargets new calls while original alias and engine remain distinct"
+        },
+        {
+          "value": {
+            "phase": "getter-reads",
+            "expectedReadOrder": [
+              "server.config",
+              "browser",
+              "locators",
+              "testIdAttribute"
+            ],
+            "wrapperCreationReads": [],
+            "observations": [
+              {
+                "label": "captured-page",
+                "constructionReads": [],
+                "totalReads": [],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"configured\"s]",
+                  "string": "internal:testid=[data-qa=\"configured\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "new-page",
+                "constructionReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "totalReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "value": {
+                  "selector": "internal:testid=[data-getter=\"getter\"s]",
+                  "string": "internal:testid=[data-getter=\"getter\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('getter')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('getter')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "existing-base-child",
+                "constructionReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "totalReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "existing-wrapper-child",
+                "constructionReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "totalReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "generated-page",
+                "constructionReads": [],
+                "totalReads": [],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"configured\"s]",
+                  "string": "internal:testid=[data-qa=\"configured\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "generated-base",
+                "constructionReads": [],
+                "totalReads": [],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"configured\"s]",
+                  "string": "internal:testid=[data-qa=\"configured\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "fresh-wrapper-child",
+                "constructionReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "totalReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "elementIsTarget": true
+                }
+              }
+            ]
+          },
+          "task": "getter chain is read by new calls and not captured selectors or initial engine"
+        }
+      ],
+      "cases": [
+        {
+          "name": "initial custom attribute has public alias and captured selectors",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "nested mutation retargets new calls and retains old selectors and initial engine",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "public replacement retargets new calls while original alias and engine remain distinct",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "getter chain is read by new calls and not captured selectors or initial engine",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "initial custom attribute has public alias and captured selectors",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "nested mutation retargets new calls and retains old selectors and initial engine",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "public replacement retargets new calls while original alias and engine remain distinct",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "getter chain is read by new calls and not captured selectors or initial engine",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "initial custom attribute has public alias and captured selectors",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "nested mutation retargets new calls and retains old selectors and initial engine",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "public replacement retargets new calls while original alias and engine remain distinct",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "getter chain is read by new calls and not captured selectors or initial engine",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 4,
+        "numPassedTests": 4,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    },
+    "production": {
+      "rows": [
+        {
+          "value": {
+            "phase": "initial",
+            "publicConfig": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "isData": true,
+              "valueType": "object",
+              "hasGet": false,
+              "hasSet": false
+            },
+            "testIdAttribute": {
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "isData": true,
+              "valueType": "string",
+              "hasGet": false,
+              "hasSet": false,
+              "value": "data-qa"
+            },
+            "samePublicAlias": true,
+            "attribute": "data-qa",
+            "page": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "child": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "wrapperChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedPage": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedBase": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            }
+          },
+          "task": "initial custom attribute has public alias and captured selectors"
+        },
+        {
+          "value": {
+            "phase": "nested-mutation",
+            "samePublicAlias": true,
+            "attribute": "data-next",
+            "oldPage": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "oldChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "newPage": {
+              "selector": "internal:testid=[data-next=\"changed\"s]",
+              "string": "internal:testid=[data-next=\"changed\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('changed')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('changed')"
+              },
+              "elementIsTarget": true
+            },
+            "newChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('group').getByTestId('changed')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('group').getByTestId('changed')"
+              },
+              "elementIsTarget": true
+            },
+            "newWrapperChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('group').getByTestId('changed')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-next=\"changed\"s]",
+                "locator": "getByTestId('group').getByTestId('changed')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedPage": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedBase": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            }
+          },
+          "task": "nested mutation retargets new calls and retains old selectors and initial engine"
+        },
+        {
+          "value": {
+            "phase": "public-replacement",
+            "sameReplacement": true,
+            "initialAliasDiffers": true,
+            "retainedAliasAttribute": "data-next",
+            "replacementAttribute": "data-replacement",
+            "oldPage": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "oldChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('group').getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "newPage": {
+              "selector": "internal:testid=[data-replacement=\"replaced\"s]",
+              "string": "internal:testid=[data-replacement=\"replaced\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('replaced')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('replaced')"
+              },
+              "elementIsTarget": true
+            },
+            "newChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('group').getByTestId('replaced')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('group').getByTestId('replaced')"
+              },
+              "elementIsTarget": true
+            },
+            "newWrapperChild": {
+              "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+              "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('group').getByTestId('replaced')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-replacement=\"replaced\"s]",
+                "locator": "getByTestId('group').getByTestId('replaced')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedPage": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            },
+            "generatedBase": {
+              "selector": "internal:testid=[data-qa=\"configured\"s]",
+              "string": "internal:testid=[data-qa=\"configured\"s]",
+              "serialized": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "json": {
+                "selector": "internal:testid=[data-qa=\"configured\"s]",
+                "locator": "getByTestId('configured')"
+              },
+              "elementIsTarget": true
+            }
+          },
+          "task": "public replacement retargets new calls while original alias and engine remain distinct"
+        },
+        {
+          "value": {
+            "phase": "getter-reads",
+            "expectedReadOrder": [
+              "server.config",
+              "browser",
+              "locators",
+              "testIdAttribute"
+            ],
+            "wrapperCreationReads": [],
+            "observations": [
+              {
+                "label": "captured-page",
+                "constructionReads": [],
+                "totalReads": [],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"configured\"s]",
+                  "string": "internal:testid=[data-qa=\"configured\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "new-page",
+                "constructionReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "totalReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "value": {
+                  "selector": "internal:testid=[data-getter=\"getter\"s]",
+                  "string": "internal:testid=[data-getter=\"getter\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('getter')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('getter')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "existing-base-child",
+                "constructionReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "totalReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "existing-wrapper-child",
+                "constructionReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "totalReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "generated-page",
+                "constructionReads": [],
+                "totalReads": [],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"configured\"s]",
+                  "string": "internal:testid=[data-qa=\"configured\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "generated-base",
+                "constructionReads": [],
+                "totalReads": [],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"configured\"s]",
+                  "string": "internal:testid=[data-qa=\"configured\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"configured\"s]",
+                    "locator": "getByTestId('configured')"
+                  },
+                  "elementIsTarget": true
+                }
+              },
+              {
+                "label": "fresh-wrapper-child",
+                "constructionReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "totalReads": [
+                  "server.config",
+                  "browser",
+                  "locators",
+                  "testIdAttribute"
+                ],
+                "value": {
+                  "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "string": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                  "serialized": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "json": {
+                    "selector": "internal:testid=[data-qa=\"group\"s] >> internal:testid=[data-getter=\"getter\"s]",
+                    "locator": "getByTestId('group').getByTestId('getter')"
+                  },
+                  "elementIsTarget": true
+                }
+              }
+            ]
+          },
+          "task": "getter chain is read by new calls and not captured selectors or initial engine"
+        }
+      ],
+      "cases": [
+        {
+          "name": "initial custom attribute has public alias and captured selectors",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "nested mutation retargets new calls and retains old selectors and initial engine",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "public replacement retargets new calls while original alias and engine remain distinct",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "getter chain is read by new calls and not captured selectors or initial engine",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "caseFinals": [
+        {
+          "name": "initial custom attribute has public alias and captured selectors",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "nested mutation retargets new calls and retains old selectors and initial engine",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "public replacement retargets new calls while original alias and engine remain distinct",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        },
+        {
+          "name": "getter chain is read by new calls and not captured selectors or initial engine",
+          "result": {
+            "state": "passed",
+            "errors": []
+          }
+        }
+      ],
+      "moduleFinals": [
+        {
+          "state": "passed",
+          "errors": []
+        }
+      ],
+      "runFinals": [
+        {
+          "reason": "passed",
+          "errors": [],
+          "rawUnhandled": [],
+          "files": [
+            {
+              "state": "passed",
+              "tests": [
+                {
+                  "name": "initial custom attribute has public alias and captured selectors",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "nested mutation retargets new calls and retains old selectors and initial engine",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "public replacement retargets new calls while original alias and engine remain distinct",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                },
+                {
+                  "name": "getter chain is read by new calls and not captured selectors or initial engine",
+                  "result": {
+                    "state": "passed",
+                    "errors": []
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "standardFiles": [
+        {
+          "status": "passed",
+          "message": ""
+        }
+      ],
+      "counts": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 4,
+        "numPassedTests": 4,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0
+      },
+      "success": true,
+      "exit": 0
+    }
+  }
+}

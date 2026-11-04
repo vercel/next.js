@@ -89,6 +89,13 @@ export async function executeWithEnvironment(
       'Browser locator formatting requires an actual Browser client artifact.'
     )
   if (
+    options.browserLocatorTestIdAttribute !== undefined &&
+    (artifact.kind !== 'browser' || artifact.profile.browserClient !== true)
+  )
+    throw new Error(
+      'Browser TestId selectors require an actual Browser client artifact.'
+    )
+  if (
     options.browserHeadless !== undefined &&
     (artifact.kind !== 'browser' ||
       artifact.profile.browserClient !== true ||

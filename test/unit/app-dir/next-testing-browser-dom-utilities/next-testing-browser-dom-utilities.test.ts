@@ -258,3 +258,43 @@ it('preserves native optional-container Errors and formatting effects', async ()
       await rm(temporary, { recursive: true, force: true })
   }
 }, 300000)
+
+it('preserves configured TestId selectors, live public config and initial element engines', async () => {
+  const retained = process.env.NEXT_TESTING_DOM_TEST_ID_ATTRIBUTE_EVIDENCE
+  const temporary =
+    retained ?? (await mkdtemp(join(tmpdir(), 'next-dom-testid-attribute-')))
+  let complete = false
+  try {
+    const evidence = retained ?? join(temporary, 'evidence')
+    await promisify(execFile)(
+      process.execPath,
+      [
+        join(__dirname, 'verify-testid-attribute.mjs'),
+        join(__dirname, '../../../..'),
+        evidence,
+      ],
+      { timeout: 270000, maxBuffer: 1024 * 1024 }
+    )
+    const result = JSON.parse(
+      await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+    )
+    expect(result.profiles).toBe(10)
+    expect(result.actualProfileComparisons).toBe(10)
+    expect(result.namedReferenceEntries).toBe(10)
+    expect(result.cases).toBe(16)
+    expect(result.rows).toBe(16)
+    expect(result.completeModelsExact).toBe(true)
+    expect(result.allRawReportsTracesAndErrorsRetained).toBe(true)
+    expect(result.actualRuntimeRootsInsideConsumer).toBe(true)
+    expect(result.allOwnersJoined).toBe(true)
+    expect(result.allFixturesRemoved).toBe(true)
+    complete = true
+  } catch (error) {
+    throw new Error(`DOM testIdAttribute evidence retained at ${temporary}`, {
+      cause: error,
+    })
+  } finally {
+    if (complete && !retained)
+      await rm(temporary, { recursive: true, force: true })
+  }
+}, 300000)
