@@ -17,13 +17,15 @@ use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::Asset,
     chunk::{ChunkingType, TracedMode},
+    condition::ContextCondition,
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     module::{Module, Modules},
     module_graph::{GraphTraversalAction, ModuleGraph},
     raw_module::RawModule,
-    reference::DynamicTraceReference,
+    reference::{DynamicTraceReference, ModuleReference},
+    source::Source,
 };
 
 use crate::project::Project;
@@ -315,12 +317,11 @@ pub async fn traced_modules_for_entries(
     exclude_glob: Option<Vc<Glob>>,
     forbidden_path: Option<Vc<FileSystemPath>>,
 ) -> Result<Vc<Modules>> {
-    let exclude_glob_and_module_idents = if let Some(exclude_glob) = exclude_glob {
-        let exclude_glob = exclude_glob.await?;
-        let idents = traced_module_idents_for_graph(module_graph, traced_entries)
-            .keyed_reader()
-            .await?;
-        Some((exclude_glob, idents))
+    let module_idents = traced_module_idents_for_graph(module_graph, traced_entries)
+        .keyed_reader()
+        .await?;
+    let exclude_glob = if let Some(exclude_glob) = exclude_glob {
+        Some(exclude_glob.await?)
     } else {
         None
     };
@@ -340,6 +341,11 @@ pub async fn traced_modules_for_entries(
     let traced_entries_set = traced_entries.iter().copied().collect::<FxHashSet<_>>();
 
     let mut traced_modules = FxIndexSet::default();
+    // Used to find the project file that pulls in a traced dependency.
+    let mut first_parent = FirstParents::default();
+    // References from traced modules to a `package.json`. If such a reference resolves to nothing
+    // else, the package is installed but its entry is missing.
+    let mut package_json_references = FxIndexSet::default();
     module_graph.await?.traverse_edges_dfs(
         entry_modules
             .await?
@@ -349,27 +355,29 @@ pub async fn traced_modules_for_entries(
         &mut (),
         |parent, target, _| {
             let Some((parent, ref_data)) = parent else {
+                first_parent.entry(target).or_insert(None);
                 if traced_entries_set.contains(&target) {
                     traced_modules.insert(target);
                 }
                 return Ok(GraphTraversalAction::Continue);
             };
+            first_parent.entry(target).or_insert(Some(parent));
 
             if forbidden_module.is_some_and(|m| m == target) {
                 forbidden_issues.push((parent, ref_data.reference));
             }
 
             if should_visit_for_tracing(&ref_data.chunking_type, traced_modules.contains(&parent)) {
-                if let Some((exclude_glob, module_idents)) = &exclude_glob_and_module_idents
-                    && exclude_glob.matches(
-                        &module_idents
-                            .get(&target)
-                            .context("missing path for module")?
-                            .path
-                            .path,
-                    )
+                let target_path = module_idents.get(&target).map(|ident| &ident.path);
+                if let Some(exclude_glob) = &exclude_glob
+                    && exclude_glob.matches(&target_path.context("missing path for module")?.path)
                 {
                     return Ok(GraphTraversalAction::Skip);
+                }
+                if traced_modules.contains(&parent)
+                    && target_path.is_some_and(|path| path.file_name() == "package.json")
+                {
+                    package_json_references.insert((parent, ref_data.reference));
                 }
                 traced_modules.insert(target);
             };
@@ -379,6 +387,42 @@ pub async fn traced_modules_for_entries(
         true,
         false,
     )?;
+
+    let mut reported_packages = FxHashSet::default();
+    for (parent, reference) in package_json_references {
+        let resolved = reference.resolve_reference().await?;
+        if !resolved.is_unresolvable() {
+            continue;
+        }
+        let Some(parent_ident) = module_idents.get(&parent) else {
+            continue;
+        };
+        let parent_path = &parent_ident.path;
+        for source in resolved.affecting_sources_iter() {
+            let package_json = source.ident().await?.path.clone();
+            let package_dir = package_json.parent();
+            // Skip the package.json of the requiring package itself, which is read for e.g.
+            // self-references even when the requested package isn't installed.
+            if package_json.file_name() != "package.json"
+                || !ContextCondition::InNodeModules.matches(&package_dir)
+                || parent_path.is_inside_ref(&package_dir)
+            {
+                continue;
+            }
+            let Some(origin) = project_origin(parent, parent_path, &first_parent).await? else {
+                continue;
+            };
+            if reported_packages.insert((origin.clone(), package_dir.clone())) {
+                UnresolvedTracedPackageIssue {
+                    origin,
+                    package_dir,
+                    requested_by: parent_path.clone(),
+                }
+                .resolved_cell()
+                .emit();
+            }
+        }
+    }
 
     for (parent, reference) in forbidden_issues {
         let reference = reference.into_trait_ref().await?;
@@ -392,6 +436,26 @@ pub async fn traced_modules_for_entries(
     }
 
     Ok(Vc::cell(traced_modules.into_iter().collect()))
+}
+
+/// The module each module was first reached from, `None` for entries.
+type FirstParents = FxHashMap<ResolvedVc<Box<dyn Module>>, Option<ResolvedVc<Box<dyn Module>>>>;
+
+/// Walks up from a traced module to the first project file outside of node_modules that it was
+/// reached from, e.g. the route that requires an external package.
+async fn project_origin(
+    mut module: ResolvedVc<Box<dyn Module>>,
+    module_path: &FileSystemPath,
+    first_parent: &FirstParents,
+) -> Result<Option<FileSystemPath>> {
+    while let Some(&Some(parent)) = first_parent.get(&module) {
+        let path = parent.ident().await?.path.clone();
+        if path.fs == module_path.fs && !ContextCondition::InNodeModules.matches(&path) {
+            return Ok(Some(path));
+        }
+        module = parent;
+    }
+    Ok(None)
 }
 
 /// Ignore non-entry traced reference if not already in tracing mode.
@@ -503,6 +567,59 @@ pub async fn traced_module_data_for_graph(
         hashes: ResolvedVc::cell(hashes),
     }
     .cell())
+}
+
+/// A traced file requires an installed package, but the request resolves to nothing, e.g. because
+/// the file that the package's `exports` or `main` points to is missing. Only the package's
+/// `package.json` is traced then, and the require fails at runtime.
+///
+/// Resolve errors in node_modules are only warnings while tracing and are hidden by the issue
+/// filter, so this is reported on the project file that pulls in the package.
+#[turbo_tasks::value(shared)]
+struct UnresolvedTracedPackageIssue {
+    origin: FileSystemPath,
+    package_dir: FileSystemPath,
+    requested_by: FileSystemPath,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for UnresolvedTracedPackageIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.origin.clone())
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Traced dependency ")),
+            StyledString::Code(self.package_dir.path.clone()),
+            StyledString::Text(rcstr!(" could not be resolved")),
+        ]))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Code(self.requested_by.path.clone()),
+                StyledString::Text(rcstr!(
+                    " requires this package, but it does not resolve to a file. Only its \
+                     package.json is included in the output, so the require fails at runtime."
+                )),
+            ]),
+            StyledString::Text(rcstr!(
+                "This usually means that node_modules is incomplete. Reinstalling the \
+                 dependencies from scratch (e.g. with `npm ci`) fixes it."
+            )),
+        ])))
+    }
 }
 
 #[turbo_tasks::value(shared)]
