@@ -127,7 +127,10 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
     /// lines that has beem emitted by other [OutputStreamHandler] instances
     /// with the same `shared` before.
     /// Returns when one operation is done.
-    pub async fn handle_operation(&mut self) -> Result<()> {
+    ///
+    /// Source mapping reads turbo-tasks values, so `source_map_output` must only be set when
+    /// called from within a turbo-tasks task.
+    pub async fn handle_operation(&mut self, source_map_output: bool) -> Result<()> {
         let Self {
             stream,
             shared,
@@ -155,7 +158,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
 
         async fn write_source_mapped_final<W: AsyncWrite + Unpin>(
             bytes: &[u8],
-            assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+            assets_for_source_mapping: Option<Vc<AssetsForSourceMapping>>,
             root: FileSystemPath,
             project_dir: FileSystemPath,
             final_stream: &mut W,
@@ -164,6 +167,9 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                 let text = unmangle_identifiers(text, |content| {
                     format!("{{{content}}}").italic().to_string()
                 });
+                let Some(assets_for_source_mapping) = assets_for_source_mapping else {
+                    return write_final(text.as_bytes(), final_stream).await;
+                };
                 match apply_source_mapping(
                     text.as_ref(),
                     assets_for_source_mapping,
@@ -264,7 +270,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                             }
                             write_source_mapped_final(
                                 &entry.data,
-                                **assets_for_source_mapping,
+                                source_map_output.then(|| **assets_for_source_mapping),
                                 root.clone(),
                                 project_dir.clone(),
                                 final_stream,
@@ -291,7 +297,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
 
             write_source_mapped_final(
                 &buffer,
-                **assets_for_source_mapping,
+                source_map_output.then(|| **assets_for_source_mapping),
                 root.clone(),
                 project_dir.clone(),
                 final_stream,
@@ -314,6 +320,7 @@ impl NodeJsPoolProcess {
         shared_stdout: SharedOutputSet,
         shared_stderr: SharedOutputSet,
         debug: bool,
+        source_map_startup_output: bool,
     ) -> Result<Self> {
         let guard = duration_span!("Node.js process startup", blocking = false);
         let listener = TcpListener::bind("127.0.0.1:0")
@@ -445,7 +452,7 @@ impl NodeJsPoolProcess {
         drop(guard);
 
         let guard = duration_span!("Node.js initialization", blocking = false);
-        let ready_signal = process.recv().await?;
+        let ready_signal = process.recv(source_map_startup_output).await?;
 
         if !ready_signal.is_empty() {
             bail!(
@@ -459,7 +466,7 @@ impl NodeJsPoolProcess {
         Ok(process)
     }
 
-    async fn recv(&mut self) -> Result<Bytes> {
+    async fn recv(&mut self, source_map_output: bool) -> Result<Bytes> {
         let connection = &mut self.connection;
         async fn with_timeout<T, E: Into<anyhow::Error>>(
             debug: bool,
@@ -495,8 +502,8 @@ impl NodeJsPoolProcess {
         };
         let (result, stdout, stderr) = join!(
             recv_future,
-            self.stdout_handler.handle_operation(),
-            self.stderr_handler.handle_operation(),
+            self.stdout_handler.handle_operation(source_map_output),
+            self.stderr_handler.handle_operation(source_map_output),
         );
         let result = match result {
             Err(err) => {
@@ -592,7 +599,10 @@ struct ProcessArgs {
 }
 
 impl ProcessArgs {
-    async fn create_process(self) -> Result<(NodeJsPoolProcess, Duration)> {
+    async fn create_process(
+        self,
+        source_map_startup_output: bool,
+    ) -> Result<(NodeJsPoolProcess, Duration)> {
         let start = Instant::now();
         let process = NodeJsPoolProcess::new(
             &self.cwd,
@@ -604,6 +614,7 @@ impl ProcessArgs {
             self.shared_stdout,
             self.shared_stderr,
             self.debug,
+            source_map_startup_output,
         )
         .await?;
         Ok((process, start.elapsed()))
@@ -783,7 +794,9 @@ impl EvaluateOperation for ChildProcessPool {
             {
                 stats.lock().add_booting_worker();
             }
-            match args.create_process().await {
+            // This runs outside of any turbo-tasks task, so output printed while the process
+            // starts up can't be source mapped.
+            match args.create_process(false).await {
                 Ok((process, bootup_time)) => {
                     {
                         let mut s = stats.lock();
@@ -858,7 +871,7 @@ impl ChildProcessPool {
 
     async fn create_process(&self) -> Result<(NodeJsPoolProcess, Duration), anyhow::Error> {
         self.process_args()
-            .create_process()
+            .create_process(true)
             .await
             .context("creating new process")
     }
@@ -893,7 +906,12 @@ pub struct ChildProcessOperation {
 impl Operation for ChildProcessOperation {
     async fn recv(&mut self) -> Result<Bytes> {
         let bytes = self
-            .with_process(async |process| process.recv().await.context("failed to receive message"))
+            .with_process(async |process| {
+                process
+                    .recv(true)
+                    .await
+                    .context("failed to receive message")
+            })
             .await?;
         Ok(bytes)
     }

@@ -193,6 +193,45 @@ async fn test_pool_pre_warm() {
     .await;
 }
 
+#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_pool_pre_warm_stack_trace_on_startup() {
+    run_once_without_cache_check(&REGISTRATION, async {
+        let pool = create_pool("pool_test_stack_trace_worker.js", 2)
+            .await
+            .unwrap();
+
+        // The pre-warmed process prints a stack trace before it is ready. This
+        // output is handled outside of any turbo-tasks task.
+        pool.pre_warm();
+
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
+        loop {
+            if pool.stats().bootup_count == 1 {
+                break;
+            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "pre_warm did not complete within timeout"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+
+        let mut op = pool.operation().await.unwrap();
+        let resp = send_recv(&mut op, serde_json::json!({"pre_warmed": true})).await;
+        assert_eq!(resp.echo, serde_json::json!({"pre_warmed": true}));
+
+        drop(op);
+
+        assert_eq!(
+            pool.stats().warm_operation_count,
+            1,
+            "operation should have reused the pre-warmed process"
+        );
+    })
+    .await;
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_pool_concurrent_operations() {
     run_once_without_cache_check(&REGISTRATION, async {
