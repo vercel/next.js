@@ -13406,3 +13406,87 @@ describe('failed settled coverage keeps its original result diagnostics', () => 
     }
   )
 })
+
+describe('root reporter resource and final-exit ownership', () => {
+  it.each([
+    'clean',
+    'retained',
+    'duplicate',
+    'root-failed',
+    'authored-zero',
+    'invalid-config',
+  ])(
+    'keeps the actual configuration realm through %s finalization',
+    async (scenario) => {
+      await new Promise<void>((resolve, reject) => {
+        execFile(
+          process.execPath,
+          [path.join(__dirname, 'reporter-root-owner.cjs'), scenario],
+          { env: { ...process.env }, timeout: 15000, maxBuffer: 1024 * 1024 },
+          (error) => (error ? reject(error) : resolve())
+        )
+      })
+    },
+    20000
+  )
+
+  it.each(['root', 'inline', 'external'])(
+    'attests only the actual shared %s physical owner',
+    async (mode) => {
+      await new Promise<void>((resolve, reject) => {
+        execFile(
+          process.execPath,
+          [path.join(__dirname, 'reporter-controller-owner.cjs'), mode],
+          { env: { ...process.env }, timeout: 15000, maxBuffer: 1024 * 1024 },
+          (error) => (error ? reject(error) : resolve())
+        )
+      })
+    },
+    20000
+  )
+
+  it.each(['numeric-mutable', 'status-pass-preserve', 'status-fail-clear'])(
+    'retains the actual timeout getter and typed status ownership: %s',
+    async (scenario) => {
+      await new Promise<void>((resolve, reject) => {
+        execFile(
+          process.execPath,
+          [path.join(__dirname, 'reporter-timeout-status.cjs'), scenario],
+          { env: { ...process.env }, timeout: 30000, maxBuffer: 1024 * 1024 },
+          (error) => (error ? reject(error) : resolve())
+        )
+      })
+    },
+    35000
+  )
+})
+
+describe('reporter initialization exit ownership', () => {
+  it.each([
+    ['constructor', 'undefined', 'none'],
+    ['constructor', '7', 'none'],
+    ['oninit', '7', 'undefined'],
+    ['oninit', '7', '0'],
+    ['partial', '7', 'undefined'],
+    ['async', '7', 'none'],
+    ['nonfinal', '7', '0'],
+  ])(
+    'preserves actual %s initialization with initial %s and close %s',
+    async (kind, initial, close) => {
+      await new Promise<void>((resolve, reject) => {
+        execFile(
+          process.execPath,
+          [
+            path.join(__dirname, 'reporter-initialization-exit.cjs'),
+            kind,
+            initial,
+            close,
+          ],
+          { env: { ...process.env }, timeout: 15000, maxBuffer: 1024 * 1024 },
+          (error) => (error ? reject(error) : resolve())
+        )
+      })
+    },
+    20000
+  )
+})

@@ -383,18 +383,31 @@ export function createMachineReporter(options: {
     return begunCustomInvocation
   }
   let initialization: Promise<void> | undefined
-  function initialize({ signal }: { signal?: AbortSignal } = {}) {
+  function initialize({
+    signal,
+    reporterTransport,
+    finalExitLifecycle,
+  }: {
+    signal?: AbortSignal
+    finalExitLifecycle?: { teardownTimeout: number }
+    reporterTransport?: () => Promise<
+      import('./custom-reporter').CustomReporterTransport
+    >
+  } = {}) {
     if (initialized) return Promise.resolve()
-    return (initialization ??= openCustomReporters({
-      projectDir: options.projectDir,
-      reporters: customNames,
-      signal,
-      write,
-      writeError: options.writeError,
-    }).then((session) => {
-      custom = session
+    return (initialization ??= (async () => {
+      const transport = await reporterTransport?.()
+      custom = await openCustomReporters({
+        projectDir: options.projectDir,
+        reporters: customNames,
+        signal,
+        write,
+        writeError: options.writeError,
+        ...(transport ? { transport } : {}),
+        ...(finalExitLifecycle ? { finalExitLifecycle } : {}),
+      })
       initialized = true
-    }))
+    })())
   }
   let retainedFiles: ClosedMachineFileRecord[] = []
   const snapshotPreparationFailures = new Map<
@@ -1598,7 +1611,12 @@ export function createMachineReporter(options: {
     async dispose({
       deferCustom,
       handledCustomFailure,
-    }: { deferCustom?: true; handledCustomFailure?: unknown } = {}) {
+      exitCodeSnapshot,
+    }: {
+      deferCustom?: true
+      handledCustomFailure?: unknown
+      exitCodeSnapshot?: { value?: number | string }
+    } = {}) {
       const errors: unknown[] = []
       for (const reporter of [collector, ...liveReporters]) {
         try {
@@ -1609,7 +1627,14 @@ export function createMachineReporter(options: {
       }
       try {
         if (!options.customReporterSession && !deferCustom) {
-          if (handledCustomFailure === undefined) await custom?.dispose()
+          if (exitCodeSnapshot) {
+            await custom?.dispose({
+              exitCodeSnapshot,
+              ...(handledCustomFailure === undefined
+                ? {}
+                : { handledFailure: handledCustomFailure }),
+            })
+          } else if (handledCustomFailure === undefined) await custom?.dispose()
           else await custom?.dispose({ handledFailure: handledCustomFailure })
         }
       } catch (error) {

@@ -54,6 +54,7 @@ export interface TestUserConfig {
   env?: Partial<NodeJS.ProcessEnv>
   testTimeout?: number
   hookTimeout?: number
+  teardownTimeout?: number
   isolate?: boolean
   maxWorkers?: number | string
   fileParallelism?: boolean
@@ -91,6 +92,7 @@ type ProjectTestSettings = Omit<
   | 'sequence'
   | 'watch'
   | 'inspect'
+  | 'teardownTimeout'
   | 'watchTriggerPatterns'
   | 'shard'
   | 'testNamePattern'

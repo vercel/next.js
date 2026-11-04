@@ -1,6 +1,11 @@
+import {
+  createPreparedConfigFinalExit,
+  type PreparedConfigFinalExit,
+} from './config-final-exit'
 import type { WatchTriggerMatch } from './config-watch-triggers'
 import type { CompilerAliases } from './compiler/aliases'
 import { runTestProcess } from './execution/process'
+import { createConfigReporterTransport } from './config-reporter-transport'
 import { readFile, readdir, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -57,6 +62,8 @@ export async function openTestConfigModule(
         watchTriggers?: true
       }
     | undefined
+  let preparedFinalExit: PreparedConfigFinalExit | undefined
+  let preparingFinalExit: Promise<PreparedConfigFinalExit> | undefined
   let closing = false
   let closed = false
   let transformsRevoked = false
@@ -89,12 +96,19 @@ export async function openTestConfigModule(
     revokeWatchTriggers = resolve
   })
   let ownerSignal = signal
+  let reporterTransport:
+    | ReturnType<typeof createConfigReporterTransport>
+    | undefined
   const controller = new AbortController()
   const cancel = () => controller.abort(ownerSignal?.reason)
   if (ownerSignal?.aborted) cancel()
   else ownerSignal?.addEventListener('abort', cancel, { once: true })
-  const request = (message: object, timeoutMs = 120000): Promise<any> => {
-    if (pending || closing || closed)
+  const request = (
+    message: object,
+    timeoutMs = 120000,
+    final = false
+  ): Promise<any> => {
+    if (pending || (closing && !final) || closed)
       return Promise.reject(
         terminalError ?? new Error('Test configuration session is unavailable.')
       )
@@ -146,6 +160,7 @@ export async function openTestConfigModule(
       send = value
     },
     onMessage(message: any) {
+      if (reporterTransport?.onMessage(message)) return
       if (message?.type === 'compiler-transform-result') {
         const response = transforms.get(message.id)
         if (!response) {
@@ -201,6 +216,7 @@ export async function openTestConfigModule(
       }
     },
     onOutput(stream, chunk) {
+      if (reporterTransport?.onOutput(stream, chunk)) return
       ;(stream === 'stdout' ? process.stdout : process.stderr).write(chunk)
     },
   }).then(
@@ -209,6 +225,7 @@ export async function openTestConfigModule(
       void transformBroker?.dispose().catch(() => {})
       rejectTransforms(new Error('Configuration transform owner exited.'))
       if (
+        !preparedFinalExit &&
         !(result.reason === 'cancelled' && ownerSignal?.aborted) &&
         (result.reason !== 'exit' || result.code !== 0 || !closing)
       )
@@ -235,21 +252,128 @@ export async function openTestConfigModule(
       pending = undefined
     }
   )
-  async function dispose() {
-    watchTriggersRevoked = true
-    revokeWatchTriggers()
-    transformsRevoked = true
-    try {
-      await transformBroker?.dispose()
-    } catch (error) {
-      terminalError ??= error
+  const reporterSession = createConfigReporterTransport({
+    send: (message) => send(message),
+    exit,
+    available: () =>
+      context === 'root' && !closing && !closed && !controller.signal.aborted,
+    abort: (error) => controller.abort(error),
+  })
+  reporterTransport = reporterSession
+  let inputsClosed: Promise<void> | undefined
+  let inputsFailed = false
+  let inputFailure: unknown
+  let disposingModule: Promise<void> | undefined
+  function closeInputs() {
+    return (inputsClosed ??= (async () => {
+      if (reporterSession.active && !controller.signal.aborted)
+        controller.abort(
+          new Error('Configuration disposed before its reporters closed.')
+        )
+      watchTriggersRevoked = true
+      revokeWatchTriggers()
+      transformsRevoked = true
+      try {
+        await transformBroker?.dispose()
+      } catch (error) {
+        inputsFailed = true
+        inputFailure = error
+        terminalError ??= error
+      }
+      rejectTransforms(new Error('Configuration transform owner closed.'))
+      if (ownerSignal?.aborted && !closed) {
+        closing = true
+        controller.abort(ownerSignal.reason)
+      }
+      await watchTriggerQueue
+    })())
+  }
+  function prepareFinalExit(
+    beforeClose?: () => Promise<void>,
+    options: { initialClose?: true } = {}
+  ) {
+    if (preparingFinalExit) return preparingFinalExit
+    if (disposingModule) {
+      return disposingModule.then(() => {
+        throw new Error('Test configuration disposal has already started.')
+      })
     }
-    rejectTransforms(new Error('Configuration transform owner closed.'))
-    if (ownerSignal?.aborted && !closed) {
-      closing = true
-      controller.abort(ownerSignal.reason)
+    return (preparingFinalExit ??= (async () => {
+      try {
+        if (context !== 'root' || reporterSession.active)
+          throw new Error(
+            'Final exit requires a closed root reporter sub-session.'
+          )
+        let initialCloseFailure: { error: unknown } | undefined
+        try {
+          await beforeClose?.()
+        } catch (error) {
+          if (!options.initialClose) throw error
+          initialCloseFailure = { error }
+        }
+        await closeInputs()
+        if (controller.signal.aborted) throw controller.signal.reason
+        if (inputsFailed) throw inputFailure
+        if (terminalError) throw terminalError
+        const receipt = await request({ type: 'prepare-final-exit' }, 10000)
+        if (
+          initialCloseFailure &&
+          receipt?.initialCloseSyncFailed !== true &&
+          receipt?.initialCloseAsyncFailed !== true
+        )
+          throw initialCloseFailure.error
+        closing = true
+        preparedFinalExit = createPreparedConfigFinalExit({
+          exitCode: receipt?.exitCode,
+          // A later direct reporter throw wins over an earlier global teardown
+          // error, just as the reference's aborted direct callback map does.
+          ...(initialCloseFailure && receipt?.initialCloseSyncFailed !== true
+            ? { initialCloseFailure }
+            : {}),
+          request: (message) => request(message, 10000, true),
+          exit: exit.then((result) => {
+            ownerSignal?.removeEventListener('abort', cancel)
+            if (!result) throw terminalError
+            return result
+          }),
+          isClosed: () => closed,
+          abort: (reason) => controller.abort(reason),
+        })
+        return preparedFinalExit
+      } catch (error) {
+        closing = true
+        controller.abort(error)
+        try {
+          await exit
+        } catch {
+        } finally {
+          ownerSignal?.removeEventListener('abort', cancel)
+        }
+        throw error
+      }
+    })())
+  }
+  function dispose() {
+    if (disposingModule) return disposingModule
+    let resolve!: () => void
+    let reject!: (error: unknown) => void
+    // Register the first owner before entering disposal, while retaining the
+    // existing synchronous revocation of watch and transform inputs.
+    disposingModule = new Promise<void>((fulfilled, rejected) => {
+      resolve = fulfilled
+      reject = rejected
+    })
+    void disposeModule().then(resolve, reject)
+    return disposingModule
+  }
+  async function disposeModule() {
+    if (preparingFinalExit) {
+      const prepared = await preparingFinalExit
+      if (prepared.initialCloseFailure) throw prepared.initialCloseFailure.error
+      return
     }
-    await watchTriggerQueue
+    await closeInputs()
+    if (preparedFinalExit) return
     if (!closing && !closed) {
       try {
         await request({ type: 'shutdown' }, 10000)
@@ -333,6 +457,11 @@ export async function openTestConfigModule(
     clearTimeout(deadline)
     return {
       value: result.value,
+      physicalExit: exit,
+      reporterTransport: reporterSession.run,
+      prepareFinalExit,
+      seedExitCode: (snapshot: { value?: number | string }) =>
+        request({ type: 'seed-exit-code', snapshot }),
       hasWatchTriggers: result.watchTriggers !== undefined,
       get watchTriggerInputsCurrent() {
         return watchTriggerInputsCurrent === true

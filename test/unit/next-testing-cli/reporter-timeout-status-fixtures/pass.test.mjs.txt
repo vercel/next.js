@@ -1,0 +1,1 @@
+import {test,expect} from 'vitest';import {appendFileSync} from 'node:fs';test('passes',()=>{appendFileSync(process.env.LIFECYCLE_TRACE,JSON.stringify({kind:'body'})+'\n');expect(1).toBe(1)});

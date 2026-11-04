@@ -3,8 +3,13 @@ import type { SnapshotPreparationFailure } from '../execution/snapshot-preparati
 import { resolve as resolvePath, extname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { realpath } from 'node:fs/promises'
+import { format } from 'node:util'
 import type { TestEntry } from '../contracts'
-import { runTestProcess } from '../execution/process'
+import {
+  runTestProcess,
+  type TestProcessOptions,
+  type TestProcessExit,
+} from '../execution/process'
 import type { ResultEvent, SerializedDiagnostic } from './events'
 import type { CustomReporterCompletion } from './custom-reporter-tasks'
 import type { ReporterTaskSnapshot } from './live-tasks'
@@ -12,6 +17,11 @@ import type { ReporterTaskSnapshot } from './live-tasks'
 export interface CustomReporterInvocation {
   count: number
   synchronousThrow?: { reporterIndex: number }
+}
+
+export interface CustomReporterInitialCloseFailure {
+  kind: 'sync' | 'async'
+  error: Error
 }
 
 export interface CustomReporterCompletionFailure {
@@ -77,27 +87,53 @@ function reporterPath(name: string, projectDir: string) {
     )
   return file
 }
-function remoteError(value: SerializedDiagnostic): Error {
+function remoteError(
+  value: SerializedDiagnostic,
+  preserveMissingStack = false
+): Error {
   const error = value.errors
-    ? new AggregateError(value.errors.map(remoteError), value.message)
+    ? new AggregateError(
+        value.errors.map((diagnostic) =>
+          remoteError(diagnostic, preserveMissingStack)
+        ),
+        value.message
+      )
     : new Error(
         value.message,
-        value.cause ? { cause: remoteError(value.cause) } : undefined
+        value.cause
+          ? { cause: remoteError(value.cause, preserveMissingStack) }
+          : undefined
       )
   error.name = value.name ?? 'Error'
-  if (value.stack) error.stack = value.stack
+  if (value.stack || preserveMissingStack) error.stack = value.stack
   return error
 }
+
+export type CustomReporterTransport = (
+  options: TestProcessOptions
+) => Promise<TestProcessExit>
 
 export async function openCustomReporters(options: {
   projectDir: string
   reporters: readonly string[]
+  transport?: CustomReporterTransport
+  /** Actual final physical owner installed by the one-shot controller. */
+  finalExitLifecycle?: { teardownTimeout: number }
   /** Retain reporter instances while closed watch generations replace task state. */
   watch?: boolean
   signal?: AbortSignal
   write(text: string): void
   writeError?(text: string): void
 }) {
+  const completionExitCode = (completion: CustomReporterCompletion) =>
+    options.finalExitLifecycle &&
+    (completion.status === 'failed' || completion.status === 'cancelled')
+      ? {
+          exitCodeSnapshot: {
+            value: completion.status === 'cancelled' ? 130 : 1,
+          },
+        }
+      : {}
   const projectRoot = await realpath(options.projectDir)
   const files = options.reporters.map((name) =>
     reporterPath(name, options.projectDir)
@@ -144,6 +180,7 @@ export async function openCustomReporters(options: {
   let publicationExitFailure: unknown
   let publicationExitCause: unknown
   let shutdownResponseFailure: unknown
+  let initialCloseFailure: CustomReporterInitialCloseFailure | undefined
   let disposal: Promise<void> | undefined
   let consoleQueue = Promise.resolve()
   const queuedWrites: Promise<void>[] = []
@@ -163,7 +200,9 @@ export async function openCustomReporters(options: {
     const callbackErrors =
       terminalReporterFailure?.reporterErrors === reporterErrors
         ? []
-        : (cancelledReporterErrors ??= reporterErrors.map(remoteError))
+        : (cancelledReporterErrors ??= reporterErrors.map((diagnostic) =>
+            remoteError(diagnostic)
+          ))
     const errors = [
       ...new Set([
         ...callbackErrors,
@@ -171,6 +210,7 @@ export async function openCustomReporters(options: {
         failure,
         ...cancellationFailures,
         terminalReporterFailure?.error,
+        initialCloseFailure?.error,
       ]),
     ].filter(
       (error) =>
@@ -207,13 +247,26 @@ export async function openCustomReporters(options: {
     })
   }
   const loaded = response()
-  const exit = runTestProcess(require.resolve('./custom-reporter-worker'), {
+  const transport: CustomReporterTransport =
+    options.transport ??
+    ((processOptions) =>
+      runTestProcess(
+        require.resolve('./custom-reporter-worker'),
+        processOptions
+      ))
+  const exit = transport({
     cwd: options.projectDir,
     env: process.env,
     input: {
       files,
       projectDir: options.projectDir,
       queuedProjectRoot: projectRoot,
+      ...(options.finalExitLifecycle
+        ? {
+            finalExitLifecycle: true,
+            teardownTimeout: options.finalExitLifecycle.teardownTimeout,
+          }
+        : {}),
       ...(options.watch ? { watch: true } : {}),
     },
     signal: controller.signal,
@@ -306,6 +359,28 @@ export async function openCustomReporters(options: {
         throw new Error(
           'Completion failure received a successful final response.'
         )
+      const synchronousCloseFailure = Object.hasOwn(
+        message,
+        'initialCloseSyncFailed'
+      )
+      const asynchronousCloseFailure = Object.hasOwn(
+        message,
+        'initialCloseAsyncFailed'
+      )
+      if (
+        (synchronousCloseFailure || asynchronousCloseFailure) &&
+        (!options.finalExitLifecycle ||
+          options.watch ||
+          pending?.requestType !== 'shutdown' ||
+          message.type !== 'custom-reporter-failed' ||
+          initialCloseFailure !== undefined ||
+          (synchronousCloseFailure && asynchronousCloseFailure) ||
+          (synchronousCloseFailure &&
+            message.initialCloseSyncFailed !== true) ||
+          (asynchronousCloseFailure &&
+            message.initialCloseAsyncFailed !== true))
+      )
+        throw new Error('Invalid custom reporter initial close failure.')
       if (message.captureRunStart !== undefined)
         captureRunStart = message.captureRunStart === true
       if (message.captureModuleStart !== undefined)
@@ -339,10 +414,36 @@ export async function openCustomReporters(options: {
       }
       const error =
         message.type === 'custom-reporter-failed'
-          ? remoteError(message.error)
+          ? remoteError(
+              message.error,
+              synchronousCloseFailure || asynchronousCloseFailure
+            )
           : undefined
+      if (error && (synchronousCloseFailure || asynchronousCloseFailure)) {
+        initialCloseFailure = {
+          kind: synchronousCloseFailure ? 'sync' : 'async',
+          error,
+        }
+        if (asynchronousCloseFailure) {
+          const logged = Object.getOwnPropertyDescriptor(
+            message,
+            'initialCloseErrorLogged'
+          )
+          if (
+            logged !== undefined &&
+            (!Object.hasOwn(logged, 'value') || logged.value !== true)
+          )
+            throw new Error(
+              'Invalid custom reporter initial close log receipt.'
+            )
+          if (logged === undefined)
+            (options.writeError ?? options.write)(
+              format('error during close', error) + '\n'
+            )
+        }
+      }
       if (error) {
-        failure ??= error
+        if (!asynchronousCloseFailure) failure ??= error
         retainCancellationFailure(error)
       }
       const current = pending
@@ -359,7 +460,7 @@ export async function openCustomReporters(options: {
       if (!current) {
         failure ??= new Error('Unexpected custom reporter response.')
         controller.abort(failure)
-      } else if (error) current.reject(error)
+      } else if (error && !asynchronousCloseFailure) current.reject(error)
       else current.resolve()
     },
     onOutput(stream, chunk) {
@@ -372,6 +473,12 @@ export async function openCustomReporters(options: {
       closed = true
       if (
         !(result.reason === 'cancelled' && options.signal?.aborted) &&
+        !(
+          closing &&
+          initialCloseFailure &&
+          result.reason === 'exit' &&
+          result.signal === null
+        ) &&
         (!closing || result.reason !== 'exit' || result.code !== 0)
       ) {
         const error = new Error(
@@ -434,7 +541,13 @@ export async function openCustomReporters(options: {
       throw error
     }
   }
-  function dispose({ handledFailure }: { handledFailure?: unknown } = {}) {
+  function dispose({
+    handledFailure,
+    exitCodeSnapshot,
+  }: {
+    handledFailure?: unknown
+    exitCodeSnapshot?: { value?: number | string }
+  } = {}) {
     const handled =
       handledFailure !== undefined && handledFailure === deliveredFailure
         ? handledFailure
@@ -450,10 +563,16 @@ export async function openCustomReporters(options: {
       const cleanupErrors: unknown[] = []
       if (!closed && !controller.signal.aborted && !terminalWatchFailure) {
         try {
-          await request({ type: 'shutdown' }, true)
+          await request(
+            {
+              type: 'shutdown',
+              ...(exitCodeSnapshot ? { exitCodeSnapshot } : {}),
+            },
+            true
+          )
         } catch (error) {
           cleanupErrors.push(error)
-          controller.abort(error)
+          if (error !== initialCloseFailure?.error) controller.abort(error)
         }
       }
       await exit
@@ -495,6 +614,9 @@ export async function openCustomReporters(options: {
   try {
     await loaded
     return {
+      get initialCloseFailure() {
+        return initialCloseFailure
+      },
       get captureRunStart() {
         return captureRunStart
       },
@@ -765,7 +887,11 @@ export async function openCustomReporters(options: {
           }
           if (consoleFailure) throw consoleFailure
           await request(
-            { type: 'finish-begin', completion },
+            {
+              type: 'finish-begin',
+              completion,
+              ...completionExitCode(completion),
+            },
             false,
             resolveInvoked,
             resolvePrefix
@@ -797,7 +923,11 @@ export async function openCustomReporters(options: {
           return
         }
         if (consoleFailure) throw consoleFailure
-        await request({ type: 'finish', completion })
+        await request({
+          type: 'finish',
+          completion,
+          ...completionExitCode(completion),
+        })
       },
       dispose,
     }

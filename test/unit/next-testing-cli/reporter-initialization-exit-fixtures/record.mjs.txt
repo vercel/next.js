@@ -1,0 +1,36 @@
+import fs from 'node:fs'
+import path from 'node:path'
+export const scenario = JSON.parse(
+  fs.readFileSync(new URL('./SCENARIO.json', import.meta.url), 'utf8')
+)
+export const row = (phase, extra = {}) =>
+  fs.appendFileSync(
+    new URL('./phase.jsonl', import.meta.url),
+    JSON.stringify({
+      phase,
+      pid: process.pid,
+      exitCode: {
+        type: typeof process.exitCode,
+        ...(process.exitCode === undefined ? {} : { value: process.exitCode }),
+      },
+      ...extra,
+    }) + '\n'
+  )
+export const fail = () => {
+  const error = new Error('authored fatal ' + scenario.kind)
+  row('authored-error', {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+  })
+  throw error
+}
+export const register = (context) => {
+  if (scenario.close !== 'none')
+    context.onClose(() => {
+      row('close-before')
+      process.exitCode =
+        scenario.close === 'undefined' ? undefined : scenario.close
+      row('close-after')
+    })
+}

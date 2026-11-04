@@ -1007,6 +1007,7 @@ program
     testCoverageArgument = false
   })
   .action(async (directory, options, command: Command) => {
+    const finalExit = { observed: false }
     try {
       if (Array.isArray(testWatchArgument))
         throw new Error(
@@ -1027,6 +1028,9 @@ program
         command.getOptionValueSource('fileParallelism') === 'cli'
       await nextTestRunner(directory, {
         ...options,
+        onFinalProcessExit() {
+          finalExit.observed = true
+        },
         typecheck: typecheck.enabled,
         'typecheck.only': typecheck.only,
         'typecheck.spawnTimeout': typecheck.spawnTimeout,
@@ -1056,7 +1060,7 @@ program
       } else {
         console.error(error instanceof Error ? error.message : String(error))
       }
-      process.exitCode = 1
+      if (!finalExit.observed) process.exitCode = 1
     }
   })
 

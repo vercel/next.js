@@ -31,6 +31,7 @@ import type {
 import { parseMaxWorkers } from './scheduling'
 import { assignBrowserInstanceIds } from './browser-instances'
 import { openTestConfigModule, openTestProjectModules } from './config-modules'
+import type { CustomReporterTransport } from './reporting/custom-reporter'
 import type { FakeTimerOptions } from './assertions/utilities'
 import type { TestTypecheckConfig } from './typecheck'
 import { parseTestTypecheckConfig } from './typecheck'
@@ -97,6 +98,8 @@ export interface TestConfig {
   reporters?: string[]
   outputFile?: ResultOutputFile
   compatibility: 'vitest'
+  /** Root process exit timer; not a file or hook execution deadline. */
+  teardownTimeout?: number
   /** Root session mode; project settings do not inherit this selection. */
   watch?: boolean
   /** Root-owned ordinary worker inspection; never inherited by projects. */
@@ -288,6 +291,7 @@ export function parseTestConfig(
       'reporters',
       'outputFile',
       'snapshotFormat',
+      'teardownTimeout',
       'projects',
       'maxWorkers',
       'fileParallelism',
@@ -323,6 +327,11 @@ export function parseTestConfig(
     invalid('config.fileParallelism must be a boolean.')
   if (config.watch !== undefined && typeof config.watch !== 'boolean')
     invalid('config.watch must be a boolean.')
+  if (
+    config.teardownTimeout !== undefined &&
+    typeof config.teardownTimeout !== 'number'
+  )
+    invalid('config.teardownTimeout must be a number.')
   if (
     config.inspect !== undefined &&
     typeof config.inspect !== 'boolean' &&
@@ -367,6 +376,11 @@ export function parseTestConfig(
       ? {}
       : { snapshotFormat: parseSnapshotFormat(config.snapshotFormat) }),
     compatibility: 'vitest',
+    ...(config.teardownTimeout === undefined
+      ? {}
+      : {
+          teardownTimeout: config.teardownTimeout as number,
+        }),
     ...(config.watch === undefined ? {} : { watch: config.watch as boolean }),
     ...(config.inspect === undefined
       ? {}
@@ -396,6 +410,8 @@ export function parseTestConfig(
           'snapshotSerializers',
           // Vitest ignores this root-owned option in child configurations.
           'snapshotFormat',
+          // Vitest ignores this root-owned option in child configurations.
+          'teardownTimeout',
           'globalSetup',
           'globals',
           'includeTaskLocation',
@@ -1033,6 +1049,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
     reporters,
     outputFile,
     snapshotFormat,
+    teardownTimeout,
     ...defaults
   } = test
   const rootSequence = object(test.sequence ?? {}, 'test.sequence')
@@ -1049,6 +1066,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
         reporters,
         outputFile,
         snapshotFormat,
+        teardownTimeout,
         projects: [{ name: name ?? 'default', ...defaults }],
       },
       [name as string | undefined]
@@ -1069,6 +1087,7 @@ export function normalizeTestConfig(value: unknown): TestConfig {
       reporters,
       outputFile,
       snapshotFormat,
+      teardownTimeout,
       projects: projects.map((projectValue, index) => {
         const project = object(projectValue, `test.projects[${index}]`)
         const settings =
@@ -1213,6 +1232,32 @@ export async function openTestConfiguration(
     | Awaited<ReturnType<typeof openTestProjectModules>>
     | undefined
   let disposing: Promise<void> | undefined
+  let setupTeardown: Promise<void> | undefined
+  let reporterRealmOpened = false
+  let reporterFinalExitOpened = false
+  let preparingFinalExit:
+    | ReturnType<NonNullable<typeof realm>['prepareFinalExit']>
+    | undefined
+  function teardownSetup() {
+    return (setupTeardown ??= (async () => {
+      const failures: unknown[] = []
+      if (!signal?.aborted) {
+        for (const resource of [realm, projectModules]) {
+          try {
+            await resource?.teardown()
+          } catch (error) {
+            failures.push(error)
+          }
+        }
+      }
+      if (failures.length === 1) throw failures[0]
+      if (failures.length)
+        throw new AggregateError(
+          failures,
+          'Test configuration global teardown failed.'
+        )
+    })())
+  }
   let retainedTransforms = false
   let globalSetupLifetime: AbortSignal | undefined
   let retainedSetupContexts: Record<string, Record<string, unknown>> | undefined
@@ -1221,10 +1266,20 @@ export async function openTestConfiguration(
   let globalSetupRetentionInvalid = false
   function dispose() {
     return (disposing ??= (async () => {
+      if (preparingFinalExit) {
+        const prepared = await preparingFinalExit
+        if (prepared.initialCloseFailure)
+          throw prepared.initialCloseFailure.error
+        return
+      }
       const failures: unknown[] = []
-      // The pinned runner tears down the root first, then child projects in
-      // reverse order. Keep configuration services alive through every teardown.
-      if (projectModules && !signal?.aborted) {
+      if (reporterRealmOpened) {
+        try {
+          await teardownSetup()
+        } catch (error) {
+          failures.push(error)
+        }
+      } else if (projectModules && !signal?.aborted) {
         for (const resource of [realm, projectModules]) {
           try {
             await resource?.teardown()
@@ -1272,6 +1327,19 @@ export async function openTestConfiguration(
       signal
     )
     const config = projectModules?.config ?? normalize(value)
+    const finalExitOwnerAvailable =
+      projectModules === undefined &&
+      config.projects.length > 0 &&
+      config.projects.every(
+        (project) =>
+          project.profile.environment === 'node' &&
+          project.profile.runtime === 'nodejs' &&
+          project.profile.bundler === 'turbopack' &&
+          project.profile.route === undefined &&
+          !project.profile.browserClient &&
+          !project.executionEnvironment &&
+          project.isolate !== false
+      )
     const watchTriggerBytes = new Map<string, Buffer>()
     if (realm?.hasWatchTriggers) {
       for (const file of realm.watchTriggerInputs)
@@ -1335,6 +1403,75 @@ export async function openTestConfiguration(
     }
     return {
       config,
+      finalExitOwnerAvailable,
+      get physicalExit() {
+        return reporterRealmOpened ? realm?.physicalExit : undefined
+      },
+      prepareFinalExit() {
+        if (preparingFinalExit) return preparingFinalExit
+        if (
+          !reporterRealmOpened ||
+          !reporterFinalExitOpened ||
+          !realm ||
+          !finalExitOwnerAvailable
+        )
+          return Promise.resolve(undefined)
+        if (disposing)
+          return disposing.then(() => {
+            throw new Error('Test configuration disposal has already started.')
+          })
+        return (preparingFinalExit ??= realm.prepareFinalExit(teardownSetup, {
+          initialClose: true,
+        }))
+      },
+      async openReporterTransport(): Promise<CustomReporterTransport> {
+        if (disposing) throw new Error('Test configuration is closing.')
+        realm ??= await openTestConfigModule(
+          filename?.endsWith('.json') ? undefined : filename,
+          projectDir,
+          signal
+        )
+        const retainedRealm = realm
+        reporterRealmOpened = true
+        return (processOptions) => {
+          const input = processOptions.input as {
+            finalExitLifecycle?: unknown
+            watch?: unknown
+          }
+          reporterFinalExitOpened =
+            finalExitOwnerAvailable &&
+            input.finalExitLifecycle === true &&
+            input.watch !== true
+          return retainedRealm.reporterTransport({
+            ...processOptions,
+            onReady(send, terminateAfterCompletion) {
+              processOptions.onReady?.((message) => {
+                if (
+                  message &&
+                  typeof message === 'object' &&
+                  'type' in message &&
+                  message.type === 'shutdown'
+                ) {
+                  // The actual run has ended. Retain this same realm through all
+                  // global teardowns, then run reporter close callbacks in it.
+                  const { exitCodeSnapshot, ...shutdownMessage } = message as {
+                    type: 'shutdown'
+                    exitCodeSnapshot?: { value?: number | string }
+                  }
+                  return Promise.resolve(
+                    exitCodeSnapshot
+                      ? retainedRealm.seedExitCode(exitCodeSnapshot)
+                      : undefined
+                  )
+                    .then(() => teardownSetup().catch(() => {}))
+                    .then(() => send(shutdownMessage))
+                }
+                return send(message)
+              }, terminateAfterCompletion)
+            },
+          })
+        }
+      },
       hasWatchTriggers: realm?.hasWatchTriggers === true,
       async evaluateWatchTriggers(
         files: readonly string[],

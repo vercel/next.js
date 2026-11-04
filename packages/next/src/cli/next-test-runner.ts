@@ -27,6 +27,8 @@ import type {
   CustomCoverageResult,
 } from '../experimental/testing/coverage/custom-types'
 import { realpath } from 'fs/promises'
+import type { TestProcessExit } from '../experimental/testing/execution/process'
+import type { PreparedConfigFinalExit } from '../experimental/testing/config-final-exit'
 import {
   parseStandardCoverageOptions,
   resolveProjectStandardCoverage,
@@ -74,6 +76,8 @@ import {
 } from '../experimental/testing/capabilities'
 
 export interface NextTestRunnerOptions {
+  /** Internal CLI receipt; removed before execution options cross any boundary. */
+  onFinalProcessExit?: (result: TestProcessExit) => void
   list?: boolean
   json?: boolean
   staticParse?: boolean | string
@@ -195,6 +199,8 @@ export async function nextTestRunner(
   directory: string | undefined,
   options: NextTestRunnerOptions
 ): Promise<void> {
+  const { onFinalProcessExit, ...executionOptions } = options
+  options = executionOptions
   const coverageFlags = structuredClone(
     Object.fromEntries(
       Object.entries(options).filter(
@@ -377,6 +383,11 @@ export async function nextTestRunner(
     | undefined
   let customExecutionStarted = false
   let customWritersClosed = false
+  let finalExitLifecycleEligible = false
+  let preparedFinalExit: PreparedConfigFinalExit | undefined
+  // A boolean preserves failures which throw undefined, false or zero. Once
+  // close has selected its actual status, only later cleanup may select again.
+  let pendingFinalFailure = false
   let cleanedExecution = false
   let runLock: Awaited<ReturnType<typeof acquireTestRunLock>> | undefined
   let resultCache: TestResultCache | undefined
@@ -1096,6 +1107,31 @@ export async function nextTestRunner(
           (!entry.executionEnvironment ||
             entry.executionEnvironment.name === 'node')
       )
+    // This is an actual retained root realm and a selected ordinary boundary.
+    // The final physical owner is provided below, after every parent owner joins.
+    finalExitLifecycleEligible =
+      configuration.finalExitOwnerAvailable &&
+      reporters.some(isCustomResultReporter) &&
+      !options.watch &&
+      !inspect &&
+      apiPort === undefined &&
+      !options.typecheck &&
+      !options['typecheck.only'] &&
+      !options.coverage &&
+      !standardCoverageOptions &&
+      !customProjects.length &&
+      projects.length === 1 &&
+      entries.length > 0 &&
+      maxWorkers === 1 &&
+      projects[0].isolate !== false &&
+      !projects[0].typecheck?.enabled &&
+      projects[0].profile.environment === 'node' &&
+      projects[0].profile.runtime === 'nodejs' &&
+      projects[0].profile.bundler === 'turbopack' &&
+      projects[0].profile.route === undefined &&
+      projects[0].profile.browserClient === undefined &&
+      !projects[0].executionEnvironment &&
+      entries.every((entry) => !entry.typecheck && !entry.executionEnvironment)
     const machine = createMachineReporter({
       ...(captureJUnitSuiteTasks
         ? { captureJUnitSuiteTasks: true as const }
@@ -1231,7 +1267,21 @@ export async function nextTestRunner(
         )
       }
       controller.signal.throwIfAborted()
-      await machine.initialize({ signal: controller.signal })
+      await machine.initialize({
+        signal: controller.signal,
+        ...(finalExitLifecycleEligible
+          ? {
+              finalExitLifecycle: {
+                teardownTimeout: config.teardownTimeout ?? 10000,
+              },
+            }
+          : {}),
+        ...(!customProjects.length &&
+        !standardCoverageOptions &&
+        configuration.finalExitOwnerAvailable
+          ? { reporterTransport: configuration.openReporterTransport }
+          : {}),
+      })
       if (machine.captureRunStart) {
         await machine.beginRun(
           projects,
@@ -1599,21 +1649,40 @@ export async function nextTestRunner(
         process.exitCode =
           interruptedExecutionJson || summary.status === 'cancelled' ? 130 : 1
       }
+    } catch (error) {
+      pendingFinalFailure = true
+      throw error
     } finally {
       try {
         await discoveryApi?.dispose()
+      } catch (error) {
+        pendingFinalFailure = true
+        throw error
       } finally {
         try {
           terminal.dispose()
+        } catch (error) {
+          pendingFinalFailure = true
+          throw error
         } finally {
-          await machine.dispose(
-            deferredResultReporterDisposal ? { deferCustom: true } : undefined
-          )
+          try {
+            await machine.dispose(
+              finalExitLifecycleEligible && pendingFinalFailure
+                ? { exitCodeSnapshot: { value: 1 } }
+                : deferredResultReporterDisposal
+                  ? { deferCustom: true }
+                  : undefined
+            )
+          } catch (error) {
+            pendingFinalFailure = true
+            throw error
+          }
         }
       }
     }
     cleanedExecution = true
   } catch (error) {
+    pendingFinalFailure = true
     if (pendingCoverage) resultCompletionError ??= error
     if (
       standardCoverageSignalExit &&
@@ -1629,7 +1698,18 @@ export async function nextTestRunner(
     const deferredConfiguration = cleanedExecution && !!pendingCoverage
     let coverageCompletionError: unknown = resultCompletionError
     try {
-      if (!deferredConfiguration) await configuration?.dispose()
+      if (!deferredConfiguration) {
+        if (finalExitLifecycleEligible) {
+          preparedFinalExit = await configuration?.prepareFinalExit()
+          if (preparedFinalExit) {
+            // This is the child's value after actual teardown and onClose,
+            // including an authored zero or explicit undefined clear.
+            process.exitCode = preparedFinalExit.exitCode
+            pendingFinalFailure = false
+          }
+        }
+        await configuration?.dispose()
+      }
       if (
         cleanedExecution &&
         resultCache &&
@@ -1698,6 +1778,11 @@ export async function nextTestRunner(
         }
       }
     } catch (error) {
+      if (
+        !preparedFinalExit?.initialCloseFailure ||
+        !Object.is(error, preparedFinalExit.initialCloseFailure.error)
+      )
+        pendingFinalFailure = true
       if (coverageCompletionError && coverageCompletionError !== error) {
         const combined = new AggregateError(
           [coverageCompletionError, error],
@@ -1741,6 +1826,9 @@ export async function nextTestRunner(
           throw error
         }
         if (configurationCleanupError) throw configurationCleanupError
+      } catch (error) {
+        pendingFinalFailure = true
+        throw error
       } finally {
         try {
           const failures = []
@@ -1760,12 +1848,45 @@ export async function nextTestRunner(
               failures,
               'Custom coverage cleanup failed.'
             )
+        } catch (error) {
+          pendingFinalFailure = true
+          throw error
         } finally {
           try {
             await runLock?.unlock()
+          } catch (error) {
+            pendingFinalFailure = true
+            throw error
           } finally {
-            process.removeListener('SIGINT', interrupt)
-            process.removeListener('SIGTERM', cancel)
+            try {
+              const physicalExit = preparedFinalExit
+                ? preparedFinalExit.finalize(
+                    controller.signal.aborted
+                      ? { kind: 'cancelled', reason: controller.signal.reason }
+                      : pendingFinalFailure
+                        ? { kind: 'failed' }
+                        : { kind: 'completed' }
+                  )
+                : finalExitLifecycleEligible
+                  ? configuration?.physicalExit
+                  : undefined
+              if (physicalExit) {
+                const result = await physicalExit
+                if (result !== undefined) {
+                  process.exitCode = controller.signal.aborted
+                    ? 130
+                    : result.reason === 'exit'
+                      ? (result.code ?? 1)
+                      : 1
+                  onFinalProcessExit?.(result)
+                }
+              }
+            } finally {
+              // Keep the original first-signal owners until the real child and
+              // its output streams join, including signals after final ACK.
+              process.removeListener('SIGINT', interrupt)
+              process.removeListener('SIGTERM', cancel)
+            }
           }
         }
       }

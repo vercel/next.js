@@ -1,0 +1,18 @@
+import { scenario, row, fail, register } from './record.mjs'
+export default class Reporter {
+  constructor() {
+    row('constructor')
+    if (scenario.kind === 'constructor') fail()
+  }
+  onInit(context) {
+    row('onInit-enter')
+    register(context)
+    if (scenario.kind === 'oninit') fail()
+    if (scenario.kind === 'async') return Promise.resolve().then(fail)
+    if (scenario.kind === 'throwundefined') {
+      row('authored-undefined')
+      throw undefined
+    }
+    row('onInit-return')
+  }
+}

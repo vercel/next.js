@@ -1,4 +1,9 @@
 import {
+  finishCustomReporterProcess,
+  type CustomReporterFinalExit,
+} from './reporting/custom-reporter-exit'
+import { createCustomReporterRuntime } from './reporting/custom-reporter-runtime'
+import {
   retainWatchTriggers,
   evaluateWatchTriggers,
   type RetainedWatchTriggers,
@@ -55,10 +60,168 @@ async function shutdown() {
   if (errors.length)
     throw new AggregateError(errors, 'Global setup teardown failed.')
 }
-process.on('message', (message: any) => {
+let reporterRuntime: ReturnType<typeof createCustomReporterRuntime> | undefined
+let finalExitPrepared = false
+let finalExitStarted = false
+function abandonPreparedFinalExit() {
+  process.exit(1)
+}
+let reporterFinalExit: CustomReporterFinalExit | undefined
+let initialCloseFailure: 'sync' | 'async' | undefined
+let reporterId: string | undefined
+let reporterUsed = false
+let reporterRootShutdown: Promise<void> | undefined
+let rootTeardownFailure: { error: unknown } | undefined
+function shutdownReporterRoot() {
+  return (reporterRootShutdown ??= shutdown())
+}
+function receiveReporter(message: any) {
+  const id = message.reporterId
+  if (
+    typeof id !== 'string' ||
+    !message.message ||
+    typeof message.message !== 'object'
+  )
+    throw new Error('Invalid configuration reporter request.')
+  if (!reporterRuntime) {
+    if (reporterUsed || message.message.type !== 'run')
+      throw new Error('Configuration reporter sub-session is unavailable.')
+    reporterUsed = true
+    reporterId = id
+    let closePromise: Promise<void> | undefined
+    const runtime = createCustomReporterRuntime({
+      send: (value) =>
+        send({
+          type: 'config-reporter-message',
+          reporterId: id,
+          message: value,
+        }),
+      closeTransport(code) {
+        const closeFailure = runtime.initialCloseFailure()
+        if (code === 0 || closeFailure) {
+          reporterFinalExit = runtime.finalExit()
+          initialCloseFailure =
+            closeFailure === 'sync'
+              ? 'sync'
+              : rootTeardownFailure
+                ? 'async'
+                : closeFailure
+          // Root teardown is an already-settled close Promise. Process its
+          // failure after real reporter callbacks, unless direct sync close
+          // invocation transferred ownership to the force-exit path.
+          if (rootTeardownFailure && closeFailure !== 'sync')
+            process.exitCode = 1
+        }
+        return (closePromise ??= (async () => {
+          try {
+            await send({
+              type: 'config-reporter-closed',
+              reporterId: id,
+              code,
+              ...(closeFailure === 'sync'
+                ? { initialCloseSyncFailed: true }
+                : {}),
+              ...(closeFailure === 'async'
+                ? { initialCloseAsyncFailed: true }
+                : {}),
+            })
+          } finally {
+            process.removeListener('unhandledRejection', unhandled)
+            process.removeListener('disconnect', disconnected)
+            reporterRuntime = undefined
+          }
+        })())
+      },
+    })
+    const unhandled = (error: unknown) => runtime.unhandledRejection(error)
+    const disconnected = () => {
+      void shutdownReporterRoot()
+        .then(
+          () => runtime.disconnect(),
+          () => runtime.disconnect()
+        )
+        .finally(() => process.exit(1))
+    }
+    reporterRuntime = runtime
+    process.on('unhandledRejection', unhandled)
+    process.once('disconnect', disconnected)
+  }
+  if (id !== reporterId)
+    throw new Error('Configuration reporter sub-session does not match.')
+  reporterRuntime.receive(message.message)
+}
+function receiveConfiguration(message: any) {
+  if (finalExitStarted) return
+  if (
+    finalExitPrepared &&
+    !['finalize-process-exit', 'cancel', 'prepare-final-exit'].includes(
+      message?.type
+    )
+  ) {
+    void send({
+      type: 'test-config-failed',
+      error: serializeDiagnostic(
+        new Error('Test configuration is prepared for final exit.'),
+        { phase: 'configuration' }
+      ),
+    })
+    return
+  }
+  if (message?.type === 'config-reporter-message') {
+    try {
+      // Reporter fast lanes enter synchronously. Resolver messages on this
+      // same IPC channel therefore follow the actual collected callback entry.
+      receiveReporter(message)
+    } catch (error) {
+      void send({
+        type: 'config-reporter-message',
+        reporterId: message.reporterId,
+        message: {
+          type: 'custom-reporter-failed',
+          error: serializeDiagnostic(error, { phase: 'reporter' }),
+        },
+      })
+    }
+    return
+  }
   queue = queue.then(() => handle(message))
-})
+}
+process.on('message', receiveConfiguration)
 async function handle(message: any) {
+  if (finalExitStarted) return
+  if (
+    finalExitPrepared &&
+    !['finalize-process-exit', 'cancel', 'prepare-final-exit'].includes(
+      message?.type
+    )
+  ) {
+    void send({
+      type: 'test-config-failed',
+      error: serializeDiagnostic(
+        new Error('Test configuration is prepared for final exit.'),
+        { phase: 'configuration' }
+      ),
+    })
+    return
+  }
+  if (message?.type === 'teardown' && reporterRuntime) {
+    try {
+      await shutdownReporterRoot()
+      await send({ type: 'test-config-result' })
+    } catch (error) {
+      // This exact cached close Promise settled before the same reporter's
+      // callbacks. Keep its raw error separate and defer final code selection.
+      if (reporterRuntime.finalExit()) rootTeardownFailure ??= { error }
+      await send({
+        type: 'test-config-failed',
+        ...(rootTeardownFailure
+          ? { reporterClosePending: true, initialRootTeardownFailed: true }
+          : {}),
+        error: serializeDiagnostic(error, { phase: 'configuration' }),
+      })
+    }
+    return
+  }
   if (message?.type === 'watch-triggers') {
     try {
       if (!watchTriggers)
@@ -168,11 +331,79 @@ async function handle(message: any) {
       await send({ type: 'test-config-result' })
       return
     }
+    if (message?.type === 'seed-exit-code') {
+      process.exitCode = message.snapshot.value
+      await send({ type: 'test-config-result' })
+      return
+    }
+    if (message?.type === 'prepare-final-exit') {
+      if (!reporterFinalExit || reporterRuntime)
+        throw new Error(
+          'Reporter final exit requires a completed reporter close.'
+        )
+      if (!finalExitPrepared) {
+        try {
+          await shutdownReporterRoot()
+        } catch (error) {
+          if (
+            !rootTeardownFailure ||
+            !Object.is(rootTeardownFailure.error, error)
+          )
+            throw error
+        }
+        finalExitPrepared = true
+        process.once('disconnect', abandonPreparedFinalExit)
+      }
+      await send({
+        type: 'test-config-result',
+        value: {
+          exitCode: process.exitCode,
+          ...(initialCloseFailure === 'sync'
+            ? { initialCloseSyncFailed: true }
+            : {}),
+          ...(initialCloseFailure === 'async'
+            ? { initialCloseAsyncFailed: true }
+            : {}),
+        },
+      })
+      return
+    }
+    if (message?.type === 'finalize-process-exit') {
+      if (!finalExitPrepared || !reporterFinalExit)
+        throw new Error('Test configuration final exit was not prepared.')
+      if (message.exitCode !== undefined) process.exitCode = message.exitCode
+      await send({ type: 'test-config-result' })
+      finalExitStarted = true
+      process.removeListener('disconnect', abandonPreparedFinalExit)
+      process.removeListener('message', receiveConfiguration)
+      if (initialCloseFailure === 'sync') {
+        process.exitCode ??= 1
+        process.exit()
+      }
+      finishCustomReporterProcess(reporterFinalExit)
+      return
+    }
     if (message?.type === 'shutdown' || message?.type === 'cancel') {
-      await shutdown()
+      const runtime = reporterRuntime
+      try {
+        if (runtime) await shutdownReporterRoot()
+        else await shutdown()
+      } finally {
+        await runtime?.disconnect()
+      }
       if (message.type === 'shutdown')
         await send({ type: 'test-config-result' })
-      process.exit(message.type === 'cancel' ? 1 : 0)
+      if (message.type === 'shutdown' && reporterFinalExit) {
+        finalExitStarted = true
+        process.removeListener('message', receiveConfiguration)
+        if (initialCloseFailure === 'sync') {
+          process.exitCode ??= 1
+          process.exit()
+        }
+        finishCustomReporterProcess(reporterFinalExit)
+      } else {
+        process.exit(message.type === 'cancel' ? 1 : 0)
+      }
       return
     }
     if (message?.type === 'setup' || message?.type === 'setup-root') {
@@ -418,6 +649,20 @@ async function handle(message: any) {
     await send(loadedConfiguration)
     if (!persistent) process.exit(0)
   } catch (error) {
+    if (
+      (message?.type === 'setup' || message?.type === 'setup-root') &&
+      reporterRuntime?.finalExit()
+    ) {
+      // The real setup request has failed, but this same root reporter still
+      // owns its ordinary close. Leave teardown/close to that existing owner.
+      process.exitCode = 1
+      await send({
+        type: 'test-config-failed',
+        reporterClosePending: true,
+        error: serializeDiagnostic(error, { phase: 'configuration' }),
+      })
+      return
+    }
     let value = error instanceof Error ? error : new Error(String(error))
     try {
       await shutdown()
