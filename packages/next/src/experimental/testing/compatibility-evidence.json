@@ -9,9 +9,9 @@
     "unreviewed": "No complete implementation/evidence review for this surface is recorded. This is not proof that underlying functionality is absent."
   },
   "checkpoint": {
-    "recordedOn": "2026-11-03",
-    "implementationCommit": "735369be673c2be6767f49ca2ca0736f358aafa4",
-    "implementation": "Twenty-one signed local implementation/control steps through configured Node inspect/735, plus prior metadata-only075ecc:22 local commits since the last verified pushed checkpoint. The prior twenty steps through220 remain bounded as recorded. Inspector735 commits exactly10 files after48 normal controls, including one public loop of28 CLI profiles/24 actual passing cases/four reference-compatible refusals. It supports configured root inspect boolean/address and CLI precedence only in serial one-shot isolated ordinary Node development/production. Earlier four-engine Source/installed112-profile corpora retain their separate physical revisions; current Root is not a fresh112 replay. Root testing304/compiled9623/native45c8 remains mixed with four dirty D1 inputs, not bare HEAD or whole-carrier qualification. First-line breaks, inspectBrk/inspector, long pauses, watch/Browser/RSC/shared debugging remain open. No push occurred; metadata adds no functionality.",
+    "recordedOn": "2026-11-04",
+    "implementationCommit": "9ffd91802221685027ef617e2439b5e31726a0de",
+    "implementation": "Twenty-two signed local implementation/control steps through compiler startup timeout9ffd, plus metadata-only075ecc and7dcd:24 local commits since the last verified pushed checkpoint. Prior twenty-one steps through735 remain bounded as recorded. Signed9ffd commits exactly five paths and passes75 focused controls after an awake rerun with original bodies/selectors/deadlines; the earlier74/75 sleep-correlated result is retained. Core, Next/root types and style pass. Only authored typecheck.spawnTimeout is added within the one-shot compiler-only tsc owner. Separate Source9 passes75 normal controls; genuine/Source3/SDK3 positive profiles cover actual Node26 development, TypeScript6.0.2, omitted/0/1. Standard non-time report fields match; genuine absent assertion duration versus Next0 and unobserved public compiler-worker PID remain explicit gaps. CLI alias privateV2 is not implemented in Root. Other Nodes, production positive CLI, expiry/malformed end-to-end, watch/build/vue-tsc and broader typecheck contracts remain unqualified. Four dirty D1 inputs remain; no whole-Root/carrier, full acceptance, release readiness or new push is claimed.",
     "lastFullAcceptance": {
       "revision": 155,
       "focusedTests": 2947,
@@ -21,14 +21,14 @@
       "browserArtifacts": 6
     },
     "implementationCommitFullAcceptance": false,
-    "scope": "All776 reference names, surfaces, overloads and release classifications are unchanged. Ten root type declarations remain available: nine scoped rows and partial recursive RunnerTaskBase; snapshotFormat remains partial. The locator config row remains partial for errorFormat only. Only config.test.inspect additionally becomes partial for its bounded serial ordinary Node one-shot subset. Counts102 scoped/276 partial/378 missing/20 unreviewed; declarations307 available/275 absent/194 not applicable. All other775 whole capability rows and Browser config rows remain unchanged. Counts are not completion percentages; release-compatible remains0.",
+    "scope": "All776 reference names, surfaces, overloads and release classifications are unchanged. Ten root type declarations remain available: nine scoped rows and partial recursive RunnerTaskBase; snapshotFormat, locator errorFormat and configured inspect retain their prior partial scope. Only config.test.typecheck.spawnTimeout additionally becomes partial for its bounded compiler startup owner. Counts102 scoped/277 partial/377 missing/20 unreviewed; declarations307 available/275 absent/194 not applicable. All other775 whole capability rows remain exact, including missing typecheck.build. Counts are not completion percentages; release-compatible remains0.",
     "publication": {
       "pr": "https://github.com/vercel/next.js/pull/98869",
       "headRefName": "codex/experiment-next-test",
       "lastVerifiedRemoteCommit": "1558a982296b23763d2174b27aa4cbd69e8e5455",
       "lastVerifiedOn": "2026-11-03",
       "draftAtLastVerification": true,
-      "scope": "Last independently verified authorized draft PR98869 publication at the recorded time. Twenty-one later signed local implementation/control steps through735369be and metadata-only075ecc are separate;22 local commits do not establish a newer live remote head or push.",
+      "scope": "Last independently verified authorized draft PR98869 publication remains1558a982 at the recorded time. Twenty-two later signed local implementation/control steps through9ffd plus metadata-only075ecc and7dcd total24 local commits; no newer remote head or push is claimed.",
       "remoteSandboxSourceExport": false
     },
     "latestFullAcceptanceAttempt": {
@@ -596,8 +596,8 @@
       "scope": "Root45c8/testing304/compiled9623 retains its mixed physical integration scope through signed735. Existing V2/Around/D25 proofs remain bounded; signed Frame5 adds actual Root normal1/six Chromium profiles/42 cases/42 semantic rows and42 nonempty raw native stacks, with raw stack-string parity unqualified. Setup/type/File2 control corrections add no product runtime or Native functionality. SDK01d remains functionally incomplete; independent Work1 epoch18 and Source312/SDK5433/native6c211 measurements retain separate scopes. Qualified fallback96a/29ac is unchanged. Inspector735 changes no Native bytes; its Root48/public28 subset is separate from earlier four-engine Source/installed112 inspector corpora. No whole-debugger or whole-carrier qualification."
     },
     "scopedVerification": {
-      "implementationCommit": "735369be673c2be6767f49ca2ca0736f358aafa4",
-      "scope": "Twenty-one signed local implementation/control steps through configured Node inspect/735, plus prior metadata-only075ecc:22 local commits since the last verified pushed checkpoint. The prior twenty steps through220 remain bounded as recorded. Inspector735 commits exactly10 files after48 normal controls, including one public loop of28 CLI profiles/24 actual passing cases/four reference-compatible refusals. It supports configured root inspect boolean/address and CLI precedence only in serial one-shot isolated ordinary Node development/production. Earlier four-engine Source/installed112-profile corpora retain their separate physical revisions; current Root is not a fresh112 replay. Root testing304/compiled9623/native45c8 remains mixed with four dirty D1 inputs, not bare HEAD or whole-carrier qualification. First-line breaks, inspectBrk/inspector, long pauses, watch/Browser/RSC/shared debugging remain open. No push occurred; metadata adds no functionality.",
+      "implementationCommit": "9ffd91802221685027ef617e2439b5e31726a0de",
+      "scope": "Twenty-two signed local implementation/control steps through compiler startup timeout9ffd, plus metadata-only075ecc and7dcd:24 local commits since the last verified pushed checkpoint. Prior twenty-one steps through735 remain bounded as recorded. Signed9ffd commits exactly five paths and passes75 focused controls after an awake rerun with original bodies/selectors/deadlines; the earlier74/75 sleep-correlated result is retained. Core, Next/root types and style pass. Only authored typecheck.spawnTimeout is added within the one-shot compiler-only tsc owner. Separate Source9 passes75 normal controls; genuine/Source3/SDK3 positive profiles cover actual Node26 development, TypeScript6.0.2, omitted/0/1. Standard non-time report fields match; genuine absent assertion duration versus Next0 and unobserved public compiler-worker PID remain explicit gaps. CLI alias privateV2 is not implemented in Root. Other Nodes, production positive CLI, expiry/malformed end-to-end, watch/build/vue-tsc and broader typecheck contracts remain unqualified. Four dirty D1 inputs remain; no whole-Root/carrier, full acceptance, release readiness or new push is claimed.",
       "signedLocalSteps": [
         "ab20978d97cbce5a5f3b6fc3f2672bf0b2c5ba26",
         "b8171d384b9337aa3c447ca6eca1d3ac52dff792",
@@ -619,7 +619,8 @@
         "c1ebd44eb60bed0e8da2c904a5978ab5e2086b27",
         "bdf45493eaf914b47c252bf0e735a23e56235a02",
         "220a7062207ca7711a34a43ff9bccb0ab603623a",
-        "735369be673c2be6767f49ca2ca0736f358aafa4"
+        "735369be673c2be6767f49ca2ca0736f358aafa4",
+        "9ffd91802221685027ef617e2439b5e31726a0de"
       ],
       "committedSnapshot": {
         "sourceFilesAtQualification": 318,
@@ -631,8 +632,8 @@
         "oldGeneratedNextScratchUntouched": true,
         "qualifiedBaseline13Commit": "f43369758c4a5f14c72a7e72bb2e8a294a6d5eb6",
         "scope": "The following clean-source and 96-file byte-preservation facts apply at f433 only. V2 later commits exactly 11 paths while preserving the remaining dirty Source78; it does not make live Root clean or the entire dirty batch qualified.",
-        "currentLocalCommit": "735369be673c2be6767f49ca2ca0736f358aafa4",
-        "currentSignedLocalSteps": 21,
+        "currentLocalCommit": "9ffd91802221685027ef617e2439b5e31726a0de",
+        "currentSignedLocalSteps": 22,
         "currentV2CommitPaths": 11,
         "remainingDirtySource78PreservedAtV2Commit": true,
         "boundedAroundCommitPaths": 30,
@@ -645,22 +646,29 @@
           "c1ebd44eb60bed0e8da2c904a5978ab5e2086b27",
           "bdf45493eaf914b47c252bf0e735a23e56235a02",
           "220a7062207ca7711a34a43ff9bccb0ab603623a",
-          "735369be673c2be6767f49ca2ca0736f358aafa4"
+          "735369be673c2be6767f49ca2ca0736f358aafa4",
+          "9ffd91802221685027ef617e2439b5e31726a0de"
         ],
         "latestFollowupKinds": [
           "approved test setup corrections",
           "type-only test probe correction",
           "bounded Browser document structure implementation",
           "approved File-message outer assertions",
-          "bounded configured Node inspect implementation"
+          "bounded configured Node inspect implementation",
+          "bounded typecheck compiler startup timeout implementation"
         ],
         "latestSourceTestingFiles": 304,
         "latestCompiledFiles": 9623,
         "otherDirty10PreservedAtFile2Commit": true,
-        "metadataOnlyCommits": ["075ecc4cb5dcce155d96ef7d1bb5c8ab1554f184"],
-        "localCommitsSinceLastVerifiedPushIncludingMetadata": 22,
+        "metadataOnlyCommits": [
+          "075ecc4cb5dcce155d96ef7d1bb5c8ab1554f184",
+          "7dcd2a4fe2732e7c23409b7658ad970c8637a07b"
+        ],
+        "localCommitsSinceLastVerifiedPushIncludingMetadata": 24,
         "inspectCommitPaths": 10,
-        "inspectD1FourUnstagedHeld": true
+        "inspectD1FourUnstagedHeld": true,
+        "typecheckStartupCommitPaths": 5,
+        "typecheckStartupD1FourUnstagedHeld": true
       },
       "SDK442": {
         "archiveSHA256": "96aed8a10a1dd1a725f511db8d14c43af38d2d8c649291b030e8f82e427a44cb",
@@ -1195,6 +1203,46 @@
         "noPush": true,
         "firstAuthoredLineBreakInspectBrkInspectorLongPausesWatchBrowserRSCSharedFullDebuggerQualified": false,
         "wholeRootOrSDKCarrierQualified": false
+      },
+      "typecheckStartupTimeoutRoot": {
+        "commit": "9ffd91802221685027ef617e2439b5e31726a0de",
+        "committedFiles": 5,
+        "commitReceipt": "/private/tmp/next-testing-typecheck-root-20261104/COMMITTED-LOCAL.json",
+        "RootFocusedPassed": 75,
+        "RootFocusedFailed": 0,
+        "RootAwakeReceipt": "/private/tmp/next-testing-typecheck-root-20261104/AWAKE-FOCUSED-RESULT.json",
+        "RootOriginalInterruptedPassed": 74,
+        "RootOriginalInterruptedFailed": 1,
+        "RootOriginalInterruptedReceipt": "/private/tmp/next-testing-typecheck-root-20261104/INTERRUPTED-RESULT.json",
+        "RootOriginalAssertionsSelectorsBodiesDeadlinesUnchanged": true,
+        "RootCoreNextTypesRootTypesAndStylePassed": true,
+        "RootFourDirtyD1InputsHeld": true,
+        "RootSemanticIndexSHA256": "d3c819d27d05aea30d8ffc187ff52e8b5f2126ede491e7e1db5b63e264b1ebd3",
+        "RootCachedDiffEmptyAtCommit": true,
+        "scope": "Authored typecheck.spawnTimeout for the real one-shot compiler-only TypeScript API worker. Startup ends at actual ChildProcess spawn, independent of parent onReady and full fileTimeout. Omitted/zero retains native timer coercion1ms without10s fallback/disable or a new finite/range validator; process owners without a startup policy gain no timer.",
+        "separateSource9NormalControls": 75,
+        "separateSource9NewControls": 38,
+        "separateSource9PreservationControls": 37,
+        "separatePositiveProfileScope": "Actual Node26.12.1/development, TypeScript6.0.2, enabled+only/checker=tsc/build=false; omitted/zero/one. No fresh Root public-profile replay is claimed.",
+        "genuinePositiveProfiles": 3,
+        "Source9PositiveProfiles": 3,
+        "installedSDK9PositiveProfiles": 3,
+        "sourceSDKHandoff": "/private/tmp/next-testing-typecheck-spawn-20261103/SCOPED-SOURCE9-SDK9-HANDOFF-v2.json",
+        "allStandardNonTimeFieldsExact": true,
+        "rawFullReportsRetained": true,
+        "timingGap": "Genuine assertion duration absent; Next0. No full raw-byte/duration identity claim.",
+        "actualCLIrootsAndGroupsClosed": true,
+        "individualPublicCompilerWorkerPIDObserved": false,
+        "independentAllDescendantClosureClaimed": false,
+        "productPhysicalCloseFenceAnd37PreservationControlsSeparate": true,
+        "SourceSDKReadersClosed": true,
+        "RootCLITypecheckSpawnTimeoutAliasImplemented": false,
+        "privateCLIAliasV2IsRootImplementation": false,
+        "otherNodesProductionPublicExpiryMalformedWatchBuildVueTscBroaderTypecheckQualified": false,
+        "wholeRootOrSDKCarrierQualified": false,
+        "fullAcceptance": false,
+        "releaseReady": false,
+        "noPush": true
       }
     },
     "pendingIntegration": [
@@ -1231,9 +1279,10 @@
         "features": [
           "first-authored-line breaks, configured inspectBrk/inspector, long debugger pauses and broader debug/profile contracts",
           "shared RSC production/watch expansion",
-          "dynamic watch transitions, project worker budgets and broader editor/debug/sharding/configuration combinations"
+          "dynamic watch transitions, project worker budgets and broader editor/debug/sharding/configuration combinations",
+          "typecheck spawnTimeout CLI alias, other Node/production positive profiles, expiry/malformed public values, build/vue-tsc/watch and broader typechecking"
         ],
-        "status": "Signed735 integrates configured root inspect boolean/address and CLI precedence for serial isolated ordinary Node one-shot development/production:Root48 controls/public28 profiles24 passing cases/four reference refusals. Earlier Source112 and SDK112 four-engine corpora retain their own physical revisions, not a fresh current Root full-matrix proof. First-line breaks, inspectBrk/inspector, long pauses, watch/Browser/RSC/shared debugging remain unqualified. Production shared RSC Node26 one-shot2file/2case/2HTTP-row proof remains separate; wider cohorts/watch/rendering remain open."
+        "status": "Signed735 integrates configured root inspect boolean/address and CLI precedence for serial isolated ordinary Node one-shot development/production:Root48 controls/public28 profiles24 passing cases/four reference refusals. Earlier Source112 and SDK112 four-engine corpora retain their own physical revisions, not a fresh current Root full-matrix proof. First-line breaks, inspectBrk/inspector, long pauses, watch/Browser/RSC/shared debugging remain unqualified. Production shared RSC Node26 one-shot2file/2case/2HTTP-row proof remains separate; wider cohorts/watch/rendering remain open. Signed9ffd separately integrates authored typecheck.spawnTimeout with Root75 controls/core/both types/style. Source9 normal75 and genuine/Source3/SDK3 Node26 development compiler-only omitted/0/1 positives remain separate physical proofs. CLI alias privateV2 is unimplemented in Root; public expiry/malformed values, other Nodes/production, watch/build/vue-tsc, duration identity and individual public compiler-worker observation remain unqualified."
       },
       {
         "workstream": "coverage",
@@ -2160,7 +2209,7 @@
       "Historical full passing155 is separate from closed failed421:7051/7068 focused,240/264 regression and35/36 incremental. Bridge79, rendering35, snapshot29,18-task bootstrap and root types pass. All ordinary result JSONs exist; six baseline title matches remain unreconciled. Original47 Browser whole-oracle recovery remains incomplete. No new full green checkpoint is declared.",
       "The newer integrated426 lifecycle suite remains369/372 with three original helper timeouts. A later10-profile observer pass proves neither a product fix nor the cause of the historical shutdown delays; four historical owner receipts remain incomplete.",
       "Complete authoring/assertion/fixture/clock/snapshot, CommonJS reset/runtime/hoisted-cycle, Browser realm/event/rendering, dynamic watch/editor/debug/sharding and coverage mapping/provider/report/aggregation/profile contracts remain required. Unsupported-feature diagnostics do not complete them.",
-      "Twenty-one signed local implementation/control steps remain scoped. Configured inspect is partial only for serial isolated ordinary Node one-shot root boolean/address and CLI precedence; first-line breaks, inspectBrk/inspector, long pauses and wider profiles remain open. Bounded AroundAll, configured errorFormat and measured Frame5 are qualified only within their recorded physical revisions. Setup6/type-only/File2 corrections add no new product functionality. Separate Source312/SDK5433 ChaiNode26 and C3 standard semantic passes do not qualify Root or original full custom callbacks. Resolver realm/order, SuiteEvents missing capture, public cross stacks, remaining D1, recursive types/producers, private C4/URL runtime and wider profiles remain required.",
+      "Twenty-two signed local implementation/control steps remain scoped. Configured inspect is partial only for serial isolated ordinary Node one-shot root boolean/address and CLI precedence; first-line breaks, inspectBrk/inspector, long pauses and wider profiles remain open. Bounded AroundAll, configured errorFormat and measured Frame5 are qualified only within their recorded physical revisions. Setup6/type-only/File2 corrections add no new product functionality. Separate Source312/SDK5433 ChaiNode26 and C3 standard semantic passes do not qualify Root or original full custom callbacks. Resolver realm/order, SuiteEvents missing capture, public cross stacks, remaining D1, recursive types/producers, private C4/URL runtime and wider profiles remain required. Signed9ffd adds partial authored typecheck.spawnTimeout only in the bounded compiler startup owner; CLI alias and broader public startup/typecheck profiles remain unqualified.",
       "Full supported Node/OS/architecture/browser/CI qualification, sustained cleanup stress, production omission breadth, supported version range and release decisions remain open. No stable exception is approved."
     ],
     "deferred": [
@@ -2171,13 +2220,14 @@
     "evidence": [
       "NEXT_TESTING_STABLE_PROGRESS.md",
       "NEXT_TESTING_STABLE_RELEASE.md",
-      "Last independently verified authorized publication:1558a982296b23763d2174b27aa4cbd69e8e5455 to draft PR98869. Twenty-one local implementation/control steps through735369be plus metadata-only075ecc total22 local commits; no new push is claimed.",
+      "Last independently verified authorized publication:1558a982296b23763d2174b27aa4cbd69e8e5455 to draft PR98869. Twenty-two local implementation/control steps through9ffd plus metadata-only075ecc and7dcd total24 local commits; no new push is claimed.",
       "Suite bfcab2f93b:32 installed whole Node profiles,112 actual installed strict programs and6 installed Browser profiles; original Source369/372 lifecycle failures remain recorded separately.",
       "Custom21eef2d7b4/c0de101fbc:9 complete Source and9 installed lifecycle models plus72 ownership/protocol controls.",
       "Browsera0c9425fa3/d1a103d6fd and shared-watch9401e3f2a6: measured viewport/poll/global override profiles and three complete shared development RSC watch generations, with native owner joins and original bounds.",
       "Closed frozen421 ordinary results and held final source/native/reference graph/temp checks; retention reconciliation and every original failure remain required. Earlier390/340/155 records are preserved as history.",
       "A1-A4 integrated implementation a13626a8624faaa6fff9afd5bd2994cceb5af5d1: actual closed Source and installed qualification is recorded in checkpoint.priorScopedVerificationA430. All earlier full acceptance failures and broader feature gaps remain required.",
-      "Closed SDK442/96a/29ac remains qualified scoped fallback. Existing signed V2/AroundAll/D25 results retain exact physical scopes; SDK01d cross8 is incomplete. Signed c289 setup6 passes49; c1eb is type-only with whole-module emit identical and RootTSC0; Frame5 bdf passes Root normal1/six Chromium profiles/42 semantic rows with42 nonempty native stacks and no raw stack-string parity; approved File2/220 normal2 passes expected Next exits1/1. Separate Source312/SDK5433 pass scoped ChaiNode26 development/production48 cases/120 rows/168 authored-frame obligations per lane and C3 standard4/8cases/8rows/28events per lane; original custom11 and actual SuiteEvents remain open/red. Frozen0aeb final regression243/264 and focused7147/7179 remain failed, with64 suites60pass/fourfail; incremental36 exit and historical closure limits remain unresolved. All776 API rows/classes/counts remain unchanged. No full green or release-ready claim. Signed735 commits bounded configured inspect after current Root48/public28 profiles24 cases/four refusals, retaining distinct earlier Source112/SDK112 proofs. Only config.test.inspect becomes partial; other775 rows, broader debugger requirements and all release failures remain unchanged."
+      "Closed SDK442/96a/29ac remains qualified scoped fallback. Existing signed V2/AroundAll/D25 results retain exact physical scopes; SDK01d cross8 is incomplete. Signed c289 setup6 passes49; c1eb is type-only with whole-module emit identical and RootTSC0; Frame5 bdf passes Root normal1/six Chromium profiles/42 semantic rows with42 nonempty native stacks and no raw stack-string parity; approved File2/220 normal2 passes expected Next exits1/1. Separate Source312/SDK5433 pass scoped ChaiNode26 development/production48 cases/120 rows/168 authored-frame obligations per lane and C3 standard4/8cases/8rows/28events per lane; original custom11 and actual SuiteEvents remain open/red. Frozen0aeb final regression243/264 and focused7147/7179 remain failed, with64 suites60pass/fourfail; incremental36 exit and historical closure limits remain unresolved. All776 API rows/classes/counts remain unchanged. No full green or release-ready claim. Signed735 commits bounded configured inspect after current Root48/public28 profiles24 cases/four refusals, retaining distinct earlier Source112/SDK112 proofs. Only config.test.inspect becomes partial; other775 rows, broader debugger requirements and all release failures remain unchanged.",
+      "Signed9ffd compiler startup timeout:Root75/75 focused, core/Next/root types/style pass; original sleep-correlated74/75 result remains retained. Separate Source9 normal75 and genuine/Source3/SDK3 positive profiles qualify Node26 development compiler-only TypeScript6.0.2 omitted/0/1 only. Standard non-time JSON fields match; absent-versus0 assertion duration and unobserved public compiler-worker PID remain gaps. Only config.test.typecheck.spawnTimeout becomes partial; other775 whole API rows/declarations and all prior release failures remain exact. CLI alias privateV2, uncommitted Work1/coherent Work4/final-exit and C4 observations add no Root implementation credit."
     ]
   },
   "groups": [
@@ -4434,21 +4484,15 @@
       "capabilityPaths": ["authoring.typeAssertionScope"],
       "profiles": ["no qualified implementation"],
       "workstream": "scheduling-tooling",
-      "implemented": "build:false only preserves the supported one-shot mode; rejecting build:true is not build functionality. spawnTimeout is not an admitted option.",
-      "remaining": [
-        "Actual TypeScript build/reference mode",
-        "Reference-compatible compiler spawn-timeout controls"
-      ],
+      "implemented": "build:false only preserves the supported one-shot mode; rejecting build:true is not build functionality. Compiler startup timeout has separate partial evidence and qualifies no build/reference-mode functionality.",
+      "remaining": ["Actual TypeScript build/reference mode"],
       "evidence": [
         "packages/next/src/experimental/testing/typecheck.ts",
         "packages/next/src/cli/next-test-runner.ts",
         "test/unit/next-testing-cli/next-testing-cli.test.ts",
         "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts"
       ],
-      "rowApi": [
-        "config.test.typecheck.build",
-        "config.test.typecheck.spawnTimeout"
-      ]
+      "rowApi": ["config.test.typecheck.build"]
     },
     {
       "id": "configuration.typechecking-one-shot",
@@ -6058,6 +6102,34 @@
         "test/unit/app-dir/next-testing-configured-inspect/verify.mjs"
       ],
       "rowApi": ["config.test.inspect"]
+    },
+    {
+      "id": "configuration.typechecking-spawn-timeout",
+      "status": "partial",
+      "capabilityPaths": ["authoring.typeAssertionScope"],
+      "profiles": [
+        "One-shot compiler-only TypeScript6.0.2, actual Node26.12.1/development, enabled+only/checker=tsc/build=false; genuine/Source9/installedSDK9 omitted/zero/one positive parameter profiles. Root75 focused controls remain separate from the Source/SDK public profiles."
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Signed9ffd918022 admits authored typecheck.spawnTimeout and bounds actual OS ChildProcess spawn through the existing TypeScript API worker; parent onReady and full fileTimeout are independent. Typecheck omitted/zero uses native timer coercion1ms without a10s fallback/disable or new finite/range validation; existing process owners without a startup policy gain no timer. Root75/75 focused controls, core/Next/root types and style pass after an awake rerun retaining the original74/75 sleep-correlated result and unchanged assertions/bodies/deadlines. Separate Source9 passes38 new plus37 preservation controls. Genuine/Source3/installedSDK3 positive profiles on Node26 development/compiler-only tsc6.0.2 with omitted/0/1 match all standard non-time JSON fields; complete raw reports are retained. Actual CLI roots/groups close, but the public compiler-worker PID was not individually observed. Source/SDK physical revisions and public qualification do not claim a fresh Root public replay.",
+      "remaining": [
+        "The typecheck.spawnTimeout CLI alias remains unimplemented in Root; privateV2 CLI work is separate.",
+        "Other Node engines, production positive CLI profiles, startup expiry/malformed raw values end-to-end, build:true/vue-tsc/watch and broader typechecking remain unqualified.",
+        "Genuine assertion duration is absent while Next emits0; full raw JSON/duration identity remains a gap.",
+        "Individual public compiler-worker PID observation and independent all-descendant closure remain unqualified; product close-fence/preservation controls are separate evidence.",
+        "No configDefaults10s injection, broader reporter/API/internal-stack parity, whole Root/SDK carrier qualification or full acceptance is established."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/typecheck.ts",
+        "packages/next/src/experimental/testing/typecheck-worker.ts",
+        "packages/next/src/experimental/testing/execution/process.ts",
+        "test/unit/app-dir/next-testing-typecheck-spawn/process-startup.test.ts",
+        "test/unit/app-dir/next-testing-typecheck-spawn/typecheck-config.test.ts",
+        "test/unit/app-dir/next-testing-typecheck-spawn/held-worker.cjs",
+        "test/unit/next-testing-execution/next-testing-execution.test.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts"
+      ],
+      "rowApi": ["config.test.typecheck.spawnTimeout"]
     }
   ]
 }

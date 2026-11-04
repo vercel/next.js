@@ -13,16 +13,17 @@ is recorded in the generated inventory and lockfile. The supported stable range
 is undecided, `stableReady` remains false, and no stable exception is approved.
 This is an implementation checkpoint, not graduation of the experiment.
 
-## Current recorded status — twenty-one signed local implementation/control steps, November 3, 2026
+## Current recorded status — twenty-two signed local implementation/control steps, November 4, 2026
 
-The latest local checkpoint is `735369be673c2be6767f49ca2ca0736f358aafa4`.
+The latest local checkpoint is `9ffd91802221685027ef617e2439b5e31726a0de`.
 The prior sixteen implementation steps through errorFormat `b04cb42189` are now
 followed by approved setup6 `c289d4822c`, type-only hook probe `c1ebd44eb6`,
 Browser document structure/Frame5 `bdf45493ea`, and File-message outer ownership
-`220a706220`, followed by bounded configured inspect `735369be`: twenty-one
-signed implementation/control steps. The separate prior
-metadata-only commit `075ecc4cb5dcce155d96ef7d1bb5c8ab1554f184` makes 22 local
-commits since the last verified pushed checkpoint. Setup/type/File2 corrections
+`220a706220`, bounded configured inspect `735369be` and compiler startup
+timeout `9ffd918022`: twenty-two signed implementation/control steps. The
+separate metadata-only commits `075ecc4cb5dcce155d96ef7d1bb5c8ab1554f184` and
+`7dcd2a4fe2732e7c23409b7658ad970c8637a07b` make 24 local commits since the last
+verified pushed checkpoint. Setup/type/File2 corrections
 add no product functionality. Root testing304/compiled9623/native45c8
 remains a mixed physical integration revision with four unrelated dirty D1
 inputs, not bare HEAD or a wholly qualified batch. No push occurred. Last
@@ -35,11 +36,12 @@ exports plus four runner data types. `RunnerTaskBase` is **partial** because its
 actual recursive Suite/File model still lacks genuine numeric worker/concurrency
 IDs; the other nine measured type rows are scoped. `snapshotFormat` remains
 partial. The existing `config.test.browser.locators` row becomes partial for
-`errorFormat` only; its other fields remain gaps. Only `config.test.inspect` additionally becomes partial for the bounded one-shot
-Node role below. Counts are **102 scoped,
-276 partial, 378 missing, 20 unreviewed**; declarations **307 available,
-275 absent, 194 not applicable**. All other 775 complete API rows and Browser configuration rows retain
-their prior status, and release-compatible remains zero. Type presence
+`errorFormat` only; its other fields remain gaps. Configured inspect retains its bounded partial scope. Only
+`config.test.typecheck.spawnTimeout` additionally becomes partial for the
+compiler startup owner below. Counts are **102 scoped,
+277 partial, 377 missing, 20 unreviewed**; declarations **307 available,
+275 absent, 194 not applicable**. All other 775 complete API rows, including missing `typecheck.build`, remain
+exact, and release-compatible remains zero. Type presence
 qualifies no benchmark execution, runtime event/heap/log producer, full recursive
 Task alias, extra subpath or global bridge.
 
@@ -200,6 +202,33 @@ Only the existing `config.test.inspect` inventory row moves from missing to
 partial through a dedicated bounded group. Its eight former neighboring options
 remain missing. First-authored-line breaks, `inspectBrk`/`inspector`, long pauses,
 watch/Browser/RSC/shared debugging and full debugger compatibility remain open.
+
+Signed compiler startup timeout `9ffd918022` commits **five paths** and passes
+**75/75 normal Root controls**, core/Next/root types and style. The awake rerun
+preserves original assertions, selectors, bodies and deadlines; the earlier
+**74/75 sleep-correlated result** remains retained. Authored
+`typecheck.spawnTimeout` bounds actual `ChildProcess` spawn in the existing
+one-shot TypeScript API worker, independently of parent `onReady` and full
+`fileTimeout`. Omitted/zero uses native timer coercion1ms without a10s fallback
+or new finite/range validation. Owners without a startup policy gain no timer.
+
+Separate Source9 passes **38 new + 37 preservation controls**. Genuine/Source3/
+installedSDK3 positive profiles qualify **actual Node26 development,
+TypeScript6.0.2, compiler-only enabled+only/checker=tsc/build=false, omitted/0/1**.
+All standard non-time JSON fields match and raw reports are retained; genuine
+absent assertion duration versus Next0 remains a gap. Actual CLI roots/groups
+close, but individual public compiler-worker PID observation and independent
+all-descendant closure remain unqualified. These Source/SDK profiles establish
+no fresh Root public replay or whole-carrier acceptance.
+
+Only `config.test.typecheck.spawnTimeout` moves from missing to partial in a
+separate group. `typecheck.build` remains missing; all other775 whole API rows
+remain exact.
+The CLI alias privateV2 is unimplemented in Root. Other Node engines, production
+positive public profiles, expiry/malformed raw values end-to-end,
+watch/build/vue-tsc and broader typecheck behavior remain unqualified. Four
+unrelated dirty D1 inputs and all historical failures remain unchanged; no new
+push or release readiness is claimed.
 
 Private C4+URL Native work passes **32 creator / 186 API controls** and its new
 attested candidate/bootstrap, with functional runtime/installed qualification
