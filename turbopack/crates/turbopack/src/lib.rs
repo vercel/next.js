@@ -33,7 +33,8 @@ use turbopack_core::{
     output::{ExpandedOutputAssets, OutputAsset},
     raw_module::RawModule,
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssets,
+        ReferenceType,
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
@@ -95,6 +96,21 @@ async fn apply_module_type(
         _ => None,
     };
     let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
+    // A page entry is not split into a facade and its locals: nothing imports its exports, so the
+    // facade has nothing to tree shake, and whether a module has re-exports would change the
+    // identity of the entry, which HMR can't follow when an edit adds or removes one.
+    //
+    // This is limited to page entries since a module that is both an entry and imported would be
+    // split for the import only, and evaluated twice. That isn't expected of pages, but is of
+    // other entries, e.g. client components.
+    let is_page_entry = matches!(
+        &reference_type,
+        ReferenceType::Entry(
+            EntryReferenceSubType::Page
+                | EntryReferenceSubType::PageData
+                | EntryReferenceSubType::PagesApi
+        )
+    );
     let is_lazy_dynamic_import = matches!(
         &reference_type,
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::LazyDynamicImport)
@@ -203,7 +219,7 @@ async fn apply_module_type(
                     EcmascriptModuleCanonicalization::ModuleFragments(
                         part.cloned().unwrap_or_else(ModulePart::facade),
                     )
-                } else if follow_reexports {
+                } else if follow_reexports && !is_page_entry {
                     EcmascriptModuleCanonicalization::FollowReexports(part.cloned())
                 } else {
                     EcmascriptModuleCanonicalization::None
