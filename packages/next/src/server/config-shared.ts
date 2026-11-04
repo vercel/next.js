@@ -13,6 +13,8 @@ import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
 import { cloneObject } from './lib/clone-object'
+import { deepFreeze } from '../shared/lib/deep-freeze'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
@@ -2578,6 +2580,20 @@ export const defaultConfig = Object.freeze({
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
+
+// Outside stable releases (and in tests), deeply freeze the shared defaults
+// (this also covers `imageConfigDefault`, which `defaultConfig.images` points
+// to). A write to them would leak into every later `loadConfig` in the process,
+// so make it throw instead. `NEXT_DISABLE_DEFAULT_CONFIG_FREEZE` turns this off
+// for anyone who hits a write we haven't found yet. This runs when the module
+// is first loaded, before `.env` files are, so it has to be set in the
+// environment. `defaultConfig` itself is already shallowly frozen, which makes
+// `deepFreeze` stop at the top level, so freeze what it contains.
+if (!isStableBuild() && !process.env.NEXT_DISABLE_DEFAULT_CONFIG_FREEZE) {
+  for (const value of Object.values(defaultConfig)) {
+    if (value && typeof value === 'object') deepFreeze(value)
+  }
+}
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

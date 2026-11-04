@@ -1,11 +1,6 @@
 /* eslint-env jest */
 import { join } from 'path'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_SERVER,
-  PHASE_TEST,
-  type PHASE_TYPE,
-} from 'next/constants'
+import { PHASE_DEVELOPMENT_SERVER, PHASE_TEST } from 'next/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
@@ -136,8 +131,7 @@ describe('config', () => {
 
   describe('shared defaults outside test mode', () => {
     // The built `next` has a canary version, so without test mode these load
-    // config the way a canary user does. They use `customConfig` because
-    // loading a config file in jest relies on test mode.
+    // the defaults the way a canary user does.
     const originalEnv = {
       __NEXT_TEST_MODE: process.env.__NEXT_TEST_MODE,
       NEXT_DISABLE_DEFAULT_CONFIG_FREEZE:
@@ -156,10 +150,10 @@ describe('config', () => {
       }
     })
 
-    async function areDefaultsFrozen(phase: PHASE_TYPE): Promise<boolean> {
-      await loadConfig(phase, '<rootDir>', {
-        customConfig: { basePath: '/docs' },
-      })
+    // The defaults are frozen when `config-shared.ts` is first loaded, so load
+    // a fresh copy after the environment is set.
+    async function areDefaultsFrozen(): Promise<boolean> {
+      jest.resetModules()
       const { defaultConfig } = await import('next/dist/server/config-shared')
       const { imageConfigDefault } = await import(
         'next/dist/shared/lib/image-config'
@@ -174,18 +168,27 @@ describe('config', () => {
       return frozen[0]
     }
 
-    it('Should freeze them in canary releases when loading for dev', async () => {
-      expect(await areDefaultsFrozen(PHASE_DEVELOPMENT_SERVER)).toBe(true)
-    })
-
-    it('Should freeze them in canary releases when loading for a production server', async () => {
-      expect(await areDefaultsFrozen(PHASE_PRODUCTION_SERVER)).toBe(true)
+    it('Should freeze them in canary releases', async () => {
+      expect(await areDefaultsFrozen()).toBe(true)
     })
 
     it('Should not freeze them when NEXT_DISABLE_DEFAULT_CONFIG_FREEZE is set', async () => {
       process.env.NEXT_DISABLE_DEFAULT_CONFIG_FREEZE = '1'
-      expect(await areDefaultsFrozen(PHASE_DEVELOPMENT_SERVER)).toBe(false)
+      expect(await areDefaultsFrozen()).toBe(false)
     })
+  })
+
+  it('Should deeply freeze the shared defaults in test mode without loading config', async () => {
+    // `beforeEach` imports `config.ts`; reset so only `config-shared.ts` loads.
+    jest.resetModules()
+    const { defaultConfig } = await import('next/dist/server/config-shared')
+    const { imageConfigDefault } = await import(
+      'next/dist/shared/lib/image-config'
+    )
+
+    expect(Object.isFrozen(defaultConfig.experimental)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault.deviceSizes)).toBe(true)
   })
 
   it('Should enable the TypeScript CLI by default and allow opting out', async () => {
