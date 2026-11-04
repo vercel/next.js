@@ -28,6 +28,7 @@ export async function buildNextApp() {
   })
 }
 
+/** @param {{ mode?: string, port?: number, detached?: boolean, logFile?: string }} [options] */
 export async function startNextServer({
   mode = 'start',
   port = 0,

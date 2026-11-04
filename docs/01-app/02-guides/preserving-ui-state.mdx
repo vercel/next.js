@@ -32,26 +32,23 @@ When a user navigates away and returns, Activity preserves the open/closed state
 
 **When to reset it:** A dropdown menu or popover triggered by a button click. These are transient interactions, not persistent view state. Returning to a page with a dropdown already open is not user friendly.
 
-To reset transient open/closed state, close it in a `useLayoutEffect` cleanup function:
+Close transient UI when Activity hides the component. For UI controlled by React state, reset that state in a `useLayoutEffect` cleanup:
 
-```tsx highlight={8-13}
+```tsx highlight={8-10}
 'use client'
 
-import { useState, useLayoutEffect } from 'react'
+import { useLayoutEffect, useState } from 'react'
 
 function SettingsDropdown() {
   const [isOpen, setIsOpen] = useState(false)
 
-  // Close dropdown when this component becomes hidden
   useLayoutEffect(() => {
-    return () => {
-      setIsOpen(false)
-    }
+    return () => setIsOpen(false)
   }, [])
 
   return (
     <div>
-      <button onClick={() => setIsOpen((o) => !o)}>Options</button>
+      <button onClick={() => setIsOpen((open) => !open)}>Options</button>
       {isOpen && (
         <ul>
           <li>
@@ -67,9 +64,9 @@ function SettingsDropdown() {
 }
 ```
 
-When Activity hides this component, the cleanup function runs and resets `isOpen`. When the page becomes visible again, the dropdown is closed. Using `useLayoutEffect` ensures the cleanup runs synchronously before the component is hidden, avoiding any flash of stale state.
+Activity runs this cleanup before hiding the component, so the dropdown is closed when the user returns. Resetting `isOpen` to `false` is safe if cleanup runs again in development.
 
-For browser-managed UI such as a [popover](https://developer.mozilla.org/docs/Web/API/Popover_API), close the element with the same cleanup pattern. Because Activity can keep multiple route instances in the DOM, generate relationship IDs per component instance instead of reusing a fixed ID. This also applies to form IDs and radio group names. Use [`useId`](https://react.dev/reference/react/useId) in a Client Component:
+For browser-managed UI such as a [popover](https://developer.mozilla.org/docs/Web/API/Popover_API), close the element with the same cleanup pattern. Because Activity can keep multiple route instances in the DOM, generate relationship IDs per component instance instead of reusing a fixed ID. This also applies to form IDs. For radio groups without separate forms, give each component instance its own group name. Use [`useId`](https://react.dev/reference/react/useId) in a Client Component:
 
 ```tsx highlight={9-11}
 'use client'
@@ -351,7 +348,7 @@ function PageWithStyles() {
 }
 ```
 
-When Activity hides the component, the cleanup sets `media="not all"`, which disables the stylesheet. When visible again, the effect re-runs and resets `media` to enable it.
+When Activity hides the component, the cleanup sets `media="not all"`, which disables the stylesheet. When visible again, the Effect re-runs and resets `media` to enable it.
 
 ### The `:has` selector
 
@@ -506,7 +503,7 @@ The Server Component starts fetching comments immediately and passes the promise
 
 ### Effect and media cleanup
 
-When Activity hides content, React runs effect cleanup functions just like it does on unmount. This means timers, subscriptions, and media playback pause automatically if you have proper cleanup:
+When Activity hides content, React runs Effect cleanup functions as it does on unmount. This means timers, subscriptions, and media playback pause automatically if you have proper cleanup:
 
 ```tsx
 'use client'
@@ -546,7 +543,7 @@ function VideoPlayer({ src }: { src: string }) {
 }
 ```
 
-When the component becomes visible again, effects re-run and playback position is preserved since the DOM node was never removed.
+When the component becomes visible again, Effects re-run and playback position is preserved since the DOM node was never removed.
 
 ### Distinguishing first mount from re-show
 
@@ -573,9 +570,9 @@ function TrackedComponent() {
 }
 ```
 
-The ref persists across hide/show cycles (refs aren't cleaned up), so `hasMountedRef.current` stays `true` after the first mount. Each time Activity becomes visible, the Effect runs again, but now it takes the `else` branch.
+The ref persists across hide/show cycles, so `hasMountedRef.current` stays `true` after the first setup. When Activity becomes visible again, the Effect takes the `else` branch.
 
-In development, [Strict Mode runs an extra setup and cleanup cycle](https://react.dev/reference/react/StrictMode#fixing-bugs-found-by-re-running-effects-in-development), so this example can also log "Became visible again" on initial mount. Make setup and cleanup safe to repeat.
+In development, [Strict Mode runs an extra setup and cleanup cycle](https://react.dev/reference/react/StrictMode#fixing-bugs-found-by-re-running-effects-in-development), so this example can also log "Became visible again" on initial mount. The ref records whether the Effect has run before, not why it ran. Make setup and cleanup safe to repeat.
 
 ## Examples
 
