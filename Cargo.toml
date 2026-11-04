@@ -191,6 +191,7 @@ turbo-unix-path = { path = "turbopack/crates/turbo-unix-path" }
 turbopack = { path = "turbopack/crates/turbopack" }
 turbopack-bench = { path = "turbopack/crates/turbopack-bench" }
 turbopack-nodejs = { path = "turbopack/crates/turbopack-nodejs" }
+turbopack-nft = { path = "turbopack/crates/turbopack-nft" }
 turbopack-cli-utils = { path = "turbopack/crates/turbopack-cli-utils" }
 turbopack-core = { path = "turbopack/crates/turbopack-core" }
 turbopack-go = { path = "turbopack/crates/turbopack-go" }
