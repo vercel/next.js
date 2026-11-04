@@ -4,7 +4,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
 };
@@ -247,21 +247,14 @@ impl RequireContextAssetReference {
 }
 
 /// Every argument of the `require.context()` call is part of the ident, so that two
-/// calls only share a synthetic module when they match the same files. The calling
-/// module is too, since the source map of the synthetic module points at the call.
-fn modifier(
-    origin_path: &FileSystemPath,
-    dir: &RcStr,
-    include_subdirs: bool,
-    filter: &EsRegex,
-) -> RcStr {
+/// calls only share a synthetic module when they match the same files.
+fn modifier(dir: &RcStr, include_subdirs: bool, filter: &EsRegex) -> RcStr {
     format!(
-        "require.context {}/{} /{}/{} in {}",
+        "require.context {}/{} /{}/{}",
         dir,
         if include_subdirs { "**" } else { "*" },
         filter.pattern,
         filter.flags,
-        origin_path.path,
     )
     .into()
 }
@@ -299,14 +292,18 @@ impl RequireContextAssetReference {
         }
         code.push_str("]);\n");
 
-        // Issues in the synthetic module are reported at the call.
+        // Issues in the synthetic module are reported at the call, so the calling module
+        // is part of the ident too. As a nested asset, it also leaves the synthetic module
+        // out of import traces.
         let ident = AssetIdent::from_path(context_dir.join(".require-context.cjs")?)
-            .with_modifier(modifier(
-                &origin_path,
-                &self.dir,
-                self.include_subdirs,
-                &filter,
-            ))
+            .with_modifier(modifier(&self.dir, self.include_subdirs, &filter))
+            .with_asset(
+                rcstr!("calling module"),
+                AssetIdent::from_path(origin_path)
+                    .into_vc()
+                    .to_resolved()
+                    .await?,
+            )
             .into_vc()
             .to_resolved()
             .await?;
