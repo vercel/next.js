@@ -511,7 +511,7 @@ impl BrowserChunkingContext {
         // per-page graphs it doesn't, and this asset is emitted to a fixed path, so a graph
         // without async modules would otherwise strip a helper another page's chunks call.
         let include_async_module_runtime =
-            self.await?.shared_runtime_chunk || !module_graph.async_module_info().await?.is_empty();
+            self.await?.shared_runtime_chunk || *module_graph.has_async_modules().await?;
         Ok(EcmascriptBrowserRuntimeChunk::new(
             self,
             include_async_module_runtime,
