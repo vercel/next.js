@@ -14,8 +14,3 @@ error - [process module] /turbopack/crates/turbopack-tests/tests/execution/turbo
   turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-unknown-type/input/content/gamma.txt doesn't have an associated module type. Use a known file extension, or register a loader for it.
   
   Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders
-  
-  Import trace:
-    test:
-      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-unknown-type/input/index.js.import-meta-glob.mjs
-      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-unknown-type/input/index.js

@@ -842,8 +842,13 @@ impl Source for ImportMetaGlobSource {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let origin_path = self.origin.into_trait_ref().await?.origin_path();
         // A sibling of the importing file, so that the requests resolve exactly as they
-        // would from the importing file itself. It also shows up in import traces, which
-        // tells which glob pulled a matched file in.
+        // would from the importing file itself. Issues in it are reported at the glob, so
+        // the importing file is a nested asset, which leaves the synthetic module out of
+        // import traces.
+        let calling_module = AssetIdent::from_path(origin_path.clone())
+            .into_vc()
+            .to_resolved()
+            .await?;
         Ok(
             AssetIdent::from_path(origin_path.append(".import-meta-glob.mjs")?)
                 .with_modifier(modifier(
@@ -854,6 +859,7 @@ impl Source for ImportMetaGlobSource {
                     &self.base,
                     self.case_sensitive,
                 ))
+                .with_asset(rcstr!("calling module"), calling_module)
                 .into_vc(),
         )
     }

@@ -4,7 +4,7 @@
 __turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/import-meta-glob/input/index.js [test] (ecmascript)");
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/import-meta-glob/input/index.js [test] (ecmascript)
 ;
-// MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/import-meta-glob/input/index.js.import-meta-glob.mjs [test] (import.meta.glob ./dir/*.js eager import=value, ecmascript)
+// MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/import-meta-glob/input/index.js.import-meta-glob.mjs { calling module => "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/import-meta-glob/input/index.js" } [test] (import.meta.glob ./dir/*.js eager import=value, ecmascript)
 ;
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/import-meta-glob/input/dir/a.js [test] (ecmascript)
 ;
