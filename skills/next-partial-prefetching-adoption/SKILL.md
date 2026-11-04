@@ -79,9 +79,9 @@ After the target UI is settled, inspect the existing test setup. The `instant()`
 - **No applicable production-mode suite:** set up the production-mode rig in **`rig-template.md`** using the project's package manager and test conventions. This is part of test-backed adoption and does not require a user to be present.
 - **Rig cannot run reliably:** work through **`rig-template.md`** setup and liveness checks. Fall back to manual preservation only for a concrete blocker the repository cannot resolve, such as unavailable credentials or an inaccessible production environment. Record the blocker and the deferred test coverage; do not claim test-backed verification.
 
-Use a source Link whose `href` is the final destination because a redirect
-cannot prefetch the final route tree. For repeat and browser-back contracts,
-follow the
+Keep the production Link and its existing `href` in the test, including when
+the destination redirects. Verify the final pathname and query after the
+redirect. For repeat and browser-back contracts, follow the
 [visibility-aware selector guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
 so hidden preserved routes cannot satisfy the assertions. When the contract
 contains independently suspended regions, assert each one separately.
