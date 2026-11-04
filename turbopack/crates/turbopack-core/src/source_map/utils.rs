@@ -96,7 +96,12 @@ pub async fn resolve_source_map_sources(
 
     let resolve_source =
         async |source_url: &mut String, source_content: Option<&mut Option<Box<RawValue>>>| {
-            // original_source should always be a URL (possibly a `file://` url). If it's a relative
+            // An earlier transform may already have resolved this source into our internal URL
+            // namespace. Resolving it again against `origin` would corrupt the source identity.
+            if source_url.starts_with(concatcp!(SOURCE_URL_PROTOCOL_STR, "///")) {
+                return Ok(());
+            }
+            // Other sources should be URLs (possibly `file://` URLs). If a source is a relative
             // URL, it should be relative to `origin` (the generated file that's being mapped).
             // https://developer.mozilla.org/en-US/docs/Learn_web_development/Howto/Web_mechanics/What_is_a_URL#absolute_urls_vs._relative_urls
             let maybe_file_url = if source_url.starts_with("//") {
