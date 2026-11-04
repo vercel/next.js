@@ -117,6 +117,31 @@ describe('span recording', () => {
     expect(getRequestInsightsSnapshot()).toEqual({ requests: [] })
   })
 
+  it('does not let a failing scoped sink interrupt span completion or the batch', () => {
+    const records: SpanStoreRecord[] = []
+    setSpanRecorderForTest((span) => records.push(span))
+    const sink = jest.fn(() => {
+      throw new Error('failed scoped sink')
+    })
+    const spans = [
+      { name: 'first', timestamp: 1 },
+      { name: 'second', timestamp: 2 },
+    ]
+
+    const record = runWithLocalSpanSink(sink, captureLocalSpanRecorder)
+    expect(() => record(spans)).not.toThrow()
+    expect(sink).toHaveBeenCalledTimes(2)
+    expect(records).toEqual(spans)
+    expect(() =>
+      runWithLocalSpanSink(sink, () => recordSpan({ name: 'completed' }))
+    ).not.toThrow()
+    expect(records.map((span) => span.name)).toEqual([
+      'first',
+      'second',
+      'completed',
+    ])
+  })
+
   it('keeps concurrent local span sinks isolated', async () => {
     const firstRecords: SpanStoreRecord[] = []
     const secondRecords: SpanStoreRecord[] = []
