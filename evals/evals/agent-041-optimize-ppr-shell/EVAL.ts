@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest'
+import { chromium, expect as browserExpect } from '@playwright/test'
 import { createServer, type ServerResponse } from 'node:http'
 import { randomUUID, randomInt } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -45,38 +46,38 @@ test('streams the shell and each ready section without waiting for the others', 
   const previousOrigin = process.env.DASHBOARD_API_URL
   process.env.DASHBOARD_API_URL = `http://127.0.0.1:${address.port}`
   let app: Awaited<ReturnType<typeof startNextServer>> | undefined
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
   const abort = new AbortController()
   try {
     await buildNextApp()
     app = await startNextServer()
+    browser = await chromium.launch({ headless: true })
+    const page = await browser.newPage()
     hold = true
     const timer = setTimeout(() => abort.abort(), 15_000)
     try {
-      const response = await fetch(app.url, { signal: abort.signal })
-      expect(response.ok).toBe(true)
-      const reader = response.body!.getReader()
-      const decoder = new TextDecoder()
-      let html = ''
-      // Ignore Flight/script payloads: assert rendered content, not serialized data.
-      const content = () =>
-        html.replace(/<script\b[^>]*>[\s\S]*?(?:<\/script>|$)/gi, '')
-      async function until(check: () => boolean) {
-        while (!check()) {
-          const chunk = await reader.read()
-          if (chunk.done)
-            throw new Error('Response ended before the expected content')
-          html += decoder.decode(chunk.value, { stream: true })
-        }
-      }
+      const response = await page.goto(app.url, {
+        waitUntil: 'commit',
+        timeout: 15_000,
+      })
+      expect(response?.ok()).toBe(true)
+      const cards = page.getByText(
+        new RegExp(`^\\$(?:${total.toLocaleString('en-US')}|${total})$`)
+      )
+      const revenue = page.getByText(month)
+      const invoices = page.getByText(customer)
       function release(section: keyof typeof payloads) {
         const request = pending.get(section)
         expect(request, `${section} must load independently`).toBeDefined()
         pending.delete(section)
         request!.end(JSON.stringify(payloads[section]))
       }
-      await until(() => /<h1[^>]*>Dashboard<\/h1>/.test(content()))
-      expect(content()).not.toContain(month)
-      expect(content()).not.toContain(customer)
+      await browserExpect(
+        page.getByRole('heading', { name: 'Dashboard', exact: true })
+      ).toBeVisible()
+      await browserExpect(cards).not.toBeVisible()
+      await browserExpect(revenue).not.toBeVisible()
+      await browserExpect(invoices).not.toBeVisible()
       // Start all three requests without awaiting any section first.
       await Promise.race([
         requestsReady,
@@ -94,25 +95,26 @@ test('streams the shell and each ready section without waiting for the others', 
         'revenue',
       ])
       release('cards')
-      await until(
-        () =>
-          content().includes(total.toLocaleString('en-US')) ||
-          content().includes(String(total))
-      )
-      expect(content()).not.toContain(month)
-      expect(content()).not.toContain(customer)
+      // React can send completed HTML in hidden segments before revealing it.
+      // Require visible content while the other sections are still blocked.
+      await browserExpect(cards).toBeVisible()
+      await browserExpect(revenue).not.toBeVisible()
+      await browserExpect(invoices).not.toBeVisible()
       release('revenue')
-      await until(() => content().includes(month))
-      expect(content()).not.toContain(customer)
+      await browserExpect(revenue).toBeVisible()
+      await browserExpect(cards).toBeVisible()
+      await browserExpect(invoices).not.toBeVisible()
       release('invoices')
-      await until(() => content().includes(customer))
-      await reader.cancel()
+      await browserExpect(invoices).toBeVisible()
+      await browserExpect(cards).toBeVisible()
+      await browserExpect(revenue).toBeVisible()
     } finally {
       clearTimeout(timer)
     }
   } finally {
     abort.abort()
     for (const response of pending.values()) response.end('{}')
+    await browser?.close()
     await app?.stop()
     api.closeAllConnections()
     await new Promise<void>((resolve) => api.close(() => resolve()))
