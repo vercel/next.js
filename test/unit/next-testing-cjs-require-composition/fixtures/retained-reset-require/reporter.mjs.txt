@@ -1,0 +1,30 @@
+import fs from 'node:fs'
+const emit = (row) => fs.appendFileSync(process.env.NEXT_REQUIRE_CALLBACKS, JSON.stringify(row) + '\n')
+const moduleValue = (module) => ({type:module.type,moduleId:module.moduleId,relativeModuleId:module.relativeModuleId,state:module.state(),ok:module.ok(),meta:module.meta(),errors:module.errors()})
+const caseValue = (test) => ({type:test.type,name:test.name,fullName:test.fullName,moduleId:test.module.moduleId,result:test.result(),options:test.options,ok:test.ok(),meta:test.meta()})
+export default class {
+ onInit(){emit({hook:'onInit'})}
+ onTestRunStart(specifications){emit({hook:'onTestRunStart',specifications:specifications.map(specification=>({moduleId:specification.moduleId,pool:specification.pool,project:specification.project.name}))})}
+ onTestModuleQueued(module){emit({hook:'onTestModuleQueued',module:moduleValue(module)})}
+ onTestModuleCollected(module){emit({hook:'onTestModuleCollected',module:moduleValue(module)})}
+ onTestModuleStart(module){emit({hook:'onTestModuleStart',module:moduleValue(module)})}
+ onTestModuleEnd(module){emit({hook:'onTestModuleEnd',module:moduleValue(module)})}
+ onTestCaseReady(test){emit({hook:'onTestCaseReady',test:caseValue(test)})}
+ onTestCaseResult(test){emit({hook:'onTestCaseResult',test:caseValue(test)})}
+ onUserConsoleLog(log){emit({hook:'onUserConsoleLog',log})}
+ onTestRunEnd(modules,errors,reason){emit({hook:'onTestRunEnd',modules:modules.map(moduleValue),errors,reason})}
+ onBrowserInit(){emit({hook:'onBrowserInit'})}
+ onTestRemoved(){emit({hook:'onTestRemoved'})}
+ onWatcherStart(){emit({hook:'onWatcherStart'})}
+ onWatcherRerun(){emit({hook:'onWatcherRerun'})}
+ onServerRestart(){emit({hook:'onServerRestart'})}
+ onProcessTimeout(){emit({hook:'onProcessTimeout'})}
+ onTestCaseAnnotate(test,annotation){emit({hook:'onTestCaseAnnotate',test:caseValue(test),annotation})}
+ onTestCaseArtifactRecord(test,artifact){emit({hook:'onTestCaseArtifactRecord',test:caseValue(test),artifact})}
+ onTestSuiteReady(){emit({hook:'onTestSuiteReady'})}
+ onTestSuiteResult(){emit({hook:'onTestSuiteResult'})}
+ onHookStart(){emit({hook:'onHookStart'})}
+ onHookEnd(){emit({hook:'onHookEnd'})}
+ onCoverage(){emit({hook:'onCoverage'})}
+ onTestCaseBenchmark(test,benchmark){emit({hook:'onTestCaseBenchmark',test:caseValue(test),benchmark})}
+}

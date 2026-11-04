@@ -1,0 +1,2439 @@
+{
+  "referenceVersion": "5.0.4",
+  "mode": "development",
+  "reporters": ["default", "json"],
+  "bounds": {
+    "cli": 120000,
+    "test": 5000,
+    "hook": 5000
+  },
+  "fields": [
+    "status",
+    "cases",
+    "standardReport",
+    "rows",
+    "events",
+    "eventCounts"
+  ],
+  "variants": {
+    "retained-reset-async-arrow": {
+      "variant": "retained-reset-async-arrow",
+      "fixture": "retained-reset-async-arrow",
+      "projectName": "retained-reset-async-arrow",
+      "scope": "retained alias for sole reset call",
+      "files": {
+        "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
+        "target.cjs": "87b01b3108041ac4908a3204c8af54738b8e0e23a1eb26fcc7422b587462bc21",
+        "consumer.cjs": "5b9685eddb9a30c1c18f6228ea8d47d86366e98e3c3e43fb68c3864fa8afa2c9",
+        "contract.case.mjs": "f029eebd5b175cadca51329e467d1d229cf34408ed439fafe3578448ef4677b2"
+      },
+      "profiles": {
+        "20": {
+          "actualNodeVersion": "v20.20.0",
+          "genuine": 0,
+          "historical": 0
+        },
+        "22": {
+          "actualNodeVersion": "v22.12.0",
+          "genuine": 0,
+          "historical": 0
+        },
+        "24": {
+          "actualNodeVersion": "v24.0.0",
+          "genuine": 0,
+          "historical": 0
+        },
+        "26": {
+          "actualNodeVersion": "v26.12.1",
+          "genuine": 0,
+          "historical": 0
+        }
+      }
+    },
+    "retained-reset-async-function": {
+      "variant": "retained-reset-async-function",
+      "fixture": "retained-reset-async-function",
+      "projectName": "retained-reset-async-function",
+      "scope": "retained alias for sole reset call",
+      "files": {
+        "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
+        "target.cjs": "87b01b3108041ac4908a3204c8af54738b8e0e23a1eb26fcc7422b587462bc21",
+        "consumer.cjs": "5b9685eddb9a30c1c18f6228ea8d47d86366e98e3c3e43fb68c3864fa8afa2c9",
+        "contract.case.mjs": "5cbcbb16bcca630ec9a9f519e654ec096849f656a01ae99fd36a9d939ee1402d"
+      },
+      "profiles": {
+        "20": {
+          "actualNodeVersion": "v20.20.0",
+          "genuine": 0,
+          "historical": 0
+        },
+        "22": {
+          "actualNodeVersion": "v22.12.0",
+          "genuine": 0,
+          "historical": 0
+        },
+        "24": {
+          "actualNodeVersion": "v24.0.0",
+          "genuine": 0,
+          "historical": 0
+        },
+        "26": {
+          "actualNodeVersion": "v26.12.1",
+          "genuine": 0,
+          "historical": 0
+        }
+      }
+    },
+    "retained-reset-consumer-cycle": {
+      "variant": "retained-reset-consumer-cycle",
+      "fixture": "retained-reset-consumer-cycle",
+      "projectName": "retained-reset-consumer-cycle",
+      "scope": "mixed direct base reset plus retained alias only for final graph-specific reset",
+      "files": {
+        "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
+        "target.cjs": "87b01b3108041ac4908a3204c8af54738b8e0e23a1eb26fcc7422b587462bc21",
+        "consumer.cjs": "3bf0511b5350b87508f2faa60916e04c63faad02f520bc9925fd65cc841f11dd",
+        "contract.case.mjs": "3addb749151b73aed878cfd8f799856e3f27d2d0808e88176a1a5a690bf91e84",
+        "consumer-peer.cjs": "a5e8a0d48dc816cb917f212415341b756c18996964bbb27d9c3a6d2debd3ca51"
+      },
+      "profiles": {
+        "20": {
+          "actualNodeVersion": "v20.20.0",
+          "genuine": 1,
+          "historical": 1
+        },
+        "22": {
+          "actualNodeVersion": "v22.12.0",
+          "genuine": 1,
+          "historical": 1
+        },
+        "24": {
+          "actualNodeVersion": "v24.0.0",
+          "genuine": 1,
+          "historical": 1
+        },
+        "26": {
+          "actualNodeVersion": "v26.12.1",
+          "genuine": 1,
+          "historical": 1
+        }
+      }
+    },
+    "retained-reset-multiple-consumers": {
+      "variant": "retained-reset-multiple-consumers",
+      "fixture": "retained-reset-multiple-consumers",
+      "projectName": "retained-reset-multiple-consumers",
+      "scope": "mixed direct base reset plus retained alias only for final graph-specific reset",
+      "files": {
+        "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
+        "target.cjs": "87b01b3108041ac4908a3204c8af54738b8e0e23a1eb26fcc7422b587462bc21",
+        "consumer.cjs": "0b91a031009d8c8562ad512984a7100501636877fd74d6ae0d3ceed2cd1959a7",
+        "contract.case.mjs": "1fc85d9d8d3d3277b34555a3a5c9b3fc80e0aaf3280ea19bc0118a6b8011ca7a",
+        "consumer-b.cjs": "6b7972b2f21af339c5a916fcee8c1f3f21ae90bb39f18256aaef735994d83ac3",
+        "consumer-c.cjs": "6c3183934bd13f5ed43823fd9b91df4bc0271720439bd7deafd6ad9b4b035dbf"
+      },
+      "profiles": {
+        "20": {
+          "actualNodeVersion": "v20.20.0",
+          "genuine": 2,
+          "historical": 2
+        },
+        "22": {
+          "actualNodeVersion": "v22.12.0",
+          "genuine": 2,
+          "historical": 2
+        },
+        "24": {
+          "actualNodeVersion": "v24.0.0",
+          "genuine": 2,
+          "historical": 2
+        },
+        "26": {
+          "actualNodeVersion": "v26.12.1",
+          "genuine": 2,
+          "historical": 2
+        }
+      }
+    }
+  },
+  "models": [
+    {
+      "status": 0,
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "original CommonJS require and mocked ESM remain separate",
+          "status": "passed",
+          "title": "original CommonJS require and mocked ESM remain separate",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "reset composes the original require cache with the mocked ESM namespace",
+          "status": "passed",
+          "title": "reset composes the original require cache with the mocked ESM namespace",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "status": "passed",
+            "message": "",
+            "name": "contract.case.mjs",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "original CommonJS require and mocked ESM remain separate",
+                "status": "passed",
+                "title": "original CommonJS require and mocked ESM remain separate",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "reset composes the original require cache with the mocked ESM namespace",
+                "status": "passed",
+                "title": "reset composes the original require cache with the mocked ESM namespace",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ]
+          }
+        ]
+      },
+      "rows": [
+        {
+          "name": "ordinary-require-composition",
+          "rawValue": "actual",
+          "mockedValue": "mocked",
+          "defaultValue": "mock-default",
+          "rawIdentity": true,
+          "mockedIdentity": true,
+          "factoryCalls": 1,
+          "rawKeys": ["value", "token"],
+          "mockedKeys": ["value", "default"],
+          "rawDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "token",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "mockedDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ]
+        },
+        {
+          "name": "reset-require-composition",
+          "resetReturnSame": true,
+          "rawHeldIdentity": true,
+          "rawReloadedIdentity": true,
+          "rawTokenIdentity": true,
+          "consumerDefaultIdentity": false,
+          "consumerNamespaceIdentity": false,
+          "consumerInitialIdentity": true,
+          "mockedNamespaceIdentity": true,
+          "staticNamespaceIdentity": true,
+          "defaultTokenIdentity": true,
+          "factoryCalls": 1,
+          "rawValue": "actual",
+          "mockedValue": "mocked",
+          "defaultValue": "mock-default",
+          "beforeRawDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "token",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "afterRawDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "token",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "beforeMockedDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "afterMockedDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "beforeConsumerDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "kind": "data",
+              "type": "string"
+            }
+          ],
+          "afterConsumerDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "kind": "data",
+              "type": "string"
+            }
+          ],
+          "beforeRequiredDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "function"
+            }
+          ],
+          "afterRequiredDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "function"
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "target-evaluate"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        }
+      ],
+      "eventCounts": {
+        "consumer-require": 6,
+        "target-evaluate": 1
+      }
+    },
+    {
+      "status": 0,
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "original CommonJS require and mocked ESM remain separate",
+          "status": "passed",
+          "title": "original CommonJS require and mocked ESM remain separate",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "reset composes the original require cache with the mocked ESM namespace",
+          "status": "passed",
+          "title": "reset composes the original require cache with the mocked ESM namespace",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "consumer require cycle keeps its own roots while sharing the original leaf",
+          "status": "passed",
+          "title": "consumer require cycle keeps its own roots while sharing the original leaf",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 3,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "status": "passed",
+            "message": "",
+            "name": "contract.case.mjs",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "original CommonJS require and mocked ESM remain separate",
+                "status": "passed",
+                "title": "original CommonJS require and mocked ESM remain separate",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "reset composes the original require cache with the mocked ESM namespace",
+                "status": "passed",
+                "title": "reset composes the original require cache with the mocked ESM namespace",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "consumer require cycle keeps its own roots while sharing the original leaf",
+                "status": "passed",
+                "title": "consumer require cycle keeps its own roots while sharing the original leaf",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ]
+          }
+        ]
+      },
+      "rows": [
+        {
+          "name": "ordinary-require-composition",
+          "rawValue": "actual",
+          "mockedValue": "mocked",
+          "defaultValue": "mock-default",
+          "rawIdentity": true,
+          "mockedIdentity": true,
+          "factoryCalls": 1,
+          "rawKeys": ["value", "token"],
+          "mockedKeys": ["value", "default"],
+          "rawDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "token",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "mockedDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ]
+        },
+        {
+          "name": "reset-require-composition",
+          "resetReturnSame": true,
+          "rawHeldIdentity": true,
+          "rawReloadedIdentity": true,
+          "rawTokenIdentity": true,
+          "consumerDefaultIdentity": false,
+          "consumerNamespaceIdentity": false,
+          "consumerInitialIdentity": true,
+          "mockedNamespaceIdentity": true,
+          "staticNamespaceIdentity": true,
+          "defaultTokenIdentity": true,
+          "factoryCalls": 1,
+          "rawValue": "actual",
+          "mockedValue": "mocked",
+          "defaultValue": "mock-default",
+          "beforeRawDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "token",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "afterRawDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "token",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "beforeMockedDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "afterMockedDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "beforeConsumerDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "peer",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "kind": "data",
+              "type": "string"
+            }
+          ],
+          "afterConsumerDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "peer",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "kind": "data",
+              "type": "string"
+            }
+          ],
+          "beforeRequiredDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "function"
+            },
+            {
+              "key": "peer",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "afterRequiredDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "function"
+            },
+            {
+              "key": "peer",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ]
+        },
+        {
+          "name": "consumer-cycle-graph",
+          "resetReturnSame": true,
+          "consumerIdentities": [
+            [true, false, false, false, false, false],
+            [false, true, false, false, false, false],
+            [false, false, true, false, false, false],
+            [false, false, false, true, true, true],
+            [false, false, false, true, true, true],
+            [false, false, false, true, true, true]
+          ],
+          "peerIdentities": [
+            [true, true, true],
+            [true, true, true],
+            [true, true, true]
+          ],
+          "namespaceIdentities": [
+            [true, false],
+            [false, true]
+          ],
+          "rawIdentities": [
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true]
+          ],
+          "rawTokenIdentities": [
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true]
+          ],
+          "rawValues": [
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual"
+          ],
+          "factoryCalls": 1,
+          "consumers": [
+            {
+              "keys": ["initial", "read", "peer"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                },
+                {
+                  "key": "peer",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                }
+              ],
+              "peerRootIsSelf": false,
+              "peerRootKeys": ["initial", "read", "peer"],
+              "peerRootDescriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                },
+                {
+                  "key": "peer",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                }
+              ]
+            },
+            {
+              "keys": ["initial", "read", "peer"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                },
+                {
+                  "key": "peer",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                }
+              ],
+              "peerRootIsSelf": false,
+              "peerRootKeys": ["initial", "read", "peer"],
+              "peerRootDescriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                },
+                {
+                  "key": "peer",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                }
+              ]
+            },
+            {
+              "keys": ["initial", "read", "peer"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                },
+                {
+                  "key": "peer",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                }
+              ],
+              "peerRootIsSelf": false,
+              "peerRootKeys": ["initial", "read", "peer"],
+              "peerRootDescriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                },
+                {
+                  "key": "peer",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                }
+              ]
+            }
+          ],
+          "peers": [
+            {
+              "keys": ["root", "initial", "read"],
+              "descriptors": [
+                {
+                  "key": "root",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "rootKeys": ["initial", "read", "peer"],
+              "rootDescriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                },
+                {
+                  "key": "peer",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                }
+              ],
+              "rootReadType": "function",
+              "initialIsRootInitial": true,
+              "rootPeerType": "object",
+              "rootPeerKeys": [],
+              "rootPeerDescriptors": [],
+              "rootPeerIsSelf": false
+            },
+            {
+              "keys": ["root", "initial", "read"],
+              "descriptors": [
+                {
+                  "key": "root",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "rootKeys": ["initial", "read", "peer"],
+              "rootDescriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                },
+                {
+                  "key": "peer",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                }
+              ],
+              "rootReadType": "function",
+              "initialIsRootInitial": true,
+              "rootPeerType": "object",
+              "rootPeerKeys": [],
+              "rootPeerDescriptors": [],
+              "rootPeerIsSelf": false
+            },
+            {
+              "keys": ["root", "initial", "read"],
+              "descriptors": [
+                {
+                  "key": "root",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "rootKeys": ["initial", "read", "peer"],
+              "rootDescriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                },
+                {
+                  "key": "peer",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                }
+              ],
+              "rootReadType": "function",
+              "initialIsRootInitial": true,
+              "rootPeerType": "object",
+              "rootPeerKeys": [],
+              "rootPeerDescriptors": [],
+              "rootPeerIsSelf": false
+            }
+          ],
+          "mockDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "name": "consumer-evaluate"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "target-evaluate"
+        },
+        {
+          "name": "consumer-peer-evaluate"
+        },
+        {
+          "name": "consumer-peer-require"
+        },
+        {
+          "name": "consumer-evaluate"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-evaluate"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-peer-require"
+        },
+        {
+          "name": "consumer-peer-require"
+        },
+        {
+          "name": "consumer-evaluate"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-peer-require"
+        },
+        {
+          "name": "consumer-peer-require"
+        }
+      ],
+      "eventCounts": {
+        "consumer-evaluate": 4,
+        "consumer-require": 12,
+        "target-evaluate": 1,
+        "consumer-peer-evaluate": 1,
+        "consumer-peer-require": 5
+      }
+    },
+    {
+      "status": 0,
+      "cases": [
+        {
+          "ancestorTitles": [],
+          "fullName": "original CommonJS require and mocked ESM remain separate",
+          "status": "passed",
+          "title": "original CommonJS require and mocked ESM remain separate",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "reset composes the original require cache with the mocked ESM namespace",
+          "status": "passed",
+          "title": "reset composes the original require cache with the mocked ESM namespace",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "multiple CommonJS consumers share one original leaf across reset",
+          "status": "passed",
+          "title": "multiple CommonJS consumers share one original leaf across reset",
+          "failureMessages": [],
+          "meta": {},
+          "tags": [],
+          "benchmarks": []
+        }
+      ],
+      "standardReport": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 1,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 3,
+        "numPassedTests": 3,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "success": true,
+        "testResults": [
+          {
+            "status": "passed",
+            "message": "",
+            "name": "contract.case.mjs",
+            "assertionResults": [
+              {
+                "ancestorTitles": [],
+                "fullName": "original CommonJS require and mocked ESM remain separate",
+                "status": "passed",
+                "title": "original CommonJS require and mocked ESM remain separate",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "reset composes the original require cache with the mocked ESM namespace",
+                "status": "passed",
+                "title": "reset composes the original require cache with the mocked ESM namespace",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              },
+              {
+                "ancestorTitles": [],
+                "fullName": "multiple CommonJS consumers share one original leaf across reset",
+                "status": "passed",
+                "title": "multiple CommonJS consumers share one original leaf across reset",
+                "failureMessages": [],
+                "meta": {},
+                "tags": [],
+                "benchmarks": []
+              }
+            ]
+          }
+        ]
+      },
+      "rows": [
+        {
+          "name": "ordinary-require-composition",
+          "rawValue": "actual",
+          "mockedValue": "mocked",
+          "defaultValue": "mock-default",
+          "rawIdentity": true,
+          "mockedIdentity": true,
+          "factoryCalls": 1,
+          "rawKeys": ["value", "token"],
+          "mockedKeys": ["value", "default"],
+          "rawDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "token",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "mockedDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ]
+        },
+        {
+          "name": "reset-require-composition",
+          "resetReturnSame": true,
+          "rawHeldIdentity": true,
+          "rawReloadedIdentity": true,
+          "rawTokenIdentity": true,
+          "consumerDefaultIdentity": false,
+          "consumerNamespaceIdentity": false,
+          "consumerInitialIdentity": true,
+          "mockedNamespaceIdentity": true,
+          "staticNamespaceIdentity": true,
+          "defaultTokenIdentity": true,
+          "factoryCalls": 1,
+          "rawValue": "actual",
+          "mockedValue": "mocked",
+          "defaultValue": "mock-default",
+          "beforeRawDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "token",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "afterRawDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "token",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "beforeMockedDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "afterMockedDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ],
+          "beforeConsumerDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "kind": "data",
+              "type": "string"
+            }
+          ],
+          "afterConsumerDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "kind": "accessor",
+              "type": "function"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "Symbol(Symbol.toStringTag)",
+              "enumerable": false,
+              "configurable": false,
+              "writable": false,
+              "kind": "data",
+              "type": "string"
+            }
+          ],
+          "beforeRequiredDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "function"
+            }
+          ],
+          "afterRequiredDescriptors": [
+            {
+              "key": "initial",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            },
+            {
+              "key": "read",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "function"
+            }
+          ]
+        },
+        {
+          "name": "multiple-consumer-graph",
+          "resetReturnSame": true,
+          "consumerIdentities": [
+            [true, false, false, false, false, false, false, false, false],
+            [false, true, false, false, false, false, false, false, false],
+            [false, false, true, false, false, false, false, false, false],
+            [false, false, false, true, false, false, false, false, false],
+            [false, false, false, false, true, false, false, false, false],
+            [false, false, false, false, false, true, false, false, false],
+            [false, false, false, false, false, false, true, false, false],
+            [false, false, false, false, false, false, false, true, false],
+            [false, false, false, false, false, false, false, false, true]
+          ],
+          "namespaceIdentities": [
+            [true, false, false, false, false, false],
+            [false, true, false, false, false, false],
+            [false, false, true, false, false, false],
+            [false, false, false, true, false, false],
+            [false, false, false, false, true, false],
+            [false, false, false, false, false, true]
+          ],
+          "rawIdentities": [
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ]
+          ],
+          "rawTokenIdentities": [
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            [
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ]
+          ],
+          "rawValues": [
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual",
+            "actual"
+          ],
+          "factoryCalls": 1,
+          "consumers": [
+            {
+              "keys": ["initial", "read"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "initialIsFirstRaw": true
+            },
+            {
+              "keys": ["initial", "read"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "initialIsFirstRaw": true
+            },
+            {
+              "keys": ["initial", "read"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "initialIsFirstRaw": true
+            },
+            {
+              "keys": ["initial", "read"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "initialIsFirstRaw": true
+            },
+            {
+              "keys": ["initial", "read"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "initialIsFirstRaw": true
+            },
+            {
+              "keys": ["initial", "read"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "initialIsFirstRaw": true
+            },
+            {
+              "keys": ["initial", "read"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "initialIsFirstRaw": true
+            },
+            {
+              "keys": ["initial", "read"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "initialIsFirstRaw": true
+            },
+            {
+              "keys": ["initial", "read"],
+              "descriptors": [
+                {
+                  "key": "initial",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "object"
+                },
+                {
+                  "key": "read",
+                  "enumerable": true,
+                  "configurable": true,
+                  "writable": true,
+                  "kind": "data",
+                  "type": "function"
+                }
+              ],
+              "initialIsFirstRaw": true
+            }
+          ],
+          "mockDescriptors": [
+            {
+              "key": "value",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "string"
+            },
+            {
+              "key": "default",
+              "enumerable": true,
+              "configurable": true,
+              "writable": true,
+              "kind": "data",
+              "type": "object"
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "name": "consumer-evaluate"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "target-evaluate"
+        },
+        {
+          "name": "consumer-b-evaluate"
+        },
+        {
+          "name": "consumer-b-require"
+        },
+        {
+          "name": "consumer-c-evaluate"
+        },
+        {
+          "name": "consumer-c-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-evaluate"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-b-evaluate"
+        },
+        {
+          "name": "consumer-b-require"
+        },
+        {
+          "name": "consumer-c-evaluate"
+        },
+        {
+          "name": "consumer-c-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-b-require"
+        },
+        {
+          "name": "consumer-c-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-b-require"
+        },
+        {
+          "name": "consumer-c-require"
+        },
+        {
+          "name": "consumer-evaluate"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-b-evaluate"
+        },
+        {
+          "name": "consumer-b-require"
+        },
+        {
+          "name": "consumer-c-evaluate"
+        },
+        {
+          "name": "consumer-c-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-b-require"
+        },
+        {
+          "name": "consumer-c-require"
+        },
+        {
+          "name": "consumer-require"
+        },
+        {
+          "name": "consumer-b-require"
+        },
+        {
+          "name": "consumer-c-require"
+        }
+      ],
+      "eventCounts": {
+        "consumer-evaluate": 3,
+        "consumer-require": 11,
+        "target-evaluate": 1,
+        "consumer-b-evaluate": 3,
+        "consumer-b-require": 7,
+        "consumer-c-evaluate": 3,
+        "consumer-c-require": 7
+      }
+    }
+  ]
+}

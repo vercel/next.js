@@ -1,0 +1,39 @@
+import {test,expect,vi} from 'vitest'
+import * as mocked from './target.cjs'
+import required from './consumer.cjs'
+import {appendFileSync} from 'node:fs'
+vi.mock('./target.cjs',()=>{globalThis.__requireReset126FactoryCount=(globalThis.__requireReset126FactoryCount??0)+1;return{value:'mocked',default:{value:'mock-default',token:{}}}})
+const reset = vi.resetModules
+const descriptor=(value)=>Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return{key:typeof key==='symbol'?String(key):key,enumerable:d.enumerable,configurable:d.configurable,...('writable'in d?{writable:d.writable}:{}),kind:'value'in d?'data':'accessor',type:typeof('value'in d?d.value:d.get)}})
+test('original CommonJS require and mocked ESM remain separate',async()=>{const raw=required.read(),dynamic=await import('./target.cjs');expect(raw).toBe(required.initial);expect(raw.value).toBe('actual');expect(mocked.value).toBe('mocked');expect(mocked.default.value).toBe('mock-default');expect(dynamic).toBe(mocked);expect(globalThis.__requireReset126FactoryCount).toBe(1);appendFileSync(process.env.NEXT_REQUIRE_ROWS,JSON.stringify({name:'ordinary-require-composition',rawValue:raw.value,mockedValue:mocked.value,defaultValue:mocked.default.value,rawIdentity:raw===required.initial,mockedIdentity:dynamic===mocked,factoryCalls:globalThis.__requireReset126FactoryCount,rawKeys:Reflect.ownKeys(raw),mockedKeys:Reflect.ownKeys(mocked).map(x=>typeof x==='symbol'?String(x):x),rawDescriptors:descriptor(raw),mockedDescriptors:descriptor(mocked),})+'\n')})
+
+test('reset composes the original require cache with the mocked ESM namespace',async()=>{
+ const beforeRaw=required.read();
+ const beforeMocked=await import('./target.cjs');
+ const beforeConsumer=await import('./consumer.cjs');
+ const returned=vi.resetModules();
+ const afterMocked=await import('./target.cjs');
+ const afterConsumer=await import('./consumer.cjs');
+ const heldRaw=required.read();
+ const afterRaw=afterConsumer.default.read();
+ expect(heldRaw.value).toBe('actual');expect(afterRaw.value).toBe('actual');expect(afterMocked.value).toBe('mocked');
+ appendFileSync(process.env.NEXT_REQUIRE_ROWS,JSON.stringify({name:'reset-require-composition',resetReturnSame:returned===vi,rawHeldIdentity:heldRaw===beforeRaw,rawReloadedIdentity:afterRaw===beforeRaw,rawTokenIdentity:afterRaw.token===beforeRaw.token,consumerDefaultIdentity:afterConsumer.default===required,consumerNamespaceIdentity:afterConsumer===beforeConsumer,consumerInitialIdentity:afterConsumer.default.initial===beforeRaw,mockedNamespaceIdentity:afterMocked===beforeMocked,staticNamespaceIdentity:afterMocked===mocked,defaultTokenIdentity:afterMocked.default.token===beforeMocked.default.token,factoryCalls:globalThis.__requireReset126FactoryCount,rawValue:afterRaw.value,mockedValue:afterMocked.value,defaultValue:afterMocked.default.value,beforeRawDescriptors:descriptor(beforeRaw),afterRawDescriptors:descriptor(afterRaw),beforeMockedDescriptors:descriptor(beforeMocked),afterMockedDescriptors:descriptor(afterMocked),beforeConsumerDescriptors:descriptor(beforeConsumer),afterConsumerDescriptors:descriptor(afterConsumer),beforeRequiredDescriptors:descriptor(required),afterRequiredDescriptors:descriptor(afterConsumer.default)})+'\n')
+})
+
+const same=(values)=>values.map(value=>values.map(other=>value===other))
+test('consumer require cycle keeps its own roots while sharing the original leaf',async()=>{
+ const beforeNamespace=await import('./consumer.cjs')
+ const before=beforeNamespace.default
+ const heldPeer=required.peer
+ const beforePeer=before.peer
+ const beforeRaw=[required.read(),before.read(),heldPeer.read(),beforePeer.read()]
+ const returned=reset()
+ const afterNamespace=await import('./consumer.cjs')
+ const after=afterNamespace.default
+ const afterPeer=after.peer
+ const afterRaw=[required.read(),after.read(),heldPeer.read(),afterPeer.read()]
+ const raw=[...beforeRaw,...afterRaw]
+ expect(raw.map(value=>value.value)).toEqual(Array(raw.length).fill('actual'))
+ expect(mocked.value).toBe('mocked')
+ appendFileSync(process.env.NEXT_REQUIRE_ROWS,JSON.stringify({name:'consumer-cycle-graph',resetReturnSame:returned===vi,consumerIdentities:same([required,before,after,heldPeer.root,beforePeer.root,afterPeer.root]),peerIdentities:same([heldPeer,beforePeer,afterPeer]),namespaceIdentities:same([beforeNamespace,afterNamespace]),rawIdentities:same(raw),rawTokenIdentities:same(raw.map(value=>value.token)),rawValues:raw.map(value=>value.value),factoryCalls:globalThis.__requireReset126FactoryCount,consumers:[required,before,after].map(value=>({keys:Reflect.ownKeys(value).map(String),descriptors:descriptor(value),peerRootIsSelf:value.peer.root===value,peerRootKeys:Reflect.ownKeys(value.peer.root).map(String),peerRootDescriptors:descriptor(value.peer.root)})),peers:[heldPeer,beforePeer,afterPeer].map(value=>{const root=value.root;const rootPeer=Object.hasOwn(root,'peer')?root.peer:undefined;return{keys:Reflect.ownKeys(value).map(String),descriptors:descriptor(value),rootKeys:Reflect.ownKeys(root).map(String),rootDescriptors:descriptor(root),rootReadType:Object.hasOwn(root,'read')?typeof root.read:'absent',initialIsRootInitial:Object.hasOwn(root,'initial')?value.initial===root.initial:null,rootPeerType:typeof rootPeer,rootPeerKeys:rootPeer!==null&&(typeof rootPeer==='object'||typeof rootPeer==='function')?Reflect.ownKeys(rootPeer).map(String):null,rootPeerDescriptors:rootPeer!==null&&(typeof rootPeer==='object'||typeof rootPeer==='function')?descriptor(rootPeer):null,rootPeerIsSelf:rootPeer===value}}),mockDescriptors:descriptor(mocked)})+'\n')
+})

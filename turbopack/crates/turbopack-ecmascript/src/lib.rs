@@ -229,6 +229,9 @@ pub struct EcmascriptOptions {
     /// This allows to construct url depends on the different building context,
     /// e.g. SSR, CSR, or Node.js.
     pub url_rewrite_behavior: Option<UrlRewriteBehavior>,
+    /// Private Node-test filesystem URLs are evaluated against the authored source.
+    /// The analyzer additionally requires the actual working-directory filesystem.
+    pub test_source_file_urls: bool,
     /// External imports should used `__turbopack_import__` instead of
     /// `__turbopack_require__` and become async module references.
     pub import_externals: bool,

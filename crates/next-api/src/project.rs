@@ -2513,6 +2513,11 @@ impl Project {
         } else {
             None
         };
+        let source_file_urls = if let Some(entry) = self.await?.test_entry {
+            crate::testing::test_entry_source_file_urls(&*entry.await?)
+        } else {
+            false
+        };
         Ok(ModuleAssetContext::new(
             TransitionOptions::default().cell(),
             self.server_compile_time_info(),
@@ -2535,6 +2540,7 @@ impl Project {
                     .to_resolved()
                     .await?,
                 true,
+                source_file_urls,
             ),
             crate::testing_aliases::alias_resolve_options_context(
                 crate::testing::test_resolve_options_context(

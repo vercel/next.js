@@ -2,7 +2,7 @@
 //! Certificates come from actual executable references, never source-text edges.
 use std::collections::{HashMap, HashSet};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use next_core::{get_next_package, util::file_content_rope};
 use swc_core::{
@@ -773,6 +773,74 @@ async fn provider_original_reference(
         ));
     };
     Ok(*reference)
+}
+
+// Only actual resolved owner identities from require_closure_with_originals
+// enter this bound. The existing reference and derived-graph certificates remain
+// mandatory; literal request suffixes never establish the captured graph.
+fn production_original_require_graph(
+    consumer: TestModule,
+    captured: TestModule,
+    modules: &[TestModule],
+    edges: &[CommonJsRequireEdge],
+) -> bool {
+    consumer != captured
+        && modules.len() == 2
+        && modules.contains(&consumer)
+        && modules.contains(&captured)
+        && matches!(edges, [edge] if edge.owner == consumer && edge.target == captured)
+}
+
+/// Connect the certified original-require reset to the real production context.
+/// Mutable development environment compilation and wider require graphs stay out.
+pub(crate) async fn prepare_production_original_require(
+    project: ResolvedVc<Project>,
+    context: ResolvedVc<ModuleAssetContext>,
+    source: TestSource,
+    id: &RcStr,
+    protected_originals: &[TestModule],
+    registration: TestModule,
+    wrapper_sources: &[TestSource],
+) -> Result<Option<CommonJsResetPreparation>> {
+    anyhow::ensure!(
+        project.next_mode().await?.is_production()
+            && context.await?.compile_time_info
+                == project.node_test_context().await?.compile_time_info,
+        "Production original require resets need the ordinary production context"
+    );
+    let prepared = prepare_original_require(
+        project,
+        context,
+        source,
+        id,
+        protected_originals,
+        registration,
+        wrapper_sources,
+    )
+    .await?
+    .context("Production original require resets need an actual compiled consumer")?;
+    let ([consumer], [captured]) = (prepared.roots.as_slice(), protected_originals) else {
+        anyhow::bail!(
+            "Production original require resets need one actual consumer and captured leaf"
+        );
+    };
+    let owner = full_owner(consumer.original).await?;
+    let certificate = commonjs_reset_export_certificate(*owner).await?;
+    anyhow::ensure!(
+        certificate.module == owner && certificate.shape == CommonJsResetExportShape::ObjectLiteral,
+        "Production original require reset consumers need certified final object exports"
+    );
+    let (modules, edges) = require_closure_with_originals(
+        &project.project_path().owned().await?,
+        &[consumer.original],
+        protected_originals,
+    )
+    .await?;
+    anyhow::ensure!(
+        production_original_require_graph(consumer.original, *captured, &modules, &edges),
+        "Production original require resets need one actual direct consumer-to-captured-leaf edge"
+    );
+    Ok(Some(prepared))
 }
 
 pub(crate) async fn prepare_original_require(
@@ -1965,10 +2033,52 @@ mod tests {
                 .as_slice(),
             &[captured]
         );
+        assert!(crate::testing_cjs_reset::production_original_require_graph(
+            modules["acyclic.cjs"],
+            captured,
+            &retained,
+            &retained_edges,
+        ));
+        assert!(
+            !crate::testing_cjs_reset::production_original_require_graph(
+                registration,
+                captured,
+                &retained,
+                &retained_edges,
+            ),
+            "A same-path registration is not the actual compiled consumer"
+        );
+        assert!(
+            !crate::testing_cjs_reset::production_original_require_graph(
+                modules["acyclic.cjs"],
+                registration,
+                &retained,
+                &retained_edges,
+            ),
+            "The actual captured original cannot be replaced by a same-path owner"
+        );
+        assert!(
+            !crate::testing_cjs_reset::production_original_require_graph(
+                captured,
+                modules["acyclic.cjs"],
+                &retained,
+                &retained_edges,
+            ),
+            "The real require direction is mandatory"
+        );
         let (cycle, edges) = require_closure(&directory, &[modules["cycle.cjs"]]).await?;
         assert_eq!(cycle.len(), 2);
         assert_eq!(edges.len(), 2);
         assert!(edges.iter().any(|edge| edge.target == modules["cycle.cjs"]));
+        assert!(
+            !crate::testing_cjs_reset::production_original_require_graph(
+                modules["cycle.cjs"],
+                modules["cycle-dependency.cjs"],
+                &cycle,
+                &edges,
+            ),
+            "Production must not admit an actual cycle through its direct-leaf role"
+        );
         let references =
             primary_chunkable_referenced_modules(*modules["multiple.cjs"], false, false).await?;
         let multiple = references

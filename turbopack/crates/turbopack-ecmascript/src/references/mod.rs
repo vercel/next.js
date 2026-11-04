@@ -559,6 +559,7 @@ struct AnalysisState<'a> {
     cjs_tree_shaking: bool,
     cross_module_constants: bool,
     mutable_import_meta_env: bool,
+    test_source_file_urls: bool,
     lazy_compilation: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
@@ -943,6 +944,17 @@ async fn analyze_ecmascript_module_internal(
         // The module's static CommonJS exports, if any, for scope hoisting.
         analysis.cjs_static_exports = take(&mut var_graph.cjs_static_exports);
         let compile_time_info_ref = compile_time_info.await?;
+        let test_source_file_urls = if options.test_source_file_urls {
+            let source_file_system = source.ident().await?.path.fs;
+            compile_time_info_ref
+                .environment
+                .cwd()
+                .owned()
+                .await?
+                .is_some_and(|cwd| cwd.fs == source_file_system)
+        } else {
+            false
+        };
 
         let mut analysis_state = AnalysisState {
             arena,
@@ -969,6 +981,7 @@ async fn analyze_ecmascript_module_internal(
             cjs_tree_shaking: options.cjs_tree_shaking,
             cross_module_constants: options.cross_module_constants,
             mutable_import_meta_env: options.import_meta_env_runtime.is_some(),
+            test_source_file_urls,
             lazy_compilation: options.lazy_compilation,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
@@ -2173,6 +2186,12 @@ where
     if new {
         match func {
             WellKnownFunctionKind::URLConstructor => {
+                // Node test code uses its actual authored source URL. Runtime file
+                // operations may intentionally name files which do not yet exist.
+                // Keep ImportMetaBinding and all ordinary asset contexts intact.
+                if state.test_source_file_urls {
+                    return Ok(());
+                }
                 let args = linked_args().await?;
                 if let [url, JsValue::Member(_, member_obj, member_prop)] = &args[..]
                     && let JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta) = &**member_obj

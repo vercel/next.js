@@ -12923,6 +12923,533 @@
           "rawRowSHA256": "0190d29c289543e5346f50662da7afbcfa5db28ce9b3f01cad844b73a5f19e6d"
         }
       }
+    },
+    "retained-reset-require": {
+      "mode": "development",
+      "completeModel": true,
+      "files": {
+        "target.cjs": "87b01b3108041ac4908a3204c8af54738b8e0e23a1eb26fcc7422b587462bc21",
+        "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
+        "consumer.cjs": "5b9685eddb9a30c1c18f6228ea8d47d86366e98e3c3e43fb68c3864fa8afa2c9",
+        "contract.case.mjs": "5188670dfe6d99fc1eac19d1be39867185cba05ff3f6e178b38fe60dc72e18f5"
+      },
+      "engines": {
+        "20": "v20.20.0",
+        "22": "v22.12.0",
+        "24": "v24.0.0",
+        "26": "v26.12.1"
+      },
+      "bounds": {
+        "cli": 120000,
+        "test": 5000,
+        "hook": 5000
+      },
+      "cases": 2,
+      "rows": 2,
+      "callbacks": 11,
+      "reporterSHA256": "d6d699b986074241568fde15e627643b9afdec5a0fad8485479e70cb7c76e68a",
+      "expected": {
+        "status": 0,
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "original CommonJS require and mocked ESM remain separate",
+            "status": "passed",
+            "title": "original CommonJS require and mocked ESM remain separate",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "reset composes the original require cache with the mocked ESM namespace",
+            "status": "passed",
+            "title": "reset composes the original require cache with the mocked ESM namespace",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ],
+        "standardReport": {
+          "numTotalTestSuites": 1,
+          "numPassedTestSuites": 1,
+          "numFailedTestSuites": 0,
+          "numPendingTestSuites": 0,
+          "numTotalTests": 2,
+          "numPassedTests": 2,
+          "numFailedTests": 0,
+          "numPendingTests": 0,
+          "numTodoTests": 0,
+          "snapshot": {
+            "added": 0,
+            "failure": false,
+            "filesAdded": 0,
+            "filesRemoved": 0,
+            "filesRemovedList": [],
+            "filesUnmatched": 0,
+            "filesUpdated": 0,
+            "matched": 0,
+            "total": 0,
+            "unchecked": 0,
+            "uncheckedKeysByFile": [],
+            "unmatched": 0,
+            "updated": 0,
+            "didUpdate": false
+          },
+          "success": true,
+          "testResults": [
+            {
+              "status": "passed",
+              "message": "",
+              "name": "contract.case.mjs",
+              "assertionResults": [
+                {
+                  "ancestorTitles": [],
+                  "fullName": "original CommonJS require and mocked ESM remain separate",
+                  "status": "passed",
+                  "title": "original CommonJS require and mocked ESM remain separate",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                },
+                {
+                  "ancestorTitles": [],
+                  "fullName": "reset composes the original require cache with the mocked ESM namespace",
+                  "status": "passed",
+                  "title": "reset composes the original require cache with the mocked ESM namespace",
+                  "failureMessages": [],
+                  "meta": {},
+                  "tags": [],
+                  "benchmarks": []
+                }
+              ]
+            }
+          ]
+        },
+        "rows": [
+          {
+            "name": "ordinary-require-composition",
+            "rawValue": "actual",
+            "mockedValue": "mocked",
+            "defaultValue": "mock-default",
+            "rawIdentity": true,
+            "mockedIdentity": true,
+            "factoryCalls": 1,
+            "rawKeys": ["value", "token"],
+            "mockedKeys": ["value", "default"],
+            "rawDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "token",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "mockedDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ]
+          },
+          {
+            "name": "reset-require-composition",
+            "resetReturnSame": true,
+            "rawHeldIdentity": true,
+            "rawReloadedIdentity": true,
+            "rawTokenIdentity": true,
+            "consumerDefaultIdentity": false,
+            "consumerNamespaceIdentity": false,
+            "consumerInitialIdentity": true,
+            "mockedNamespaceIdentity": true,
+            "staticNamespaceIdentity": true,
+            "defaultTokenIdentity": true,
+            "factoryCalls": 1,
+            "rawValue": "actual",
+            "mockedValue": "mocked",
+            "defaultValue": "mock-default",
+            "beforeRawDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "token",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "afterRawDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "token",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "beforeMockedDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "afterMockedDescriptors": [
+              {
+                "key": "value",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "string"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              }
+            ],
+            "beforeConsumerDescriptors": [
+              {
+                "key": "initial",
+                "enumerable": true,
+                "configurable": true,
+                "kind": "accessor",
+                "type": "function"
+              },
+              {
+                "key": "read",
+                "enumerable": true,
+                "configurable": true,
+                "kind": "accessor",
+                "type": "function"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "kind": "data",
+                "type": "string"
+              }
+            ],
+            "afterConsumerDescriptors": [
+              {
+                "key": "initial",
+                "enumerable": true,
+                "configurable": true,
+                "kind": "accessor",
+                "type": "function"
+              },
+              {
+                "key": "read",
+                "enumerable": true,
+                "configurable": true,
+                "kind": "accessor",
+                "type": "function"
+              },
+              {
+                "key": "default",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              },
+              {
+                "key": "Symbol(Symbol.toStringTag)",
+                "enumerable": false,
+                "configurable": false,
+                "writable": false,
+                "kind": "data",
+                "type": "string"
+              }
+            ],
+            "beforeRequiredDescriptors": [
+              {
+                "key": "initial",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              },
+              {
+                "key": "read",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "function"
+              }
+            ],
+            "afterRequiredDescriptors": [
+              {
+                "key": "initial",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "object"
+              },
+              {
+                "key": "read",
+                "enumerable": true,
+                "configurable": true,
+                "writable": true,
+                "kind": "data",
+                "type": "function"
+              }
+            ]
+          }
+        ],
+        "events": [
+          {
+            "name": "consumer-require"
+          },
+          {
+            "name": "target-evaluate"
+          },
+          {
+            "name": "consumer-require"
+          },
+          {
+            "name": "consumer-require"
+          },
+          {
+            "name": "consumer-require"
+          },
+          {
+            "name": "consumer-require"
+          },
+          {
+            "name": "consumer-require"
+          }
+        ],
+        "eventCounts": {
+          "consumer-require": 6,
+          "target-evaluate": 1
+        },
+        "callbacks": [
+          {
+            "hook": "onInit"
+          },
+          {
+            "hook": "onTestRunStart",
+            "specifications": [
+              {
+                "moduleId": "contract.case.mjs",
+                "pool": "forks",
+                "project": "retained-reset-require"
+              }
+            ]
+          },
+          {
+            "hook": "onTestModuleQueued",
+            "module": {
+              "type": "module",
+              "moduleId": "contract.case.mjs",
+              "relativeModuleId": "contract.case.mjs",
+              "state": "pending",
+              "ok": true,
+              "meta": {},
+              "errors": []
+            }
+          },
+          {
+            "hook": "onTestModuleCollected",
+            "module": {
+              "type": "module",
+              "moduleId": "contract.case.mjs",
+              "relativeModuleId": "contract.case.mjs",
+              "state": "pending",
+              "ok": true,
+              "meta": {},
+              "errors": []
+            }
+          },
+          {
+            "hook": "onTestModuleStart",
+            "module": {
+              "type": "module",
+              "moduleId": "contract.case.mjs",
+              "relativeModuleId": "contract.case.mjs",
+              "state": "pending",
+              "ok": true,
+              "meta": {},
+              "errors": []
+            }
+          },
+          {
+            "hook": "onTestCaseReady",
+            "test": {
+              "type": "test",
+              "name": "original CommonJS require and mocked ESM remain separate",
+              "fullName": "original CommonJS require and mocked ESM remain separate",
+              "moduleId": "contract.case.mjs",
+              "result": {
+                "state": "passed"
+              },
+              "options": {
+                "tags": [],
+                "timeout": 5000,
+                "mode": "run"
+              },
+              "ok": true,
+              "meta": {}
+            }
+          },
+          {
+            "hook": "onTestCaseResult",
+            "test": {
+              "type": "test",
+              "name": "original CommonJS require and mocked ESM remain separate",
+              "fullName": "original CommonJS require and mocked ESM remain separate",
+              "moduleId": "contract.case.mjs",
+              "result": {
+                "state": "passed"
+              },
+              "options": {
+                "tags": [],
+                "timeout": 5000,
+                "mode": "run"
+              },
+              "ok": true,
+              "meta": {}
+            }
+          },
+          {
+            "hook": "onTestCaseReady",
+            "test": {
+              "type": "test",
+              "name": "reset composes the original require cache with the mocked ESM namespace",
+              "fullName": "reset composes the original require cache with the mocked ESM namespace",
+              "moduleId": "contract.case.mjs",
+              "result": {
+                "state": "passed"
+              },
+              "options": {
+                "tags": [],
+                "timeout": 5000,
+                "mode": "run"
+              },
+              "ok": true,
+              "meta": {}
+            }
+          },
+          {
+            "hook": "onTestCaseResult",
+            "test": {
+              "type": "test",
+              "name": "reset composes the original require cache with the mocked ESM namespace",
+              "fullName": "reset composes the original require cache with the mocked ESM namespace",
+              "moduleId": "contract.case.mjs",
+              "result": {
+                "state": "passed"
+              },
+              "options": {
+                "tags": [],
+                "timeout": 5000,
+                "mode": "run"
+              },
+              "ok": true,
+              "meta": {}
+            }
+          },
+          {
+            "hook": "onTestModuleEnd",
+            "module": {
+              "type": "module",
+              "moduleId": "contract.case.mjs",
+              "relativeModuleId": "contract.case.mjs",
+              "state": "passed",
+              "ok": true,
+              "meta": {},
+              "errors": []
+            }
+          },
+          {
+            "hook": "onTestRunEnd",
+            "modules": [
+              {
+                "type": "module",
+                "moduleId": "contract.case.mjs",
+                "relativeModuleId": "contract.case.mjs",
+                "state": "passed",
+                "ok": true,
+                "meta": {},
+                "errors": []
+              }
+            ],
+            "errors": [],
+            "reason": "passed"
+          }
+        ]
+      }
     }
   }
 }

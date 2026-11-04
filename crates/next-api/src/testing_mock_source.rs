@@ -754,24 +754,6 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     if calls.reset_calls.iter().any(|call| !call.args.is_empty()) {
         bail!("vi.resetModules currently requires no arguments ({filename}).");
     }
-    // References and property operations demand a real cache, not mock/helper certificates.
-    if (calls.reset_method_reference || calls.reset_property_access)
-        && (!calls.calls.is_empty()
-            || !calls.hoisted_calls.is_empty()
-            || !calls.actual_calls.is_empty()
-            || !calls.mock_import_calls.is_empty()
-            || !calls.unmock_calls.is_empty()
-            || !calls.runtime_calls.is_empty())
-    {
-        let operation = if calls.reset_method_reference {
-            "Reset method references"
-        } else {
-            "Reset property operations"
-        };
-        bail!(
-            "{operation} cannot currently combine with module mock or helper plans ({filename})."
-        );
-    }
     // Each direct literal target owns factories, cuts, runtime registration and
     // an actual helper. Canonical identities remain independently certified.
     let top_level = |call: &CallExpr| {
@@ -876,6 +858,33 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
                 if request.value.as_str().is_some_and(|request|
                     (request.starts_with("./") || request.starts_with("../"))
                     && !request.contains(['?', '#', '\\']))));
+    // A suffix is only syntax admission. The existing assembly path still
+    // requires its one actual captured local CommonJS module and shared bridge.
+    let retained_commonjs_original_reset = calls.reset_method_reference
+        && !calls.reset_property_access
+        && commonjs_original_reset
+        && matches!(calls.calls[0].args.first(), Some(argument)
+            if matches!(&*argument.expr, Expr::Lit(Lit::Str(request))
+                if request.value.as_str().is_some_and(|request| request.ends_with(".cjs"))));
+    // References and property operations demand a real cache, not mock/helper certificates.
+    if (calls.reset_method_reference || calls.reset_property_access)
+        && (!calls.calls.is_empty()
+            || !calls.hoisted_calls.is_empty()
+            || !calls.actual_calls.is_empty()
+            || !calls.mock_import_calls.is_empty()
+            || !calls.unmock_calls.is_empty()
+            || !calls.runtime_calls.is_empty())
+        && !retained_commonjs_original_reset
+    {
+        let operation = if calls.reset_method_reference {
+            "Reset method references"
+        } else {
+            "Reset property operations"
+        };
+        bail!(
+            "{operation} cannot currently combine with module mock or helper plans ({filename})."
+        );
+    }
     if !calls.reset_calls.is_empty()
         && !commonjs_original_reset
         && !native_static
@@ -3382,6 +3391,94 @@ mod tests {
                 .unwrap()
                 .reset_modules
         );
+    }
+
+    #[test]
+    fn retained_literal_reset_can_reach_only_the_existing_explicit_cjs_syntax_candidate() {
+        for (body, factory_source) in [
+            (
+                "const reset=vi.resetModules;vi.mock('./target.cjs',()=>({value:1}));reset()",
+                "()=>({value:1})",
+            ),
+            (
+                "const reset=vi.resetModules;vi.mock('../target.cjs',()=>({value:1}));reset('\
+                 unused')",
+                "()=>({value:1})",
+            ),
+            (
+                "const reset=vi.resetModules;vi.mock('./target.cjs',function(){return \
+                 {value:1}});function run(){reset()}",
+                "function(){return {value:1}}",
+            ),
+        ] {
+            let source = format!("import {{vi}} from 'vitest';{body}");
+            let plan = extract_test_mocks(&source, "retained-cjs.mjs").unwrap();
+            assert!(plan.reset_modules);
+            assert!(plan.commonjs_original_reset_candidate());
+            assert_eq!(plan.declarations.len(), 1);
+            let declaration = &plan.declarations[0];
+            let start = source.find("vi.mock(").unwrap();
+            let end = start + source[start..].find(");").unwrap() + 1;
+            assert_eq!(plan.source.len(), source.len());
+            assert_eq!(plan.source[..start], source[..start]);
+            assert_eq!(plan.source[end..], source[end..]);
+            assert!(plan.source[start..end].trim().is_empty());
+            assert_eq!(declaration.original_factory_source, factory_source);
+            assert_eq!(
+                source[declaration.factory_start
+                    ..declaration.factory_start + declaration.original_factory_source.len()],
+                *factory_source
+            );
+            assert!(plan.hoisted.is_empty());
+            assert!(plan.actual_imports.is_empty());
+            assert!(plan.mock_imports.is_empty());
+            assert!(plan.unmocks.is_empty());
+            assert!(plan.runtime_requests.is_empty());
+            // Static-only extraction does not gain this runtime/graph path.
+            assert!(extract_static_mocks(&source, "retained-cjs.mjs").is_err());
+        }
+    }
+
+    #[test]
+    fn retained_reset_does_not_waive_other_targets_properties_or_factory_contracts() {
+        for body in [
+            "const reset=vi.resetModules;vi.mock('./dep',()=>({value:1}))",
+            "const reset=vi.resetModules;vi.mock('./target.js',()=>({value:1}))",
+            "const reset=vi.resetModules;vi.mock('package',()=>({value:1}))",
+            "const reset=vi.resetModules;vi.mock('node:fs',()=>({value:1}))",
+            "const reset=vi.resetModules;vi.mock('./target.cjs?query',()=>({value:1}))",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',original=>({value:1}))",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',()=>({...other}))",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',()=>({value:reset}))",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',{spy:true})",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',()=>({value:1}));vi.mock('./\
+             second.cjs',()=>({value:2}))",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',()=>({value:1}));vi.\
+             hoisted(()=>({value:1}))",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',()=>({value:1}));vi.importActual('\
+             ./target.cjs')",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',()=>({value:1}));vi.importMock('./\
+             target.cjs')",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',()=>({value:1}));vi.unmock('./\
+             target.cjs')",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',()=>({value:1}));vi.doMock('./\
+             target.cjs',()=>({value:2}))",
+            "const reset=vi.resetModules;Object.getOwnPropertyDescriptor(vi,'resetModules');vi.\
+             mock('./target.cjs',()=>({value:1}))",
+            "Object.getOwnPropertyDescriptor(vi,'resetModules');vi.mock('./target.cjs',\
+             ()=>({value:1}))",
+            "const tools=vi;const reset=tools.resetModules;vi.mock('./target.cjs',()=>({value:1}))",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',()=>({value:1}));vi.resetModules('\
+             unused')",
+        ] {
+            let source = format!("import {{vi}} from 'vitest';{body}");
+            let error = extract_test_mocks(&source, "retained-cjs-negative.mjs")
+                .err()
+                .expect("uncertified retained-reset factory must fail");
+            if body.contains("value:reset") {
+                assert!(error.to_string().contains("capture of reset"));
+            }
+        }
     }
 
     #[test]

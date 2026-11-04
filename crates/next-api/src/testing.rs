@@ -294,6 +294,19 @@ pub(crate) struct TestEntryOptions {
     pub alias_finds: Vec<RcStr>,
 }
 
+/// Initial source-file URL compatibility is limited to actual isolated Node graphs.
+/// Browser, route rendering, shared cohorts and coverage retain their own options.
+pub(crate) fn test_entry_source_file_urls(entry: &TestEntryOptions) -> bool {
+    &*entry.environment == "node"
+        && !entry.browser_client
+        && entry.route.is_none()
+        && entry.cohort_files.is_empty()
+        && !entry.source_coverage
+        && !entry.browser_source_coverage
+        && !entry.preserve_coverage_sources
+        && !entry.import_coverage_roles
+}
+
 #[turbo_tasks::function]
 pub(crate) async fn test_endpoint(
     project: ResolvedVc<Project>,
@@ -533,6 +546,7 @@ pub(crate) async fn test_endpoint(
                     || production_reset_plan(&production_plan)
                     || production_paired_native_actual_plan(&production_plan)
                     || production_native_runtime_plan(&production_plan)
+                    || production_original_require_reset_plan(&production_plan)
             }))
     {
         return Err(test_input_error(
@@ -731,6 +745,22 @@ fn production_reset_plan(plan: &StaticMockPlan) -> bool {
         && plan.mock_imports.is_empty()
         && plan.unmocks.is_empty()
         && plan.runtime_requests.is_empty()
+}
+
+// Syntax admission only. Production preparation still requires the actual
+// captured local leaf, one compiled consumer and their resolved require edge.
+fn production_original_require_reset_plan(plan: &StaticMockPlan) -> bool {
+    plan.commonjs_original_reset_candidate() && plan.declarations[0].request.ends_with(".cjs")
+}
+
+fn original_require_reset_context(
+    development: bool,
+    production: bool,
+    runtime_env: bool,
+    production_candidate: bool,
+) -> bool {
+    development != production
+        && ((development && runtime_env) || (production && !runtime_env && production_candidate))
 }
 
 fn production_static_mock_plan(plan: &StaticMockPlan, browser_spies: bool) -> bool {
@@ -956,11 +986,13 @@ pub(crate) async fn test_module_options_context(
     preserve_coverage_source: bool,
     authoring_adapter: ResolvedVc<Box<dyn Source>>,
     inject_commonjs_exports: bool,
+    source_file_urls: bool,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let mut options = options.owned().await?;
     options.module_fragments_enabled = false;
     options.ecmascript.test_declaration_call_adapter = Some(authoring_adapter);
     options.ecmascript.test_injected_commonjs_exports = inject_commonjs_exports;
+    options.ecmascript.test_source_file_urls = source_file_urls;
     // Test modules observe the window supplied by their actual execution realm.
     // Normal application server/client contexts keep their own constant folding.
     options.ecmascript.enable_typeof_window_inlining = None;
@@ -979,6 +1011,7 @@ pub(crate) async fn test_module_options_context(
             preserve_coverage_source,
             *authoring_adapter,
             inject_commonjs_exports,
+            source_file_urls,
         )
         .to_resolved()
         .await?;
@@ -2441,9 +2474,9 @@ async fn prepare_test_module_with_loading(
         && plan.mock_imports.is_empty()
         && plan.unmocks.is_empty()
         && (project.next_mode().await?.is_development()
-            || (!plan.reset_modules
-                && project.next_mode().await?.is_production()
-                && production_factory_plan(&plan)))
+            || (project.next_mode().await?.is_production()
+                && ((!plan.reset_modules && production_factory_plan(&plan))
+                    || production_original_require_reset_plan(&plan))))
         && let Some(entry) = project.await?.test_entry
     {
         let entry = entry.await?;
@@ -4247,27 +4280,48 @@ impl NodeTestEndpoint {
         let commonjs_reset = if commonjs_runtime.is_some() {
             commonjs_runtime
         } else if !prepared.commonjs_original_require.is_empty() {
+            let production_original = isolated_node_runtime
+                && self.project.next_mode().await?.is_production()
+                && production_original_require_reset_plan(&plan);
             if !isolated_node_runtime
-                || !self.runtime_env
-                || !self.project.next_mode().await?.is_development()
+                || !original_require_reset_context(
+                    self.project.next_mode().await?.is_development(),
+                    self.project.next_mode().await?.is_production(),
+                    self.runtime_env,
+                    production_original,
+                )
             {
                 return Err(test_input_error(
                     self.path.clone(),
                     "Original CommonJS require resets require isolated development Node execution",
                 ));
             }
-            crate::testing_cjs_reset::prepare_original_require(
-                self.project,
-                context,
-                prepared.source,
-                &self.id,
-                &prepared.commonjs_original_require,
-                prepared
-                    .registration
-                    .context("Original reset requires its actual registration")?,
-                &prepared.mock_wrappers,
-            )
-            .await?
+            let registration = prepared
+                .registration
+                .context("Original reset requires its actual registration")?;
+            if production_original {
+                crate::testing_cjs_reset::prepare_production_original_require(
+                    self.project,
+                    context,
+                    prepared.source,
+                    &self.id,
+                    &prepared.commonjs_original_require,
+                    registration,
+                    &prepared.mock_wrappers,
+                )
+                .await?
+            } else {
+                crate::testing_cjs_reset::prepare_original_require(
+                    self.project,
+                    context,
+                    prepared.source,
+                    &self.id,
+                    &prepared.commonjs_original_require,
+                    registration,
+                    &prepared.mock_wrappers,
+                )
+                .await?
+            }
         } else if prepared.module_reset
             && prepared.runtime_requests.is_empty()
             && prepared.registration.is_none()
@@ -5118,6 +5172,71 @@ mod production_factory_tests {
     };
 
     #[test]
+    fn production_original_require_resets_keep_one_explicit_leaf_plan() {
+        for body in [
+            "vi.mock('./target.cjs',()=>({value:1}));vi.resetModules()",
+            "const reset=vi.resetModules;vi.mock('./target.cjs',()=>({value:1}));reset()",
+        ] {
+            let plan =
+                extract_test_mocks(&format!("import {{vi}} from 'vitest';{body}"), "entry.mjs")
+                    .unwrap();
+            assert!(
+                crate::testing::production_original_require_reset_plan(&plan),
+                "{body}"
+            );
+            assert!(!production_factory_plan(&plan), "{body}");
+            assert!(!production_reset_plan(&plan), "{body}");
+        }
+        for body in [
+            "vi.mock('./target',()=>({value:1}));vi.resetModules()",
+            "vi.mock('./target.js',()=>({value:1}));vi.resetModules()",
+            "vi.mock('./target.cjs',()=>({value:1}))",
+            "vi.resetModules()",
+            "vi.mock('./target.cjs',(original)=>({value:1}));vi.resetModules()",
+            "vi.mock('./target.cjs',()=>({value:1}));vi.mock('./other.cjs',()=>({value:2}));vi.\
+             resetModules()",
+            "vi.mock('package',()=>({value:1}));vi.resetModules()",
+            "vi.doMock('./target.cjs',()=>({value:1}));vi.resetModules()",
+            "vi.hoisted(()=>1);vi.mock('./target.cjs',()=>({value:1}));vi.resetModules()",
+            "Object.getOwnPropertyDescriptor(vi,'resetModules');vi.mock('./target.cjs',\
+             ()=>({value:1}))",
+        ] {
+            if let Ok(plan) =
+                extract_test_mocks(&format!("import {{vi}} from 'vitest';{body}"), "entry.mjs")
+            {
+                assert!(
+                    !crate::testing::production_original_require_reset_plan(&plan),
+                    "{body}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn original_require_reset_context_retains_real_production_environment() {
+        for development in [false, true] {
+            for production in [false, true] {
+                for runtime_env in [false, true] {
+                    for candidate in [false, true] {
+                        assert_eq!(
+                            crate::testing::original_require_reset_context(
+                                development,
+                                production,
+                                runtime_env,
+                                candidate
+                            ),
+                            (development && !production && runtime_env)
+                                || (!development && production && !runtime_env && candidate),
+                            "development={development}, production={production}, \
+                             runtime_env={runtime_env}, candidate={candidate}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn admits_production_reset_plans_without_mock_registrations() {
         for body in [
             "vi.resetModules()",
@@ -5627,6 +5746,7 @@ mod injected_commonjs_producer_tests {
                     false,
                     *turbo_tasks::ResolvedVc::upcast(authoring),
                     injected,
+                    false,
                 )
                 .to_resolved()
                 .await?;
@@ -5911,6 +6031,397 @@ mod injected_commonjs_producer_tests {
             .await?;
         Ok(())
     }
+    #[test]
+    fn source_file_url_admission_uses_the_actual_node_entry_profile() {
+        let entry = || crate::testing::TestEntryOptions {
+            file: rcstr!("entry.test.mjs"),
+            id: rcstr!("source-file-urls"),
+            environment: rcstr!("node"),
+            setup_files: vec![],
+            snapshot_serializers: vec![],
+            cohort_files: vec![],
+            runtime_env: false,
+            route: None,
+            dependency_plan: false,
+            browser_client: false,
+            source_coverage: false,
+            browser_source_coverage: false,
+            preserve_coverage_sources: false,
+            import_coverage_roles: false,
+            tsconfig_input_revision: None,
+            alias_finds: vec![],
+        };
+        assert!(crate::testing::test_entry_source_file_urls(&entry()));
+        let mut configured = entry();
+        configured.setup_files.push(rcstr!("setup.mjs"));
+        configured
+            .snapshot_serializers
+            .push(rcstr!("serializer.mjs"));
+        configured.runtime_env = true;
+        assert!(crate::testing::test_entry_source_file_urls(&configured));
+        for excluded in 0..9 {
+            let mut actual = entry();
+            match excluded {
+                0 => actual.environment = rcstr!("rsc"),
+                1 => actual.environment = rcstr!("jsdom"),
+                2 => actual.browser_client = true,
+                3 => actual.route = Some(rcstr!("/page")),
+                4 => actual.cohort_files.push(rcstr!("other.test.mjs")),
+                5 => actual.source_coverage = true,
+                6 => actual.browser_source_coverage = true,
+                7 => actual.preserve_coverage_sources = true,
+                8 => actual.import_coverage_roles = true,
+                _ => unreachable!(),
+            }
+            assert!(
+                !crate::testing::test_entry_source_file_urls(&actual),
+                "profile change {excluded}"
+            );
+        }
+        let mut dependency_plan = entry();
+        dependency_plan.dependency_plan = true;
+        assert!(crate::testing::test_entry_source_file_urls(
+            &dependency_plan
+        ));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn source_file_urls_keep_real_processed_calls_and_source_metadata() -> Result<()> {
+        use swc_core::{
+            common::{FileName, SourceMap},
+            ecma::{
+                ast::{
+                    Callee, EsVersion, Expr, GetterProp, Lit, MemberProp, NewExpr, PropName, Stmt,
+                },
+                parser::{Syntax, parse_file_as_program},
+                visit::{Visit, VisitWith},
+            },
+        };
+        use turbo_tasks::ResolvedVc;
+        use turbopack::module_options::EcmascriptOptionsContext;
+        use turbopack_core::{chunk::ChunkingContext, condition::ContextCondition};
+        use turbopack_ecmascript::{
+            EcmascriptAnalyzableExt,
+            references::esm::{UrlAssetReference, UrlRewriteBehavior},
+        };
+        use turbopack_nodejs::NodeJsChunkingContext;
+
+        assert!(!EcmascriptOptionsContext::default().test_source_file_urls);
+        assert!(!EcmascriptOptions::default().test_source_file_urls);
+
+        #[derive(Debug, Default)]
+        struct EmittedUrls {
+            constructors: usize,
+            metadata_bases: usize,
+            lower_case_calls: usize,
+            suffixes: Vec<String>,
+            source_paths: Vec<String>,
+        }
+        impl Visit for EmittedUrls {
+            fn visit_new_expr(&mut self, expression: &NewExpr) {
+                if matches!(&*expression.callee, Expr::Ident(name) if name.sym == "URL") {
+                    self.constructors += 1;
+                    if let Some(arguments) = &expression.args
+                        && let Some(path) = arguments.first()
+                        && let Expr::Bin(path) = &*path.expr
+                        && let Expr::Lit(Lit::Str(suffix)) = &*path.right
+                    {
+                        self.suffixes
+                            .push(suffix.value.to_string_lossy().into_owned());
+                    }
+                    if let Some(arguments) = &expression.args
+                        && let Some(base) = arguments.get(1)
+                        && matches!(&*base.expr, Expr::Member(member)
+                            if matches!(&member.prop, MemberProp::Ident(name) if name.sym == "url"))
+                    {
+                        self.metadata_bases += 1;
+                    }
+                }
+                expression.visit_children_with(self);
+            }
+            fn visit_call_expr(&mut self, expression: &swc_core::ecma::ast::CallExpr) {
+                if let Callee::Expr(callee) = &expression.callee
+                    && matches!(&**callee, Expr::Member(member)
+                        if matches!(&member.prop, MemberProp::Ident(name) if name.sym == "toLowerCase"))
+                {
+                    self.lower_case_calls += 1;
+                }
+                expression.visit_children_with(self);
+            }
+            fn visit_getter_prop(&mut self, getter: &GetterProp) {
+                if matches!(&getter.key, PropName::Ident(name) if name.sym == "url")
+                    && let Some(body) = &getter.function.body
+                    && let [Stmt::Return(returned)] = body.stmts.as_slice()
+                    && let Some(expression) = &returned.arg
+                    && let Expr::Call(call) = &**expression
+                    && let Callee::Expr(callee) = &call.callee
+                    && matches!(&**callee, Expr::Member(member)
+                        if matches!(&member.prop, MemberProp::Ident(name) if name.sym == "F")
+                            && matches!(&*member.obj, Expr::Ident(name) if name.sym == "__turbopack_context__"))
+                    && let [path] = call.args.as_slice()
+                    && let Expr::Lit(Lit::Str(path)) = &*path.expr
+                {
+                    self.source_paths
+                        .push(path.value.to_string_lossy().into_owned());
+                }
+                getter.visit_children_with(self);
+            }
+        }
+        fn emitted_urls(code: &str) -> EmittedUrls {
+            let map = SourceMap::default();
+            let file = map.new_source_file(
+                FileName::Custom("actual-source-file-url-output.mjs".into()).into(),
+                code.to_owned(),
+            );
+            let mut errors = vec![];
+            let program = parse_file_as_program(
+                &file,
+                Syntax::Es(Default::default()),
+                EsVersion::EsNext,
+                None,
+                &mut errors,
+            )
+            .expect("actual emitted source-file URL module must parse");
+            assert!(errors.is_empty(), "{errors:?}");
+            let mut observed = EmittedUrls::default();
+            program.visit_with(&mut observed);
+            observed
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn operation(disk_root: RcStr) -> Result<()> {
+            let root =
+                DiskFileSystem::new(rcstr!("node-source-file-urls"), Vc::cell(disk_root.clone()))
+                    .root()
+                    .owned()
+                    .await?;
+            let foreign =
+                DiskFileSystem::new(rcstr!("additional-source-file-urls"), Vc::cell(disk_root))
+                    .root()
+                    .owned()
+                    .await?;
+            assert_ne!(root.fs, foreign.fs, "real named filesystem identities");
+            let authoring = FileSource::new(root.join("authoring.mjs")?)
+                .to_resolved()
+                .await?;
+            for (label, enabled, foreign_source, has_cwd, rewrite, expected_assets) in [
+                ("enabled", true, false, true, UrlRewriteBehavior::Full, 0),
+                (
+                    "ordinary-full",
+                    false,
+                    false,
+                    true,
+                    UrlRewriteBehavior::Full,
+                    4,
+                ),
+                (
+                    "ordinary-relative",
+                    false,
+                    false,
+                    true,
+                    UrlRewriteBehavior::Relative,
+                    4,
+                ),
+                (
+                    "ordinary-none",
+                    false,
+                    false,
+                    true,
+                    UrlRewriteBehavior::None,
+                    4,
+                ),
+                (
+                    "foreign-filesystem",
+                    true,
+                    true,
+                    true,
+                    UrlRewriteBehavior::Full,
+                    4,
+                ),
+                (
+                    "missing-cwd",
+                    true,
+                    false,
+                    false,
+                    UrlRewriteBehavior::Full,
+                    4,
+                ),
+            ] {
+                let source_root = if foreign_source { &foreign } else { &root };
+                let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
+                    NodeJsEnvironment {
+                        cwd: ResolvedVc::cell(
+                            has_cwd.then(|| root.join("working-directory").unwrap()),
+                        ),
+                        ..Default::default()
+                    }
+                    .resolved_cell(),
+                ))
+                .to_resolved()
+                .await?;
+                let info = CompileTimeInfo::new(*environment).to_resolved().await?;
+                let nested = ModuleOptionsContext {
+                    ecmascript: EcmascriptOptionsContext {
+                        esm_url_rewrite_behavior: Some(rewrite),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+                .resolved_cell();
+                let options = crate::testing::test_module_options_context(
+                    ModuleOptionsContext {
+                        ecmascript: EcmascriptOptionsContext {
+                            esm_url_rewrite_behavior: Some(rewrite),
+                            ..Default::default()
+                        },
+                        rules: vec![(ContextCondition::InDirectory("nested".into()), nested)],
+                        ..Default::default()
+                    }
+                    .cell(),
+                    false,
+                    *ResolvedVc::upcast(authoring),
+                    true,
+                    enabled,
+                )
+                .to_resolved()
+                .await?;
+                assert_eq!(options.await?.ecmascript.test_source_file_urls, enabled);
+                assert_eq!(
+                    options.await?.rules[0]
+                        .1
+                        .await?
+                        .ecmascript
+                        .test_source_file_urls,
+                    enabled
+                );
+                let context = ModuleAssetContext::new(
+                    TransitionOptions::default().cell(),
+                    *info,
+                    *options,
+                    ResolveOptionsContext::default().cell(),
+                    Layer::new(label.into()),
+                );
+                let chunking: Vc<Box<dyn ChunkingContext>> = Vc::upcast(
+                    NodeJsChunkingContext::builder(
+                        root.clone(),
+                        root.join("output")?,
+                        rcstr!(".."),
+                        root.join("output/client")?,
+                        root.join("output/chunks")?,
+                        root.join("output/assets")?,
+                        environment,
+                        serde_json::from_str(r#""Development""#)?,
+                    )
+                    .build(),
+                );
+                for file in ["source space#é/spec.mjs", "nested/helper.mjs"] {
+                    let module = context
+                        .process(
+                            Vc::upcast(FileSource::new(source_root.join(file)?)),
+                            ReferenceType::EcmaScriptModules(
+                                EcmaScriptModulesReferenceSubType::Undefined,
+                            ),
+                        )
+                        .module()
+                        .to_resolved()
+                        .await?;
+                    let full = crate::testing::commonjs_full_owner(module)
+                        .await?
+                        .context("actual processed URL module")?;
+                    assert_eq!(full.await?.options.await?.test_source_file_urls, enabled);
+                    let analysis = full.analyze();
+                    assert!(analysis.await?.successful, "{label}/{file}");
+                    let assets = analysis
+                        .references()
+                        .await?
+                        .iter()
+                        .filter(|reference| {
+                            ResolvedVc::try_downcast_type::<UrlAssetReference>(**reference)
+                                .is_some()
+                        })
+                        .count();
+                    assert_eq!(assets, expected_assets, "actual references {label}/{file}");
+                    let generations = analysis.await?.code_generation.await?;
+                    assert_eq!(
+                        generations
+                            .code_gens
+                            .iter()
+                            .filter(|generation| matches!(
+                                generation,
+                                CodeGen::UrlAssetReferenceCodeGen(_)
+                            ))
+                            .count(),
+                        expected_assets,
+                        "actual rewrites {label}/{file}"
+                    );
+                    assert_eq!(
+                        generations
+                            .code_gens
+                            .iter()
+                            .filter(|generation| matches!(
+                                generation,
+                                CodeGen::ImportMetaBinding(_)
+                            ))
+                            .count(),
+                        1,
+                        "actual source metadata owner {label}/{file}"
+                    );
+                    if expected_assets == 0 {
+                        // This is actual module_content output from the normal processing,
+                        // analysis, scope-hoisting and Node chunking path, not synthesized code.
+                        let content = full.module_content(chunking, None).await?;
+                        let code = content.inner_code.to_str()?;
+                        let actual = emitted_urls(&code);
+                        assert_eq!(actual.constructors, 4, "{label}/{file}: {code}");
+                        assert_eq!(actual.metadata_bases, 4, "{label}/{file}: {code}");
+                        assert_eq!(actual.lower_case_calls, 4, "{label}/{file}: {code}");
+                        assert_eq!(
+                            actual.suffixes,
+                            [".value.txt", ".hold.txt", ".release.txt", ".cleanup.txt"],
+                            "{label}/{file}: {code}"
+                        );
+                        assert_eq!(actual.source_paths, [file], "{label}/{file}: {code}");
+                    }
+                }
+            }
+            Ok(())
+        }
+        let directory = tempfile::tempdir()?;
+        for name in ["source space#é", "nested", "working-directory"] {
+            std::fs::create_dir(directory.path().join(name))?;
+        }
+        let subject =
+            "const label=globalThis.label;export const source=import.meta.url;export const \
+             file=new URL('./'+label.toLowerCase()+'.value.txt',import.meta.url);export function \
+             controls(){return [new URL('./'+label.toLowerCase()+'.hold.txt',import.meta.url),new \
+             URL('./'+label.toLowerCase()+'.release.txt',import.meta.url),new \
+             URL('./'+label.toLowerCase()+'.cleanup.txt',import.meta.url)]}";
+        for (file, source) in [
+            ("package.json", "{\"type\":\"module\"}"),
+            ("authoring.mjs", "export {}"),
+            ("source space#é/spec.mjs", subject),
+            ("nested/helper.mjs", subject),
+        ] {
+            std::fs::write(directory.path().join(file), source)?;
+        }
+        // No value/hold/release/cleanup file exists: construction is a runtime
+        // operation and must not acquire a compiler asset dependency.
+        let disk_root = directory
+            .path()
+            .canonicalize()?
+            .to_str()
+            .context("UTF-8 source URL fixture")?
+            .into();
+        let tasks = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tasks
+            .run_once(async move { operation(disk_root).read_strongly_consistent().await })
+            .await?;
+        Ok(())
+    }
+
     #[test]
     fn production_unmock_candidate_keeps_one_real_retained_pair_shape() {
         let source = "import{vi}from'vitest';vi.unmock('package');vi.mock('package',()=>({value:\

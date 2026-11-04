@@ -1926,7 +1926,11 @@ export async function createTestCompilerSession(
             Object.keys(metadata).length !== 2 ||
             metadata.dynamicModuleMocking !== undefined ||
             profile.environment !== 'node' ||
-            profile.mode !== 'development' ||
+            !['development', 'production'].includes(profile.mode) ||
+            (profile.mode === 'production' &&
+              (profile.runtime !== 'nodejs' ||
+                profile.bundler !== 'turbopack' ||
+                dependencyPlan)) ||
             profile.route !== undefined ||
             profile.browserClient ||
             cohortInputs ||
@@ -1939,6 +1943,8 @@ export async function createTestCompilerSession(
           throw new Error(
             'Original CommonJS require resets require isolated ordinary development Node metadata'
           )
+        const productionOriginalCommonJsRequireReset =
+          originalCommonJsRequireReset && profile.mode === 'production'
         if (metadata.dynamicModuleMocking !== undefined) {
           if (
             metadata.dynamicModuleMocking?.version !== 1 ||
@@ -1971,7 +1977,8 @@ export async function createTestCompilerSession(
             profile.mode === 'production' &&
             profile.route === undefined &&
             ((!metadata.moduleMocking && !metadata.dynamicModuleMocking) ||
-              nativeRuntimeMocks)
+              nativeRuntimeMocks ||
+              productionOriginalCommonJsRequireReset)
           if (
             metadata.moduleCache?.version !== 1 ||
             profile.environment !== 'node' ||

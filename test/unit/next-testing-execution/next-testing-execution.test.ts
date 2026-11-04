@@ -7788,7 +7788,8 @@ describe('original CommonJS require reset activation in the real file worker', (
           {
             type: 'complete',
             result: expect.objectContaining({
-              status: mode === 'valid' ? 'passed' : 'failed',
+              status:
+                mode === 'valid' || mode === 'production' ? 'passed' : 'failed',
             }),
             ...(mode === 'coverage'
               ? {
@@ -7808,7 +7809,7 @@ describe('original CommonJS require reset activation in the real file worker', (
         const phases = existsSync(trace)
           ? readFileSync(trace, 'utf8').trim().split('\n')
           : []
-        if (mode === 'valid') {
+        if (mode === 'valid' || mode === 'production') {
           expect(phases).toEqual([
             'bootstrap',
             'cache-initialize',

@@ -288,6 +288,9 @@ pub struct EcmascriptOptionsContext {
     /// Private Node-test admission for direct, resolved injected CommonJS writes.
     /// Ordinary application and Browser contexts leave this disabled.
     pub test_injected_commonjs_exports: bool,
+    /// Private Node-test filesystem URLs keep source-relative runtime evaluation.
+    /// Only modules on the actual working-directory filesystem may opt in.
+    pub test_source_file_urls: bool,
     /// Native browser-test creator pass selected; not a public config value.
     pub browser_creator_scope: bool,
     /// Private Browser source coverage retains actual JSX pragma import usage.

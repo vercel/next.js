@@ -605,7 +605,11 @@ async function run({
       (!originalCommonJsRequireReset ||
         artifact.kind !== 'node' ||
         artifact.profile.environment !== 'node' ||
-        artifact.profile.mode !== 'development' ||
+        !['development', 'production'].includes(artifact.profile.mode) ||
+        (artifact.profile.mode === 'production' &&
+          (artifact.profile.runtime !== 'nodejs' ||
+            artifact.profile.bundler !== 'turbopack' ||
+            options.customCoverage)) ||
         artifact.profile.route !== undefined ||
         artifact.profile.browserClient ||
         artifact.moduleMocking.version !== 1 ||
@@ -623,6 +627,8 @@ async function run({
         options.entry.executionEnvironment)
     )
       throw new Error('Unsupported original CommonJS require reset activation')
+    const productionOriginalCommonJsRequireReset =
+      originalCommonJsRequireReset && artifact.profile.mode === 'production'
     const productionStaticRuntimeMocks =
       nativeRuntimeMocks &&
       artifact.profile.mode === 'production' &&
@@ -771,7 +777,8 @@ async function run({
         artifact.kind !== artifact.profile.environment ||
         (artifact.profile.mode !== 'development' &&
           !artifact.moduleMocking.productionStaticFactory &&
-          !productionStaticRuntimeMocks) ||
+          !productionStaticRuntimeMocks &&
+          !productionOriginalCommonJsRequireReset) ||
         (options.coverage && artifact.moduleMocking.coverage?.version !== 1) ||
         ('moduleCache' in artifact &&
           artifact.moduleCache !== undefined &&
@@ -786,9 +793,10 @@ async function run({
     ) {
       throw new Error('Unsupported compiled module mocking profile or version')
     }
-    verifyProductionStaticMock = productionStaticRuntimeMocks
-      ? undefined
-      : await captureProductionStaticMockClosure(artifact, options)
+    verifyProductionStaticMock =
+      productionStaticRuntimeMocks || productionOriginalCommonJsRequireReset
+        ? undefined
+        : await captureProductionStaticMockClosure(artifact, options)
     if (
       artifact.kind === 'node' &&
       artifact.moduleCache &&
@@ -799,7 +807,8 @@ async function run({
             artifact.profile.mode === 'production' &&
             artifact.profile.route === undefined &&
             ((!artifact.moduleMocking && !artifact.dynamicModuleMocking) ||
-              productionStaticRuntimeMocks)
+              productionStaticRuntimeMocks ||
+              productionOriginalCommonJsRequireReset)
           )) ||
         (artifact.moduleMocking &&
           !nativeRuntimeMocks &&

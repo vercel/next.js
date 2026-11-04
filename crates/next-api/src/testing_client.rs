@@ -649,6 +649,7 @@ pub(crate) async fn context(project: ResolvedVc<Project>) -> Result<Vc<ModuleAss
             .to_resolved()
             .await?,
         false,
+        false,
     );
     let resolve = resolve_context(
         get_client_resolve_options_context(
