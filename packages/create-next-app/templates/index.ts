@@ -273,7 +273,6 @@ export const installTemplate = async ({
 
   /** Copy the version from package.json or override for tests. */
   const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version;
-  const bundlerFlags = bundler === Bundler.Webpack ? " --webpack" : "";
 
   // When isolated tests pack workspace packages and pass their tarball
   // paths via `NEXT_TEST_PKG_PATHS` (set by `run-tests.js`), prefer those
@@ -300,8 +299,8 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: `next dev${bundlerFlags}`,
-      build: `next build${bundlerFlags}`,
+      dev: "next dev",
+      build: "next build",
       start: "next start",
       ...(eslint && { lint: "eslint" }),
       ...(biome && { lint: "biome check", format: "biome format --write" }),

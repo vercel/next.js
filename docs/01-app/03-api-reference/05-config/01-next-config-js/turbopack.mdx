@@ -180,7 +180,6 @@ Next.js reads the `virtualStoreDir` in `node_modules/.modules.yaml`, searching f
 If you need loader support beyond what's built in, many webpack loaders already work with Turbopack. There are currently some limitations:
 
 - Only a core subset of the webpack loader API is implemented. Currently, there is enough coverage for some popular loaders, and we'll expand our API support in the future.
-- Only loaders that return JavaScript code are supported. Loaders that transform files like stylesheets or images are not currently supported.
 - Options passed to webpack loaders must be plain JavaScript primitives, objects, and arrays. For example, it's not possible to pass `require()` plugin modules as option values.
 
 To configure loaders, add the names of the loaders you've installed and any options in `next.config.js`, mapping file extensions to a list of loaders. Rules are evaluated in order.
@@ -203,6 +202,8 @@ module.exports = {
 > **Good to know**: Globs used in the `rules` object match based on file name, unless the glob contains a `/` character, which will cause it to match based on the full project-relative file path. Windows file paths are normalized to use unix-style `/` path separators.
 >
 > Turbopack uses a modified version of the [Rust `globset` library](https://docs.rs/globset/latest/globset/).
+>
+> `as` renames the loader output so it's processed according to its new extension. The `*` stands for the original file name, so `as: '*.js'` makes `icon.svg` be treated as `icon.svg.js`. When `as` has one leading `*` followed by a suffix the file name already ends with, the name is kept as is. For example, `as: '*.css'` on a `'*.css'` rule leaves `styles.module.css` unchanged, so it's still handled as a [CSS Module](/docs/app/getting-started/css#css-modules).
 
 For loaders that require configuration options, you can use an object format instead of a string:
 

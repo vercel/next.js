@@ -1,9 +1,18 @@
-import { nextTestSetup } from 'e2e-utils'
+import { load } from 'cheerio'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('segment-config-precedence', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // Turbopack validates this collision before applying --debug-build-paths.
+    overrideFiles: !process.env.IS_TURBOPACK_TEST
+      ? {
+          'app/explicit-children': new FileRef(
+            `${__dirname}/fixtures/explicit-children`
+          ),
+        }
+      : undefined,
     // TODO: Include these routes once Turbopack accepts conflicting sibling
     // deployment configs. Their individual tests are excluded below.
     buildArgs: process.env.IS_TURBOPACK_TEST
@@ -22,6 +31,13 @@ describe('segment-config-precedence', () => {
               'intercept',
               'slot-edge-runtime',
               'entry-config',
+              'sibling-dynamic',
+              'sibling-dynamic-layout',
+              'sibling-revalidate',
+              'sibling-fetch-cache',
+              'sibling-dynamic-params',
+              'duration-above-u32',
+              'layout-extensions',
             ].map((route) => `!app/${route}/**`),
           ].join(','),
         ]
@@ -434,6 +450,87 @@ describe('segment-config-precedence', () => {
     )
     expect(middleware.functions['/_not-found/page']).toBeUndefined()
   })
+
+  for (const config of [
+    'dynamic',
+    'dynamic-layout',
+    'revalidate',
+    'fetch-cache',
+  ]) {
+    // TODO: Fix Turbopack rejecting unequal sibling rendering configs at build time.
+    // @force-gate !turbopack
+    it(`resolves unequal sibling rendering config: ${config}`, async () => {
+      const route = `/sibling-${config}`
+      const $ = await next.render$(route)
+      expect($('#children').text()).toBe('children')
+      expect($('#slot').text()).toBe('slot')
+
+      if (config === 'dynamic' || config === 'dynamic-layout') {
+        const second = await next.render$(route)
+        expect($('#render').text()).not.toBe('')
+        expect(second('#render').text()).not.toBe($('#render').text())
+        const prerender = await next.readJSON('.next/prerender-manifest.json')
+        expect(prerender.routes[route]).toBeUndefined()
+      } else if (config === 'revalidate') {
+        const prerender = await next.readJSON('.next/prerender-manifest.json')
+        expect(prerender.routes[route].initialRevalidateSeconds).toBe(60)
+      }
+    })
+  }
+
+  // TODO: Fix Turbopack rejecting unequal sibling dynamicParams at build time.
+  // @force-gate !turbopack
+  it('renders generated params and rejects ungenerated ones with unequal sibling dynamicParams', async () => {
+    const $ = await next.render$('/sibling-dynamic-params/known')
+    expect($('#children').text()).toBe('known')
+    expect($('#slot').text()).toBe('slot')
+    expect((await next.fetch('/sibling-dynamic-params/unknown')).status).toBe(
+      404
+    )
+  })
+
+  // TODO: Fix Turbopack matching an explicit @children page alongside an ordinary page.
+  // @force-gate !turbopack
+  it('accepts an ordinary page alongside an explicit @children page', async () => {
+    const response = await next.fetch('/explicit-children')
+    expect(response.status).toBe(200)
+    const $ = load(await response.text())
+    expect($('#which').text()).toBe('main')
+    expect($('#runtime').text()).toBe('edge')
+
+    const middleware = await next.readJSON(
+      '.next/server/middleware-manifest.json'
+    )
+    expect(middleware.functions['/explicit-children/page']).toBeDefined()
+    expect(
+      middleware.functions['/explicit-children/@children/page']
+    ).toBeDefined()
+  })
+
+  // TODO: Match webpack's accepted maxDuration range instead of narrowing to u32.
+  // @force-gate !turbopack
+  it('accepts maxDuration above the u32 boundary and preserves its manifest value', async () => {
+    const $ = await next.render$('/duration-above-u32')
+    expect($('#children').text()).toBe('children')
+    const functionsConfig = await next.readJSON(
+      '.next/server/functions-config-manifest.json'
+    )
+    expect(functionsConfig.functions['/duration-above-u32']).toEqual({
+      maxDuration: 4294967296,
+    })
+  })
+
+  // TODO: Use the first page extension consistently for layout selection and runtime.
+  // @force-gate !turbopack
+  it('uses the first page extension for both the layout and its runtime', async () => {
+    const $ = await next.render$('/layout-extensions')
+    expect($('#layout').text()).toBe('jsx')
+    expect($('#runtime').text()).toBe('edge')
+    const middleware = await next.readJSON(
+      '.next/server/middleware-manifest.json'
+    )
+    expect(middleware.functions['/layout-extensions/page']).toBeDefined()
+  })
 })
 
 describe('synthetic not-found config: ignored edge exports', () => {
@@ -523,5 +620,49 @@ describe('segment-config validation', () => {
         )
       }
     })
+  })
+})
+
+// This variant needs an Edge root layout, unlike the shared app.
+// @force-gate !cacheComponents
+describe('synthetic not-found config: Edge root layout', () => {
+  const { next } = nextTestSetup({
+    files: `${__dirname}/fixtures/edge-root-not-found`,
+  })
+
+  it('supports a Node-only custom 404 under an Edge root layout', async () => {
+    const page = await next.render$('/')
+    expect(page('#runtime').text()).toBe('nodejs')
+    const response = await next.fetch('/missing')
+    expect(response.status).toBe(404)
+    const html = await response.text()
+    expect(html).toContain('<p id="runtime">nodejs</p>')
+    expect(html).toContain('<p id="node-api">function</p>')
+
+    const middleware = await next.readJSON(
+      '.next/server/middleware-manifest.json'
+    )
+    expect(middleware.functions['/_not-found/page']).toBeUndefined()
+  })
+})
+
+// globalNotFound replaces the synthetic 404 entry used by the other fixtures.
+// @force-gate !cacheComponents
+describe('global-not-found deployment exports', () => {
+  const { next } = nextTestSetup({
+    files: `${__dirname}/fixtures/global-not-found`,
+  })
+
+  // TODO: Align Turbopack's global-not-found runtime with webpack's Node.js entry.
+  // @gate !turbopack
+  it('does not turn a global 404 into an Edge function with regions', async () => {
+    const response = await next.fetch('/missing')
+    expect(response.status).toBe(404)
+    expect(await response.text()).toContain('<p id="runtime">nodejs</p>')
+
+    const middleware = await next.readJSON(
+      '.next/server/middleware-manifest.json'
+    )
+    expect(middleware.functions['/_not-found/page']).toBeUndefined()
   })
 })

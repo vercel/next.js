@@ -654,9 +654,12 @@ async fn compact_reference_target(
     let referenced_asset =
         ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?;
     let Some(ReferencedAssetIdent::Module {
-        namespace_ident,
         ctxt,
-        import_source: ImportSource::Module { asset },
+        import_source:
+            ImportSource::Module {
+                asset,
+                namespace_ident,
+            },
         ..
     }) = referenced_asset
         .get_ident(chunking_context, None, scope_hoisting_context)
@@ -774,10 +777,13 @@ async fn build_compact_reexports(
         let referenced_asset =
             ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
         let Some(ReferencedAssetIdent::Module {
-            namespace_ident,
             ctxt,
             export: Some(imported_key),
-            import_source: ImportSource::Module { asset },
+            import_source:
+                ImportSource::Module {
+                    asset,
+                    namespace_ident,
+                },
         }) = referenced_asset
             .get_ident(
                 chunking_context,
@@ -1035,7 +1041,7 @@ impl EsmExports {
 
             for dynamic_export_asset in &expanded.dynamic_exports {
                 let ident = ReferencedAsset::get_ident_from_placeable(
-                    dynamic_export_asset,
+                    **dynamic_export_asset,
                     chunking_context,
                 )
                 .await?;
