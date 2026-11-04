@@ -10817,3 +10817,213 @@ it('drains pending task callback batches before actual context annotation report
       )
   }
 }, 40000)
+
+describe('completion task ownership without authored collection hooks', () => {
+  it.each([
+    ['node', false],
+    ['node', true],
+    ['browser', false],
+    ['browser', true],
+  ] as const)(
+    'uses real collected task ownership for %s completion with CaseResult=%s',
+    async (environment, caseResult) => {
+      const { createCollector } = await import(
+        'next/dist/experimental/testing/runner/collector'
+      )
+      const { runCollected } = await import(
+        'next/dist/experimental/testing/runner/lifecycle'
+      )
+      const { captureReporterTaskTree } = await import(
+        'next/dist/experimental/testing/reporting/live-tasks'
+      )
+      const { createReporterTaskUpdates } = await import(
+        'next/dist/experimental/testing/reporting/task-updates'
+      )
+      const root = await mkdtemp(join(tmpdir(), 'next-completion-task-owner-'))
+      await cp(
+        join(__dirname, 'fixtures/completion-batch-owner/reporter.mjs'),
+        join(root, 'reporter.mjs')
+      )
+      await writeFile(
+        join(root, 'options.json'),
+        JSON.stringify({ caseResult, collected: false })
+      )
+      const machine = createMachineReporter({
+        projectDir: root,
+        reporters: parseResultReporters(['json', './reporter.mjs']),
+        outputFile: 'result.json',
+        write() {},
+      })
+      let updates!: ReturnType<typeof createReporterTaskUpdates<CaseResult>>
+      try {
+        await machine.initialize()
+        expect(machine.captureTaskResults).toBe(true)
+        expect(machine.captureModuleCollected).toBe(false)
+        expect(machine.captureModuleStart).toBe(false)
+        expect(machine.captureCaseReady).toBe(false)
+        const actualEntry: TestEntry = {
+          ...entry,
+          id: `completion:${environment}:${caseResult}`,
+          file: join(root, 'actual.test.mjs'),
+          profile: {
+            ...entry.profile,
+            id: environment,
+            environment,
+            ...(environment === 'browser'
+              ? { browserClient: true as const }
+              : {}),
+          },
+        }
+        const revision = 'actual-collected-revision'
+        const emit = (event: object) =>
+          machine.onEvent({ ...envelope, ...event } as ResultEvent)
+        updates = createReporterTaskUpdates<CaseResult>({
+          onUpdate(update) {
+            emit({
+              type: 'task-update',
+              entryId: actualEntry.id,
+              revision,
+              ...update,
+            })
+          },
+        })
+        const collector = createCollector(actualEntry.id)
+        collector.api.test('actual body', (context) => {
+          Object.assign(context.task.meta, { componentBody: true })
+        })
+        await collector.settle()
+        emit({ type: 'run-start' })
+        emit({ type: 'file-start', entry: actualEntry, revision })
+        const started = Date.now()
+        const result = await runCollected(
+          collector.close(),
+          {
+            runId: envelope.runId,
+            signal: new AbortController().signal,
+            filePath: actualEntry.file,
+            onCollected(file) {
+              emit({
+                type: 'file-collected',
+                entryId: actualEntry.id,
+                revision,
+                taskTree: captureReporterTaskTree(file),
+              })
+              updates.collected(file)
+            },
+            onCaseStart(context) {
+              updates.caseStart(context.testId)
+              emit({
+                type: 'case-start',
+                entryId: actualEntry.id,
+                caseId: context.testId,
+                attempt: {
+                  id: context.id,
+                  retry: context.retry,
+                  repeat: context.repeat,
+                },
+                name: context.name,
+                testName: context.testName,
+                ancestors: context.ancestors,
+                mode: context.mode,
+                revision,
+              })
+            },
+            onCaseEnd(value) {
+              emit({
+                type: 'case-end',
+                entryId: actualEntry.id,
+                revision,
+                ...value,
+                errors: value.errors.map((failure) =>
+                  serializeDiagnostic(failure.error, { phase: 'runtime' })
+                ),
+              })
+            },
+            onCaseResult(task, value) {
+              updates.caseResult(task, {
+                ...value,
+                errors: value.errors.map((failure) =>
+                  serializeDiagnostic(failure.error, { phase: 'runtime' })
+                ),
+              })
+            },
+            onSuiteEnd(value, task) {
+              emit({
+                type: 'suite-end',
+                entryId: actualEntry.id,
+                revision,
+                ...value,
+                errors: value.errors.map((failure) =>
+                  serializeDiagnostic(failure.error, { phase: 'runtime' })
+                ),
+              })
+              updates.suiteEnd(task)
+            },
+          },
+          () => {}
+        )
+        await updates.finish()
+        expect(result.errors).toEqual([])
+        expect(result.cases.map((test) => test.status)).toEqual(['passed'])
+        const durationMs = Date.now() - started
+        emit({
+          type: 'file-end',
+          entryId: actualEntry.id,
+          status: 'passed',
+          durationMs,
+        })
+        emit({ type: 'run-end', status: 'passed', durationMs })
+        await machine.finish()
+        await machine.dispose()
+        const rows = (await readFile(join(root, 'trace.jsonl'), 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+        expect(rows).toEqual([
+          ...(caseResult
+            ? [{ hook: 'case', name: 'actual body', state: 'passed' }]
+            : []),
+          {
+            hook: 'module',
+            state: 'passed',
+            sameCase: caseResult,
+            bodyMeta: true,
+          },
+          { hook: 'end', reason: 'passed', sameModule: true, errors: [] },
+          { hook: 'close' },
+        ])
+        expect(
+          JSON.parse(await readFile(join(root, 'result.json'), 'utf8'))
+        ).toMatchObject({ success: true, numPassedTests: 1 })
+      } finally {
+        updates?.dispose()
+        await machine.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('continues requesting an explicit authored collection callback', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-authored-collected-owner-'))
+    await cp(
+      join(__dirname, 'fixtures/completion-batch-owner/reporter.mjs'),
+      join(root, 'reporter.mjs')
+    )
+    await writeFile(
+      join(root, 'options.json'),
+      JSON.stringify({ caseResult: true, collected: true })
+    )
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: parseResultReporters(['./reporter.mjs']),
+      write() {},
+    })
+    try {
+      await machine.initialize()
+      expect(machine.captureModuleCollected).toBe(true)
+    } finally {
+      await machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+})

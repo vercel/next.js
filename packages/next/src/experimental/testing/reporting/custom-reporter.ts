@@ -990,6 +990,11 @@ export async function openCustomReporters(options: {
                         revision: event.revision,
                       }
                     : {}),
+                  ...(event.type === 'file-collected' &&
+                  !options.watch &&
+                  captureTaskResults
+                    ? { collectedOwner: true }
+                    : {}),
                   ...(event.type === 'file-collected' && captureModuleCollected
                     ? { notifyCollected: true }
                     : {}),
@@ -998,7 +1003,10 @@ export async function openCustomReporters(options: {
                     : {}),
                 }
           ).catch(retainConsoleFailure)
-          if (event.type === 'file-collected' && captureModuleCollected)
+          if (
+            event.type === 'file-collected' &&
+            (captureModuleCollected || (!options.watch && captureTaskResults))
+          )
             collectedWrites.push(notification)
           if (
             event.type === 'task-update' &&

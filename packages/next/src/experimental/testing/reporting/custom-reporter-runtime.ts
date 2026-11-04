@@ -871,10 +871,6 @@ export function createCustomReporterRuntime(
           ),
           captureModuleCollected:
             (!watching && reporters.some(hasPotentialCaseReady)) ||
-            (!watching &&
-              reporters.some((reporter) =>
-                hasPotentialTaskCallback(reporter, 'onTestCaseResult')
-              )) ||
             (!watching && reporters.some(needsSelectedBoundary)) ||
             reporters.some(
               (reporter) =>
@@ -1615,6 +1611,23 @@ export function createCustomReporterRuntime(
         const module = prepareReportedModule(
           live.update(message.taskTree, message.taskUpdateIds)
         )
+        if (message.collectedOwner === true) {
+          // Ownership comes from the actual collection fact, independently of
+          // whether an authored collection callback was requested.
+          if (
+            watching ||
+            typeof message.runId !== 'string' ||
+            typeof message.revision !== 'string' ||
+            message.entryId !== message.taskTree.id ||
+            collectedStartOwners.has(message.entryId) ||
+            completedModules.has(message.entryId)
+          )
+            throw new Error('Invalid actual collected task owner.')
+          collectedStartOwners.set(message.entryId, {
+            runId: message.runId,
+            revision: message.revision,
+          })
+        }
         if (message.notifyCollected === true) {
           if (
             watching ||
@@ -1630,13 +1643,14 @@ export function createCustomReporterRuntime(
           )
             throw new Error('Invalid actual module collection occurrence.')
           if (
-            reporters.some((reporter) => reporter.onTestModuleStart) ||
-            captureSuiteEvents ||
-            captureHookEvents ||
-            reporters.some(hasPotentialCaseReady) ||
-            reporters.some((reporter) =>
-              hasPotentialTaskCallback(reporter, 'onTestCaseResult')
-            )
+            message.collectedOwner !== true &&
+            (reporters.some((reporter) => reporter.onTestModuleStart) ||
+              captureSuiteEvents ||
+              captureHookEvents ||
+              reporters.some(hasPotentialCaseReady) ||
+              reporters.some((reporter) =>
+                hasPotentialTaskCallback(reporter, 'onTestCaseResult')
+              ))
           ) {
             if (
               typeof message.runId !== 'string' ||
@@ -1664,6 +1678,7 @@ export function createCustomReporterRuntime(
         }
         if (
           message.notifyCollected !== true &&
+          message.collectedOwner !== true &&
           reporters.some((reporter) => reporter.onTestModuleStart) &&
           !moduleStarts.has(message.entryId)
         ) {
