@@ -348,6 +348,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         process.turbopack = true,
         process.env.TURBOPACK = "1",
         process.env.NODE_ENV = "development",
+        POLYFILLED_GLOBAL.inlined = "inlined",
+        typeof POLYFILLED_GLOBAL.typed = "string",
         DEFINED_VALUE = "value",
         DEFINED_TRUE = true,
         DEFINED_NULL = json!(null),
@@ -376,6 +378,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .free_var_references(
             free_var_references!(
                 ..defines.into_iter(),
+                POLYFILLED_GLOBAL = FreeVarReference::EcmaScriptModule {
+                    request: rcstr!("./polyfilled-global.js"),
+                    lookup_path: None,
+                    export: Some(rcstr!("default")),
+                },
+                POLYFILLED_GLOBAL.reported = FreeVarReference::ReportUsage {
+                    severity: IssueSeverity::Warning,
+                    message: rcstr!("POLYFILLED_GLOBAL.reported is deprecated"),
+                    inner: None,
+                },
                 WARNED_VALUE = FreeVarReference::ReportUsage {
                     severity: IssueSeverity::Warning,
                     message: rcstr!("WARNED_VALUE is deprecated, use REPLACEMENT_VALUE instead"),

@@ -18,7 +18,7 @@
 0 -> 11 member call = fs*0*["readFile"]("./hello.txt", "utf-8")
 - *0* fs: The Node.js fs module: https://nodejs.org/api/fs.html
 
-0 -> 14 member call = ???*0*["status"](200)
+12 -> 14 member call = ???*0*["status"](200)
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
@@ -49,4 +49,4 @@
 - *0* assignment expression
   ⚠️  This value might have side effects
 
-0 -> 24 free var = FreeVar(module)
+23 -> 24 free var = FreeVar(module)

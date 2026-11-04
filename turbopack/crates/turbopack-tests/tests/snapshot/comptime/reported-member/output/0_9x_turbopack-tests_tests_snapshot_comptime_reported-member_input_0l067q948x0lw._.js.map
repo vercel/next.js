@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/reported-member/input/polyfilled-global.js"],"sourcesContent":["export default { reported: 'provided by the module' }\n"],"names":["reported"],"mappings":";;;;uCAAe;IAAEA,UAAU;AAAyB"}},
+    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/reported-member/input/index.js"],"sourcesContent":["// A diagnostic without a replacement must retain the object's dependency.\nconsole.log(POLYFILLED_GLOBAL.reported)\n"],"names":["console","log","reported"],"mappings":"AACY;AADZ,0EAA0E;AAC1EA,QAAQC,GAAG,CAAC,sOAAiB,CAACC,QAAQ"}}]
+}

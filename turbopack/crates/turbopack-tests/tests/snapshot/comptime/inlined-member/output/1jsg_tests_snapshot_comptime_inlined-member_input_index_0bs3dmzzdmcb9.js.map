@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/inlined-member/input/index.js"],"sourcesContent":["// No module should be imported just to provide the replaced object's value.\nconsole.log(POLYFILLED_GLOBAL.inlined)\nconsole.log(POLYFILLED_GLOBAL['inlined'])\nconsole.log(typeof POLYFILLED_GLOBAL.inlined)\nconsole.log(POLYFILLED_GLOBAL.inlined === 'inlined' ? 'yes' : 'no')\nconsole.log(UNKNOWN[POLYFILLED_GLOBAL.inlined])\n"],"names":["console","log","UNKNOWN"],"mappings":"AAAA,4EAA4E;AAC5EA,QAAQC,GAAG;AACXD,QAAQC,GAAG;AACXD,QAAQC,GAAG,CAAC;AACZD,QAAQC,GAAG,CAAC,uCAA0C,QAAQ;AAC9DD,QAAQC,GAAG,CAACC,OAAO,2CAA2B"}}]
+}

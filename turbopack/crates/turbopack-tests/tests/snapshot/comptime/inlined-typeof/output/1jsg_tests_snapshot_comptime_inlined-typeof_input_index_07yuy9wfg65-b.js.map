@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/inlined-typeof/input/index.js"],"sourcesContent":["// Neither the polyfill nor an import.meta binding is needed after replacement.\nconsole.log(typeof POLYFILLED_GLOBAL.typed)\nconsole.log(typeof import.meta)\n"],"names":["console","log"],"mappings":"AAAA,+EAA+E;AAC/EA,QAAQC,GAAG;AACXD,QAAQC,GAAG"}}]
+}

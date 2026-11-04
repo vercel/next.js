@@ -227,6 +227,7 @@
                 ),
             ),
         ),
+        effects: [],
         ast_path: [
             Program(
                 Script,

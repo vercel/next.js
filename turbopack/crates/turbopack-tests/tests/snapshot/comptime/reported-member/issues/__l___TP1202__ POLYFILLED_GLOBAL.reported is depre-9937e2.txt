@@ -1,0 +1,7 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/reported-member/input/index.js:2:12  TP1202 POLYFILLED_GLOBAL.reported is deprecated
+  
+       1 | // A diagnostic without a replacement must retain the object's dependency.
+         +             v------------------------v
+       2 + console.log(POLYFILLED_GLOBAL.reported)
+         +             ^------------------------^
+       3 |

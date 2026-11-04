@@ -324,6 +324,7 @@
                 ),
             ),
         ),
+        effects: [],
         ast_path: [
             Program(
                 Module,
