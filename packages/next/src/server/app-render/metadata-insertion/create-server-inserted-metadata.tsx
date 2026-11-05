@@ -8,7 +8,10 @@ import { htmlEscapeAttributeString } from '../../../shared/lib/htmlescape'
 const REINSERT_ICON_SCRIPT = `\
 document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el))`
 
-export function createServerInsertedMetadata(nonce: string | undefined) {
+export function createServerInsertedMetadata(
+  nonce: string | undefined,
+  externalBrowserRuntime = false
+) {
   let inserted = false
 
   return async function getServerInsertedMetadata(): Promise<string> {
@@ -17,6 +20,9 @@ export function createServerInsertedMetadata(nonce: string | undefined) {
     }
 
     inserted = true
+    if (externalBrowserRuntime) {
+      return '<template data-next-icon></template>'
+    }
     return `<script${
       nonce ? ` nonce="${htmlEscapeAttributeString(nonce)}"` : ''
     }>${REINSERT_ICON_SCRIPT}</script>`
