@@ -663,13 +663,15 @@ async fn compute_subtree_content_hash(
             }
         }
 
-        if runtime_env_vars.keys().any(|name| {
-            durable_use_cache_entries_config
-                .unstable_env_vars
-                .contains(name)
-        }) {
-            return anyhow::Ok(Vc::cell(None));
-        }
+        // TODO this is a good optimization for smaller manifests where we have to invalidate always
+        // anyway. But it makes debugging way harder.
+        // if runtime_env_vars.keys().any(|name|
+        // {     durable_use_cache_entries_config
+        //         .unstable_env_vars
+        //         .contains(name)
+        // }) {
+        //     return anyhow::Ok(Vc::cell(None));
+        // }
 
         let hash = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
         let (mut runtime_read, mut runtime_existence): (Vec<_>, Vec<_>) =
