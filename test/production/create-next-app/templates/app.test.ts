@@ -43,7 +43,9 @@ describe('create-next-app --app (App Router)', () => {
         projectName,
       })
     })
-  })
+    // First CNA install in the shard warms the npm cache; it exceeds the
+    // default 60s timeout on Node.js 22 CI legs.
+  }, 120_000)
 
   it('should create TypeScript project with --ts flag', async () => {
     await useTempDir(async (cwd) => {
