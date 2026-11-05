@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="88a3c672-3908-7f32-4647-60b478dc99ac")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="80166c6b-5047-2fee-508d-d1064ebc2741")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -1974,7 +1974,7 @@ function DevContext(module, exports, refresh) {
 DevContext.prototype = Context.prototype;
 const DUMMY_REFRESH_CONTEXT = {
     register: (_type, _id)=>{},
-    signature: ()=>(_type)=>{},
+    signature: ()=>(type)=>type,
     registerExports: (_module, _helpers)=>{}
 };
 /**
@@ -2691,5 +2691,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=88a3c672-3908-7f32-4647-60b478dc99ac
+//# debugId=80166c6b-5047-2fee-508d-d1064ebc2741
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
