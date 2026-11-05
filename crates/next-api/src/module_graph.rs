@@ -384,6 +384,7 @@ impl ServerActionsGraph {
                                     *layer,
                                     ActionMeta {
                                         name: entry.name.clone(),
+                                        durable: entry.durable,
                                         source_path: actions.entry_path.clone(),
                                     },
                                     if *layer == ActionLayer::Rsc {
