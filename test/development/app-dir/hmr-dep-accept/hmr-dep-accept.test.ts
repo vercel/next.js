@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// Dependency accept/decline requires Turbopack dev mode
-// @force-gate turbopack
+// Dependency accept/decline requires development mode.
+// @force-gate dev
 describe('hmr-dep-accept', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -196,6 +196,8 @@ describe('hmr-dep-accept', () => {
         .elementByCss('#parent-eval-time')
         .text()
 
+      await browser.eval('window.beforeDecline = true')
+
       // Patch the declined dependency
       await next.patchFile('app/dep-decline/dep.ts', (content) =>
         content.replace("'initial'", "'updated'")
@@ -207,6 +209,9 @@ describe('hmr-dep-accept', () => {
         const text = await browser.elementByCss('#dep-value').text()
         expect(text).toBe('updated')
       })
+
+      // A full reload clears window state, unlike Fast Refresh.
+      expect(await browser.eval('window.beforeDecline')).toBeUndefined()
 
       // The parent module SHOULD have been re-evaluated (full reload)
       await retry(async () => {
@@ -240,6 +245,8 @@ describe('hmr-dep-accept', () => {
         .elementByCss('#parent-eval-time')
         .text()
 
+      await browser.eval('window.beforeDecline = true')
+
       // Patch dep-a (declined) — should trigger full reload
       await next.patchFile('app/dep-decline-array/dep-a.ts', (content) =>
         content.replace("'initial-a'", "'updated-a'")
@@ -249,6 +256,9 @@ describe('hmr-dep-accept', () => {
         const text = await browser.elementByCss('#dep-a-value').text()
         expect(text).toBe('updated-a')
       })
+
+      // A full reload clears window state, unlike Fast Refresh.
+      expect(await browser.eval('window.beforeDecline')).toBeUndefined()
 
       // The parent module SHOULD have been re-evaluated (full reload)
       await retry(async () => {
