@@ -1,3 +1,11 @@
+caughtThrow (const after eval) = (...) => ("try" | undefined)
+
+condition#11 = arguments[0]
+
+condition#5 = arguments[0]
+
+condition#8 = arguments[0]
+
 e (const after eval) = ???*0*
 - *0* e
   ⚠️  pattern without value
@@ -5,3 +13,7 @@ e (const after eval) = ???*0*
 pkg (const after eval) = (???*0* | FreeVar(require)("packages/not-found") | FreeVar(require)("packages/found"))
 - *0* pkg
   ⚠️  pattern without value
+
+throwWithFinally (const after eval) = (...) => ("try" | undefined)
+
+throwingFinally (const after eval) = (...) => "value"

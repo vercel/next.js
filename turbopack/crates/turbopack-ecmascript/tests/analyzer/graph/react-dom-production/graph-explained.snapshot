@@ -51,15 +51,7 @@ $k (const after eval) = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 114743* = (...) => null
 
-*anonymous function 117815* = (...) => (
-  | ???*0*
-  | b
-  | pj(a, b, c)
-  | cj(a, b, b["type"], b["pendingProps"], c)
-  | yj(a, b, c)
-  | ej(a, b, c)
-  | undefined
-)
+*anonymous function 117815* = (...) => (???*0* | b | pj(a, b, c) | cj(a, b, b["type"], b["pendingProps"], c) | yj(a, b, c) | ej(a, b, c))
 - *0* zj(a, b, c)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -558,7 +550,7 @@ Fh (const after eval) = Uf(Dh)
 
 Fi (const after eval) = (...) => di()["memoizedState"]
 
-Fj (const after eval) = (...) => (???*0* | null | (???*1* ? b : null) | b["child"] | undefined)
+Fj (const after eval) = (...) => (???*0* | null | (???*1* ? b : null) | b["child"])
 - *0* null
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -6395,7 +6387,7 @@ uc (const after eval) = (...) => (0 | b | d)
 
 ud (const after eval) = A({}, sd, {"view": 0, "detail": 0})
 
-ue (const after eval) = (...) => (a["stateNode"] | undefined)
+ue (const after eval) = (...) => a["stateNode"]
 
 uf (const after eval) = `__reactContainer$${Nf}`
 
