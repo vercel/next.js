@@ -1125,7 +1125,7 @@ type ImageOptimizerConfig = {
   >
 }
 
-function getImageOptimizerTransformOptions(
+export function getImageOptimizerTransformOptions(
   nextConfig: ImageOptimizerConfig
 ): ImageOptimizerTransformOptions {
   return {
@@ -1146,7 +1146,7 @@ export async function imageOptimizer(
     ImageParamsResult,
     'href' | 'width' | 'quality' | 'mimeType'
   >,
-  nextConfig: ImageOptimizerConfig,
+  transformOptions: ImageOptimizerTransformOptions,
   opts: {
     isDev?: boolean
     silent?: boolean
@@ -1175,7 +1175,7 @@ export async function imageOptimizer(
       maxAge:
         opts.previousCacheEntry?.cacheControl?.revalidate ||
         Math.max(
-          nextConfig.images.minimumCacheTTL,
+          transformOptions.minimumCacheTTL ?? 0,
           getMaxAge(imageUpstream.cacheControl)
         ),
       etag: previouslyCachedImage.etag,
@@ -1184,7 +1184,7 @@ export async function imageOptimizer(
   }
 
   const result = await imageOptimizerTransform(imageUpstream, paramsResult, {
-    ...getImageOptimizerTransformOptions(nextConfig),
+    ...transformOptions,
     logger: opts.silent ? undefined : Log,
   })
 

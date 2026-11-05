@@ -16,20 +16,6 @@ import type {
 const getImage = (filename: string) =>
   readFile(join(__dirname, 'images', filename))
 
-const config = {
-  images: {
-    dangerouslyAllowSVG: true,
-    minimumCacheTTL: 60,
-  },
-  experimental: {
-    imgOptConcurrency: 1,
-    imgOptOperationCache: false,
-    imgOptMaxInputPixels: 67_108_864,
-    imgOptSequentialRead: true,
-    imgOptTimeoutInSeconds: 6,
-  },
-}
-
 const transformOptions: ImageOptimizerTransformOptions = {
   dangerouslyAllowSVG: true,
   minimumCacheTTL: 60,
@@ -89,7 +75,7 @@ function transformBufferInDevelopment(
       etag,
     },
     { href: '/image', width: 8, quality: 70, mimeType },
-    config,
+    transformOptions,
     { isDev: true, silent: true, previousCacheEntry }
   )
 }

@@ -160,16 +160,11 @@ export async function imageOptimizerTransform(
 
   try {
     const optimizedBuffer = await optimizeImage({
+      ...opts,
       buffer: upstreamBuffer,
       contentType,
       quality,
       width,
-      concurrency: opts.concurrency,
-      operationCache: opts.operationCache,
-      limitInputPixels: opts.maxInputPixels,
-      sequentialRead: opts.sequentialRead,
-      timeoutInSeconds: opts.timeoutInSeconds,
-      mozjpeg: opts.mozjpeg,
     })
     return {
       buffer: optimizedBuffer,
