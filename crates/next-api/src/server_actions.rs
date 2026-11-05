@@ -609,7 +609,7 @@ async fn compute_subtree_content_hash(
                                 .map(|e| {
                                     e.runtime
                                         .iter()
-                                        .map(|(name, mode)| match mode {
+                                        .map(|(name, access)| match access.mode {
                                             EnvVarAccessMode::Read => format!("read {name}"),
                                             EnvVarAccessMode::Existence => {
                                                 format!("exists {name}")
@@ -628,24 +628,16 @@ async fn compute_subtree_content_hash(
         }
 
         let mut hashes = Vec::with_capacity(data.len());
-        let mut runtime_env_vars = FxIndexMap::default();
+        let mut runtime_env_vars = FxIndexMap::<RcStr, EnvVarAccessMode>::default();
 
         for (_m, data) in &data {
             hashes.push(&data.path_code_hash);
             if let Some(env) = &data.env_var_info {
-                for (name, mode) in &env.runtime {
-                    match mode {
-                        EnvVarAccessMode::Read => {
-                            // Overwrite
-                            runtime_env_vars.insert(name.clone(), EnvVarAccessMode::Read);
-                        }
-                        EnvVarAccessMode::Existence => {
-                            // Keep EnvVarAccessMode::Read if it already exists
-                            runtime_env_vars
-                                .entry(name.clone())
-                                .or_insert(EnvVarAccessMode::Existence);
-                        }
-                    }
+                for (name, access) in &env.runtime {
+                    runtime_env_vars
+                        .entry(name.clone())
+                        .and_modify(|existing| *existing = existing.merge(access.mode))
+                        .or_insert(access.mode);
                 }
             }
         }

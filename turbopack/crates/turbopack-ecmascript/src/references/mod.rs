@@ -386,8 +386,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.env_var_info_runtime
             .entry(runtime_env)
             .and_modify(|access| {
-                // Upgrade existence checks, but preserve the first read's source for stable
-                // codeframes.
                 if access.mode == EnvVarAccessMode::Existence {
                     *access = read;
                 }

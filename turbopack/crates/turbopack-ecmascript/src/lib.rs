@@ -464,6 +464,17 @@ pub enum EnvVarAccessMode {
     Existence,
 }
 
+impl EnvVarAccessMode {
+    /// Combine two accesses of the same variable; the stronger one wins (Read over Existence).
+    pub fn merge(self, other: Self) -> Self {
+        if self == EnvVarAccessMode::Read || other == EnvVarAccessMode::Read {
+            EnvVarAccessMode::Read
+        } else {
+            EnvVarAccessMode::Existence
+        }
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl EnvVarInfo {
     #[turbo_tasks::function]
