@@ -522,10 +522,7 @@ export async function POST(request, { params }) {
 }
 ```
 
-> **Good to know**:
->
-> - This handler buffers the request and the upstream response in full before it replies, so the client waits for the whole upstream response and memory use grows with the payload size.
-> - `fetch` decompresses response bodies but keeps the upstream `Content-Encoding` and `Content-Length` headers. Next.js does not forward those headers from a Route Handler response, so return the data in a new `Response` rather than relying on upstream framing.
+> **Good to know**: This handler buffers the request and the upstream response in full before it replies, so the client waits for the whole upstream response and memory use grows with the payload size.
 
 ## NextRequest and NextResponse
 
