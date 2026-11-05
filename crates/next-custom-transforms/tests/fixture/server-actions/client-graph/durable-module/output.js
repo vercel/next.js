@@ -1,0 +1,10 @@
+/* __next_internal_action_entry_do_not_use__ {"80c18c215a6b7cdc64bf709f3a714ffdef1bf9651d":{"name":"default","durable":true},"80e850055809bc94522994343d48e9c1dae05ae6c4":{"name":"nonDurable"},"c0e669e4db1da98a4c520b79cb0d6aae031d66f3bd":{"name":"named","durable":true},"c0f5c8c7c79daa6cc38a32ba760982c48dcb4ec09f":{"name":"arrow","durable":true},"ffac563f94616741b44d6b63896d11520fbbf48216":{"name":"imported","durable":true}} */ import { createServerReference, callServer, findSourceMapURL } from "private-next-rsc-action-client-wrapper";
+const $$RSC_SERVER_CACHE_1 = /*#__PURE__*/ createServerReference("c0e669e4db1da98a4c520b79cb0d6aae031d66f3bd", callServer, void 0, findSourceMapURL, "named");
+export { $$RSC_SERVER_CACHE_1 as named };
+const $$RSC_SERVER_CACHE_2 = /*#__PURE__*/ createServerReference("c0f5c8c7c79daa6cc38a32ba760982c48dcb4ec09f", callServer, void 0, findSourceMapURL, "arrow");
+export { $$RSC_SERVER_CACHE_2 as arrow };
+export default /*#__PURE__*/ createServerReference("80c18c215a6b7cdc64bf709f3a714ffdef1bf9651d", callServer, void 0, findSourceMapURL, "default");
+const $$RSC_SERVER_CACHE_3 = /*#__PURE__*/ createServerReference("80e850055809bc94522994343d48e9c1dae05ae6c4", callServer, void 0, findSourceMapURL, "nonDurable");
+export { $$RSC_SERVER_CACHE_3 as nonDurable };
+const $$RSC_SERVER_CACHE_4 = /*#__PURE__*/ createServerReference("ffac563f94616741b44d6b63896d11520fbbf48216", callServer, void 0, findSourceMapURL, "imported");
+export { $$RSC_SERVER_CACHE_4 as imported };

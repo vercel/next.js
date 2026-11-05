@@ -237,6 +237,7 @@ function getBaseSWCOptions({
             isReactServerLayer,
             isDevelopment: development,
             useCacheEnabled,
+            durableUseCacheEntriesEnabled: false,
             hashSalt: serverReferenceHashSalt,
             cacheKinds: ['default', 'remote', 'private'].concat(
               cacheHandlers ? Object.keys(cacheHandlers) : []

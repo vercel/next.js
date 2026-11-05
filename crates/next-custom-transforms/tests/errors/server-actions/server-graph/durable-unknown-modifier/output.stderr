@@ -1,0 +1,5 @@
+  x Unknown cache modifier "persistent". Only the "durable" modifier is supported, and it may only be specified once.
+   ,-[input.js:1:1]
+ 1 | 'use cache: remote, persistent'
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   `----
