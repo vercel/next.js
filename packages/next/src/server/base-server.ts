@@ -42,6 +42,7 @@ import type { AppPageRouteDefinition } from './route-definitions/app-page-route-
 import type { AppRouteRouteDefinition } from './route-definitions/app-route-route-definition'
 import type { AppGoRouteRouteDefinition } from './route-definitions/app-go-route-route-definition'
 import type { LocaleRouteDefinition } from './route-definitions/locale-route-definition'
+import { STATUS_CODES } from 'http'
 import type {
   Server as HTTPServer,
   IncomingMessage,
@@ -3503,6 +3504,18 @@ export default abstract class Server<
                 check()
               </script>`,
               HTML_CONTENT_TYPE_HEADER
+            ),
+          }
+        }
+
+        // Without a `/_error` page (App Router only apps) there is nothing to
+        // render for client error statuses such as 400, 405, 412 or 416. Keep
+        // the original status instead of turning it into a 500.
+        if (res.statusCode >= 400 && res.statusCode < 500) {
+          return {
+            body: RenderResult.fromStatic(
+              STATUS_CODES[res.statusCode] ?? 'Bad Request',
+              'text/plain'
             ),
           }
         }
