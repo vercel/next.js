@@ -6,3 +6,13 @@ it('should not instantiate wasm modules when the `module` query param is passed'
 
   expect(m.default).toBeInstanceOf(WebAssembly.Module)
 })
+
+it('should keep a `module` import apart from an instantiating import of the same file', async () => {
+  const [compiled, instantiated] = await Promise.all([
+    wasm,
+    require('./add.wasm'),
+  ])
+
+  expect(compiled.default).toBeInstanceOf(WebAssembly.Module)
+  expect(instantiated.add(1, 2)).toEqual(3)
+})
