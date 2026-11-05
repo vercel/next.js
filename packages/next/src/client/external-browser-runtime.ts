@@ -1,4 +1,29 @@
 import 'react-dom/unstable_server-external-runtime'
+import { getClientResumeMetadata, getClientResumeState } from './client-resume'
+import {
+  NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  RSC_HEADER,
+} from './components/app-router-headers'
+
+const resumeMetadata = getClientResumeMetadata()
+if (resumeMetadata) {
+  const state = getClientResumeState()
+  if (!state.started) {
+    state.started = true
+    const response = fetch(location.pathname + '?' + resumeMetadata.content, {
+      credentials: 'same-origin',
+      headers: {
+        [RSC_HEADER]: '1',
+        [NEXT_ROUTER_PREFETCH_HEADER]: NEXT_ROUTER_PREFETCH_STATIC,
+        [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: '/_full',
+      },
+    })
+    window.__NEXT_CLIENT_RESUME = response
+    state.resolve(response)
+  }
+}
 
 const iconInstructionSelector = 'template[data-next-icon]'
 
