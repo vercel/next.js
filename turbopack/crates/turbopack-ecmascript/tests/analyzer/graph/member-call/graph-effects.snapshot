@@ -121,6 +121,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -130,6 +131,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -139,6 +141,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Array {
@@ -168,6 +171,7 @@
                     ],
                     mutable: true,
                 },
+                [],
             ),
             Value(
                 Concat(
@@ -188,6 +192,7 @@
                         ),
                     ],
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -400,59 +405,6 @@
         span: 139..160,
         in_truthiness_context: false,
     },
-    FreeVar {
-        var: "unknown",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Array,
-            ),
-            ArrayLit(
-                Elems(
-                    3,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 171..178,
-    },
     MemberCall {
         obj: Member(
             7,
@@ -536,6 +488,61 @@
                     ],
                     mutable: true,
                 },
+                [
+                    FreeVar {
+                        var: "unknown",
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    3,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Array,
+                            ),
+                            ArrayLit(
+                                Elems(
+                                    3,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 171..178,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -748,48 +755,6 @@
         span: 200..221,
         in_truthiness_context: false,
     },
-    FreeVar {
-        var: "unknown",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    4,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    3,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 231..238,
-    },
     MemberCall {
         obj: Member(
             7,
@@ -850,6 +815,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -859,6 +825,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -868,11 +835,56 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 FreeVar(
                     "unknown",
                 ),
+                [
+                    FreeVar {
+                        var: "unknown",
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    4,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    3,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 231..238,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -1048,6 +1060,7 @@
                     ],
                     mutable: true,
                 },
+                [],
             ),
         ],
         ast_path: [

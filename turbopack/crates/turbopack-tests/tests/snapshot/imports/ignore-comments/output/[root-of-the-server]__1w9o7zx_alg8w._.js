@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__08ofy-h8v1j4d._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__1w9o7zx_alg8w._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -99,9 +99,7 @@ function generateCreateWorker(entrypoint, moduleChunks) {
 }
 }),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)",((__turbopack_context__) => {
 
-__turbopack_context__.q("/static/ignore-worker.3cqstqcuvhq6o.cjs");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs (static in ecmascript)",((__turbopack_context__) => {
-
-__turbopack_context__.q("/static/vercel.0kkt412gy5vj6.cjs");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)",((__turbopack_context__, module, exports) => {
+__turbopack_context__.q("/static/ignore-worker.3cqstqcuvhq6o.cjs");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)",((__turbopack_context__, module, exports) => {
 
 module.exports = 'turbopack';
 }),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)",((__turbopack_context__) => {
@@ -109,4 +107,4 @@ module.exports = 'turbopack';
 __turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0ce9_turbopack-tests_tests_snapshot_imports_ignore-comments_output_0uy0mninb8pht._.js", ["output/1jsg_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0j-fab5w1df6z._.js","output/1ece_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0_vdt2ki2mlm8._.js"]));
 })]);
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__08ofy-h8v1j4d._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__1w9o7zx_alg8w._.js.map
