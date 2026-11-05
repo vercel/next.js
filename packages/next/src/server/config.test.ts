@@ -426,9 +426,45 @@ describe('loadConfig', () => {
 
       expect(result.experimental.durableUseCacheEntries).toBe(true)
       expect(result.experimental.durableUseCacheEntriesConfig).toEqual({
-        unstableEnvVars: ['CUSTOM_DEPLOYMENT_ID', 'NEXT_DEPLOYMENT_ID'],
+        unstableEnvVars: [
+          'CUSTOM_DEPLOYMENT_ID',
+          'NEXT_DEPLOYMENT_ID',
+          'VERCEL_DEPLOYMENT_ID',
+          'VERCEL_URL',
+        ],
         ignoredEnvVars: ['IGNORED_TOKEN'],
       })
+    })
+
+    it('defaults to deployment-specific unstable env vars', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+
+      expect(
+        result.experimental.durableUseCacheEntriesConfig?.unstableEnvVars
+      ).toEqual(['NEXT_DEPLOYMENT_ID', 'VERCEL_DEPLOYMENT_ID', 'VERCEL_URL'])
+    })
+
+    it('does not duplicate configured deployment-specific unstable env vars', async () => {
+      const unstableEnvVars = [
+        'NEXT_DEPLOYMENT_ID',
+        'VERCEL_DEPLOYMENT_ID',
+        'VERCEL_URL',
+      ]
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            durableUseCacheEntriesConfig: {
+              unstableEnvVars: [...unstableEnvVars],
+            },
+          },
+        },
+      })
+
+      expect(
+        result.experimental.durableUseCacheEntriesConfig?.unstableEnvVars
+      ).toEqual(unstableEnvVars)
     })
   })
 
