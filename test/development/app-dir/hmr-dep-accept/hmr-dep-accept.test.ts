@@ -1,8 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// Dependency accept/decline requires development mode.
-// @force-gate dev
 describe('hmr-dep-accept', () => {
   const { next } = nextTestSetup({
     files: __dirname,
