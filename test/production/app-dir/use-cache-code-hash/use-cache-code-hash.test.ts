@@ -60,9 +60,6 @@ async function getCodeHashes(
         )
         expect(valuesWithoutCodeHash.map((v) => v.page)).toMatchInlineSnapshot(`
          [
-           "app/deopt-custom/page",
-           "app/deopt-next-deployment-id/page",
-           "app/next-image-props/page",
            "app/use-server/page",
          ]
         `)
@@ -113,6 +110,26 @@ async function getCodeHashes(
           )
         ).toMatchInlineSnapshot(`
          {
+           "app/deopt-custom/page": [
+             "MY_DEPLOYMENT_ID",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/deopt-next-deployment-id/page": [
+             "NEXT_DEPLOYMENT_ID",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
            "app/env-dynamic/page": [
              "NEXT_OTEL_PERFORMANCE_PREFIX",
              "NEXT_OTEL_VERBOSE",
@@ -128,6 +145,16 @@ async function getCodeHashes(
              "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
              "exist BAR",
              "exist FOO",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/next-image-props/page": [
+             "NEXT_DEPLOYMENT_ID",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
              "exist NEXT_PRIVATE_DEBUG_CACHE",
              "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
              "exist NEXT_PRIVATE_DEBUG_VALIDATION",
