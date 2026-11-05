@@ -530,21 +530,38 @@ contextPrototype.r = commonJsRequire;
 }
 /**
  * `require.context` and require/import expression runtime.
- */ function moduleContext(mapOrIds) {
-    let map;
-    if (Array.isArray(mapOrIds)) {
-        const parentModule = this.m;
-        map = {};
-        for(let i = 0; i < mapOrIds.length; i += 2){
-            const id = mapOrIds[i + 1];
-            map[mapOrIds[i]] = {
-                id: ()=>id,
+ */ function moduleContextFactory(ids, mode = 0) {
+    const context = this;
+    const parentModule = this.m;
+    const map = {};
+    for(let i = 0; i < ids.length; i += 2){
+        const entry = ids[i + 1];
+        let id;
+        let module;
+        if (typeof entry === 'function') {
+            // A function is given for a module without an id to load it by: mostly a
+            // request that throws an error (e.g. one that can't be resolved), and also an
+            // external. As there is no id, `resolve` calls the function too, so that it
+            // throws the same error.
+            id = module = entry;
+        } else {
+            id = ()=>entry;
+            if (mode === 0) {
                 // inlined require implementation, which gives an ignored module empty exports
-                module: ()=>id === undefined ? {} : getOrInstantiateModuleFromParent(id, parentModule).exports
-            };
+                module = ()=>entry === undefined ? {} : getOrInstantiateModuleFromParent(entry, parentModule).exports;
+            } else if (entry === undefined) {
+                module = ()=>Promise.resolve({});
+            } else if (mode === 1) {
+                // Like `import()`, the module is evaluated asynchronously.
+                module = ()=>Promise.resolve().then(()=>esmImport.call(context, entry));
+            } else {
+                module = ()=>asyncLoader.call(context, entry);
+            }
         }
-    } else {
-        map = mapOrIds;
+        map[ids[i]] = {
+            id,
+            module
+        };
     }
     function moduleContext(id) {
         id = parseRequest(id);
@@ -572,7 +589,7 @@ contextPrototype.r = commonJsRequire;
     };
     return moduleContext;
 }
-contextPrototype.f = moduleContext;
+contextPrototype.f = moduleContextFactory;
 /**
  * Returns the path of a chunk defined by its data.
  */ function getChunkPath(chunkData) {
