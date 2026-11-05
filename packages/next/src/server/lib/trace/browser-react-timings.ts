@@ -17,11 +17,22 @@ import {
 } from './request-insights'
 import { createReactTimingSpanRecords } from './react-render-timing'
 import { createLocalSpanId } from './local-span-recorder'
-import { recordSpans } from './span-store'
+import { recordSpans, type SpanStoreRecord } from './span-store'
+
+const MAX_REQUEST_RECORDS = 8192
+const MAX_REQUEST_BYTES = 8 * 1024 * 1024
+const MAX_REQUEST_DECODERS = 128
 
 type Decoder = {
   renderId: string
   highestRecordId: number
+}
+
+export type BrowserReactTimingState = {
+  decoders: Map<string, Decoder>
+  recordCount: number
+  byteLength: number
+  exhausted: boolean
   partialReported: boolean
 }
 
@@ -30,13 +41,12 @@ export function createBrowserReactTimingReceiver(
   enabled: boolean
 ) {
   const documentId = getValidatedDevHtmlRequestId(htmlRequestId ?? undefined)
-  const decoders = new Map<string, Decoder>()
-  let received = 0
-  let windowStart = Date.now()
+  let disposed = false
 
   return {
     receive(value: unknown, messageLength: number) {
       if (
+        disposed ||
         !enabled ||
         !documentId ||
         !isRequestInsightsEnabled() ||
@@ -69,37 +79,29 @@ export function createBrowserReactTimingReceiver(
         documentId
       )
       if (!target?.parent) return
-      const { identity, insight, parent } = target
-
-      const now = Date.now()
-      if (now - windowStart >= 60_000) {
-        windowStart = now
-        received = 0
-      }
-      received += Math.max(1, message.records.length)
-
-      const key = `${identity.requestId}:${message.decoderId}`
-      let decoder = decoders.get(key)
-      const rateLimited = received > 8192
-      if (rateLimited && !decoder) return
+      const { identity, insight, parent, browserTimings: state } = target
+      if (state.exhausted) return
+      let decoder = state.decoders.get(message.decoderId)
       if (!decoder) {
-        if (decoders.size >= 128) {
-          decoders.delete(decoders.keys().next().value!)
+        if (state.decoders.size >= MAX_REQUEST_DECODERS) {
+          state.exhausted = true
+        } else {
+          decoder = {
+            renderId: createLocalSpanId(),
+            highestRecordId: -1,
+          }
+          state.decoders.set(message.decoderId, decoder)
         }
-        decoder = {
-          renderId: createLocalSpanId(),
-          highestRecordId: -1,
-          partialReported: false,
-        }
-      } else {
-        decoders.delete(key)
       }
-      decoders.set(key, decoder)
       const records: ReactTimingRecord[] = []
-      if (!rateLimited) {
+      if (decoder) {
         for (const record of message.records) {
           const id = Number(record.id.slice(8))
           if (id <= decoder.highestRecordId) continue
+          if (state.recordCount + records.length >= MAX_REQUEST_RECORDS) {
+            state.exhausted = true
+            break
+          }
           decoder.highestRecordId = id
           records.push(copyBrowserReactTimingRecord(record))
         }
@@ -115,13 +117,25 @@ export function createBrowserReactTimingReceiver(
         traceId: parent.traceId,
         parentSpanId: parent.spanId,
       }
-      const spans = createReactTimingSpanRecords(
-        records,
-        context,
-        decoder.renderId
-      )
-      if ((message.partial || rateLimited) && !decoder.partialReported) {
-        decoder.partialReported = true
+      const spans: SpanStoreRecord[] = []
+      if (decoder) {
+        for (const span of createReactTimingSpanRecords(
+          records,
+          context,
+          decoder.renderId
+        )) {
+          const bytes = Buffer.byteLength(JSON.stringify(span), 'utf8')
+          if (state.byteLength + bytes > MAX_REQUEST_BYTES) {
+            state.exhausted = true
+            break
+          }
+          state.byteLength += bytes
+          state.recordCount++
+          spans.push(span)
+        }
+      }
+      if ((message.partial || state.exhausted) && !state.partialReported) {
+        state.partialReported = true
         spans.push({
           ...context,
           name: 'ReactServerComponents.incomplete',
@@ -131,16 +145,19 @@ export function createBrowserReactTimingReceiver(
             'next.span_type': 'ReactServerComponents.incomplete',
             'next.span_name': 'Some decoded React observations were dropped',
             'next.span_category': 'application',
-            'next.rsc.render_id': decoder.renderId,
+            'next.rsc.render_id': decoder?.renderId ?? createLocalSpanId(),
             'next.rsc.observation': 'decoded',
             'next.rsc.observation_partial': true,
+            'next.rsc.incomplete_reason': state.exhausted
+              ? 'budget'
+              : 'transport',
           },
         })
       }
       if (spans.length > 0) recordSpans(spans)
     },
     dispose() {
-      decoders.clear()
+      disposed = true
     },
   }
 }

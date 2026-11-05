@@ -1043,7 +1043,7 @@ function ReactRenderPass({
   const incompleteMessage = group.incompleteReason
     ? group.incompleteReason === 'budget'
       ? 'Recording limit reached. Some React intervals are missing.'
-      : 'Some React intervals could not be decoded.'
+      : 'Some React intervals were dropped during recording or transport.'
     : undefined
 
   return (
