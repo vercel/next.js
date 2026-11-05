@@ -1,13 +1,11 @@
 export function onRequestError(err, request, context) {
-  fetch(`http://localhost:${process.env.PORT}/write-log`, {
-    method: 'POST',
-    body: JSON.stringify({
+  // Keep each callback payload in one message so remote log delivery cannot
+  // separate the request identity from its error/context.
+  console.log(
+    `<request-error>${JSON.stringify({
       message: err.message,
-      request,
+      request: { path: request.path, method: request.method },
       context,
-    }),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  })
+    })}</request-error>`
+  )
 }
