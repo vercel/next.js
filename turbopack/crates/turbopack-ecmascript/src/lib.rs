@@ -2403,6 +2403,7 @@ async fn emit_content(
     let mut mappings = vec![];
 
     let source_map = Arc::new(source_map);
+    let removed_comments;
 
     {
         let mut wr = JsWriter::new(
@@ -2426,6 +2427,11 @@ async fn emit_content(
         };
 
         emitter.emit_program(&program)?;
+        removed_comments = if generate_source_map {
+            comments.remaining_comment_spans()?
+        } else {
+            Vec::new()
+        };
         // Drop the AST eagerly so we don't keep it in memory while generating source maps
         drop(program);
     }
@@ -2452,6 +2458,7 @@ async fn emit_content(
             ),
             true,
             source_map_names,
+            &removed_comments,
         )?)
     } else {
         None
@@ -3181,6 +3188,55 @@ fn encode_module_into_comment_span(
     )
     .unwrap();
     comment
+}
+
+impl CodeGenResultCommentsConsumable<'_> {
+    fn remaining_comment_spans(&self) -> Result<Vec<Span>> {
+        match self {
+            Self::Single {
+                comments,
+                extra_comments,
+            } => {
+                let mut spans = comments.remaining_comment_spans();
+                for comments in [&extra_comments.leading, &extra_comments.trailing] {
+                    for entry in comments.iter() {
+                        spans.extend(entry.value().iter().map(|comment| comment.span));
+                    }
+                }
+                Ok(spans)
+            }
+            Self::ScopeHoisting {
+                modules_header_width,
+                lookup_table,
+                comments,
+            } => {
+                let mut spans = Vec::new();
+                for (module, comments) in comments.iter().enumerate() {
+                    for span in comments.remaining_comment_spans()? {
+                        if span.is_dummy() {
+                            continue;
+                        }
+                        spans.push(Span::new(
+                            CodeGenResultComments::encode_bytepos(
+                                *modules_header_width,
+                                module as u32,
+                                span.lo,
+                                lookup_table.clone(),
+                            )?,
+                            CodeGenResultComments::encode_bytepos(
+                                *modules_header_width,
+                                module as u32,
+                                span.hi,
+                                lookup_table.clone(),
+                            )?,
+                        ));
+                    }
+                }
+                Ok(spans)
+            }
+            Self::Empty => Ok(Vec::new()),
+        }
+    }
 }
 
 impl Comments for CodeGenResultCommentsConsumable<'_> {
