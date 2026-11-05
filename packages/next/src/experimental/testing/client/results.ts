@@ -688,7 +688,6 @@ export function createClientResultCollector(
       finalCases.add(declared.id)
     } else if (message.type === 'task-update') {
       if (
-        !options.captureTaskResults ||
         !Array.isArray(message.taskUpdateIds) ||
         !message.taskUpdateIds.length ||
         new Set(message.taskUpdateIds).size !== message.taskUpdateIds.length ||
@@ -737,14 +736,15 @@ export function createClientResultCollector(
         }
       })
       for (const id of batchIds) logicalResults.add(id)
-      event({
-        type: 'task-update',
-        entryId: artifact.entryId,
-        revision: artifact.revision,
-        taskTree: withFinalRootErrorStacks(taskTree, message.taskUpdateIds),
-        taskUpdateIds: message.taskUpdateIds,
-        caseResults,
-      })
+      if (options.captureTaskResults)
+        event({
+          type: 'task-update',
+          entryId: artifact.entryId,
+          revision: artifact.revision,
+          taskTree: withFinalRootErrorStacks(taskTree, message.taskUpdateIds),
+          taskUpdateIds: message.taskUpdateIds,
+          caseResults,
+        })
     } else if (message.type === 'suite-end') {
       const result = message.result
       const declared =

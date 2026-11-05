@@ -309,10 +309,6 @@ export async function nextTestRunner(
   }
   let reporters = parseResultReporters(options.reporter)
   function validateReporting(outputFile: ResultOutputFile | undefined) {
-    if (options.watch && reporters.some(isCustomResultReporter))
-      throw new Error(
-        'Custom reporter watch lifecycle adapters remain unimplemented; completion adapters require a one-shot run.'
-      )
     if (options.list && reporters.some((name) => name !== 'default')) {
       throw new Error('Machine collection reports remain unimplemented.')
     }
@@ -512,15 +508,6 @@ export async function nextTestRunner(
         throw new Error(
           '--inspect currently requires a one-shot execution without coverage.'
         )
-    }
-    if (
-      options.watch &&
-      (configuration.config.reporters !== undefined ||
-        configuration.config.outputFile !== undefined)
-    ) {
-      throw new Error(
-        'Configured result reporters and output files currently require a one-shot run.'
-      )
     }
     reporters = parseResultReporters(
       options.reporter ?? configuration.config.reporters
@@ -1202,7 +1189,16 @@ export async function nextTestRunner(
               ).findChangedTestSources(projectDir, options.changed)
             : options.related
         let hasFailedWatchRun = false
+        // The watch owner keeps this actual realm through all reporter
+        // generations. Its finalizer becomes the sole configuration disposer.
+        const watchConfiguration = reporters.some(isCustomResultReporter)
+          ? configuration
+          : undefined
+        if (watchConfiguration) configuration = undefined
         const result = await watchTests(projectDir, {
+          ...(watchConfiguration
+            ? { initialConfiguration: watchConfiguration }
+            : {}),
           apiPort,
           onEvent(event) {
             if (event.type === 'run-end' && event.status === 'failed')
@@ -1229,7 +1225,7 @@ export async function nextTestRunner(
           standardCoverageOptions: cliStandardCoverageOptions,
           coverageFlags,
           resultReporters: reporters,
-          outputFile: options.outputFile,
+          outputFile,
           writeReport: (text) => process.stdout.write(text),
           resultPresentation: { ...reporter, isTTY, terminal },
           writeError: (text) => process.stderr.write(text),

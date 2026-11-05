@@ -62,6 +62,7 @@ import {
   type ClosedMachineFileRecord,
   type ResultReporter,
 } from './reporting/machine'
+import type { ResultOutputFile } from './reporting/options'
 import {
   isCustomResultReporter,
   openCustomReporters,
@@ -124,7 +125,9 @@ export async function watchTests(
     /** Only original explicit coverage and coverage.* CLI fields. */
     coverageFlags?: Record<string, unknown>
     resultReporters?: readonly ResultReporter[]
-    outputFile?: string
+    outputFile?: ResultOutputFile
+    /** Transfer the actual CLI configuration owner into the watch lifetime. */
+    initialConfiguration?: Awaited<ReturnType<typeof openTestConfiguration>>
     writeReport?(text: string): void
     resultPresentation?: Omit<
       TestReporterOptions,
@@ -166,6 +169,8 @@ export async function watchTests(
   let clearConfiguredNamePattern = false
   const machineEnabled =
     options.resultReporters?.some((name) => name !== 'default') ?? false
+  const customReporterWatch =
+    options.resultReporters?.some(isCustomResultReporter) ?? false
   const human = options.resultReporters?.includes('default') ?? true
   let updateSnapshots = false
   let running = true
@@ -178,6 +183,24 @@ export async function watchTests(
   let latestStatus: 'passed' | 'failed' = 'passed'
   let hasFailedRun = false
   let quitting = false
+  const reporterLifetime = customReporterWatch
+    ? new AbortController()
+    : undefined
+  const cancelReporters = () => {
+    // An idle explicit quit closes the retained reporter normally. Interrupts
+    // retain the real cancellation path rather than inventing close callbacks.
+    if (!quitting) {
+      configurationLifetime.abort(controller.signal.reason)
+      reporterLifetime?.abort(controller.signal.reason)
+    }
+  }
+  if (reporterLifetime) {
+    if (controller.signal.aborted) cancelReporters()
+    else
+      controller.signal.addEventListener('abort', cancelReporters, {
+        once: true,
+      })
+  }
   let keyboardCancelled = false
   let activeUserCancellation:
     | { controller: AbortController; activeCases: Set<string> }
@@ -203,7 +226,7 @@ export async function watchTests(
 
   let configuration:
     | Awaited<ReturnType<typeof openTestConfiguration>>
-    | undefined
+    | undefined = options.initialConfiguration
 
   const evaluateWatchTriggerInOrder = createOrderedWatchTriggerEvaluator()
   let watchTriggerSequence = 0
@@ -277,6 +300,18 @@ export async function watchTests(
 
   async function retainConfigurationForWatch(requireCurrent = false) {
     if (!configuration) return false
+    if (customReporterWatch) {
+      if (
+        !(await configuration.retainReportersForWatch(
+          configurationLifetime.signal,
+          requireCurrent
+        ))
+      )
+        throw new Error(
+          'Custom reporter watch requires an unchanged root JSON configuration or no test configuration; imported and reloaded reporter configuration remains unimplemented.'
+        )
+      return true
+    }
     if (
       configuration.hasWatchTriggers &&
       (await configuration.retainWatchTriggersForWatch(
@@ -403,6 +438,36 @@ export async function watchTests(
         'Production Browser coverage currently requires one-shot JavaScript execution.'
       )
     const standardCoverageOptions = coverage.options
+    if (
+      customReporterWatch &&
+      (options.apiPort !== undefined ||
+        coverage.enabled ||
+        projects.length !== 1 ||
+        resolveTestMaxWorkers(config, options) !== 1 ||
+        configuration.compilerTransformNames.length !== 0 ||
+        projects.some(
+          (project) =>
+            project.profile.mode !== 'development' ||
+            project.profile.environment !== 'node' ||
+            project.profile.runtime !== 'nodejs' ||
+            project.profile.bundler !== 'turbopack' ||
+            project.profile.route !== undefined ||
+            project.profile.browserClient ||
+            project.isolate === false ||
+            project.typecheck?.enabled ||
+            project.executionEnvironment ||
+            project.globalSetup?.length ||
+            project.entries.some(
+              (entry) =>
+                entry.typecheck ||
+                entry.executionEnvironment ||
+                !/\.(?:js|mjs)$/.test(entry.file)
+            )
+        ))
+    )
+      throw new Error(
+        'Custom reporter watch currently requires serial isolated development Node JavaScript without coverage, routes, global setup, transforms or editor controls.'
+      )
     const coverageInputs = configuration.compilerInputsForProjects(projects)
     if (failedOnly) {
       const selectedFailures = failedSelection
@@ -511,7 +576,10 @@ export async function watchTests(
     if (machineEnabled && options.outputFile) {
       directories.outputFiles = [
         ...(directories.outputFiles ?? []),
-        resolve(projectDir, options.outputFile),
+        ...(typeof options.outputFile === 'string'
+          ? [options.outputFile]
+          : Object.values(options.outputFile)
+        ).map((file) => resolve(projectDir, file)),
       ]
     }
     signal.throwIfAborted()
@@ -725,8 +793,9 @@ export async function watchTests(
       customReporters = await openCustomReporters({
         projectDir,
         reporters: customReporterNames,
+        transport: await configuration!.openReporterTransport(),
         watch: true,
-        signal: controller.signal,
+        signal: reporterLifetime!.signal,
         write: options.writeReport ?? options.write,
         writeError: options.writeError,
       })
@@ -1347,6 +1416,7 @@ export async function watchTests(
         let terminalEvent: Extract<ResultEvent, { type: 'run-end' }> | undefined
         let terminalReleased = false
         let publicationStarted = false
+        let customWatchGenerationBegan = false
         let completedResult: WatchRunResult | undefined
         let reporterFailed = false
         const coverageRevisions = new Map<string, string>()
@@ -1588,7 +1658,9 @@ export async function watchTests(
                 }
               : undefined
           )
+          customWatchGenerationBegan = customReporters !== undefined
           await machine?.initialize({ signal })
+          if (customReporters) await machine?.beginRun(projects, [...selected])
           if (
             missingEditorFile ||
             (!selected.size && !coverageSourcePlan?.requests.length)
@@ -1927,6 +1999,23 @@ export async function watchTests(
           throw failure
         } finally {
           await machine?.dispose()
+          // The actual execution and per-run machine owners have joined. An
+          // edit/cancel may retire this generation without a public terminal;
+          // let the retained reporter admit the next real run without inventing
+          // ModuleEnd, RunEnd or watcher-ready callbacks for the abandoned one.
+          if (
+            customWatchGenerationBegan &&
+            signal.aborted &&
+            !controller.signal.aborted
+          ) {
+            try {
+              await customReporters?.cancelWatchRun()
+            } catch (error) {
+              fatal = true
+              controller.abort(error)
+              throw error
+            }
+          }
           if (signal.aborted || orderlyCancellation)
             editorApi?.cancelledRunSettled()
           if (activeUserCancellation === userCancellationOwner)
@@ -1986,17 +2075,20 @@ export async function watchTests(
         failures.push(error)
       }
       try {
-        await configuration?.dispose()
-      } catch (error) {
-        failures.push(error)
-      } finally {
-        configurationLifetime.abort()
-        await Promise.allSettled([...watchTriggerWork])
-      }
-      try {
         await customReporters?.dispose()
       } catch (error) {
         failures.push(error)
+      } finally {
+        try {
+          await configuration?.dispose()
+        } catch (error) {
+          failures.push(error)
+        } finally {
+          configurationLifetime.abort()
+          await Promise.allSettled([...watchTriggerWork])
+          controller.signal.removeEventListener('abort', cancelReporters)
+          reporterLifetime?.abort()
+        }
       }
       options.signal.removeEventListener('abort', cancel)
     }

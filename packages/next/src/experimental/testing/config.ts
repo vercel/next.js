@@ -1234,6 +1234,7 @@ export async function openTestConfiguration(
   let disposing: Promise<void> | undefined
   let setupTeardown: Promise<void> | undefined
   let reporterRealmOpened = false
+  let reporterWatchLifetime: AbortSignal | undefined
   let reporterFinalExitOpened = false
   let preparingFinalExit:
     | ReturnType<NonNullable<typeof realm>['prepareFinalExit']>
@@ -1472,6 +1473,45 @@ export async function openTestConfiguration(
           })
         }
       },
+      /** The same root JSON owner hosts basic reporters for a watch lifetime. */
+      async retainReportersForWatch(
+        lifetime: AbortSignal,
+        requireCurrent = false
+      ): Promise<boolean> {
+        // Executable/imported configuration reload needs its own restart
+        // contract; do not retain a stale realm or silently rebuild reporters.
+        if (projectModules || (filename && !filename.endsWith('.json')))
+          return false
+        const selected = await testConfigSource(projectDir)
+        let current = selected === filename
+        if (current && filename) {
+          try {
+            current = (await readFile(filename)).equals(sourceBytes!)
+          } catch (error) {
+            if (
+              ['ENOENT', 'ENOTDIR'].includes(
+                (error as NodeJS.ErrnoException).code ?? ''
+              )
+            )
+              current = false
+            else throw error
+          }
+        }
+        if (!current) {
+          if (requireCurrent)
+            throw new Error(
+              'Custom reporter watch configuration changed during evaluation.'
+            )
+          return false
+        }
+        if (disposing)
+          throw new Error('Custom reporter watch configuration is closing.')
+        lifetime.throwIfAborted()
+        realm ??= await openTestConfigModule(undefined, projectDir, lifetime)
+        realm.retainForWatch(lifetime)
+        reporterWatchLifetime = lifetime
+        return true
+      },
       hasWatchTriggers: realm?.hasWatchTriggers === true,
       async evaluateWatchTriggers(
         files: readonly string[],
@@ -1684,6 +1724,29 @@ export async function openTestConfiguration(
             project.provide = structuredClone(
               retainedSetupContexts[project.profile.id]
             )
+          }
+          return
+        }
+        if (reporterWatchLifetime) {
+          reporterWatchLifetime.throwIfAborted()
+          generationSignal?.throwIfAborted()
+          if (disposing)
+            throw new Error('Custom reporter watch configuration is closing.')
+          // This retained owner admits no global setup. Its normalized literal
+          // context is fresh for each run; the worker's setup RPC is one-shot.
+          for (const project of projects) {
+            const declared = config.projects.find(
+              (candidate) => candidate.profile.id === project.profile.id
+            )
+            if (!declared)
+              throw new Error(
+                'Unknown project in retained reporter configuration.'
+              )
+            if (declared.globalSetup?.length || project.globalSetup?.length)
+              throw new Error(
+                'Custom reporter watch global setup is not implemented.'
+              )
+            project.provide = structuredClone(declared.provide ?? {})
           }
           return
         }

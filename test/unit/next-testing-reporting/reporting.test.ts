@@ -11055,3 +11055,631 @@ it('retains canonical reporter logs from real producer events and watch generati
     callbackSchedulingParityClaimed: false,
   })
 }, 245000)
+
+describe('custom reporter actual watch generation ownership', () => {
+  async function withWatchReporter(
+    run: (
+      session: Awaited<
+        ReturnType<
+          (typeof import('next/dist/experimental/testing/reporting/custom-reporter'))['openCustomReporters']
+        >
+      >,
+      root: string
+    ) => Promise<void>
+  ) {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-watch-generation-'))
+    let session: Awaited<ReturnType<typeof openCustomReporters>> | undefined
+    try {
+      await cp(
+        join(__dirname, 'fixtures/watch-generation-reporter.mjs'),
+        join(root, 'reporter.mjs')
+      )
+      session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./reporter.mjs'],
+        watch: true,
+        write() {},
+      })
+      await run(session, root)
+    } finally {
+      await session?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  }
+
+  it('reads watch callbacks once with actual task, console and receiver ownership', async () => {
+    await withWatchReporter(async (session, root) => {
+      const { createCollector } = await import(
+        'next/dist/experimental/testing/runner/collector'
+      )
+      const { runCollected } = await import(
+        'next/dist/experimental/testing/runner/lifecycle'
+      )
+      const { captureReporterTaskTree } = await import(
+        'next/dist/experimental/testing/reporting/live-tasks'
+      )
+      const actualEntry = {
+        ...entry,
+        id: 'node:owned-watch',
+        file: join(root, 'watch.case.mjs'),
+      }
+      for (const generation of [1, 2, 3]) {
+        await session.beginWatchRun(
+          generation === 1
+            ? undefined
+            : {
+                rerun: { files: [actualEntry.file], trigger: actualEntry.file },
+              }
+        )
+        const fact = { ...envelope, runId: `actual-watch-${generation}` }
+        const revision = `actual-watch-revision-${generation}`
+        const events: ResultEvent[] = []
+        const entries: Extract<ResultEvent, { type: 'file-start' }>[] = []
+        const files: Extract<ResultEvent, { type: 'file-end' }>[] = []
+        const cases: Extract<ResultEvent, { type: 'case-end' }>[] = []
+        const suites: Extract<ResultEvent, { type: 'suite-end' }>[] = []
+        const completion = () => ({
+          events,
+          entries,
+          files,
+          cases,
+          suites,
+          status: generation === 2 ? ('failed' as const) : ('passed' as const),
+        })
+        function dispatch<T extends ResultEvent>(value: T): T {
+          events.push(value)
+          session.onEvent(value, completion())
+          return value
+        }
+        dispatch({ ...fact, type: 'run-start' })
+        entries.push(
+          dispatch({
+            ...fact,
+            type: 'file-start',
+            entry: actualEntry,
+            revision,
+          })
+        )
+        const output = (taskId: string, content: string) =>
+          dispatch({
+            ...fact,
+            type: 'output',
+            entryId: actualEntry.id,
+            revision,
+            stream: 'stdout',
+            text: content,
+            console: { taskId, size: 1 },
+          })
+        output(actualEntry.id, `FILE ${generation}\n`)
+        const collector = createCollector(actualEntry.id)
+        let caseId!: string
+        collector.api.describe('owned suite', () => {
+          collector.api.test('actual watch body', () => {
+            output(caseId, `CASE ${generation}\n`)
+            if (generation === 2)
+              throw new Error('actual recoverable body failure')
+          })
+        })
+        await collector.settle()
+        await runCollected(
+          collector.close(),
+          {
+            runId: fact.runId,
+            filePath: actualEntry.file,
+            signal: new AbortController().signal,
+            onCollected(file) {
+              const taskTree = captureReporterTaskTree(file)
+              caseId = taskTree.tasks![0].tasks![0].id
+              dispatch({
+                ...fact,
+                type: 'file-collected',
+                entryId: actualEntry.id,
+                revision,
+                taskTree,
+              })
+            },
+            onCaseResult(task, result) {
+              const actual = {
+                ...result,
+                revision,
+                errors: result.errors.map((failure) =>
+                  serializeDiagnostic(failure.error, { phase: 'runtime' })
+                ),
+              }
+              cases.push(dispatch({ ...fact, type: 'case-end', ...actual }))
+              dispatch({
+                ...fact,
+                type: 'task-update',
+                entryId: actualEntry.id,
+                revision,
+                taskTree: captureReporterTaskTree(task.file),
+                taskUpdateIds: [task.id],
+                caseResults: [actual],
+                caseEvents: [{ event: 'result', caseId: task.id }],
+              })
+            },
+            onSuiteEnd(result, task) {
+              suites.push(
+                dispatch({
+                  ...fact,
+                  type: 'suite-end',
+                  ...result,
+                  revision,
+                  errors: result.errors.map((failure) =>
+                    serializeDiagnostic(failure.error, { phase: 'runtime' })
+                  ),
+                })
+              )
+              dispatch({
+                ...fact,
+                type: 'task-update',
+                entryId: actualEntry.id,
+                revision,
+                taskTree: captureReporterTaskTree(task.file),
+                taskUpdateIds: [task.id],
+                caseResults: [],
+              })
+            },
+          },
+          () => {}
+        )
+        const end = {
+          ...fact,
+          type: 'file-end' as const,
+          entryId: actualEntry.id,
+          status: generation === 2 ? ('failed' as const) : ('passed' as const),
+          durationMs: 0,
+        }
+        files.push(end)
+        dispatch(end)
+        dispatch({
+          ...fact,
+          type: 'run-end',
+          status: generation === 2 ? 'failed' : 'passed',
+          durationMs: 0,
+        })
+        await session.finish(completion())
+        await session.readyWatchRun(generation === 1)
+      }
+      await session.removeWatchTests([actualEntry.file])
+      await session.dispose()
+      const rows = (
+        await readFile(join(root, 'watch-generation-rows.jsonl'), 'utf8')
+      )
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+      const counts: Record<string, number> = {}
+      for (const row of rows)
+        if (row.type === 'read') counts[row.name] = (counts[row.name] ?? 0) + 1
+      expect(counts).toEqual({
+        onInit: 1,
+        onUserConsoleLog: 6,
+        onTestCaseResult: 3,
+        onTestModuleEnd: 3,
+        onTestRunEnd: 3,
+        onWatcherStart: 3,
+        onWatcherRerun: 2,
+        onTestRemoved: 1,
+      })
+      const ends = rows.filter((row) => row.type === 'end')
+      expect(ends.map((row) => row.reason)).toEqual([
+        'passed',
+        'failed',
+        'passed',
+      ])
+      expect(ends.map((row) => row.errors)).toEqual([[], [], []])
+      expect(ends.map((row) => row.sameAsFirst)).toEqual([true, false, false])
+      expect(ends.every((row) => row.sameAsModuleEnd)).toBe(true)
+      expect(ends.map((row) => row.current.cases[0].state)).toEqual([
+        'passed',
+        'failed',
+        'passed',
+      ])
+      expect(ends.map((row) => row.first.cases[0].logs)).toEqual([
+        ['CASE 1\n'],
+        ['CASE 1\n'],
+        ['CASE 1\n'],
+      ])
+      expect(ends.map((row) => row.first.logs)).toEqual([
+        ['FILE 1\n'],
+        ['FILE 1\n', 'FILE 2\n'],
+        ['FILE 1\n', 'FILE 2\n', 'FILE 3\n'],
+      ])
+      expect(rows.filter((row) => row.type === 'init')).toHaveLength(1)
+      expect(rows.filter((row) => row.type === 'close')).toHaveLength(1)
+    })
+  })
+
+  it('rejects retirement before the actual watch generation completes', async () => {
+    await withWatchReporter(async (session) => {
+      await session.beginWatchRun()
+      await expect(session.beginWatchRun()).rejects.toThrow(
+        'has not actually completed'
+      )
+    })
+  })
+
+  it('rejects stale watch event and completion ownership without retiring the active run', async () => {
+    await withWatchReporter(async (session) => {
+      await session.beginWatchRun()
+      const start = {
+        ...envelope,
+        type: 'run-start' as const,
+        runId: 'active-watch',
+      }
+      session.onEvent(start)
+      expect(() =>
+        session.onEvent({
+          ...start,
+          runId: 'retired-watch',
+          type: 'output',
+          entryId: entry.id,
+          stream: 'stdout',
+          text: 'retired output',
+          console: { taskId: entry.id, size: 1 },
+        })
+      ).toThrow('actual watch generation')
+      const completion = {
+        events: [start],
+        entries: [],
+        files: [],
+        cases: [],
+        suites: [],
+        status: 'passed' as const,
+      }
+      await expect(
+        session.finish({
+          ...completion,
+          events: [{ ...start, runId: 'foreign-watch' }],
+        })
+      ).rejects.toThrow('watch generation')
+      await session.finish(completion)
+    })
+  })
+
+  it('retires an acquired or unacquired cancelled generation without invented public callbacks', async () => {
+    await withWatchReporter(async (session, root) => {
+      const { createCollector } = await import(
+        'next/dist/experimental/testing/runner/collector'
+      )
+      const { runCollected } = await import(
+        'next/dist/experimental/testing/runner/lifecycle'
+      )
+      const { captureReporterTaskTree } = await import(
+        'next/dist/experimental/testing/reporting/live-tasks'
+      )
+      await expect(session.cancelWatchRun()).rejects.toThrow('watch ownership')
+      await session.beginWatchRun()
+      await session.cancelWatchRun()
+      await session.cancelWatchRun()
+      await session.beginWatchRun()
+      const start = {
+        ...envelope,
+        type: 'run-start' as const,
+        runId: 'actual-partial-watch',
+      }
+      session.onEvent(start)
+      const controller = new AbortController()
+      const collector = createCollector(entry.id)
+      collector.api.test('actual partial body', async () => {
+        controller.abort(new Error('actual owned supersession'))
+        await Promise.resolve()
+      })
+      await collector.settle()
+      const result = await runCollected(
+        collector.close(),
+        {
+          runId: start.runId,
+          filePath: entry.file,
+          signal: controller.signal,
+          onCollected(file) {
+            session.onEvent({
+              ...start,
+              type: 'file-collected',
+              entryId: entry.id,
+              revision: 'actual-partial-revision',
+              taskTree: captureReporterTaskTree(file),
+            })
+          },
+        },
+        () => {}
+      )
+      expect(result.interrupted).toBe(true)
+      await session.cancelWatchRun()
+      await session.beginWatchRun()
+      await session.finish({
+        events: [],
+        entries: [],
+        files: [],
+        cases: [],
+        suites: [],
+        status: 'passed',
+      })
+      // Supersession may race after the real completion acknowledgement.
+      await session.cancelWatchRun()
+      await session.readyWatchRun(false)
+      await session.dispose()
+      const rows = (
+        await readFile(join(root, 'watch-generation-rows.jsonl'), 'utf8')
+      )
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+      expect(rows.filter((row) => row.type === 'module')).toHaveLength(0)
+      expect(rows.filter((row) => row.type === 'end')).toHaveLength(1)
+      expect(rows.filter((row) => row.type === 'ready')).toHaveLength(1)
+      expect(rows.filter((row) => row.type === 'init')).toHaveLength(1)
+      expect(rows.filter((row) => row.type === 'close')).toHaveLength(1)
+    })
+  })
+})
+
+describe('custom reporter watch selected boundaries', () => {
+  it('dispatches actual selected specifications once across affected watch generations', async () => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const { selectReporterRunSpecifications } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter-specifications'
+    )
+    const { createCollector } = await import(
+      'next/dist/experimental/testing/runner/collector'
+    )
+    const { runCollected } = await import(
+      'next/dist/experimental/testing/runner/lifecycle'
+    )
+    const { captureReporterTaskTree } = await import(
+      'next/dist/experimental/testing/reporting/live-tasks'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-watch-selected-'))
+    let session: Awaited<ReturnType<typeof openCustomReporters>> | undefined
+    try {
+      await cp(
+        join(__dirname, 'fixtures/watch-selected-start-reporter.mjs'),
+        join(root, 'reporter.mjs')
+      )
+      session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./reporter.mjs'],
+        watch: true,
+        write() {},
+      })
+      expect(session.captureRunStart).toBe(true)
+      await expect(session.beginRun([])).rejects.toThrow('unavailable')
+      const all = ['edited', 'unchanged'].map((name) => ({
+        ...entry,
+        id: `node:${name}`,
+        file: join(root, `${name}.case.mjs`),
+      }))
+      const selections = [all, [all[0]], [all[1]]]
+      for (const [generation, selected] of selections.entries()) {
+        await session.beginWatchRun()
+        await session.beginRun(
+          selectReporterRunSpecifications(
+            root,
+            [
+              {
+                profile: entry.profile,
+                entries: selected,
+                include: ['**/*.case.mjs'],
+                exclude: [],
+                setupFiles: [],
+                testTimeout: 5000,
+                hookTimeout: 5000,
+                fileTimeout: 30000,
+              },
+            ],
+            selected.map((item) => item.id)
+          )
+        )
+        expect(session.captureModuleQueued).toBe(false)
+        expect(session.captureModuleCollected).toBe(false)
+        expect(session.captureModuleStart).toBe(false)
+        expect(session.captureCaseReady).toBe(false)
+        expect(session.captureSuiteEvents).toBe(false)
+        expect(session.captureHookEvents).toBe(false)
+        const fact = { ...envelope, runId: `selected-watch-${generation}` }
+        const revision = `selected-revision-${generation}`
+        const events: ResultEvent[] = []
+        const entries: Extract<ResultEvent, { type: 'file-start' }>[] = []
+        const files: Extract<ResultEvent, { type: 'file-end' }>[] = []
+        const cases: Extract<ResultEvent, { type: 'case-end' }>[] = []
+        const suites: Extract<ResultEvent, { type: 'suite-end' }>[] = []
+        const completion = () => ({
+          events,
+          entries,
+          files,
+          cases,
+          suites,
+          status: 'passed' as const,
+        })
+        function dispatch<T extends ResultEvent>(value: T): T {
+          events.push(value)
+          session!.onEvent(value, completion())
+          return value
+        }
+        dispatch({
+          ...fact,
+          type: 'run-start',
+          specificationOrder: selected.map((item) => item.id),
+        })
+        await expect(session.beginRun([])).rejects.toThrow('unavailable')
+        for (const actualEntry of selected) {
+          entries.push(
+            dispatch({
+              ...fact,
+              type: 'file-start',
+              entry: actualEntry,
+              revision,
+            })
+          )
+          const collector = createCollector(actualEntry.id)
+          collector.api.test(`actual ${actualEntry.id}`, () => {})
+          await collector.settle()
+          await runCollected(
+            collector.close(),
+            {
+              runId: fact.runId,
+              signal: new AbortController().signal,
+              filePath: actualEntry.file,
+              onCollected(file) {
+                dispatch({
+                  ...fact,
+                  type: 'file-collected',
+                  entryId: actualEntry.id,
+                  revision,
+                  taskTree: captureReporterTaskTree(file),
+                })
+              },
+              onCaseResult(task, result) {
+                const actual = {
+                  ...result,
+                  revision,
+                  errors: result.errors.map((failure) =>
+                    serializeDiagnostic(failure.error, { phase: 'runtime' })
+                  ),
+                }
+                cases.push(dispatch({ ...fact, type: 'case-end', ...actual }))
+                dispatch({
+                  ...fact,
+                  type: 'task-update',
+                  entryId: actualEntry.id,
+                  revision,
+                  taskTree: captureReporterTaskTree(task.file),
+                  taskUpdateIds: [task.id],
+                  caseResults: [actual],
+                })
+              },
+              onSuiteEnd(result, task) {
+                suites.push(
+                  dispatch({
+                    ...fact,
+                    type: 'suite-end',
+                    ...result,
+                    errors: result.errors.map((failure) =>
+                      serializeDiagnostic(failure.error, { phase: 'runtime' })
+                    ),
+                  })
+                )
+                dispatch({
+                  ...fact,
+                  type: 'task-update',
+                  entryId: actualEntry.id,
+                  revision,
+                  taskTree: captureReporterTaskTree(task.file),
+                  taskUpdateIds: [task.id],
+                  caseResults: [],
+                })
+              },
+            },
+            () => {}
+          )
+          const end = {
+            ...fact,
+            type: 'file-end' as const,
+            entryId: actualEntry.id,
+            status: 'passed' as const,
+            durationMs: 0,
+          }
+          files.push(end)
+          dispatch(end)
+        }
+        dispatch({ ...fact, type: 'run-end', status: 'passed', durationMs: 0 })
+        await session.finish(completion())
+        await session.readyWatchRun(generation === 0)
+      }
+      await session.dispose()
+      const rows = (await readFile(join(root, 'trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+      const expected = selections.map((selected) =>
+        selected.map((item) => item.file)
+      )
+      expect(
+        rows.filter((row) => row.type === 'start').map((row) => row.modules)
+      ).toEqual(expected)
+      expect(
+        rows.filter((row) => row.type === 'end').map((row) => row.ids)
+      ).toEqual(expected)
+      expect(rows.filter((row) => row.type === 'start-read')).toHaveLength(3)
+      expect(rows.filter((row) => row.type === 'ready')).toEqual([
+        { type: 'ready', arity: 0 },
+        { type: 'ready', arity: 1, files: [all[0].file] },
+        { type: 'ready', arity: 1, files: [all[1].file] },
+      ])
+      expect(rows.filter((row) => row.type === 'init')).toHaveLength(1)
+      expect(rows.filter((row) => row.type === 'close')).toHaveLength(1)
+    } finally {
+      await session?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps unsupported watch Suite demand guarded after actual RunStart', async () => {
+    const { openCustomReporters } = await import(
+      'next/dist/experimental/testing/reporting/custom-reporter'
+    )
+    const root = await mkdtemp(join(tmpdir(), 'next-watch-start-demand-'))
+    let session: Awaited<ReturnType<typeof openCustomReporters>> | undefined
+    try {
+      await cp(
+        join(__dirname, 'fixtures/watch-selected-unsupported-reporter.mjs'),
+        join(root, 'reporter.mjs')
+      )
+      session = await openCustomReporters({
+        projectDir: root,
+        reporters: ['./reporter.mjs'],
+        watch: true,
+        write() {},
+      })
+      await session.beginWatchRun()
+      await expect(session.beginRun([])).rejects.toThrow(
+        'onTestSuiteReady requires an actual watch producer'
+      )
+    } finally {
+      await session?.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+})
+describe('actual reporter watch close ownership', () => {
+  it.each(['cancel-policy', 'graceful'])(
+    'preserves actual watch and one-shot close ownership for %s',
+    async (mode) => {
+      const output = await mkdtemp(join(tmpdir(), 'next-watch-close-policy-'))
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'watch-close-component.cjs'),
+            require.resolve(
+              'next/dist/experimental/testing/reporting/custom-reporter-runtime'
+            ),
+            output,
+            mode,
+          ],
+          { encoding: 'utf8', timeout: 15000 }
+        )
+        const result = JSON.parse(
+          await readFile(join(output, 'RESULT.json'), 'utf8')
+        )
+        expect(result).toMatchObject({
+          status: 'passed',
+          actualTaskEntitiesCreated: 0,
+          nextNativeCalls: 0,
+        })
+        expect(result.models).toHaveLength(mode === 'cancel-policy' ? 4 : 1)
+        expect(
+          result.models.every((model: { passed: boolean }) => model.passed)
+        ).toBe(true)
+      } finally {
+        await rm(output, { recursive: true, force: true })
+      }
+    }
+  )
+})

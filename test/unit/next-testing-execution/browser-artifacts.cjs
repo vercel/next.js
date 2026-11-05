@@ -6,9 +6,18 @@ const { runInThisContext } = require('node:vm')
 const [mode, runtimePath, serverPath, resultsPath, commonPath, browserPath] =
   process.argv.slice(2)
 assert.ok(
-  ['contract', 'mutation', 'error-shape', 'transport-error'].includes(mode)
+  [
+    'contract',
+    'mutation',
+    'error-shape',
+    'transport-error',
+    'record-drain',
+    'default-record-drain',
+  ].includes(mode)
 )
-const subject = mode === 'transport-error' ? 'contract' : mode
+const recordDrain = mode === 'record-drain' || mode === 'default-record-drain'
+const subject =
+  mode === 'transport-error' ? 'contract' : recordDrain ? 'mutation' : mode
 const source = readFileSync(
   join(__dirname, `browser-artifacts-${subject}.mjs.txt`),
   'utf8'
@@ -24,13 +33,30 @@ const originalLog = nativeConsole.log
 const originalDebug = nativeConsole.debug
 const nativeAfterStop = []
 let consoleStopped = false
-if (mode === 'mutation') {
+let releaseTaskUpdate
+const taskUpdateGate = new Promise((resolve) => {
+  releaseTaskUpdate = resolve
+})
+let taskUpdateHeld = false
+let retainedFile
+if (mode === 'mutation' || recordDrain) {
   const { clientConsoleBoundary } = local('./protocol')
   nativeConsole.debug = function (...args) {
     if (args[0] === clientConsoleBoundary.stop) consoleStopped = true
     return Reflect.apply(originalDebug, this, args)
   }
   nativeConsole.log = function (...args) {
+    if (
+      (recordDrain || mode === 'mutation') &&
+      typeof args[0] === 'string' &&
+      args[0].startsWith('BROWSER_ARTIFACT_RAW ') &&
+      JSON.parse(args[0].slice('BROWSER_ARTIFACT_RAW '.length)).name ===
+        'afterAll'
+    ) {
+      trace.push('native-afterAll')
+      releaseTaskUpdate()
+      releaseArtifact()
+    }
     if (consoleStopped && typeof args[0] === 'string')
       nativeAfterStop.push(args[0])
     return Reflect.apply(originalLog, this, args)
@@ -104,12 +130,14 @@ const configuration = {
   testTimeout: 1000,
   hookTimeout: 1000,
   snapshotUpdateMode: 'none',
+  ...(mode === 'record-drain' ? { captureTaskResults: true } : {}),
 }
 const messages = [],
   failures = [],
   trace = []
 const collector = require(resultsPath).createClientResultCollector(artifact, {
   runId: 'run',
+  ...(mode === 'record-drain' ? { captureTaskResults: true } : {}),
 })
 let releaseArtifact
 const artifactGate = new Promise((resolve) => {
@@ -121,6 +149,21 @@ replace(runtimePath, '../runner', {
   ...commonRunner,
   initializeTestFile(options) {
     const file = initializeTestFile(options)
+    if (recordDrain) {
+      const run = file.run
+      file.run = function (options) {
+        const onCollected = options.onCollected
+        return Reflect.apply(run, this, [
+          {
+            ...options,
+            onCollected(actualFile) {
+              retainedFile = actualFile
+              return onCollected?.(actualFile)
+            },
+          },
+        ])
+      }
+    }
     const dispose = file.dispose
     file.dispose = async () => {
       try {
@@ -164,14 +207,33 @@ async function main() {
       if (message?.type === 'artifact') {
         if (mode === 'transport-error') throw transportError
         if (message.artifact.type === 'probe:unawaited') {
+          if (recordDrain || mode === 'mutation')
+            trace.push('unawaited-artifact-fetch')
           await artifactGate
-          trace.push('artifact-after-file-disposed')
+          trace.push(
+            recordDrain || mode === 'mutation'
+              ? 'artifact-after-native-afterAll'
+              : 'artifact-after-file-disposed'
+          )
         }
       }
-      return nativeFetch(url, {
+      const response = nativeFetch(url, {
         ...options,
         headers: { ...options.headers, Cookie: cookie, Origin: origin },
       })
+      if (!recordDrain) return response
+      const nativeResponse = await response
+      if (
+        !taskUpdateHeld &&
+        message?.type === 'task-update' &&
+        message.taskUpdateIds.includes('entry/1')
+      ) {
+        taskUpdateHeld = true
+        trace.push('task-update-reply-held')
+        await taskUpdateGate
+        trace.push('task-update-reply-released')
+      }
+      return nativeResponse
     }
     const common = require(commonPath),
       browser = require(browserPath)
@@ -205,6 +267,7 @@ async function main() {
       assert.deepEqual(failures, [])
     }
   } finally {
+    releaseTaskUpdate()
     releaseArtifact()
     globalThis.fetch = nativeFetch
     globalThis.console = nativeConsole
@@ -235,6 +298,14 @@ async function main() {
     trace,
     failure: failure && { name: failure.name, message: failure.message },
     cleaned,
+    ...(recordDrain
+      ? {
+          retainedArtifacts: retainedFile.tasks.map((task) => ({
+            id: task.id,
+            artifacts: task.artifacts,
+          })),
+        }
+      : {}),
   }
   process.stdout.write(JSON.stringify(observed) + '\n')
   if (mode === 'transport-error') {
@@ -291,25 +362,85 @@ async function main() {
         )
     )
   }
-  if (subject === 'mutation') {
-    assert.deepEqual(trace, ['file-disposed', 'artifact-after-file-disposed'])
-    assert.equal(
-      nativeAfterStop.filter((line) => line.startsWith('BROWSER_ARTIFACT_RAW '))
-        .length,
-      1
-    )
+  if (mode === 'mutation') {
     const artifactIndex = messages.findIndex(
       (message) =>
         message.type === 'artifact' &&
         message.artifact.type === 'probe:unawaited'
     )
-    assert.ok(
-      artifactIndex <
-        messages.findIndex(
-          (message) =>
-            message.type === 'case-end' && message.result.caseId === 'entry/1'
-        )
+    assert.ok(artifactIndex >= 0)
+    const afterAll = trace.indexOf('native-afterAll')
+    const artifactSent = trace.indexOf('unawaited-artifact-fetch')
+    assert.ok(afterAll >= 0 && afterAll < artifactSent)
+    for (const caseId of ['entry/1', 'entry/2']) {
+      const caseEndIndex = messages.findIndex(
+        (message) =>
+          message.type === 'case-end' && message.result.caseId === caseId
+      )
+      assert.ok(caseEndIndex >= 0 && caseEndIndex < artifactIndex)
+    }
+    const taskUpdateIndex = messages.findIndex(
+      (message) =>
+        message.type === 'task-update' &&
+        message.taskUpdateIds.includes('entry/1')
     )
+    assert.ok(taskUpdateIndex >= 0 && taskUpdateIndex < artifactIndex)
+  }
+  if (recordDrain) {
+    assert.equal(taskUpdateHeld, true)
+    const held = trace.indexOf('task-update-reply-held')
+    const afterAll = trace.indexOf('native-afterAll')
+    const released = trace.indexOf('task-update-reply-released')
+    const sent = trace.indexOf('unawaited-artifact-fetch')
+    assert.ok(held >= 0 && held < released)
+    assert.ok(afterAll >= 0 && afterAll < released && released < sent)
+    assert.ok(afterAll < trace.indexOf('artifact-after-native-afterAll'))
+    const artifactIndex = messages.findIndex(
+      (message) =>
+        message.type === 'artifact' &&
+        message.artifact.type === 'probe:unawaited'
+    )
+    const updateIndex = messages.findIndex(
+      (message) =>
+        message.type === 'task-update' &&
+        message.taskUpdateIds.includes('entry/1')
+    )
+    assert.ok(updateIndex >= 0 && updateIndex < artifactIndex)
+    for (const caseId of ['entry/1', 'entry/2']) {
+      const endIndex = messages.findIndex(
+        (message) =>
+          message.type === 'case-end' && message.result.caseId === caseId
+      )
+      assert.ok(endIndex >= 0 && endIndex < artifactIndex)
+    }
+    const late = events.filter(
+      (event) =>
+        event.type === 'test-artifact' &&
+        event.artifact.type === 'probe:unawaited'
+    )
+    assert.equal(late.length, 1)
+    assert.equal(late[0].caseId, 'entry/1')
+    assert.equal(late[0].attempt.id, 'run/entry/1/0/0')
+    const caseB = retainedFile.tasks.find((task) => task.id === 'entry/1')
+    const caseC = retainedFile.tasks.find((task) => task.id === 'entry/2')
+    assert.deepEqual(caseB.artifacts, [messages[artifactIndex].artifact])
+    assert.deepEqual(caseC.artifacts, [])
+    const publicTaskEvents = events.filter(
+      (event) => event.type === 'file-collected' || event.type === 'task-update'
+    )
+    const collected = messages.find((message) => message.type === 'collected')
+    if (mode === 'default-record-drain') {
+      assert.equal(Object.hasOwn(configuration, 'captureTaskResults'), false)
+      assert.equal(Object.hasOwn(collected, 'taskTree'), false)
+      assert.deepEqual(publicTaskEvents, [])
+    } else {
+      assert.equal(configuration.captureTaskResults, true)
+      assert.ok(Object.hasOwn(collected, 'taskTree'))
+      assert.ok(
+        publicTaskEvents.some((event) => event.type === 'file-collected')
+      )
+      assert.ok(publicTaskEvents.some((event) => event.type === 'task-update'))
+    }
   }
   // A captured earlier retry remains addressable even after another attempt ends.
   const prior = require(resultsPath).createClientResultCollector(artifact, {
@@ -365,6 +496,7 @@ async function main() {
   assert.equal(prior.events.at(-1).attempt.retry, 0)
 }
 main().catch((error) => {
+  releaseTaskUpdate()
   releaseArtifact()
   globalThis.fetch = nativeFetch
   globalThis.console = nativeConsole

@@ -13560,3 +13560,143 @@ it.each([
   },
   45000
 )
+
+describe('ordinary custom reporter watch configuration ownership', () => {
+  let directory: string
+
+  beforeEach(async () => {
+    directory = await realpath(
+      await mkdtemp(path.join(os.tmpdir(), 'next-reporters-watch-owner-'))
+    )
+  })
+
+  afterEach(async () => {
+    await rm(directory, { recursive: true, force: true })
+  })
+
+  it('retains the actual root JSON realm across generation cancellation and provides fresh setup data', async () => {
+    const file = path.join(directory, 'next.test.config.json')
+    await writeFile(
+      file,
+      JSON.stringify({
+        projects: [
+          {
+            name: 'watch-owner',
+            include: ['*.case.mjs'],
+            provide: { initial: { value: 1 } },
+          },
+        ],
+      })
+    )
+    const generation = new AbortController()
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory, generation.signal)
+    try {
+      expect(await owner.retainReportersForWatch(lifetime.signal)).toBe(true)
+      const first = structuredClone(owner.config.projects)
+      await owner.setup(first, generation.signal)
+      expect(first[0].provide).toEqual({ initial: { value: 1 } })
+      first[0].provide!.initial = { value: 2 }
+      generation.abort(new Error('completed generation released'))
+      expect(await owner.retainReportersForWatch(lifetime.signal)).toBe(true)
+      const second = structuredClone(owner.config.projects)
+      await owner.setup(second, new AbortController().signal)
+      expect(second[0].provide).toEqual({ initial: { value: 1 } })
+      expect(second[0].provide).not.toBe(first[0].provide)
+    } finally {
+      await owner.dispose()
+      lifetime.abort()
+    }
+  }, 30000)
+
+  it('refuses changed or newly selected config bytes without replacing the retained reporter owner', async () => {
+    const file = path.join(directory, 'vitest.config.json')
+    const source = JSON.stringify({
+      projects: [{ name: 'watch-owner', include: ['*.case.mjs'] }],
+    })
+    await writeFile(file, source)
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory)
+    try {
+      expect(await owner.retainReportersForWatch(lifetime.signal)).toBe(true)
+      await writeFile(file, source + '\n')
+      expect(await owner.retainReportersForWatch(lifetime.signal)).toBe(false)
+      await expect(
+        owner.retainReportersForWatch(lifetime.signal, true)
+      ).rejects.toThrow('configuration changed during evaluation')
+      await writeFile(file, source)
+      await writeFile(
+        path.join(directory, 'next.test.config.json'),
+        JSON.stringify({
+          projects: [{ name: 'watch-owner', include: ['*.case.mjs'] }],
+        })
+      )
+      expect(await owner.retainReportersForWatch(lifetime.signal)).toBe(false)
+    } finally {
+      await owner.dispose()
+      lifetime.abort()
+    }
+  }, 30000)
+
+  it('keeps executable configuration reload outside the supported reporter watch lifetime', async () => {
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      "export default {test:{include:['*.case.mjs']}}"
+    )
+    const owner = await openTestConfiguration(directory)
+    try {
+      expect(
+        await owner.retainReportersForWatch(new AbortController().signal)
+      ).toBe(false)
+    } finally {
+      await owner.dispose()
+    }
+  }, 30000)
+
+  it('keeps cancellation of the retained reporter lifetime distinct from a completed generation', async () => {
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory)
+    const reason = new Error('retained reporter owner cancelled')
+    try {
+      expect(await owner.retainReportersForWatch(lifetime.signal)).toBe(true)
+      lifetime.abort(reason)
+      await expect(
+        owner.setup(
+          structuredClone(owner.config.projects),
+          new AbortController().signal
+        )
+      ).rejects.toBe(reason)
+    } finally {
+      await owner.dispose()
+    }
+  }, 30000)
+
+  it('does not silently skip authored global setup in the retained reporter lifetime', async () => {
+    await writeFile(
+      path.join(directory, 'next.test.config.json'),
+      JSON.stringify({
+        projects: [{ name: 'watch-owner', globalSetup: ['./setup.mjs'] }],
+      })
+    )
+    await writeFile(
+      path.join(directory, 'setup.mjs'),
+      "import {writeFileSync} from 'node:fs'; export function setup(){writeFileSync(new URL('./setup-ran',import.meta.url),'unexpected')}"
+    )
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory)
+    try {
+      expect(await owner.retainReportersForWatch(lifetime.signal)).toBe(true)
+      await expect(
+        owner.setup(structuredClone(owner.config.projects))
+      ).rejects.toThrow(
+        'Custom reporter watch global setup is not implemented.'
+      )
+      await expect(
+        readFile(path.join(directory, 'setup-ran'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await owner.dispose()
+      lifetime.abort()
+    }
+  }, 30000)
+})

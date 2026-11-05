@@ -5028,7 +5028,14 @@ it.each(['node', 'browser'] as const)(
   }
 )
 
-it.each(['contract', 'mutation', 'error-shape', 'transport-error'])(
+it.each([
+  'contract',
+  'mutation',
+  'error-shape',
+  'transport-error',
+  'record-drain',
+  'default-record-drain',
+])(
   'preserves Browser data artifact %s transport and task semantics',
   (mode) => {
     const { spawnSync } = require('node:child_process')

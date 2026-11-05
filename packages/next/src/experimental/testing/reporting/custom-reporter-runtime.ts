@@ -86,6 +86,9 @@ export function createCustomReporterRuntime(
   let initializationCallbacksStarted = false
   let finished = false
   let watching = false
+  let watchGenerationStarted = false
+  let watchRunId: string | undefined
+  let watchLiveEvents = false
   let captureTestRecords = false
   let captureSuiteEvents = false
   let captureHookEvents = false
@@ -219,6 +222,24 @@ export function createCustomReporterRuntime(
     const callback = reporter.onTestCaseReady
     if (callback !== undefined && callback !== null)
       return applyReporterCallback(callback, reporter, [test])
+  }
+  function invokeWatchCallback(
+    reporter: Reporter,
+    name:
+      | 'onInit'
+      | 'onWatcherStart'
+      | 'onWatcherRerun'
+      | 'onTestRemoved'
+      | 'onUserConsoleLog'
+      | 'onTestModuleEnd'
+      | 'onTestCaseResult'
+      | 'onTestRunEnd',
+    args: unknown[]
+  ): unknown {
+    // Keep the actual receiver and one authored property read under loose SWC.
+    const callback = reporter[name]
+    if (callback !== undefined && callback !== null)
+      return applyReporterCallback(callback, reporter, args)
   }
   function hasPotentialTaskCallback(
     reporter: Reporter,
@@ -366,7 +387,7 @@ export function createCustomReporterRuntime(
   }
   function hasPotentialRunHook(
     reporter: Reporter,
-    name: 'onTestRunStart' | 'onTestModuleStart'
+    name: keyof Reporter
   ): boolean {
     let current: object | null = reporter
     while (current !== null) {
@@ -415,6 +436,61 @@ export function createCustomReporterRuntime(
       current = Reflect.getPrototypeOf(current)
     }
     return false
+  }
+  function assertWatchEventOwner(runId: unknown) {
+    if (
+      !watchGenerationStarted ||
+      finished ||
+      !watchRunId ||
+      runId !== watchRunId
+    )
+      throw new Error('Reporter event requires its actual watch generation.')
+    watchLiveEvents = true
+  }
+  function assertWatchCompletion(completion: CustomReporterCompletion) {
+    if (!watching) return
+    if (!watchGenerationStarted)
+      throw new Error(
+        'Reporter completion requires an actual watch generation.'
+      )
+    // Explicit terminal replay retains its existing component contract. Native
+    // live generations always bind the actual forwarded run-start occurrence.
+    if (
+      !watchRunId &&
+      !watchLiveEvents &&
+      completion.events.length === 0 &&
+      (completion.files.length === 0 ||
+        completion.files.every((file) => completedModules.has(file.entryId)))
+    )
+      return
+    if (
+      !watchRunId ||
+      !completion.events.some(
+        (event) => event.type === 'run-start' && event.runId === watchRunId
+      ) ||
+      completion.events.some((event) => event.runId !== watchRunId)
+    )
+      throw new Error('Reporter completion differs from its watch generation.')
+  }
+  function assertWatchCallbackSurface() {
+    if (!watching) return
+    for (const reporter of reporters)
+      for (const name of [
+        'onTestModuleQueued',
+        'onTestModuleCollected',
+        'onTestModuleStart',
+        'onTestCaseReady',
+        'onTestSuiteReady',
+        'onTestSuiteResult',
+        'onHookStart',
+        'onHookEnd',
+        'onTestCaseAnnotate',
+        'onTestCaseArtifactRecord',
+      ] as const)
+        if (hasPotentialRunHook(reporter, name))
+          throw new Error(
+            `Custom reporter ${name} requires an actual watch producer and is not implemented by this watch adapter.`
+          )
   }
   // The selected one-shot Node boundary proves these domains have no occurrence.
   // Known declarations remain unread until their actual domain is selected.
@@ -482,6 +558,9 @@ export function createCustomReporterRuntime(
       ...collectedCallbacks,
       ...startedCallbacks,
     ])
+    // Only ordinary watch shutdown invokes authored close callbacks.
+    // Both paths retain the existing pending callback drains.
+    if (watching && !ordinary) closeCallbacks.length = 0
     const closeErrors: unknown[] = []
     if (finalExit) {
       const returned: unknown[] = []
@@ -578,6 +657,7 @@ export function createCustomReporterRuntime(
         'Reporter Suite and Hook replay requires actual recorded task occurrences.'
       )
     if (occurrences !== undefined) {
+      const replayingWatch = watching
       for (const occurrence of occurrences) {
         const test = live.case(tree.id, occurrence.caseId)
         try {
@@ -588,7 +668,10 @@ export function createCustomReporterRuntime(
           else
             await settle(
               reporters.map(
-                (reporter) => () => reporter.onTestCaseResult?.(test)
+                (reporter) => () =>
+                  replayingWatch
+                    ? invokeWatchCallback(reporter, 'onTestCaseResult', [test])
+                    : reporter.onTestCaseResult?.(test)
               )
             )
         } catch (error) {
@@ -635,12 +718,19 @@ export function createCustomReporterRuntime(
           (synchronousThrow !== undefined || completionFailure !== undefined)
         )
           return
-        if (!onPrefix)
+        if (!onPrefix) {
+          if (watching)
+            return invokeWatchCallback(reporter, 'onTestRunEnd', [
+              modules,
+              [...errors, ...reportedConsoleErrors()],
+              reason,
+            ])
           return reporter.onTestRunEnd?.(
             modules,
             [...errors, ...reportedConsoleErrors()],
             reason
           )
+        }
         let callback: Reporter['onTestRunEnd']
         try {
           callback = reporter.onTestRunEnd
@@ -661,11 +751,11 @@ export function createCustomReporterRuntime(
         invokedCount++
         let value: unknown
         try {
-          value = Reflect.apply(callback, reporter, [
-            modules,
-            [...errors, ...reportedConsoleErrors()],
-            reason,
-          ])
+          value = (watching ? applyReporterCallback : Reflect.apply)(
+            callback,
+            reporter,
+            [modules, [...errors, ...reportedConsoleErrors()], reason]
+          )
         } catch (error) {
           synchronousThrow ??= { reporterIndex }
           synchronousFailure ??= { error }
@@ -834,6 +924,7 @@ export function createCustomReporterRuntime(
                 !(name === 'onProcessTimeout' && finalExit) &&
                 ![
                   'onInit',
+                  'onTestRunStart',
                   'onUserConsoleLog',
                   'onTestModuleEnd',
                   'onTestCaseResult',
@@ -856,60 +947,90 @@ export function createCustomReporterRuntime(
         }
         initializationCallbacksStarted = true
         await settle(
-          reporters.map((reporter) => () => reporter.onInit?.(context))
+          reporters.map(
+            (reporter) => () =>
+              watching
+                ? invokeWatchCallback(reporter, 'onInit', [context])
+                : reporter.onInit?.(context)
+          )
         )
-        captureTestRecords = reporters.some(
-          (reporter) =>
-            hasPotentialRecordCallback(reporter, 'onTestCaseAnnotate') ||
-            hasPotentialRecordCallback(reporter, 'onTestCaseArtifactRecord')
-        )
-        captureSuiteEvents = reporters.some(requestsSuiteEvents)
-        captureHookEvents = reporters.some(requestsHookEvents)
+        assertWatchCallbackSurface()
+        captureTestRecords =
+          !watching &&
+          reporters.some(
+            (reporter) =>
+              hasPotentialRecordCallback(reporter, 'onTestCaseAnnotate') ||
+              hasPotentialRecordCallback(reporter, 'onTestCaseArtifactRecord')
+          )
+        captureSuiteEvents = !watching && reporters.some(requestsSuiteEvents)
+        captureHookEvents = !watching && reporters.some(requestsHookEvents)
         await send({
           type: 'custom-reporter-result',
           captureTestRecords,
           captureSuiteEvents,
           captureHookEvents,
-          captureRunStart: !watching && reporters.some(needsSelectedBoundary),
-          ...(reporters.some(hasPotentialCaseReady)
+          captureRunStart: watching
+            ? reporters.some((reporter) =>
+                hasPotentialRunHook(reporter, 'onTestRunStart')
+              )
+            : reporters.some(needsSelectedBoundary),
+          ...(!watching && reporters.some(hasPotentialCaseReady)
             ? { captureCaseReady: true }
             : {}),
-          captureModuleStart: reporters.some(
-            (reporter) => typeof reporter.onTestModuleStart === 'function'
-          ),
+          captureModuleStart:
+            !watching &&
+            reporters.some(
+              (reporter) => typeof reporter.onTestModuleStart === 'function'
+            ),
           captureModuleCollected:
-            (!watching && reporters.some(hasPotentialCaseReady)) ||
-            (!watching && reporters.some(needsSelectedBoundary)) ||
-            reporters.some(
-              (reporter) =>
-                typeof reporter.onTestModuleCollected === 'function' ||
-                typeof reporter.onTestModuleStart === 'function'
-            ),
+            !watching &&
+            (reporters.some(hasPotentialCaseReady) ||
+              (!watching && reporters.some(needsSelectedBoundary)) ||
+              reporters.some(
+                (reporter) =>
+                  typeof reporter.onTestModuleCollected === 'function' ||
+                  typeof reporter.onTestModuleStart === 'function'
+              )),
           captureModuleQueued:
-            (!watching && reporters.some(needsSelectedBoundary)) ||
-            reporters.some(
-              (reporter) => typeof reporter.onTestModuleQueued === 'function'
-            ),
-          captureTaskResults:
-            reporters.some(hasPotentialCaseReady) ||
-            captureTestRecords ||
-            captureSuiteEvents ||
-            captureHookEvents ||
-            (!watching && reporters.some(needsSelectedBoundary)) ||
-            reporters.some(
-              (reporter) =>
-                typeof reporter.onTestModuleCollected === 'function' ||
-                typeof reporter.onTestModuleStart === 'function' ||
-                hasPotentialTaskCallback(reporter, 'onTestCaseResult') ||
-                typeof reporter.onTestModuleEnd === 'function' ||
-                hasPotentialCompletionHook(reporter) ||
-                (watching && typeof reporter.onWatcherStart === 'function')
-            ),
+            !watching &&
+            ((!watching && reporters.some(needsSelectedBoundary)) ||
+              reporters.some(
+                (reporter) => typeof reporter.onTestModuleQueued === 'function'
+              )),
+          captureTaskResults: watching
+            ? reporters.some((reporter) =>
+                (
+                  [
+                    'onTestModuleEnd',
+                    'onTestCaseResult',
+                    'onTestRunEnd',
+                    'onWatcherStart',
+                  ] as const
+                ).some((name) => hasPotentialRunHook(reporter, name))
+              )
+            : reporters.some(hasPotentialCaseReady) ||
+              captureTestRecords ||
+              captureSuiteEvents ||
+              captureHookEvents ||
+              (!watching && reporters.some(needsSelectedBoundary)) ||
+              reporters.some(
+                (reporter) =>
+                  typeof reporter.onTestModuleCollected === 'function' ||
+                  typeof reporter.onTestModuleStart === 'function' ||
+                  hasPotentialTaskCallback(reporter, 'onTestCaseResult') ||
+                  typeof reporter.onTestModuleEnd === 'function' ||
+                  hasPotentialCompletionHook(reporter) ||
+                  (watching && typeof reporter.onWatcherStart === 'function')
+              ),
         })
         return
       }
       if (message.type === 'run-start' && initialized && !finished) {
-        if (watching || runSpecifications || queuedEntryIds.size)
+        if (
+          (watching && (!watchGenerationStarted || watchRunId !== undefined)) ||
+          runSpecifications ||
+          queuedEntryIds.size
+        )
           throw new Error(
             'Run Start requires its actual first selected boundary.'
           )
@@ -943,23 +1064,36 @@ export function createCustomReporterRuntime(
           })
         )
         runSpecifications.assertUnchangedSelection()
-        captureSuiteEvents = reporters.some(requestsSuiteEvents)
-        captureHookEvents = reporters.some(requestsHookEvents)
+        assertWatchCallbackSurface()
+        captureSuiteEvents = !watching && reporters.some(requestsSuiteEvents)
+        captureHookEvents = !watching && reporters.some(requestsHookEvents)
         await send({
           type: 'custom-reporter-result',
-          captureModuleStart: reporters.some((reporter) =>
-            hasPotentialRunHook(reporter, 'onTestModuleStart')
-          ),
+          captureModuleStart:
+            !watching &&
+            reporters.some((reporter) =>
+              hasPotentialRunHook(reporter, 'onTestModuleStart')
+            ),
           captureSuiteEvents,
           captureHookEvents,
           // Retained specifications keep following the actual queued/current File.
-          captureModuleCollected: true,
-          captureModuleQueued: true,
+          captureModuleCollected: !watching,
+          captureModuleQueued: !watching,
           captureTaskResults: true,
         })
         return
       }
       if (message.type === 'watch-begin' && initialized && watching) {
+        if (watchGenerationStarted && !finished)
+          throw new Error(
+            'Watch reporter generation has not actually completed.'
+          )
+        await Promise.allSettled([...batchCallbacks, ...recordCallbacks])
+        await Promise.all([
+          ...queuedCallbacks,
+          ...collectedCallbacks,
+          ...startedCallbacks,
+        ])
         // The parent joins the previous generation's execution owners before
         // retiring these task views. Reporter instances and close callbacks live
         // until the enclosing watch owner disposes this process.
@@ -971,6 +1105,26 @@ export function createCustomReporterRuntime(
         watchEntryIds = []
         consoleErrors.length = 0
         taskCallbackProjections.clear()
+        queuedCallbacks.length = 0
+        collectedCallbacks.length = 0
+        startedCallbacks.length = 0
+        collectedStartOwners.clear()
+        moduleStarts.clear()
+        collectedEntryIds.clear()
+        failedCollectedEntryIds.clear()
+        preparedEntryIds.clear()
+        queuedEntryIds.clear()
+        readySuiteIds.clear()
+        completedSuiteIds.clear()
+        activeHooks.clear()
+        readyCaseIds.clear()
+        completedCaseIds.clear()
+        batchIds.clear()
+        recordIds.clear()
+        runSpecifications = undefined
+        watchRunId = undefined
+        watchLiveEvents = false
+        watchGenerationStarted = true
         finished = false
         if (message.rerun) {
           if (
@@ -985,13 +1139,30 @@ export function createCustomReporterRuntime(
           await settle(
             reporters.map(
               (reporter) => () =>
-                reporter.onWatcherRerun?.(
+                invokeWatchCallback(reporter, 'onWatcherRerun', [
                   message.rerun.files,
-                  message.rerun.trigger
-                )
+                  message.rerun.trigger,
+                ])
             )
           )
         }
+        await send({ type: 'custom-reporter-result' })
+        return
+      }
+      if (message.type === 'watch-cancel' && initialized && watching) {
+        if (!watchGenerationStarted || finished || message.runId !== watchRunId)
+          throw new Error(
+            'Reporter cancellation requires its active watch generation.'
+          )
+        await Promise.allSettled([...batchCallbacks, ...recordCallbacks])
+        await Promise.all([
+          ...queuedCallbacks,
+          ...collectedCallbacks,
+          ...startedCallbacks,
+        ])
+        // The execution owner has joined. Cancellation retires only this store;
+        // it never invents public module, run-end or readiness callbacks.
+        finished = true
         await send({ type: 'custom-reporter-result' })
         return
       }
@@ -1003,7 +1174,9 @@ export function createCustomReporterRuntime(
       ) {
         const files =
           message.initial === true ||
-          !reporters.some((reporter) => reporter.onWatcherStart)
+          !reporters.some((reporter) =>
+            hasPotentialRunHook(reporter, 'onWatcherStart')
+          )
             ? undefined
             : watchEntryIds.map((id) => {
                 const tree = watchTrees.get(id)
@@ -1017,9 +1190,11 @@ export function createCustomReporterRuntime(
           await settle(
             reporters.map(
               (reporter) => () =>
-                message.initial === true
-                  ? reporter.onWatcherStart?.()
-                  : reporter.onWatcherStart?.(files)
+                invokeWatchCallback(
+                  reporter,
+                  'onWatcherStart',
+                  message.initial === true ? [] : [files]
+                )
             )
           )
         } catch (error) {
@@ -1046,7 +1221,10 @@ export function createCustomReporterRuntime(
           throw new Error('Reporter removal requires actual removed paths.')
         for (const file of message.files)
           await settle(
-            reporters.map((reporter) => () => reporter.onTestRemoved?.(file))
+            reporters.map(
+              (reporter) => () =>
+                invokeWatchCallback(reporter, 'onTestRemoved', [file])
+            )
           )
         await send({ type: 'custom-reporter-result' })
         return
@@ -1060,7 +1238,12 @@ export function createCustomReporterRuntime(
             )
           pendingConsoleLogs.delete(message.logId)
           await settle(
-            reporters.map((reporter) => () => reporter.onUserConsoleLog?.(log))
+            reporters.map(
+              (reporter) => () =>
+                watching
+                  ? invokeWatchCallback(reporter, 'onUserConsoleLog', [log])
+                  : reporter.onUserConsoleLog?.(log)
+            )
           )
         } catch (error) {
           consoleErrors.push(error)
@@ -1083,6 +1266,7 @@ export function createCustomReporterRuntime(
         !finished
       ) {
         try {
+          if (watching) assertWatchEventOwner(message.runId)
           const test = live.case(message.entryId, message.caseId)
           const identity = JSON.stringify([message.entryId, message.caseId])
           if (message.type === 'case-ready') {
@@ -1101,7 +1285,10 @@ export function createCustomReporterRuntime(
           else
             await settle(
               reporters.map(
-                (reporter) => () => reporter.onTestCaseResult?.(test)
+                (reporter) => () =>
+                  watching
+                    ? invokeWatchCallback(reporter, 'onTestCaseResult', [test])
+                    : reporter.onTestCaseResult?.(test)
               )
             )
         } catch (error) {
@@ -1189,6 +1376,7 @@ export function createCustomReporterRuntime(
         return
       }
       if (message.type === 'module-state' && initialized && !finished) {
+        if (watching) assertWatchEventOwner(message.runId)
         if (!completedModules.has(message.entryId))
           throw new Error(
             'Final module state requires its actual reporter callback.'
@@ -1227,9 +1415,14 @@ export function createCustomReporterRuntime(
         return
       }
       if (message.type === 'module-end' && initialized && !finished) {
+        if (watching) assertWatchEventOwner(message.runId)
         if (batchCallbacks.size) await Promise.allSettled([...batchCallbacks])
         if (
-          !reporters.some((reporter) => reporter.onTestModuleEnd) &&
+          !reporters.some((reporter) =>
+            watching
+              ? hasPotentialRunHook(reporter, 'onTestModuleEnd')
+              : reporter.onTestModuleEnd
+          ) &&
           !live.get(message.entryId)
         ) {
           await send({ type: 'custom-reporter-result' })
@@ -1263,7 +1456,11 @@ export function createCustomReporterRuntime(
           )
         completedModules.set(message.entryId, module)
         const start = moduleStarts.get(message.entryId)
-        if (reporters.some((reporter) => reporter.onTestModuleStart) && !start)
+        if (
+          !watching &&
+          reporters.some((reporter) => reporter.onTestModuleStart) &&
+          !start
+        )
           throw new Error('Module End lacks its actual prepared Module Start.')
         if (start?.failed && !(await start.completion)) {
           await send({ type: 'custom-reporter-result' })
@@ -1272,7 +1469,10 @@ export function createCustomReporterRuntime(
         try {
           await settle(
             reporters.map(
-              (reporter) => () => reporter.onTestModuleEnd?.(module)
+              (reporter) => () =>
+                watching
+                  ? invokeWatchCallback(reporter, 'onTestModuleEnd', [module])
+                  : reporter.onTestModuleEnd?.(module)
             )
           )
         } catch (error) {
@@ -1287,6 +1487,7 @@ export function createCustomReporterRuntime(
         !finished
       ) {
         if (batchCallbacks.size) await Promise.allSettled([...batchCallbacks])
+        assertWatchCompletion(message.completion)
         finished = true
         if (finalExit && message.exitCodeSnapshot)
           process.exitCode = message.exitCodeSnapshot.value
@@ -1382,7 +1583,12 @@ export function createCustomReporterRuntime(
       }
       const fatalWatchError =
         watching &&
-        ['watch-begin', 'watch-ready', 'watch-removed'].includes(message.type)
+        [
+          'watch-begin',
+          'watch-ready',
+          'watch-removed',
+          'watch-cancel',
+        ].includes(message.type)
       await send({
         type: 'custom-reporter-failed',
         ...(fatalWatchError ? { fatalWatchError: true } : {}),
@@ -1401,17 +1607,41 @@ export function createCustomReporterRuntime(
         message.type === 'shutdown' ||
         message.type === 'cancel' ||
         (watching &&
-          ['watch-begin', 'watch-ready', 'watch-removed'].includes(
-            message.type
-          ))
+          [
+            'watch-begin',
+            'watch-ready',
+            'watch-removed',
+            'watch-cancel',
+          ].includes(message.type))
       )
         closeTransport(1)
     }
   }
   function receive(message: any) {
     if (transportClosed) return
+    if (message?.type === 'watch-run-start') {
+      try {
+        if (
+          !initialized ||
+          !watching ||
+          !watchGenerationStarted ||
+          finished ||
+          watchRunId !== undefined ||
+          typeof message.runId !== 'string' ||
+          message.runId.length === 0
+        )
+          throw new Error(
+            'Reporter requires one actual watch run-start occurrence.'
+          )
+        watchRunId = message.runId
+      } catch (error) {
+        consoleErrors.push(error)
+      }
+      return
+    }
     if (message?.type === 'console-state' && initialized && !finished) {
       try {
+        if (watching) assertWatchEventOwner(message.runId)
         const log = message.log as ReporterConsoleLog
         if (
           !Number.isSafeInteger(message.logId) ||
@@ -1648,6 +1878,7 @@ export function createCustomReporterRuntime(
     }
     if (message?.type === 'task-packs' && initialized && !finished) {
       try {
+        if (watching) assertWatchEventOwner(message.runId)
         live.updatePacks(message.entryId, message.taskPacks)
       } catch (error) {
         consoleErrors.push(error)
@@ -1656,6 +1887,7 @@ export function createCustomReporterRuntime(
     }
     if (message?.type === 'task-state' && initialized && !finished) {
       try {
+        if (watching) assertWatchEventOwner(message.runId)
         const module = prepareReportedModule(
           live.update(message.taskTree, message.taskUpdateIds)
         )

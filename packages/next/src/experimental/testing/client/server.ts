@@ -336,10 +336,7 @@ body {
         if (
           nativeAction &&
           message.type !== 'output' &&
-          !(
-            configuration.captureTaskResults === true &&
-            message.type === 'task-update'
-          )
+          message.type !== 'task-update'
         )
           throw new Error(
             'Only Browser console output or captured task updates may pass a pending native action.'
@@ -355,10 +352,7 @@ body {
             'failure',
             'complete',
           ].includes(message.type) &&
-          !(
-            configuration.captureTaskResults === true &&
-            message.type === 'task-update'
-          ) &&
+          message.type !== 'task-update' &&
           !(message.type === 'browser-command' && message.origin)
         )
           throw new Error(

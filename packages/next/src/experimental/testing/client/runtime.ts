@@ -85,24 +85,23 @@ export async function startClientTest(
   )
     throw new Error('Invalid Browser Mode owner configuration.')
   // processError mutates assertion values; logical facts reuse their attempt serialization.
-  const serializedErrors = config.captureTaskResults
-    ? new WeakMap<object, ReturnType<typeof processError>>()
-    : undefined
-  const taskUpdates = config.captureTaskResults
-    ? createReporterTaskUpdates({
-        onUpdate(update) {
-          if (update.kind === 'task-packs-after-collection-failure')
-            throw new Error(
-              'Browser task updates require the actual collected tree.'
-            )
-          return send({
-            type: 'task-update',
-            ...update,
-            caseResults: update.caseResults,
-          }).then(() => {})
-        },
-      })
-    : undefined
+  const serializedErrors = new WeakMap<
+    object,
+    ReturnType<typeof processError>
+  >()
+  const taskUpdates = createReporterTaskUpdates({
+    onUpdate(update) {
+      if (update.kind === 'task-packs-after-collection-failure')
+        throw new Error(
+          'Browser task updates require the actual collected tree.'
+        )
+      return send({
+        type: 'task-update',
+        ...update,
+        caseResults: update.caseResults,
+      }).then(() => {})
+    },
+  })
   const realDateNow = Date.now.bind(Date)
   const realSetTimeout = globalThis.setTimeout.bind(globalThis)
   let terminalPublished = false
@@ -159,8 +158,7 @@ export async function startClientTest(
     const opened = queue.then(async () => {
       // Observational updates share one FIFO slot while the native reply is pending.
       const observational =
-        message.type === 'output' ||
-        (config.captureTaskResults === true && message.type === 'task-update')
+        message.type === 'output' || message.type === 'task-update'
       if (!observational && nativeReply) await nativeReply
       if (
         config.caseScheduling === 'concurrent-v1' &&
@@ -512,7 +510,6 @@ export async function startClientTest(
         caseScheduling: config.caseScheduling,
         fixtureResources: 'file-v1',
       })
-      if (!taskUpdates) await send({ type: 'collected', declarations })
       if (config.captureCompletedModuleResult) moduleFailurePhase = 'run'
       const runResult = await file.run({
         ...(config.captureCompletedModuleResult
@@ -553,27 +550,28 @@ export async function startClientTest(
               ),
         allowOnly: config.allowOnly,
         retry: config.retry,
-        onCollected: taskUpdates
-          ? async (actualFile) => {
-              await send({
-                type: 'collected',
-                declarations,
-                taskTree: captureReporterTaskTree(actualFile),
-              })
-              taskUpdates.collected(actualFile)
-            }
-          : undefined,
+        onCollected: async (actualFile) => {
+          await send({
+            type: 'collected',
+            declarations,
+            ...(config.captureTaskResults
+              ? { taskTree: captureReporterTaskTree(actualFile) }
+              : {}),
+          })
+          taskUpdates.collected(actualFile)
+        },
         onLateFailure: report,
         onUnhandledFailure: report,
         getArtifactLocation: (error) =>
           getClientArtifactLocation(error, mapper),
-        onBrowserArtifact(task, artifact, context) {
+        async onBrowserArtifact(task, artifact, context) {
           if (artifact.attachments?.length)
             return Promise.reject(
               new Error(
                 'Browser Mode test artifact attachments are not supported.'
               )
             )
+          await taskUpdates.finish()
           return sendArtifact({
             type: 'artifact',
             taskId: task.id,
@@ -589,7 +587,7 @@ export async function startClientTest(
           return { async finalize() {}, async dispose() {} }
         },
         onCaseStart(context) {
-          taskUpdates?.caseStart(context.testId)
+          taskUpdates.caseStart(context.testId)
           void send({
             type: 'case-start',
             context: {
@@ -610,46 +608,42 @@ export async function startClientTest(
               errors: result.errors.map((failure) => {
                 const error = processError(failure.error)
                 if (failure.error && typeof failure.error === 'object')
-                  serializedErrors?.set(failure.error, error)
+                  serializedErrors.set(failure.error, error)
                 return { ...failure, error }
               }),
             },
           }).catch(report)
         },
-        onCaseResult:
-          config.caseScheduling === 'concurrent-v1' || taskUpdates
-            ? (task, result) => {
-                if (config.caseScheduling === 'concurrent-v1')
-                  void send({
-                    type: 'case-final',
-                    result: clientCaseFinal(result),
-                  }).catch(report)
-                if (!taskUpdates) return
-                // The real callback owns these immutable logical outcome facts;
-                // later task metadata packs have their separate actual identity.
-                const snapshot = JSON.parse(
-                  JSON.stringify({
-                    ...result,
-                    errors: result.errors.map((failure) => ({
-                      ...failure,
-                      error:
-                        failure.error && typeof failure.error === 'object'
-                          ? (serializedErrors?.get(failure.error) ??
-                            processError(failure.error))
-                          : processError(failure.error),
-                    })),
-                  })
-                )
-                taskUpdates.caseResult(task, snapshot)
-              }
-            : undefined,
+        onCaseResult: (task, result) => {
+          if (config.caseScheduling === 'concurrent-v1')
+            void send({
+              type: 'case-final',
+              result: clientCaseFinal(result),
+            }).catch(report)
+          // The real callback owns these immutable logical outcome facts;
+          // later task metadata packs have their separate actual identity.
+          const snapshot = JSON.parse(
+            JSON.stringify({
+              ...result,
+              errors: result.errors.map((failure) => ({
+                ...failure,
+                error:
+                  failure.error && typeof failure.error === 'object'
+                    ? (serializedErrors.get(failure.error) ??
+                      processError(failure.error))
+                    : processError(failure.error),
+              })),
+            })
+          )
+          taskUpdates.caseResult(task, snapshot)
+        },
         onSuiteEnd(result, task) {
           for (const [index, failure] of result.errors.entries())
             reportedSuiteFailures.push({
               failure,
               owner: { suiteId: result.suiteId, index },
             })
-          taskUpdates?.suiteEnd(task)
+          taskUpdates.suiteEnd(task)
           void send({
             type: 'suite-end',
             result: {
@@ -795,9 +789,8 @@ export async function startClientTest(
       return browserCleanup
     }
     for (const dispose of [
-      ...(taskUpdates
-        ? [() => taskUpdates.finish(), () => taskUpdates.dispose()]
-        : []),
+      () => taskUpdates.finish(),
+      () => taskUpdates.dispose(),
       async () => {
         try {
           await file?.dispose({
@@ -881,7 +874,7 @@ export async function startClientTest(
     // Keep error handlers installed until the parent closes this owned page. Any
     // terminal-after-output failure attempts another message and poisons transport.
   } finally {
-    taskUpdates?.dispose()
+    taskUpdates.dispose()
     restoreConsole()
   }
 }

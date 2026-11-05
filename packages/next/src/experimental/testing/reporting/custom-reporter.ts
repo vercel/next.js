@@ -161,6 +161,10 @@ export async function openCustomReporters(options: {
     | undefined
   let terminalWatchFailure = false
   let watchHookError: Error | undefined
+  let watchPhase: 'idle' | 'running' | 'finished' = 'idle'
+  let watchRunId: string | undefined
+  let watchLiveEvents = false
+  const watchWrites: Promise<void>[] = []
   let captureRunStart = false
   let captureTaskResults = false
   let captureModuleQueued = false
@@ -247,6 +251,30 @@ export async function openCustomReporters(options: {
   const retainConsoleFailure = (error: unknown) => {
     consoleFailure ??= error
     retainCancellationFailure(error)
+  }
+  function assertWatchEvent(event: ResultEvent) {
+    if (!options.watch) return
+    if (watchPhase !== 'running' || !watchRunId || event.runId !== watchRunId)
+      throw new Error('Reporter event requires its actual watch generation.')
+    watchLiveEvents = true
+  }
+  function assertWatchCompletion(completion: CustomReporterCompletion) {
+    if (!options.watch) return
+    if (watchPhase !== 'running')
+      throw new Error(
+        'Reporter completion requires its active watch generation.'
+      )
+    // Existing explicit terminal replay has no live run-start occurrence.
+    if (!watchRunId && !watchLiveEvents && completion.events.length === 0)
+      return
+    if (
+      !watchRunId ||
+      !completion.events.some(
+        (event) => event.type === 'run-start' && event.runId === watchRunId
+      ) ||
+      completion.events.some((event) => event.runId !== watchRunId)
+    )
+      throw new Error('Reporter completion differs from its watch generation.')
   }
   async function settleCancellation(onlyUndelivered = false) {
     await exit
@@ -515,9 +543,12 @@ export async function openCustomReporters(options: {
       if (message.fatalWatchError === true) {
         if (
           !options.watch ||
-          !['watch-begin', 'watch-ready', 'watch-removed'].includes(
-            pending?.requestType ?? ''
-          )
+          ![
+            'watch-begin',
+            'watch-ready',
+            'watch-removed',
+            'watch-cancel',
+          ].includes(pending?.requestType ?? '')
         )
           throw new Error('Unexpected terminal custom watch response.')
         terminalWatchFailure = true
@@ -673,6 +704,7 @@ export async function openCustomReporters(options: {
         ...queuedWrites,
         ...collectedWrites,
         ...preparationWrites,
+        ...watchWrites,
       ])
       await consoleQueue
       if (recordWrites.size) await Promise.allSettled([...recordWrites])
@@ -742,7 +774,13 @@ export async function openCustomReporters(options: {
         specifications: readonly ReporterRunSpecification[],
         coverage = false
       ) {
-        if (!captureRunStart || options.watch || closing || closed)
+        if (
+          !captureRunStart ||
+          (options.watch &&
+            (watchPhase !== 'running' || watchRunId !== undefined)) ||
+          closing ||
+          closed
+        )
           throw new Error('Run Start reporter session is unavailable.')
         await consoleQueue
         if (consoleFailure) throw consoleFailure
@@ -845,14 +883,56 @@ export async function openCustomReporters(options: {
           throw new Error(
             'Persistent reporter generations require watch ownership.'
           )
+        if (watchPhase === 'running')
+          throw new Error(
+            'Watch reporter generation has not actually completed.'
+          )
+        await Promise.all([
+          ...queuedWrites,
+          ...collectedWrites,
+          ...preparationWrites,
+          ...watchWrites,
+        ])
         await consoleQueue
+        if (batchWrites.size) await Promise.allSettled([...batchWrites])
+        if (recordWrites.size) await Promise.allSettled([...recordWrites])
         if (consoleFailure) throw consoleFailure
         await request({ type: 'watch-begin', ...input })
+        queuedWrites.length = 0
+        collectedWrites.length = 0
+        preparationWrites.length = 0
+        watchWrites.length = 0
         observedModules.clear()
+        preparedEntries.clear()
+        reporterErrors = []
+        cancelledReporterErrors = undefined
+        watchRunId = undefined
+        watchLiveEvents = false
+        watchPhase = 'running'
+      },
+      async cancelWatchRun() {
+        if (!options.watch || watchPhase === 'idle')
+          throw new Error('Reporter cancellation requires watch ownership.')
+        // Execution may be superseded after its completion acknowledgement.
+        if (watchPhase === 'finished') return
+        await Promise.all([
+          ...watchWrites,
+          ...queuedWrites,
+          ...collectedWrites,
+          ...preparationWrites,
+          ...batchWrites,
+          ...recordWrites,
+        ])
+        await consoleQueue
+        if (consoleFailure) throw consoleFailure
+        await request({ type: 'watch-cancel', runId: watchRunId })
+        watchPhase = 'finished'
       },
       async readyWatchRun(initial: boolean): Promise<Error | undefined> {
-        if (!options.watch)
-          throw new Error('Reporter readiness requires watch ownership.')
+        if (!options.watch || watchPhase !== 'finished')
+          throw new Error(
+            'Reporter readiness requires a completed watch generation.'
+          )
         await consoleQueue
         if (consoleFailure) throw consoleFailure
         watchHookError = undefined
@@ -942,6 +1022,33 @@ export async function openCustomReporters(options: {
       },
       onEvent(event: ResultEvent, completion?: CustomReporterCompletion) {
         if (options.signal?.aborted) return
+        if (options.watch && event.type === 'run-start') {
+          if (
+            watchPhase !== 'running' ||
+            watchRunId !== undefined ||
+            typeof event.runId !== 'string' ||
+            event.runId.length === 0
+          )
+            throw new Error(
+              'Reporter requires one actual watch run-start occurrence.'
+            )
+          watchRunId = event.runId
+          watchWrites.push(
+            send({ type: 'watch-run-start', runId: event.runId }).catch(
+              retainConsoleFailure
+            )
+          )
+          return
+        }
+        if (
+          options.watch &&
+          (event.type === 'file-collected' ||
+            event.type === 'task-update' ||
+            event.type === 'file-end' ||
+            event.type === 'module-complete' ||
+            (event.type === 'output' && event.console))
+        )
+          assertWatchEvent(event)
         if (
           (event.type === 'file-end' || event.type === 'module-complete') &&
           preparedEntries.has(event.entryId)
@@ -960,6 +1067,7 @@ export async function openCustomReporters(options: {
               if (batchWrites.size) await Promise.allSettled([...batchWrites])
               return request({
                 type: 'module-end',
+                ...(options.watch ? { runId: event.runId } : {}),
                 entryId: event.entryId,
                 completion,
               })
@@ -974,13 +1082,15 @@ export async function openCustomReporters(options: {
               event.kind === 'task-packs-after-collection-failure'
               ? {
                   type: 'task-packs',
+                  ...(options.watch ? { runId: event.runId } : {}),
                   entryId: event.entryId,
                   taskPacks: event.taskPacks,
                 }
               : {
                   type: 'task-state',
                   taskTree: event.taskTree,
-                  ...(captureModuleStart ||
+                  ...(options.watch ||
+                  captureModuleStart ||
                   captureSuiteEvents ||
                   captureHookEvents ||
                   captureCaseReady ||
@@ -1096,6 +1206,7 @@ export async function openCustomReporters(options: {
                 .then(() =>
                   request({
                     type: 'case-' + occurrence.event,
+                    ...(options.watch ? { runId: event.runId } : {}),
                     entryId: event.entryId,
                     caseId: occurrence.caseId,
                   })
@@ -1117,6 +1228,7 @@ export async function openCustomReporters(options: {
                 type: observedModules.has(event.entryId)
                   ? 'module-state'
                   : 'module-end',
+                ...(options.watch ? { runId: event.runId } : {}),
                 entryId: event.entryId,
                 completion,
               })
@@ -1149,6 +1261,7 @@ export async function openCustomReporters(options: {
         // callback remains pending, just as task packs retain live results.
         void send({
           type: 'console-state',
+          ...(options.watch ? { runId: event.runId } : {}),
           logId,
           entryId: event.entryId,
           log,
@@ -1182,7 +1295,9 @@ export async function openCustomReporters(options: {
         void invoked.catch(() => {})
         void prefix.catch(() => {})
         const completed = (async () => {
+          assertWatchCompletion(completion)
           await Promise.all([
+            ...watchWrites,
             ...queuedWrites,
             ...collectedWrites,
             ...preparationWrites,
@@ -1203,6 +1318,7 @@ export async function openCustomReporters(options: {
             resolveInvoked,
             resolvePrefix
           )
+          if (options.watch) watchPhase = 'finished'
         })()
         // A completed operation with no end hook is honest absence, not a call receipt.
         // Flush, transport, worker-exit and abort failures wake both owned waiters.
@@ -1219,7 +1335,9 @@ export async function openCustomReporters(options: {
         return { invoked, completed, prefix }
       },
       async finish(completion: CustomReporterCompletion) {
+        assertWatchCompletion(completion)
         await Promise.all([
+          ...watchWrites,
           ...queuedWrites,
           ...collectedWrites,
           ...preparationWrites,
@@ -1235,6 +1353,7 @@ export async function openCustomReporters(options: {
           completion,
           ...completionExitCode(completion),
         })
+        if (options.watch) watchPhase = 'finished'
       },
       dispose,
     }
