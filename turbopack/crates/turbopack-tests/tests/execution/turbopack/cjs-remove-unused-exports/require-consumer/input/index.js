@@ -4,4 +4,10 @@ import { used } from './lib.js'
 // mark every export used and nothing may be dropped.
 const lib = require('./lib.js')
 
-console.log(used, lib.unused)
+it('keeps all exports when a module is also required wholesale', () => {
+  expect(used).toBe('used-value')
+  expect(lib).toEqual({
+    used: 'used-value',
+    unused: 'unused-value',
+  })
+})
