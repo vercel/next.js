@@ -21,7 +21,10 @@ use turbopack_ecmascript::{
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
     execution_context::ExecutionContext,
-    transforms::{postcss::PostCssTransformOptions, webpack::WebpackLoaderItems},
+    transforms::{
+        postcss::PostCssTransformOptions,
+        webpack::{WebpackLoaderContextOptions, WebpackLoaderItems},
+    },
 };
 
 use super::ModuleRule;
@@ -85,6 +88,7 @@ pub struct WebpackLoadersOptions {
     pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
     pub target: ResolvedVc<RcStr>,
     pub mode: RcStr,
+    pub context_options: WebpackLoaderContextOptions,
 }
 
 pub enum WebpackLoaderBuiltinConditionSetMatch {

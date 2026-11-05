@@ -337,6 +337,7 @@ impl InlineLoaderSource {
             loader_items(loaders),
             *webpack_options.target,
             webpack_options.mode.clone(),
+            webpack_options.context_options.clone(),
             // Keep .cjs resources CommonJS. Other loader output defaults to JavaScript,
             // even for a CSS or text resource.
             rename_as.or(Some(match path.extension() {

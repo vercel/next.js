@@ -47,6 +47,86 @@ export function absolutify(context: string, request: string): string {
     .join('!')
 }
 
+export interface LoaderPathData {
+  filename?: string
+  hash?: string
+  contentHash?: string
+  contentHashType?: string
+  chunk?: {
+    id?: string | number
+    name?: string
+    hash?: string
+    contentHash?: string | Record<string, string>
+  }
+}
+
+// Based on webpack's TemplatedPathPlugin (MIT, Jason Anderson @diurnalist).
+// This supports its string/filename/hash subset. Hashes must
+// come from the caller: there is no compilation hash, chunk graph or asset hook.
+// https://github.com/webpack/webpack/blob/v5.98.0/lib/TemplatedPathPlugin.js
+export function getPath(template: string, data: LoaderPathData = {}): string {
+  if (typeof template !== 'string') {
+    throw new Error('Loader getPath only supports string templates')
+  }
+  const values = new Map<string, string | number | undefined>()
+  if (typeof data.filename === 'string') {
+    if (data.filename.startsWith('data:')) {
+      throw new Error('Loader getPath does not support data URI filenames')
+    }
+    const match = /^((?:\0.|[^?#\0])*)(\?(?:\0.|[^#\0])*)?(#.*)?$/.exec(
+      data.filename
+    )!
+    const file = match[1].replace(/\0(.)/g, '$1')
+    const base = path.basename(file)
+    const ext = path.extname(file)
+    values.set('file', file)
+    values.set('base', base)
+    values.set('filebase', base)
+    values.set('path', file.slice(0, file.length - base.length))
+    values.set('name', base.slice(0, base.length - ext.length))
+    values.set('ext', ext)
+    values.set('query', (match[2] || '').replace(/\0(.)/g, '$1'))
+    values.set('fragment', match[3] || '')
+  }
+  if (data.hash) {
+    values.set('hash', data.hash)
+    values.set('fullhash', data.hash)
+  }
+  if (data.chunk) {
+    values.set('id', data.chunk.id)
+    values.set('name', data.chunk.name || data.chunk.id)
+    values.set('chunkhash', data.chunk.hash)
+    values.set(
+      'contenthash',
+      data.contentHash ||
+        (data.contentHashType && typeof data.chunk.contentHash === 'object'
+          ? data.chunk.contentHash[data.contentHashType]
+          : undefined)
+    )
+  }
+  return template.replace(/\[\\*([\w:]+)\\*\]/gi, (match, content: string) => {
+    if (content.length + 2 === match.length) {
+      const variable = /^(\w+)(?::(\w+))?$/.exec(content)
+      if (!variable || !values.has(variable[1])) return match
+      const [, kind, argument] = variable
+      const value = values.get(kind)
+      if (value === undefined || value === null) {
+        throw new Error(
+          `Path variable ${match} not implemented in this context: ${template}`
+        )
+      }
+      const result = String(value)
+      const length = argument && Number.parseInt(argument, 10)
+      return length && /^(?:hash|fullhash|chunkhash|contenthash)$/.test(kind)
+        ? result.slice(0, length)
+        : result
+    }
+    return match.startsWith('[\\') && match.endsWith('\\]')
+      ? `[${match.slice(2, -2)}]`
+      : match
+  })
+}
+
 export interface WebpackHash {
   update(data: string | Buffer, inputEncoding?: BufferEncoding): WebpackHash
   digest(encoding?: BufferEncoding): string | Buffer

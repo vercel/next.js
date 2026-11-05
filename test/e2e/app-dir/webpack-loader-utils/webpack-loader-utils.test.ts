@@ -17,6 +17,17 @@ describe('webpack-loader-utils', () => {
       xxhash: '44bc2cf5ad770999',
       webpack: !process.env.IS_TURBOPACK_TEST,
       compiler: !process.env.IS_TURBOPACK_TEST,
+      compilationHooks: !process.env.IS_TURBOPACK_TEST,
+      hashOptions: {
+        hashFunction: 'xxhash64',
+        hashDigest: 'hex',
+        hashDigestLength: 16,
+        hashSalt: null,
+      },
+      paths: [
+        'styles/panel.module.css?theme=dark#button',
+        'component-0-f00d-abc-01234',
+      ],
       mode: isNextDev ? 'development' : 'production',
     })
   })

@@ -17,7 +17,12 @@ import {
 } from './webpack-loaders-runtime'
 import fs from 'fs'
 import path from 'path'
-import { absolutify, contextify, createHash } from './webpack-loaders-utils'
+import {
+  absolutify,
+  contextify,
+  createHash,
+  getPath,
+} from './webpack-loaders-utils'
 import { fileURLToPath } from 'url'
 
 export type IpcInfoMessage =
@@ -63,6 +68,14 @@ type LoaderConfig =
       loader: string
       options: { [k: string]: unknown }
     }
+
+interface LoaderContextOptions {
+  hashFunction: string
+  hashDigest: string
+  hashDigestLength: number
+  hashSalt?: string
+  hot: boolean
+}
 
 const {
   runLoaders,
@@ -163,11 +176,13 @@ const transform = (
   loaders: LoaderConfig[],
   target: string,
   mode: 'development' | 'production',
-  sourceMap: boolean
+  sourceMap: boolean,
+  contextOptions: LoaderContextOptions
 ) => {
   return new Promise((resolve, reject) => {
     const resource = pathResolve(contextDir, name)
     const resourceDir = dirname(resource)
+    const { hot, ...hashOptions } = contextOptions
 
     const loadersWithOptions = loaders.map((config) => {
       const { loader, options } =
@@ -212,6 +227,11 @@ const transform = (
           target,
           mode,
           sourceMap,
+          ...hashOptions,
+          hot: hot || undefined,
+          // Only scalar output metadata and caller-supplied path templates are
+          // supported here, not compilation hooks, options or graph state.
+          _compilation: { outputOptions: hashOptions, getPath },
           utils: { absolutify, contextify, createHash },
           getOptions() {
             const entry = this.loaders[this.loaderIndex]
