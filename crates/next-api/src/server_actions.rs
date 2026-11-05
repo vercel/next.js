@@ -48,7 +48,10 @@ use turbopack_core::{
     environment::{ChunkLoading, Environment},
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
+    issue::{
+        AdditionalIssueSource, Issue, IssueExt, IssueSeverity, IssueSource, IssueStage,
+        StyledString,
+    },
     module::{Module, Modules},
     module_graph::{
         GraphTraversalAction, ModuleGraph, ModuleGraphLayer, SingleModuleGraphNode,
@@ -58,6 +61,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
+    source::Source,
     source_map::{OptionSourceMapType, SourceMapGenerationOptions},
     virtual_source::VirtualSource,
 };
@@ -514,7 +518,7 @@ fn collect_cache_modules(
 #[turbo_tasks::value(shared)]
 struct UnstableDurableCacheEnvIssue {
     entry: ResolvedVc<Box<dyn Module>>,
-    dependency: ResolvedVc<Box<dyn Module>>,
+    env_var_access_pos: IssueSource,
     env_var: RcStr,
 }
 
@@ -523,12 +527,12 @@ impl UnstableDurableCacheEnvIssue {
     #[turbo_tasks::function]
     fn new(
         entry: ResolvedVc<Box<dyn Module>>,
-        dependency: ResolvedVc<Box<dyn Module>>,
+        env_var_access_pos: IssueSource,
         env_var: RcStr,
     ) -> Vc<Self> {
         UnstableDurableCacheEnvIssue::cell(UnstableDurableCacheEnvIssue {
             entry,
-            dependency,
+            env_var_access_pos,
             env_var,
         })
     }
@@ -546,7 +550,22 @@ impl Issue for UnstableDurableCacheEnvIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        Ok(self.entry.ident().await?.path.clone())
+        Ok(self.env_var_access_pos.source().ident().await?.path.clone())
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.env_var_access_pos)
+    }
+
+    async fn additional_sources(&self) -> Result<Vec<AdditionalIssueSource>> {
+        let Some(source) = *self.entry.source().await? else {
+            return Ok(vec![]);
+        };
+        Ok(vec![AdditionalIssueSource {
+            description: rcstr!("Durable cache function"),
+            // TODO ideally we'd have the location of the use-cache function available here.
+            source: IssueSource::from_source_only(source),
+        }])
     }
 
     async fn title(&self) -> Result<StyledString> {
@@ -556,18 +575,15 @@ impl Issue for UnstableDurableCacheEnvIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some(StyledString::Text(
-            format!(
-                "This function is marked with the \"durable\" cache modifier, but its dependency \
-                 {} references the unstable environment variable \"{}\". Durable cache functions \
-                 must not depend on variables listed in \
-                 experimental.durableUseCacheEntriesConfig.unstableEnvVars. Remove the dependency \
-                 or the \"durable\" modifier.",
-                self.dependency.ident().await?.path.to_string_ref().await?,
-                self.env_var,
-            )
-            .into(),
-        )))
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Use-cache functions marked with the ")),
+            StyledString::Code(rcstr!("\"durable\"")),
+            StyledString::Text(rcstr!(
+                " cache modifier must not reference unstable environment variables (in this case "
+            )),
+            StyledString::Code(self.env_var.clone()),
+            StyledString::Text(rcstr!("). Restructure your code to not reference them.")),
+        ])))
     }
 }
 
@@ -713,7 +729,7 @@ async fn compute_subtree_content_hash(
 
         let mut issues = vec![];
 
-        for (m, data) in &data {
+        for (_, data) in &data {
             hashes.push(&data.path_code_hash);
             if let Some(env) = &data.env_var_info {
                 for (name, access) in &env.runtime {
@@ -729,7 +745,13 @@ async fn compute_subtree_content_hash(
                             .unstable_env_vars
                             .contains(name)
                     {
-                        issues.push(UnstableDurableCacheEnvIssue::new(*entry, **m, name.clone()));
+                        issues.push(UnstableDurableCacheEnvIssue::new(
+                            *entry,
+                            env.issue_source(access).context(
+                                "Missing source for runtime environment variable access",
+                            )?,
+                            name.clone(),
+                        ));
                     }
 
                     runtime_env_vars

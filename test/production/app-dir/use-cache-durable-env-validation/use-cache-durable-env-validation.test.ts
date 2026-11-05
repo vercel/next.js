@@ -17,23 +17,22 @@ describe('use-cache-durable-env-validation', () => {
     const { exitCode, cliOutput } = await next.build()
     expect(exitCode).toBe(1)
     const output = getTurbopackBuildErrors(cliOutput)
-    expect(output).toContain('UNSTABLE_DURABLE_TEST')
     expect(output).toMatchInlineSnapshot(`
      "Error: Turbopack build failed with 8 errors:
-     ./cases/dependency-cycle.ts
+     ./cases/direct-existence.ts:3:7
      Error: Durable cache references an unstable environment variable
-     This function is marked with the "durable" cache modifier, but its dependency [project]/dependencies/cycle-b.ts references the unstable environment variable "UNSTABLE_DURABLE_TEST". Durable cache functions must not depend on variables listed in experimental.durableUseCacheEntriesConfig.unstableEnvVars. Remove the dependency or the "durable" modifier.
+       1 | export async function getValue() {
+       2 |   'use cache: remote, durable'
+     > 3 |   if (process.env.UNSTABLE_DURABLE_TEST) {
+         |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       4 |     return true
+       5 |   }
+       6 |   return false
 
-     Import trace:
-       Server Component:
-         ./cases/dependency-cycle.ts
-         ./cases/rejected.ts
-         ./app/page.tsx
+     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
 
-
+     Durable cache function:
      ./cases/direct-existence.ts
-     Error: Durable cache references an unstable environment variable
-     This function is marked with the "durable" cache modifier, but its dependency [project]/cases/direct-existence.ts references the unstable environment variable "UNSTABLE_DURABLE_TEST". Durable cache functions must not depend on variables listed in experimental.durableUseCacheEntriesConfig.unstableEnvVars. Remove the dependency or the "durable" modifier.
 
      Import trace:
        Server Component:
@@ -42,9 +41,19 @@ describe('use-cache-durable-env-validation', () => {
          ./app/page.tsx
 
 
-     ./cases/direct-read.ts
+     ./cases/direct-read.ts:3:10
      Error: Durable cache references an unstable environment variable
-     This function is marked with the "durable" cache modifier, but its dependency [project]/cases/direct-read.ts references the unstable environment variable "UNSTABLE_DURABLE_TEST". Durable cache functions must not depend on variables listed in experimental.durableUseCacheEntriesConfig.unstableEnvVars. Remove the dependency or the "durable" modifier.
+       1 | export async function getValue() {
+       2 |   'use cache: remote, durable'
+     > 3 |   return process.env.UNSTABLE_DURABLE_TEST
+         |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       4 | }
+       5 |
+
+     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+
+     Durable cache function:
+     ./cases/direct-read.ts
 
      Import trace:
        Server Component:
@@ -53,9 +62,19 @@ describe('use-cache-durable-env-validation', () => {
          ./app/page.tsx
 
 
-     ./cases/module-level.ts
+     ./cases/module-level.ts:4:10
      Error: Durable cache references an unstable environment variable
-     This function is marked with the "durable" cache modifier, but its dependency [project]/cases/module-level.ts references the unstable environment variable "UNSTABLE_DURABLE_TEST". Durable cache functions must not depend on variables listed in experimental.durableUseCacheEntriesConfig.unstableEnvVars. Remove the dependency or the "durable" modifier.
+       2 |
+       3 | export async function getValue() {
+     > 4 |   return process.env.UNSTABLE_DURABLE_TEST
+         |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       5 | }
+       6 |
+
+     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+
+     Durable cache function:
+     ./cases/module-level.ts
 
      Import trace:
        Server Component:
@@ -64,49 +83,116 @@ describe('use-cache-durable-env-validation', () => {
          ./app/page.tsx
 
 
-     ./cases/nested-cache-existence.ts
+     ./dependencies/cycle-b.ts:4:34
      Error: Durable cache references an unstable environment variable
-     This function is marked with the "durable" cache modifier, but its dependency [project]/dependencies/existence.ts references the unstable environment variable "UNSTABLE_DURABLE_TEST". Durable cache functions must not depend on variables listed in experimental.durableUseCacheEntriesConfig.unstableEnvVars. Remove the dependency or the "durable" modifier.
+       2 |
+       3 | export function readCycleB(depth: number): string {
+     > 4 |   return \`\${readCycleA(depth)}:\${process.env.UNSTABLE_DURABLE_TEST}\`
+         |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       5 | }
+       6 |
+
+     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+
+     Durable cache function:
+     ./cases/dependency-cycle.ts
 
      Import trace:
        Server Component:
+         ./dependencies/cycle-b.ts
+         ./dependencies/cycle-a.ts
+         ./cases/dependency-cycle.ts
+         ./cases/rejected.ts
+         ./app/page.tsx
+
+
+     ./dependencies/existence.ts:2:7
+     Error: Durable cache references an unstable environment variable
+       1 | export function hasEnv() {
+     > 2 |   if (process.env.UNSTABLE_DURABLE_TEST) {
+         |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       3 |     return true
+       4 |   }
+       5 |   return false
+
+     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+
+     Durable cache function:
+     ./cases/nested-cache-existence.ts
+
+     Import trace:
+       Server Component:
+         ./dependencies/existence.ts
          ./cases/nested-cache-existence.ts
          ./cases/rejected.ts
          ./app/page.tsx
 
 
-     ./cases/nested-cache-read.ts
+     ./dependencies/existence.ts:2:7
      Error: Durable cache references an unstable environment variable
-     This function is marked with the "durable" cache modifier, but its dependency [project]/dependencies/read.ts references the unstable environment variable "UNSTABLE_DURABLE_TEST". Durable cache functions must not depend on variables listed in experimental.durableUseCacheEntriesConfig.unstableEnvVars. Remove the dependency or the "durable" modifier.
+       1 | export function hasEnv() {
+     > 2 |   if (process.env.UNSTABLE_DURABLE_TEST) {
+         |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       3 |     return true
+       4 |   }
+       5 |   return false
+
+     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+
+     Durable cache function:
+     ./cases/transitive-existence.ts
 
      Import trace:
        Server Component:
+         ./dependencies/existence.ts
+         ./cases/nested-cache-existence.ts
+         ./cases/rejected.ts
+         ./app/page.tsx
+
+
+     ./dependencies/read.ts:2:10
+     Error: Durable cache references an unstable environment variable
+       1 | export function readEnv() {
+     > 2 |   return process.env.UNSTABLE_DURABLE_TEST
+         |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       3 | }
+       4 |
+
+     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+
+     Durable cache function:
+     ./cases/nested-cache-read.ts
+
+     Import trace:
+       Server Component:
+         ./dependencies/read.ts
          ./cases/nested-cache-read.ts
          ./cases/rejected.ts
          ./app/page.tsx
 
 
-     ./cases/transitive-existence.ts
+     ./dependencies/read.ts:2:10
      Error: Durable cache references an unstable environment variable
-     This function is marked with the "durable" cache modifier, but its dependency [project]/dependencies/existence.ts references the unstable environment variable "UNSTABLE_DURABLE_TEST". Durable cache functions must not depend on variables listed in experimental.durableUseCacheEntriesConfig.unstableEnvVars. Remove the dependency or the "durable" modifier.
+       1 | export function readEnv() {
+     > 2 |   return process.env.UNSTABLE_DURABLE_TEST
+         |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       3 | }
+       4 |
 
-     Import trace:
-       Server Component:
-         ./cases/transitive-existence.ts
-         ./cases/rejected.ts
-         ./app/page.tsx
+     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
 
-
+     Durable cache function:
      ./cases/transitive-read.ts
-     Error: Durable cache references an unstable environment variable
-     This function is marked with the "durable" cache modifier, but its dependency [project]/dependencies/read.ts references the unstable environment variable "UNSTABLE_DURABLE_TEST". Durable cache functions must not depend on variables listed in experimental.durableUseCacheEntriesConfig.unstableEnvVars. Remove the dependency or the "durable" modifier.
 
      Import trace:
        Server Component:
-         ./cases/transitive-read.ts
+         ./dependencies/read.ts
+         ./cases/nested-cache-read.ts
          ./cases/rejected.ts
          ./app/page.tsx"
     `)
+
+    expect(output).toContain('UNSTABLE_DURABLE_TEST')
     for (const name of [
       'direct-read',
       'direct-existence',
@@ -117,7 +203,7 @@ describe('use-cache-durable-env-validation', () => {
       'module-level',
       'dependency-cycle',
     ]) {
-      expect(output).toContain(`./cases/${name}.ts\nError: ${issueTitle}`)
+      expect(output).toContain(`cases/${name}.ts`)
     }
   })
 })
