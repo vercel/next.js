@@ -12,6 +12,19 @@ There are two ways to set Open Graph and Twitter images:
 - [Using image files (.jpg, .png, .gif)](#image-files-jpg-png-gif)
 - [Using code to generate images (.js, .ts, .tsx)](#generate-images-using-code-js-ts-tsx)
 
+## Precedence with metadata exports
+
+An `images` property explicitly defined by a page's [`metadata` object or `generateMetadata` function](/docs/app/api-reference/functions/generate-metadata) takes precedence over the corresponding file-based images in the same segment or inherited from parent segments.
+
+| Metadata property  | Overrides               |
+| ------------------ | ----------------------- |
+| `openGraph.images` | `opengraph-image` files |
+| `twitter.images`   | `twitter-image` files   |
+
+For example, if `app/blog/page.tsx` sets `openGraph.images` to `['/custom-og.png']`, the page uses `/custom-og.png` even when `app/blog/opengraph-image.png` exists. This applies to both static image files and images generated with code.
+
+To use a page's colocated `opengraph-image` or `twitter-image` file, omit the corresponding `images` property from the page's metadata. Setting `images` to `[]`, `null`, or `undefined` still overrides the file-based image.
+
 ## Image files (.jpg, .png, .gif)
 
 Use an image file to set a route segment's shared image by placing an `opengraph-image` or `twitter-image` image file in the segment.
