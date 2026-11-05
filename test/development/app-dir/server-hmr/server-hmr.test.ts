@@ -159,7 +159,10 @@ describe('server-hmr', () => {
              "description": "Expected '}', got '<eof>'",
              "environmentLabel": null,
              "label": "Build Error",
-             "source": "./app/module-preservation/page.tsx (12:4)\n           Error: Expected '}', got '<eof>'\n           > 12 |   )\n                |    ^",
+             "source": "./app/module-preservation/page.tsx (13:4)
+           Error: Expected '}', got '<eof>'
+           > 13 |   )
+                |    ^",
              "stack": [],
            }
           `)
@@ -200,6 +203,11 @@ describe('server-hmr', () => {
           expect(text).toMatch(/Module Evaluated At: \d+/)
         })
 
+        const initialModuleTrigger = await browser
+          .elementByCss('#module-trigger')
+          .text()
+        expect(initialModuleTrigger).toBe('Module Trigger: 0')
+
         // Capture the initial module evaluation timestamp
         const initialModuleEvalTime = await browser
           .elementByCss('#module-eval-time')
@@ -207,7 +215,7 @@ describe('server-hmr', () => {
 
         // Make a change to the module itself to trigger re-evaluation
         await next.patchFile('app/unmodified-module.ts', (content) =>
-          content.replace('_hmrTrigger = 0', '_hmrTrigger = 1')
+          content.replace('hmrTrigger = 0', 'hmrTrigger = 1')
         )
 
         // Wait for HMR to apply - the module should be re-evaluated
@@ -219,6 +227,10 @@ describe('server-hmr', () => {
             .elementByCss('#module-eval-time')
             .text()
           expect(newModuleEvalTime).not.toBe(initialModuleEvalTime)
+          const newModuleTrigger = await browser
+            .elementByCss('#module-trigger')
+            .text()
+          expect(newModuleTrigger).toBe('Module Trigger: 1')
         })
       }
     )
@@ -674,10 +686,11 @@ describe('server-hmr', () => {
           .fetch('/manifest.webmanifest')
           .then((res) => res.json())
         const initialDepEvaluatedAt = initial.depEvaluatedAt
+        expect(initial.hmrTrigger).toBe(0)
 
         // Patch manifest.ts itself, not the dep module
         await next.patchFile('app/manifest.ts', (content) =>
-          content.replace('_hmrTrigger = 0', '_hmrTrigger = 1')
+          content.replace('hmrTrigger = 0', 'hmrTrigger = 1')
         )
 
         await retry(async () => {
@@ -688,6 +701,7 @@ describe('server-hmr', () => {
           expect(updated.manifestEvaluatedAt).not.toBe(
             initial.manifestEvaluatedAt
           )
+          expect(updated.hmrTrigger).not.toBe(initial.hmrTrigger)
           // manifest-dep.ts should NOT have been re-evaluated
           expect(updated.depEvaluatedAt).toBe(initialDepEvaluatedAt)
         })

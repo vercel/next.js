@@ -8,12 +8,14 @@ use swc_core::{
     ecma::{ast::*, atoms::atom},
 };
 use turbo_rcstr::{RcStr, rcstr};
+use turbopack_core::module::ModuleSideEffects;
 
 use crate::{
     SpecifiedModuleType,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart,
         WellKnownObjectKind, is_unresolved, is_unresolved_id,
+        side_effects::compute_module_evaluation_side_effects,
     },
     references::constant_value::parse_single_expr_lit,
     utils::unparen,
@@ -28,6 +30,7 @@ pub struct EvalContext {
     pub(crate) top_level_mark: Mark,
     pub(crate) imports: ImportMap,
     pub(crate) force_free_values: Arc<FxHashSet<Id>>,
+    pub(crate) module_side_effects: ModuleSideEffects,
 }
 
 impl EvalContext {
@@ -44,14 +47,23 @@ impl EvalContext {
         top_level_mark: Mark,
         force_free_values: Arc<FxHashSet<Id>>,
         comments: Option<&dyn Comments>,
+        infer_module_side_effects: bool,
     ) -> Self {
+        let module_side_effects = if infer_module_side_effects {
+            module.map(|m| compute_module_evaluation_side_effects(m, comments, unresolved_mark))
+        } else {
+            None
+        };
+        let imports = module.map_or(ImportMap::default(), |m| {
+            ImportMap::analyze(unresolved_mark, m, comments, module_side_effects.as_ref())
+        });
         Self {
             unresolved_mark,
             top_level_mark,
-            imports: module.map_or(ImportMap::default(), |m| {
-                ImportMap::analyze(unresolved_mark, m, comments)
-            }),
+            imports,
             force_free_values,
+            module_side_effects: module_side_effects
+                .map_or(ModuleSideEffects::SideEffectful, |m| m.side_effects),
         }
     }
 
@@ -540,8 +552,14 @@ impl EvalContext {
         let js_value = try_with_handler(cm, Default::default(), |_| {
             GLOBALS.set(&Default::default(), || {
                 let expr = parse_single_expr_lit(expr_lit);
-                let eval_context =
-                    EvalContext::new(None, Mark::new(), Mark::new(), Default::default(), None);
+                let eval_context = EvalContext::new(
+                    None,
+                    Mark::new(),
+                    Mark::new(),
+                    Default::default(),
+                    None,
+                    /* infer_module_side_effects */ false,
+                );
 
                 Ok(eval_context.eval(arena, &expr))
             })

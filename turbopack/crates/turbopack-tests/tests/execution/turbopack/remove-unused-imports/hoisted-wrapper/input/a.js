@@ -1,0 +1,14 @@
+import { pureExpensive } from './library/pure-expensive.js'
+import { wrapper } from './runtime.js'
+
+var pureHoistedInner = async function cached() {
+  return pureExpensive()
+}
+
+export const pureHoistedWrapper = /*#__PURE__*/ wrapper(function cached() {
+  return pureHoistedInner()
+})
+
+export function lightweight() {
+  return 'lightweight'
+}

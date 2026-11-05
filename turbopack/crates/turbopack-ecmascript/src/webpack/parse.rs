@@ -94,7 +94,10 @@ pub async fn webpack_runtime(
         EcmascriptModuleAssetType::Ecmascript,
         transforms,
         node_env,
-        false,
+        /* loose_errors */ false,
+        /* inline_helpers */ false,
+        // Only the AST is needed, not module side-effect inference.
+        /* infer_module_side_effects */
         false,
     )
     .await?;

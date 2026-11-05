@@ -444,6 +444,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
 pub(crate) enum SplitResult {
     Ok {
         asset_ident: ResolvedVc<AssetIdent>,
+        infer_module_side_effects: bool,
 
         /// `u32` is a index to `modules`.
         #[turbo_tasks(unsafe_ignore)]
@@ -561,6 +562,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                     modules.len()
                 );
             }
+            let infer_module_side_effects = asset.options().await?.infer_module_side_effects;
             let modules = modules
                 .into_iter()
                 .map(|module| {
@@ -573,6 +575,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                             eval_context.top_level_mark,
                             eval_context.force_free_values.clone(),
                             Some(&**comments as &dyn Comments),
+                            infer_module_side_effects,
                         )
                     });
 
@@ -590,6 +593,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
 
             Ok(SplitResult::Ok {
                 asset_ident: ident,
+                infer_module_side_effects,
                 entrypoints,
                 deps: part_deps,
                 modules,
@@ -615,6 +619,7 @@ pub(crate) async fn part_of_module(
     match &*split_data {
         SplitResult::Ok {
             asset_ident,
+            infer_module_side_effects,
             modules,
             entrypoints,
             deps,
@@ -702,6 +707,7 @@ pub(crate) async fn part_of_module(
                             eval_context.top_level_mark,
                             eval_context.force_free_values.clone(),
                             None,
+                            *infer_module_side_effects,
                         )
                     });
 

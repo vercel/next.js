@@ -36,6 +36,7 @@ use crate::{
         cjs_ast::{is_global, is_module_dot_exports},
         graph::{AssignmentScope, AssignmentScopes, EvalContext},
         is_unresolved, is_unresolved_id,
+        side_effects::ModuleSideEffectsAnalysisResult,
     },
     magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
     module_fragments::{PartId, find_turbopack_part_id_in_asserts},
@@ -323,48 +324,38 @@ pub(crate) struct ProgramDeclUsage {
     pub(crate) exports: FxHashMap<RcStr, Id>,
 }
 impl ProgramDeclUsage {
+    fn compute_usage(&self, ids: impl IntoIterator<Item = Id>) -> ImportUsage {
+        let mut visited: FxHashSet<Id> = ids.into_iter().collect();
+        let mut stack: Vec<_> = visited.iter().cloned().collect();
+        while let Some(id) = stack.pop() {
+            match self.decl_usages.get(&id) {
+                Some(DeclUsage::SideEffects) => return ImportUsage::TopLevel,
+                Some(DeclUsage::Bindings(callers)) => {
+                    for caller in callers {
+                        if visited.insert(caller.clone()) {
+                            stack.push(caller.clone());
+                        }
+                    }
+                }
+                None => {}
+            }
+        }
+        ImportUsage::Exports(
+            self.exports
+                .iter()
+                .filter(|(_, id)| visited.contains(*id))
+                .map(|(exported, _)| exported.clone())
+                .collect(),
+        )
+    }
+
     fn compute_import_usage(&self) -> FxHashMap<usize, ImportUsage> {
         let mut import_usage =
             FxHashMap::with_capacity_and_hasher(self.import_usages.len(), Default::default());
         for (reference, usage) in &self.import_usages {
             // TODO make this more efficient, i.e. cache the result?
             if let DeclUsage::Bindings(ids) = usage {
-                // compute transitive closure of `ids` over `top_level_mappings`
-                let mut visited = ids.clone();
-                let mut stack = ids.iter().collect::<Vec<_>>();
-                let mut has_global_usage = false;
-                while let Some(id) = stack.pop() {
-                    match self.decl_usages.get(id) {
-                        Some(DeclUsage::SideEffects) => {
-                            has_global_usage = true;
-                            break;
-                        }
-                        Some(DeclUsage::Bindings(callers)) => {
-                            for caller in callers {
-                                if visited.insert(caller.clone()) {
-                                    stack.push(caller);
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-
-                // Collect all `visited` declarations which are exported
-                import_usage.insert(
-                    *reference,
-                    if has_global_usage {
-                        ImportUsage::TopLevel
-                    } else {
-                        ImportUsage::Exports(
-                            self.exports
-                                .iter()
-                                .filter(|(_, id)| visited.contains(*id))
-                                .map(|(exported, _)| exported.clone())
-                                .collect(),
-                        )
-                    },
-                );
+                import_usage.insert(*reference, self.compute_usage(ids.iter().cloned()));
             }
         }
         // Fold re-exports (`export { x } from "foo"`) into `import_usage` for tree-shaking.
@@ -460,6 +451,9 @@ pub(crate) struct ImportMap {
     pub(super) assignment_scopes: FxHashMap<Id, AssignmentScopes>,
 
     pub(crate) import_usage: FxHashMap<usize, ImportUsage>,
+
+    /// Uses of removable initializers, computed with the same graph as their imports.
+    pub(crate) pure_declaration_usage: FxHashMap<Id, ImportUsage>,
 
     /// Map from exported name to local binding id (includes the syntax context).
     pub(crate) exports_ids: FxHashMap<RcStr, (Id, Span)>,
@@ -857,15 +851,18 @@ impl ImportMap {
         unresolved_mark: Mark,
         m: &Program,
         comments: Option<&dyn Comments>,
+        module_side_effects: Option<&ModuleSideEffectsAnalysisResult>,
     ) -> Self {
         let mut data = ImportMap::default();
         let mut analyzer = Analyzer {
             unresolved_mark,
             data: &mut data,
             comments,
+            module_side_effects,
             namespace_imports_to_specifier: FxIndexMap::default(),
             state: Default::default(),
             program_decl_usage: Default::default(),
+            has_direct_eval: false,
             current_module_item_order: 0,
         };
 
@@ -971,7 +968,26 @@ impl ImportMap {
 
         m.visit_with(&mut analyzer);
 
-        data.import_usage = analyzer.program_decl_usage.compute_import_usage();
+        let mut import_usage = analyzer.program_decl_usage.compute_import_usage();
+        if analyzer.has_direct_eval {
+            // Eval can read bindings by name, without an identifier use in this AST.
+            for usage in import_usage.values_mut() {
+                *usage = ImportUsage::TopLevel;
+            }
+        }
+        let pure_declaration_usage = module_side_effects
+            .filter(|_| !analyzer.has_direct_eval)
+            .into_iter()
+            .flat_map(|m| &m.pure_top_level_declarations)
+            .map(|id| {
+                (
+                    id.clone(),
+                    analyzer.program_decl_usage.compute_usage([id.clone()]),
+                )
+            })
+            .collect();
+        data.import_usage = import_usage;
+        data.pure_declaration_usage = pure_declaration_usage;
 
         data
     }
@@ -1043,6 +1059,9 @@ struct Analyzer<'a> {
     unresolved_mark: Mark,
     data: &'a mut ImportMap,
     comments: Option<&'a dyn Comments>,
+    module_side_effects: Option<&'a ModuleSideEffectsAnalysisResult>,
+    has_direct_eval: bool,
+
     /// Map from local identifier of namespace imports to module path, used temporarily during
     /// analysis to detect dynamic accesses to namespace imports.
     namespace_imports_to_specifier: FxIndexMap<Id, Wtf8Atom>,
@@ -1451,6 +1470,13 @@ impl Visit for Analyzer<'_> {
     // potentially support more webpack magic comments in the future:
     // https://webpack.js.org/api/module-methods/#magic-comments
     fn visit_call_expr(&mut self, n: &CallExpr) {
+        if let Callee::Expr(callee) = &n.callee
+            && let Expr::Ident(ident) = unparen(callee)
+            && is_global(ident, "eval", self.unresolved_mark)
+        {
+            self.has_direct_eval = true;
+        }
+
         if let Some(comments) = self.comments {
             let callee_span = match &n.callee {
                 Callee::Import(Import { span, .. }) => Some(*span),
@@ -1646,7 +1672,18 @@ impl Visit for Analyzer<'_> {
 
     fn visit_var_declarator(&mut self, node: &VarDeclarator) {
         self.record_require_usage_var(node);
-        node.visit_children_with(self);
+
+        if let Pat::Ident(ident) = &node.name
+            && self
+                .module_side_effects
+                .is_some_and(|m| m.pure_top_level_declarations.contains(&ident.id.to_id()))
+        {
+            self.enter_top_level_decl(&ident.id, |this| {
+                node.visit_children_with(this);
+            });
+        } else {
+            node.visit_children_with(self);
+        }
     }
 
     fn visit_assign_expr(&mut self, node: &AssignExpr) {
@@ -2124,7 +2161,9 @@ mod tests {
             shebang: None,
         });
         let globals = Default::default();
-        let map = GLOBALS.set(&globals, || ImportMap::analyze(Mark::new(), &program, None));
+        let map = GLOBALS.set(&globals, || {
+            ImportMap::analyze(Mark::new(), &program, None, None)
+        });
 
         assert_eq!(map.reference_declaration_orders, vec![0, 1, 0, 2]);
         assert_eq!(

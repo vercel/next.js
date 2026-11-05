@@ -108,10 +108,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    analyzer::{
-        graph::EvalContext, imports::ExportRegistrationMode,
-        side_effects::compute_module_evaluation_side_effects,
-    },
+    analyzer::{graph::EvalContext, imports::ExportRegistrationMode},
     ast_path_trie::AstPathTrie,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
@@ -585,8 +582,15 @@ impl EcmascriptModuleAsset {
                 .owned()
                 .await?
                 .unwrap_or_else(|| rcstr!("development"));
-            crate::parse::parse_from_rope(rope, self.source, self.ty, self.transforms, node_env)
-                .await
+            crate::parse::parse_from_rope(
+                rope,
+                self.source,
+                self.ty,
+                self.transforms,
+                node_env,
+                self.options.await?.infer_module_side_effects,
+            )
+            .await
         }
         .await;
         match result {
@@ -800,45 +804,6 @@ impl EcmascriptModuleAsset {
     }
 }
 
-/// Computes a module's side effects from parse data only.
-///
-/// This intentionally stays independent of [`EcmascriptModuleAsset::analyze`], since side-effect
-/// information is needed while resolving references during analysis.
-#[turbo_tasks::function]
-async fn compute_ecmascript_module_side_effects(
-    module: ResolvedVc<EcmascriptModuleAsset>,
-) -> Result<Vc<ModuleSideEffects>> {
-    let options = module.options().await?;
-    let parsed = module.failsafe_parse().await?;
-    let ParseResult::Ok {
-        program,
-        globals,
-        eval_context,
-        comments,
-        ..
-    } = &*parsed
-    else {
-        return Ok(ModuleSideEffects::SideEffectful.cell());
-    };
-
-    let directives = parse_module_turbopack_directives(program);
-    let side_effects = if directives.no_side_effects {
-        ModuleSideEffects::SideEffectFree
-    } else if directives.constants_module && options.cross_module_constants {
-        // If the module is marked as a constants module, it must be side effect free, otherwise
-        // constant folding would not be safe.
-        ModuleSideEffects::SideEffectFree
-    } else if options.infer_module_side_effects {
-        GLOBALS.set(globals, || {
-            compute_module_evaluation_side_effects(program, comments, eval_context.unresolved_mark)
-        })
-    } else {
-        ModuleSideEffects::SideEffectful
-    };
-
-    Ok(side_effects.cell())
-}
-
 impl EcmascriptModuleAsset {
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
         analyze_ecmascript_module(self, None)
@@ -863,6 +828,7 @@ impl EcmascriptModuleAsset {
             // warnings instead.
             !options.analyze_mode.is_codegen,
             options.inline_helpers,
+            options.infer_module_side_effects,
         ))
     }
 
@@ -941,7 +907,32 @@ impl Module for EcmascriptModuleAsset {
         {
             SideEffectsDeclaration::SideEffectful => ModuleSideEffects::SideEffectful,
             SideEffectsDeclaration::SideEffectFree => ModuleSideEffects::SideEffectFree,
-            SideEffectsDeclaration::None => *compute_ecmascript_module_side_effects(self).await?,
+            SideEffectsDeclaration::None => {
+                let options = self.options().await?;
+                let parsed = self.failsafe_parse().await?;
+                if let ParseResult::Ok {
+                    program,
+                    eval_context,
+                    ..
+                } = &*parsed
+                {
+                    let directives = parse_module_turbopack_directives(program);
+                    if directives.no_side_effects {
+                        ModuleSideEffects::SideEffectFree
+                    } else if directives.constants_module && options.cross_module_constants {
+                        // If the module is marked as a constants module, it must be side effect
+                        // free, otherwise constant folding would not be
+                        // safe.
+                        ModuleSideEffects::SideEffectFree
+                    } else if options.infer_module_side_effects {
+                        eval_context.module_side_effects
+                    } else {
+                        ModuleSideEffects::SideEffectful
+                    }
+                } else {
+                    ModuleSideEffects::SideEffectful
+                }
+            }
         })
         .cell())
     }
@@ -2300,6 +2291,7 @@ async fn with_consumed_parse_result<T>(
             top_level_mark: Mark::new(),
             imports: Default::default(),
             force_free_values: Default::default(),
+            module_side_effects: ModuleSideEffects::SideEffectful,
         });
         return success(
             Program::Module(swc_core::ecma::ast::Module::dummy()),
@@ -2334,6 +2326,7 @@ async fn with_consumed_parse_result<T>(
                             top_level_mark: eval_context.top_level_mark,
                             imports: Default::default(),
                             force_free_values: Default::default(),
+                            module_side_effects: ModuleSideEffects::SideEffectful,
                         },
                     )),
                     match Arc::try_unwrap(take(comments)) {
