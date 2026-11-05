@@ -442,7 +442,11 @@ export async function POST(request) {
 
 ## Proxying to a backend
 
-To forward requests to another backend without changing them, use [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config.js` or a [`proxy` rewrite](#proxy). When you need to validate the request or reshape the response, use a Route Handler that reads the upstream response and returns a new one. Send the backend only what it needs. Copying every incoming header also forwards the user's `Cookie` and `Authorization` values, so set the credentials the backend expects, like a service token, explicitly. Before attaching a credential, build the upstream URL from encoded path segments, check that its origin is your backend, and turn off redirects, so a crafted path cannot send the credential to another server.
+To forward requests to another backend, use [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config.js` or a [`proxy` rewrite](#proxy). When you need to validate requests, authenticate with the backend, or transform its response, use a Route Handler.
+
+Send the backend only the headers and credentials it needs. Copying every incoming header also forwards the user's `Cookie` and `Authorization` values. If you attach a credential, make sure the request cannot reach another server.
+
+This Route Handler validates an incoming JSON request, calls a JSON API with a server-side token, and transforms the response before returning it.
 
 ```ts filename="/app/api/[...slug]/route.ts" switcher
 import { isValidRequest } from '@/lib/utils'
@@ -457,14 +461,11 @@ export async function POST(request: Request, { params }) {
   }
 
   const { slug } = await params
+  // Encode each segment so an encoded `/` in the path cannot change the destination
   const url = new URL(
     `/${slug.map(encodeURIComponent).join('/')}`,
     BACKEND_ORIGIN
   )
-
-  if (url.origin !== BACKEND_ORIGIN) {
-    return new Response(null, { status: 400, statusText: 'Bad Request' })
-  }
 
   try {
     const upstream = await fetch(url, {
@@ -480,7 +481,7 @@ export async function POST(request: Request, { params }) {
     if (!upstream.ok) {
       return Response.json(
         { error: 'Upstream request failed' },
-        { status: upstream.status }
+        { status: 502 }
       )
     }
 
@@ -506,14 +507,11 @@ export async function POST(request, { params }) {
   }
 
   const { slug } = await params
+  // Encode each segment so an encoded `/` in the path cannot change the destination
   const url = new URL(
     `/${slug.map(encodeURIComponent).join('/')}`,
     BACKEND_ORIGIN
   )
-
-  if (url.origin !== BACKEND_ORIGIN) {
-    return new Response(null, { status: 400, statusText: 'Bad Request' })
-  }
 
   try {
     const upstream = await fetch(url, {
@@ -529,7 +527,7 @@ export async function POST(request, { params }) {
     if (!upstream.ok) {
       return Response.json(
         { error: 'Upstream request failed' },
-        { status: upstream.status }
+        { status: 502 }
       )
     }
 
@@ -542,7 +540,7 @@ export async function POST(request, { params }) {
 }
 ```
 
-> **Good to know**: This handler buffers the request and the upstream response in full before it replies, so the client waits for the whole upstream response and memory use grows with the payload size.
+> **Good to know**: This example reads the entire request and upstream response into memory. For large payloads or streaming responses, use rewrites instead.
 
 ## NextRequest and NextResponse
 
