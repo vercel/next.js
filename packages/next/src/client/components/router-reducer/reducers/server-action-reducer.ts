@@ -409,9 +409,9 @@ export function serverActionReducer(
           return completeHardNavigation(state, redirectLocation, navigateType)
         } else {
           // Internal redirect. Triggers an SPA navigation.
-          // The hash is part of the destination the action asked for, and the
-          // external branch above keeps it too. This href is navigated to, not
-          // stored on a route cache entry, so the hashless rule doesn't apply.
+          // Unlike the canonical URL stored in the route cache, this is the
+          // destination we navigate to, so we preserve the hash, as the
+          // external branch above does.
           const redirectWithBasepath = createHrefFromUrl(redirectLocation)
           const redirectHref = hasBasePath(redirectWithBasepath)
             ? removeBasePath(redirectWithBasepath)
