@@ -860,6 +860,9 @@ contextPrototype.a = asyncModule;
 // Used in WebWorkers to tell the runtime about the chunk suffix
 const browserContextPrototype = Context.prototype;
 const RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
+// The load caches below dedupe in-flight and successful loads. A failed load must not stay
+// cached, or every later load of the same chunk would reuse the rejection without requesting
+// the chunk again, so entries are added with `cacheLoadPromise`.
 const availableModules = new Map();
 const availableModuleChunks = new Map();
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
@@ -874,6 +877,20 @@ function registerComponentChunkSizes(componentChunks, sizes) {
             componentChunkSizes.set(componentChunks[i], size);
         }
     }
+}
+/**
+ * Caches `promise` under `key` and evicts it again if it rejects, so a later load retries
+ * instead of reusing the failure.
+ */ function cacheLoadPromise(cache, key, promise) {
+    cache.set(key, promise);
+    promise.catch(()=>{
+        // HMR's `disposeChunk` can delete the entry while this load is pending, and a later load
+        // can then cache a new promise under the same key. Only evict our own entry, or a late
+        // rejection here would drop the newer promise and cause a duplicate fetch.
+        if (cache.get(key) === promise) {
+            cache.delete(key);
+        }
+    });
 }
 // Memoizes the composite promise returned for a merged chunk loaded by URL, keyed by URL.
 const splitChunkPromises = new Map();
@@ -914,7 +931,7 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
         if (!availableModules.has(included)) {
             // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
             // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
-            availableModules.set(included, promise);
+            cacheLoadPromise(availableModules, included, promise);
         }
     }
     await promise;
@@ -963,7 +980,7 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
         for (const componentChunk of componentChunks){
             if (!availableModuleChunks.has(componentChunk)) {
                 const promise = loadChunkPath(sourceType, sourceData, componentChunk);
-                availableModuleChunks.set(componentChunk, promise);
+                cacheLoadPromise(availableModuleChunks, componentChunk, promise);
                 componentChunkPromises.push(promise);
             }
         }
@@ -974,7 +991,7 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
     const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl);
     for (const componentChunk of componentChunks){
         if (!availableModuleChunks.has(componentChunk)) {
-            availableModuleChunks.set(componentChunk, promise);
+            cacheLoadPromise(availableModuleChunks, componentChunk, promise);
         }
     }
     return promise;
@@ -1014,7 +1031,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
             let promise = splitChunkPromises.get(chunkUrl);
             if (promise === undefined) {
                 promise = loadComponentChunksOrWhole(sourceType, sourceData, components, chunkUrl);
-                splitChunkPromises.set(chunkUrl, promise);
+                cacheLoadPromise(splitChunkPromises, chunkUrl, promise);
             }
             return promise;
         }
@@ -1026,7 +1043,7 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
             return existing === true ? loadedChunk : existing;
         }
         const promise = loadChunkByUrlWhole(sourceType, sourceData, chunkUrl);
-        availableModuleChunks.set(chunkPath, promise);
+        cacheLoadPromise(availableModuleChunks, chunkPath, promise);
         return promise;
     }
     // Component chunks are disabled, so the chunking context never emits merged arrays and every
