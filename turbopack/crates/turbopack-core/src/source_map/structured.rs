@@ -361,6 +361,12 @@ impl StructuredSourceMap {
         Ok(result)
     }
 
+    /// Omits source text from analyzer maps without copying their mappings.
+    pub fn without_sources_content(mut self) -> Self {
+        self.sources_content = None;
+        self
+    }
+
     /// Serializes the map. Field order matches `swc_sourcemap`'s serializer; `sourcesContent`
     /// and `mappings` ropes are shared, not copied, into the result.
     pub fn to_rope(&self) -> Rope {
@@ -511,6 +517,29 @@ mod tests {
 
         let structured = StructuredSourceMap::from_swc_map(map)?;
         assert_eq!(structured.to_rope().to_bytes().as_ref(), &expected[..]);
+        Ok(())
+    }
+
+    #[test]
+    fn content_free_sections_preserve_sources_when_flattened() -> Result<()> {
+        let input = r#"{"version":3,"sources":["a.js","b.js"],"sourcesContent":["let a = 1","let b = 2"],"names":[],"mappings":"AAAA,KCAA"}"#;
+        let original = StructuredSourceMap::from_json_slice(input.as_bytes())?;
+        let map = original.clone().without_sources_content();
+        let map: serde_json::Value = serde_json::from_slice(&map.to_rope().to_bytes())?;
+        assert!(map.get("sourcesContent").is_none());
+        assert_eq!(original.to_rope().to_str()?.as_ref(), input);
+        let index = serde_json::to_vec(&serde_json::json!({
+            "version": 3,
+            "sources": [],
+            "names": [],
+            "sections": [{"offset": {"line": 0, "column": 0}, "map": map}],
+        }))?;
+        let flattened = swc_sourcemap::lazy::decode(&index)?
+            .into_source_map()?
+            .into_raw_sourcemap();
+        let flattened = serde_json::to_value(flattened)?;
+        assert_eq!(flattened["sources"], map["sources"]);
+        assert_eq!(flattened["mappings"], map["mappings"]);
         Ok(())
     }
 
