@@ -5,7 +5,10 @@ use turbopack_core::chunk::{
     ChunkType, ChunkingContext, round_chunk_item_size,
 };
 
-use super::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
+use super::{
+    ChunkMinification, EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem,
+    minified_module_factory,
+};
 use crate::chunk::batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo};
 
 #[turbo_tasks::value]
@@ -54,26 +57,45 @@ impl ChunkType for EcmascriptChunkType {
     #[turbo_tasks::function]
     async fn chunk_item_size(
         &self,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<usize>> {
-        let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
+        let Some(ecmascript_chunk_item) =
+            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
         else {
             bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
         };
-        let chunk_item = chunk_item.into_trait_ref().await?;
-        let size = match chunk_item
-            .content_with_async_module_info(async_module_info, true)
-            .await
-        {
-            Ok(content) => {
-                let content = content.await?;
-                round_chunk_item_size(content.inner_code.len())
-            }
-            Err(_) => 0,
-        };
-        Ok(Vc::cell(size))
+        let minification = ChunkMinification::for_chunking_context(chunking_context).await?;
+        let size = async {
+            let content = ecmascript_chunk_item
+                .into_trait_ref()
+                .await?
+                .content_with_async_module_info(async_module_info, true)
+                .await?;
+            anyhow::Ok(match minification {
+                // When chunk items are minified one by one, the chunk is made of the minified
+                // factories, so size them as such. This minifies every item before chunking, but
+                // the result is shared with code generation (see `minified_module_factory`), so
+                // the work isn't repeated.
+                ChunkMinification::PerItem { mangle } => {
+                    // Code generation asks for source maps per chunk. Both chunking contexts answer
+                    // the same for every chunk and module; if that ever changes, this only costs a
+                    // second minification, since source maps don't change the minified code.
+                    let source_maps = *chunking_context
+                        .reference_module_source_maps(chunk_item.module())
+                        .await?;
+                    let code =
+                        minified_module_factory(content, source_maps, mangle.is_some()).await?;
+                    code.source_code().len()
+                }
+                ChunkMinification::None | ChunkMinification::WholeChunk { .. } => {
+                    content.await?.inner_code.len()
+                }
+            })
+        }
+        .await;
+        Ok(Vc::cell(size.map_or(0, round_chunk_item_size)))
     }
 }
 
