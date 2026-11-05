@@ -442,39 +442,43 @@ export async function POST(request) {
 
 ## Proxying to a backend
 
-You can use a Route Handler as a `proxy` to another backend. Add validation logic before forwarding the request, and forward only the headers the backend needs. Copying every incoming header also sends the user's `Cookie` and `Authorization` values, so forward those only if the backend expects them.
+To forward requests to another backend without changing them, use [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config.js` or a [`proxy` rewrite](#proxy). When you need to validate the request or reshape the response, use a Route Handler that reads the upstream response and returns a new one. Send the backend only what it needs. Copying every incoming header also forwards the user's `Cookie` and `Authorization` values, so set the credentials the backend expects, like a service token, explicitly.
 
 ```ts filename="/app/api/[...slug]/route.ts" switcher
 import { isValidRequest } from '@/lib/utils'
 
 export async function POST(request: Request, { params }) {
-  const clonedRequest = request.clone()
-  const isValid = await isValidRequest(clonedRequest)
+  const isValid = await isValidRequest(request.clone())
 
   if (!isValid) {
     return new Response(null, { status: 400, statusText: 'Bad Request' })
   }
 
   const { slug } = await params
-  const pathname = slug.join('/')
-  const proxyURL = new URL(pathname, 'https://nextjs.org')
-
-  const headers = new Headers()
-  for (const name of ['accept', 'content-type']) {
-    const value = request.headers.get(name)
-    if (value) headers.set(name, value)
-  }
-
-  // The inner Request keeps the method and body; the outer one replaces the headers
-  const proxyRequest = new Request(new Request(proxyURL, request), { headers })
+  const url = new URL(slug.join('/'), 'https://api.example.com')
 
   try {
-    return await fetch(proxyRequest)
-  } catch (reason) {
-    const message =
-      reason instanceof Error ? reason.message : 'Unexpected exception'
+    const upstream = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.API_TOKEN}`,
+      },
+      body: await request.text(),
+    })
 
-    return new Response(message, { status: 500 })
+    if (!upstream.ok) {
+      return Response.json(
+        { error: 'Upstream request failed' },
+        { status: upstream.status }
+      )
+    }
+
+    const data = await upstream.json()
+
+    return Response.json({ ...data, source: 'proxied-through-nextjs' })
+  } catch {
+    return Response.json({ error: 'Bad Gateway' }, { status: 502 })
   }
 }
 ```
@@ -483,41 +487,45 @@ export async function POST(request: Request, { params }) {
 import { isValidRequest } from '@/lib/utils'
 
 export async function POST(request, { params }) {
-  const clonedRequest = request.clone()
-  const isValid = await isValidRequest(clonedRequest)
+  const isValid = await isValidRequest(request.clone())
 
   if (!isValid) {
     return new Response(null, { status: 400, statusText: 'Bad Request' })
   }
 
   const { slug } = await params
-  const pathname = slug.join('/')
-  const proxyURL = new URL(pathname, 'https://nextjs.org')
-
-  const headers = new Headers()
-  for (const name of ['accept', 'content-type']) {
-    const value = request.headers.get(name)
-    if (value) headers.set(name, value)
-  }
-
-  // The inner Request keeps the method and body; the outer one replaces the headers
-  const proxyRequest = new Request(new Request(proxyURL, request), { headers })
+  const url = new URL(slug.join('/'), 'https://api.example.com')
 
   try {
-    return await fetch(proxyRequest)
-  } catch (reason) {
-    const message =
-      reason instanceof Error ? reason.message : 'Unexpected exception'
+    const upstream = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.API_TOKEN}`,
+      },
+      body: await request.text(),
+    })
 
-    return new Response(message, { status: 500 })
+    if (!upstream.ok) {
+      return Response.json(
+        { error: 'Upstream request failed' },
+        { status: upstream.status }
+      )
+    }
+
+    const data = await upstream.json()
+
+    return Response.json({ ...data, source: 'proxied-through-nextjs' })
+  } catch {
+    return Response.json({ error: 'Bad Gateway' }, { status: 502 })
   }
 }
 ```
 
-Or use:
-
-- `proxy` [rewrites](#proxy)
-- [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config.js`.
+> **Good to know**:
+>
+> - This handler buffers the request and the upstream response in full before it replies, so the client waits for the whole upstream response and memory use grows with the payload size.
+> - `fetch` decompresses response bodies but keeps the upstream `Content-Encoding` and `Content-Length` headers. Next.js does not forward those headers from a Route Handler response, so return the data in a new `Response` rather than relying on upstream framing.
 
 ## NextRequest and NextResponse
 
