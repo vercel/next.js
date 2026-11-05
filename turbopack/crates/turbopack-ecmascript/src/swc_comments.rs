@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 use swc_core::{
     base::SwcComments,
     common::{
-        BytePos,
+        BytePos, Span,
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
     },
 };
@@ -372,6 +372,17 @@ pub struct CowComments<'a> {
 }
 
 impl<'a> CowComments<'a> {
+    /// Successfully emitted comments are consumed by the code generator.
+    pub fn remaining_comment_spans(&self) -> Vec<Span> {
+        let leading = self.leading.borrow();
+        let trailing = self.trailing.borrow();
+        leading
+            .values()
+            .chain(trailing.values())
+            .flat_map(|comments| comments.iter().map(|comment| comment.span))
+            .collect()
+    }
+
     fn borrowed(comments: &'a ImmutableComments) -> Self {
         Self {
             leading: RefCell::new(

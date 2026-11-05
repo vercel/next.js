@@ -127,6 +127,7 @@ fn minify_source(
     );
     let mut parser = Parser::new_from(lexer);
 
+    let mut removed_comments = Vec::new();
     let (output, source_map_names) = try_with_handler(cm.clone(), Default::default(), |handler| {
         GLOBALS.set(&Default::default(), || {
             // Expressions emitted verbatim in front of a chunk item's factory (its additional
@@ -162,6 +163,18 @@ fn minify_source(
                 collector.into_map()
             } else {
                 Default::default()
+            };
+
+            // Emission omits comments, including comments consumed by optimization.
+            removed_comments = if original_map.is_some() {
+                let (leading, trailing) = comments.borrow_all();
+                leading
+                    .values()
+                    .chain(trailing.values())
+                    .flat_map(|comments| comments.iter().map(|comment| comment.span))
+                    .collect::<Vec<_>>()
+            } else {
+                Vec::new()
             };
 
             let mut program = optimize(program, &cm, &comments, mangle);
@@ -241,6 +254,7 @@ fn minify_source(
                     // be the value user expect anyway.
                     false,
                     source_map_names.clone(),
+                    &removed_comments,
                 )
             })
             .transpose()
