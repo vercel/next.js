@@ -2,6 +2,7 @@ import { runInNewContext } from 'vm'
 import { getDeploymentTestEnvAssignments } from '../../lib/e2e-utils/deployment-test-env'
 
 describe.each([
+  '__NEXT_ENABLE_REACT_COMPILER',
   '__NEXT_CACHE_COMPONENTS',
   '__NEXT_PARTIAL_PREFETCHING',
   '__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS',
@@ -10,6 +11,7 @@ describe.each([
   beforeEach(() => {
     jest.replaceProperty(process, 'env', {
       ...process.env,
+      __NEXT_ENABLE_REACT_COMPILER: '',
       __NEXT_CACHE_COMPONENTS: '',
       __NEXT_PARTIAL_PREFETCHING: '',
       __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS: '',
