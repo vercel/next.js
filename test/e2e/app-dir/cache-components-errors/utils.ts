@@ -113,7 +113,7 @@ export function getDeterministicOutput(
       // Node.js 20 prints every frame, so expand the run back to keep the
       // output deterministic across versions.
       const collapsedFrames =
-        /^\s*\.\.\. collapsed (\d+) duplicate lines matching above (?:(\d+) lines (\d+) times|lines)\.\.\.$/.exec(
+        /^\s*\.\.\. collapsed (\d+) duplicate lines matching above (?:(\d+) lines (\d+) times|lines) ?\.\.\.$/.exec(
           line
         )
       if (collapsedFrames !== null) {
