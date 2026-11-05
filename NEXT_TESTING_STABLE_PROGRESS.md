@@ -13,14 +13,72 @@ is recorded in the generated inventory and lockfile. The supported stable range
 is undecided, `stableReady` remains false, and no stable exception is approved.
 This is an implementation checkpoint, not graduation of the experiment.
 
-## Current recorded status — 36 signed local implementation/control steps, November 4, 2026
+## Current recorded status — finite integration complete, November 5, 2026
 
-Latest committed implementation is `47e931579adf2b0e8daa12150f0b205aa4f0a6b5`: **41 local commits**
-(**36 implementation/control + five metadata**) since last verified publication
-`1558a982296b23763d2174b27aa4cbd69e8e5455`. Node Suite/Hook/task-pack behavior
-and eight Node type leaves have separate measured scopes below. SDK2ce excludes
-the new types. Frozen484 regression is failed and focused70 remains active; no
-full green/release or push is claimed.
+Latest signed implementation is `749a9c8377df58702bc765d13d0a8784e2429fb4`,
+after JS17 `48ab756363ddedb8771e3b18a9ee7b4d953650b8`. There are **52 local
+commits** (**46 implementation/control + six metadata**) since the last verified
+publication `1558a982296b23763d2174b27aa4cbd69e8e5455`, before this final metadata
+commit. No push or newer remote verification is claimed. The finite integration
+requested by the user is complete; no additional features are dispatched.
+
+- **Integrated and verified:** JS17 adds the measured custom-reporter watch/SIGINT
+  subset and fixes the original Browser artifact-order group. Normal **33/33**
+  passes after the entire toSpec candidate was withdrawn, restoring the six
+  affected coverage controls. The unchanged Browser group matches **three cases,
+  six raw rows and two artifacts**, including complete observation order and final
+  collections, in its recorded final32/ec9 Source scope.
+- **Watch scope:** two actual Node26.12.1 development serial isolated JS/MJS
+  profiles cover configured-root and CLI custom+JSON reporters, two generations,
+  initial two files then one affected file, **36 callback rows**, caught OS SIGINT
+  exit **130/null** and **zero onClose calls**. All genuine JSON fields match under
+  explicit recorded correspondences. Strict whole-schema equality remains
+  **false**: each report retains **24 existing `/next` extension pointers**; raw
+  diffs remain. No wider watch callback/profile/schema or SDK claim is made.
+- **C10 is integrated and Root-qualified:** current independent Native **6d3** has
+  **62 inputs**, ten unchanged raw runtimes and the unchanged **82-export/f7 ABI**.
+  Required Root CI build-all passes **18/18 tasks**, zero cached, in **39.866s**;
+  core, official Next/Root types and style pass. Root **198** normal controls and
+  **14 explicitly synthetic-kernel worker controls** pass; four actual production
+  Node20/22/24/26 profiles match **16 cases/16 rows** and complete standard
+  reports. Work4 Creator32/API188 and its earlier pinned-app bootstrap failure
+  remain separately historical; current Root bootstrap is green.
+- **Excluded and preserved:** whole **toSpec18, Proxy16, dependent R4/coverage
+  continuation and standalone falsy-End** remain unintegrated. toSpec closes five
+  matching profiles/61 of63 rows, but two queue-only rows have native `/0,/1`
+  versus genuine `_0,_1` IDs; its default-project association also introduced six
+  coverage/watch failures (`projectName: 'default'` versus absent, equal absolute
+  paths). The entire Root delta was withdrawn. Proxy retains all nine cases,
+  including three unfinished provider-finalization cases; its Source runs remain
+  zero. Extracted falsy-End checks did not load Root. No cases, bodies, reference
+  models or normalizers were weakened to claim completion.
+- **Historical acceptance remains failed:** frozen `484ac829` records
+  **7,289/7,504 focused**, **233/264 regression** and **179/179 early/incremental**,
+  totaling **7,701/7,947** across six phases. Its Browser result is **18/19
+  whole-reference groups/29 of32 cases**, plus the original15 functional
+  assertions/20rows with historical reference equality **UNQUALIFIED**. The fresh
+  targeted Browser3 fix does not re-run or replace frozen484 or establish a full
+  current47 reference result.
+- **Preservation remains separately scoped:** ec9 Native6 passes **675 Rust
+  controls**. The unchanged264 corpus reaches **261/264**, with its exact custom
+  reporter case later passing after the admission overlay; no all-green264 rerun
+  is claimed. Full normal coverage+CLI is **3,171/3,174**, fixing all **174 new
+  preservation failures** with zero new failures versus both authorities. Three
+  known load/declaration failures remain. B2, execution2, reporter6/package1,
+  aliases102/public6, namespace development and log proofs retain their earlier
+  exact revisions.
+
+All776 API names, eight qualified Node data-leaf facts and existing declaration/
+implementation counts remain unchanged after exact affected-row reassessment.
+`TestModule`, `TestSpecification` and public `Reporter` exports/types remain absent;
+watch object methods are recorded as bounded feature behavior, not named exports.
+The entire toSpec candidate adds no implementation credit. Counts are not a
+completion percentage. **Release readiness is false**, supported range is null
+and exceptions are empty. No coherent full acceptance or fresh SDK of this final
+revision has run; **SDK2ce/E76 remains its old e6/f179 scope**. Broader compatibility,
+platform/browser/CI qualification, cleanup stress and production omission remain.
+Documentation and migration examples remain last; Linux qualification and
+performance benchmarking stay deferred. Work stops after the finite integration.
 
 All 776 original API names, surfaces, overloads and release classifications are
 retained. Ten root types are newly available: the six benchmark/error metadata
@@ -8712,3 +8770,62 @@ All four functional commits are signed locally with `tim@vercel.com`; nothing
 is pushed. Documentation and migration examples remain last, Linux qualification
 and performance stay deferred, and all source stays local. Stable readiness is
 false; no supported range or exception is declared.
+
+## Historical metadata state before Source33f update
+
+## Current recorded status — 36 signed local implementation/control steps, November 4, 2026
+
+Latest committed implementation is `47e931579adf2b0e8daa12150f0b205aa4f0a6b5`: **41 local commits**
+(**36 implementation/control + five metadata**) since last verified publication
+`1558a982296b23763d2174b27aa4cbd69e8e5455`. Node Suite/Hook/task-pack behavior
+and eight Node type leaves have separate measured scopes below. SDK2ce excludes
+the new types. Frozen484 regression is failed and focused70 remains active; no
+full green/release or push is claimed.
+
+## Historical Source33f metadata state before the finite completion cutoff
+
+## Current recorded status — signed Source33f, November 4, 2026
+
+Latest verified committed implementation is `33f96667426ab8c0055eb74921a8522404b973bb`:
+**50 local commits** (**44 implementation/control + six metadata**) since the last
+verified publication `1558a982296b23763d2174b27aa4cbd69e8e5455`. No push or newer
+remote verification is claimed. Current Root Native is **ec9** with62 inputs,
+ten unchanged raw runtimes and the unchanged82-export/f7 ABI. New SDK steps remain
+pending; **2ce/E76 is its older e6/f179 revision**, including none of the new eight
+Node type exports or later Source preservation steps.
+
+- Frozen `484ac829` is **closed failed**: **7,289/7,504 focused** (215 failures),
+  **233/264 regression** (31 failures) and **179/179 early/incremental**. All six
+  phases total **7,701/7,947**; ordinary JSON, actual exits and Source/dist/native/
+  index checks are retained. All original20 Browser groups/47 bodies ran:
+  **18/19 whole-reference groups/29of32 cases** match; artifact-mutation3 retains
+  one ordering/membership difference. The original15 functional group passes all
+  15 authored assertions/20rows, but historical reference equality remains
+  **UNQUALIFIED**. These are final frozen results, not the current working revision.
+- Signed Native6 (`7951c5ae95`) passes **675 Rust controls**. The unchanged264
+  preservation corpus reaches **261/264**; its exact custom-reporter case later
+  passes after the signed admission overlay, without claiming a full264 rerun.
+  Full normal coverage+CLI is **3,171/3,174**: all **174 new preservation failures**
+  are fixed, with zero new failures versus both frozen484 and d188. Three known
+  load/declaration failures remain. Valid generated maps retain164,972 coordinates
+  across eight scripts with the offending JavaScript bytes unchanged.
+- Root B2 passes two normal lifecycle controls, including the unchanged73-case
+  facade and actual finished-task guard; execution2 passes separately in normal7.
+  Six complete custom JSON coverage/reporter profiles and the original package
+  reporter case pass among13 reporting controls. Alias/helper qualification is
+  **102 normal controls + six Node26 development public CLI profiles** (two actual
+  typecheck cases/four disabled empty profiles). Namespace4a passes197 controls
+  and four development profiles/16cases/16rows; production Source remains a
+  zero-case refusal despite four passing genuine profiles. Logs7e qualifies eight
+  one-shot public roles and two engine components/128 compared rows; engine
+  components do not qualify public watch.
+- Original Browser3's newer actual replay stays **RED** despite normal7 passing.
+  Watch working material stays **unqualified**: normal16 is **15/16**, the CLI
+  configuration-session case and separate config1 replay are **RED**, and public
+  watch is pending. The new config and SIGINT-close material has no public PASS
+  yet. These working changes are not counted as completed implementations.
+
+Later scoped fixes preserve their own Source/receipt boundaries and do not replace
+any historical acceptance failure. Release readiness remains false, supported
+range null and exceptions empty. Documentation/migration examples remain last;
+Linux qualification and performance benchmarking remain deferred.
