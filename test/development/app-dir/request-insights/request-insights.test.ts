@@ -30,6 +30,7 @@ type RequestInsight = {
     traceId?: string
     spanId?: string
     parentSpanId?: string
+    durationMs?: number
     status?: 'ok' | 'error'
     attributes?: Record<string, string | number | boolean>
   }>
@@ -181,6 +182,144 @@ describe('request insights', () => {
           'AppRender.getBodyResult',
         ])
       )
+    })
+  })
+
+  it('records route module loading and preparation spans', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
+
+    const response = await next.fetch('/api/source?route-module-spans=1')
+    expect(response.status).toBe(200)
+    await response.json()
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((insightsResponse) => insightsResponse.json())) as {
+        requests: RequestInsight[]
+      }
+      const matchingRequests = snapshot.requests.filter(
+        (request) =>
+          !existingRequestIds.has(request.requestId) &&
+          request.url === '/api/source?query=redacted' &&
+          request.kind !== 'instant-insights'
+      )
+
+      expect(matchingRequests).toHaveLength(1)
+      const request = matchingRequests[0]
+      const loadSpans = request.spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+          'LoadComponents.loadRouteModule'
+      )
+      const loadComponentsSpans = request.spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+          'LoadComponents.loadComponents'
+      )
+      const prepareSpans = request.spans.filter(
+        (span) => span.attributes?.['next.span_type'] === 'RouteModule.prepare'
+      )
+      const renderResponseComponentsSpans = request.spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+          'BaseServer.renderToResponseWithComponents'
+      )
+      const userlandSpans = request.spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] ===
+          'AppRouteRouteModule.loadUserland'
+      )
+      const manifestSpans = request.spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'RouteModule.loadManifests'
+      )
+
+      expect(loadComponentsSpans).toHaveLength(1)
+      expect(prepareSpans).toHaveLength(1)
+      expect(renderResponseComponentsSpans).toHaveLength(1)
+      const rootSpans = request.spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'BaseServer.handleRequest' &&
+          span.traceId === prepareSpans[0].traceId
+      )
+      expect(rootSpans).toHaveLength(1)
+      const rootSpan = rootSpans[0]
+      expect(loadSpans).toEqual([
+        expect.objectContaining({
+          name: 'load route module',
+          parentSpanId: loadComponentsSpans[0].spanId,
+          durationMs: expect.any(Number),
+          status: 'ok',
+          traceId: rootSpan.traceId,
+          attributes: {
+            'next.span_category': 'nextjs',
+            'next.span_name': 'load route module',
+            'next.span_type': 'LoadComponents.loadRouteModule',
+          },
+        }),
+      ])
+      expect(prepareSpans).toEqual([
+        expect.objectContaining({
+          name: 'prepare route module',
+          parentSpanId: renderResponseComponentsSpans[0].spanId,
+          durationMs: expect.any(Number),
+          status: 'ok',
+          traceId: rootSpan.traceId,
+          attributes: {
+            'next.span_category': 'nextjs',
+            'next.span_name': 'prepare route module',
+            'next.span_type': 'RouteModule.prepare',
+          },
+        }),
+      ])
+      expect(userlandSpans).toEqual([
+        expect.objectContaining({
+          name: 'load app route module',
+          parentSpanId: renderResponseComponentsSpans[0].spanId,
+          durationMs: expect.any(Number),
+          status: 'ok',
+          traceId: rootSpan.traceId,
+          attributes: {
+            'next.route': '/api/source',
+            'next.span_category': 'nextjs',
+            'next.span_name': 'load app route module',
+            'next.span_type': 'AppRouteRouteModule.loadUserland',
+          },
+        }),
+      ])
+      expect(manifestSpans).toEqual([
+        expect.objectContaining({
+          name: 'load route manifests',
+          parentSpanId: prepareSpans[0].spanId,
+          durationMs: expect.any(Number),
+          status: 'ok',
+          traceId: rootSpan.traceId,
+          attributes: {
+            'next.span_category': 'nextjs',
+            'next.span_name': 'load route manifests',
+            'next.span_type': 'RouteModule.loadManifests',
+          },
+        }),
+      ])
+
+      for (const span of [
+        ...loadSpans,
+        ...prepareSpans,
+        ...userlandSpans,
+        ...manifestSpans,
+      ]) {
+        expect(Number.isFinite(span.durationMs)).toBe(true)
+        expect(span.durationMs).toBeGreaterThanOrEqual(0)
+      }
     })
   })
 
