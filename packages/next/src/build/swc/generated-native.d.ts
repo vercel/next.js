@@ -1068,7 +1068,7 @@ export declare function recvTaskMessageInWorker(
 
 export declare function registerWorkerScheduler(
   creator: (arg: NapiWorkerCreation) => any,
-  terminator: (arg: NapiWorkerTermination) => any
+  terminator: (arg: NapiWorkerTermination) => Promise<void>
 ): void
 
 export declare function sendTaskMessage(message: NapiTaskMessage): void

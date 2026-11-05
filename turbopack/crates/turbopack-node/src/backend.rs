@@ -24,6 +24,8 @@ pub struct CreatePoolOptions {
     pub(crate) debug: bool,
 }
 
+pub type ShutdownPoolFuture = Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>;
+
 pub(crate) type CreatePoolFuture =
     Pin<Box<dyn Future<Output = Result<EvaluatePool>> + Send + 'static>>;
 
@@ -51,4 +53,7 @@ pub trait NodeBackend: sealed::Sealed {
     fn scale_down(&self) -> Result<()>;
 
     fn scale_zero(&self) -> Result<()>;
+
+    /// Retire idle resources and await their actual closure after tasks have drained.
+    fn shutdown(&self) -> ShutdownPoolFuture;
 }
