@@ -1973,7 +1973,7 @@ function DevContext(module, exports, refresh) {
 DevContext.prototype = Context.prototype;
 const DUMMY_REFRESH_CONTEXT = {
     register: (_type, _id)=>{},
-    signature: ()=>(_type)=>{},
+    signature: ()=>(type)=>type,
     registerExports: (_module, _helpers)=>{}
 };
 /**
