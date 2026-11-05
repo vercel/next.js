@@ -1,7 +1,20 @@
 const lib = require('./lib.js')
 
+function moduleCode(file) {
+  const ids = Array.from(__turbopack_modules__.keys()).filter((id) =>
+    id.includes(`/input/${file} `)
+  )
+  expect(ids).toHaveLength(1)
+  return __turbopack_modules__.get(ids[0]).toString()
+}
+
 it('narrows a require binding used only via members', () => {
   expect(lib.used).toBe('used-value')
+
+  // `lib` is only ever read via `.used`, so `exports.unused` is dropped.
+  const code = moduleCode('lib.js')
+  expect(code).toContain("exports.used = 'used-value'")
+  expect(code).not.toContain('exports.unused')
 })
 
 // `escaped` is used wholesale, so every export must remain reachable — if the
