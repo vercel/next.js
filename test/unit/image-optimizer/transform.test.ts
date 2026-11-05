@@ -4,10 +4,10 @@ import { join } from 'path'
 import {
   getSharp,
   imageOptimizerTransform,
-  optimizeImage,
   type ImageOptimizerTransformConfig,
 } from 'next/image-optimizer-transform'
 import { getImageEtag } from 'next/dist/server/image-optimizer/extract-etag'
+import { optimizeImage } from 'next/dist/server/image-optimizer/sharp'
 import type {
   CachedRouteKind,
   IncrementalResponseCacheEntry,
@@ -85,6 +85,17 @@ function transformBufferInDevelopment(
 }
 
 describe('imageOptimizerTransform', () => {
+  it('only exposes the public API', () => {
+    expect(
+      Object.keys(require('next/image-optimizer-transform')).sort()
+    ).toEqual([
+      'ImageError',
+      'getMaxAge',
+      'getSharp',
+      'imageOptimizerTransform',
+    ])
+  })
+
   it('loads without the server image optimizer dependency graph', () => {
     const loaded = Object.keys(require.cache)
     expect(
