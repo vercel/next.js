@@ -53,6 +53,7 @@
     "test-webpack": "scripts/run-jest.sh --bundler=webpack --headless --",
     "test-rspack": "scripts/run-jest.sh --bundler=rspack --headless --",
     "test-turbo": "scripts/run-jest.sh --bundler=turbo --headless --",
+    "test-routing": "node scripts/test-routing.mjs",
     "testonly": "jest --runInBand",
     "testheadless": "scripts/run-jest.sh --headless --",
     "git-reset": "git reset --hard HEAD",
