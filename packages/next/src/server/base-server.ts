@@ -3511,10 +3511,11 @@ export default abstract class Server<
         // Without a `/_error` page (App Router only apps) there is nothing to
         // render for client error statuses such as 400, 405, 412 or 416. Keep
         // the original status instead of turning it into a 500.
-        if (res.statusCode >= 400 && res.statusCode < 500) {
+        const { statusCode } = res
+        if (statusCode && statusCode >= 400 && statusCode < 500) {
           return {
             body: RenderResult.fromStatic(
-              STATUS_CODES[res.statusCode] ?? 'Bad Request',
+              STATUS_CODES[statusCode] ?? 'Bad Request',
               'text/plain'
             ),
           }
