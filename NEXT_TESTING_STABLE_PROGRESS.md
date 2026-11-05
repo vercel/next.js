@@ -1,6 +1,6 @@
 # Next testing stable compatibility implementation
 
-October 13, 2026. Implementation checkout starts at PR #98869's verified head,
+Project baseline: October 13, 2026. The implementation checkout started at PR #98869's verified head,
 `3371432a5561c33bc3d1ec36309b3e537b130a99`. The main checkout and existing lifecycle,
 scheduling and requirements worktrees were preserved. The two requirements
 files were copied byte-for-byte from the specified older worktree; that older
@@ -15,12 +15,34 @@ This is an implementation checkpoint, not graduation of the experiment.
 
 ## Current recorded status — finite integration complete, November 5, 2026
 
-Latest signed implementation is `749a9c8377df58702bc765d13d0a8784e2429fb4`,
-after JS17 `48ab756363ddedb8771e3b18a9ee7b4d953650b8`. There are **52 local
-commits** (**46 implementation/control + six metadata**) since the last verified
-publication `1558a982296b23763d2174b27aa4cbd69e8e5455`, before this final metadata
-commit. No push or newer remote verification is claimed. The finite integration
-requested by the user is complete; no additional features are dispatched.
+The published checkpoint is **`53bd3d6844fb715d3fe0c4fc06d1199e0aab2c57`**,
+verified as the head of [draft PR #98869](https://github.com/vercel/next.js/pull/98869)
+on November 5, 2026. It contains **53 commits** (**46 implementation/control +
+seven metadata**) since `1558a982296b23763d2174b27aa4cbd69e8e5455`. The last push
+advanced the PR by 22 commits from `b4ae8df43df9ab5cc97a7c0b5db4a06d53c29c72`.
+Latest functional implementation is C10 `749a9c8377df58702bc765d13d0a8784e2429fb4`,
+after JS17 `48ab756363ddedb8771e3b18a9ee7b4d953650b8`; `53bd3d6844` records the
+inventory and qualification results. The finite integration requested by the
+user is complete, its owners are closed, and no additional features are active.
+
+### Cumulative implementation
+
+These are implemented subsets, not claims that an entire workstream is complete.
+Each feature retains the execution profiles and Source/installed-package revision
+recorded in the [capability inventory](packages/next/src/experimental/testing/compatibility-inventory.json).
+Unsupported-feature diagnostics and declaration presence alone do not complete
+functionality.
+
+| Workstream                    | Implemented through the published checkpoint                                                                                                                                                                                                                                                                                                                                            | Remaining implementation or qualification                                                                                                                                                                                                                                |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Authoring and runtime         | Measured imports/types, declarations and parameterization; retries/repeats and lifecycle/around hooks; test/file/worker and builder fixtures; assertions, utilities, clocks and snapshots; task/error metadata and eight Node result/state type leaves.                                                                                                                                 | Remaining public runtime/type and benchmark API contracts; broader fixture/context/concurrency/timeout combinations; snapshot-path/environment and publication edges. The whole `toSpec18` candidate remains unintegrated.                                               |
+| Mocking and module resets     | Measured static, automatic, manual and runtime mocks; CommonJS original-require/reset compositions; development factory namespaces. C10 adds production mocking/reset for the verified local compiled leaf profiles on Node20/22/24/26.                                                                                                                                                 | Arbitrary targets, transitive graphs and cycles; mixed-target and cross-profile/setup/serializer/coverage/Browser/RSC/shared combinations outside the measured roles.                                                                                                    |
+| Browser and rendering         | Measured Chromium/Firefox development/production execution and separate WebKit main-frame roles; native interactions, locators and DOM utilities; registered Next components, production mounting and component watch in measured development/production profiles; explicit route/layout/streaming helpers. The original artifact-order group now matches all three cases and six rows. | Wider engine/frame/cleanup/error-stack combinations, missing public Browser types and provider/command options, plus remaining route/layout/cache/PPR/Server Action fidelity contracts.                                                                                  |
+| Scheduling, watch and tooling | Bounded workers and CI sharding; compiler-driven related/changed selection; measured Node/RSC/component watch; executable configuration/projects, CLI/editor controls, reporters and ordered typecheck aliases. The new serial isolated Node26 custom+JSON watch subset matches 36 callbacks and SIGINT exit130.                                                                        | Advanced pools/sequencers/debugger/typecheck-build controls, broader watch/cohort/profile transitions, public controller/reporter types and unfinished Proxy/provider continuation. Full JSON schema parity remains false because of `/next` fields.                     |
+| Coverage                      | V8/Istanbul metrics, mapping, reports and thresholds, with custom-provider lifecycle and Node/Browser execution in their separately recorded profiles. The native mapping preservation fix passes 675 Rust controls; its scoped coverage+CLI corpus reaches 3,171/3,174.                                                                                                                | Broader TypeScript/JSX/profile/provider parity, RSC and aggregation, plus the three retained load/declaration failures. These scopes do not imply every provider works in every execution profile.                                                                       |
+| Adoption and release          | Existing physical package consumers and migration fixtures have bounded earlier proof. The current Root bootstrap, core build and official Next/Root types pass.                                                                                                                                                                                                                        | Fresh SDK and coherent full acceptance at this revision; broader downstream/platform/browser/CI, cleanup stress and production-omission qualification. Documentation and migration examples stay last; Linux qualification and performance benchmarking remain deferred. |
+
+### Latest integration and verification
 
 - **Integrated and verified:** JS17 adds the measured custom-reporter watch/SIGINT
   subset and fixes the original Browser artifact-order group. Normal **33/33**
@@ -79,6 +101,13 @@ revision has run; **SDK2ce/E76 remains its old e6/f179 scope**. Broader compatib
 platform/browser/CI qualification, cleanup stress and production omission remain.
 Documentation and migration examples remain last; Linux qualification and
 performance benchmarking stay deferred. Work stops after the finite integration.
+
+## Historical implementation and qualification notes
+
+The remainder records earlier checkpoints and their original scopes. Statements
+such as "current", "newly available" or "remaining" inside an older checkpoint
+refer to that checkpoint. They do not override the November 5 summary, its
+explicit unfinished packets, or the current capability inventory.
 
 All 776 original API names, surfaces, overloads and release classifications are
 retained. Ten root types are newly available: the six benchmark/error metadata
@@ -8773,7 +8802,7 @@ false; no supported range or exception is declared.
 
 ## Historical metadata state before Source33f update
 
-## Current recorded status — 36 signed local implementation/control steps, November 4, 2026
+## Historical recorded status — 36 signed local implementation/control steps, November 4, 2026
 
 Latest committed implementation is `47e931579adf2b0e8daa12150f0b205aa4f0a6b5`: **41 local commits**
 (**36 implementation/control + five metadata**) since last verified publication
@@ -8784,7 +8813,7 @@ full green/release or push is claimed.
 
 ## Historical Source33f metadata state before the finite completion cutoff
 
-## Current recorded status — signed Source33f, November 4, 2026
+## Historical recorded status — signed Source33f, November 4, 2026
 
 Latest verified committed implementation is `33f96667426ab8c0055eb74921a8522404b973bb`:
 **50 local commits** (**44 implementation/control + six metadata**) since the last

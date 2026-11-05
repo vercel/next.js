@@ -1,5 +1,13 @@
 # Next testing: remaining implementation work
 
+> **Historical snapshot — October 13, 2026.** The "Current limit" and remaining-work
+> statements below describe that baseline and include features implemented since.
+> Use the [current implementation tracker](NEXT_TESTING_STABLE_PROGRESS.md) and
+> [capability inventory](packages/next/src/experimental/testing/compatibility-inventory.json)
+> for implemented subsets, remaining gaps and qualification. This snapshot does
+> not supersede the stable-release requirements or the current docs-last,
+> Linux/performance deferrals.
+
 Baseline: [PR #98869](https://github.com/vercel/next.js/pull/98869) at `3371432a55`, updated October 13, 2026. This includes parallel execution and CI sharding, expanded declarations/lifecycle/fixtures, assertions and snapshots, module mocking, and live terminal redraw with interactive commands. Earlier stage plans describe historical milestones; their deferred-work lists can include capabilities that have since landed. Workstream numbers below are retained for existing task references.
 
 Next continues to own compilation, execution, isolation, rendering, and resource cleanup. Vitest-compatible authoring is the compatibility target. New capabilities must use the actual Next compiler and runtime and have a clearly advertised support boundary.
