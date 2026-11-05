@@ -100,7 +100,7 @@ use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplace
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
     AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
-    EnvVarAccessMode, EnvVarInfo, ModuleTypeResult, TypeofWindow,
+    EnvVarAccess, EnvVarAccessMode, EnvVarInfo, ModuleTypeResult, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
         JsValueUrlKind, Modified, ModuleValue, ObjectPart, RequireContextValue, ThreadLocal,
@@ -246,7 +246,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     cjs_static_exports: Option<CjsStaticExports>,
     has_direct_eval: bool,
 
-    env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
+    env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccess>,
 
     #[cfg(debug_assertions)]
     ident: RcStr,
@@ -378,17 +378,35 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.successful = successful;
     }
 
-    pub fn add_runtime_env_var_reference_read(&mut self, runtime_env: RcStr) {
-        self.env_var_info_runtime
-            // Overwrite any existing value with Existence.
-            .insert(runtime_env, EnvVarAccessMode::Read);
-    }
-
-    pub fn add_runtime_env_var_reference_existence(&mut self, runtime_env: RcStr) {
+    pub fn add_runtime_env_var_reference_read(&mut self, runtime_env: RcStr, source: IssueSource) {
+        let read = EnvVarAccess {
+            mode: EnvVarAccessMode::Read,
+            source,
+        };
         self.env_var_info_runtime
             .entry(runtime_env)
-            // Only set if it hasn't been set to Read already.
-            .or_insert(EnvVarAccessMode::Existence);
+            .and_modify(|access| {
+                // Upgrade existence checks, but preserve the first read's source for stable
+                // codeframes.
+                if access.mode == EnvVarAccessMode::Existence {
+                    *access = read;
+                }
+            })
+            .or_insert(read);
+    }
+
+    pub fn add_runtime_env_var_reference_existence(
+        &mut self,
+        runtime_env: RcStr,
+        source: IssueSource,
+    ) {
+        self.env_var_info_runtime
+            .entry(runtime_env)
+            // Preserve the first access, including any Read already recorded.
+            .or_insert(EnvVarAccess {
+                mode: EnvVarAccessMode::Existence,
+                source,
+            });
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -1360,7 +1378,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::DestructuredMember {
                     mut obj,
                     mut prop,
-                    span: _,
+                    span,
                 } => {
                     // TODO add an inlining codegen here
 
@@ -1390,7 +1408,10 @@ async fn analyze_ecmascript_module_internal(
                                     )
                             })
                         {
-                            analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
+                            analysis.add_runtime_env_var_reference_read(
+                                RcStr::from(prop),
+                                issue_source(source, span),
+                            );
                         }
                     }
                 }
@@ -3764,17 +3785,18 @@ async fn handle_membership<'a>(
                     ]
                 )
         }) {
+            let source = issue_source(state.source, span);
             match ty {
                 MembershipType::In => {
-                    analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
+                    analysis.add_runtime_env_var_reference_existence(RcStr::from(prop), source);
                 }
                 MembershipType::Member {
                     in_truthiness_context,
                 } => {
                     if in_truthiness_context {
-                        analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
+                        analysis.add_runtime_env_var_reference_existence(RcStr::from(prop), source);
                     } else {
-                        analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
+                        analysis.add_runtime_env_var_reference_read(RcStr::from(prop), source);
                     }
                 }
             }
