@@ -1,12 +1,13 @@
 ---
-title: next/image-optimizer-transform
-description: API Reference for the next/image-optimizer-transform module, the standalone sharp-based image resizing and format conversion pipeline behind Next.js Image Optimization.
+title: next/experimental/image-optimizer-transform
+description: API Reference for the next/experimental/image-optimizer-transform module, the standalone sharp-based image resizing and format conversion pipeline behind Next.js Image Optimization.
+version: experimental
 ---
 
-The `next/image-optimizer-transform` module exposes the transformation step of Next.js [Image Optimization](/docs/app/api-reference/components/image) as a standalone Node.js module with a small dependency graph, so image resizing and format conversion (powered by [sharp](https://sharp.pixelplumbing.com/)) can run outside the main server process.
+The `next/experimental/image-optimizer-transform` module exposes the transformation step of Next.js [Image Optimization](/docs/app/api-reference/components/image) as a standalone Node.js module with a small dependency graph, so image resizing and format conversion (powered by [sharp](https://sharp.pixelplumbing.com/)) can run outside the main server process.
 
 ```ts filename="optimize.ts" highlight={1,3} switcher
-import { imageOptimizerTransform } from 'next/image-optimizer-transform'
+import { imageOptimizerTransform } from 'next/experimental/image-optimizer-transform'
 
 const result = await imageOptimizerTransform(
   {
@@ -22,7 +23,7 @@ const result = await imageOptimizerTransform(
 ```
 
 ```js filename="optimize.js" highlight={1,3} switcher
-import { imageOptimizerTransform } from 'next/image-optimizer-transform'
+import { imageOptimizerTransform } from 'next/experimental/image-optimizer-transform'
 
 const result = await imageOptimizerTransform(
   {
@@ -168,7 +169,7 @@ The error type thrown by `imageOptimizerTransform` for invalid input. `statusCod
 Fetch an upstream image and convert it to WebP, using the response headers as the upstream metadata.
 
 ```ts filename="optimize.ts" switcher
-import { imageOptimizerTransform } from 'next/image-optimizer-transform'
+import { imageOptimizerTransform } from 'next/experimental/image-optimizer-transform'
 
 const logger = {
   error: (...args: unknown[]) => console.error(...args),
@@ -199,7 +200,7 @@ if (result.error) {
 ```
 
 ```js filename="optimize.js" switcher
-import { imageOptimizerTransform } from 'next/image-optimizer-transform'
+import { imageOptimizerTransform } from 'next/experimental/image-optimizer-transform'
 
 const logger = {
   error: (...args) => console.error(...args),
@@ -234,14 +235,14 @@ if (result.error) {
 Use `getSharp` to load sharp with the same loader restrictions and concurrency limits as the Next.js image optimizer.
 
 ```ts filename="metadata.ts" switcher
-import { getSharp } from 'next/image-optimizer-transform'
+import { getSharp } from 'next/experimental/image-optimizer-transform'
 
 const sharp = getSharp(1, false)
 const metadata = await sharp(buffer).metadata()
 ```
 
 ```js filename="metadata.js" switcher
-import { getSharp } from 'next/image-optimizer-transform'
+import { getSharp } from 'next/experimental/image-optimizer-transform'
 
 const sharp = getSharp(1, false)
 const metadata = await sharp(buffer).metadata()

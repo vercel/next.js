@@ -5,7 +5,7 @@ import {
   getSharp,
   imageOptimizerTransform,
   type ImageOptimizerTransformOptions,
-} from 'next/image-optimizer-transform'
+} from 'next/experimental/image-optimizer-transform'
 import { getImageEtag } from 'next/dist/server/image-optimizer/extract-etag'
 import { optimizeImage } from 'next/dist/server/image-optimizer/sharp'
 import type {
@@ -63,8 +63,9 @@ function transformBufferInDevelopment(
   previousCacheEntry?: IncrementalResponseCacheEntry
 ) {
   // Required lazily so that the "loads without the server image optimizer
-  // dependency graph" test can verify `next/image-optimizer-transform` doesn't
-  // pull in `server/image-optimizer` on its own.
+  // dependency graph" test can verify
+  // `next/experimental/image-optimizer-transform` doesn't pull in
+  // `server/image-optimizer` on its own.
   const { imageOptimizer } =
     require('next/dist/server/image-optimizer') as typeof import('next/dist/server/image-optimizer')
   return imageOptimizer(
@@ -83,7 +84,7 @@ function transformBufferInDevelopment(
 describe('imageOptimizerTransform', () => {
   it('only exposes the public API', () => {
     expect(
-      Object.keys(require('next/image-optimizer-transform')).sort()
+      Object.keys(require('next/experimental/image-optimizer-transform')).sort()
     ).toEqual([
       'ImageError',
       'getMaxAge',

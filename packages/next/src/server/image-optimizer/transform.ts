@@ -1,8 +1,9 @@
-// WARNING: This module is publicly exposed as `next/image-optimizer-transform`
-// and consumed outside this repo, so its location and export surface are a
-// stable contract. Please keep this module lightweight with very few imports
-// since it runs in a child process. Please do NOT add new imports without
-// considering their impact on its dependency graph.
+// WARNING: This module is publicly exposed as
+// `next/experimental/image-optimizer-transform` and consumed outside this repo,
+// so its location and export surface are a stable contract. Please keep this
+// module lightweight with very few imports since it runs in a child process.
+// Please do NOT add new imports without considering their impact on its
+// dependency graph.
 import isAnimated from 'next/dist/compiled/is-animated'
 import { detectContentType } from './detect-content-type'
 import {

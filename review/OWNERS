@@ -295,7 +295,7 @@ packages/next/src/api/image.ts
 packages/next/src/build/webpack/loaders/next-image-loader/**
 packages/next/src/build/webpack/config/blocks/images/**
 packages/next/image-types/**
-packages/next/image-optimizer-transform.*
+packages/next/experimental/image-optimizer-transform.*
 crates/next-core/src/next_image/**
 turbopack/crates/turbopack-image/**
 test/e2e/next-image-*/**
