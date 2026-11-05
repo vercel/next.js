@@ -61,11 +61,13 @@ pub(crate) async fn collect_next_dynamic_chunks(
             let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(*dynamic_entry);
 
             // This is the availability info for the parent chunk group, i.e. the client reference
-            // containing the next/dynamic imports
+            // containing the next/dynamic imports. Use the chunk group of the first segment that
+            // renders the client reference: that is where it is chunked and its async loaders are
+            // created, so the manifest resolves to the chunks that are actually emitted.
             let availability_info = match chunking_availability {
                 NextDynamicChunkAvailability::ClientReferences(client_reference_chunks) => {
                     client_reference_chunks
-                        .client_component_client_chunks
+                        .client_component_first_client_chunks
                         .get(
                             &parent_client_reference.context(
                                 "Parent client reference not found for next/dynamic import",

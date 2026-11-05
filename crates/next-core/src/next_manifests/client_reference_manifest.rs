@@ -213,6 +213,7 @@ async fn build_manifest(
             client_component_client_chunks,
             layout_segment_client_chunks,
             client_component_ssr_chunks,
+            client_component_first_client_chunks: _,
         } = &*client_references_chunks.await?;
         let client_relative_path = client_relative_path.clone();
         let node_root_ref = node_root.clone();
