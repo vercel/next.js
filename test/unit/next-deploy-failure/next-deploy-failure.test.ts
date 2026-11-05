@@ -206,6 +206,39 @@ describe('deployment lifecycle', () => {
     customLogs = logs
   }
 
+  it.each([false, true])(
+    'forwards future-compat=%s to deployment builds and functions',
+    async (futureCompat) => {
+      process.env.NEXT_TEST_FUTURE_COMPAT = futureCompat ? '1' : ''
+      successfulDeployment()
+      const next = new NextDeployInstance({
+        files: __dirname,
+        env: { NODE_OPTIONS: '--stack-trace-limit=42' },
+      })
+      await next.setup(trace('test'))
+      await next.start()
+
+      const [, args] = jest
+        .mocked(execa)
+        .mock.calls.find(
+          ([command, args]) =>
+            command === 'vercel' && Array.isArray(args) && args[0] === 'deploy'
+        )! as unknown as [string, string[]]
+      for (const flag of ['--env', '--build-env']) {
+        const index = args.findIndex(
+          (arg, index) =>
+            arg === flag && args[index + 1].startsWith('NODE_OPTIONS=')
+        )
+        expect(index).toBeGreaterThanOrEqual(0)
+        const options = args[index + 1]
+        expect(options).toContain('--stack-trace-limit=42')
+        expect(options).toContain('--trace-deprecation')
+        expect(options.includes('--throw-deprecation')).toBe(futureCompat)
+        expect(options).not.toContain('--pending-deprecation')
+      }
+    }
+  )
+
   it('skipStart leaves deployment to the test body, where failures can be asserted', async () => {
     const { next, setup, teardown } = setupHarness(true)
     try {

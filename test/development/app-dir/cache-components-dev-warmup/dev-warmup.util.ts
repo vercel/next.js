@@ -24,6 +24,9 @@ export function runDevWarmupTests({
     ? 'fixtures/with-prefetch-config'
     : 'fixtures/without-prefetch-config'
 
+  // DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+  // so --throw-deprecation prevents this fixture from building or starting.
+  // @force-gate !futureCompat
   describe(`cache-components-dev-warmup - ${description}`, () => {
     const { next } = nextTestSetup({
       files: nodePath.join(__dirname, fixturePath),

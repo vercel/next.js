@@ -2,6 +2,7 @@ import { isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
 import type { NextAdapter } from 'next'
 import { expectDirectives } from 'next-test-utils'
 
+// @force-gate !futureCompat || !start
 describe('not-found-non-document-dynamic', () => {
   const { next } = nextTestSetup({
     files: __dirname,

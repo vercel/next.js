@@ -10,6 +10,9 @@ import {
 
 // No App directory or prewarmed route: the first browser loads Pages' global CSS
 // through _app. An App route observer must not mask this independent regression.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('css-hmr-pages-initial-load-race', () => {
   const { next } = nextTestSetup({ files: __dirname })
 

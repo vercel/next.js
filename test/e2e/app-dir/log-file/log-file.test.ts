@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 
 describe('log-file', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -99,8 +99,14 @@ describe('log-file', () => {
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
     if (isNextDev) {
+      const futureCompat = await gate(
+        (conditions) => conditions.futureCompat && !conditions.turbopack
+      )
       await retry(async () => {
-        if (process.env.IS_WEBPACK_TEST) {
+        if (
+          !futureCompat &&
+          (await gate((conditions) => !conditions.turbopack))
+        ) {
           expect(readLogFile()).toContain(
             '[DEP0144] DeprecationWarning: module.parent'
           )
@@ -108,11 +114,22 @@ describe('log-file', () => {
         const newLogContent = getNewLogContent()
         // The server logs will be replayed in the browser, but they'll not be forwarded to terminal,
         // as terminal already has them in the first place.
-        expect(newLogContent).toMatchInlineSnapshot(`
-         "{"timestamp":"xx:xx:xx.xxx","source":"Server","level":"LOG","message":"RSC: This is a log message from server component"}
-         {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"RSC: This is an error message from server component"}
-         {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"WARN","message":"RSC: This is a warning message from server component"}"
-        `)
+        if (futureCompat) {
+          expect(newLogContent).toMatchInlineSnapshot(`
+            "{"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead."}
+            {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"⨯ \\"uncaughtException:\\" DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead."}
+            {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"⨯ \\"uncaughtException: \\" DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead."}
+            {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"LOG","message":"RSC: This is a log message from server component"}
+            {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"RSC: This is an error message from server component"}
+            {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"WARN","message":"RSC: This is a warning message from server component"}"
+          `)
+        } else {
+          expect(newLogContent).toMatchInlineSnapshot(`
+            "{"timestamp":"xx:xx:xx.xxx","source":"Server","level":"LOG","message":"RSC: This is a log message from server component"}
+            {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"RSC: This is an error message from server component"}
+            {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"WARN","message":"RSC: This is a warning message from server component"}"
+          `)
+        }
       })
     } else {
       expect(hasLogFile()).toBe(false)

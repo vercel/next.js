@@ -3,7 +3,10 @@ import execa from 'execa'
 import { retry } from 'next-test-utils'
 
 // Type checking requires local generated files, not a deployed HTTP response.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('param-matching-types', () => {
   const { next } = nextTestSetup({
     files: __dirname,

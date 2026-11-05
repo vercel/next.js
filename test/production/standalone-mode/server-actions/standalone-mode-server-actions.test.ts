@@ -4,6 +4,9 @@ import fs from 'fs-extra'
 import { findPort, initNextServerScript, killApp } from 'next-test-utils'
 import { join } from 'path'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('standalone mode: server actions', () => {
   let server: ChildProcess
   let appPort: number

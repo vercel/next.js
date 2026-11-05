@@ -6,7 +6,10 @@ import { createRouterAct } from 'router-act'
 // The `partial-prefetching` fixture enables Partial Prefetching globally via
 // the next-config `partialPrefetching: true`, which opts every route into
 // runtime Cached Navigations even without a per-segment `prefetch` config.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !dev
+// @force-gate !futureCompat
 describe('cached navigations - global partialPrefetching', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'partial-prefetching'),

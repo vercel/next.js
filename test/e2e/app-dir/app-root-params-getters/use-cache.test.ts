@@ -5,6 +5,9 @@ import stripAnsi from 'strip-ansi'
 import { join } from 'path'
 import { assertNoConsoleErrors, retry, waitForNoRedbox } from 'next-test-utils'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('app-root-param-getters - cache - at runtime', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-runtime'),
@@ -334,6 +337,9 @@ describe('app-root-param-getters - cache - at runtime', () => {
   }
 })
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('app-root-param-getters - private cache', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-private'),
@@ -361,6 +367,9 @@ describe('app-root-param-getters - private cache', () => {
   }
 })
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('app-root-param-getters - cache - at build', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-build'),
@@ -380,6 +389,9 @@ describe('app-root-param-getters - cache - at build', () => {
   }
 })
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('app-root-param-getters - cache dedup with root params', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),

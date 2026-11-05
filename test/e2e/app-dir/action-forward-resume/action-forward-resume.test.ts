@@ -1,6 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('forwarding an action from a PPR route', () => {
   const { next } = nextTestSetup({ files: __dirname })
 

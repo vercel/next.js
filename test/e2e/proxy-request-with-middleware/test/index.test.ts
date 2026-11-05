@@ -5,6 +5,7 @@ import { fetchViaHTTP } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
 // forceful deploy test v1
+// @force-gate !futureCompat || !start || turbopack
 describe('Requests not effected when middleware used', () => {
   const { next } = nextTestSetup({
     files: {

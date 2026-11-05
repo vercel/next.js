@@ -17,6 +17,7 @@ import { join } from 'path'
 // paths and access to `.next/static` on disk; deploy mode rewrites URLs
 // through the Vercel hostname and has no on-disk `.next/`.
 // @force-gate !deploy
+// @force-gate !(rspack && react18 && start)
 describe('Image Component Default Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,

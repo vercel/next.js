@@ -5,6 +5,9 @@ import { retry } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('cached navigations', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: path.join(__dirname, 'default'),

@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { gate } from 'next-test-utils'
 import path from 'path'
 
 describe('build-output-tree-view', () => {
@@ -78,10 +79,19 @@ describe('build-output-tree-view', () => {
       },
     })
 
-    beforeAll(() => next.build())
-
     it('should show child route symbols for generated app paths', async () => {
-      expect(getTreeView(next.cliOutput)).toContain(
+      const { exitCode, cliOutput } = await next.build()
+      if (await gate((c) => c.futureCompat)) {
+        expect(exitCode).toBe(1)
+        expect(cliOutput).toContain("code: 'DEP0169'")
+        expect(cliOutput).toContain(
+          'DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.'
+        )
+        expect(getTreeView(cliOutput)).toBe('')
+        return
+      }
+      expect(exitCode).toBe(0)
+      expect(getTreeView(cliOutput)).toContain(
         `├   /params/semantics/[lowcard]/[highcard]/layout-has/server
 │ ├ ◐ /params/semantics/[lowcard]/[highcard]/layout-has/server
 │ ├ ◐ /params/semantics/one/[highcard]/layout-has/server

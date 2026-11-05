@@ -11,6 +11,7 @@ const immutableAssetsFilter = (p) =>
     p.includes('/_ssgManifest.js')
   )
 
+// @force-gate !futureCompat || !start
 describe.each([
   ['NEXT_DEPLOYMENT_ID', ''],
   ['CUSTOM_DEPLOYMENT_ID', ''],
@@ -222,6 +223,7 @@ describe.each([
   }
 )
 
+// @force-gate !futureCompat || !start
 describe('deployment-id-handling with generateBuildId', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, 'app'),
@@ -240,6 +242,7 @@ describe('deployment-id-handling with generateBuildId', () => {
   })
 })
 
+// @force-gate !futureCompat || !start
 describe('deployment-id-handling disabled', () => {
   const deploymentId = Date.now() + ''
   const { next } = nextTestSetup({

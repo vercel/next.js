@@ -1,3 +1,4 @@
+import { gate } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('next-config-ts-type-error-esm', () => {
@@ -10,6 +11,14 @@ describe('next-config-ts-type-error-esm', () => {
   })
 
   it('should throw with type error on build (ESM)', async () => {
+    if (await gate((c) => c.futureCompat)) {
+      const { exitCode, cliOutput } = await next.build()
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0144'")
+      expect(cliOutput).toContain('at requireFromString')
+      return
+    }
+
     if (isNextDev) {
       await next.start()
       const $ = await next.render$('/')

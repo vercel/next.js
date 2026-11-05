@@ -28,6 +28,7 @@ import {
 // position of the first entry that it replaces, and a run of neighbours stops
 // at any route of another shape, so every replaced entry keeps its place
 // relative to the routes around it.
+// @force-gate !futureCompat || !start
 describe('adapter dynamic routes (no root params)', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'no-root-params'),

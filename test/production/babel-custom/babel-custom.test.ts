@@ -1,5 +1,6 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
+import { gate } from 'next-test-utils'
 
 describe('Babel custom - babel-env', () => {
   const { next } = nextTestSetup({
@@ -8,7 +9,15 @@ describe('Babel custom - babel-env', () => {
   })
 
   it('should allow setting babelrc env', async () => {
-    const { exitCode } = await next.build()
+    const { exitCode, cliOutput } = await next.build()
+    if (await gate((c) => c.futureCompat && !c.turbopack)) {
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0111'")
+      expect(cliOutput).toContain(
+        'DeprecationWarning: process.binding() is deprecated. Please use public APIs instead.'
+      )
+      return
+    }
     expect(exitCode).toBe(0)
   })
 })
@@ -20,7 +29,15 @@ describe('Babel custom - targets-browsers', () => {
   })
 
   it('should allow setting targets.browsers', async () => {
-    const { exitCode } = await next.build()
+    const { exitCode, cliOutput } = await next.build()
+    if (await gate((c) => c.futureCompat && !c.turbopack)) {
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0111'")
+      expect(cliOutput).toContain(
+        'DeprecationWarning: process.binding() is deprecated. Please use public APIs instead.'
+      )
+      return
+    }
     expect(exitCode).toBe(0)
   })
 })
@@ -32,7 +49,15 @@ describe('Babel custom - targets-string', () => {
   })
 
   it('should allow setting targets to a string', async () => {
-    const { exitCode } = await next.build()
+    const { exitCode, cliOutput } = await next.build()
+    if (await gate((c) => c.futureCompat && !c.turbopack)) {
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0111'")
+      expect(cliOutput).toContain(
+        'DeprecationWarning: process.binding() is deprecated. Please use public APIs instead.'
+      )
+      return
+    }
     expect(exitCode).toBe(0)
   })
 })
@@ -44,7 +69,15 @@ describe('Babel custom - babel-json5', () => {
   })
 
   it('should allow babelrc JSON5 syntax', async () => {
-    const { exitCode } = await next.build()
+    const { exitCode, cliOutput } = await next.build()
+    if (await gate((c) => c.futureCompat && !c.turbopack)) {
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain("code: 'DEP0111'")
+      expect(cliOutput).toContain(
+        'DeprecationWarning: process.binding() is deprecated. Please use public APIs instead.'
+      )
+      return
+    }
     expect(exitCode).toBe(0)
   })
 })

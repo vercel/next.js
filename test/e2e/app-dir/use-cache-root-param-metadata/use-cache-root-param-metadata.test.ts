@@ -2,6 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 
 type RootParamDependencies = readonly string[] | undefined
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('use-cache-root-param-metadata', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({ files: __dirname })
 

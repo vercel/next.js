@@ -141,6 +141,10 @@ export const conditions: Record<string, Condition> = {
     () => getGateTestContext().bundler === 'webpack'
   ),
 
+  babel: staticCondition(
+    'running the Babel test variant (`TEST_BABEL=1`)',
+    () => process.env.TEST_BABEL === '1'
+  ),
   react18: staticCondition(
     'the fixture installs React 18 instead of the default React version',
     () => getGateTestContext().react18
@@ -163,6 +167,10 @@ export const conditions: Record<string, Condition> = {
   ),
   ci: staticCondition('running in CI (`NEXT_TEST_CI`)', () =>
     Boolean(process.env.NEXT_TEST_CI)
+  ),
+  futureCompat: staticCondition(
+    'running in future compatibility mode (`NEXT_TEST_FUTURE_COMPAT=1`)',
+    () => process.env.NEXT_TEST_FUTURE_COMPAT === '1'
   ),
   adapter: staticCondition('running the adapter test variant', () =>
     Boolean(process.env.NEXT_ENABLE_ADAPTER === '1')
@@ -193,6 +201,12 @@ export const conditions: Record<string, Condition> = {
 
   // --- lazy: the fixture's resolved next.config ------------------------------
 
+  sassEmbedded: lazyCondition(
+    'the fixture uses the sass-embedded implementation',
+    (config) =>
+      (config.sassOptions as { implementation?: string } | undefined)
+        ?.implementation === 'sass-embedded'
+  ),
   cacheComponents: lazyCondition(
     'Cache Components are enabled for the fixture',
     (config) => config.cacheComponents

@@ -11,7 +11,10 @@ const isPageRuntime = (file: string) =>
 // `connection()` -> `dynamic-rendering`, which imported React.
 
 // This test accesses the filesystem, which is not available in deploy mode
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('proxy-no-page-runtime', () => {
   const { next } = nextTestSetup({
     files: __dirname,

@@ -1,17 +1,28 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry } from 'next-test-utils'
+import { check, gate, retry } from 'next-test-utils'
 
 describe('parallel-route-not-found', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
-  function expectNoErrors() {
+  async function expectNoErrors() {
     // FIXME: Remove the DEP0144 allowance once require-cache stops using module.parent.
-    const output = next.cliOutput.replace(
+    let output = next.cliOutput.replace(
       /^\(node:\d+\) \[DEP0144\] DeprecationWarning: module\.parent[^\r\n]*(?:\r?\n[ \t]+at [^\r\n]*)*\r?\n?/gm,
       ''
     )
+    if (
+      await gate(
+        (conditions) =>
+          conditions.futureCompat && conditions.dev && !conditions.turbopack
+      )
+    ) {
+      output = output.replaceAll(
+        'DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.',
+        ''
+      )
+    }
     expect(output).not.toMatch(/TypeError|Warning/)
   }
 
@@ -32,13 +43,40 @@ describe('parallel-route-not-found', () => {
 
     // Deploy doesn't have access to runtime logs
     if (!isNextDeploy) {
-      await retry(() => {
-        if (isNextDev && process.env.IS_WEBPACK_TEST) {
+      await retry(async () => {
+        if (
+          await gate(
+            (conditions) =>
+              conditions.futureCompat && conditions.dev && conditions.rspack
+          )
+        ) {
+          expect(next.cliOutput).toContain(
+            'DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.' +
+              '\n    at new Promise (<anonymous>) {' +
+              "\n  code: 'DEP0144'" +
+              '\n}'
+          )
+        } else if (
+          await gate(
+            (conditions) =>
+              conditions.futureCompat && conditions.dev && conditions.webpack
+          )
+        ) {
+          expect(next.cliOutput).toContain(
+            'DeprecationWarning: module.parent is deprecated due to accuracy issues. Please use require.main to find program entry point instead.' +
+              '\n    at ignore-listed frames {' +
+              "\n  code: 'DEP0144'" +
+              '\n}'
+          )
+        } else if (
+          isNextDev &&
+          (await gate((conditions) => !conditions.turbopack))
+        ) {
           expect(next.cliOutput).toContain(
             '[DEP0144] DeprecationWarning: module.parent'
           )
         }
-        expectNoErrors()
+        await expectNoErrors()
       })
     }
 

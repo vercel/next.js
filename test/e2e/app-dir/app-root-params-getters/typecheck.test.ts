@@ -8,7 +8,10 @@ import { retry } from 'next-test-utils'
 // Running `tsc --noEmit` verifies the generated root-params.d.ts is wired in
 // and produces the expected types.
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe.each([{ fixture: 'simple' }, { fixture: 'multiple-roots' }])(
   'app-root-param-getters - typecheck ($fixture)',
   ({ fixture }) => {

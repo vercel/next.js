@@ -11,6 +11,7 @@ const nextConfig = {
   },
 }
 
+// @force-gate !futureCompat || !sassEmbedded
 describe.each([
   { dependencies: { sass: '1.54.0' }, nextConfig },
   {

@@ -1,6 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import { SERVER_PROPS_SSG_CONFLICT } from 'next/dist/lib/constants'
+import { gate } from 'next-test-utils'
 
 describe('Mixed getStaticProps and getServerSideProps error', () => {
   // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
@@ -27,10 +28,16 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
       }
     `
         )
-        await next.build()
-        expect(next.cliOutput).toContain(
-          'found page without a React Component as default export in'
-        )
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        if (await gate((conditions) => conditions.futureCompat)) {
+          expect(cliOutput).toContain('DEP0111')
+          expect(cliOutput).toContain('process.binding()')
+        } else {
+          expect(cliOutput).toContain(
+            'found page without a React Component as default export in'
+          )
+        }
         await next.patchFile('pages/index.js', originalContent)
         await next.deleteFile('.babelrc')
       }
@@ -41,8 +48,14 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
       'should error when exporting both getStaticProps and getServerSideProps',
       async () => {
         await next.patchFile('.babelrc', '{ "presets": ["next/babel"] }')
-        await next.build()
-        expect(next.cliOutput).toContain(SERVER_PROPS_SSG_CONFLICT)
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        if (await gate((conditions) => conditions.futureCompat)) {
+          expect(cliOutput).toContain('DEP0111')
+          expect(cliOutput).toContain('process.binding()')
+        } else {
+          expect(cliOutput).toContain(SERVER_PROPS_SSG_CONFLICT)
+        }
         await next.deleteFile('.babelrc')
       }
     )
@@ -71,9 +84,14 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
       export default ({ world }) => <p>Hello {world}</p>
     `
         )
-        const { exitCode } = await next.build()
+        const { exitCode, cliOutput } = await next.build()
         expect(exitCode).toBe(1)
-        expect(next.cliOutput).toContain(SERVER_PROPS_SSG_CONFLICT)
+        if (await gate((conditions) => conditions.futureCompat)) {
+          expect(cliOutput).toContain('DEP0111')
+          expect(cliOutput).toContain('process.binding()')
+        } else {
+          expect(cliOutput).toContain(SERVER_PROPS_SSG_CONFLICT)
+        }
         await next.patchFile('pages/index.js', originalContent)
         await next.deleteFile('.babelrc')
       }

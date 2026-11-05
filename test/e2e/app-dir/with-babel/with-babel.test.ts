@@ -1,12 +1,26 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 
+// @force-gate !futureCompat || !start || turbopack
 describe('with babel', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
   it('should support babel in app dir', async () => {
+    if (
+      await gate(
+        (conditions) =>
+          conditions.futureCompat && conditions.dev && conditions.rspack
+      )
+    ) {
+      await expect(next.fetch('/')).rejects.toThrow('fetch failed')
+      await retry(() => {
+        expect(next.cliOutput).toContain('DEP0111')
+        expect(next.cliOutput).toContain('process.binding()')
+      })
+      return
+    }
     const $ = await next.render$('/')
     expect($('h1').text()).toBe('hello')
   })

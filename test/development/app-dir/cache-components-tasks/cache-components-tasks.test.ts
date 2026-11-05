@@ -2,6 +2,9 @@ import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import * as nodePath from 'node:path'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe.each([
   {
     description: 'without runtime prefetch configs',

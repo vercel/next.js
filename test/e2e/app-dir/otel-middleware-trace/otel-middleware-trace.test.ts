@@ -139,6 +139,9 @@ const isNonAdapterDeploy =
 // Without the adapter, deployed renders have their own snapshots too (see
 // `isNonAdapterDeploy`). With Cache Components, deployed pages are rendered in
 // a `POST` resume request.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe.each(VARIANTS)(
   'otel-middleware-trace - $name',
   ({ file, exportName }) => {
@@ -1136,7 +1139,9 @@ describe.each(VARIANTS)(
 // trace. Custom servers can't be deployed, so this block is skipped when
 // deployed. (Not with `skipDeployment`: its `it.only` would also skip the
 // deployed tests above.)
-;(isNextDeploy ? describe.skip : describe).each(VARIANTS)(
+// The TypeScript config loader throws DEP0144 before the fixture can start.
+// @force-gate !deploy && !futureCompat
+describe.each(VARIANTS)(
   'otel-middleware-trace - custom server with $name',
   ({ file, exportName }) => {
     const isNodeMiddleware = exportName === 'proxy'

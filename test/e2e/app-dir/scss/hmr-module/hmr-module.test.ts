@@ -1,7 +1,13 @@
 /* eslint-env jest */
 
 import { nextTestSetup } from 'e2e-utils'
-import { colorToRgb, retry } from 'next-test-utils'
+import {
+  colorToRgb,
+  gate,
+  getRedboxSource,
+  retry,
+  waitForRedbox,
+} from 'next-test-utils'
 
 describe.each([
   { dependencies: { sass: '1.54.0' }, nextConfig: undefined },
@@ -24,6 +30,16 @@ describe.each([
     ;(isNextDev ? describe : describe.skip)('development only', () => {
       it('should update CSS color without remounting <input>', async () => {
         const browser = await next.browser('/')
+
+        if (
+          await gate((c) => c.futureCompat && c.turbopack && c.sassEmbedded)
+        ) {
+          await waitForRedbox(browser)
+          expect(await getRedboxSource(browser)).toContain(
+            'DeprecationWarning: Buffer() is deprecated'
+          )
+          return
+        }
 
         const desiredText = 'hello world'
         await browser.elementById('text-input').type(desiredText)

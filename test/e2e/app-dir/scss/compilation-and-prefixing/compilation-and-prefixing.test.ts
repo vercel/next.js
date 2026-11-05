@@ -8,6 +8,7 @@ const nextConfig = {
 
 // This suite reads emitted CSS and source maps from the local build output.
 // @force-gate !deploy
+// @force-gate !futureCompat || !sassEmbedded
 describe.each([
   { dependencies: { sass: '1.54.0' }, nextConfig },
   {

@@ -5,7 +5,10 @@ import { createRouterAct } from 'router-act'
 import { UNEXPECTED_CACHE_MISS_MESSAGE } from 'next/src/server/use-cache/use-cache-errors'
 
 // Deploy mode exclusion: This suite asserts local server CLI output.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe('runtime prerender cache warming', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

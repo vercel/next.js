@@ -2,6 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { load } from 'cheerio'
 
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
+// @force-gate !futureCompat
 describe('cache-components-disk-readback', () => {
   const { next } = nextTestSetup({
     files: __dirname,

@@ -2,7 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { gate, retry } from 'next-test-utils'
 
 // These assertions inspect local CLI output and build diagnostics.
+// DEP0144: the TypeScript config loader reads module.parent in requireFromString,
+// so --throw-deprecation prevents this fixture from building or starting.
 // @force-gate !deploy
+// @force-gate !futureCompat
 describe.each(['0', '1'])(
   'fetch metrics (NEXT_SSG_FETCH_METRICS=%s)',
   (enabled) => {

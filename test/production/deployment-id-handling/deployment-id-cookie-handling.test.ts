@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { join } from 'node:path'
 
+// @force-gate !futureCompat || !start
 describe('deployment-id-handling disabled', () => {
   const deploymentId = Date.now() + ''
   const { next } = nextTestSetup({

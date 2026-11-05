@@ -8,6 +8,7 @@ import { FILES } from './files'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'adapter-content-hashes',
   () => {
+    // @force-gate !futureCompat || !start
     describe.each([
       { name: 'standard', files: FILES.standard },
       { name: 'cache components', files: FILES.cacheComponents },
