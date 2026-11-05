@@ -735,6 +735,10 @@ export class NextDeployInstance extends NextInstance {
         ? ['--build-env', `PNPM_CONFIG_NPMRC_AUTH_FILE=${this._npmrcAuthFile}`]
         : []),
       ...additionalEnv.flatMap((pair) => ['--env', pair, '--build-env', pair]),
+      // Build-time enforcement is scoped to the fixture's build script so
+      // dependency installation does not enable pending deprecations in pnpm.
+      '--env',
+      'NODE_PENDING_DEPRECATION=1',
       '--force',
       ...vercelFlags,
     ]
