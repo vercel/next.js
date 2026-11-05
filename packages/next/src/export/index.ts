@@ -919,7 +919,9 @@ async function exportAppImpl(
   // Config validation rejects Cache Components with static export. Guard callers
   // that pass a preloaded config as well.
   if (!options.buildExport && nextConfig.cacheComponents) {
-    throw new Error('Invariant: PPR cannot be enabled in export mode')
+    throw new Error(
+      'Invariant: Cache Components cannot be enabled in export mode'
+    )
   }
 
   // copy prerendered routes to outDir
