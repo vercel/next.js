@@ -49,6 +49,7 @@ import {
 } from 'zlib'
 import {
   imageOptimizerTransform,
+  type ImageOptimizerTransformOptions,
   type ImageUpstream,
 } from './image-optimizer/transform'
 import {
@@ -1108,27 +1109,44 @@ async function makeBlurPlaceholder(buffer: Buffer, contentType: string) {
   }
 }
 
+type ImageOptimizerConfig = {
+  experimental: Pick<
+    NextConfigComplete['experimental'],
+    | 'imgOptConcurrency'
+    | 'imgOptOperationCache'
+    | 'imgOptMaxInputPixels'
+    | 'imgOptSequentialRead'
+    | 'imgOptTimeoutInSeconds'
+    | 'imgOptMozjpeg'
+  >
+  images: Pick<
+    NextConfigComplete['images'],
+    'dangerouslyAllowSVG' | 'minimumCacheTTL'
+  >
+}
+
+function getImageOptimizerTransformOptions(
+  nextConfig: ImageOptimizerConfig
+): ImageOptimizerTransformOptions {
+  return {
+    dangerouslyAllowSVG: nextConfig.images.dangerouslyAllowSVG,
+    minimumCacheTTL: nextConfig.images.minimumCacheTTL,
+    concurrency: nextConfig.experimental.imgOptConcurrency,
+    operationCache: nextConfig.experimental.imgOptOperationCache,
+    maxInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
+    sequentialRead: nextConfig.experimental.imgOptSequentialRead,
+    timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
+    mozjpeg: nextConfig.experimental.imgOptMozjpeg,
+  }
+}
+
 export async function imageOptimizer(
   imageUpstream: ImageUpstream,
   paramsResult: Pick<
     ImageParamsResult,
     'href' | 'width' | 'quality' | 'mimeType'
   >,
-  nextConfig: {
-    experimental: Pick<
-      NextConfigComplete['experimental'],
-      | 'imgOptConcurrency'
-      | 'imgOptOperationCache'
-      | 'imgOptMaxInputPixels'
-      | 'imgOptSequentialRead'
-      | 'imgOptTimeoutInSeconds'
-      | 'imgOptMozjpeg'
-    >
-    images: Pick<
-      NextConfigComplete['images'],
-      'dangerouslyAllowSVG' | 'minimumCacheTTL'
-    >
-  },
+  nextConfig: ImageOptimizerConfig,
   opts: {
     isDev?: boolean
     silent?: boolean
@@ -1165,12 +1183,10 @@ export async function imageOptimizer(
     }
   }
 
-  const result = await imageOptimizerTransform(
-    imageUpstream,
-    paramsResult,
-    nextConfig,
-    { logger: opts.silent ? undefined : Log }
-  )
+  const result = await imageOptimizerTransform(imageUpstream, paramsResult, {
+    ...getImageOptimizerTransformOptions(nextConfig),
+    logger: opts.silent ? undefined : Log,
+  })
 
   // Images passed through unoptimized (SVG, animated, or failed) are served
   // as-is rather than wrapped in a blur placeholder.

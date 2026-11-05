@@ -16,17 +16,7 @@ const result = await imageOptimizerTransform(
     etag: 'source-etag',
   },
   { href: '/me.png', width: 64, quality: 75, mimeType: 'image/webp' },
-  {
-    images: { dangerouslyAllowSVG: false, minimumCacheTTL: 60 },
-    experimental: {
-      imgOptConcurrency: null,
-      imgOptOperationCache: null,
-      imgOptMaxInputPixels: 268402689,
-      imgOptSequentialRead: null,
-      imgOptTimeoutInSeconds: 7,
-      imgOptMozjpeg: true,
-    },
-  }
+  { minimumCacheTTL: 60 }
 )
 // result.contentType === 'image/webp'
 ```
@@ -42,17 +32,7 @@ const result = await imageOptimizerTransform(
     etag: 'source-etag',
   },
   { href: '/me.png', width: 64, quality: 75, mimeType: 'image/webp' },
-  {
-    images: { dangerouslyAllowSVG: false, minimumCacheTTL: 60 },
-    experimental: {
-      imgOptConcurrency: null,
-      imgOptOperationCache: null,
-      imgOptMaxInputPixels: 268402689,
-      imgOptSequentialRead: null,
-      imgOptTimeoutInSeconds: 7,
-      imgOptMozjpeg: true,
-    },
-  }
+  { minimumCacheTTL: 60 }
 )
 // result.contentType === 'image/webp'
 ```
@@ -65,7 +45,6 @@ const result = await imageOptimizerTransform(
 async function imageOptimizerTransform(
   imageUpstream: ImageUpstream,
   paramsResult: ImageOptimizerTransformParams,
-  nextConfig: ImageOptimizerTransformConfig,
   opts?: ImageOptimizerTransformOptions
 ): Promise<ImageOptimizerResult>
 ```
@@ -90,26 +69,23 @@ Validates an upstream image, optimizes it with sharp, and returns the result wit
 | `quality`  | `number` | The target quality, an integer between 1 and 100.                    |
 | `mimeType` | `string` | The requested output MIME type. An empty string means no preference. |
 
-#### nextConfig
-
-| Field                                 | Type              | Description                                                               |
-| ------------------------------------- | ----------------- | ------------------------------------------------------------------------- |
-| `images.dangerouslyAllowSVG`          | `boolean`         | Allows SVG sources. When `false`, an SVG source throws an `ImageError`.   |
-| `images.minimumCacheTTL`              | `number`          | The minimum `maxAge` of the result, in seconds.                           |
-| `experimental.imgOptConcurrency`      | `number \| null`  | The sharp thread pool size. `null` selects a default based on `NODE_ENV`. |
-| `experimental.imgOptOperationCache`   | `boolean \| null` | Enables or disables the libvips operation cache.                          |
-| `experimental.imgOptMaxInputPixels`   | `number`          | Passed to sharp as `limitInputPixels`. Default `268402689`.               |
-| `experimental.imgOptSequentialRead`   | `boolean \| null` | Passed to sharp as `sequentialRead`.                                      |
-| `experimental.imgOptTimeoutInSeconds` | `number`          | Per-image processing timeout. Default `7`.                                |
-| `experimental.imgOptMozjpeg`          | `boolean`         | Encodes JPEG output with mozjpeg. Default `true`.                         |
-
-See [`images` configuration](/docs/app/api-reference/config/next-config-js/images) for the `images` options.
-
 #### opts
 
-| Field    | Type     | Description                                                                              |
-| -------- | -------- | ---------------------------------------------------------------------------------------- |
-| `logger` | `object` | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs. |
+All fields are optional.
+
+| Field                 | Type              | Default     | Description                                                                                   |
+| --------------------- | ----------------- | ----------- | --------------------------------------------------------------------------------------------- |
+| `dangerouslyAllowSVG` | `boolean`         | `false`     | Allows SVG sources. When `false`, an SVG source throws an `ImageError`.                       |
+| `minimumCacheTTL`     | `number`          | `0`         | The minimum `maxAge` of the result, in seconds.                                               |
+| `concurrency`         | `number \| null`  | `undefined` | The sharp thread pool size. When not a number, a default based on `NODE_ENV` is used.         |
+| `operationCache`      | `boolean \| null` | `undefined` | Enables or disables the libvips operation cache. When not a boolean, sharp's default is used. |
+| `maxInputPixels`      | `number`          | `undefined` | Passed to sharp as `limitInputPixels`. When omitted, sharp's default of `268402689` is used.  |
+| `sequentialRead`      | `boolean \| null` | `undefined` | Passed to sharp as `sequentialRead`.                                                          |
+| `timeoutInSeconds`    | `number`          | `7`         | Per-image processing timeout.                                                                 |
+| `mozjpeg`             | `boolean`         | `true`      | Encodes JPEG output with mozjpeg.                                                             |
+| `logger`              | `object`          | `undefined` | A logger with `error(...args)` and `warnOnce(message)`. When omitted, no logging occurs.      |
+
+These correspond to the [`images`](/docs/app/api-reference/config/next-config-js/images) and `experimental.imgOpt*` options in `next.config.js`, but the defaults are not the same. For example, Next.js defaults `images.minimumCacheTTL` to `14400`.
 
 #### Returns
 
@@ -127,14 +103,14 @@ See [`images` configuration](/docs/app/api-reference/config/next-config-js/image
 
 The function runs the following steps in order:
 
-1. Computes `maxAge` as the greater of `images.minimumCacheTTL` and the upstream `Cache-Control` `s-maxage` or `max-age` directive.
+1. Computes `maxAge` as the greater of `opts.minimumCacheTTL` and the upstream `Cache-Control` `s-maxage` or `max-age` directive.
 2. Detects the content type from the magic bytes of `imageUpstream.buffer`.
-3. Throws an `ImageError` with `statusCode` 400 when the buffer is not a recognized image, or when the image is SVG and `images.dangerouslyAllowSVG` is `false`.
+3. Throws an `ImageError` with `statusCode` 400 when the buffer is not a recognized image, or when the image is SVG and `opts.dangerouslyAllowSVG` is `false`.
 4. Returns animated WebP, PNG, and GIF sources unoptimized, and calls `logger.warnOnce`.
 5. Returns SVG, ICO, ICNS, BMP, JXL, and HEIC sources unmodified.
 6. Selects the output type: `paramsResult.mimeType` when non-empty, `image/jpeg` for WebP or AVIF sources when no type is requested, otherwise the detected source type.
-7. Resizes and re-encodes the image with sharp using the `experimental.imgOpt*` values. The output is auto-rotated according to the EXIF orientation of the source image.
-8. On failure, returns the upstream buffer and content type with `maxAge` set to `images.minimumCacheTTL` and the caught value on `result.error`. The failure does not throw.
+7. Resizes and re-encodes the image with sharp using the sharp-related `opts` values. The output is auto-rotated according to the EXIF orientation of the source image.
+8. On failure, returns the upstream buffer and content type with `maxAge` set to `opts.minimumCacheTTL` and the caught value on `result.error`. The failure does not throw.
 
 ### getMaxAge
 
@@ -214,18 +190,7 @@ const result = await imageOptimizerTransform(
     quality: 75,
     mimeType: 'image/webp',
   },
-  {
-    images: { dangerouslyAllowSVG: false, minimumCacheTTL: 60 },
-    experimental: {
-      imgOptConcurrency: null,
-      imgOptOperationCache: null,
-      imgOptMaxInputPixels: 268402689,
-      imgOptSequentialRead: null,
-      imgOptTimeoutInSeconds: 7,
-      imgOptMozjpeg: true,
-    },
-  },
-  { logger }
+  { minimumCacheTTL: 60, timeoutInSeconds: 10, logger }
 )
 
 if (result.error) {
@@ -256,18 +221,7 @@ const result = await imageOptimizerTransform(
     quality: 75,
     mimeType: 'image/webp',
   },
-  {
-    images: { dangerouslyAllowSVG: false, minimumCacheTTL: 60 },
-    experimental: {
-      imgOptConcurrency: null,
-      imgOptOperationCache: null,
-      imgOptMaxInputPixels: 268402689,
-      imgOptSequentialRead: null,
-      imgOptTimeoutInSeconds: 7,
-      imgOptMozjpeg: true,
-    },
-  },
-  { logger }
+  { minimumCacheTTL: 60, timeoutInSeconds: 10, logger }
 )
 
 if (result.error) {

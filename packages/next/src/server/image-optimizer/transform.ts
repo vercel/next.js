@@ -4,7 +4,6 @@
 // since it runs in a child process. Please do NOT add new imports without
 // considering their impact on its dependency graph.
 import isAnimated from 'next/dist/compiled/is-animated'
-import type { NextConfigComplete } from '../config-shared'
 import { detectContentType } from './detect-content-type'
 import {
   AVIF,
@@ -45,28 +44,31 @@ export interface ImageOptimizerTransformParams {
   mimeType: string
 }
 
-export type ImageOptimizerTransformConfig = {
-  experimental: Pick<
-    NextConfigComplete['experimental'],
-    | 'imgOptConcurrency'
-    | 'imgOptOperationCache'
-    | 'imgOptMaxInputPixels'
-    | 'imgOptSequentialRead'
-    | 'imgOptTimeoutInSeconds'
-    | 'imgOptMozjpeg'
-  >
-  images: Pick<
-    NextConfigComplete['images'],
-    'dangerouslyAllowSVG' | 'minimumCacheTTL'
-  >
-}
-
 export interface ImageOptimizerTransformLogger {
   error(...args: unknown[]): void
   warnOnce(message: string): void
 }
 
+// This intentionally doesn't reference `NextConfigComplete`, whose normalized
+// shape is an internal detail. `getImageOptimizerTransformOptions` in
+// `../image-optimizer` maps the Next.js config onto these options.
 export interface ImageOptimizerTransformOptions {
+  /** Allows SVG sources. Defaults to `false`. */
+  dangerouslyAllowSVG?: boolean
+  /** The minimum `maxAge` of the result, in seconds. Defaults to `0`. */
+  minimumCacheTTL?: number
+  /** The sharp thread pool size. */
+  concurrency?: number | null
+  /** Enables or disables the libvips operation cache. */
+  operationCache?: boolean | null
+  /** The maximum number of pixels in a source image. */
+  maxInputPixels?: number
+  /** Passed to sharp as `sequentialRead`. */
+  sequentialRead?: boolean | null
+  /** Per-image processing timeout. Defaults to `7`. */
+  timeoutInSeconds?: number
+  /** Encodes JPEG output with mozjpeg. Defaults to `true`. */
+  mozjpeg?: boolean
   logger?: ImageOptimizerTransformLogger
 }
 
@@ -88,13 +90,13 @@ export interface ImageOptimizerResult {
 export async function imageOptimizerTransform(
   imageUpstream: ImageUpstream,
   paramsResult: ImageOptimizerTransformParams,
-  nextConfig: ImageOptimizerTransformConfig,
   opts: ImageOptimizerTransformOptions = {}
 ): Promise<ImageOptimizerResult> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
+  const { dangerouslyAllowSVG = false, minimumCacheTTL = 0 } = opts
   const maxAge = Math.max(
-    nextConfig.images.minimumCacheTTL,
+    minimumCacheTTL,
     getMaxAge(imageUpstream.cacheControl)
   )
   const upstreamType = await detectContentType(upstreamBuffer)
@@ -112,10 +114,7 @@ export async function imageOptimizerTransform(
     )
     throw new ImageError(400, "The requested resource isn't a valid image.")
   }
-  if (
-    upstreamType.startsWith('image/svg') &&
-    !nextConfig.images.dangerouslyAllowSVG
-  ) {
+  if (upstreamType.startsWith('image/svg') && !dangerouslyAllowSVG) {
     opts.logger?.error(
       `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.`
     )
@@ -165,12 +164,12 @@ export async function imageOptimizerTransform(
       contentType,
       quality,
       width,
-      concurrency: nextConfig.experimental.imgOptConcurrency,
-      operationCache: nextConfig.experimental.imgOptOperationCache,
-      limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
-      sequentialRead: nextConfig.experimental.imgOptSequentialRead,
-      timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
-      mozjpeg: nextConfig.experimental.imgOptMozjpeg,
+      concurrency: opts.concurrency,
+      operationCache: opts.operationCache,
+      limitInputPixels: opts.maxInputPixels,
+      sequentialRead: opts.sequentialRead,
+      timeoutInSeconds: opts.timeoutInSeconds,
+      mozjpeg: opts.mozjpeg,
     })
     return {
       buffer: optimizedBuffer,
@@ -185,7 +184,7 @@ export async function imageOptimizerTransform(
     return {
       buffer: upstreamBuffer,
       contentType: upstreamType,
-      maxAge: nextConfig.images.minimumCacheTTL,
+      maxAge: minimumCacheTTL,
       etag: upstreamEtag,
       upstreamEtag,
       optimized: false,
