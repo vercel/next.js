@@ -1359,6 +1359,9 @@ impl EcmascriptModuleContent {
                 |mut generation, (_, content)| {
                     generation.full |= content.source_map_generation_options.full;
                     generation.shallow |= content.source_map_generation_options.shallow;
+                    generation.shallow_sources_content |= content
+                        .source_map_generation_options
+                        .shallow_sources_content;
                     generation
                 },
             );
@@ -2444,13 +2447,30 @@ async fn emit_content(
         drop(program);
     }
 
+    let original_source_maps = if generate_source_map && source_map_generation_options.full {
+        original_source_map
+            .iter()
+            .map(|map| map.generate_source_map(SourceMapType::Full))
+            .try_join()
+            .await?
+    } else {
+        Vec::new()
+    };
+    let original_source_maps = original_source_maps
+        .iter()
+        .filter_map(|map| map.as_content())
+        .map(|map| map.content())
+        .collect::<Vec<_>>();
+
     let shallow_source_map = if generate_source_map && source_map_generation_options.shallow {
+        let include_content = source_map_generation_options.shallow_sources_content
+            || (source_map_generation_options.full && original_source_maps.is_empty());
         Some(generate_js_source_map(
             &*source_map,
             &mappings,
             std::iter::empty(),
             false,
-            true,
+            include_content,
             &source_map_names,
         )?)
     } else {
@@ -2458,19 +2478,15 @@ async fn emit_content(
     };
 
     let source_maps = if generate_source_map && source_map_generation_options.full {
-        let original_source_maps = original_source_map
-            .iter()
-            .map(|map| map.generate_source_map(SourceMapType::Full))
-            .try_join()
-            .await?;
-        let original_source_maps = original_source_maps
-            .iter()
-            .filter_map(|map| map.as_content())
-            .map(|map| map.content())
-            .collect::<Vec<_>>();
-
         if let (true, Some(map)) = (original_source_maps.is_empty(), shallow_source_map.as_ref()) {
-            SourceMaps::Shared(map.clone())
+            if source_map_generation_options.shallow_sources_content {
+                SourceMaps::Shared(map.clone())
+            } else {
+                SourceMaps::new(
+                    Some(map.clone()),
+                    Some(map.clone().without_sources_content()),
+                )
+            }
         } else {
             SourceMaps::new(
                 Some(generate_js_source_map(

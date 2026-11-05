@@ -120,6 +120,7 @@ impl Code {
         SourceMapGenerationOptions {
             full: self.mappings.is_complete(SourceMapType::Full),
             shallow: self.mappings.is_complete(SourceMapType::Shallow),
+            shallow_sources_content: self.mappings.is_complete(SourceMapType::Shallow),
         }
     }
 
@@ -527,6 +528,7 @@ mod tests {
     const BOTH: SourceMapGenerationOptions = SourceMapGenerationOptions {
         full: true,
         shallow: true,
+        shallow_sources_content: true,
     };
 
     const SECTION_MAP: &str = r#"{"version":3,"sources":["a.js"],"names":[],"mappings":"AAAA"}"#;

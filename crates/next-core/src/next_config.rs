@@ -2621,6 +2621,15 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn input_source_maps(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_input_source_maps
+                .unwrap_or(true),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<OptionSourceMapType>> {
         let input_source_maps = self
             .experimental

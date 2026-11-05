@@ -338,6 +338,7 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             Some(generate_minimal_source_map(
                 turbofmt!("{}", self.ident()).await?.to_string(),
                 code.clone(),
+                generation.full || generation.shallow_sources_content,
             )?)
         } else {
             None
@@ -345,7 +346,12 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),
             source_maps: match (generation.full, generation.shallow, map) {
-                (true, true, Some(map)) => SourceMaps::Shared(map),
+                (true, true, Some(map)) if generation.shallow_sources_content => {
+                    SourceMaps::Shared(map)
+                }
+                (true, true, Some(map)) => {
+                    SourceMaps::new(Some(map.clone()), Some(map.without_sources_content()))
+                }
                 (true, false, Some(map)) => SourceMaps::Full(map),
                 (false, true, Some(map)) => SourceMaps::Shallow(map),
                 _ => SourceMaps::None,
@@ -375,7 +381,11 @@ impl ResolveOrigin for EcmascriptCssModule {
     }
 }
 
-fn generate_minimal_source_map(filename: String, source: String) -> Result<StructuredSourceMap> {
+fn generate_minimal_source_map(
+    filename: String,
+    source: String,
+    inline_sources_content: bool,
+) -> Result<StructuredSourceMap> {
     let mut mappings = vec![];
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
@@ -391,6 +401,13 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Struc
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(&*sm, &mappings, None, true, true, &Default::default())?;
+    let map = generate_js_source_map(
+        &*sm,
+        &mappings,
+        None,
+        true,
+        inline_sources_content,
+        &Default::default(),
+    )?;
     Ok(map)
 }

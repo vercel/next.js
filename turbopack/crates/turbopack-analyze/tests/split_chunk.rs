@@ -21,10 +21,12 @@ use turbopack_core::{
 const BOTH: SourceMapGenerationOptions = SourceMapGenerationOptions {
     full: true,
     shallow: true,
+    shallow_sources_content: true,
 };
 const SHALLOW: SourceMapGenerationOptions = SourceMapGenerationOptions {
     full: false,
     shallow: true,
+    shallow_sources_content: true,
 };
 
 static REGISTRATION: Registration = register!();

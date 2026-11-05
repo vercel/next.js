@@ -64,18 +64,22 @@ pub struct SourceMapGenerationOptions {
     pub full: bool,
     /// Generates maps to the input files without tracing through their source maps.
     pub shallow: bool,
+    /// Retain source text when shallow maps are also used for debugging.
+    pub shallow_sources_content: bool,
 }
 
 impl SourceMapGenerationOptions {
     pub const NONE: Self = Self {
         full: false,
         shallow: false,
+        shallow_sources_content: false,
     };
 
     pub fn from_emitted(ty: Option<SourceMapType>) -> Self {
         Self {
             full: matches!(ty, Some(SourceMapType::Full)),
             shallow: matches!(ty, Some(SourceMapType::Shallow)),
+            shallow_sources_content: matches!(ty, Some(SourceMapType::Shallow)),
         }
     }
 
@@ -89,6 +93,7 @@ impl Default for SourceMapGenerationOptions {
         Self {
             full: true,
             shallow: false,
+            shallow_sources_content: false,
         }
     }
 }

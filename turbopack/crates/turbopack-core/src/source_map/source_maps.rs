@@ -51,6 +51,7 @@ impl<T: NonLocalValue> SourceMaps<T> {
         SourceMapGenerationOptions {
             full: self.get(SourceMapType::Full).is_some(),
             shallow: self.get(SourceMapType::Shallow).is_some(),
+            shallow_sources_content: self.get(SourceMapType::Shallow).is_some(),
         }
     }
 

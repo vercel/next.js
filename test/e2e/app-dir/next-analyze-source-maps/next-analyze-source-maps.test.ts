@@ -82,6 +82,7 @@ describe('next analyze source maps', () => {
             )
           }
           expect(mapContents.join('\n')).toContain('original-lazy.ts')
+          expect(mapContents.join('\n')).toContain('loaded on demand')
         } else if (sourceMaps === 'none') {
           expect(mapContents).toEqual([])
           for (const file of Object.keys(normalAssets)) {
@@ -92,6 +93,8 @@ describe('next analyze source maps', () => {
         } else {
           expect(mapContents.length).toBeGreaterThan(0)
           const originalSources = mapContents.join('\n')
+          expect(originalSources).toContain('loaded on demand')
+          expect(originalSources).toContain('color: #135')
           expect(originalSources.includes('app/merged-target.ts')).toBe(true)
           if (sourceMaps === 'full') {
             expect(originalSources.includes('original-lazy.ts')).toBe(true)

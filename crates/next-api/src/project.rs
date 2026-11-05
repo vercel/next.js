@@ -1452,7 +1452,10 @@ impl Project {
         let mut generation = SourceMapGenerationOptions::from_emitted(
             *self.next_config.client_source_maps(*self.mode).await?,
         );
-        generation.shallow |= self.ensure_shallow_source_maps;
+        if self.ensure_shallow_source_maps {
+            generation.shallow = true;
+            generation.shallow_sources_content = !*self.next_config.input_source_maps().await?;
+        }
         Ok(generation.cell())
     }
 
@@ -1462,7 +1465,10 @@ impl Project {
     ) -> Result<Vc<SourceMapGenerationOptions>> {
         let mut generation =
             SourceMapGenerationOptions::from_emitted(*self.next_config.server_source_maps().await?);
-        generation.shallow |= self.ensure_shallow_source_maps;
+        if self.ensure_shallow_source_maps {
+            generation.shallow = true;
+            generation.shallow_sources_content = !*self.next_config.input_source_maps().await?;
+        }
         Ok(generation.cell())
     }
 

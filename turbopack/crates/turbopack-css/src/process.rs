@@ -143,7 +143,9 @@ async fn stylesheet_to_css(
         };
         let map = &mut shallow_map;
         map.add_sources(ss.sources.clone());
-        map.set_source_content(0, code)?;
+        if generation.shallow_sources_content || shared_source_map {
+            map.set_source_content(0, code)?;
+        }
         Some(generate_css_source_map(map)?)
     } else {
         None
@@ -164,7 +166,12 @@ async fn stylesheet_to_css(
     };
 
     let source_maps = if shared_source_map {
-        SourceMaps::Shared(shallow_source_map.unwrap())
+        let map = shallow_source_map.unwrap();
+        if generation.shallow_sources_content {
+            SourceMaps::Shared(map)
+        } else {
+            SourceMaps::new(Some(map.clone()), Some(map.without_sources_content()))
+        }
     } else {
         SourceMaps::new(source_map, shallow_source_map)
     };

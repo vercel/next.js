@@ -520,6 +520,7 @@ mod tests {
     const BOTH: SourceMapGenerationOptions = SourceMapGenerationOptions {
         full: true,
         shallow: true,
+        shallow_sources_content: true,
     };
 
     fn code(src: &str) -> Code {

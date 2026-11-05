@@ -792,9 +792,22 @@ async fn runtime_source_map_generation_requests() -> Result<()> {
 
 #[turbo_tasks::function(operation, root)]
 async fn runtime_source_map_generation_operation() -> Result<Vc<()>> {
-    use turbopack_core::source_map::{SourceMapGenerationOptions, SourceMapType, SourceMaps};
+    use turbopack_core::source_map::{
+        SourceMap, SourceMapGenerationOptions, SourceMapType, SourceMaps, Token,
+    };
     use turbopack_ecmascript::StaticEcmascriptCode;
     use turbopack_ecmascript_runtime::embed_file_path;
+
+    fn has_sources_content(map: &serde_json::Value) -> bool {
+        map["sourcesContent"]
+            .as_array()
+            .is_some_and(|contents| contents.iter().any(serde_json::Value::is_string))
+            || map["sections"].as_array().is_some_and(|sections| {
+                sections
+                    .iter()
+                    .any(|section| has_sources_content(&section["map"]))
+            })
+    }
 
     let environment = Environment::new(ExecutionEnvironment::Browser(
         BrowserEnvironment {
@@ -810,8 +823,19 @@ async fn runtime_source_map_generation_operation() -> Result<Vc<()>> {
         SourceMapGenerationOptions::from_emitted(Some(SourceMapType::Full)),
         SourceMapGenerationOptions::from_emitted(Some(SourceMapType::Shallow)),
         SourceMapGenerationOptions {
+            full: false,
+            shallow: true,
+            shallow_sources_content: false,
+        },
+        SourceMapGenerationOptions {
             full: true,
             shallow: true,
+            shallow_sources_content: false,
+        },
+        SourceMapGenerationOptions {
+            full: true,
+            shallow: true,
+            shallow_sources_content: true,
         },
     ] {
         let asset_context = turbopack::get_runtime_asset_context(environment, generation);
@@ -835,8 +859,28 @@ async fn runtime_source_map_generation_operation() -> Result<Vc<()>> {
             code.has_source_map_for(SourceMapType::Shallow),
             generation.shallow && generation.should_generate_any_source_maps()
         );
+        let maps = code.source_maps()?;
+        for ty in [SourceMapType::Full, SourceMapType::Shallow] {
+            if let Some(map) = maps.get(ty) {
+                let bytes = map.to_bytes();
+                let decoded = SourceMap::new_from_rope(map)?.expect("valid runtime map");
+                assert!(
+                    decoded
+                        .tokens()
+                        .any(|token| matches!(token, Token::Original(_)))
+                );
+                let map = serde_json::from_slice(&bytes)?;
+                assert_eq!(
+                    has_sources_content(&map),
+                    ty == SourceMapType::Full || generation.shallow_sources_content,
+                );
+            }
+        }
         if generation.full && generation.shallow {
-            assert!(matches!(code.source_maps()?, SourceMaps::Shared(_)));
+            assert_eq!(
+                matches!(maps, SourceMaps::Shared(_)),
+                generation.shallow_sources_content,
+            );
         }
     }
     Ok(Vc::cell(()))
