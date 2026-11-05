@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -77,7 +78,11 @@ for (const [name, extension] of [['fragment', 'tsx']]) {
             })
           )
         ),
-        JSON.parse(fs.readFileSync(path.join(source, 'pristine-cases.json')))
+        JSON.parse(
+          fs.readFileSync(
+            resolveFixturePath(path.join(source, 'pristine-cases.json'))
+          )
+        )
       )
       const report = JSON.parse(
         fs.readFileSync(path.join(fixture, 'coverage/coverage-final.json'))
@@ -99,7 +104,9 @@ for (const [name, extension] of [['fragment', 'tsx']]) {
         canonical,
         JSON.parse(
           fs.readFileSync(
-            path.join(source, 'pristine-coverage-' + mode + '.json')
+            resolveFixturePath(
+              path.join(source, 'pristine-coverage-' + mode + '.json')
+            )
           )
         )
       )

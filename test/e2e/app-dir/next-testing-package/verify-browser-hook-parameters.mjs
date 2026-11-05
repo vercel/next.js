@@ -4,6 +4,7 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { resolveFixturePath } from '../../../lib/next-testing-fixtures.cjs'
 
 const [consumerArg, mode, outputArg, ...optionalArgs] = process.argv.slice(2)
 assert(
@@ -120,7 +121,7 @@ const consumer = fs.realpathSync(consumerArg),
   inputPins = {},
   readFrozen = (relative, expectedSHA256) => {
     const file = path.join(corpus, relative),
-      content = fs.readFileSync(file),
+      content = fs.readFileSync(resolveFixturePath(file)),
       actualSHA256 = hash(content)
     if (expectedSHA256 !== undefined)
       assert.equal(actualSHA256, expectedSHA256, relative)
@@ -286,7 +287,9 @@ for (const profile of selected) {
   const sourceFile = path.join(fixture, 'fixtures.test.mjs')
   fs.writeFileSync(sourceFile, profile.input.content)
   fs.copyFileSync(
-    path.join(directory, 'browser-public-default-cleanup/reporter.mjs'),
+    resolveFixturePath(
+      path.join(directory, 'browser-public-default-cleanup/reporter.mjs')
+    ),
     path.join(fixture, 'reporter.mjs')
   )
   fs.writeFileSync(
@@ -437,7 +440,10 @@ for (const profile of selected) {
   }
 }
 for (const [relative, pin] of Object.entries(inputPins))
-  assert.equal(hash(fs.readFileSync(path.join(corpus, relative))), pin)
+  assert.equal(
+    hash(fs.readFileSync(resolveFixturePath(path.join(corpus, relative)))),
+    pin
+  )
 for (const [name, pin] of Object.entries(graph))
   assert.equal(hash(fs.readFileSync(path.join(consumer, name))), pin)
 assert.equal(runs.length, 2)

@@ -8,6 +8,7 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from './process-supervisor.mjs'
+import { resolveFixturePath } from '../../../lib/next-testing-fixtures.cjs'
 
 const [consumerArg, outputArg, enginesArg = 'chromium,firefox'] =
   process.argv.slice(2)
@@ -19,7 +20,9 @@ const consumer = fs.realpathSync(consumerArg),
   output = path.resolve(outputArg),
   here = path.dirname(fileURLToPath(import.meta.url)),
   corpus = path.join(here, 'browser-hook-order'),
-  expected = JSON.parse(fs.readFileSync(path.join(corpus, 'reference.json'))),
+  expected = JSON.parse(
+    fs.readFileSync(resolveFixturePath(path.join(corpus, 'reference.json')))
+  ),
   load = createRequire(path.join(consumer, 'package.json')),
   nextRoot = path.dirname(load.resolve('next/package.json')),
   engines = enginesArg.split(','),
@@ -33,7 +36,9 @@ assert(
 for (const name of ['vitest', 'vite', '@vitest/mocker'])
   assert.throws(() => load.resolve(name))
 const hash = (file) =>
-    createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+    createHash('sha256')
+      .update(fs.readFileSync(resolveFixturePath(file)))
+      .digest('hex'),
   save = (dir, name, value) =>
     fs.writeFileSync(
       path.join(dir, name),
@@ -62,7 +67,7 @@ for (const profile of expected.profiles.filter((p) =>
     destination = path.join(output, profile.label)
   fs.mkdirSync(destination)
   fs.copyFileSync(
-    path.join(corpus, profile.source.path),
+    resolveFixturePath(path.join(corpus, profile.source.path)),
     path.join(fixture, 'hooks.test.mjs')
   )
   fs.writeFileSync(
@@ -172,7 +177,9 @@ try {
         assertOwnedNodeCompleted(owner, r.label)
         r.joined = true
         const reference = JSON.parse(
-          fs.readFileSync(path.join(corpus, r.projected.path))
+          fs.readFileSync(
+            resolveFixturePath(path.join(corpus, r.projected.path))
+          )
         )
         let actual
         if (r.suite === 'ordering') {
@@ -241,7 +248,10 @@ try {
             const diagnostic = actual.cases[0].errors[0],
               observation = JSON.parse(
                 fs
-                  .readFileSync(path.join(corpus, r.rawCaseErrors.path), 'utf8')
+                  .readFileSync(
+                    resolveFixturePath(path.join(corpus, r.rawCaseErrors.path)),
+                    'utf8'
+                  )
                   .trim()
               )
             assert.equal(observation.name, actual.cases[0].name)

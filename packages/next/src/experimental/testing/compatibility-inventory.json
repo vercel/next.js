@@ -5624,9 +5624,9 @@
         "test/unit/next-testing-compiler/external-package/cjs-named-class-expression-cycle-reset/contract.test.mjs.txt",
         "test/unit/next-testing-compiler/external-package/cjs-empty-class-expression-reset/contract.test.mjs.txt",
         "test/unit/next-testing-compiler/runtime-graph-boundary-integration.cjs",
-        "test/unit/next-testing-compiler/external-package/cjs-named-async-expression-dependency-reset/contract.test.mjs.txt",
-        "test/unit/next-testing-compiler/external-package/cjs-anonymous-async-generator-expression-cycle-reset/contract.test.mjs.txt",
-        "test/unit/next-testing-compiler/external-package/cjs-binding-object-shorthand-default-dependency-reset/contract.test.mjs.txt",
+        "test/unit/next-testing-compiler/external-package/cjs-named-async-expression-cycle-reset/contract.test.mjs.txt",
+        "test/unit/next-testing-compiler/external-package/cjs-named-async-generator-expression-cycle-reset/contract.test.mjs.txt",
+        "test/unit/next-testing-compiler/external-package/cjs-flat-object-control-dependency-reset/contract.test.mjs.txt",
         "test/unit/next-testing-compiler/cjs-async-defaults.mjs",
         "test/unit/next-testing-compiler/cjs-async-defaults-pristine.json",
         "test/unit/next-testing-compiler/cjs-arrow-defaults.mjs",
@@ -5668,7 +5668,9 @@
         "packages/next/src/experimental/testing/contracts.ts",
         "packages/next/src/experimental/testing/compiler/index.ts",
         "test/unit/app-dir/next-testing-mocking/verify-runtime-namespace.mjs",
-        "test/unit/next-testing-execution/production-compiled-runtime-marker-entry.cjs"
+        "test/unit/next-testing-execution/production-compiled-runtime-marker-entry.cjs",
+        "test/lib/next-testing-fixtures.cjs",
+        "test/lib/next-testing-fixture-aliases.json"
       ]
     },
     {

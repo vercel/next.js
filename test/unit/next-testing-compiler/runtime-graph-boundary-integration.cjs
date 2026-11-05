@@ -1,3 +1,7 @@
+const {
+  resolveFixturePath,
+  fixtureFiles,
+} = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -78,15 +82,18 @@ assert.ok(
 )
 const source = path.join(__dirname, 'runtime-graph-boundaries', target)
 const expected = JSON.parse(
-  fs.readFileSync(path.join(source, 'expected-diagnostic.json'), 'utf8')
+  fs.readFileSync(
+    resolveFixturePath(path.join(source, 'expected-diagnostic.json')),
+    'utf8'
+  )
 )
 const fixture = fs.mkdtempSync(
   path.join(repo, '.next-test-runtime-graph-boundary-')
 )
 const pins = new Map()
-for (const name of fs.readdirSync(source)) {
+for (const name of fixtureFiles(source)) {
   const destination = path.join(fixture, name.replace(/\.txt$/, ''))
-  const bytes = fs.readFileSync(path.join(source, name))
+  const bytes = fs.readFileSync(resolveFixturePath(path.join(source, name)))
   fs.writeFileSync(destination, bytes)
   pins.set(destination, createHash('sha256').update(bytes).digest('hex'))
 }

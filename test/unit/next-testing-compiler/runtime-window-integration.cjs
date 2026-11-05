@@ -1,3 +1,7 @@
+const {
+  resolveFixturePath,
+  fixtureFiles,
+} = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -24,7 +28,10 @@ const next = fs.existsSync(
     ).href
   )
   const expected = JSON.parse(
-    fs.readFileSync(path.join(source, 'pristine.json'), 'utf8')
+    fs.readFileSync(
+      resolveFixturePath(path.join(source, 'pristine.json')),
+      'utf8'
+    )
   )
   let profiles = 0
   for (const mode of ['development', 'production']) {
@@ -32,10 +39,10 @@ const next = fs.existsSync(
       path.join(installation, '.next-test-runtime-window-')
     )
     try {
-      for (const file of fs.readdirSync(source))
+      for (const file of fixtureFiles(source))
         if (file.endsWith('.txt'))
           fs.copyFileSync(
-            path.join(source, file),
+            resolveFixturePath(path.join(source, file)),
             path.join(fixture, file.replace(/\.txt$/, ''))
           )
       fs.symlinkSync(
@@ -102,11 +109,11 @@ const next = fs.existsSync(
         .filter((line) => line.startsWith('WINDOW_RAW:'))
         .map((line) => JSON.parse(line.slice('WINDOW_RAW:'.length)))
       assert.deepEqual({ cases, rows }, expected)
-      for (const file of fs.readdirSync(source))
+      for (const file of fixtureFiles(source))
         if (file.endsWith('.txt'))
           assert.deepEqual(
             fs.readFileSync(path.join(fixture, file.replace(/\.txt$/, ''))),
-            fs.readFileSync(path.join(source, file))
+            fs.readFileSync(resolveFixturePath(path.join(source, file)))
           )
       profiles++
     } finally {

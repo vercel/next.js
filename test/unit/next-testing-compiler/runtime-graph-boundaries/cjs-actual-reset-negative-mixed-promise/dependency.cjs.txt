@@ -1,2 +1,0 @@
-globalThis.__ws2CjsDependencyLeaf = (globalThis.__ws2CjsDependencyLeaf || 0) + 1
-module.exports = { evaluation: globalThis.__ws2CjsDependencyLeaf, marker: {} }

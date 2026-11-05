@@ -1,3 +1,7 @@
+const {
+  resolveFixturePath,
+  fixtureFiles,
+} = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -92,16 +96,14 @@ async function main() {
       fs.mkdirSync(path.join(root, 'blobs'))
       const blob = path.join(source, 'development.blob')
       const blobPath = path.join(root, 'blobs/actual.blob')
-      fs.copyFileSync(blob, blobPath)
+      fs.copyFileSync(resolveFixturePath(blob), blobPath)
       function copySources(directory, target) {
         fs.mkdirSync(target, { recursive: true })
-        for (const entry of fs.readdirSync(directory, {
-          withFileTypes: true,
-        })) {
-          const from = path.join(directory, entry.name)
-          const to = path.join(target, entry.name.replace(/\.txt$/, ''))
-          if (entry.isDirectory()) copySources(from, to)
-          else fs.copyFileSync(from, to)
+        for (const file of fixtureFiles(directory)) {
+          const from = path.join(directory, file)
+          const to = path.join(target, file.replace(/\.txt$/, ''))
+          fs.mkdirSync(path.dirname(to), { recursive: true })
+          fs.copyFileSync(resolveFixturePath(from), to)
         }
       }
       copySources(path.join(typed, kind), root)
@@ -139,14 +141,19 @@ async function main() {
       }
       assert.equal(result.code, 1, result.stdout + result.stderr)
       const rows = read(path.join(root, 'rows.json'))
-      assert.deepEqual(rows, read(path.join(typed, name + '.rows.json')))
+      assert.deepEqual(
+        rows,
+        read(resolveFixturePath(path.join(typed, name + '.rows.json')))
+      )
       const imported = read(path.join(root, 'merged.json'))
       assert.equal(imported.next, undefined)
       assert.equal(imported.vitest.attemptHistory, 'unavailable')
       assert.equal(imported.vitest.runBoundaries, 'unavailable')
       assert.equal(imported.vitest.environmentGraphs, 'opaque-not-restored')
       assert.deepEqual(imported.vitest.blobs[0].flatted, read(blobPath))
-      const expected = read(path.join(typed, name + '.report.json'))
+      const expected = read(
+        resolveFixturePath(path.join(typed, name + '.report.json'))
+      )
       expected.startTime = imported.startTime
       for (const file of expected.testResults)
         if (

@@ -1,2 +1,0 @@
-globalThis.__ws2RuntimeUnused=(globalThis.__ws2RuntimeUnused||0)+1
-module.exports={unused:true}

@@ -9,10 +9,15 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
+
 const here = path.dirname(fileURLToPath(import.meta.url))
-const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'))
+const read = (file) =>
+  JSON.parse(fs.readFileSync(resolveFixturePath(file), 'utf8'))
 const sha = (file) =>
-  createHash('sha256').update(fs.readFileSync(file)).digest('hex')
+  createHash('sha256')
+    .update(fs.readFileSync(resolveFixturePath(file)))
+    .digest('hex')
 const corpus = read(path.join(here, 'reference-combinations-standard.json'))
 const [consumerArg, outputArg, kind, variantArg, expectedNative] =
   process.argv.slice(2)
@@ -210,8 +215,8 @@ try {
   for (const [file, hash] of Object.entries(authority.files)) {
     const source = path.join(fixtureDirectory, file + '.txt')
     assert.equal(sha(source), hash)
-    fs.copyFileSync(source, path.join(fixture, file))
-    fs.copyFileSync(source, path.join(output, file))
+    fs.copyFileSync(resolveFixturePath(source), path.join(fixture, file))
+    fs.copyFileSync(resolveFixturePath(source), path.join(output, file))
   }
   for (const name of ['events.jsonl', 'rows.jsonl'])
     fs.writeFileSync(path.join(output, name), '')

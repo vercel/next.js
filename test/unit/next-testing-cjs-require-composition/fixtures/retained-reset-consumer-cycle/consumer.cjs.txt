@@ -1,4 +1,0 @@
-const fs=require('node:fs');const read=()=>{fs.appendFileSync(process.env.NEXT_REQUIRE_EVENTS,JSON.stringify({name:'consumer-require'})+'\n');return require('./target.cjs')};
-const peer=require('./consumer-peer.cjs');
-fs.appendFileSync(process.env.NEXT_REQUIRE_EVENTS,JSON.stringify({name:"consumer-evaluate"})+'\n');
-module.exports={initial:read(),read,peer};

@@ -8,12 +8,15 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repositoryFixtures = path.resolve(here, '../../..')
 const corpus = path.join(here, 'fixtures/native-multi-target')
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
-const stored = JSON.parse(fs.readFileSync(path.join(corpus, 'corpus.json')))
+const stored = JSON.parse(
+  fs.readFileSync(resolveFixturePath(path.join(corpus, 'corpus.json')))
+)
 assert.equal(stored.referenceVersion, '5.0.4')
 
 export function readNativeMultiTargetCase(
@@ -31,10 +34,14 @@ export function readNativeMultiTargetCase(
   )
   const model = reference.profiles[group]?.[mode]
   assert(model)
-  const raw = fs.readFileSync(path.join(corpus, model.stored))
+  const raw = fs.readFileSync(
+    resolveFixturePath(path.join(corpus, model.stored))
+  )
   assert.equal(sha(raw), model.sha256, 'Changed complete genuine model')
   const expected = JSON.parse(raw)
-  const body = fs.readFileSync(path.join(repositoryFixtures, definition.body))
+  const body = fs.readFileSync(
+    resolveFixturePath(path.join(repositoryFixtures, definition.body))
+  )
   assert.equal(
     sha(body),
     definition.bodySHA256,
@@ -43,7 +50,9 @@ export function readNativeMultiTargetCase(
   const files = [
     { target: 'contract.test.mjs', bytes: body, sha256: definition.bodySHA256 },
     ...Object.entries(stored.commonFiles).map(([target, file]) => {
-      const bytes = fs.readFileSync(path.join(corpus, file.stored))
+      const bytes = fs.readFileSync(
+        resolveFixturePath(path.join(corpus, file.stored))
+      )
       assert.equal(sha(bytes), file.sha256, target)
       return { target, bytes, sha256: file.sha256 }
     }),

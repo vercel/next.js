@@ -8,6 +8,8 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
+
 const [repoArg, outputArg, mode, form, kind] = process.argv.slice(2)
 const repo = fs.realpathSync(repoArg),
   output = path.resolve(outputArg),
@@ -15,7 +17,9 @@ const repo = fs.realpathSync(repoArg),
 assert(['development', 'production'].includes(mode))
 assert(['source', 'installed'].includes(kind))
 const pristine = JSON.parse(
-  fs.readFileSync(path.join(here, 'cjs-recursive-binding-pristine.json'))
+  fs.readFileSync(
+    resolveFixturePath(path.join(here, 'cjs-recursive-binding-pristine.json'))
+  )
 )
 assert.equal(pristine.referenceVersion, '5.0.4')
 const expected = pristine.forms[form]
@@ -30,14 +34,18 @@ const fixture = fs.mkdtempSync(
 )
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const body = fs.readFileSync(
-  path.join(here, 'cjs-async-defaults-fixtures/contract.test.mjs.txt')
+  resolveFixturePath(
+    path.join(here, 'cjs-async-defaults-fixtures/contract.test.mjs.txt')
+  )
 )
 assert.equal(sha(body), pristine.authoredBodySHA256)
 const sources = {
   'contract.test.mjs': body,
   'root.cjs': expected.root,
   'dependency.cjs': fs.readFileSync(
-    path.join(here, 'cjs-async-defaults-fixtures/dependency.cjs.txt')
+    resolveFixturePath(
+      path.join(here, 'cjs-async-defaults-fixtures/dependency.cjs.txt')
+    )
   ),
   'package.json': '{"private":true,"type":"module"}\n',
   'next.config.mjs':

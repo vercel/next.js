@@ -4,21 +4,27 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { createHash } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
+
 const here = path.dirname(fileURLToPath(import.meta.url))
 const corpus = path.join(here, 'fixtures/shared-rsc-cache')
 const stored = JSON.parse(
-  fs.readFileSync(path.join(corpus, 'corpus.json'), 'utf8')
+  fs.readFileSync(resolveFixturePath(path.join(corpus, 'corpus.json')), 'utf8')
 )
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 export function readSharedCacheCorpus() {
   const sources = Object.fromEntries(
     Object.entries(stored.sources).map(([file, entry]) => {
-      const bytes = fs.readFileSync(path.join(corpus, entry.stored))
+      const bytes = fs.readFileSync(
+        resolveFixturePath(path.join(corpus, entry.stored))
+      )
       assert.equal(sha(bytes), entry.sha256)
       return [file, bytes]
     })
   )
-  const ordinaryBytes = fs.readFileSync(path.join(corpus, stored.ordinaryModel))
+  const ordinaryBytes = fs.readFileSync(
+    resolveFixturePath(path.join(corpus, stored.ordinaryModel))
+  )
   assert.equal(sha(ordinaryBytes), stored.ordinaryModelSHA256)
   const ordinary = JSON.parse(ordinaryBytes)
   assert.equal(ordinary.rows.length, 3)

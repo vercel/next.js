@@ -1,3 +1,7 @@
+const {
+  resolveFixturePath,
+  fixtureFiles,
+} = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -5,9 +9,9 @@ const path = require('node:path')
 const repo = path.resolve(__dirname, '../../..')
 const fixture = fs.mkdtempSync(path.join(repo, '.next-test-shared-async-'))
 const source = path.join(__dirname, 'shared-async')
-for (const file of fs.readdirSync(source))
+for (const file of fixtureFiles(source))
   fs.copyFileSync(
-    path.join(source, file),
+    resolveFixturePath(path.join(source, file)),
     path.join(fixture, file.replace(/\.txt$/, ''))
   )
 fs.symlinkSync(

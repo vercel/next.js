@@ -1,3 +1,7 @@
+const {
+  resolveFixturePath,
+  fixtureFiles,
+} = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -6,9 +10,9 @@ const { spawn } = require('node:child_process')
 const repo = path.resolve(__dirname, '../../..')
 const source = path.join(__dirname, 'virtual-bare')
 const fixture = fs.mkdtempSync(path.join(repo, '.next-test-virtual-bare-'))
-for (const name of fs.readdirSync(source)) {
+for (const name of fixtureFiles(source)) {
   fs.copyFileSync(
-    path.join(source, name),
+    resolveFixturePath(path.join(source, name)),
     path.join(fixture, name.replace(/\.txt$/, ''))
   )
 }
@@ -115,7 +119,10 @@ const deadline = setTimeout(() => {
     assert.deepEqual(
       actual.cases,
       JSON.parse(
-        fs.readFileSync(path.join(source, 'pristine-cases.json'), 'utf8')
+        fs.readFileSync(
+          resolveFixturePath(path.join(source, 'pristine-cases.json')),
+          'utf8'
+        )
       )
     )
     assert.deepEqual(
@@ -129,7 +136,10 @@ const deadline = setTimeout(() => {
     assert.deepEqual(
       rows,
       JSON.parse(
-        fs.readFileSync(path.join(source, 'pristine-rows.json'), 'utf8')
+        fs.readFileSync(
+          resolveFixturePath(path.join(source, 'pristine-rows.json')),
+          'utf8'
+        )
       )
     )
   } finally {

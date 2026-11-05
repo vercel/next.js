@@ -1,3 +1,7 @@
+const {
+  resolveFixturePath,
+  fixtureFiles,
+} = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -85,9 +89,11 @@ if (require.main === module) {
     path.join(require('node:os').tmpdir(), 'next-reporter-init-exit-')
   )
   const fixture = path.join(__dirname, 'reporter-initialization-exit-fixtures')
-  for (const name of fs.readdirSync(fixture))
+  for (const name of fixtureFiles(fixture).filter(
+    (name) => path.dirname(name) === '.'
+  ))
     fs.copyFileSync(
-      path.join(fixture, name),
+      resolveFixturePath(path.join(fixture, name)),
       path.join(directory, name.replace(/\.txt$/, ''))
     )
   fs.writeFileSync(

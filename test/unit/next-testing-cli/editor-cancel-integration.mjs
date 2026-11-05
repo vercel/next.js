@@ -1,3 +1,4 @@
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { watch } from 'node:fs'
@@ -37,7 +38,10 @@ async function execute(mode, control) {
   const app = join(workRoot, label)
   await mkdir(app)
   for (const name of ['contract.test.mjs', 'global-setup.mjs'])
-    await copyFile(join(fixture, name + '.txt'), join(app, name))
+    await copyFile(
+      resolveFixturePath(join(fixture, name + '.txt')),
+      join(app, name)
+    )
   await writeFile(join(app, 'package.json'), '{"type":"module"}\n')
   await writeFile(
     join(app, 'next.test.config.json'),
@@ -208,7 +212,7 @@ async function execute(mode, control) {
     for (const name of ['contract.test.mjs', 'global-setup.mjs'])
       assert.deepEqual(
         await readFile(join(app, name)),
-        await readFile(join(fixture, name + '.txt'))
+        await readFile(resolveFixturePath(join(fixture, name + '.txt')))
       )
     const result = {
       mode,

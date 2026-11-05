@@ -1,3 +1,7 @@
+const {
+  resolveFixturePath,
+  fixtureFiles,
+} = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -24,8 +28,11 @@ async function main() {
   const stdout = [],
     stderr = []
   try {
-    for (const name of fs.readdirSync(original))
-      fs.copyFileSync(path.join(original, name), path.join(fixture, name))
+    for (const name of fixtureFiles(original))
+      fs.copyFileSync(
+        resolveFixturePath(path.join(original, name)),
+        path.join(fixture, name)
+      )
     fs.writeFileSync(
       path.join(fixture, 'package.json'),
       '{"private":true,"type":"module"}\n'
@@ -165,10 +172,10 @@ async function main() {
         failureMessages: [],
       }))
     )
-    for (const name of fs.readdirSync(original))
+    for (const name of fixtureFiles(original))
       assert.deepEqual(
         fs.readFileSync(path.join(fixture, name)),
-        fs.readFileSync(path.join(original, name))
+        fs.readFileSync(resolveFixturePath(path.join(original, name)))
       )
     return { mode, close, forced, observations, authoredSourcesHeld: true }
   } catch (error) {

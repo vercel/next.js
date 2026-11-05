@@ -4,10 +4,14 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const corpus = JSON.parse(
-  fs.readFileSync(path.join(here, 'module-reset-utility-pristine.json'), 'utf8')
+  fs.readFileSync(
+    resolveFixturePath(path.join(here, 'module-reset-utility-pristine.json')),
+    'utf8'
+  )
 )
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 assert.equal(corpus.referenceVersion, '5.0.4')
@@ -17,11 +21,13 @@ for (const [variant, entry] of Object.entries(corpus.variants)) {
     assert.equal(
       sha(
         fs.readFileSync(
-          path.join(
-            here,
-            'module-reset-utility-fixtures',
-            variant,
-            name + '.txt'
+          resolveFixturePath(
+            path.join(
+              here,
+              'module-reset-utility-fixtures',
+              variant,
+              name + '.txt'
+            )
           )
         )
       ),
@@ -81,7 +87,9 @@ let joined = false
 try {
   for (const [name, hash] of Object.entries(contract.files)) {
     const bytes = fs.readFileSync(
-      path.join(here, 'module-reset-utility-fixtures', variant, name + '.txt')
+      resolveFixturePath(
+        path.join(here, 'module-reset-utility-fixtures', variant, name + '.txt')
+      )
     )
     assert.equal(sha(bytes), hash)
     fs.writeFileSync(path.join(fixture, name), bytes)

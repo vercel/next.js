@@ -1,3 +1,4 @@
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -30,9 +31,11 @@ const corpus = join(
 )
 const expected = JSON.parse(
   await readFile(
-    join(
-      corpus,
-      mode === 'production' ? 'pristine-production.json' : 'pristine.json'
+    resolveFixturePath(
+      join(
+        corpus,
+        mode === 'production' ? 'pristine-production.json' : 'pristine.json'
+      )
     ),
     'utf8'
   )
@@ -40,7 +43,7 @@ const expected = JSON.parse(
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const templates = new Map()
 for (const [name, pin] of Object.entries(expected.sourceSHA256)) {
-  const bytes = await readFile(join(corpus, name))
+  const bytes = await readFile(resolveFixturePath(join(corpus, name)))
   assert.equal(sha(bytes), pin)
   templates.set(name, bytes.toString())
 }

@@ -8,6 +8,7 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 
 const [repoArg, outputArg, mode, kind] = process.argv.slice(2)
 const repo = fs.realpathSync(repoArg)
@@ -16,7 +17,9 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 assert(['development', 'production'].includes(mode))
 assert(['source', 'installed'].includes(kind))
 const expected = JSON.parse(
-  fs.readFileSync(path.join(here, 'cjs-parameter-grammar-pristine.json'))
+  fs.readFileSync(
+    resolveFixturePath(path.join(here, 'cjs-parameter-grammar-pristine.json'))
+  )
 )
 assert.equal(expected.referenceVersion, '5.0.4')
 const load = createRequire(path.join(repo, 'package.json'))
@@ -31,7 +34,9 @@ const fixture = fs.mkdtempSync(path.join(repo, '.next-test-cjs-grammar-'))
 try {
   for (const [name, hash] of Object.entries(expected.authoredSHA256)) {
     const bytes = fs.readFileSync(
-      path.join(here, 'cjs-parameter-grammar-fixtures', name + '.txt')
+      resolveFixturePath(
+        path.join(here, 'cjs-parameter-grammar-fixtures', name + '.txt')
+      )
     )
     assert.equal(sha(bytes), hash, name)
     fs.writeFileSync(path.join(fixture, name), bytes)

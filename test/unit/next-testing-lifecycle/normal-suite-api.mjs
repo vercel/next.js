@@ -1,3 +1,4 @@
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -26,12 +27,18 @@ const bin = load.resolve('next/dist/bin/next')
 const major = process.versions.node.split('.')[0]
 const modelName = `${major}-${mode}-${group}`
 const genuineReport = JSON.parse(
-  fs.readFileSync(path.join(inputs, `${modelName}-report.json`))
+  fs.readFileSync(
+    resolveFixturePath(path.join(inputs, `${modelName}-report.json`))
+  )
 )
 const genuineObserved = JSON.parse(
-  fs.readFileSync(path.join(inputs, `${modelName}-observed.json`))
+  fs.readFileSync(
+    resolveFixturePath(path.join(inputs, `${modelName}-observed.json`))
+  )
 )
-const body = fs.readFileSync(path.join(inputs, `${group}.test.mjs.txt`))
+const body = fs.readFileSync(
+  resolveFixturePath(path.join(inputs, `${group}.test.mjs.txt`))
+)
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 fs.mkdirSync(output, { recursive: true })
 const save = (name, value) =>

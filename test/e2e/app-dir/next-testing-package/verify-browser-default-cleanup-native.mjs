@@ -9,6 +9,7 @@ import {
   assertOwnedNodeCompleted,
 } from './process-supervisor.mjs'
 import { projectCleanupReport } from './browser-public-default-cleanup/project.mjs'
+import { resolveFixturePath } from '../../../lib/next-testing-fixtures.cjs'
 
 const [
   rootArg,
@@ -25,7 +26,7 @@ const root = fs.realpathSync(rootArg),
     'browser-default-cleanup-native'
   )
 const manifest = JSON.parse(
-    fs.readFileSync(path.join(corpus, 'reference.json'))
+    fs.readFileSync(resolveFixturePath(path.join(corpus, 'reference.json')))
   ),
   load = createRequire(path.join(root, 'package.json'))
 const next =
@@ -44,7 +45,9 @@ assert(
     engines.every((engine) => ['chromium', 'firefox'].includes(engine))
 )
 const hash = (file) =>
-  createHash('sha256').update(fs.readFileSync(file)).digest('hex')
+  createHash('sha256')
+    .update(fs.readFileSync(resolveFixturePath(file)))
+    .digest('hex')
 const save = (dir, name, value) =>
   fs.writeFileSync(path.join(dir, name), JSON.stringify(value, null, 2) + '\n')
 fs.mkdirSync(output)
@@ -71,9 +74,12 @@ for (const profile of manifest.profiles.filter((profile) =>
     ),
     destination = path.join(output, profile.label)
   fs.mkdirSync(destination)
-  fs.copyFileSync(source, path.join(fixture, 'fixtures.test.mjs'))
   fs.copyFileSync(
-    path.join(corpus, 'reporter.mjs'),
+    resolveFixturePath(source),
+    path.join(fixture, 'fixtures.test.mjs')
+  )
+  fs.copyFileSync(
+    resolveFixturePath(path.join(corpus, 'reporter.mjs')),
     path.join(fixture, 'cleanup-reporter.mjs')
   )
   fs.writeFileSync(
@@ -170,7 +176,9 @@ try {
       trace = JSON.parse(fs.readFileSync(traceFile + '.complete.json'))
     const actual = projectCleanupReport(report, trace, owner.status),
       expected = JSON.parse(
-        fs.readFileSync(path.join(corpus, profile.label, 'expected.json'))
+        fs.readFileSync(
+          resolveFixturePath(path.join(corpus, profile.label, 'expected.json'))
+        )
       )
     save(destination, 'actual.json', actual)
     assert.equal(

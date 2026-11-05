@@ -1,3 +1,4 @@
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -27,7 +28,11 @@ const directory = dirname(fileURLToPath(import.meta.url))
 const fixtureDirectory = join(directory, 'fixtures/edge-options')
 const major = process.versions.node.split('.')[0]
 const expected = JSON.parse(
-  readFileSync(join(fixtureDirectory, `node${major}.${mode}.expected.json`))
+  readFileSync(
+    resolveFixturePath(
+      join(fixtureDirectory, `node${major}.${mode}.expected.json`)
+    )
+  )
 )
 assert(!existsSync(output))
 mkdirSync(output, { recursive: true })
@@ -36,8 +41,8 @@ const fixture = mkdtempSync(join(consumer, '.next-test-edge-options-'))
 const hash = (file) =>
   createHash('sha256').update(readFileSync(file)).digest('hex')
 const source = join(fixtureDirectory, 'edge.case.mjs.txt')
-const authoredSHA256 = hash(source)
-copyFileSync(source, join(fixture, 'edge.test.mjs'))
+const authoredSHA256 = hash(resolveFixturePath(source))
+copyFileSync(resolveFixturePath(source), join(fixture, 'edge.test.mjs'))
 writeFileSync(
   join(fixture, 'package.json'),
   '{"private":true,"type":"module"}\n'
@@ -165,7 +170,7 @@ try {
     })
   )
 } finally {
-  assert.equal(hash(source), authoredSHA256)
+  assert.equal(hash(resolveFixturePath(source)), authoredSHA256)
   if (joined) rmSync(fixture, { recursive: true, force: true })
   save('CLOSED.json', {
     joined,

@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -87,7 +88,11 @@ for (const mode of ['development', 'production'])
           )
         ),
         JSON.parse(
-          fs.readFileSync(path.join(source, 'pristine-cases-' + mode + '.json'))
+          fs.readFileSync(
+            resolveFixturePath(
+              path.join(source, 'pristine-cases-' + mode + '.json')
+            )
+          )
         )
       )
       const coverage = path.join(fixture, 'coverage')
@@ -97,7 +102,11 @@ for (const mode of ['development', 'production'])
       )
       assert.deepEqual(
         fs.readFileSync(path.join(coverage, 'lcov.info')),
-        fs.readFileSync(path.join(source, 'pristine-' + mode + '.lcov.txt'))
+        fs.readFileSync(
+          resolveFixturePath(
+            path.join(source, 'pristine-' + mode + '.lcov.txt')
+          )
+        )
       )
       exactLcovReports++
       if (!only) {
@@ -114,7 +123,9 @@ for (const mode of ['development', 'production'])
           portable,
           JSON.parse(
             fs.readFileSync(
-              path.join(source, 'pristine-coverage-' + mode + '.json')
+              resolveFixturePath(
+                path.join(source, 'pristine-coverage-' + mode + '.json')
+              )
             )
           )
         )

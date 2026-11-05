@@ -1,3 +1,4 @@
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -20,7 +21,9 @@ const base = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   'node-records'
 )
-const manifest = JSON.parse(fs.readFileSync(base + '/REFERENCE.json'))
+const manifest = JSON.parse(
+  fs.readFileSync(resolveFixturePath(base + '/REFERENCE.json'))
+)
 const profiles = []
 const load = createRequire(consumer + '/package.json')
 const next = path.dirname(load.resolve('next/package.json'))
@@ -55,13 +58,13 @@ for (const mode of ['development', 'production']) {
   )
   const out = output + '/' + mode
   fs.mkdirSync(out)
-  const body = fs.readFileSync(base + '/suite.test.mjs.txt')
+  const body = fs.readFileSync(resolveFixturePath(base + '/suite.test.mjs.txt'))
   assert.equal(sha(body), manifest.bodySHA256)
   const expected = JSON.parse(
-    fs.readFileSync(base + '/' + label + '-model.json')
+    fs.readFileSync(resolveFixturePath(base + '/' + label + '-model.json'))
   )
   const expectedReport = JSON.parse(
-    fs.readFileSync(base + '/' + label + '-report.json')
+    fs.readFileSync(resolveFixturePath(base + '/' + label + '-report.json'))
   )
   const fixture = fs.mkdtempSync(
     path.join(consumer, '.next-fixture-registration-order-')

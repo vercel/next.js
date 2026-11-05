@@ -1,7 +1,0 @@
-[
-  {
-    "name": "preserves held CommonJS actual namespace mutation and reset identity",
-    "status": "passed",
-    "failureMessages": []
-  }
-]

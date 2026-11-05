@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -15,13 +16,15 @@ const { relative } = require(
 )
 const inputs = path.join(__dirname, 'empty-suite-records')
 const reference = JSON.parse(
-  fs.readFileSync(path.join(inputs, 'reference.json'))
+  fs.readFileSync(resolveFixturePath(path.join(inputs, 'reference.json')))
 )
 
 async function main() {
   const rows = []
   for (const [name, expected] of Object.entries(reference.scenarios)) {
-    const source = fs.readFileSync(path.join(inputs, expected.source))
+    const source = fs.readFileSync(
+      resolveFixturePath(path.join(inputs, expected.source))
+    )
     assert.equal(
       createHash('sha256').update(source).digest('hex'),
       expected.sourceSHA256

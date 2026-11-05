@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const path = require('node:path')
@@ -73,7 +74,9 @@ const { coverageHash } = require(
       signal,
     })
     const data = JSON.parse(
-      await fs.readFile(fixture + '/pristine-coverage.json'),
+      await fs.readFile(
+        resolveFixturePath(fixture + '/pristine-coverage.json')
+      ),
       (key, value) => (key === 'column' && value === null ? Infinity : value)
     )['subject.jsx']
     data.path = file

@@ -1,2 +1,0 @@
-import React from 'react'
-export function createMarker() { return <mark data-profile={'reporter-jsx'}/> }

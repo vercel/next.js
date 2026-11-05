@@ -10,6 +10,7 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from './process-supervisor.mjs'
+import { resolveFixturePath } from '../../../lib/next-testing-fixtures.cjs'
 
 const [rootArg, outputArg, kind = 'installed'] = process.argv.slice(2)
 assert(rootArg && outputArg)
@@ -19,7 +20,7 @@ const root = fs.realpathSync(rootArg),
 const directory = path.dirname(fileURLToPath(import.meta.url))
 const corpus = path.join(directory, 'sigint-json-publication')
 const manifest = JSON.parse(
-  fs.readFileSync(path.join(corpus, 'reference.json'))
+  fs.readFileSync(resolveFixturePath(path.join(corpus, 'reference.json')))
 )
 const load = createRequire(path.join(root, 'package.json'))
 const next =
@@ -27,7 +28,9 @@ const next =
     ? path.join(root, 'packages/next/dist/bin/next')
     : load.resolve('next/dist/bin/next')
 const hash = (file) =>
-  createHash('sha256').update(fs.readFileSync(file)).digest('hex')
+  createHash('sha256')
+    .update(fs.readFileSync(resolveFixturePath(file)))
+    .digest('hex')
 const save = (dir, name, value) =>
   fs.writeFileSync(path.join(dir, name), JSON.stringify(value, null, 2) + '\n')
 const previous = Buffer.from('{"previous":"complete-json-report"}\n')
@@ -47,7 +50,10 @@ for (const profile of manifest.profiles) {
     signaled = false,
     gateError
   try {
-    fs.copyFileSync(source, path.join(fixture, 'fixtures.test.mjs'))
+    fs.copyFileSync(
+      resolveFixturePath(source),
+      path.join(fixture, 'fixtures.test.mjs')
+    )
     fs.writeFileSync(
       path.join(fixture, 'package.json'),
       '{"private":true,"type":"module"}\n'
@@ -111,7 +117,9 @@ for (const profile of manifest.profiles) {
     if (profile.runtime === 'browser') {
       const reporter = path.join(fixture, 'cleanup-reporter.mjs')
       fs.copyFileSync(
-        path.join(directory, 'browser-public-default-cleanup/reporter.mjs'),
+        resolveFixturePath(
+          path.join(directory, 'browser-public-default-cleanup/reporter.mjs')
+        ),
         reporter
       )
       args.push('--reporter=' + reporter)

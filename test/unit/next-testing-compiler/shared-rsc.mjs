@@ -4,10 +4,12 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { createHash } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
+
 const here = path.dirname(fileURLToPath(import.meta.url))
 const corpus = path.join(here, 'fixtures/shared-rsc')
 const stored = JSON.parse(
-  fs.readFileSync(path.join(corpus, 'corpus.json'), 'utf8')
+  fs.readFileSync(resolveFixturePath(path.join(corpus, 'corpus.json')), 'utf8')
 )
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 export function readSharedRscCorpus(
@@ -21,12 +23,16 @@ export function readSharedRscCorpus(
   assert(profile, 'Shared RSC corpus requires a measured actual Node version')
   const sources = Object.fromEntries(
     Object.entries(stored.sources).map(([file, value]) => {
-      const bytes = fs.readFileSync(path.join(corpus, value.stored))
+      const bytes = fs.readFileSync(
+        resolveFixturePath(path.join(corpus, value.stored))
+      )
       assert.equal(sha(bytes), value.sha256)
       return [file, bytes]
     })
   )
-  const bytes = fs.readFileSync(path.join(corpus, profile.model))
+  const bytes = fs.readFileSync(
+    resolveFixturePath(path.join(corpus, profile.model))
+  )
   assert.equal(sha(bytes), profile.sha256)
   return { profile, sources, model: JSON.parse(bytes) }
 }

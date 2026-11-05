@@ -1,3 +1,7 @@
+const {
+  resolveFixturePath,
+  fixtureFiles,
+} = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -515,23 +519,17 @@ const fixture = fs.mkdtempSync(path.join(repo, '.next-test-external-package-'))
 const pins = new Map()
 function copyTree(from, to, literalSuffix = true) {
   fs.mkdirSync(to, { recursive: true })
-  for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
-      copyTree(
-        path.join(from, entry.name),
-        path.join(to, entry.name),
-        literalSuffix
-      )
-    } else {
-      assert.equal(entry.isFile(), true)
-      const name = literalSuffix ? entry.name.replace(/\.txt$/, '') : entry.name
-      const target = path.join(to, name)
-      fs.copyFileSync(path.join(from, entry.name), target)
-      pins.set(
-        target,
-        createHash('sha256').update(fs.readFileSync(target)).digest('hex')
-      )
-    }
+  for (const file of fixtureFiles(from)) {
+    const sourceFile = resolveFixturePath(path.join(from, file))
+    assert.equal(fs.statSync(sourceFile).isFile(), true)
+    const name = literalSuffix ? file.replace(/\.txt$/, '') : file
+    const target = path.join(to, name)
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+    fs.copyFileSync(sourceFile, target)
+    pins.set(
+      target,
+      createHash('sha256').update(fs.readFileSync(target)).digest('hex')
+    )
   }
 }
 copyTree(source, fixture)
@@ -680,7 +678,10 @@ const deadline = setTimeout(() => {
     assert.deepEqual(
       actual.cases,
       JSON.parse(
-        fs.readFileSync(path.join(source, 'pristine-cases.json'), 'utf8')
+        fs.readFileSync(
+          resolveFixturePath(path.join(source, 'pristine-cases.json')),
+          'utf8'
+        )
       )
     )
     assert.deepEqual(
@@ -698,10 +699,12 @@ const deadline = setTimeout(() => {
     ]
     const referenceRows = JSON.parse(
       fs.readFileSync(
-        path.join(
-          source,
-          versionedGoldens.find((name) =>
-            fs.existsSync(path.join(source, name))
+        resolveFixturePath(
+          path.join(
+            source,
+            versionedGoldens.find((name) =>
+              fs.existsSync(resolveFixturePath(path.join(source, name)))
+            )
           )
         ),
         'utf8'

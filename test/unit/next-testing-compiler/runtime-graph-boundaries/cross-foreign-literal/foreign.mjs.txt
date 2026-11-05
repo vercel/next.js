@@ -1,1 +1,0 @@
-import {read} from './target.mjs';export function run(){return read()}

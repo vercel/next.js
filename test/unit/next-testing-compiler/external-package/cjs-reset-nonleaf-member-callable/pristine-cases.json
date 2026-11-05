@@ -1,7 +1,0 @@
-[
-  {
-    "name": "retains live namespace members and authored receiver calls across require lifetime resets",
-    "status": "passed",
-    "failureMessages": []
-  }
-]

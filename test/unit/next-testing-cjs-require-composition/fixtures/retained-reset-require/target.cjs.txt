@@ -1,1 +1,0 @@
-const fs=require('node:fs');fs.appendFileSync(process.env.NEXT_REQUIRE_EVENTS,JSON.stringify({name:'target-evaluate'})+'\n');exports.value='actual';exports.token={};

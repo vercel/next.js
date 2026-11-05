@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -81,7 +82,9 @@ for (const mode of ['development', 'production'])
         cases(result),
         cases(
           JSON.parse(
-            fs.readFileSync(path.join(source, mode, 'pristine-cases.json'))
+            fs.readFileSync(
+              resolveFixturePath(path.join(source, mode, 'pristine-cases.json'))
+            )
           )
         )
       )
@@ -99,7 +102,11 @@ for (const mode of ['development', 'production'])
       assert.deepEqual(
         canonical,
         JSON.parse(
-          fs.readFileSync(path.join(source, mode, 'pristine-coverage.json'))
+          fs.readFileSync(
+            resolveFixturePath(
+              path.join(source, mode, 'pristine-coverage.json')
+            )
+          )
         )
       )
       for (const file of fs

@@ -8,6 +8,8 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from './process-supervisor.mjs'
+import { resolveFixturePath } from '../../../lib/next-testing-fixtures.cjs'
+
 const [consumerArg, outputArg, enginesArg = 'chromium,firefox'] =
   process.argv.slice(2)
 assert(
@@ -20,7 +22,9 @@ const consumer = fs.realpathSync(consumerArg),
     path.dirname(fileURLToPath(import.meta.url)),
     'browser-native-promise-calls'
   ),
-  expected = JSON.parse(fs.readFileSync(path.join(corpus, 'reference.json'))),
+  expected = JSON.parse(
+    fs.readFileSync(resolveFixturePath(path.join(corpus, 'reference.json')))
+  ),
   load = createRequire(path.join(consumer, 'package.json')),
   next = load.resolve('next/dist/bin/next'),
   engines = enginesArg.split(','),
@@ -34,7 +38,9 @@ assert(
 for (const name of ['vitest', 'vite', '@vitest/mocker'])
   assert.throws(() => load.resolve(name))
 const hash = (file) =>
-    createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+    createHash('sha256')
+      .update(fs.readFileSync(resolveFixturePath(file)))
+      .digest('hex'),
   save = (dir, name, value) =>
     fs.writeFileSync(
       path.join(dir, name),
@@ -57,7 +63,7 @@ for (const profile of expected.profiles.filter((p) =>
     destination = path.join(output, profile.label)
   fs.mkdirSync(destination)
   fs.copyFileSync(
-    path.join(corpus, profile.source.path),
+    resolveFixturePath(path.join(corpus, profile.source.path)),
     path.join(fixture, 'action.test.mjs')
   )
   fs.writeFileSync(
@@ -170,7 +176,9 @@ try {
         exit: owner.status,
       },
       reference = JSON.parse(
-        fs.readFileSync(path.join(corpus, profile.projected.path))
+        fs.readFileSync(
+          resolveFixturePath(path.join(corpus, profile.projected.path))
+        )
       )
     save(destination, 'actual.json', actual)
     assert.deepEqual(actual.rows, reference.rows)
@@ -209,8 +217,11 @@ save(output, 'verified.json', {
   authoredRows: prepared.reduce(
     (n, r) =>
       n +
-      JSON.parse(fs.readFileSync(path.join(corpus, r.profile.projected.path)))
-        .rows.length,
+      JSON.parse(
+        fs.readFileSync(
+          resolveFixturePath(path.join(corpus, r.profile.projected.path))
+        )
+      ).rows.length,
     0
   ),
   fullAuthoredProjectionsExact: true,

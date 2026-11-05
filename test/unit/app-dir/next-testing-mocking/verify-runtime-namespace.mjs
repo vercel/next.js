@@ -4,6 +4,7 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { resolveFixturePath } from '../../../lib/next-testing-fixtures.cjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const [consumerArg, outputArg, kindArg = '--source', mode = 'development'] =
@@ -15,13 +16,18 @@ const consumer = fs.realpathSync(consumerArg)
 const output = path.resolve(outputArg)
 assert(!fs.existsSync(output), 'Requires an unused output directory')
 const reference = JSON.parse(
-  fs.readFileSync(path.join(here, 'runtime-namespace-reference.json'), 'utf8')
+  fs.readFileSync(
+    resolveFixturePath(path.join(here, 'runtime-namespace-reference.json')),
+    'utf8'
+  )
 )
 const expected = reference.models[process.versions.node.split('.')[0]]
 assert(expected, 'Requires a measured Node engine')
 assert.equal(expected.actualNode, process.version)
 const sha = (file) =>
-  createHash('sha256').update(fs.readFileSync(file)).digest('hex')
+  createHash('sha256')
+    .update(fs.readFileSync(resolveFixturePath(file)))
+    .digest('hex')
 const load = createRequire(path.join(consumer, 'package.json'))
 const nextRoot = path.dirname(
   fs.realpathSync(load.resolve('next/package.json'))
@@ -84,8 +90,8 @@ try {
   for (const [name, hash] of Object.entries(reference.files)) {
     const source = path.join(here, 'runtime-namespace-fixtures', name + '.txt')
     assert.equal(sha(source), hash)
-    fs.copyFileSync(source, path.join(fixture, name))
-    fs.copyFileSync(source, path.join(output, name))
+    fs.copyFileSync(resolveFixturePath(source), path.join(fixture, name))
+    fs.copyFileSync(resolveFixturePath(source), path.join(output, name))
   }
   fs.writeFileSync(
     path.join(fixture, 'package.json'),

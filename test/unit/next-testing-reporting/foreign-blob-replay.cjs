@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -87,13 +88,13 @@ async function main() {
     try {
       fs.mkdirSync(path.join(root, 'blobs'))
       const ownBlob = path.join(source, name + '.blob')
-      const blob = fs.existsSync(ownBlob)
+      const blob = fs.existsSync(resolveFixturePath(ownBlob))
         ? ownBlob
         : path.join(native, name + '.blob')
       const blobPath = path.join(root, 'blobs/actual.blob')
-      fs.copyFileSync(blob, blobPath)
+      fs.copyFileSync(resolveFixturePath(blob), blobPath)
       fs.copyFileSync(
-        path.join(source, 'reporter.mjs.txt'),
+        resolveFixturePath(path.join(source, 'reporter.mjs.txt')),
         path.join(root, 'reporter.mjs')
       )
       fs.writeFileSync(
@@ -123,14 +124,19 @@ async function main() {
       }
       assert.equal(result.code, 1, result.stdout + result.stderr)
       const rows = read(path.join(root, 'rows.json'))
-      assert.deepEqual(rows, read(path.join(source, name + '.rows.json')))
+      assert.deepEqual(
+        rows,
+        read(resolveFixturePath(path.join(source, name + '.rows.json')))
+      )
       const imported = read(path.join(root, 'merged.json'))
       assert.equal(imported.next, undefined)
       assert.equal(imported.vitest.attemptHistory, 'unavailable')
       assert.equal(imported.vitest.runBoundaries, 'unavailable')
       assert.equal(imported.vitest.environmentGraphs, 'opaque-not-restored')
       assert.deepEqual(imported.vitest.blobs[0].flatted, read(blobPath))
-      const expected = read(path.join(source, name + '.report.json'))
+      const expected = read(
+        resolveFixturePath(path.join(source, name + '.report.json'))
+      )
       expected.startTime = imported.startTime
       for (const file of expected.testResults)
         if (

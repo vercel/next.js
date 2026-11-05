@@ -8,6 +8,7 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 
 const [consumerArg, outputArg, variant] = process.argv.slice(2)
 assert(consumerArg && outputArg && variant)
@@ -16,7 +17,10 @@ const output = path.resolve(outputArg)
 const directory = path.dirname(fileURLToPath(import.meta.url))
 const engine = process.versions.node.split('.')[0]
 const corpus = JSON.parse(
-  fs.readFileSync(path.join(directory, 'reference.json'), 'utf8')
+  fs.readFileSync(
+    resolveFixturePath(path.join(directory, 'reference.json')),
+    'utf8'
+  )
 )
 assert.equal(corpus.referenceVersion, '5.0.4')
 const contract = corpus.variants[variant]
@@ -46,7 +50,9 @@ let joined = false
 try {
   for (const [name, hash] of Object.entries(contract.files)) {
     const bytes = fs.readFileSync(
-      path.join(directory, 'fixtures', variant, name + '.txt')
+      resolveFixturePath(
+        path.join(directory, 'fixtures', variant, name + '.txt')
+      )
     )
     assert.equal(sha(bytes), hash)
     fs.writeFileSync(path.join(fixture, name), bytes)
@@ -242,14 +248,18 @@ async function verifyRetainedReset() {
   try {
     for (const [name, expectedHash] of Object.entries(contract.files)) {
       const bytes = fs.readFileSync(
-        path.join(directory, 'fixtures', variant, name + '.txt')
+        resolveFixturePath(
+          path.join(directory, 'fixtures', variant, name + '.txt')
+        )
       )
       assert.equal(hash(bytes), expectedHash, name)
       fs.writeFileSync(path.join(actualFixture, name), bytes)
       fs.writeFileSync(path.join(output, name), bytes)
     }
     const reporter = fs.readFileSync(
-      path.join(directory, 'fixtures', variant, 'reporter.mjs.txt')
+      resolveFixturePath(
+        path.join(directory, 'fixtures', variant, 'reporter.mjs.txt')
+      )
     )
     assert.equal(hash(reporter), contract.reporterSHA256)
     fs.writeFileSync(path.join(actualFixture, 'reporter.mjs'), reporter)

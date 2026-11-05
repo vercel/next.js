@@ -1,1 +1,0 @@
-export default {test:{include:['contract.test.mjs'],maxWorkers:1}}

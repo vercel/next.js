@@ -25,6 +25,31 @@ after JS17 `48ab756363ddedb8771e3b18a9ee7b4d953650b8`; `53bd3d6844` records the
 inventory and qualification results. The finite integration requested by the
 user is complete, its owners are closed, and no additional features are active.
 
+### Local duplicate-fixture cleanup — November 5, 2026
+
+A verified local cleanup removes **1,712 byte-identical fixture/reference copies**
+(**404,912 repeated lines**). Logical fixture paths resolve to retained canonical
+bytes when loading or materializing inputs; runtime files still receive their
+original names and separate module identities. All existing test executions,
+assertions, authored bodies, saved reference bytes, arguments and deadlines are
+preserved. The shared loader and alias map add two files. No product runtime
+behavior or compatibility classifications change; inventory links now point to
+the retained evidence.
+
+Verification passes the **198/198 mocking controls**, **five focused coverage
+controls**, all **six fixture-suite tests**, **three typed-reporter graph tests**,
+and **six Chromium development/production profiles** covering **14 cases and 138
+reference rows**. All **1,712 aliases** retain the original Git blob bytes and all
+**12 affected fixture trees** retain their logical file lists. Four-Node corpus
+checks, the core build, official Root types, formatting, lint and the inventory
+check pass. This is targeted cleanup verification, not a new full acceptance run.
+
+The cleanup removes **98.26% of identified duplicate lines**. The remaining **490
+physical copies / 7,187 lines** include executable/configuration fixtures and
+small templates whose consumers still need physical files. They remain for a
+separate review. This local cleanup is not pushed; the published checkpoint above
+is unchanged.
+
 ### Cumulative implementation
 
 These are implemented subsets, not claims that an entire workstream is complete.

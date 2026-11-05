@@ -8,6 +8,7 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 
 const [repoArg, outputArg, mode, kind, group] = process.argv.slice(2)
 const repo = fs.realpathSync(repoArg)
@@ -17,7 +18,11 @@ assert(['development', 'production'].includes(mode))
 assert(['source', 'installed'].includes(kind))
 assert(['before-cut-arrow', 'before-cut-function'].includes(group))
 const stored = JSON.parse(
-  fs.readFileSync(path.join(here, 'native-unmock-before-cut-pristine.json'))
+  fs.readFileSync(
+    resolveFixturePath(
+      path.join(here, 'native-unmock-before-cut-pristine.json')
+    )
+  )
 )
 assert.equal(stored.referenceVersion, '5.0.4')
 const engine = stored.engines[process.versions.node.split('.')[0]]
@@ -37,7 +42,14 @@ let joined = false
 try {
   for (const [name, hash] of Object.entries(authored)) {
     const bytes = fs.readFileSync(
-      path.join(here, 'native-unmock-before-cut-fixtures', group, name + '.txt')
+      resolveFixturePath(
+        path.join(
+          here,
+          'native-unmock-before-cut-fixtures',
+          group,
+          name + '.txt'
+        )
+      )
     )
     assert.equal(sha(bytes), hash, name)
     const target = path.join(fixture, name)

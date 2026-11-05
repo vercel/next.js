@@ -8,6 +8,8 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from './process-supervisor.mjs'
+import { resolveFixturePath } from '../../../lib/next-testing-fixtures.cjs'
+
 const [consumerArg, outputArg, enginesArg = 'chromium,firefox'] =
   process.argv.slice(2)
 assert(
@@ -20,7 +22,9 @@ const consumer = fs.realpathSync(consumerArg),
     path.dirname(fileURLToPath(import.meta.url)),
     'browser-zero-forwarding'
   ),
-  expected = JSON.parse(fs.readFileSync(path.join(corpus, 'reference.json'))),
+  expected = JSON.parse(
+    fs.readFileSync(resolveFixturePath(path.join(corpus, 'reference.json')))
+  ),
   load = createRequire(path.join(consumer, 'package.json')),
   next = load.resolve('next/dist/bin/next'),
   engines = enginesArg.split(','),
@@ -33,7 +37,9 @@ assert(
 for (const name of ['vitest', 'vite', '@vitest/mocker'])
   assert.throws(() => load.resolve(name))
 const hash = (file) =>
-    createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+    createHash('sha256')
+      .update(fs.readFileSync(resolveFixturePath(file)))
+      .digest('hex'),
   save = (dir, name, value) =>
     fs.writeFileSync(
       path.join(dir, name),
@@ -51,7 +57,7 @@ for (const browser of engines)
       fs.mkdirSync(destination)
       assert.equal(hash(path.join(corpus, proof.source)), proof.sha256)
       fs.copyFileSync(
-        path.join(corpus, proof.source),
+        resolveFixturePath(path.join(corpus, proof.source)),
         path.join(fixture, 'zero.test.mjs')
       )
       fs.writeFileSync(
@@ -181,7 +187,9 @@ try {
       ])
         assert.equal(hash(path.join(corpus, entry.path)), entry.sha256)
       reference = JSON.parse(
-        fs.readFileSync(path.join(corpus, info.projected.path))
+        fs.readFileSync(
+          resolveFixturePath(path.join(corpus, info.projected.path))
+        )
       )
     } else reference = proof.expected
     assert.deepEqual(actual, reference)

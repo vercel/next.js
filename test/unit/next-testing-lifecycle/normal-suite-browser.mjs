@@ -1,3 +1,4 @@
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -40,7 +41,7 @@ const pins = Object.fromEntries(
   ].map((name) => [name, sha(fs.readFileSync(next + '/' + name))])
 )
 fs.mkdirSync(output)
-const body = fs.readFileSync(inputs + '/suite.test.mjs.txt')
+const body = fs.readFileSync(resolveFixturePath(inputs + '/suite.test.mjs.txt'))
 const reporter = `import fs from 'node:fs';export default class{onUserConsoleLog(log){fs.appendFileSync(process.env.SUITE_BROWSER_LOG,JSON.stringify({hook:'console',log})+'\\n')}onTestRunEnd(modules,errors,reason){fs.appendFileSync(process.env.SUITE_BROWSER_LOG,JSON.stringify({hook:'end',reason,errors:errors.map(error=>({name:error.name,message:error.message})),modules:modules.map(module=>({state:module.state(),errors:module.errors()}))})+'\\n')}}\n`
 function standard(report, authoredFile) {
   const { next, startTime, ...data } = report
@@ -64,13 +65,19 @@ for (const mode of ['development', 'production']) {
   const out = output + '/' + mode
   fs.mkdirSync(out)
   const expected = JSON.parse(
-    fs.readFileSync(inputs + '/' + lane + '-' + mode + '-observed.json')
+    fs.readFileSync(
+      resolveFixturePath(inputs + '/' + lane + '-' + mode + '-observed.json')
+    )
   )
   const expectedReport = JSON.parse(
-    fs.readFileSync(inputs + '/' + lane + '-' + mode + '-report.json')
+    fs.readFileSync(
+      resolveFixturePath(inputs + '/' + lane + '-' + mode + '-report.json')
+    )
   )
   const browserPin = JSON.parse(
-    fs.readFileSync(inputs + '/' + lane + '-' + mode + '-input.json')
+    fs.readFileSync(
+      resolveFixturePath(inputs + '/' + lane + '-' + mode + '-input.json')
+    )
   )
   assert.equal(sha(fs.readFileSync(binary)), browserPin.executableSHA256)
   const fixture = fs.mkdtempSync(

@@ -1,3 +1,7 @@
+const {
+  resolveFixturePath,
+  fixtureFiles,
+} = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -14,9 +18,10 @@ for (const name of ['anonymous', 'named']) {
       path.join(repo, '.next-test-callback-coverage-')
     )
     try {
-      for (const file of fs.readdirSync(source)) {
+      for (const file of fixtureFiles(source)) {
+        if (path.dirname(file) !== '.') continue
         fs.copyFileSync(
-          path.join(source, file),
+          resolveFixturePath(path.join(source, file)),
           path.join(fixture, file.replace(/\.txt$/, ''))
         )
       }
@@ -76,7 +81,11 @@ for (const name of ['anonymous', 'named']) {
             })
           )
         ),
-        JSON.parse(fs.readFileSync(path.join(source, 'pristine-cases.json')))
+        JSON.parse(
+          fs.readFileSync(
+            resolveFixturePath(path.join(source, 'pristine-cases.json'))
+          )
+        )
       )
       const report = JSON.parse(
         fs.readFileSync(path.join(fixture, 'coverage/coverage-final.json'))
@@ -86,7 +95,11 @@ for (const name of ['anonymous', 'named']) {
       data.path = '<subject.ts>'
       assert.deepEqual(
         data,
-        JSON.parse(fs.readFileSync(path.join(source, 'pristine-coverage.json')))
+        JSON.parse(
+          fs.readFileSync(
+            resolveFixturePath(path.join(source, 'pristine-coverage.json'))
+          )
+        )
       )
       for (const file of ['subject.ts', 'contract.test.mjs', 'package.json']) {
         assert.deepEqual(

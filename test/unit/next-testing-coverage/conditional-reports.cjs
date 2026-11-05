@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -108,7 +109,9 @@ for (const mode of ['development', 'production']) {
     assert.deepEqual(
       portable,
       JSON.parse(
-        fs.readFileSync(path.join(source, 'pristine-' + mode + '.json'))
+        fs.readFileSync(
+          resolveFixturePath(path.join(source, 'pristine-' + mode + '.json'))
+        )
       )
     )
     for (const [name, hash] of Object.entries(held))

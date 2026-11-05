@@ -16,6 +16,8 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from './process-supervisor.mjs'
+import { resolveFixturePath } from '../../../lib/next-testing-fixtures.cjs'
+
 const [consumerArg, outputArg, enginesArg = 'chromium,firefox', onlyGroup] =
   process.argv.slice(2)
 assert(
@@ -28,7 +30,9 @@ const consumer = realpathSync(consumerArg),
     dirname(fileURLToPath(import.meta.url)),
     'browser-public-task-queues'
   ),
-  expected = JSON.parse(readFileSync(join(corpus, 'reference.json'))),
+  expected = JSON.parse(
+    readFileSync(resolveFixturePath(join(corpus, 'reference.json')))
+  ),
   engines = enginesArg.split(','),
   require = createRequire(join(consumer, 'package.json'))
 assert(
@@ -41,7 +45,9 @@ if (onlyGroup) assert(Object.hasOwn(expected.groups, onlyGroup))
 const next = require.resolve('next/dist/bin/next'),
   nextRoot = dirname(require.resolve('next/package.json')),
   hash = (file) =>
-    createHash('sha256').update(readFileSync(file)).digest('hex'),
+    createHash('sha256')
+      .update(readFileSync(resolveFixturePath(file)))
+      .digest('hex'),
   save = (dir, name, value) =>
     writeFileSync(join(dir, name), JSON.stringify(value, null, 2) + '\n')
 for (const name of ['vitest', 'vite', '@vitest/mocker'])
@@ -67,7 +73,10 @@ for (const browser of engines)
         mkdirSync(fixture)
         const source = join(corpus, proof.source)
         assert.equal(hash(source), proof.sha256)
-        copyFileSync(source, join(fixture, 'queue.test.mjs'))
+        copyFileSync(
+          resolveFixturePath(source),
+          join(fixture, 'queue.test.mjs')
+        )
         writeFileSync(
           join(fixture, 'package.json'),
           '{"type":"module","private":true}\n'
@@ -180,7 +189,7 @@ try {
       refInfo = expected.profiles[refName],
       refFile = join(corpus, refInfo.path)
     assert.equal(hash(refFile), refInfo.sha256)
-    const reference = JSON.parse(readFileSync(refFile))
+    const reference = JSON.parse(readFileSync(resolveFixturePath(refFile)))
     let actual
     if (channel === 'json') {
       const raw = JSON.parse(readFileSync(report)),
