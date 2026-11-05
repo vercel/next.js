@@ -26,10 +26,12 @@
 }
 
 .request-insights-list {
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--color-gray-400);
-  overflow: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
   min-width: 0;
+  min-height: 0;
 }
 
 .request-insights-list-toolbar {
@@ -294,6 +296,7 @@
   row-gap: 2px;
   width: 100%;
   min-height: 44px;
+  height: 52px;
   padding: 7px 10px;
   border: 0;
   border-bottom: 1px solid var(--color-gray-400);
@@ -301,6 +304,61 @@
   color: inherit;
   cursor: pointer;
   text-align: left;
+}
+
+.request-insights-list-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.request-insights-list-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.request-insights-list-scrollbar {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 2px;
+  width: 4px;
+  cursor: pointer;
+}
+
+.request-insights-list-scrollbar-thumb {
+  width: 4px;
+  min-height: 24px;
+  border-radius: 999px;
+  background: var(--color-gray-600);
+  cursor: grab;
+}
+
+.request-insights-list-scrollbar-thumb:active {
+  cursor: grabbing;
+}
+
+.request-insights-list-virtual-content {
+  position: relative;
+  min-width: 0;
+}
+
+.request-insights-list-virtual-row,
+.request-insights-history-status {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+}
+
+.request-insights-history-status,
+.request-insights-details-loading {
+  padding: 8px 10px;
+  color: var(--color-gray-800);
+  font-size: var(--size-11);
 }
 
 .request-insights-row:hover,

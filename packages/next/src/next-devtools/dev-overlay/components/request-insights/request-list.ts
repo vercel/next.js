@@ -2,14 +2,19 @@ import {
   getRequestInsightKey,
   getRequestInsightKind,
   getRequestInsightSource,
-  REQUEST_INSIGHT_PROXY_SPAN_TYPE,
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
   type RequestInsight,
   type RequestInsightSpan,
 } from '../../../shared/request-insights'
+import {
+  getRequestInsightIsRsc as getRequestInsightListItemIsRsc,
+  getRequestInsightStatusCode as getRequestInsightListItemStatusCode,
+  hasRequestInsightProxyActivity as hasRequestInsightListItemProxyActivity,
+  type RequestInsightListItem,
+} from '../../../shared/request-insights-summary'
 
 export function getActiveRequestKey(
-  requests: readonly RequestInsight[],
+  requests: readonly RequestInsightListItem[],
   selectedRequestKey: string | null
 ): string | null {
   if (
@@ -21,8 +26,7 @@ export function getActiveRequestKey(
     return selectedRequestKey
   }
 
-  const request =
-    requests.find((item) => item.fetches.length > 0) ?? requests[0]
+  const request = requests[0]
   return request ? getRequestInsightKey(request) : null
 }
 
@@ -33,12 +37,12 @@ export function isInternalRequestInsight(
 }
 
 export type RequestListEntry = {
-  request: RequestInsight
+  request: RequestInsightListItem
   nested: boolean
 }
 
 export function getRequestListEntries(
-  requests: readonly RequestInsight[],
+  requests: readonly RequestInsightListItem[],
   showInternal: boolean
 ): RequestListEntry[] {
   if (!showInternal) {
@@ -47,7 +51,7 @@ export function getRequestListEntries(
       .map((request) => ({ request, nested: false }))
   }
 
-  const internalByRequestId = new Map<string, RequestInsight[]>()
+  const internalByRequestId = new Map<string, RequestInsightListItem[]>()
   const parentRequestIds = new Set<string>()
   for (const request of requests) {
     if (isInternalRequestInsight(request)) {
@@ -138,7 +142,7 @@ const REQUEST_INSIGHT_ROW_TYPES: Readonly<
 }
 
 export function getRequestInsightRowType(
-  request: RequestInsight,
+  request: RequestInsightListItem,
   pageLoad = false
 ): RequestInsightRowTypePresentation {
   switch (getRequestInsightSource(request)) {
@@ -165,16 +169,9 @@ export function getRequestInsightRowType(
 }
 
 export function hasRequestInsightProxyActivity(
-  request: RequestInsight
+  request: RequestInsightListItem
 ): boolean {
-  return (
-    getRequestInsightSource(request) === 'proxy' ||
-    request.proxyStatus === 'matched' ||
-    request.spans.some(
-      (span) =>
-        span.attributes?.['next.span_type'] === REQUEST_INSIGHT_PROXY_SPAN_TYPE
-    )
-  )
+  return hasRequestInsightListItemProxyActivity(request)
 }
 
 export function getCanonicalRequestSpan(
@@ -206,23 +203,15 @@ export function getCanonicalRequestSpan(
 }
 
 export function getRequestInsightStatusCode(
-  request: Pick<RequestInsight, 'route' | 'spans'>
+  request: RequestInsightListItem
 ): number | undefined {
-  return getCanonicalThenAnySpanAttribute(
-    request,
-    'http.status_code',
-    (value): value is number => typeof value === 'number'
-  )
+  return getRequestInsightListItemStatusCode(request)
 }
 
 export function getRequestInsightIsRsc(
-  request: Pick<RequestInsight, 'route' | 'spans'>
+  request: RequestInsightListItem
 ): boolean | undefined {
-  return getCanonicalThenAnySpanAttribute(
-    request,
-    'next.rsc',
-    (value): value is boolean => typeof value === 'boolean'
-  )
+  return getRequestInsightListItemIsRsc(request)
 }
 
 export type RequestInsightRepresentation =
@@ -232,7 +221,7 @@ export type RequestInsightRepresentation =
   | 'unknown'
 
 export function getRequestInsightRepresentation(
-  request: Pick<RequestInsight, 'kind' | 'source' | 'route' | 'spans'>
+  request: RequestInsightListItem
 ): RequestInsightRepresentation {
   switch (getRequestInsightSource(request)) {
     case 'page': {
@@ -252,7 +241,7 @@ export function getRequestInsightRepresentation(
 }
 
 export function getRequestInsightSummaryTypeLabel(
-  request: RequestInsight
+  request: RequestInsightListItem
 ): string {
   const rowType = getRequestInsightRowType(request)
   if (rowType.type === 'instant-insights') {
@@ -270,26 +259,8 @@ export function getRequestInsightSummaryTypeLabel(
   }
 }
 
-function getCanonicalThenAnySpanAttribute<T>(
-  request: Pick<RequestInsight, 'route' | 'spans'>,
-  key: string,
-  isValue: (value: unknown) => value is T
-): T | undefined {
-  const canonicalValue = getCanonicalRequestSpan(request)?.attributes?.[key]
-  if (isValue(canonicalValue)) {
-    return canonicalValue
-  }
-
-  for (const span of request.spans) {
-    const value = span.attributes?.[key]
-    if (isValue(value)) {
-      return value
-    }
-  }
-}
-
 export function isPageLoadRequest(
-  request: RequestInsight,
+  request: RequestInsightListItem,
   initialRequestId: string | undefined
 ): boolean {
   return (
