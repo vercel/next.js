@@ -40,6 +40,7 @@ import { resetKnownRoutes } from './segment-cache/optimistic-routes'
 import { navigate as navigateAppRouterState } from './app-router-state'
 import { FreshnessPolicy } from './render-tree'
 import { getBFCacheVersion } from './segment-cache/bfcache'
+import { getCurrentRouteCacheVersion } from './segment-cache/cache'
 
 function getRequiredAppRouterState(): AppRouterState {
   const state = getCurrentAppRouterState()
@@ -186,8 +187,10 @@ export function prepare(href: string): PreparedNavigation {
   const preparation: PreparedNavigationRecord = {
     preparedAt: Date.now(),
     bfcacheVersion: getBFCacheVersion(),
+    routeCacheVersion: getCurrentRouteCacheVersion(),
     inFlightRequest: null,
     inFlightRequestTree: null,
+    completedRoute: null,
   }
 
   // Resolve the URL now, so a relative href is committed against the location

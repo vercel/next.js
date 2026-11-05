@@ -27,7 +27,10 @@ import {
   deprecated_requestOptimisticRouteCacheEntry,
   bufferAndWriteNavigationResponse,
   type FulfilledRouteCacheEntry,
+  type RouteCacheEntry,
   createRootRouteTree,
+  stripDataFromRootRouteTree,
+  getCurrentRouteCacheVersion,
 } from './segment-cache/cache'
 import { discoverKnownRoute } from './segment-cache/optimistic-routes'
 import {
@@ -155,6 +158,14 @@ function navigateImpl(
 
   const cacheKey = createCacheKey(href, nextUrl)
   const route = readRouteCacheEntry(now, cacheKey)
+  let preparedRoute: PreparedNavigationRecord['completedRoute'] = null
+  if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    freshnessPolicy === FreshnessPolicy.CommitPrepared &&
+    preparation !== null
+  ) {
+    preparedRoute = consumeCompletedRoute(preparation, route, nextUrl)
+  }
   if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
     return navigateUsingPrefetchedRouteTree(
@@ -171,6 +182,38 @@ function navigateImpl(
       route,
       navigationLock,
       map,
+      preparation
+    )
+  }
+
+  if (preparedRoute !== null) {
+    const navigationSeed: NavigationSeed = {
+      root: preparedRoute.root,
+      renderedSearch: preparedRoute.renderedSearch,
+      dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
+      treeDivergedFromBase: false,
+    }
+    return navigateToKnownRoute(
+      now,
+      state,
+      url,
+      // The response's canonical URL already includes this preparation's hash.
+      preparedRoute.canonicalUrl,
+      navigationSeed,
+      currentUrl,
+      currentRenderedSearch,
+      currentRoot,
+      freshnessPolicy,
+      nextUrl,
+      scrollBehavior,
+      navigateType,
+      navigationLock,
+      map,
+      null,
+      // Prepared metadata comes from the response, not a route prediction.
+      null,
+      // Not an HMR refresh, so there's no request generation to cancel.
+      undefined,
       preparation
     )
   }
@@ -409,6 +452,31 @@ export function navigateToKnownRoute(
   }
   // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
   return completeHardNavigation(state, url, navigateType)
+}
+
+/** Consume the saved route once, reusing it only in the preparation's context. */
+function consumeCompletedRoute(
+  preparation: PreparedNavigationRecord,
+  route: RouteCacheEntry | null,
+  nextUrl: string | null
+): PreparedNavigationRecord['completedRoute'] {
+  const completedRoute = preparation.completedRoute
+  preparation.completedRoute = null
+
+  // A rejected entry may signal a redirect or rewrite. Fetch again instead
+  // of overriding it with the completed preparation's route information.
+  const canReuseCompletedRoute =
+    (route === null ||
+      route.status === EntryStatus.Empty ||
+      route.status === EntryStatus.Pending) &&
+    completedRoute !== null &&
+    completedRoute.nextUrl === nextUrl &&
+    preparation.bfcacheVersion === getBFCacheVersion() &&
+    preparation.routeCacheVersion === getCurrentRouteCacheVersion()
+
+  // Stale prefetch hints don't invalidate this preparation's route data.
+  // Keep the shared entry expired so prefetches can obtain current hints.
+  return canReuseCompletedRoute ? completedRoute : null
 }
 
 function navigateUsingPrefetchedRouteTree(
@@ -671,6 +739,19 @@ async function navigateToUnknownRoute(
     // before the write. The result of the prepare phase is discarded, so it
     // doesn't matter what state is returned.
     return state
+  }
+
+  if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    preparation !== null &&
+    freshnessPolicy === FreshnessPolicy.Prepare
+  ) {
+    preparation.completedRoute = {
+      root: stripDataFromRootRouteTree(navigationSeed.root),
+      canonicalUrl: createHrefFromUrl(canonicalUrl),
+      renderedSearch: navigationSeed.renderedSearch,
+      nextUrl,
+    }
   }
 
   return navigateToKnownRoute(
