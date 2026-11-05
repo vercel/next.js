@@ -101,6 +101,7 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { isPagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import { BubbledError, getTracer } from './lib/trace/tracer'
+import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -1279,6 +1280,7 @@ export default class NextNodeServer extends BaseServer<
       return null
     }
     await this.prepare()
+    if (getTracer().isOpenTelemetryEnabled()) return null
     const nodeMiddleware = await this.loadNodeMiddleware()
     if (!nodeMiddleware) return null
     const matchers:
@@ -1290,6 +1292,7 @@ export default class NextNodeServer extends BaseServer<
       res: ServerResponse,
       parsed: NextUrlWithParsedQuery
     ) => {
+      patchSetHeaderWithCookieSupport(req, res)
       this.setForwardedHeaders(req.headers, req)
       addRequestMeta(
         req,

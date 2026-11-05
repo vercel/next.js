@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
 
 const NextNodeServer = require('next/dist/server/next-server').default
+const tracer = require('next/dist/server/lib/trace/tracer').getTracer()
 const distDir = path.join(__dirname, 'fixtures', '.next')
 const middlewarePath = path.join(distDir, 'server', 'middleware.js')
 
@@ -44,6 +45,7 @@ function response() {
 }
 
 beforeEach(() => jest.resetModules())
+afterEach(() => jest.restoreAllMocks())
 
 it('awaits preparation before importing an async proxy and reuses it', async () => {
   let ready!: () => void
@@ -71,9 +73,18 @@ it('awaits preparation before importing an async proxy and reuses it', async () 
   ready()
   const handle = await pending
   for (let i = 0; i < 2; i++) {
+    const req = request()
+    const res = response()
+    const setHeader = res.setHeader
     await expect(
-      handle(request(), response(), { pathname: '/hello', query: {} })
+      handle(req, res, { pathname: '/hello', query: {} })
     ).resolves.toBe(result)
+    res.setHeader('set-cookie', ['downstream=3'])
+    expect(setHeader).toHaveBeenLastCalledWith('set-cookie', [
+      'first=1; Expires=Wed, 21 Oct 2030 07:28:00 GMT',
+      'second=2',
+      'downstream=3',
+    ])
   }
   expect(load).toHaveBeenCalledTimes(1)
   expect(adapter).toHaveBeenCalledTimes(2)
@@ -87,6 +98,21 @@ it('awaits preparation before importing an async proxy and reuses it', async () 
     'x-forwarded-proto': 'http',
     'x-forwarded-for': '192.0.2.1',
   })
+})
+
+it('keeps normal handling when preparation enables OpenTelemetry', async () => {
+  const enabled = jest
+    .spyOn(tracer, 'isOpenTelemetryEnabled')
+    .mockReturnValue(false)
+  const server = createServer(async () => {
+    enabled.mockReturnValue(true)
+  })
+  const load = jest.fn(() => {
+    throw new Error('proxy must not load')
+  })
+  jest.doMock(middlewarePath, load, { virtual: true })
+  expect(await server.getProxyFastPathHandler()).toBeNull()
+  expect(load).not.toHaveBeenCalled()
 })
 
 it.each<[string, object, boolean]>([
