@@ -164,7 +164,7 @@ function navigateImpl(
     freshnessPolicy === FreshnessPolicy.CommitPrepared &&
     preparation !== null
   ) {
-    preparedRoute = takeCompletedRoute(preparation, route, nextUrl)
+    preparedRoute = consumeCompletedRoute(preparation, route, nextUrl)
   }
   if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
@@ -455,7 +455,7 @@ export function navigateToKnownRoute(
 }
 
 /** Consume the saved route once, reusing it only in the preparation's context. */
-function takeCompletedRoute(
+function consumeCompletedRoute(
   preparation: PreparedNavigationRecord,
   route: RouteCacheEntry | null,
   nextUrl: string | null
