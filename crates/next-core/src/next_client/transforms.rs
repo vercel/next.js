@@ -75,8 +75,9 @@ pub async fn get_next_client_transforms_rules(
     }
 
     let use_cache_enabled = *next_config.enable_use_cache().await?;
-    let durable_use_cache_entries_enabled =
-        *next_config.enable_durable_use_cache_entries(mode).await?;
+    // TODO: Enable durable use-cache entries in dev too. For now, allow just the modifier.
+    let allow_use_cache_durable =
+        is_development || *next_config.enable_durable_use_cache_entries(mode).await?;
     let cache_kinds = next_config.cache_kinds().to_resolved().await?;
     let mut is_app_dir = false;
 
@@ -108,7 +109,7 @@ pub async fn get_next_client_transforms_rules(
                     encryption_key,
                     enable_mdx_rs,
                     use_cache_enabled,
-                    durable_use_cache_entries_enabled,
+                    allow_use_cache_durable,
                     cache_kinds,
                 )
                 .await?,
