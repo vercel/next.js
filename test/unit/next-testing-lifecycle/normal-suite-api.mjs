@@ -24,8 +24,7 @@ const inputs = path.join(
 const load = createRequire(path.join(consumer, 'package.json'))
 const pkg = path.dirname(load.resolve('next/package.json'))
 const bin = load.resolve('next/dist/bin/next')
-const major = process.versions.node.split('.')[0]
-const modelName = `${major}-${mode}-${group}`
+const modelName = `20-${mode}-${group}`
 const genuineReport = JSON.parse(
   fs.readFileSync(
     resolveFixturePath(path.join(inputs, `${modelName}-report.json`))

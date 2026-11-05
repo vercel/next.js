@@ -1,6 +1,6 @@
 const fs = require('node:fs')
 const path = require('node:path')
-const { fileURLToPath, URL } = require('node:url')
+const { fileURLToPath, pathToFileURL, URL } = require('node:url')
 const aliases = require('./next-testing-fixture-aliases.json')
 
 const repositoryRoot = path.resolve(__dirname, '../..')
@@ -74,3 +74,8 @@ function fixtureFiles(directory) {
 
 exports.resolveFixturePath = resolveFixturePath
 exports.fixtureFiles = fixtureFiles
+// Keep native ESM imports outside Jest's VM module loader.
+const nativeImporter = new (require('node:module').Module)(__filename)
+nativeImporter._compile('module.exports = (url) => import(url)', __filename)
+exports.importFixtureModule = (filename) =>
+  nativeImporter.exports(pathToFileURL(filename).href)

@@ -9787,289 +9787,272 @@ it.each([
   130000
 )
 
-if (process.versions.node.startsWith('26.')) {
-  it.each([
-    ['development', 'own-this-arrow'],
-    ['production', 'own-this-arrow'],
-    ['development', 'own-this-function'],
-    ['production', 'own-this-function'],
-  ] as const)(
-    'preserves nested factory callable this on Node26 in %s %s',
-    (mode, group) => {
-      const { execFileSync } = require('node:child_process')
-      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-      const { tmpdir } = require('node:os')
-      const output = mkdtempSync(join(tmpdir(), 'next-factory-own-this-'))
-      let complete = false
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'factory-own-this.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            mode,
-            'source',
-            group,
-          ],
-          { encoding: 'utf8', timeout: 125000 }
-        )
-        expect(
-          JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
+it.each([
+  ['development', 'own-this-arrow'],
+  ['production', 'own-this-arrow'],
+  ['development', 'own-this-function'],
+  ['production', 'own-this-function'],
+] as const)(
+  'preserves nested factory callable this in %s %s',
+  (mode, group) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-factory-own-this-'))
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'factory-own-this.mjs'),
+          join(__dirname, '../../..'),
+          output,
           mode,
+          'source',
           group,
-          cases: 1,
-          rows: 1,
-          completeAuthoredCasesAndRows: true,
-          completeNamespaceAndFunctionDescriptors: true,
-          borrowedReceiversDefaultsAndArrowScope: true,
-          literalComputedMethodKeys: true,
-          actualRuntimeAndUnmockIdentities: true,
-          completeCountsAndFileMessages: true,
-          allAuthoredBytesHeld: true,
-          allOwnersJoined: true,
-        })
-        complete = true
-      } finally {
-        if (complete) rmSync(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-}
-
-if (process.versions.node.startsWith('26.')) {
-  it.each([
-    ['development', 'before-cut-arrow'],
-    ['production', 'before-cut-arrow'],
-    ['development', 'before-cut-function'],
-    ['production', 'before-cut-function'],
-  ] as const)(
-    'preserves retained before-cut native pair on Node26 in %s %s',
-    (mode, group) => {
-      const { execFileSync } = require('node:child_process')
-      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-      const { tmpdir } = require('node:os')
-      const output = mkdtempSync(
-        join(tmpdir(), 'next-native-unmock-before-cut-')
+        ],
+        { encoding: 'utf8', timeout: 125000 }
       )
-      let complete = false
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'native-unmock-before-cut.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            mode,
-            'source',
-            group,
-          ],
-          { encoding: 'utf8', timeout: 125000 }
-        )
-        expect(
-          JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          mode,
-          group,
-          cases: 1,
-          rows: 1,
-          completeAuthoredCasesAndRows: true,
-          completeNamespaceAndFunctionDescriptors: true,
-          earlierUnmockKeepsActualStaticRegistration: true,
-          nativeCycleAndPartialExports: true,
-          staticRuntimeActualResetUnmockIdentities: true,
-          exactOriginalAndFactoryEvaluations: true,
-          completeCountsAndFileMessages: true,
-          allAuthoredBytesHeld: true,
-          allOwnersJoined: true,
-        })
-        complete = true
-      } finally {
-        if (complete) rmSync(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-}
+      expect(
+        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        mode,
+        group,
+        cases: 1,
+        rows: 1,
+        completeAuthoredCasesAndRows: true,
+        completeNamespaceAndFunctionDescriptors: true,
+        borrowedReceiversDefaultsAndArrowScope: true,
+        literalComputedMethodKeys: true,
+        actualRuntimeAndUnmockIdentities: true,
+        completeCountsAndFileMessages: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
+)
 
-if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
-  it.each([
-    ['development', 'after-cut-arrow'],
-    ['production', 'after-cut-arrow'],
-    ['development', 'after-cut-function'],
-    ['production', 'after-cut-function'],
-  ] as const)(
-    'preserves cancelled after-cut native original in %s %s',
-    (mode, group) => {
-      const { execFileSync } = require('node:child_process')
-      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-      const { tmpdir } = require('node:os')
-      const output = mkdtempSync(
-        join(tmpdir(), 'next-native-unmock-after-cut-')
+it.each([
+  ['development', 'before-cut-arrow'],
+  ['production', 'before-cut-arrow'],
+  ['development', 'before-cut-function'],
+  ['production', 'before-cut-function'],
+] as const)(
+  'preserves retained before-cut native pair in %s %s',
+  (mode, group) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-native-unmock-before-cut-'))
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'native-unmock-before-cut.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          'source',
+          group,
+        ],
+        { encoding: 'utf8', timeout: 125000 }
       )
-      let complete = false
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'native-unmock-after-cut.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            mode,
-            'source',
-            group,
-          ],
-          { encoding: 'utf8', timeout: 125000 }
-        )
-        expect(
-          JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          mode,
-          group,
-          cases: 1,
-          rows: 1,
-          completeAuthoredCasesAndRows: true,
-          completeNamespaceAndFunctionDescriptors: true,
-          laterUnmockCancelsStaticFactory: true,
-          actualProviderNamespaceCacheRecordTurnover: true,
-          nativeCycleAndPartialExports: true,
-          staticRuntimeActualResetUnmockIdentities: true,
-          exactOriginalAndFactoryEvaluations: true,
-          completeCountsAndFileMessages: true,
-          allAuthoredBytesHeld: true,
-          allOwnersJoined: true,
-        })
-        complete = true
-      } finally {
-        if (complete) rmSync(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-}
+      expect(
+        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        mode,
+        group,
+        cases: 1,
+        rows: 1,
+        completeAuthoredCasesAndRows: true,
+        completeNamespaceAndFunctionDescriptors: true,
+        earlierUnmockKeepsActualStaticRegistration: true,
+        nativeCycleAndPartialExports: true,
+        staticRuntimeActualResetUnmockIdentities: true,
+        exactOriginalAndFactoryEvaluations: true,
+        completeCountsAndFileMessages: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
+)
 
-if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
-  it.each([
-    ['development', 'bracketing-cuts'],
-    ['production', 'bracketing-cuts'],
-    ['development', 'two-earlier-cuts'],
-    ['production', 'two-earlier-cuts'],
-  ] as const)(
-    'preserves the last ordered native mock cut in %s %s',
-    (mode, group) => {
-      const { execFileSync } = require('node:child_process')
-      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-      const { tmpdir } = require('node:os')
-      const output = mkdtempSync(
-        join(tmpdir(), 'next-native-unmock-multiple-cuts-')
+it.each([
+  ['development', 'after-cut-arrow'],
+  ['production', 'after-cut-arrow'],
+  ['development', 'after-cut-function'],
+  ['production', 'after-cut-function'],
+] as const)(
+  'preserves cancelled after-cut native original in %s %s',
+  (mode, group) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(join(tmpdir(), 'next-native-unmock-after-cut-'))
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'native-unmock-after-cut.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          'source',
+          group,
+        ],
+        { encoding: 'utf8', timeout: 125000 }
       )
-      let complete = false
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'native-unmock-multiple-cuts.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            mode,
-            'source',
-            group,
-          ],
-          { encoding: 'utf8', timeout: 125000 }
-        )
-        expect(
-          JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          mode,
-          group,
-          cases: 1,
-          rows: 1,
-          completeAuthoredCasesAndRows: true,
-          completeNamespaceAndFunctionDescriptors: true,
-          orderedLiteralUnmocks: true,
-          lastCutControlsStaticFactory: true,
-          laterUnmockCancelsStaticFactory: group === 'bracketing-cuts',
-          actualProviderNamespaceCacheRecordTurnover: true,
-          nativeCycleAndPartialExports: true,
-          staticRuntimeActualResetUnmockIdentities: true,
-          exactOriginalAndFactoryEvaluations: true,
-          completeCountsAndFileMessages: true,
-          allAuthoredBytesHeld: true,
-          allOwnersJoined: true,
-        })
-        complete = true
-      } finally {
-        if (complete) rmSync(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-}
+      expect(
+        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        mode,
+        group,
+        cases: 1,
+        rows: 1,
+        completeAuthoredCasesAndRows: true,
+        completeNamespaceAndFunctionDescriptors: true,
+        laterUnmockCancelsStaticFactory: true,
+        actualProviderNamespaceCacheRecordTurnover: true,
+        nativeCycleAndPartialExports: true,
+        staticRuntimeActualResetUnmockIdentities: true,
+        exactOriginalAndFactoryEvaluations: true,
+        completeCountsAndFileMessages: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
+)
 
-if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
-  it.each(
-    ['development', 'production'].flatMap((mode) =>
-      [
-        'two-factories',
-        'cut-before-two',
-        'cut-between-two',
-        'cut-after-two',
-      ].map((group) => [mode, group] as const)
+it.each([
+  ['development', 'bracketing-cuts'],
+  ['production', 'bracketing-cuts'],
+  ['development', 'two-earlier-cuts'],
+  ['production', 'two-earlier-cuts'],
+] as const)(
+  'preserves the last ordered native mock cut in %s %s',
+  (mode, group) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const output = mkdtempSync(
+      join(tmpdir(), 'next-native-unmock-multiple-cuts-')
     )
-  )(
-    'retains actual native factory registrations and cuts in %s %s',
-    (mode, group) => {
-      const { execFileSync } = require('node:child_process')
-      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-      const output = mkdtempSync(
-        join(tmpdir(), 'next-native-multiple-factories-')
-      )
-      let complete = false
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'native-unmock-multiple-factories.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            mode,
-            'source',
-            group,
-          ],
-          { encoding: 'utf8', timeout: 125000 }
-        )
-        expect(
-          JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'native-unmock-multiple-cuts.mjs'),
+          join(__dirname, '../../..'),
+          output,
           mode,
+          'source',
           group,
-          cases: 1,
-          rows: 1,
-          completeAuthoredCasesAndRows: true,
-          completeNamespaceAndFunctionDescriptors: true,
-          orderedFactoryDeclarations: true,
-          sourceOrderedCuts: group !== 'two-factories',
-          finalRegistrationWins: group !== 'cut-after-two',
-          finalCutSelectsOriginal: group === 'cut-after-two',
-          nativeCycleAndPartialExports: true,
-          staticRuntimeActualResetUnmockIdentities: true,
-          exactOriginalAndFactoryEvaluations: true,
-          completeCountsAndFileMessages: true,
-          allAuthoredBytesHeld: true,
-          allOwnersJoined: true,
-        })
-        complete = true
-      } finally {
-        if (complete) rmSync(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-}
+        ],
+        { encoding: 'utf8', timeout: 125000 }
+      )
+      expect(
+        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        mode,
+        group,
+        cases: 1,
+        rows: 1,
+        completeAuthoredCasesAndRows: true,
+        completeNamespaceAndFunctionDescriptors: true,
+        orderedLiteralUnmocks: true,
+        lastCutControlsStaticFactory: true,
+        laterUnmockCancelsStaticFactory: group === 'bracketing-cuts',
+        actualProviderNamespaceCacheRecordTurnover: true,
+        nativeCycleAndPartialExports: true,
+        staticRuntimeActualResetUnmockIdentities: true,
+        exactOriginalAndFactoryEvaluations: true,
+        completeCountsAndFileMessages: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
+)
 
-it('pins all forty complete multi-target native cut reference models and shared bodies', () => {
+it.each(
+  ['development', 'production'].flatMap((mode) =>
+    ['two-factories', 'cut-before-two', 'cut-between-two', 'cut-after-two'].map(
+      (group) => [mode, group] as const
+    )
+  )
+)(
+  'retains actual native factory registrations and cuts in %s %s',
+  (mode, group) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const output = mkdtempSync(
+      join(tmpdir(), 'next-native-multiple-factories-')
+    )
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'native-unmock-multiple-factories.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          'source',
+          group,
+        ],
+        { encoding: 'utf8', timeout: 125000 }
+      )
+      expect(
+        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+      ).toMatchObject({
+        mode,
+        group,
+        cases: 1,
+        rows: 1,
+        completeAuthoredCasesAndRows: true,
+        completeNamespaceAndFunctionDescriptors: true,
+        orderedFactoryDeclarations: true,
+        sourceOrderedCuts: group !== 'two-factories',
+        finalRegistrationWins: group !== 'cut-after-two',
+        finalCutSelectsOriginal: group === 'cut-after-two',
+        nativeCycleAndPartialExports: true,
+        staticRuntimeActualResetUnmockIdentities: true,
+        exactOriginalAndFactoryEvaluations: true,
+        completeCountsAndFileMessages: true,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(output, { recursive: true, force: true })
+    }
+  },
+  130000
+)
+
+it('pins all ten complete multi-target native cut reference models and shared bodies', () => {
   const { execFileSync } = require('node:child_process')
   const output = execFileSync(
     process.execPath,
@@ -10078,69 +10061,67 @@ it('pins all forty complete multi-target native cut reference models and shared 
   )
   expect(JSON.parse(output)).toEqual({
     referenceVersion: '5.0.4',
-    models: 40,
+    models: 10,
     bodies: 5,
     commonFiles: 6,
-    engines: ['20', '22', '24', '26'],
+    engines: ['20'],
     rawModelsByteExact: true,
     sharedBodiesByteExact: true,
   })
 })
 
-if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
-  it.each(
-    ['development', 'production'].flatMap((mode) =>
-      [
-        'both-survive-interleaved',
-        'a-cancelled-b-survives',
-        'a-survives-b-cancelled',
-        'both-cancelled-interleaved',
-        'mirror-before-between',
-      ].map((group) => [mode, group] as const)
-    )
-  )(
-    'retains independent native targets through ordered cuts in %s %s',
-    (mode, group) => {
-      const { execFileSync } = require('node:child_process')
-      const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-      const parent = mkdtempSync(join(tmpdir(), 'next-native-multi-target-'))
-      const output = join(parent, 'run')
-      let complete = false
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'native-multi-target.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            mode,
-            'source',
-            group,
-          ],
-          { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
-        )
-        expect(
-          JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
-        ).toEqual({
-          kind: 'source',
-          mode,
-          group,
-          engine: process.versions.node.split('.')[0],
-          actualNodeVersion: process.version,
-          completeModelEqual: true,
-          cases: 1,
-          wholeRows: 1,
-          allAuthoredBytesHeld: true,
-          allOwnersJoined: true,
-        })
-        complete = true
-      } finally {
-        if (complete) rmSync(parent, { recursive: true, force: true })
-      }
-    },
-    130000
+it.each(
+  ['development', 'production'].flatMap((mode) =>
+    [
+      'both-survive-interleaved',
+      'a-cancelled-b-survives',
+      'a-survives-b-cancelled',
+      'both-cancelled-interleaved',
+      'mirror-before-between',
+    ].map((group) => [mode, group] as const)
   )
-}
+)(
+  'retains independent native targets through ordered cuts in %s %s',
+  (mode, group) => {
+    const { execFileSync } = require('node:child_process')
+    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+    const parent = mkdtempSync(join(tmpdir(), 'next-native-multi-target-'))
+    const output = join(parent, 'run')
+    let complete = false
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          join(__dirname, 'native-multi-target.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          mode,
+          'source',
+          group,
+        ],
+        { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+      )
+      expect(
+        JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
+      ).toEqual({
+        kind: 'source',
+        mode,
+        group,
+        engine: process.versions.node.split('.')[0],
+        actualNodeVersion: process.version,
+        completeModelEqual: true,
+        cases: 1,
+        wholeRows: 1,
+        allAuthoredBytesHeld: true,
+        allOwnersJoined: true,
+      })
+      complete = true
+    } finally {
+      if (complete) rmSync(parent, { recursive: true, force: true })
+    }
+  },
+  130000
+)
 
 it('pins the ordinary AppPage shared RSC HTTP authority and unchanged two-spec corpus', () => {
   const { execFileSync } = require('node:child_process')
@@ -10150,53 +10131,47 @@ it('pins the ordinary AppPage shared RSC HTTP authority and unchanged two-spec c
     { encoding: 'utf8', timeout: 10000 }
   )
   expect(JSON.parse(stdout)).toEqual({
-    models: 4,
+    models: 1,
     bodies: 6,
-    wholeHttpRows: 8,
+    wholeHttpRows: 2,
     authority: 'ordinary Next.js AppPage HTTP; no Vitest RSC substitution',
     strictOrdinaryOwnershipQualified: false,
     rawModelsAndSourceBytesExact: true,
   })
 })
 
-if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
-  it('retains one actual AppPage module graph across two independent RSC files', () => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const parent = mkdtempSync(join(tmpdir(), 'next-shared-rsc-public-'))
-    const output = join(parent, 'run')
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'shared-rsc.mjs'),
-          join(__dirname, '../../..'),
-          output,
-        ],
-        { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
-      ).toEqual({
-        kind: 'source',
-        engine: process.versions.node.split('.')[0],
-        actualNodeVersion: process.version,
-        completeHttpRowsEqual: true,
-        cases: 2,
-        files: 2,
-        sharedCounts: [1, 2],
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
-        ordinaryStrictOwnershipQualified: false,
-        watchQualified: false,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(parent, { recursive: true, force: true })
-    }
-  }, 130000)
-}
+it('retains one actual AppPage module graph across two independent RSC files', () => {
+  const { execFileSync } = require('node:child_process')
+  const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+  const parent = mkdtempSync(join(tmpdir(), 'next-shared-rsc-public-'))
+  const output = join(parent, 'run')
+  let complete = false
+  try {
+    execFileSync(
+      process.execPath,
+      [join(__dirname, 'shared-rsc.mjs'), join(__dirname, '../../..'), output],
+      { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(
+      JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
+    ).toEqual({
+      kind: 'source',
+      engine: process.versions.node.split('.')[0],
+      actualNodeVersion: process.version,
+      completeHttpRowsEqual: true,
+      cases: 2,
+      files: 2,
+      sharedCounts: [1, 2],
+      allAuthoredBytesHeld: true,
+      allOwnersJoined: true,
+      ordinaryStrictOwnershipQualified: false,
+      watchQualified: false,
+    })
+    complete = true
+  } finally {
+    if (complete) rmSync(parent, { recursive: true, force: true })
+  }
+}, 130000)
 
 it('pins the actual ordinary cache and after behavior without claiming shared AppPage qualification', () => {
   const { execFileSync } = require('node:child_process')
@@ -10215,45 +10190,43 @@ it('pins the actual ordinary cache and after behavior without claiming shared Ap
   })
 })
 
-if (['20', '22', '24', '26'].includes(process.versions.node.split('.')[0])) {
-  it('owns real AppPage handlers cache tags and after work independently for shared RSC files', () => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const parent = mkdtempSync(join(tmpdir(), 'next-shared-rsc-cache-public-'))
-    const output = join(parent, 'run')
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'shared-rsc-cache.mjs'),
-          join(__dirname, '../../..'),
-          output,
-        ],
-        { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
-      ).toEqual({
-        kind: 'source',
-        actualNodeVersion: process.version,
-        cases: 2,
-        actualAppPageRows: 6,
-        withinFileActualCacheHits: true,
-        crossFileActualCacheMiss: true,
-        freshActualTags: true,
-        actualAfterAndRevalidationDrained: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
-        ordinaryWholeReferenceEqualityClaimed: false,
-        watchQualified: false,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(parent, { recursive: true, force: true })
-    }
-  }, 130000)
-}
+it('owns real AppPage handlers cache tags and after work independently for shared RSC files', () => {
+  const { execFileSync } = require('node:child_process')
+  const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
+  const parent = mkdtempSync(join(tmpdir(), 'next-shared-rsc-cache-public-'))
+  const output = join(parent, 'run')
+  let complete = false
+  try {
+    execFileSync(
+      process.execPath,
+      [
+        join(__dirname, 'shared-rsc-cache.mjs'),
+        join(__dirname, '../../..'),
+        output,
+      ],
+      { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+    )
+    expect(
+      JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
+    ).toEqual({
+      kind: 'source',
+      actualNodeVersion: process.version,
+      cases: 2,
+      actualAppPageRows: 6,
+      withinFileActualCacheHits: true,
+      crossFileActualCacheMiss: true,
+      freshActualTags: true,
+      actualAfterAndRevalidationDrained: true,
+      allAuthoredBytesHeld: true,
+      allOwnersJoined: true,
+      ordinaryWholeReferenceEqualityClaimed: false,
+      watchQualified: false,
+    })
+    complete = true
+  } finally {
+    if (complete) rmSync(parent, { recursive: true, force: true })
+  }
+}, 130000)
 it.each([
   ['development', 'v1'],
   ['production', 'v1'],

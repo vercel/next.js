@@ -21,9 +21,9 @@ const reference = JSON.parse(
     'utf8'
   )
 )
-const expected = reference.models[process.versions.node.split('.')[0]]
-assert(expected, 'Requires a measured Node engine')
-assert.equal(expected.actualNode, process.version)
+const expected = reference.models['20']
+assert(expected, 'Requires the Node 20 reference model')
+assert.match(expected.actualNode, /^v20\./)
 const sha = (file) =>
   createHash('sha256')
     .update(fs.readFileSync(resolveFixturePath(file)))

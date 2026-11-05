@@ -129,10 +129,7 @@ try {
     actual.actualProviderReport = JSON.parse(
       fs.readFileSync(join(output, 'custom-coverage.json'), 'utf8')
     )
-  assert.deepEqual(
-    actual,
-    row.expectedByNodeMajor[process.versions.node.split('.')[0]] ?? row.expected
-  )
+  assert.deepEqual(actual, row.expected)
   for (const [file, value] of Object.entries(row.sourceFiles))
     assert.equal(sha(fs.readFileSync(join(fixture, file))), value.sha256)
   assert.equal(

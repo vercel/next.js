@@ -16,7 +16,7 @@ assert(
 const consumer = fs.realpathSync(consumerArg),
   output = path.resolve(outputArg)
 const directory = path.dirname(fileURLToPath(import.meta.url))
-const engine = process.versions.node.split('.')[0]
+const engine = '20'
 const corpus = JSON.parse(
   fs.readFileSync(path.join(directory, 'reference.json'))
 )

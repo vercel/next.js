@@ -28,21 +28,6 @@
       "actualNodeVersion": "v20.20.0",
       "genuine": 0,
       "historical": 0
-    },
-    "22": {
-      "actualNodeVersion": "v22.12.0",
-      "genuine": 0,
-      "historical": 0
-    },
-    "24": {
-      "actualNodeVersion": "v24.0.0",
-      "genuine": 0,
-      "historical": 0
-    },
-    "26": {
-      "actualNodeVersion": "v26.12.1",
-      "genuine": 0,
-      "historical": 0
     }
   },
   "models": [

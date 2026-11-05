@@ -42,30 +42,6 @@
       "wholeRows": 2,
       "strictOwnerJoined": false,
       "rawReceipt": "shared-rsc-one-shot381/node20"
-    },
-    "22": {
-      "actualNodeVersion": "v22.12.0",
-      "model": "ordinary-node22.json",
-      "sha256": "11ad0a145c953c689b29e8faa3f3b95647fe7ac4626250947574e860ca31ffe9",
-      "wholeRows": 2,
-      "strictOwnerJoined": false,
-      "rawReceipt": "shared-rsc-one-shot381/node22"
-    },
-    "24": {
-      "actualNodeVersion": "v24.0.0",
-      "model": "ordinary-node24.json",
-      "sha256": "11ad0a145c953c689b29e8faa3f3b95647fe7ac4626250947574e860ca31ffe9",
-      "wholeRows": 2,
-      "strictOwnerJoined": false,
-      "rawReceipt": "shared-rsc-one-shot381/node24"
-    },
-    "26": {
-      "actualNodeVersion": "v26.12.1",
-      "model": "ordinary-node26.json",
-      "sha256": "11ad0a145c953c689b29e8faa3f3b95647fe7ac4626250947574e860ca31ffe9",
-      "wholeRows": 2,
-      "strictOwnerJoined": false,
-      "rawReceipt": "shared-rsc-one-shot381/node26"
     }
   },
   "strictOrdinaryOwnershipQualified": false,

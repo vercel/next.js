@@ -1,7 +1,8 @@
 import { supportsCustomCoverageMode } from './custom-options'
 import { createHash } from 'node:crypto'
 import { readFile, realpath, stat } from 'node:fs/promises'
-import { createRequire } from 'node:module'
+import { createRequire, isBuiltin } from 'node:module'
+import { assertProviderImport } from './custom-loader'
 import NodeModule from 'node:module'
 import { extname, isAbsolute, join, resolve, relative, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -53,6 +54,16 @@ interface ProviderLoaderHooks {
   deregister(): void
 }
 interface ProviderLoaderAPI {
+  register?: (
+    specifier: string,
+    parentURL: string,
+    options: { data: { entry: string } }
+  ) => void
+  _resolveFilename?: (
+    specifier: string,
+    parent: { filename?: string } | null,
+    ...options: unknown[]
+  ) => string
   registerHooks?: (hooks: {
     resolve(
       specifier: string,
@@ -67,24 +78,43 @@ interface ProviderLoaderAPI {
 /** Reject helper modules through the actual Node loader, without transforming code. */
 function restrictProviderImports(identity: CustomCoverageIdentity) {
   const api = NodeModule as unknown as ProviderLoaderAPI
-  if (typeof api.registerHooks !== 'function')
+  const entry = pathToFileURL(identity.file).href
+  if (typeof api.registerHooks === 'function')
+    return api.registerHooks({
+      resolve(specifier, context, nextResolve) {
+        const result = nextResolve(specifier, context)
+        assertProviderImport(entry, context.parentURL, result.url)
+        return result
+      },
+    })
+  if (
+    typeof api.register !== 'function' ||
+    typeof api._resolveFilename !== 'function'
+  )
     throw new Error(
       'Custom coverage requires synchronous Node module hooks; this runtime cannot certify provider imports.'
     )
-  const entry = pathToFileURL(identity.file).href
-  return api.registerHooks({
-    resolve(specifier, context, nextResolve) {
-      const result = nextResolve(specifier, context)
-      if (
-        context.parentURL === entry &&
-        result.url !== entry &&
-        !result.url.startsWith('node:')
-      )
-        throw new Error(
-          'Custom coverage provider helper imports are unqualified; use a single JavaScript provider entry and Node builtins.'
-        )
-      return result
-    },
+
+  // Node 20.9 has asynchronous ESM hooks. Its native CommonJS resolver remains
+  // separate, so retain the same entry-only restriction for require() calls.
+  const originalResolve = api._resolveFilename
+  api._resolveFilename = function (specifier, parent, ...options) {
+    const result = Reflect.apply(originalResolve, this, [
+      specifier,
+      parent,
+      ...options,
+    ])
+    assertProviderImport(
+      entry,
+      parent?.filename ? pathToFileURL(parent.filename).href : undefined,
+      isBuiltin(result) ? `node:${result}` : pathToFileURL(result).href
+    )
+    return result
+  }
+  const loader = pathToFileURL(require.resolve('./custom-loader')).href
+  const shim = `import hooks from ${JSON.stringify(loader)};export const initialize=hooks.initialize,resolve=hooks.resolve;`
+  api.register(`data:text/javascript,${encodeURIComponent(shim)}`, entry, {
+    data: { entry },
   })
 }
 export async function loadCustomCoverageModule(

@@ -40,8 +40,8 @@ assert.deepEqual(corpus.fields, [
 const engine = process.versions.node.split('.')[0]
 const authority = corpus.variants[form]
 assert(authority)
-const profile = authority.profiles[engine]
-assert(profile, 'Requires a measured Node engine')
+const profile = authority.profiles['20']
+assert(profile, 'Requires the Node 20 reference profile')
 for (const index of [profile.genuine, profile.historical])
   assert(Number.isInteger(index) && index >= 0 && index < corpus.models.length)
 const fixtureDirectory = path.join(here, 'fixtures', authority.fixture)

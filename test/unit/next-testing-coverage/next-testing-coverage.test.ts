@@ -3835,10 +3835,15 @@ ${mode === 'stop-failure' ? "import self from './provider.mjs'; const originalSt
       'normal',
       `\nwriteFileSync('provider-evaluated','bad')`
     )
-    const module = require('node:module') as { registerHooks?: unknown }
+    const module = require('node:module') as {
+      registerHooks?: unknown
+      register?: unknown
+    }
     const original = module.registerHooks
+    const originalRegister = module.register
     try {
       module.registerHooks = undefined
+      module.register = undefined
       const { resolveCustomCoverageProvider, loadCustomCoverageModule } =
         await import('next/dist/experimental/testing/coverage/custom-runtime')
       const identity = await resolveCustomCoverageProvider(
@@ -3853,6 +3858,7 @@ ${mode === 'stop-failure' ? "import self from './provider.mjs'; const originalSt
       ).rejects.toMatchObject({ code: 'ENOENT' })
     } finally {
       module.registerHooks = original
+      module.register = originalRegister
       await rm(f.root, { recursive: true, force: true })
     }
   })

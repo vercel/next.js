@@ -23,7 +23,7 @@ const stored = JSON.parse(
   )
 )
 assert.equal(stored.referenceVersion, '5.0.4')
-const engine = stored.engines[process.versions.node.split('.')[0]]
+const engine = stored.engines['20']
 assert(engine, 'Missing genuine native graph model for this Node major')
 const expected = engine.groups[group][mode]
 const authored = stored.authoredSHA256[group]

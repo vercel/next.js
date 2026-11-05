@@ -29,10 +29,10 @@
     "publication": {
       "pr": "https://github.com/vercel/next.js/pull/98869",
       "headRefName": "codex/experiment-next-test",
-      "lastVerifiedRemoteCommit": "53bd3d6844fb715d3fe0c4fc06d1199e0aab2c57",
+      "lastVerifiedRemoteCommit": "e8447cf58801a0910ef40d231dd15676a90fdfa0",
       "lastVerifiedOn": "2026-11-05",
       "draftAtLastVerification": true,
-      "scope": "Verified draft PR98869 head53bd3d6844 on2026-11-05 after a fast-forward22-commit push fromb4ae8df43df9ab5cc97a7c0b5db4a06d53c29c72. The published checkpoint contains46 implementation/control plus7 metadata commits,53 since1558a982. Tracking refresh6cce323fb1 and this subsequent inventory refresh are local; neither is claimed pushed.",
+      "scope": "Verified draft PR98869 head e8447cf588 on 2026-11-05 after publishing the duplicate-fixture cleanup and the preceding tracking/inventory updates. The current Node20 fixture reduction is a later local change and is not claimed pushed.",
       "remoteSandboxSourceExport": false
     },
     "latestFullAcceptanceAttempt": {
@@ -3447,7 +3447,12 @@
         ],
         "status": "Frozen0aeb/D188 finished naturally: regression243/264 (21 failed), focused7147/7179 (32 failed),64 focused suites with60 passed/four failed. The coordinator exits1; a fresh census finds no original coordinator/Jest groups. Full acceptance remains false: original incremental36 JSON lacks its matching exit, and historical c6 late-closure/final-sample/reparented-descendant limits remain. Old421/six-title/369of372 failures remain unchanged. Docs/migrations last; Linux/performance deferred."
       }
-    ]
+    ],
+    "testFixtureBaseline": {
+      "node": "20.9.0",
+      "scope": "Maintained Node-version fixture variants use the single Node20 baseline. Other Node22/24/26 variants are removed; development/production, Browser-engine and authored-case coverage are retained. Repository CI matrices are unchanged.",
+      "referenceCaptureMetadata": "Historical capture versions remain truthful. Selecting a shared reference expectation and verifying Next on Node20.9.0 does not relabel the Vitest capture runtime."
+    }
   },
   "qualification": {
     "stableReady": false,
@@ -5578,8 +5583,8 @@
       "evidence": [
         "test/unit/next-testing-compiler/next-testing-compiler.test.ts",
         "test/unit/next-testing-compiler/external-package/cjs-import-mock-self-default-publication/contract.test.mjs.txt",
-        "test/unit/next-testing-compiler/external-package/cjs-import-mock-self-default-publication/pristine-rows.json",
-        "test/unit/next-testing-compiler/external-package/cjs-import-mock-self-default-inherited/pristine-rows.json",
+        "test/unit/next-testing-compiler/external-package/cjs-import-mock-self-default-publication/pristine-rows-node20.json",
+        "test/unit/next-testing-compiler/external-package/cjs-import-mock-self-default-inherited/pristine-rows-node20.json",
         "test/unit/next-testing-compiler/cjs-arrow-defaults.mjs",
         "test/unit/next-testing-compiler/cjs-arrow-defaults-pristine.json",
         "test/unit/next-testing-compiler/cjs-binding-self-defaults.mjs",

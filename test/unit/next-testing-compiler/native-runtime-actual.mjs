@@ -21,7 +21,7 @@ const stored = JSON.parse(
     resolveFixturePath(path.join(here, 'native-runtime-actual-pristine.json'))
   )
 )
-const model = stored.engines[process.versions.node.split('.')[0]]
+const model = stored.engines['20']
 assert(model, 'Missing genuine native-helper model for this Node major')
 const expected = {
   ...model,

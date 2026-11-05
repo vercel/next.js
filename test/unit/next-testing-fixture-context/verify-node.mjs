@@ -50,11 +50,8 @@ const pins = Object.fromEntries(
   ].map((name) => [name, sha(fs.readFileSync(next + '/' + name))])
 )
 for (const mode of ['development', 'production']) {
-  const label = process.versions.node.split('.')[0] + '-' + mode
-  assert(
-    manifest.profiles[label],
-    'A genuine model is required for this actual Node engine'
-  )
+  const label = '20-' + mode
+  assert(manifest.profiles[label], 'A genuine Node 20 model is required')
   const out = output + '/' + mode
   fs.mkdirSync(out)
   const body = fs.readFileSync(resolveFixturePath(base + '/suite.test.mjs.txt'))

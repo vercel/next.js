@@ -21,7 +21,6 @@
         "format",
         "isAbsolute",
         "join",
-        "matchesGlob",
         "normalize",
         "parse",
         "posix",

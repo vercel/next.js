@@ -1148,7 +1148,7 @@ export async function openCustomReporters(options: {
                   : occurrence.event === 'hook-start' ||
                       occurrence.event === 'hook-end'
                     ? captureHookEvents
-                    : true
+                    : captureTaskResults
             )
             if (selected.length) {
               const batchId = ++nextBatchId

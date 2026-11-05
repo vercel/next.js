@@ -19,11 +19,7 @@ const stored = JSON.parse(
 )
 assert.equal(stored.referenceVersion, '5.0.4')
 
-export function readNativeMultiTargetCase(
-  mode,
-  group,
-  engine = process.versions.node.split('.')[0]
-) {
+export function readNativeMultiTargetCase(mode, group, engine = '20') {
   assert(['development', 'production'].includes(mode))
   const definition = stored.groups[group]
   assert(definition, 'Unknown native multi-target fixture')
@@ -120,10 +116,7 @@ async function runCase([repoArg, outputArg, mode, kind, group]) {
   assert(['source', 'installed'].includes(kind))
   const repo = fs.realpathSync(repoArg),
     output = path.resolve(outputArg)
-  const { expected, files, packages, engine } = readNativeMultiTargetCase(
-    mode,
-    group
-  )
+  const { expected, files, packages } = readNativeMultiTargetCase(mode, group)
   const load = createRequire(path.join(repo, 'package.json'))
   if (kind === 'installed')
     for (const name of ['vitest', 'vite', '@vitest/mocker'])
@@ -225,7 +218,7 @@ async function runCase([repoArg, outputArg, mode, kind, group]) {
       kind,
       mode,
       group,
-      engine,
+      engine: process.versions.node.split('.')[0],
       actualNodeVersion: process.version,
       args,
       fixture,
@@ -269,7 +262,7 @@ async function runCase([repoArg, outputArg, mode, kind, group]) {
       kind,
       mode,
       group,
-      engine,
+      engine: process.versions.node.split('.')[0],
       actualNodeVersion: process.version,
       completeModelEqual: true,
       cases: actual.cases.length,

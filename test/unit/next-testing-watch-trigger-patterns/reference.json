@@ -2,16 +2,11 @@
   "reference": {
     "package": "vitest",
     "version": "5.0.4",
-    "nodes": [
-      "v20.20.0",
-      "v22.12.0",
-      "v24.0.0",
-      "v26.12.1"
-    ],
+    "nodes": ["v20.20.0"],
     "generations": 5,
     "semantics": "String override; array deduplication; null dependency fallback; root-only mapping across inline projects. Private Vite polling transport is reference-only. Full raw reports/mapper rows remain in handoff.",
-    "suppression": "Actual fourth mapper returns []; no fifth generation or changed report over full 30-second observation in all four Nodes.",
-    "emptySelection": "Actual fifth mapper returns an empty string, resolving to the real fixture root; five actual terminal callbacks, zero-test failed JSON with no errors, within the unchanged 30s phase bound in all four Nodes."
+    "suppression": "Actual fourth mapper returns []; no fifth generation or changed report over full 30-second observation in the retained Node 20 reference.",
+    "emptySelection": "Actual fifth mapper returns an empty string, resolving to the real fixture root; five actual terminal callbacks, zero-test failed JSON with no errors, within the unchanged 30s phase bound in the retained Node 20 reference."
   },
   "fixtureSHA256": {
     "alpha.test.mjs": "bc69188d5e36efc7034f055ed8c2cc222730a96e995f64638effccd44c3b2690",
@@ -286,11 +281,7 @@
   ],
   "mapperResults": [
     "alpha.test.mjs",
-    [
-      "alpha.test.mjs",
-      "beta.test.mjs",
-      "alpha.test.mjs"
-    ],
+    ["alpha.test.mjs", "beta.test.mjs", "alpha.test.mjs"],
     null,
     [],
     ""

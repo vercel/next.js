@@ -9,12 +9,7 @@ const packageDir = path.resolve(
 )
 const inputs = path.join(__dirname, 'bench-fn-records')
 const expected = JSON.parse(
-  fs.readFileSync(
-    path.join(
-      inputs,
-      'genuine-' + process.versions.node.split('.')[0] + '.json'
-    )
-  )
+  fs.readFileSync(path.join(inputs, 'genuine-20.json'))
 )
 const names = JSON.parse(fs.readFileSync(path.join(inputs, 'PROGRAMS.json')))
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'next-bench-fn-types-'))

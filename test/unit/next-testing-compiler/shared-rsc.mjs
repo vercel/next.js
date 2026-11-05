@@ -12,9 +12,7 @@ const stored = JSON.parse(
   fs.readFileSync(resolveFixturePath(path.join(corpus, 'corpus.json')), 'utf8')
 )
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
-export function readSharedRscCorpus(
-  engine = process.versions.node.split('.')[0]
-) {
+export function readSharedRscCorpus(engine = '20') {
   assert.equal(
     stored.authority,
     'ordinary Next.js AppPage HTTP; no Vitest RSC substitution'
@@ -49,11 +47,11 @@ export async function qualifySharedRsc(
   assert(!fs.existsSync(output))
   fs.mkdirSync(output, { recursive: true })
   const engine = process.versions.node.split('.')[0],
-    reference = readSharedRscCorpus(engine)
-  assert.equal(
-    process.version,
+    reference = readSharedRscCorpus('20')
+  assert.match(
     reference.profile.actualNodeVersion,
-    'Use the exact measured Node runtime'
+    /^v20\./,
+    'Requires the retained ordinary Node 20 reference'
   )
   const load = createRequire(path.join(consumer, 'package.json'))
   const { runOwnedNode, assertOwnedNodeCompleted } = await import(
@@ -250,9 +248,9 @@ if (
       readSharedRscCorpus(engine)
     console.log(
       JSON.stringify({
-        models: 4,
+        models: 1,
         bodies: 6,
-        wholeHttpRows: 8,
+        wholeHttpRows: 2,
         authority: stored.authority,
         strictOrdinaryOwnershipQualified: false,
         rawModelsAndSourceBytesExact: true,

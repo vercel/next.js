@@ -50,10 +50,10 @@ const pins = Object.fromEntries(
   ].map((name) => [name, sha(fs.readFileSync(next + '/' + name))])
 )
 for (const mode of ['development', 'production']) {
-  const label = process.versions.node.split('.')[0] + '-' + mode + '-' + profile
+  const label = '20-' + mode + '-' + profile
   assert(
     manifest.profiles[label],
-    'A genuine model is required for this actual Node engine'
+    'A genuine Node 20 baseline model is required'
   )
   const out = output + '/' + mode
   fs.mkdirSync(out)

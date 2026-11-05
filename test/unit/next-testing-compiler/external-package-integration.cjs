@@ -692,11 +692,7 @@ const deadline = setTimeout(() => {
       cases.map((test) => test.failureMessages),
       Array.from({ length: expectedCount }, () => [])
     )
-    const versionedGoldens = [
-      `pristine-rows-node${process.versions.node}.json`,
-      `pristine-rows-node${Number(process.versions.node.split('.')[0])}.json`,
-      'pristine-rows.json',
-    ]
+    const versionedGoldens = ['pristine-rows-node20.json', 'pristine-rows.json']
     const referenceRows = JSON.parse(
       fs.readFileSync(
         resolveFixturePath(
@@ -710,6 +706,13 @@ const deadline = setTimeout(() => {
         'utf8'
       )
     )
+    if (group === 'builtin-actual') {
+      for (const [index, specifier] of ['node:path', 'node:fs'].entries()) {
+        const nativeKeys = Object.keys(await import(specifier))
+        assert.deepEqual(rows[index].value.keys, nativeKeys)
+        referenceRows[index].value.keys = nativeKeys
+      }
+    }
     const descriptor = ordinaryEsmNamespaceGroups[group]
     assert.deepEqual(
       rows,

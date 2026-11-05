@@ -15,15 +15,13 @@ This is an implementation checkpoint, not graduation of the experiment.
 
 ## Current recorded status — finite integration complete, November 5, 2026
 
-The published checkpoint is **`53bd3d6844fb715d3fe0c4fc06d1199e0aab2c57`**,
+The published checkpoint is **`e8447cf58801a0910ef40d231dd15676a90fdfa0`**,
 verified as the head of [draft PR #98869](https://github.com/vercel/next.js/pull/98869)
-on November 5, 2026. It contains **53 commits** (**46 implementation/control +
-seven metadata**) since `1558a982296b23763d2174b27aa4cbd69e8e5455`. The last push
-advanced the PR by 22 commits from `b4ae8df43df9ab5cc97a7c0b5db4a06d53c29c72`.
-Latest functional implementation is C10 `749a9c8377df58702bc765d13d0a8784e2429fb4`,
-after JS17 `48ab756363ddedb8771e3b18a9ee7b4d953650b8`; `53bd3d6844` records the
-inventory and qualification results. The finite integration requested by the
-user is complete, its owners are closed, and no additional features are active.
+on November 5, 2026. It includes the finite integration, tracking/inventory
+refreshes and the duplicate-fixture cleanup. The preceding functional checkpoint
+is C10 `749a9c8377df58702bc765d13d0a8784e2429fb4`, after JS17
+`48ab756363ddedb8771e3b18a9ee7b4d953650b8`. The later Node20 fixture baseline
+and its necessary compatibility fixes below are local and are not claimed pushed.
 
 ### Local duplicate-fixture cleanup — November 5, 2026
 
@@ -47,8 +45,36 @@ check pass. This is targeted cleanup verification, not a new full acceptance run
 The cleanup removes **98.26% of identified duplicate lines**. The remaining **490
 physical copies / 7,187 lines** include executable/configuration fixtures and
 small templates whose consumers still need physical files. They remain for a
-separate review. This local cleanup is not pushed; the published checkpoint above
-is unchanged.
+separate review. This duplicate-fixture cleanup was published as `e8447cf588`; the Node20
+follow-up below is a later local change.
+
+### Node 20.9.0 fixture baseline — November 5, 2026
+
+The user selected **Node 20.9.0** as the single maintained fixture baseline.
+Removed **164 physical files** and **183 aliases**, including alternate Node
+22/24/26 models and obsolete default captures. All authored cases and bodies,
+development/production and Browser-engine profiles remain. Repository CI matrices
+are unchanged. Captured reference versions remain truthful: historical Node20.20
+records stay labeled as such; a real Vitest controller on20.20 with an unchanged
+20.9 fork worker captured the one baseline-specific builtin export difference.
+Native builtin export checks use independent native imports so the shared model
+also works on the existing newer CI hosts without more version fixtures.
+
+The baseline replay required a console-only reporter subscription correction,
+a Node20.9 provider-loader fallback preserving the existing import contract, and
+a native ESM bridge for the Jest RSC helper. Original behavioral assertions and
+deadlines are retained; the missing-loader control disables both loader APIs.
+
+Targeted exact20.9 verification records **382 passed / two failed** Jest cases.
+The two failures are the existing Proxy-instance/prototype provider combinations:
+original Node20 expectations and reporter runtime are unchanged, and the prior
+ledger already excludes Proxy16. They remain failures, with no expectation change.
+The passing scope includes mocking198, compiler44, composition18, fixture/native/
+benchmark9, authoring5, tooling20, remaining/RSC11, custom-provider72 and mapping5.
+Separately, six Browser profiles match14 cases/138 rows and six reset-property
+profiles pass16 cases. Core build, official Root types, style and inventory checks
+pass; Native6d3 and all776 API classifications/counts remain unchanged. This is
+focused verification, not a fresh full acceptance or SDK qualification.
 
 ### Cumulative implementation
 

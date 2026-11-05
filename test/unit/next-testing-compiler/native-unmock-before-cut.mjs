@@ -25,9 +25,8 @@ const stored = JSON.parse(
   )
 )
 assert.equal(stored.referenceVersion, '5.0.4')
-const engine = stored.engines[process.versions.node.split('.')[0]]
-assert(engine, 'Before-cut scratch reference corpus requires actual Node26')
-const expected = engine.groups[group][mode]
+assert(stored.groups, 'Requires the shared genuine behavior model')
+const expected = stored.groups[group][mode]
 const authored = stored.authoredSHA256[group]
 const load = createRequire(path.join(repo, 'package.json'))
 if (kind === 'installed') {

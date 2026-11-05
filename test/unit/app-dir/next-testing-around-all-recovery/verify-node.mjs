@@ -51,8 +51,11 @@ const pins = Object.fromEntries(
 )
 const profiles = []
 for (const mode of modes) {
-  const label = `${process.versions.node.split('.')[0]}-${mode}-${phase}-${variant === 'gated' ? 'suite-errors' : variant}`
-  assert(manifest.profiles[label], 'A genuine actual-engine model is required')
+  const label = `20-${mode}-${phase}-${variant === 'gated' ? 'suite-errors' : variant}`
+  assert(
+    manifest.profiles[label],
+    'A genuine Node 20 baseline model is required'
+  )
   const out = path.join(output, mode)
   fs.mkdirSync(out)
   const bodyName = variant + '.test.mjs.txt'

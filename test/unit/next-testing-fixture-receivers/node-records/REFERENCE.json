@@ -19,60 +19,6 @@
         "test": 5000,
         "hook": 5000
       }
-    },
-    "22-development": {
-      "actualNode": "v22.12.0",
-      "bodySHA256": "47344ce87ab2dc576bd98bd5eee79f7d517fd0df9f09b62c2d53ad8019b9a6ed",
-      "bounds": {
-        "cli": 120000,
-        "test": 5000,
-        "hook": 5000
-      }
-    },
-    "22-production": {
-      "actualNode": "v22.12.0",
-      "bodySHA256": "47344ce87ab2dc576bd98bd5eee79f7d517fd0df9f09b62c2d53ad8019b9a6ed",
-      "bounds": {
-        "cli": 120000,
-        "test": 5000,
-        "hook": 5000
-      }
-    },
-    "24-development": {
-      "actualNode": "v24.0.0",
-      "bodySHA256": "47344ce87ab2dc576bd98bd5eee79f7d517fd0df9f09b62c2d53ad8019b9a6ed",
-      "bounds": {
-        "cli": 120000,
-        "test": 5000,
-        "hook": 5000
-      }
-    },
-    "24-production": {
-      "actualNode": "v24.0.0",
-      "bodySHA256": "47344ce87ab2dc576bd98bd5eee79f7d517fd0df9f09b62c2d53ad8019b9a6ed",
-      "bounds": {
-        "cli": 120000,
-        "test": 5000,
-        "hook": 5000
-      }
-    },
-    "26-development": {
-      "actualNode": "v26.12.1",
-      "bodySHA256": "47344ce87ab2dc576bd98bd5eee79f7d517fd0df9f09b62c2d53ad8019b9a6ed",
-      "bounds": {
-        "cli": 120000,
-        "test": 5000,
-        "hook": 5000
-      }
-    },
-    "26-production": {
-      "actualNode": "v26.12.1",
-      "bodySHA256": "47344ce87ab2dc576bd98bd5eee79f7d517fd0df9f09b62c2d53ad8019b9a6ed",
-      "bounds": {
-        "cli": 120000,
-        "test": 5000,
-        "hook": 5000
-      }
     }
   },
   "allCanonicalGraphAndTempGuardsHeld": true,

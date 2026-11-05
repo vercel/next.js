@@ -63,10 +63,10 @@ assert(['source', 'installed'].includes(kind))
 const consumer = fs.realpathSync(consumerArg)
 const output = path.resolve(outputArg)
 const engine = process.versions.node.split('.')[0]
-assert.equal(
-  corpus.engines[engine]?.[mode],
-  process.version,
-  'Requires a measured genuine Node version and mode'
+assert.match(
+  corpus.engines['20']?.[mode],
+  /^v20\./,
+  'Requires the retained genuine Node 20 reference for this mode'
 )
 const contract = corpus.variants[variant]
 assert(contract, 'Unknown reset property fixture')

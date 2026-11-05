@@ -19,12 +19,21 @@ const repository = path.resolve(__dirname, '../../../..')
 const consumer =
   process.env.NEXT_TESTING_SHARED_RSC_WATCH_CONSUMER ?? repository
 const nativeRequire = createRequire(path.join(consumer, 'package.json'))
-const { runOwnedNode, assertOwnedNodeCompleted } = nativeRequire(
-  path.join(
-    repository,
-    'test/e2e/app-dir/next-testing-package/process-supervisor.mjs'
-  )
-) as typeof import('../../../e2e/app-dir/next-testing-package/process-supervisor.mjs')
+const { importFixtureModule } = nativeRequire(
+  path.join(repository, 'test/lib/next-testing-fixtures.cjs')
+) as typeof import('../../../lib/next-testing-fixtures.cjs')
+type ProcessSupervisor =
+  typeof import('../../../e2e/app-dir/next-testing-package/process-supervisor.mjs')
+let runOwnedNode: ProcessSupervisor['runOwnedNode']
+let assertOwnedNodeCompleted: ProcessSupervisor['assertOwnedNodeCompleted']
+beforeAll(async () => {
+  ;({ runOwnedNode, assertOwnedNodeCompleted } = await importFixtureModule(
+    path.join(
+      repository,
+      'test/e2e/app-dir/next-testing-package/process-supervisor.mjs'
+    )
+  ))
+})
 const corpusDirectory = path.join(
   repository,
   'test/unit/next-testing-compiler/fixtures/shared-rsc'
@@ -36,10 +45,7 @@ assert.equal(
   definition.authority,
   'ordinary Next.js AppPage HTTP; no Vitest RSC substitution'
 )
-assert.equal(
-  definition.engines[process.versions.node.split('.')[0]].actualNodeVersion,
-  process.version
-)
+assert.match(definition.engines['20'].actualNodeVersion, /^v20\./)
 const sources: Record<string, Buffer> = {}
 for (const [file, record] of Object.entries(definition.sources) as [
   string,
@@ -214,7 +220,7 @@ function ordinary() {
           60000,
           100
         )
-        const { sharedRouteRow } = nativeRequire(
+        const { sharedRouteRow } = await importFixtureModule(
           path.join(directory, 'row.mjs')
         )
         const rows = []

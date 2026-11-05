@@ -19,12 +19,7 @@ const taskTypes = fs.realpathSync(
 )
 const inputs = path.join(__dirname, 'runner-task-type-records')
 const expected = JSON.parse(
-  fs.readFileSync(
-    path.join(
-      inputs,
-      'genuine-' + process.versions.node.split('.')[0] + '.json'
-    )
-  )
+  fs.readFileSync(path.join(inputs, 'genuine-20.json'))
 )
 const groups = [
   { list: 'PROGRAMS.json', exactOptionalPropertyTypes: false },

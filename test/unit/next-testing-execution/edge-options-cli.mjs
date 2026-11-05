@@ -26,12 +26,9 @@ const consumer = resolve(consumerArgument)
 const output = resolve(outputArgument)
 const directory = dirname(fileURLToPath(import.meta.url))
 const fixtureDirectory = join(directory, 'fixtures/edge-options')
-const major = process.versions.node.split('.')[0]
 const expected = JSON.parse(
   readFileSync(
-    resolveFixturePath(
-      join(fixtureDirectory, `node${major}.${mode}.expected.json`)
-    )
+    resolveFixturePath(join(fixtureDirectory, `node20.${mode}.expected.json`))
   )
 )
 assert(!existsSync(output))

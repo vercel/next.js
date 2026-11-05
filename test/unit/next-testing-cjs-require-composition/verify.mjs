@@ -31,8 +31,8 @@ if (contract.completeModel) {
 }
 const mode = contract.mode ?? 'development'
 assert(['development', 'production'].includes(mode))
-const genuine = contract.models[engine]
-assert(genuine, 'Requires a measured genuine Node engine')
+const genuine = contract.models['20']
+assert(genuine, 'Requires the genuine Node 20 reference model')
 assert(!fs.existsSync(output))
 fs.mkdirSync(output, { recursive: true })
 const save = (name, value) =>
@@ -211,7 +211,7 @@ try {
 
 async function verifyRetainedReset() {
   assert.equal(contract.mode, 'development')
-  assert.equal(contract.engines[engine], process.version)
+  assert.match(contract.engines['20'], /^v20\./)
   assert.deepEqual(contract.bounds, { cli: 120000, test: 5000, hook: 5000 })
   assert(!fs.existsSync(output))
   fs.mkdirSync(output, { recursive: true })

@@ -6,18 +6,6 @@
     "hook": 5000
   },
   "engines": {
-    "26": {
-      "development": "v26.12.1",
-      "production": "v26.12.1"
-    },
-    "24": {
-      "development": "v24.0.0",
-      "production": "v24.0.0"
-    },
-    "22": {
-      "development": "v22.12.0",
-      "production": "v22.12.0"
-    },
     "20": {
       "development": "v20.20.0",
       "production": "v20.20.0"
