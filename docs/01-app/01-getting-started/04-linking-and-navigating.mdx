@@ -354,13 +354,9 @@ Use it to add a new entry to the browser's history stack. The user can navigate 
 ```tsx fileName="app/ui/sort-products.tsx" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-
 export default function SortProducts() {
-  const searchParams = useSearchParams()
-
   function updateSorting(sortOrder: string) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(window.location.search)
     params.set('sort', sortOrder)
     window.history.pushState(null, '', `?${params.toString()}`)
   }
@@ -377,13 +373,9 @@ export default function SortProducts() {
 ```jsx fileName="app/ui/sort-products.js" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-
 export default function SortProducts() {
-  const searchParams = useSearchParams()
-
   function updateSorting(sortOrder) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(window.location.search)
     params.set('sort', sortOrder)
     window.history.pushState(null, '', `?${params.toString()}`)
   }
@@ -404,14 +396,10 @@ Use it to replace the current entry on the browser's history stack. The user is 
 ```tsx fileName="app/ui/locale-switcher.tsx" switcher
 'use client'
 
-import { usePathname } from 'next/navigation'
-
 export function LocaleSwitcher() {
-  const pathname = usePathname()
-
   function switchLocale(locale: string) {
     // e.g. '/en/about' or '/fr/contact'
-    const newPath = `/${locale}${pathname}`
+    const newPath = `/${locale}${window.location.pathname}`
     window.history.replaceState(null, '', newPath)
   }
 
@@ -427,14 +415,10 @@ export function LocaleSwitcher() {
 ```jsx fileName="app/ui/locale-switcher.js" switcher
 'use client'
 
-import { usePathname } from 'next/navigation'
-
 export function LocaleSwitcher() {
-  const pathname = usePathname()
-
   function switchLocale(locale) {
     // e.g. '/en/about' or '/fr/contact'
-    const newPath = `/${locale}${pathname}`
+    const newPath = `/${locale}${window.location.pathname}`
     window.history.replaceState(null, '', newPath)
   }
 

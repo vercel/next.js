@@ -273,13 +273,9 @@ The `pushState` and `replaceState` calls integrate into the Next.js Router, allo
 ```tsx filename="app/ui/sort-products.tsx" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-
 export default function SortProducts() {
-  const searchParams = useSearchParams()
-
   function updateSorting(sortOrder: string) {
-    const urlSearchParams = new URLSearchParams(searchParams.toString())
+    const urlSearchParams = new URLSearchParams(window.location.search)
     urlSearchParams.set('sort', sortOrder)
     window.history.pushState(null, '', `?${urlSearchParams.toString()}`)
   }
@@ -296,13 +292,9 @@ export default function SortProducts() {
 ```jsx filename="app/ui/sort-products.js" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-
 export default function SortProducts() {
-  const searchParams = useSearchParams()
-
   function updateSorting(sortOrder) {
-    const urlSearchParams = new URLSearchParams(searchParams.toString())
+    const urlSearchParams = new URLSearchParams(window.location.search)
     urlSearchParams.set('sort', sortOrder)
     window.history.pushState(null, '', `?${urlSearchParams.toString()}`)
   }
