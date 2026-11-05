@@ -1,1 +1,7 @@
-{"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/ecmascript_minify/input/index.js"],"sourcesContent":["const inlined = 3\nconst message = getMessage()\n\nconsole.log('Hello,' + ' world!', inlined, message)\nconsole.log(message)\n\nfunction getMessage() {\n  return 'Hello'\n}\n"],"names":["inlined","message","getMessage","console","log"],"mappings":"iJACA,IAAMC,EAMG,QANOC,AAEhBC,QAAQC,GAAG,CAAC,WAAW,KAHP,EAG2BH,GAC3CE,CADkCH,OAC1BI,GAAG,CAACH"}
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 0, "column": 135}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/ecmascript_minify/input/index.js"],"sourcesContent":["const inlined = 3\nconst message = getMessage()\n\nconsole.log('Hello,' + ' world!', inlined, message)\nconsole.log(message)\n\nfunction getMessage() {\n  return 'Hello'\n}\n"],"names":["inlined","message","getMessage","console","log"],"mappings":"UACA,IAAMC,EAMG,QANOC,AAEhBC,QAAQC,GAAG,CAAC,WAAW,KAHP,EAG2BH,GAC3CE,CADkCH,OAC1BI,GAAG,CAACH"}},
+    {"offset": {"line": 0, "column": 207}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

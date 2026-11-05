@@ -932,8 +932,8 @@ const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
 /// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
 ///
-/// The default sizes and request cost are scaled down when chunk items are minified before
-/// chunking, see `ChunkSizeDefaults`.
+/// The default sizes and request cost are scaled down when chunk items are minified, see
+/// `ChunkSizeDefaults`.
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -1205,7 +1205,6 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
-    turbopack_minify_before_chunking: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
     /// chunks loaded inside the worker) produced by
@@ -2528,17 +2527,6 @@ impl NextConfig {
             NextMode::Development => false,
             NextMode::Build => self.experimental.turbopack_scope_hoisting.unwrap_or(true),
         }))
-    }
-
-    /// Whether to minify each module factory as it is generated rather than minifying each
-    /// finished chunk in one pass. Only takes effect when minification is enabled.
-    #[turbo_tasks::function]
-    pub fn turbopack_minify_before_chunking(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .turbopack_minify_before_chunking
-                .unwrap_or(false),
-        )
     }
 
     #[turbo_tasks::function]
