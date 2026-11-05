@@ -15,7 +15,8 @@ use turbopack_core::{
     free_var_references,
     issue::IssueSeverity,
     module_graph::{
-        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+        binding_usage_info::OptionBindingUsageInfo, merged_modules::MergedModuleGroups,
+        style_groups::StyleGroupsAlgorithm,
     },
 };
 use turbopack_css::chunk::CssChunkType;
@@ -181,6 +182,7 @@ pub struct EdgeChunkingContextOptions {
     pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
+    pub merged_modules: Vc<MergedModuleGroups>,
     pub turbo_minify: Vc<bool>,
     pub turbo_source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
@@ -210,6 +212,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         module_id_strategy,
         export_usage,
         unused_references,
+        merged_modules,
         turbo_minify,
         turbo_source_maps,
         no_mangling,
@@ -287,8 +290,10 @@ pub async fn get_edge_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
             .minify_before_chunking(*minify_before_chunking.await?);
+        if *scope_hoisting.await? {
+            builder = builder.merged_modules(merged_modules.to_resolved().await?);
+        }
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -308,6 +313,7 @@ pub async fn get_edge_chunking_context(
         module_id_strategy,
         export_usage,
         unused_references,
+        merged_modules,
         turbo_minify,
         turbo_source_maps,
         no_mangling,
@@ -402,8 +408,10 @@ pub async fn get_edge_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
             .minify_before_chunking(*minify_before_chunking.await?);
+        if *scope_hoisting.await? {
+            builder = builder.merged_modules(merged_modules.to_resolved().await?);
+        }
     }
 
     Ok(Vc::upcast(builder.build()))

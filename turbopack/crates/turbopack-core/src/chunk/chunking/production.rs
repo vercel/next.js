@@ -48,9 +48,10 @@ pub async fn make_production_chunks(
         // isn't even built to support it (it only collects `is_mergeable` when merging is on). So
         // only resolve it when merging is enabled; the lookup below is only reached for modules
         // that were merged away, which can't happen when merging is off.
-        let merged_modules = if *(*split_context.chunking_context)
-            .is_module_merging_enabled()
+        let merged_modules = if (*split_context.chunking_context)
+            .merged_modules()
             .await?
+            .is_some()
         {
             Some(module_graph.merged_modules().await?)
         } else {

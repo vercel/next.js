@@ -489,8 +489,11 @@ async fn build_assets(
                         )
                         .chunk_content_hashing(ContentHashing::Direct { length: 13 })
                         .asset_content_hashing(ContentHashing::Direct { length: 13 })
-                        .nested_async_availability(true)
-                        .module_merging(scope_hoist);
+                        .nested_async_availability(true);
+                    if scope_hoist {
+                        builder =
+                            builder.merged_modules(module_graph.merged_modules().await?.groups);
+                    }
                 }
             }
 
@@ -536,8 +539,11 @@ async fn build_assets(
                                 max_merge_chunk_size: 100_000,
                                 ..Default::default()
                             },
-                        )
-                        .module_merging(scope_hoist);
+                        );
+                    if scope_hoist {
+                        builder =
+                            builder.merged_modules(module_graph.merged_modules().await?.groups);
+                    }
                 }
             }
 

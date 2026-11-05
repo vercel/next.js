@@ -37,7 +37,7 @@ use crate::{
     module_fragments::part::module::EcmascriptModulePartAsset,
     references::esm::{
         base::{EsmAssetReference, ImportSource, ReferencedAsset, ReferencedAssetIdent},
-        mangle::mangled_export_names,
+        mangle::{ExportInfo, export_info},
     },
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM, TURBOPACK_ESM_REEXPORT},
     side_effect_optimization::reference::EcmascriptModulePartReference,
@@ -541,7 +541,7 @@ pub struct EsmExports {
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
     /// Whether the keys these exports are emitted under may be shortened. Carried with the exports
     /// so a module deriving its exports from another (facade, locals, part, rename) inherits it.
-    /// `mangle::mangled_export_names` decides whether they actually are.
+    /// `mangle::export_info` decides whether they actually are.
     pub mangle_export_names: bool,
 }
 
@@ -675,7 +675,7 @@ async fn compact_reference_target(
 /// so the caller falls back to the general registration.
 async fn build_compact_reexports(
     exports: &FrozenMap<RcStr, EsmExport>,
-    mangled_names: Option<&FrozenMap<RcStr, RcStr>>,
+    info: &ExportInfo,
     eval_context: &EvalContext,
     mode: ExportRegistrationMode,
     synthetic_references: Option<SyntheticReexportReferences<'_>>,
@@ -797,10 +797,7 @@ async fn build_compact_reexports(
             return Ok(None);
         };
 
-        let exported_key = mangled_names
-            .and_then(|names| names.get(exported))
-            .unwrap_or(exported)
-            .clone();
+        let exported_key = info.export_name(exported).clone();
         let key = (namespace_ident.clone(), ctxt);
         let order = if let Some(idx) = idx {
             idx
@@ -1073,8 +1070,12 @@ impl EsmExports {
 
         let mut getters = Vec::new();
         // The keys this module's exports are emitted under. Consumers resolve the same map for this
-        // module (see `ReferencedAsset::get_ident_inner`), so both sides always agree.
-        let mangled_names = mangled_export_names(*module, chunking_context).await?;
+        // module (see `ReferencedAsset::get_ident`), so both sides always agree.
+        let info = export_info(*module, chunking_context).await?;
+        let flat_exports = scope_hoisting_context.module().is_some() && info.is_flat();
+        // A group can be re-entered between evaluating two of its source modules, even if
+        // neither is the chosen cycle breaker. Expose getters before any group imports run.
+        let early_exports = export_usage_info.is_circuit_breaker || flat_exports;
 
         // A module whose exports are *only* forwarded from other modules can register them all in
         // one compact call instead of one arrow function per binding. `export_registration_mode`
@@ -1086,12 +1087,13 @@ impl EsmExports {
             mode: export_registration_mode,
             is_circuit_breaker: export_usage_info.is_circuit_breaker,
             is_async_module,
-        }) && expanded.dynamic_exports.is_empty()
+        }) && !flat_exports
+            && expanded.dynamic_exports.is_empty()
             && !expanded.exports.is_empty()
         {
             build_compact_reexports(
                 &expanded.exports,
-                mangled_names.as_ref(),
+                &info,
                 eval_context,
                 export_registration_mode,
                 synthetic_references,
@@ -1149,7 +1151,7 @@ impl EsmExports {
                     });
 
                     let local = Ident::new(local, DUMMY_SP, ctxt);
-                    match (liveness, export_usage_info.is_circuit_breaker) {
+                    match (liveness, early_exports) {
                         (Liveness::Constant, false) => ExportBinding::Value(Expr::Ident(local)),
                         // If the value might change or we are a circuit breaker we must bind a
                         // getter to avoid capturing the value at the wrong time.
@@ -1180,7 +1182,7 @@ impl EsmExports {
                                 ReferencedAssetIdent::LocalBinding {ctxt, liveness,.. } => {
                                     debug_assert!(*mutable == (*liveness == Liveness::Mutable), "If the re-export is mutable, the merged local must be too");
                                     // If we are re-exporting something but got merged with it we can treat it like a local export
-                                     match (liveness, export_usage_info.is_circuit_breaker) {
+                                     match (liveness, early_exports) {
                                         (Liveness::Constant, false) => {
                                             ExportBinding::Value(read_expr)
                                         }
@@ -1239,7 +1241,7 @@ impl EsmExports {
                         .await?
                         .map(|ident| {
                             let imported = ident.as_expr(DUMMY_SP, false);
-                            if export_usage_info.is_circuit_breaker {
+                            if early_exports {
                                 ExportBinding::Getter(quote!(
                                     "(() => $imported)" as Expr,
                                     imported: Expr = imported
@@ -1257,12 +1259,7 @@ impl EsmExports {
                         span: DUMMY_SP,
                         // The key this export is emitted under: the mangled one when this module's
                         // names are shortened, otherwise the original.
-                        value: mangled_names
-                            .as_ref()
-                            .and_then(|names| names.get(exported))
-                            .unwrap_or(exported)
-                            .as_str()
-                            .into(),
+                        value: info.export_name(exported).as_str().into(),
                         raw: None,
                     }))
                     .into(),
@@ -1308,7 +1305,10 @@ impl EsmExports {
         let has_dynamic_exports = !expanded.dynamic_exports.is_empty();
         let esm_exports = vec![CodeGenerationHoistedStmt::new(
             rcstr!("__turbopack_esm__"),
-            if let Some(module) = scope_hoisting_context.module() {
+            if flat_exports {
+                // AST merging collects these contributions into one registration for the factory.
+                quote!("__turbopack_flat_esm__($getters);" as Stmt, getters: Expr = getters)
+            } else if let Some(module) = scope_hoisting_context.module() {
                 let id = module.chunk_item_id(chunking_context).await?;
                 if has_dynamic_exports {
                     quote!("$turbopack_esm($getters, $id, true);" as Stmt,
@@ -1337,7 +1337,7 @@ impl EsmExports {
         )];
         // If we are a circuit breaker module we need to expose exports first so they are available
         // to a cyclic importer otherwise we put them at the bottom of the module factory.
-        Ok(if export_usage_info.is_circuit_breaker {
+        Ok(if early_exports {
             (
                 CodeGeneration::new(vec![], dynamic_stmt, esm_exports, vec![], vec![]),
                 Default::default(),

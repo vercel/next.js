@@ -294,8 +294,7 @@ pub struct ModuleGraphOptions {
     /// node, so module merging (scope hoisting) reads it from the in-memory graph instead of
     /// fanning out a `module.is_mergeable()` turbo-task launch per module. Required by
     /// [`compute_merged_modules`]: that pass `bail!`s on graphs built without this. Should be
-    /// enabled wherever the chunking context has module merging enabled
-    /// ([`ChunkingContext::is_module_merging_enabled`]).
+    /// enabled wherever [`ChunkingContext::merged_modules`] returns `Some`.
     ///
     /// When set, every `Module` node stores `Some`: the module's real `is_mergeable()` for types
     /// that implement [`MergeableModule`], or a resolved `false` for types that don't (so `None`
@@ -303,8 +302,8 @@ pub struct ModuleGraphOptions {
     ///
     /// [`compute_merged_modules`]: crate::module_graph::merged_modules::compute_merged_modules
     /// [`MergeableModule`]: crate::chunk::MergeableModule
-    /// [`ChunkingContext::is_module_merging_enabled`]:
-    /// crate::chunk::ChunkingContext::is_module_merging_enabled
+    /// [`ChunkingContext::merged_modules`]:
+    /// crate::chunk::ChunkingContext::merged_modules
     pub include_mergeable: bool,
     /// Whether to walk `ChunkingType::Traced` references.
     pub include_traced: bool,

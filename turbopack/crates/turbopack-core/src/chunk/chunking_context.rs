@@ -20,7 +20,8 @@ use crate::{
     module::Module,
     module_graph::{
         ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroupKey,
-        module_batches::BatchingConfig, style_groups::StyleGroupsAlgorithm,
+        merged_modules::OptionMergedModuleGroups, module_batches::BatchingConfig,
+        style_groups::StyleGroupsAlgorithm,
     },
     output::{
         ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReferences,
@@ -433,12 +434,6 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
-    /// Whether to use `MergeableModule` to merge modules if possible.
-    #[turbo_tasks::function]
-    fn is_module_merging_enabled(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
-    }
-
     /// Whether to include information about the content of the chunk into the runtime, to allow
     /// more incremental loading of individual chunk items.
     #[turbo_tasks::function]
@@ -558,6 +553,11 @@ pub trait ChunkingContext {
 
     #[turbo_tasks::function]
     async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>>;
+
+    /// If set, use `MergeableModule` to merge modules if possible. Lists the merged groups which
+    /// can be used for better codegen.
+    #[turbo_tasks::function]
+    async fn merged_modules(self: Vc<Self>) -> Result<Vc<OptionMergedModuleGroups>>;
 
     /// Returns whether debug IDs are enabled for this chunking context.
     #[turbo_tasks::function]

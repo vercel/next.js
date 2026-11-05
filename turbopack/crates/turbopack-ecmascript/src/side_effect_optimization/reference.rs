@@ -18,7 +18,7 @@ use crate::{
     ScopeHoistingContext,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
-    references::esm::base::{ReferencedAsset, ReferencedAssetIdent},
+    references::esm::base::{ImportSource, ReferencedAsset, ReferencedAssetIdent},
     rename::module::EcmascriptModuleRenameModule,
     runtime_functions::TURBOPACK_IMPORT,
     side_effect_optimization::{
@@ -222,7 +222,12 @@ impl EcmascriptModulePartReference {
                 ReferencedAssetIdent::LocalBinding { .. } => {
                     // no need to import
                 }
-                ReferencedAssetIdent::Module { .. } => {
+                ReferencedAssetIdent::Module {
+                    ref import_source, ..
+                } => {
+                    let ImportSource::Module { asset: target, .. } = *import_source else {
+                        bail!("part module reference must target an in-graph module");
+                    };
                     let namespace_key = ident.into_module_namespace_ident().unwrap();
                     if subsumed_namespaces.contains(&namespace_key) {
                         // A compact registration performs this import, including evaluation-only
@@ -233,7 +238,7 @@ impl EcmascriptModulePartReference {
                     let key = sym.as_str().into();
                     let name = Ident::new(sym.into(), DUMMY_SP, ctxt.unwrap_or_default());
 
-                    let id = module.chunk_item_id(chunking_context).await?;
+                    let id = target.chunk_item_id(chunking_context).await?;
 
                     result.push(CodeGenerationHoistedStmt::new(
                         key,

@@ -28,6 +28,7 @@ use turbopack_core::{
         ModuleGraph,
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
         chunk_group_info::{ChunkGroup, ChunkGroupKey},
+        merged_modules::{MergedModuleGroups, OptionMergedModuleGroups},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
 };
@@ -83,11 +84,6 @@ impl BrowserChunkingContextBuilder {
 
     pub fn nested_async_availability(mut self, enable_nested_async_availability: bool) -> Self {
         self.chunking_context.enable_nested_async_availability = enable_nested_async_availability;
-        self
-    }
-
-    pub fn module_merging(mut self, enable_module_merging: bool) -> Self {
-        self.chunking_context.enable_module_merging = enable_module_merging;
         self
     }
 
@@ -171,6 +167,11 @@ impl BrowserChunkingContextBuilder {
 
     pub fn unused_references(mut self, unused_references: ResolvedVc<UnusedReferences>) -> Self {
         self.chunking_context.unused_references = Some(unused_references);
+        self
+    }
+
+    pub fn merged_modules(mut self, merged_modules: ResolvedVc<MergedModuleGroups>) -> Self {
+        self.chunking_context.merged_modules = Some(merged_modules);
         self
     }
 
@@ -362,8 +363,6 @@ pub struct BrowserChunkingContext {
     enable_hot_module_replacement: bool,
     /// Enable nested async availability for this chunking
     enable_nested_async_availability: bool,
-    /// Enable module merging
-    enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
     enable_dynamic_chunk_content_loading: bool,
     /// Enable debug IDs for chunks and source maps.
@@ -400,6 +399,8 @@ pub struct BrowserChunkingContext {
     export_usage: Option<ResolvedVc<BindingUsageInfo>>,
     /// Which references are unused and should be skipped (e.g. during codegen).
     unused_references: Option<ResolvedVc<UnusedReferences>>,
+    /// Scope-hoisting groups keyed by source module. `None` if module merging is disabled.
+    merged_modules: Option<ResolvedVc<MergedModuleGroups>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
     /// Whether to use absolute URLs for static assets (e.g. in CSS: `url("/absolute/path")`)
@@ -453,7 +454,6 @@ impl BrowserChunkingContext {
                 default_url_behavior: None,
                 enable_hot_module_replacement: false,
                 enable_nested_async_availability: false,
-                enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
                 debug_ids: false,
                 shared_runtime: false,
@@ -470,6 +470,7 @@ impl BrowserChunkingContext {
                 module_id_strategy: None,
                 export_usage: None,
                 unused_references: None,
+                merged_modules: None,
                 chunking_configs: Default::default(),
                 should_use_absolute_url_references: false,
                 worker_forwarded_globals: vec![],
@@ -863,11 +864,6 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn is_nested_async_availability_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_nested_async_availability)
-    }
-
-    #[turbo_tasks::function]
-    fn is_module_merging_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_module_merging)
     }
 
     #[turbo_tasks::function]
@@ -1347,6 +1343,11 @@ impl ChunkingContext for BrowserChunkingContext {
         } else {
             Vc::cell(Default::default())
         }
+    }
+
+    #[turbo_tasks::function]
+    fn merged_modules(&self) -> Vc<OptionMergedModuleGroups> {
+        Vc::cell(self.merged_modules)
     }
 
     #[turbo_tasks::function]
