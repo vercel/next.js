@@ -100,7 +100,7 @@ use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplace
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
     AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
-    EnvVarAccessMode, EnvVarInfo, ModuleTypeResult, TypeofWindow,
+    EnvVarAccess, EnvVarAccessMode, EnvVarInfo, ModuleTypeResult, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
         JsValueUrlKind, Modified, ModuleValue, ObjectPart, RequireContextValue, ThreadLocal,
@@ -246,7 +246,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     cjs_static_exports: Option<CjsStaticExports>,
     has_direct_eval: bool,
 
-    env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
+    env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccess>,
 
     #[cfg(debug_assertions)]
     ident: RcStr,
@@ -378,17 +378,31 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.successful = successful;
     }
 
-    pub fn add_runtime_env_var_reference_read(&mut self, runtime_env: RcStr) {
-        self.env_var_info_runtime
-            // Overwrite any existing value with Existence.
-            .insert(runtime_env, EnvVarAccessMode::Read);
-    }
-
-    pub fn add_runtime_env_var_reference_existence(&mut self, runtime_env: RcStr) {
+    pub fn add_runtime_env_var_reference_read(&mut self, runtime_env: RcStr, span: Span) {
+        let read = EnvVarAccess {
+            mode: EnvVarAccessMode::Read,
+            lo: span.lo.to_u32(),
+            hi: span.hi.to_u32(),
+        };
         self.env_var_info_runtime
             .entry(runtime_env)
-            // Only set if it hasn't been set to Read already.
-            .or_insert(EnvVarAccessMode::Existence);
+            .and_modify(|access| {
+                if access.mode == EnvVarAccessMode::Existence {
+                    *access = read;
+                }
+            })
+            .or_insert(read);
+    }
+
+    pub fn add_runtime_env_var_reference_existence(&mut self, runtime_env: RcStr, span: Span) {
+        self.env_var_info_runtime
+            .entry(runtime_env)
+            // Preserve the first access, including any Read already recorded.
+            .or_insert(EnvVarAccess {
+                mode: EnvVarAccessMode::Existence,
+                lo: span.lo.to_u32(),
+                hi: span.hi.to_u32(),
+            });
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -419,6 +433,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// Builds the final analysis result. Resolves internal Vcs.
     pub async fn build(
         mut self,
+        source: ResolvedVc<Box<dyn Source>>,
         import_references: &[ResolvedVc<EsmAssetReference>],
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
@@ -510,6 +525,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 cjs_static_exports: self.cjs_static_exports,
                 has_direct_eval: self.has_direct_eval,
                 env_var_info: EnvVarInfo {
+                    source: Some(source),
                     runtime: self.env_var_info_runtime,
                 }
                 .resolved_cell(),
@@ -757,7 +773,7 @@ async fn analyze_ecmascript_module_internal(
         program_source: _,
     } = &*parsed
     else {
-        return analysis.build(Default::default(), false).await;
+        return analysis.build(source, Default::default(), false).await;
     };
 
     for i in esm_reexport_reference_idxs {
@@ -1357,7 +1373,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::DestructuredMember {
                     mut obj,
                     mut prop,
-                    span: _,
+                    span,
                 } => {
                     // TODO add an inlining codegen here
 
@@ -1387,7 +1403,7 @@ async fn analyze_ecmascript_module_internal(
                                     )
                             })
                         {
-                            analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
+                            analysis.add_runtime_env_var_reference_read(RcStr::from(prop), span);
                         }
                     }
                 }
@@ -1601,6 +1617,7 @@ async fn analyze_ecmascript_module_internal(
 
     analysis
         .build(
+            source,
             import_references,
             options.follow_reexports && !options.module_fragments_enabled,
         )
@@ -3744,15 +3761,15 @@ async fn handle_membership<'a>(
         }) {
             match ty {
                 MembershipType::In => {
-                    analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
+                    analysis.add_runtime_env_var_reference_existence(RcStr::from(prop), span);
                 }
                 MembershipType::Member {
                     in_truthiness_context,
                 } => {
                     if in_truthiness_context {
-                        analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
+                        analysis.add_runtime_env_var_reference_existence(RcStr::from(prop), span);
                     } else {
-                        analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
+                        analysis.add_runtime_env_var_reference_read(RcStr::from(prop), span);
                     }
                 }
             }
