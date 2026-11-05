@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { markMetadataGenerated } from '../metadata-ready'
 
 export default function Root({ children }: { children: ReactNode }) {
   return (
@@ -11,6 +10,5 @@ export default function Root({ children }: { children: ReactNode }) {
 
 // Traced as `generateMetadata` spans in the render.
 export async function generateMetadata() {
-  markMetadataGenerated('layout')
   return {}
 }
