@@ -1,8 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__0bpp13xncvcc6._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)", ((__turbopack_context__) => {
-
-__turbopack_context__.q("/static/ignore-worker.3cqstqcuvhq6o.cjs");}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__0bpp13xncvcc6._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -36,15 +32,7 @@ new Worker(new __turbopack_context__.U(__turbopack_context__.r("[project]/turbop
 function foo(plugin) {
     return require(/* turbopackIgnore: true */ plugin);
 }
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs (static in ecmascript)", ((__turbopack_context__) => {
-
-__turbopack_context__.q("/static/vercel.0kkt412gy5vj6.cjs");}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
-
-module.exports = 'turbopack';
-}),
-"[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
@@ -135,7 +123,13 @@ __turbopack_context__.s([
 function generateCreateWorker(entrypoint, moduleChunks) {
     return (WorkerConstructor, workerOptions)=>createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions);
 }
-}),
-]);
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)",((__turbopack_context__) => {
+
+__turbopack_context__.q("/static/ignore-worker.3cqstqcuvhq6o.cjs");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs (static in ecmascript)",((__turbopack_context__) => {
+
+__turbopack_context__.q("/static/vercel.0kkt412gy5vj6.cjs");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)",((__turbopack_context__, module, exports) => {
+
+module.exports = 'turbopack';
+})]);
 
 //# sourceMappingURL=%5Broot-of-the-server%5D__0bpp13xncvcc6._.js.map
