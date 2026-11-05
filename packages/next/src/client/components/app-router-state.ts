@@ -28,7 +28,7 @@ import {
   bufferAndWriteNavigationResponse,
   type FulfilledRouteCacheEntry,
   createRootRouteTree,
-  stripDataFromRouteTree,
+  stripDataFromRootRouteTree,
   getCurrentRouteCacheVersion,
 } from './segment-cache/cache'
 import { discoverKnownRoute } from './segment-cache/optimistic-routes'
@@ -654,10 +654,7 @@ async function navigateToUnknownRoute(
     freshnessPolicy === FreshnessPolicy.Prepare
   ) {
     preparation.completedRoute = {
-      root: createRootRouteTree(
-        stripDataFromRouteTree(navigationSeed.root.tree),
-        stripDataFromRouteTree(navigationSeed.root.head)
-      ),
+      root: stripDataFromRootRouteTree(navigationSeed.root),
       canonicalUrl: createHrefFromUrl(canonicalUrl),
       renderedSearch: navigationSeed.renderedSearch,
       nextUrl,

@@ -1488,13 +1488,24 @@ export function createMetadataRouteTree<TData>(
 }
 
 /**
- * Returns an equivalent tree with `data: null` at every node, cloning only
- * the subtrees that carry data. Route cache entries and prepared navigation
- * handles can outlive cached segment data, so neither should retain render
- * output outside the segment cache's eviction control. See the lifecycle
- * note on RouteTree.
+ * Removes render data from the route tree and head. Route cache entries and
+ * prepared navigation handles can outlive cached segment data, so neither
+ * should retain render output outside the segment cache's eviction control.
  */
-export function stripDataFromRouteTree(
+export function stripDataFromRootRouteTree(
+  root: RootRouteTree<RSCSegmentData | null>
+): RootRouteTree<null> {
+  return createRootRouteTree(
+    stripDataFromRouteTree(root.tree),
+    stripDataFromRouteTree(root.head)
+  )
+}
+
+/**
+ * Returns an equivalent tree with `data: null` at every node, cloning only
+ * the subtrees that carry data. See the lifecycle note on RouteTree.
+ */
+function stripDataFromRouteTree(
   tree: RouteTree<RSCSegmentData | null>
 ): RouteTree<null> {
   let clonedSlots: Map<string, RouteTree<null>> | null = null
@@ -1549,10 +1560,7 @@ export function fulfillRouteCacheEntry(
   const tree = root.tree
   const fulfilledEntry: FulfilledRouteCacheEntry = entry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
-  fulfilledEntry.root = createRootRouteTree(
-    stripDataFromRouteTree(tree),
-    stripDataFromRouteTree(root.head)
-  )
+  fulfilledEntry.root = stripDataFromRootRouteTree(root)
   // Route structure is essentially static — it only changes on deploy.
   // Always use the static stale time.
   // NOTE: An exception is rewrites/redirects in middleware or proxy, which can
