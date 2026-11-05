@@ -9,7 +9,7 @@ __turbopack_context__.s([]);
 
 
 let cat = "cat";
-let dog = /*TURBOPACK unused pure init*/ void 0;
+let dog = "dog";
 function getChimera() {
     return cat + dog;
 }

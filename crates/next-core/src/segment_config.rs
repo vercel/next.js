@@ -505,7 +505,10 @@ pub async fn parse_segment_config_from_source(
         // node_env is not used here: EcmascriptInputTransforms::empty() means no
         // transforms are applied, so TransformContext::node_env is never accessed.
         rcstr!("development"),
-        false,
+        /* loose_errors */ false,
+        /* inline_helpers */ false,
+        // Only the AST is needed, not module side-effect inference.
+        /* infer_module_side_effects */
         false,
     )
     .await?;

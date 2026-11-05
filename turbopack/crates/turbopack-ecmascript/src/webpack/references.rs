@@ -40,7 +40,10 @@ pub async fn module_references(
         EcmascriptModuleAssetType::Ecmascript,
         *transforms,
         node_env,
-        false,
+        /* loose_errors */ false,
+        /* inline_helpers */ false,
+        // Only the AST is needed, not module side-effect inference.
+        /* infer_module_side_effects */
         false,
     )
     .await?;

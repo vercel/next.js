@@ -282,6 +282,7 @@ pub async fn parse(
     node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
+    infer_module_side_effects: bool,
 ) -> Result<Vc<ParseResult>> {
     let span = tracing::info_span!(
         "parse ecmascript",
@@ -296,6 +297,7 @@ pub async fn parse(
         node_env,
         loose_errors,
         inline_helpers,
+        infer_module_side_effects,
     )
     .instrument(span)
     .await
@@ -313,6 +315,7 @@ async fn parse_internal(
     node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
+    infer_module_side_effects: bool,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
     let source_ident = source.ident().await?;
@@ -358,6 +361,7 @@ async fn parse_internal(
                     node_env.clone(),
                     loose_errors,
                     inline_helpers,
+                    infer_module_side_effects,
                 )
                 .await
                 {
@@ -388,6 +392,7 @@ async fn parse_file_content(
     node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
+    infer_module_side_effects: bool,
 ) -> Result<Vc<ParseResult>> {
     let string = match BytesStr::from_utf8(program_source.clone().into_bytes()) {
         Ok(s) => s,
@@ -609,6 +614,7 @@ async fn parse_file_content(
                 top_level_mark,
                 Arc::new(var_with_ts_declare),
                 Some(&comments),
+                infer_module_side_effects,
             );
 
             let (comments, source_mapping_url) =
@@ -766,6 +772,7 @@ pub async fn parse_from_rope(
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     node_env: RcStr,
+    infer_module_side_effects: bool,
 ) -> Result<Vc<ParseResult>> {
     let ident_vc = source.ident();
     let ident_ref = ident_vc.await?;
@@ -785,6 +792,7 @@ pub async fn parse_from_rope(
         node_env,
         false,
         false,
+        infer_module_side_effects,
     )
     .await
 }

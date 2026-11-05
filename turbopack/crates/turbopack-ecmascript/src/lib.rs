@@ -582,8 +582,15 @@ impl EcmascriptModuleAsset {
                 .owned()
                 .await?
                 .unwrap_or_else(|| rcstr!("development"));
-            crate::parse::parse_from_rope(rope, self.source, self.ty, self.transforms, node_env)
-                .await
+            crate::parse::parse_from_rope(
+                rope,
+                self.source,
+                self.ty,
+                self.transforms,
+                node_env,
+                self.options.await?.infer_module_side_effects,
+            )
+            .await
         }
         .await;
         match result {
@@ -821,6 +828,7 @@ impl EcmascriptModuleAsset {
             // warnings instead.
             !options.analyze_mode.is_codegen,
             options.inline_helpers,
+            options.infer_module_side_effects,
         ))
     }
 

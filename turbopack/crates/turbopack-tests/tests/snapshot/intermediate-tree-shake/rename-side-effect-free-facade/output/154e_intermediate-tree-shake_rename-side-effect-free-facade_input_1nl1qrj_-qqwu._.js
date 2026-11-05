@@ -9,7 +9,7 @@ __turbopack_context__.s([]);
 
 
 const a = 'a';
-const a_unused = /*TURBOPACK unused pure init*/ void 0;
+const a_unused = 'a_unused';
 __turbopack_context__.s([
     "a",
     0,

@@ -359,6 +359,7 @@ mod tests {
                 top_level_mark,
                 Default::default(),
                 Some(&comments),
+                /* infer_module_side_effects */ true,
             );
 
             let var_graph = create_graph(
@@ -811,6 +812,7 @@ mod tests {
                 top_level_mark,
                 Default::default(),
                 None,
+                /* infer_module_side_effects */ true,
             );
             let arena = Bump::new();
             create_graph(

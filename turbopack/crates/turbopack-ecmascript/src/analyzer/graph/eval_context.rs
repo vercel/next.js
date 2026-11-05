@@ -47,9 +47,13 @@ impl EvalContext {
         top_level_mark: Mark,
         force_free_values: Arc<FxHashSet<Id>>,
         comments: Option<&dyn Comments>,
+        infer_module_side_effects: bool,
     ) -> Self {
-        let module_side_effects =
-            module.map(|m| compute_module_evaluation_side_effects(m, comments, unresolved_mark));
+        let module_side_effects = if infer_module_side_effects {
+            module.map(|m| compute_module_evaluation_side_effects(m, comments, unresolved_mark))
+        } else {
+            None
+        };
         let imports = module.map_or(ImportMap::default(), |m| {
             ImportMap::analyze(unresolved_mark, m, comments, module_side_effects.as_ref())
         });
@@ -548,8 +552,14 @@ impl EvalContext {
         let js_value = try_with_handler(cm, Default::default(), |_| {
             GLOBALS.set(&Default::default(), || {
                 let expr = parse_single_expr_lit(expr_lit);
-                let eval_context =
-                    EvalContext::new(None, Mark::new(), Mark::new(), Default::default(), None);
+                let eval_context = EvalContext::new(
+                    None,
+                    Mark::new(),
+                    Mark::new(),
+                    Default::default(),
+                    None,
+                    /* infer_module_side_effects */ false,
+                );
 
                 Ok(eval_context.eval(arena, &expr))
             })

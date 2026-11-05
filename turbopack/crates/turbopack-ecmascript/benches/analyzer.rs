@@ -74,6 +74,7 @@ pub fn benchmark(c: &mut Criterion) {
                     top_level_mark,
                     Default::default(),
                     None,
+                    /* infer_module_side_effects */ true,
                 );
                 // Leak a per-benchmark arena so the stored `VarGraph` can be `'static` (benches are
                 // short-lived processes, so the leak is inconsequential).
