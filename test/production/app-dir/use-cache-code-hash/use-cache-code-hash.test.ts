@@ -53,7 +53,7 @@ async function getCodeHashes(
         files: __dirname,
       })
 
-      it('emits codeHash only for use-cache functions', async () => {
+      it('emits codeHash only for eligible functions', async () => {
         const values = Object.values(await getCodeHashes(next))
         const valuesWithoutCodeHash = values.filter(
           (e) => typeof e.codeHash !== 'string'
@@ -65,18 +65,18 @@ async function getCodeHashes(
         `)
       })
 
-      it('emits root dependencies alongside durability', async () => {
+      it('emits root dependencies even when durability deopts', async () => {
         const manifest = await next.readJSON(
           '.next/server/server-reference-manifest.json'
         )
         let cacheWorkers = 0
         for (const entry of Object.values<any>(manifest.node)) {
-          for (const worker of Object.values<any>(entry.workers)) {
-            if (worker.durability) {
+          for (const [page, worker] of Object.entries<any>(entry.workers)) {
+            if (page === 'app/use-server/page') {
+              expect(worker.rootParamDependencies).toBeUndefined()
+            } else {
               cacheWorkers++
               expect(worker.rootParamDependencies).toBeDefined()
-            } else {
-              expect(worker.rootParamDependencies).toBeUndefined()
             }
           }
         }
@@ -110,6 +110,26 @@ async function getCodeHashes(
           )
         ).toMatchInlineSnapshot(`
          {
+           "app/deopt-custom/page": [
+             "MY_DEPLOYMENT_ID",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/deopt-next-deployment-id/page": [
+             "NEXT_DEPLOYMENT_ID",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
            "app/env-dynamic/page": [
              "NEXT_OTEL_PERFORMANCE_PREFIX",
              "NEXT_OTEL_VERBOSE",

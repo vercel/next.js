@@ -1024,6 +1024,20 @@ impl TurbopackChunking {
     }
 }
 
+#[derive(
+    Clone, Debug, Default, PartialEq, Eq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct DurableUseCacheEntriesConfig {
+    #[serde(default)]
+    pub unstable_env_vars: FxHashSet<RcStr>,
+    #[serde(default)]
+    pub ignored_env_vars: FxHashSet<RcStr>,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionDurableUseCacheEntriesConfig(Option<DurableUseCacheEntriesConfig>);
+
 /// Compile a list of route-matching [`RegexComponents`] into an [`EsRegexSet`], which builds the
 /// combined [`regex::RegexSet`] up front so that matching a route doesn't have to.
 fn parse_route_regexes(patterns: &[RegexComponents]) -> Result<EsRegexSet> {
@@ -1121,6 +1135,7 @@ pub struct ExperimentalConfig {
     use_cache: Option<bool>,
     durable_use_cache_entries: Option<bool>,
     use_cache_static_root_param_tracking: Option<bool>,
+    durable_use_cache_entries_config: Option<DurableUseCacheEntriesConfig>,
     runtime_server_deployment_id: Option<bool>,
     expose_testing_api_in_production_build: Option<bool>,
 
@@ -2283,6 +2298,11 @@ impl NextConfig {
                         .unwrap_or(false),
             ),
         })
+    }
+
+    #[turbo_tasks::function]
+    pub fn durable_use_cache_entries_config(&self) -> Vc<OptionDurableUseCacheEntriesConfig> {
+        Vc::cell(self.experimental.durable_use_cache_entries_config.clone())
     }
 
     #[turbo_tasks::function]
