@@ -108,35 +108,56 @@ export function getDeterministicOutput(
       !ignoredLines.some((ignoredLine) => line.includes(ignoredLine))
     ) {
       // Node.js 22+ collapses runs of identical stack frames into
-      // "    ... collapsed 30 duplicate lines matching above 10 lines 3 times...".
+      // "    ... collapsed 30 duplicate lines matching above 10 lines 3 times..."
+      // or "    ... collapsed 10 duplicate lines matching above lines ...".
       // Node.js 20 prints every frame, so expand the run back to keep the
       // output deterministic across versions.
       const collapsedFrames =
-        /^\s*\.\.\. collapsed (\d+) duplicate lines matching above (\d+) lines (\d+) times\.\.\.$/.exec(
+        /^\s*\.\.\. collapsed (\d+) duplicate lines matching above (?:(\d+) lines (\d+) times|lines)\.\.\.$/.exec(
           line
         )
       if (collapsedFrames !== null) {
-        const groupSize = Number(collapsedFrames[2])
-        const times = Number(collapsedFrames[3])
-        const group = lines.slice(lines.length - groupSize)
-        if (group.length === groupSize) {
-          for (let t = 0; t < times; t++) {
-            for (const groupLine of group) {
-              // Minified frames are lettered or numbered sequentially, so
-              // continue the sequence instead of repeating the group's values.
-              const lettered =
-                /^ {4}at [a-z] (\((?:<next-dist-dir>|<anonymous>)\))$/.exec(
+        const total = Number(collapsedFrames[1])
+        const times =
+          collapsedFrames[3] !== undefined ? Number(collapsedFrames[3]) : null
+        const groupSize =
+          collapsedFrames[2] !== undefined ? Number(collapsedFrames[2]) : null
+        const group =
+          groupSize !== null ? lines.slice(lines.length - groupSize) : null
+
+        const emitCollapsed = (groupLine: string | undefined) => {
+          // Minified frames are lettered or numbered sequentially, so
+          // continue the sequence instead of repeating the group's values.
+          const lettered =
+            groupLine === undefined
+              ? null
+              : /^ {4}at [a-z] (\((?:<next-dist-dir>|<anonymous>)\))$/.exec(
                   groupLine
                 )
-              const numeric = /^ {4}at \d+ (\(.*\))$/.exec(groupLine)
-              if (lettered !== null) {
-                lines.push(`    at ${abc[a++ % abc.length]} ${lettered[1]}`)
-              } else if (numeric !== null) {
-                lines.push(`    at ${n++} ${numeric[1]}`)
-              } else {
-                lines.push(groupLine)
-              }
+          const numeric =
+            groupLine === undefined
+              ? null
+              : /^ {4}at \d+ (\(.*\))$/.exec(groupLine)
+          if (lettered !== null) {
+            lines.push(`    at ${abc[a++ % abc.length]} ${lettered[1]}`)
+          } else if (numeric !== null) {
+            lines.push(`    at ${n++} ${numeric[1]}`)
+          } else if (groupLine !== undefined) {
+            lines.push(groupLine)
+          }
+        }
+
+        if (group !== null && group.length === groupSize) {
+          for (let t = 0; t < times!; t++) {
+            for (const groupLine of group) {
+              emitCollapsed(groupLine)
             }
+          }
+        } else {
+          // "matching above lines" gives no group size; repeat the last line.
+          const lastLine = lines[lines.length - 1]
+          for (let i = 0; i < total; i++) {
+            emitCollapsed(lastLine)
           }
         }
         continue
