@@ -65,7 +65,7 @@ export default async function Page(props: { params: Promise<Params> }) {
       <p>
         Go <Link href="/">back home</Link> to upload another video.
       </p>
-      <hr className="my-8 bg-gray-500" />
+      <hr className="my-8 border-gray-200" />
       <p className="mb-4">
         This video was uploaded and processed by{" "}
         <Link

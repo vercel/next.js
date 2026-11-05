@@ -38,10 +38,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`min-h-screen flex flex-col font-sans ${dmSans.variable} ${jetBrainsMono.variable}`}
-      >
+    <html lang="en" className={`${dmSans.variable} ${jetBrainsMono.variable}`}>
+      <body className="min-h-screen flex flex-col font-sans">
         <main className="px-4 py-8 sm:px-8 lg:py-16 w-full max-w-2xl mx-auto">
           {children}
         </main>
