@@ -14,6 +14,7 @@ use turbopack_core::{
     issue::{Issue, IssueSeverity, IssueStage, StyledString},
     resolve::{ExternalTraced, ExternalType, options::ImportMapping},
 };
+use turbopack_node::transforms::webpack::WebpackLoaderContextOptions;
 
 use crate::{
     next_config::NextConfig,
@@ -161,6 +162,9 @@ pub async fn webpack_loader_options(
     } else {
         rcstr!("production")
     };
+    let hash_salt = next_config.output_hash_salt().await?;
+    let hot = builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Browser)
+        && builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Development);
 
     Ok(Vc::cell(Some(
         WebpackLoadersOptions {
@@ -171,6 +175,15 @@ pub async fn webpack_loader_options(
                 .await?,
             target,
             mode,
+            // Match the scalar defaults used by the webpack integration without
+            // constructing a compiler or exposing compilation hooks.
+            context_options: WebpackLoaderContextOptions {
+                hash_function: rcstr!("xxhash64"),
+                hash_digest: rcstr!("hex"),
+                hash_digest_length: 16,
+                hash_salt: (!hash_salt.is_empty()).then(|| (*hash_salt).clone()),
+                hot,
+            },
         }
         .resolved_cell(),
     )))
