@@ -2,9 +2,9 @@
 //! line views, and link/permission metadata.
 
 use std::{
-    cmp::{Ordering, min},
+    cmp::Ordering,
     fmt::{self, Debug, Formatter},
-    io::{self, BufRead, BufReader, Read},
+    io::{self, Read},
     path::Path,
 };
 
@@ -22,9 +22,7 @@ use turbo_tasks_hash::{
 use crate::{
     DiskFileSystem, FileSystemEntryType, FileSystemPath, RealPathErrorType,
     json::UnparsableJson,
-    retry::retry_blocking,
     rope::{Rope, RopeReader},
-    util::extract_disk_access,
 };
 
 #[derive(Clone, Copy, Debug, Default, DeterministicHash, PartialOrd, Ord)]
@@ -85,82 +83,6 @@ impl From<File> for FileContent {
     fn from(file: File) -> Self {
         FileContent::Content(file)
     }
-}
-
-/// A persisted version of [`FileContent`] that stores the full file content in the task cache.
-///
-/// [`FileContent`] uses `serialization = "hash"`, so only a hash is kept in the persistent cache.
-/// When reading the file content back from the cache, the hash is compared to detect changes, but
-/// the actual data is not available. `PersistedFileContent` provides the full data so that
-/// `DiskFileSystem::write` can retrieve it without re-reading from disk.
-#[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
-pub enum PersistedFileContent {
-    Content(File),
-    NotFound,
-}
-
-impl PersistedFileContent {
-    /// Performs a comparison of self's data against a disk file's streamed read.
-    pub(crate) async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
-        let old_file =
-            extract_disk_access(retry_blocking(|| std::fs::File::open(path)).await, path)?;
-        let Some(old_file) = old_file else {
-            return Ok(match self {
-                PersistedFileContent::NotFound => FileComparison::Equal,
-                _ => FileComparison::Create,
-            });
-        };
-        // We know old file exists, does the new file?
-        let PersistedFileContent::Content(new_file) = self else {
-            return Ok(FileComparison::NotEqual);
-        };
-
-        let old_meta = extract_disk_access(retry_blocking(|| old_file.metadata()).await, path)?;
-        let Some(old_meta) = old_meta else {
-            // If we failed to get meta, then the old file has been deleted between the
-            // handle open. In which case, we just pretend the file never existed.
-            return Ok(FileComparison::Create);
-        };
-        // If the meta is different, we need to rewrite the file to update it.
-        if new_file.meta != old_meta.into() {
-            return Ok(FileComparison::NotEqual);
-        }
-
-        // So meta matches, and we have a file handle. Let's stream the contents to see
-        // if they match.
-        let mut new_contents = new_file.read();
-        let mut old_contents = BufReader::new(old_file);
-        Ok(loop {
-            let new_chunk = new_contents.fill_buf()?;
-            let Ok(old_chunk) = old_contents.fill_buf() else {
-                break FileComparison::NotEqual;
-            };
-
-            let len = min(new_chunk.len(), old_chunk.len());
-            if len == 0 {
-                if new_chunk.len() == old_chunk.len() {
-                    break FileComparison::Equal;
-                } else {
-                    break FileComparison::NotEqual;
-                }
-            }
-
-            if new_chunk[0..len] != old_chunk[0..len] {
-                break FileComparison::NotEqual;
-            }
-
-            new_contents.consume(len);
-            old_contents.consume(len);
-        })
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum FileComparison {
-    Create,
-    Equal,
-    NotEqual,
 }
 
 /// The target of a symbolic link, as read from a filesystem.
@@ -623,18 +545,6 @@ impl FileContent {
             self,
             algorithm,
         ))))
-    }
-
-    /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.
-    ///
-    /// Use this in contexts where the full file content must be serialized to the persistent
-    /// task cache (e.g., in `DiskFileSystem::write`).
-    #[turbo_tasks::function]
-    pub fn persist(&self) -> Vc<PersistedFileContent> {
-        match self {
-            FileContent::Content(file) => PersistedFileContent::Content(file.clone()).cell(),
-            FileContent::NotFound => PersistedFileContent::NotFound.cell(),
-        }
     }
 
     /// Compared to [FileContent::hash], this hashes only the bytes of the file content and

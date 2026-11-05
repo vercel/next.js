@@ -305,10 +305,17 @@ fn disk_file_system_operation(
     fs_root: RcStr,
     watcher_config: DiskWatcherConfig,
 ) -> Vc<DiskFileSystem> {
+    let scratch_dir = RcStr::from(
+        std::path::Path::new(&*fs_root)
+            .join(".scratch")
+            .to_str()
+            .unwrap(),
+    );
     DiskFileSystem::new_with_options(
         rcstr!("project"),
         Vc::cell(fs_root),
         Vec::new(),
+        Some(scratch_dir),
         watcher_config,
         DiskFileSystemMap::empty(),
     )

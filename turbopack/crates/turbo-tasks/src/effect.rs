@@ -1,5 +1,4 @@
 use std::{
-    collections::hash_map,
     error::Error as StdError,
     future::Future,
     mem::{forget, replace},
@@ -9,33 +8,61 @@ use std::{
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::{StreamExt, TryStreamExt};
-use parking_lot::{Mutex, MutexGuard};
+use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
 
 use crate::{
     self as turbo_tasks, CollectiblesSource, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
-    TryJoinIterExt, Upcast, VcRead, VcValueType, emit,
+    TraitRef, TryJoinIterExt, Upcast, VcRead, VcValueType, emit,
     event::Event,
     invalidation::{Invalidator, get_invalidator},
     manager::{
         debug_assert_in_top_level_task, debug_assert_not_in_top_level_task, mark_top_level_task,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
-    spawn,
 };
 
 const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 
-/// An IO Side effect to be computed by turbo tasks and then executed outside of turbo tasks.
+/// An IO side effect computed by turbo tasks and then executed outside of turbo tasks.
+///
+/// Effects are emitted as collectibles (see [`EffectExt::emit`]), collected with
+/// [`take_effects`] and applied at the top level with
+/// [`read_strongly_consistent_and_apply_effects`]. The effect value itself is all the data needed
+/// to apply it, so it should be small: expensive work (e.g. writing file content) should happen
+/// eagerly in the task that emits the effect, leaving only a cheap operation (e.g. a rename) for
+/// `apply()`.
 #[async_trait]
 #[turbo_tasks::value_trait]
 pub trait Effect {
-    /// Read any Vc data needed for `apply()` and return the [`CapturedEffect`] that performs it.
+    /// Unique key identifying this effect's target (e.g., absolute path bytes).
+    fn key(&self) -> Box<[u8]>;
+
+    /// A cheap identity of this effect's value (e.g. the id of the task that produced it, or a
+    /// hash of a small value). Effects for the same key with the same identity are considered
+    /// equal without further inspection.
+    fn identity(&self) -> u128;
+
+    /// A hash of the content this effect applies.
     ///
-    /// An implementation may elect to elide capturing data if the `EffectStateStorage` state is
-    /// already up to date.
-    async fn capture(&self) -> Result<Box<dyn CapturedEffect>>;
+    /// This is only called when multiple effects with different [`Effect::identity`]s target the
+    /// same key, to decide whether they actually conflict. Effects for the same key with equal
+    /// content hashes are deduplicated, different content hashes are reported as a conflict.
+    ///
+    /// May return [`ApplyError::Retry`] if the content is currently unavailable (e.g. after
+    /// invalidating the task that produces it).
+    async fn content_hash(&self) -> Result<u128, ApplyError>;
+
+    /// Perform the side effect.
+    ///
+    /// This is called in the top-level task context, so it may read `Vc`s (untracked). Effects
+    /// should run blocking IO via [`spawn`][crate::spawn] so that pending effects execute in
+    /// parallel.
+    ///
+    /// Implementations typically dispatch into [`EffectStateStorage::run_apply`], which handles
+    /// the per-key state machine, in-progress coordination, and panic recovery.
+    async fn apply(&self) -> Result<(), ApplyError>;
 }
 
 pub trait EffectExt {
@@ -51,36 +78,17 @@ where
     }
 }
 
-/// Post-capture effect. Holds data needed to perform the actual side effect in a top level context.
-///
-/// `apply()` is responsible for coordinating with [`EffectStateStorage`] via
-/// [`EffectStateStorage::run_apply`] (which handles the per-key state machine, in-progress
-/// coordination, dedup-hit short-circuit, and panic recovery).
-#[async_trait]
-pub trait CapturedEffect: NonLocalValue + Send + Sync + 'static {
-    /// Unique key identifying this effect's target (e.g., absolute path bytes).
-    fn key(&self) -> Box<[u8]>;
-
-    /// Extract the hash of the value part of this effect for comparison.
-    fn value_hash(&self) -> u128;
-
-    /// Perform the side effect
-    ///
-    /// Implementations typically dispatch into [`EffectStateStorage::run_apply`].
-    async fn apply(&self) -> Result<(), ApplyError>;
-}
-
-/// Outcome of [`CapturedEffect::apply`]. Distinguishes a side-effect failure (terminal) from a
-/// soft failure where the captured form had no content and storage state diverged between
-/// capture and apply (recoverable via `Effects::apply`'s invalidator path).
+/// Outcome of [`Effect::apply`]. Distinguishes a side-effect failure (terminal) from a soft
+/// failure where the effect can't be applied right now, but could after its producer re-executes
+/// (recoverable via `Effects::apply`'s invalidator path).
 #[derive(Debug)]
 pub enum ApplyError {
     /// The side effect itself failed.
     Failed(Arc<dyn EffectError>),
-    /// Capture short-circuited content materialization (observed `Applied { matching }` in
-    /// storage), but by apply time the storage state had diverged and we have no content to
-    /// re-apply. `Effects::apply` should invalidate the producing operation and return
-    /// [`EffectsError::Retry`].
+    /// The effect could not be applied in its current form (e.g. the data it needs was consumed
+    /// or removed). The effect is responsible for invalidating whatever needs to re-execute to
+    /// fix this. `Effects::apply` additionally invalidates the operation that took the effects
+    /// and returns [`EffectsError::Retry`].
     Retry,
 }
 
@@ -102,13 +110,31 @@ impl<T> EffectError for T where T: StdError + NonLocalValue + Send + Sync + 'sta
 
 enum EffectLastApplied {
     Unapplied,
-    InProgress {
-        write_event: Event,
-    },
-    Applied {
-        value_hash: u128,
-        result: Result<(), Arc<dyn EffectError>>,
-    },
+    InProgress { write_event: Event },
+    Applied(LastApplied),
+}
+
+/// The last effect applied for a key, as recorded by [`EffectStateStorage`].
+#[derive(Clone)]
+pub struct LastApplied {
+    /// The [`Effect::identity`] of the effect that was applied last.
+    pub identity: u128,
+    /// The result of applying it.
+    pub result: Result<(), Arc<dyn EffectError>>,
+}
+
+/// What the body passed to [`EffectStateStorage::run_apply`] did.
+pub enum ApplyStep<E> {
+    /// The side effect was executed (successfully or not). The effect's identity is recorded as
+    /// the last applied effect for the key, together with the result.
+    Applied(Result<(), E>),
+    /// The target is already up to date with this effect, nothing was done. The effect's
+    /// identity is recorded as the last applied effect for the key. If the previous record had
+    /// the same identity, its result is kept and returned.
+    UpToDate,
+    /// The effect can't be applied right now. The previous record is kept and
+    /// [`ApplyError::Retry`] is returned.
+    Retry,
 }
 
 /// Per-key entry in the effect state storage.
@@ -121,22 +147,18 @@ pub struct EffectStateStorage {
 }
 
 impl EffectStateStorage {
-    /// Returns true if the per-key state holds `Applied { value_hash == target, result: Ok(()) }`.
+    /// Returns the identity of the last effect successfully applied for `key`, if any.
     ///
-    /// Intended for use by [`Effect::capture`] to elide content materialization when the apply
-    /// would dedup. Reading this from inside a turbo-tasks task is sound because
-    /// `Effects::apply` re-checks at apply time and fires the producing task's invalidator on
-    /// mismatch (via the [`ApplyError::Retry`] / [`EffectsError::Retry`] pathway).
-    pub fn matches_applied(&self, key: &[u8], target: u128) -> bool {
-        let entry = self.effect_state.lock().get(key).cloned();
-        let Some(entry) = entry else { return false };
-        matches!(
-            &*entry.lock(),
-            EffectLastApplied::Applied {
-                value_hash,
+    /// This is a snapshot: it returns `None` while an apply for the key is in progress.
+    pub fn last_applied_identity(&self, key: &[u8]) -> Option<u128> {
+        let entry = self.effect_state.lock().get(key).cloned()?;
+        match &*entry.lock() {
+            EffectLastApplied::Applied(LastApplied {
+                identity,
                 result: Ok(()),
-            } if *value_hash == target,
-        )
+            }) => Some(*identity),
+            _ => None,
+        }
     }
 
     /// Look up or create the per-key state entry.
@@ -148,22 +170,22 @@ impl EffectStateStorage {
             .clone()
     }
 
-    /// Coordinate an apply for `(key, value_hash)` against the per-key state machine.
+    /// Coordinate an apply of the effect with `identity` for `key` against the per-key state
+    /// machine.
     ///
-    /// Dedup hits (state already `Applied` with a matching hash) return the cached result without
-    /// running `body`. Otherwise `body` runs once under an `InProgress` guard and the result is
-    /// stored. A `None` `body` (capture elided content because storage matched, but it no longer
-    /// does) yields [`ApplyError::Retry`].
+    /// Applies for the same key are serialized: `body` runs while no other apply for the key is in
+    /// progress. It receives the [`LastApplied`] record for the key (if any) and decides what to
+    /// do (see [`ApplyStep`]); the record is updated accordingly afterwards.
     pub async fn run_apply<E, F, Fut>(
         &self,
         key: Box<[u8]>,
-        value_hash: u128,
-        body: Option<F>,
+        identity: u128,
+        body: F,
     ) -> Result<(), ApplyError>
     where
         E: EffectError,
-        F: FnOnce() -> Fut + Send,
-        Fut: Future<Output = Result<(), E>> + Send,
+        F: FnOnce(Option<LastApplied>) -> Fut + Send,
+        Fut: Future<Output = ApplyStep<E>> + Send,
     {
         let entry = self.entry_for(key);
 
@@ -184,61 +206,70 @@ impl EffectStateStorage {
             }
         }
 
-        let begin_in_progress = |mut last_applied_guard: MutexGuard<'_, _>| {
-            *last_applied_guard = EffectLastApplied::InProgress {
-                write_event: Event::new(|| || "effect application in progress".to_string()),
-            };
-            EventGuard { entry: &entry }
-        };
-
-        let event_guard = loop {
+        let (event_guard, previous) = loop {
             let listener;
             {
-                let last_applied_guard = entry.lock();
+                let mut last_applied_guard = entry.lock();
                 match &*last_applied_guard {
-                    EffectLastApplied::Unapplied => {
-                        break begin_in_progress(last_applied_guard);
-                    }
-                    EffectLastApplied::Applied {
-                        value_hash: stored,
-                        result,
-                    } => {
-                        if value_hash == *stored {
-                            return result.clone().map_err(ApplyError::Failed);
-                        } else {
-                            break begin_in_progress(last_applied_guard);
-                        }
-                    }
                     EffectLastApplied::InProgress { write_event } => {
                         // Event::listen registers the listener immediately, so notifications
                         // fired after we drop last_applied_guard cannot be missed.
                         listener = write_event.listen();
+                    }
+                    EffectLastApplied::Unapplied | EffectLastApplied::Applied(_) => {
+                        let previous = match replace(
+                            &mut *last_applied_guard,
+                            EffectLastApplied::InProgress {
+                                write_event: Event::new(|| {
+                                    || "effect application in progress".to_string()
+                                }),
+                            },
+                        ) {
+                            EffectLastApplied::Applied(last_applied) => Some(last_applied),
+                            EffectLastApplied::Unapplied => None,
+                            EffectLastApplied::InProgress { .. } => unreachable!(),
+                        };
+                        break (EventGuard { entry: &entry }, previous);
                     }
                 }
             };
             listener.await;
         };
 
-        // We hold the InProgress guard. Either run the body, or — if we have no content to
-        // apply — release the guard (resetting state to Unapplied + waking waiters) and Retry.
-        let Some(body) = body else {
-            drop(event_guard);
-            return Err(ApplyError::Retry);
+        let step = body(previous.clone()).await;
+
+        let (new_state, result) = match step {
+            ApplyStep::Applied(result) => {
+                // Erase the body's concrete error type to `Arc<dyn EffectError>` so the cached
+                // result type is uniform across all callers of the same key.
+                let result = result.map_err(|err| Arc::new(err) as Arc<dyn EffectError>);
+                (
+                    EffectLastApplied::Applied(LastApplied {
+                        identity,
+                        result: result.clone(),
+                    }),
+                    result.map_err(ApplyError::Failed),
+                )
+            }
+            ApplyStep::UpToDate => {
+                let result = previous
+                    .filter(|previous| previous.identity == identity)
+                    .map_or(Ok(()), |previous| previous.result);
+                (
+                    EffectLastApplied::Applied(LastApplied {
+                        identity,
+                        result: result.clone(),
+                    }),
+                    result.map_err(ApplyError::Failed),
+                )
+            }
+            ApplyStep::Retry => (
+                previous.map_or(EffectLastApplied::Unapplied, EffectLastApplied::Applied),
+                Err(ApplyError::Retry),
+            ),
         };
 
-        // Erase the body's concrete error type to `Arc<dyn EffectError>` so the cached result
-        // type is uniform across all callers of the same key.
-        let effect_result: Result<(), Arc<dyn EffectError>> = body()
-            .await
-            .map_err(|err| Arc::new(err) as Arc<dyn EffectError>);
-
-        let prev_state = replace(
-            &mut *entry.lock(),
-            EffectLastApplied::Applied {
-                value_hash,
-                result: effect_result.clone(),
-            },
-        );
+        let prev_state = replace(&mut *entry.lock(), new_state);
         forget(event_guard);
 
         let EffectLastApplied::InProgress { write_event } = prev_state else {
@@ -246,11 +277,11 @@ impl EffectStateStorage {
         };
         write_event.notify(usize::MAX);
 
-        effect_result.map_err(ApplyError::Failed)
+        result
     }
 }
 
-/// Capture effects. Call this from within a [turbo-tasks operation][crate::OperationVc].
+/// Take effects. Call this from within a [turbo-tasks operation][crate::OperationVc].
 ///
 /// Collectibles are read from `ResolvedVc`s, so this function, and the return value of this
 /// function should be applied with `Effects::apply`.
@@ -307,25 +338,22 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     debug_assert_not_in_top_level_task("take_effects");
     let effects = source.take_collectibles::<Box<dyn Effect>>();
 
-    let captured: Vec<Box<dyn CapturedEffect>> = effects
+    let effects: Vec<TraitRef<Box<dyn Effect>>> = effects
         .into_iter()
-        .map(async |effect_vc| effect_vc.into_trait_ref().await?.capture().await)
+        .map(async |effect_vc| effect_vc.into_trait_ref().await)
         .try_join()
         .await?;
 
-    // detect duplicate keys
-    let unique_keys = build_unique_keys(&captured);
+    let groups = build_key_groups(&effects);
 
     let invalidator = get_invalidator()
         .expect("take_effects must be called from within a turbo-tasks task context");
 
-    Ok(Effects::new(captured, unique_keys, invalidator))
-}
-
-#[derive(thiserror::Error, Debug, NonLocalValue)]
-#[error("Conflicting effects for the same key (key length: {key_len} bytes)")]
-struct ConflictingEffectError {
-    key_len: usize,
+    Ok(Effects {
+        effects: effects.into(),
+        invalidator: Some(invalidator),
+        groups: groups.into(),
+    })
 }
 
 const MAX_KEYS_TO_DISPLAY: usize = 10;
@@ -341,7 +369,7 @@ pub enum EffectsError {
     Conflict(usize),
 
     #[error(
-        "effect state diverged before apply for {}{}; producing task invalidated, retry required",
+        "effects could not be applied for {}{}; producing tasks invalidated, retry required",
         keys.iter().take(MAX_KEYS_TO_DISPLAY).cloned().collect::<Vec<_>>().join(", "),
         if keys.len() > MAX_KEYS_TO_DISPLAY { format!(", ... ({} more)", keys.len() - MAX_KEYS_TO_DISPLAY) } else { String::new() }
     )]
@@ -354,17 +382,11 @@ impl From<Arc<dyn EffectError>> for EffectsError {
     }
 }
 
-/// Dedup'd indices into the captured Vec — one entry per unique key. Computed eagerly in
-/// [`take_effects`] purely from the captured effects (no [`EffectStateStorage`] interaction);
-/// the apply-side state machine in [`EffectStateStorage::run_apply`] handles per-key hash dedup.
-type UniqueKeys = Result<Vec<usize>, Arc<ConflictingEffectError>>;
+/// Effects grouped by key: one entry per unique key, holding one index into the effects slice
+/// per distinct [`Effect::identity`] for that key.
+type KeyGroups = Arc<[Box<[usize]>]>;
 
-/// Slice of captured effects, individually Arc'd. Each effect is `Arc<dyn CapturedEffect>`
-/// so callers can cheaply clone a Send handle out across `.await` boundaries without holding
-/// the outer mutex.
-type CapturedSlice = Arc<[Arc<dyn CapturedEffect>]>;
-
-/// Captured effects from an operation. This struct can be used to return Effects from a turbo-tasks
+/// Effects taken from an operation. This struct can be used to return Effects from a turbo-tasks
 /// function and apply them later.
 ///
 /// # Cell semantics
@@ -372,28 +394,24 @@ type CapturedSlice = Arc<[Arc<dyn CapturedEffect>]>;
 /// `Effects` uses `cell = "new"`: every producer re-execution allocates a fresh cell value and
 /// the prior cell is dropped. Cell-level dedup of `Effects` is given up; per-key dedup at apply
 /// time is provided by [`EffectStateStorage`]'s state machine (see
-/// [`EffectStateStorage::run_apply`]), which short-circuits when storage already holds
-/// `Applied { value_hash }` matching the new hash.
+/// [`EffectStateStorage::run_apply`]).
 ///
-/// `Effects::apply` is idempotent and safe to call multiple times on the same value — the state
-/// machine in `run_apply` ensures each underlying side effect runs at most once per stored
-/// `(key, value_hash)` pair across all callers.
+/// `Effects::apply` is idempotent and safe to call multiple times on the same value — the
+/// effects consult the per-key state in `run_apply` to avoid re-running side effects that are
+/// already up to date.
 #[turbo_tasks::value(shared, eq = "manual", serialization = "skip", cell = "new")]
 pub struct Effects {
-    /// Pre-resolved effects awaiting application. Lives for the lifetime of the cell — released
-    /// when the producer reruns and `cell = "new"` overwrites the cell, which is when any
-    /// upstream `ReadRef` strong-count cascades are naturally released.
+    /// Effects awaiting application. These are small values holding only what's needed to apply
+    /// them.
     #[turbo_tasks(debug_ignore)]
-    captured: CapturedSlice,
-    /// Captured at `take_effects` time. `None` for `Effects::empty()` (nothing to retry).
+    effects: Arc<[TraitRef<Box<dyn Effect>>]>,
+    /// Obtained at `take_effects` time. `None` for `Effects::empty()` (nothing to retry).
     #[turbo_tasks(debug_ignore)]
     invalidator: Option<Invalidator>,
-    /// Unique key info computed eagerly in `take_effects`. Holds one index into `captured` per
-    /// unique key, or a `ConflictingEffectError` if two captured effects share a key with
-    /// different hashes. No [`EffectStateStorage`] interaction here — that is deferred to
-    /// `apply()`.
+    /// Effects grouped by key, computed eagerly in `take_effects` from the cheap
+    /// [`Effect::identity`]. Groups with more than one identity are resolved lazily in `apply()`.
     #[turbo_tasks(debug_ignore)]
-    unique_keys: Arc<UniqueKeys>,
+    groups: KeyGroups,
 }
 
 /// `PartialEq`/`Eq` are compat shims so containing structs (which derive `PartialEq`/`Eq` via
@@ -408,47 +426,41 @@ impl PartialEq for Effects {
 }
 impl Eq for Effects {}
 
+/// Outcome of resolving a key group with multiple writers.
+enum GroupResolution {
+    /// Apply the effect at this index.
+    Apply(usize),
+    /// The writers have different content.
+    Conflict { key_len: usize },
+    /// Some writer's content is unavailable, retry after re-execution.
+    Retry { key: String },
+}
+
 impl Effects {
     /// A test-only placeholder `Effects` value with no effects (and no producer to invalidate).
     #[cfg(test)]
     fn empty() -> Self {
         Self {
-            captured: Arc::from(Vec::new()),
+            effects: Arc::from(Vec::new()),
             invalidator: None,
-            unique_keys: Arc::new(Ok(Vec::new())),
+            groups: Arc::from(Vec::new()),
         }
     }
 
-    fn new(
-        captured: Vec<Box<dyn CapturedEffect>>,
-        unique_keys: UniqueKeys,
-        invalidator: Invalidator,
-    ) -> Self {
-        // Convert Box<dyn> into Arc<dyn> per slot. Each Arc is independently Send/Sync.
-        let captured: CapturedSlice = captured
-            .into_iter()
-            .map(Arc::<dyn CapturedEffect>::from)
-            .collect();
-        Self {
-            captured,
-            invalidator: Some(invalidator),
-            unique_keys: Arc::new(unique_keys),
-        }
-    }
-
-    /// Applies all effects that have been captured.
+    /// Applies all effects.
     ///
-    /// Dispatch goes through each captured effect's [`CapturedEffect::apply`] (via
+    /// When multiple effects with different identities target the same key, their
+    /// [`Effect::content_hash`]es are compared first (reported via a `duplicate effect writers`
+    /// tracing span). Equal content is deduplicated; different content fails with
+    /// [`EffectsError::Conflict`] before any effect is applied.
+    ///
+    /// Dispatch goes through each effect's [`Effect::apply`] (typically via
     /// [`EffectStateStorage::run_apply`]) which handles the per-key state machine, dedup hits,
-    /// in-progress coordination, and panic recovery. The dispatch is idempotent — calling
-    /// `apply()` multiple times on the same `Effects` value runs each underlying side effect at
-    /// most once per stored `(key, value_hash)` pair.
+    /// in-progress coordination, and panic recovery.
     ///
-    /// If any captured effect signals [`ApplyError::Retry`] (its content was elided at capture
-    /// time and storage state diverged between capture and apply), the producing task is
-    /// invalidated and [`EffectsError::Retry`] is returned after the remaining keys finish.
-    /// Side-effect failures (`ApplyError::Failed`) propagate as [`EffectsError::Apply`]; the
-    /// first such error wins.
+    /// If any effect signals [`ApplyError::Retry`], the producing task is invalidated and
+    /// [`EffectsError::Retry`] is returned after the remaining keys finish. Side-effect failures
+    /// (`ApplyError::Failed`) propagate as [`EffectsError::Apply`]; the first such error wins.
     ///
     /// `apply` must only be used in a "top-level" task (e.g. [`run_once`][crate::run_once]),
     /// after [`take_effects`] is called from an [operation read with strong
@@ -467,54 +479,135 @@ impl Effects {
             "Effects::apply must be called from a top-level task to avoid unintended \
              re-executions due to eventual consistency",
         );
-        let unique = match self.unique_keys.as_ref() {
-            Ok(unique) => unique.as_slice(),
-            Err(err) => return Err(EffectsError::Conflict(err.key_len)),
-        };
-        if unique.is_empty() {
+        if self.groups.is_empty() {
             return Ok(());
         }
 
-        let span = tracing::info_span!("apply effects", count = unique.len());
-        let captured = &self.captured;
+        let span = tracing::info_span!("apply effects", count = self.groups.len());
+        let effects = &self.effects;
 
         async {
-            // Collect the keys of any effects that signaled `Retry` across the parallel apply so
-            // we invalidate at most once at the end of the batch and can report which outputs
-            // forced the retry. `Apply` errors still take precedence — they fail-fast through the
-            // `try_for_each_concurrent`.
+            // Collect the keys of any effects that signaled `Retry` so we invalidate at most once
+            // at the end of the batch and can report which outputs forced the retry. `Apply`
+            // errors and conflicts take precedence.
             let retry_keys = Mutex::new(Vec::<String>::new());
-            let result: Result<(), EffectsError> = futures::stream::iter(unique.iter())
+            let record_retry = |idx: usize| {
+                let key = effects[idx].key();
+                retry_keys
+                    .lock()
+                    .push(String::from_utf8_lossy(&key).into_owned());
+            };
+
+            // Phase 1: resolve keys with multiple writers. This happens before applying anything,
+            // so a conflict doesn't leave a partially applied state behind.
+            let mut to_apply = Vec::with_capacity(self.groups.len());
+            let mut multi_writer_groups = Vec::new();
+            for group in self.groups.iter() {
+                match &**group {
+                    [idx] => to_apply.push(*idx),
+                    group => multi_writer_groups.push(group),
+                }
+            }
+            if !multi_writer_groups.is_empty() {
+                let resolutions = futures::future::try_join_all(
+                    multi_writer_groups
+                        .into_iter()
+                        .map(|group| self.resolve_multi_writer_group(group)),
+                )
+                .await?;
+                for resolution in resolutions {
+                    match resolution {
+                        GroupResolution::Apply(idx) => to_apply.push(idx),
+                        GroupResolution::Conflict { key_len } => {
+                            return Err(EffectsError::Conflict(key_len));
+                        }
+                        GroupResolution::Retry { key } => retry_keys.lock().push(key),
+                    }
+                }
+            }
+
+            // Phase 2: apply.
+            let result: Result<(), EffectsError> = futures::stream::iter(to_apply)
                 .map(Ok::<_, EffectsError>)
                 .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |idx| {
-                    // Run each apply on its own spawned task so that pending effects execute in
-                    // parallel rather than serially on this future (see #94140).
-                    let effect = captured[*idx].clone();
-                    match spawn(async move { effect.apply().await }).await {
+                    // Effects run in this (top-level) task context so they can read `Vc`s. They
+                    // spawn their blocking IO themselves, so pending effects execute in parallel
+                    // (see #94140).
+                    match effects[idx].apply().await {
                         Ok(()) => Ok(()),
                         Err(ApplyError::Failed(err)) => Err(EffectsError::Apply(err)),
                         Err(ApplyError::Retry) => {
-                            let key = captured[*idx].key();
-                            retry_keys
-                                .lock()
-                                .push(String::from_utf8_lossy(&key).into_owned());
+                            record_retry(idx);
                             Ok(())
                         }
                     }
                 })
                 .await;
+            result?;
 
-            match result {
-                Err(e) => Err(e),
-                Ok(()) => {
-                    let retry_keys = retry_keys.into_inner();
-                    if retry_keys.is_empty() {
-                        Ok(())
-                    } else {
-                        self.signal_retry(retry_keys)
+            let retry_keys = retry_keys.into_inner();
+            if retry_keys.is_empty() {
+                Ok(())
+            } else {
+                self.signal_retry(retry_keys)
+            }
+        }
+        .instrument(span)
+        .await
+    }
+
+    /// Resolve a key targeted by multiple effects with different identities by comparing their
+    /// content hashes.
+    async fn resolve_multi_writer_group(
+        &self,
+        group: &[usize],
+    ) -> Result<GroupResolution, EffectsError> {
+        let key = self.effects[group[0]].key();
+        let identities = group
+            .iter()
+            .map(|&idx| self.effects[idx].identity())
+            .collect::<Vec<_>>();
+        let span = tracing::info_span!(
+            "duplicate effect writers",
+            key = %String::from_utf8_lossy(&key),
+            writers = ?identities,
+            outcome = tracing::field::Empty,
+        );
+        async {
+            let hashes = group
+                .iter()
+                .map(|&idx| self.effects[idx].content_hash())
+                .collect::<Vec<_>>();
+            let mut first_hash = None;
+            let mut needs_retry = false;
+            let mut conflict = false;
+            for hash in futures::future::join_all(hashes).await {
+                match hash {
+                    Ok(hash) => match first_hash {
+                        None => first_hash = Some(hash),
+                        Some(first) if first != hash => conflict = true,
+                        Some(_) => {}
+                    },
+                    Err(ApplyError::Retry) => needs_retry = true,
+                    Err(ApplyError::Failed(err)) => {
+                        tracing::Span::current().record("outcome", "error");
+                        return Err(EffectsError::Apply(err));
                     }
                 }
             }
+            let resolution = if conflict {
+                tracing::Span::current().record("outcome", "conflict");
+                GroupResolution::Conflict { key_len: key.len() }
+            } else if needs_retry {
+                tracing::Span::current().record("outcome", "retry");
+                GroupResolution::Retry {
+                    key: String::from_utf8_lossy(&key).into_owned(),
+                }
+            } else {
+                tracing::Span::current().record("outcome", "equal");
+                GroupResolution::Apply(group[0])
+            };
+            Ok(resolution)
         }
         .instrument(span)
         .await
@@ -530,8 +623,7 @@ impl Effects {
     }
 
     /// Invalidate the producing task (if any) and return [`EffectsError::Retry`] carrying the
-    /// `keys` that signaled [`ApplyError::Retry`] (their capture elided content materialization but
-    /// storage state diverged before apply).
+    /// `keys` that signaled [`ApplyError::Retry`].
     fn signal_retry(&self, keys: Vec<String>) -> Result<(), EffectsError> {
         if let Some(invalidator) = self.invalidator {
             with_turbo_tasks(|tt| invalidator.invalidate(&**tt));
@@ -546,13 +638,12 @@ impl Effects {
 /// `get_effects` extracts the [`Effects`] from the read value (for a wrapper struct this is
 /// `|v| &v.effects`; for an `OperationVc<Effects>` it is `|e| e`).
 ///
-/// On [`EffectsError::Retry`] the producing operation has already been invalidated by
-/// `Effects::apply`, so the next
+/// On [`EffectsError::Retry`] the producing operation (and whatever the effects themselves chose
+/// to invalidate) has already been invalidated by `Effects::apply`, so the next
 /// [`read_strongly_consistent`][OperationVc::read_strongly_consistent] re-runs the producer and
-/// yields a fresh [`Effects`] whose `capture()` re-materializes content. Retries are bounded to
-/// avoid livelock when two producers perpetually stomp the same key; after the first retry a
-/// warning is logged on each subsequent attempt, and on exhaustion the last `Retry` surfaces as an
-/// error.
+/// yields fresh [`Effects`]. Retries are bounded to avoid livelock when two producers perpetually
+/// stomp the same key; after the first retry a warning is logged on each subsequent attempt, and
+/// on exhaustion the last `Retry` surfaces as an error.
 ///
 /// This is one of two public entry points for applying effects (see also
 /// [`resolve_strongly_consistent_and_take_and_apply_effects`]) — `Effects::apply` is private so the
@@ -640,31 +731,30 @@ fn handle_apply_retry(err: EffectsError, attempts: &mut usize) -> Result<()> {
     }
 }
 
-/// Build the deduped per-key indices into the captured slice. Detects per-key value-hash
-/// conflicts. This is the eager half of effect deduplication — it inspects only the captured
-/// effects themselves (no [`EffectStateStorage`] interaction) and is therefore safe to call
-/// from inside a turbo-tasks task in [`take_effects`].
-fn build_unique_keys(captured: &[Box<dyn CapturedEffect>]) -> UniqueKeys {
-    let mut by_key: FxHashMap<Box<[u8]>, usize> = FxHashMap::default();
-    for (idx, effect) in captured.iter().enumerate() {
-        match by_key.entry(effect.key()) {
-            hash_map::Entry::Vacant(entry) => {
-                entry.insert(idx);
-            }
-            hash_map::Entry::Occupied(entry) => {
-                if captured[*entry.get()].value_hash() != effect.value_hash() {
-                    return Err(Arc::new(ConflictingEffectError {
-                        key_len: entry.key().len(),
-                    }));
-                }
-            }
+/// Group the effects by key, keeping one index per distinct identity. This is the eager half of
+/// effect deduplication — it only uses the cheap [`Effect::identity`] (no
+/// [`EffectStateStorage`] interaction or IO) and is therefore safe to call from inside a
+/// turbo-tasks task in [`take_effects`].
+fn build_key_groups(effects: &[TraitRef<Box<dyn Effect>>]) -> Vec<Box<[usize]>> {
+    let mut by_key: FxHashMap<Box<[u8]>, Vec<usize>> = FxHashMap::default();
+    for (idx, effect) in effects.iter().enumerate() {
+        let group = by_key.entry(effect.key()).or_default();
+        let identity = effect.identity();
+        if !group
+            .iter()
+            .any(|&other| effects[other].identity() == identity)
+        {
+            group.push(idx);
         }
     }
 
-    let mut keys: Vec<usize> = by_key.into_values().collect();
-    // Sort by idx so the order is deterministic — useful for stable tracing/logging.
-    keys.sort_unstable();
-    Ok(keys)
+    let mut groups: Vec<Box<[usize]>> = by_key
+        .into_values()
+        .map(|group| group.into_boxed_slice())
+        .collect();
+    // Sort by first idx so the order is deterministic — useful for stable tracing/logging.
+    groups.sort_unstable_by_key(|group| group[0]);
+    groups
 }
 
 #[cfg(test)]

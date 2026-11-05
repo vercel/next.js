@@ -73,6 +73,7 @@ pub async fn project_fs(
         rcstr!("project"),
         Vc::cell(project_dir),
         vec![denied_root_path],
+        None,
         DiskWatcherConfig::default(),
         DiskFileSystemMap::empty(),
     );
@@ -84,7 +85,17 @@ pub async fn project_fs(
 
 #[turbo_tasks::function]
 pub fn output_fs(project_dir: RcStr) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(rcstr!("output"), Vc::cell(project_dir));
+    // Written files are eagerly flushed to this scratch directory and moved into place when the
+    // write effects are applied.
+    let scratch_dir = RcStr::from(
+        std::path::Path::new(&*project_dir)
+            .join(".turbopack")
+            .join("scratch")
+            .to_str()
+            .context("the output scratch directory must be valid unicode")?,
+    );
+    let disk_fs =
+        DiskFileSystem::new_with_scratch_dir(rcstr!("output"), Vc::cell(project_dir), scratch_dir);
     Ok(Vc::upcast(disk_fs))
 }
 

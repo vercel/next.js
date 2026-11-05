@@ -436,6 +436,7 @@ fn disk_filesystem(path: RcStr, poll_interval_ms: Option<u64>) -> Vc<DiskFileSys
         rcstr!("go"),
         Vc::cell(path),
         Vec::new(),
+        None,
         DiskWatcherConfig {
             poll_interval: poll_interval_ms.map(Duration::from_millis),
             ..Default::default()

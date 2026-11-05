@@ -377,7 +377,17 @@ async fn node_file_trace_operation(
     let input_dir = workspace_fs.root().owned().await?;
     let input = input_dir.join(&format!("tests/{input}"))?;
 
-    let output_fs = DiskFileSystem::new(rcstr!("output"), Vc::cell(directory.clone()));
+    let scratch_dir = RcStr::from(
+        std::path::Path::new(&*directory)
+            .join(".scratch")
+            .to_str()
+            .unwrap(),
+    );
+    let output_fs = DiskFileSystem::new_with_scratch_dir(
+        rcstr!("output"),
+        Vc::cell(directory.clone()),
+        scratch_dir,
+    );
     let output_dir = output_fs.root().owned().await?;
 
     let source = FileSource::new(input);

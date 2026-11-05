@@ -308,10 +308,19 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Err(_) => SnapshotOptions::default(),
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
-    let project_fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(REPO_ROOT.clone()));
+    let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
+    // Every test has its own turbo-tasks instance, so it needs its own scratch directory (task ids
+    // are used as scratch file names).
+    let scratch_dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+        .join("snapshot-scratch")
+        .join(relative_path);
+    let project_fs = DiskFileSystem::new_with_scratch_dir(
+        rcstr!("project"),
+        Vc::cell(REPO_ROOT.clone()),
+        RcStr::from(scratch_dir.to_str().unwrap()),
+    );
     let project_root = project_fs.root().owned().await?;
 
-    let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
     let relative_path = RcStr::from(sys_to_unix(relative_path.to_str().unwrap()));
     let project_path = project_root.join(&relative_path)?;
 
