@@ -2,7 +2,7 @@
 const UserApi = import('./UserAPI.js')
 
 export const CreateUserAction = async (name) => {
-  console.log('Creating user', name)
+  globalThis.topLevelAwaitLog.push(['Creating user', name])
   // These are normal awaits, because they are in an async function
   const { createUser } = await UserApi
   await createUser(name)
