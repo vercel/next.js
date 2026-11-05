@@ -4,16 +4,6 @@ import { isNodeNextResponse } from './base-http/helpers'
 import { pipeToNodeResponse } from './pipe-readable'
 import { splitCookiesString } from './web/utils'
 
-// The body may have been transparently decoded (e.g. fetch decompresses a
-// gzip body but preserves the original headers), in which case forwarding
-// these headers produces invalid response framing. Matches FORBIDDEN_HEADERS
-// in web/sandbox/sandbox.ts.
-const FORBIDDEN_HEADERS = [
-  'content-length',
-  'content-encoding',
-  'transfer-encoding',
-]
-
 /**
  * Sends the response on the underlying next response object.
  *
@@ -57,7 +47,8 @@ export async function sendResponse(
         return
       }
 
-      if (FORBIDDEN_HEADERS.includes(name)) {
+      // Node.js owns the transfer framing of the outgoing message.
+      if (name === 'transfer-encoding') {
         return
       }
 
@@ -88,6 +79,12 @@ export async function sendResponse(
      */
 
     const { originalResponse } = res
+
+    // A `Content-Length` that doesn't match the body must not reach the wire: a
+    // proxy would parse the excess bytes as another response. A decoded body
+    // re-wrapped with its upstream headers looks like this, for example
+    // `new Response(upstream.body, upstream)`.
+    originalResponse.strictContentLength = true
 
     // A response body must not be sent for HEAD requests. See https://httpwg.org/specs/rfc9110.html#HEAD
     if (response.body && req.method !== 'HEAD') {

@@ -92,6 +92,11 @@ describe('stale-compressed-framing', () => {
   beforeAll(async () => {
     const upstreamPort = await findPort()
     upstream = http.createServer((req, res) => {
+      if (req.url === '/identity') {
+        res.setHeader('content-length', decoded.length)
+        res.end(decoded)
+        return
+      }
       upstreamRequests++
       res.setHeader('content-encoding', 'gzip')
       res.setHeader('content-length', compressed.length)
@@ -106,7 +111,7 @@ describe('stale-compressed-framing', () => {
 
   afterAll(() => upstream.close())
 
-  function rawRequest(path: string): Promise<RawResponse> {
+  function rawRequest(path: string, method = 'GET'): Promise<RawResponse> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = []
       const finish = () => {
@@ -158,5 +163,63 @@ describe('stale-compressed-framing', () => {
     const requestsAfterMiss = upstreamRequests
     expectDecodedFraming(await rawRequest('/proxy-cached'))
     expect(upstreamRequests).toBe(requestsAfterMiss)
+  })
+
+  it('strips stale compressed framing when cookies were set', async () => {
+    const res = await rawRequest('/proxy-cookies')
+    expectDecodedFraming(res)
+    expect(res.headers['set-cookie']).toContain('stale-compressed-framing=1')
+  })
+
+  it('strips stale compressed framing on static responses', async () => {
+    const res = await rawRequest('/proxy-static')
+    expect(res.headers['content-encoding']).toBeUndefined()
+    expect(res.headers['content-length']).not.toBe(String(compressed.length))
+    expect(res.body).toEqual(decoded)
+  })
+
+  it('keeps the length of a forwarded response that was not encoded', async () => {
+    const res = await rawRequest('/proxy-identity')
+    expect(res.headers['content-length']).toBe(String(decoded.length))
+    expect(res.headers['transfer-encoding']).toBeUndefined()
+    expect(res.body).toEqual(decoded)
+  })
+
+  it('keeps Content-Encoding on a body encoded by the handler', async () => {
+    const res = await rawRequest('/encoded')
+    expect(res.headers['content-encoding']).toBe('gzip')
+    expect(zlib.gunzipSync(res.body).toString()).toBe('encoded by the handler')
+  })
+
+  it('keeps Content-Length set by the handler', async () => {
+    const res = await rawRequest('/sized')
+    expect(res.headers['content-length']).toBe('20')
+    expect(res.headers['transfer-encoding']).toBeUndefined()
+    expect(res.body.toString()).toBe('sized by the handler')
+  })
+
+  it('keeps Content-Length set by the handler on HEAD', async () => {
+    const res = await rawRequest('/sized', 'HEAD')
+    expect(res.statusLine).toBe('HTTP/1.1 200 OK')
+    expect(res.headers['content-length']).toBe('20')
+  })
+
+  it('leaves Transfer-Encoding to Node.js', async () => {
+    const res = await rawRequest('/transfer-encoding')
+    expect(res.headers['transfer-encoding']).toBe('chunked')
+    expect(res.body.toString()).toBe('framed by Node.js')
+  })
+
+  it('does not send more bytes than a stale Content-Length promises', async () => {
+    const res = await rawRequest('/proxy-rewrapped')
+    expect(res.headers['content-length']).toBe(String(compressed.length))
+    expect(res.body.length).toBeLessThanOrEqual(compressed.length)
+    expect(res.body.toString()).not.toContain(SMUGGLED_RESPONSE)
+  })
+
+  it('closes the connection when the body is shorter than Content-Length', async () => {
+    const res = await rawRequest('/oversized')
+    expect(res.headers['content-length']).toBe('100')
+    expect(res.body.length).toBeLessThan(100)
   })
 })

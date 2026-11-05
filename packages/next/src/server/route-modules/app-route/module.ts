@@ -520,10 +520,14 @@ export class AppRouteRouteModule extends RouteModule<
       context.renderOpts.collectedStale = prerenderStore.stale
     }
 
+    const headers = withoutDecodedBodyFraming(res)
+
     // It's possible cookies were set in the handler, so we need to merge the
     // modified cookies and the returned response here.
-    const headers = new Headers(res.headers)
-    if (appendMutableCookies(headers, requestStore.mutableCookies)) {
+    if (
+      appendMutableCookies(headers, requestStore.mutableCookies) ||
+      isDecodedFetchResponse(res)
+    ) {
       return new Response(res.body, {
         status: res.status,
         statusText: res.statusText,
@@ -751,7 +755,7 @@ export class AppRouteRouteModule extends RouteModule<
               responseHandled = true
 
               const init: ResponseInit = {
-                headers: result.headers,
+                headers: withoutDecodedBodyFraming(result),
                 status: result.status,
                 statusText: result.statusText,
               }
@@ -1483,6 +1487,24 @@ const ensureStaticNextUrlHandlers = {
         return ReflectAdapter.get(target, prop, receiver)
     }
   },
+}
+
+/**
+ * fetch() transparently decodes the body but keeps the headers describing the
+ * encoded body. A handler building its own Response has no such mismatch: an
+ * encoded body with `Content-Encoding` is what it means to send.
+ */
+function isDecodedFetchResponse(response: Response): boolean {
+  return response.url !== '' && response.headers.has('content-encoding')
+}
+
+function withoutDecodedBodyFraming(response: Response): Headers {
+  const headers = new Headers(response.headers)
+  if (isDecodedFetchResponse(response)) {
+    headers.delete('content-encoding')
+    headers.delete('content-length')
+  }
+  return headers
 }
 
 function createCacheComponentsError(route: string) {

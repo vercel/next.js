@@ -10,6 +10,12 @@ import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import type { ClientComponentLoadTracker } from './client-component-renderer-logger'
 
+// The promised length can no longer be delivered, so the only way to end the
+// message without corrupting the connection is to close it.
+function isContentLengthMismatch(err: any): boolean {
+  return err?.code === 'ERR_HTTP_CONTENT_LENGTH_MISMATCH'
+}
+
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError' || e?.name === ResponseAbortedName
 }
@@ -98,7 +104,11 @@ function createWriterFromResponse(
           drained = createPromiseWithResolvers<void>()
         }
       } catch (err) {
-        res.end()
+        if (isContentLengthMismatch(err)) {
+          res.destroy()
+        } else {
+          res.end()
+        }
         throw new Error('failed to write chunk to response', { cause: err })
       }
     },
@@ -116,7 +126,14 @@ function createWriterFromResponse(
 
       if (res.writableFinished) return
 
-      res.end()
+      try {
+        res.end()
+      } catch (err) {
+        if (isContentLengthMismatch(err)) {
+          res.destroy()
+        }
+        throw err
+      }
       return finished.promise
     },
   })
