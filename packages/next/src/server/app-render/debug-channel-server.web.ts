@@ -4,10 +4,12 @@
  */
 
 import type { AnyStream } from './app-render-prerender-utils'
+import type { LocalRenderTiming } from '../lib/trace/react-render-timing'
 
 export type DebugChannelPair = {
   serverSide: DebugChannelServer
   clientSide: DebugChannelClient
+  localRenderTiming?: LocalRenderTiming
 }
 
 export type DebugChannelServer = any
@@ -22,11 +24,22 @@ type DebugChannelClient = {
  * which expects debugChannel = { writable: WritableStream }.
  */
 export function createWebDebugChannel(): DebugChannelPair {
+  let localRenderTiming: LocalRenderTiming | undefined
+  if (process.env.__NEXT_DEV_SERVER && process.env.NEXT_RUNTIME !== 'edge') {
+    const { createLocalRenderTiming } =
+      require('../lib/trace/react-render-timing') as typeof import('../lib/trace/react-render-timing')
+    localRenderTiming = createLocalRenderTiming()
+  } else {
+    localRenderTiming = undefined
+  }
   let readableController: ReadableStreamDefaultController | undefined
 
   const clientSideReadable = new ReadableStream<Uint8Array>({
     start(controller) {
       readableController = controller
+    },
+    cancel() {
+      localRenderTiming?.abort()
     },
   })
 
@@ -34,17 +47,21 @@ export function createWebDebugChannel(): DebugChannelPair {
     serverSide: {
       writable: new WritableStream<Uint8Array>({
         write(chunk) {
+          localRenderTiming?.readDebugChunk(chunk)
           readableController?.enqueue(chunk)
         },
         close() {
+          localRenderTiming?.finishDebug()
           readableController?.close()
         },
         abort(err) {
+          localRenderTiming?.abort()
           readableController?.error(err)
         },
       }),
     },
     clientSide: { readable: clientSideReadable },
+    localRenderTiming,
   }
 }
 
