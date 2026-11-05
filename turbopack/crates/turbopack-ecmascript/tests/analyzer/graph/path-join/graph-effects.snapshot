@@ -55,6 +55,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -147,6 +148,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -263,6 +265,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -272,6 +275,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -388,6 +392,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -397,6 +402,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -513,6 +519,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -522,6 +529,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -638,6 +646,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -647,6 +656,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -740,51 +750,6 @@
         span: 291..300,
         in_truthiness_context: false,
     },
-    FreeVar {
-        var: "global",
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    6,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 328..334,
-    },
     MemberCall {
         obj: Variable(
             (
@@ -808,6 +773,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -817,6 +783,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -826,6 +793,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -835,11 +803,59 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 FreeVar(
                     "global",
                 ),
+                [
+                    FreeVar {
+                        var: "global",
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    6,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 328..334,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -849,6 +865,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -858,6 +875,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -950,6 +968,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -1221,6 +1240,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
