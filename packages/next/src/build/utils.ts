@@ -855,6 +855,7 @@ export async function isPageStatic({
   deploymentId,
   clientAssetToken,
   sriEnabled,
+  isNativeRoute = false,
 }: {
   dir: string
   page: string
@@ -884,6 +885,7 @@ export async function isPageStatic({
   deploymentId: string
   clientAssetToken: string
   sriEnabled: boolean
+  isNativeRoute?: boolean
 }): Promise<PageIsStaticResult> {
   // Skip page data collection for synthetic _global-error routes
   if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
@@ -922,6 +924,18 @@ export async function isPageStatic({
         httpAgentOptions,
       })
 
+      if (isNativeRoute) {
+        return {
+          isStatic: false,
+          isRoutePPREnabled: false,
+          prerenderedRoutes: undefined,
+          prerenderRouteMatchers: undefined,
+          paramMatching: undefined,
+          prerenderFallbackMode: undefined,
+          rootParamKeys: undefined,
+          appConfig: { dynamic: 'force-dynamic', revalidate: 0 },
+        }
+      }
       let componentsResult: LoadComponentsReturnType
       let prerenderedRoutes: PrerenderedRoute[] | undefined
       let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined

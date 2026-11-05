@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "16.5.0-canary.35",
+  "version": "16.5.0-canary.41",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -104,7 +104,7 @@
   },
   "dependencies": {
     "@next/env": "workspace:*",
-    "@swc/helpers": "0.5.23",
+    "@swc/helpers": "0.5.24",
     "baseline-browser-mapping": "^2.9.19",
     "caniuse-lite": "^1.0.30001579",
     "postcss": "8.5.23",

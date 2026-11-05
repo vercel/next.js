@@ -532,6 +532,8 @@ async function exportAppImpl(
         nextConfig.experimental.disableResumeDataCacheCompression ?? false,
       exposeTestingApi:
         nextConfig.experimental.exposeTestingApiInProductionBuild === true,
+      externalBrowserRuntime:
+        nextConfig.experimental.externalBrowserRuntime === true,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }

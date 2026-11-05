@@ -6,6 +6,8 @@ import {
   imageOptimizerTransform,
   type ImageOptimizerTransformConfig,
 } from 'next/image-optimizer-transform'
+import { getImageEtag } from 'next/dist/server/image-optimizer/extract-etag'
+import { optimizeImage } from 'next/dist/server/image-optimizer/sharp'
 import type {
   CachedRouteKind,
   IncrementalResponseCacheEntry,
@@ -50,23 +52,50 @@ async function transformInDevelopment(
   filename: string,
   previousCacheEntry?: IncrementalResponseCacheEntry
 ) {
+  return transformBufferInDevelopment(
+    await getImage(filename),
+    'source-etag',
+    'image/webp',
+    previousCacheEntry
+  )
+}
+
+function transformBufferInDevelopment(
+  buffer: Buffer,
+  etag: string,
+  mimeType: string,
+  previousCacheEntry?: IncrementalResponseCacheEntry
+) {
+  // Required lazily so that the "loads without the server image optimizer
+  // dependency graph" test can verify `next/image-optimizer-transform` doesn't
+  // pull in `server/image-optimizer` on its own.
   const { imageOptimizer } =
     require('next/dist/server/image-optimizer') as typeof import('next/dist/server/image-optimizer')
-  const buffer = await getImage(filename)
   return imageOptimizer(
     {
       buffer,
       contentType: undefined,
       cacheControl: undefined,
-      etag: 'source-etag',
+      etag,
     },
-    { href: `/${filename}`, width: 8, quality: 70, mimeType: 'image/webp' },
+    { href: '/image', width: 8, quality: 70, mimeType },
     config,
     { isDev: true, silent: true, previousCacheEntry }
   )
 }
 
 describe('imageOptimizerTransform', () => {
+  it('only exposes the public API', () => {
+    expect(
+      Object.keys(require('next/image-optimizer-transform')).sort()
+    ).toEqual([
+      'ImageError',
+      'getMaxAge',
+      'getSharp',
+      'imageOptimizerTransform',
+    ])
+  })
+
   it('loads without the server image optimizer dependency graph', () => {
     const loaded = Object.keys(require.cache)
     expect(
@@ -94,6 +123,7 @@ describe('imageOptimizerTransform', () => {
     expect(result.contentType).toBe('image/webp')
     expect(result.buffer.byteLength).toBeGreaterThan(0)
     expect(result.maxAge).toBe(120)
+    expect(result.optimized).toBe(true)
   })
 
   it.each([undefined, true, false])(
@@ -137,6 +167,20 @@ describe('imageOptimizerTransform', () => {
     expect(result.buffer.toString()).toContain('<svg')
   })
 
+  it('generates blur placeholders when optimization does not change the image', async () => {
+    // An image already encoded with the blur settings round-trips through
+    // sharp unchanged, so its optimized etag matches its upstream etag.
+    const encode = (buffer: Buffer) =>
+      optimizeImage({ buffer, contentType: 'image/png', quality: 70, width: 8 })
+    const source = await encode(await encode(await getImage('test.png')))
+    expect(await encode(source)).toEqual(source)
+
+    const etag = getImageEtag(source)
+    const result = await transformBufferInDevelopment(source, etag, 'image/png')
+    expect(result.contentType).toBe('image/svg+xml')
+    expect(result.buffer.toString()).toContain('<svg')
+  })
+
   it('does not generate blur placeholders for bypassed images', async () => {
     const source = await getImage('test.svg')
     const result = await transformInDevelopment('test.svg')
@@ -166,6 +210,7 @@ describe('imageOptimizerTransform', () => {
     const result = await transform('test.svg')
     expect(result.buffer).toEqual(source)
     expect(result.contentType).toBe('image/svg+xml')
+    expect(result.optimized).toBe(false)
   })
 
   it('bypasses animated buffers', async () => {
@@ -173,6 +218,7 @@ describe('imageOptimizerTransform', () => {
     const result = await transform('animated.webp')
     expect(result.buffer).toEqual(source)
     expect(result.contentType).toBe('image/webp')
+    expect(result.optimized).toBe(false)
   })
 
   it('rejects disallowed svg buffers', async () => {

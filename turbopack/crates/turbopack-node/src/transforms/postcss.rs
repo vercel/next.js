@@ -263,20 +263,16 @@ async fn extra_configs_changed(
 }
 
 #[turbo_tasks::value]
-pub struct JsonSource {
-    pub path: FileSystemPath,
-    pub key: ResolvedVc<Option<RcStr>>,
-    pub allow_json5: bool,
+struct JsonSource {
+    path: FileSystemPath,
+    key: ResolvedVc<Option<RcStr>>,
+    allow_json5: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl JsonSource {
     #[turbo_tasks::function]
-    pub fn new(
-        path: FileSystemPath,
-        key: ResolvedVc<Option<RcStr>>,
-        allow_json5: bool,
-    ) -> Vc<Self> {
+    fn new(path: FileSystemPath, key: ResolvedVc<Option<RcStr>>, allow_json5: bool) -> Vc<Self> {
         JsonSource {
             path,
             key,
@@ -339,7 +335,7 @@ impl Asset for JsonSource {
 }
 
 #[turbo_tasks::function]
-pub(crate) async fn config_loader_source(
+async fn config_loader_source(
     project_path: FileSystemPath,
     postcss_config_path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {

@@ -99,7 +99,11 @@ pub enum ModuleResolveResultItem {
         ty: ExternalType,
     },
     /// A module could not be created (according to the rules, e.g. no module type as assigned)
-    Unknown(ResolvedVc<Box<dyn Source>>),
+    Unknown {
+        source: ResolvedVc<Box<dyn Source>>,
+        /// The import that pulled the file in, so that the file can be reported there.
+        import: Option<IssueSource>,
+    },
     /// Completely ignore this reference.
     Ignore,
     /// Emit the given issue, and generate a module which throws that issue's title at runtime.
@@ -123,8 +127,8 @@ impl ModuleResolveResultItem {
     async fn as_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
         Ok(match *self {
             ModuleResolveResultItem::Module(module) => Some(module),
-            ModuleResolveResultItem::Unknown(source) => {
-                emit_unknown_module_type_error(*source).await?;
+            ModuleResolveResultItem::Unknown { source, import } => {
+                emit_unknown_module_type_error(*source, import).await?;
                 None
             }
             ModuleResolveResultItem::Error(_err) => {

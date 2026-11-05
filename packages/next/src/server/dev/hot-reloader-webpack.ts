@@ -259,7 +259,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   protected appDir?: string
   private telemetry: Telemetry
   private resetFetch: () => void
-  private lockfile: Lockfile | undefined
   private versionInfo: VersionInfo = {
     staleness: 'unknown',
     installed: '0.0.0',
@@ -269,6 +268,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private isSrcDir: boolean
   private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
   private hasVulnerabilityInsight: Promise<boolean>
+  private hasInstrumentationInject: boolean
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -294,6 +294,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       lockfile,
       onDevServerCleanup,
       hasVulnerabilityInsight,
+      hasInstrumentationInject,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -306,9 +307,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir?: string
       telemetry: Telemetry
       resetFetch: () => void
-      lockfile: Lockfile | undefined
+      lockfile: Lockfile
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
       hasVulnerabilityInsight: Promise<boolean>
+      hasInstrumentationInject: boolean
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -327,8 +329,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.serverPrevDocumentHash = null
     this.telemetry = telemetry
     this.resetFetch = resetFetch
-    this.lockfile = lockfile
     this.hasVulnerabilityInsight = hasVulnerabilityInsight
+    this.hasInstrumentationInject = hasInstrumentationInject
 
     this.config = config
     this.previewProps = previewProps
@@ -347,7 +349,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     fileLogger.initialize(this.distDir, mcpServerEnabled)
 
     onDevServerCleanup?.(async () => {
-      await lockfile?.unlock()
+      await lockfile.unlock()
     })
   }
 
@@ -1679,6 +1681,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir: this.appDir,
       rootDir: this.dir,
       nextConfig: this.config,
+      hasInstrumentationInject: this.hasInstrumentationInject,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number
         pagesBufferLength: number

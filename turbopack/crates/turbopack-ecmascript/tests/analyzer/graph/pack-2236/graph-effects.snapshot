@@ -3,6 +3,60 @@
         arg: FreeVar(
             "EdgeRuntime",
         ),
+        effects: [
+            FreeVar {
+                var: "EdgeRuntime",
+                ast_path: [
+                    Program(
+                        Module,
+                    ),
+                    Module(
+                        Body(
+                            2,
+                        ),
+                    ),
+                    ModuleItem(
+                        Stmt,
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Cond,
+                    ),
+                    CondExpr(
+                        Test,
+                    ),
+                    Expr(
+                        Bin,
+                    ),
+                    BinExpr(
+                        Left,
+                    ),
+                    Expr(
+                        Unary,
+                    ),
+                    UnaryExpr(
+                        Arg,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 102..113,
+            },
+        ],
         ast_path: [
             Program(
                 Module,
@@ -46,58 +100,6 @@
             ),
         ],
         span: 95..113,
-    },
-    FreeVar {
-        var: "EdgeRuntime",
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    2,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Unary,
-            ),
-            UnaryExpr(
-                Arg,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 102..113,
     },
     Conditional {
         condition: Binary(

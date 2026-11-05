@@ -33,7 +33,7 @@ import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
 import { RouteKind } from '../../route-kind'
 
-import { addRequestMeta } from '../../request-meta'
+import { addRequestMeta, getRequestMeta } from '../../request-meta'
 import { isRSCRequestHeader } from '../is-rsc-request'
 import {
   compileNonPath,
@@ -590,7 +590,7 @@ export function getResolveRoutes(
             /* non-fatal we can't decode so can't match it */
           }
 
-          if (
+          const matchesMiddleware =
             // @ts-expect-error BaseNextRequest stuff
             match?.(parsedUrl.pathname, req, parsedUrl.query) ||
             match?.(
@@ -599,7 +599,18 @@ export function getResolveRoutes(
               req,
               parsedUrl.query
             )
-          ) {
+          const requestInsightsIdentity = getRequestMeta(
+            req,
+            'requestInsightsIdentity'
+          )
+          if (requestInsightsIdentity && match) {
+            addRequestMeta(req, 'requestInsightsIdentity', {
+              ...requestInsightsIdentity,
+              proxyStatus: matchesMiddleware ? 'matched' : 'bypassed',
+            })
+          }
+
+          if (matchesMiddleware) {
             if (ensureMiddleware) {
               await ensureMiddleware(req.url)
             }
@@ -754,6 +765,18 @@ export function getResolveRoutes(
                 resHeaders[key] = value
                 req.headers[key] = value
               }
+            }
+
+            // Proxy request-header overrides may restore the original length
+            // after the body was truncated. Forward the exact replay length so
+            // downstream HTTP servers can finish reading the request body.
+            const replayBodySize = getRequestMeta(req, 'replayBodySize')
+            if (
+              replayBodySize !== undefined &&
+              req.headers['content-length'] !== undefined
+            ) {
+              req.headers['content-length'] = String(replayBodySize)
+              delete req.headers['transfer-encoding']
             }
 
             if (middlewareHeaders['x-middleware-rewrite']) {

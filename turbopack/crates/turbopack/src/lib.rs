@@ -28,6 +28,7 @@ use turbopack_core::{
     context::{AssetContext, ProcessResult},
     ident::{AssetIdent, Layer},
     issue::{IssueExt, IssueSource, module::ModuleIssue},
+    loader::{WebpackLoaderItem, WebpackLoaderItems},
     module::{Module, ModuleSideEffects},
     node_addon_module::NodeAddonModule,
     output::{ExpandedOutputAssets, OutputAsset},
@@ -56,7 +57,7 @@ use turbopack_ecmascript::{
         CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
     },
 };
-use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
+use turbopack_node::transforms::webpack::WebpackLoaders;
 use turbopack_resolve::{
     resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
     typescript::type_resolve,
@@ -1017,11 +1018,6 @@ impl AssetContext for ModuleAssetContext {
         let this = self.await?;
 
         let replace_externals = this.replace_externals;
-        let import_externals = this
-            .module_options_context
-            .await?
-            .ecmascript
-            .import_externals;
 
         let result = result.await?;
 
@@ -1036,7 +1032,10 @@ impl AssetContext for ModuleAssetContext {
                                     ModuleResolveResultItem::Module(*module)
                                 }
                                 ProcessResult::Unknown(source) => {
-                                    ModuleResolveResultItem::Unknown(*source)
+                                    ModuleResolveResultItem::Unknown {
+                                        source: *source,
+                                        import: None,
+                                    }
                                 }
                                 ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
                             }
@@ -1105,6 +1104,12 @@ impl AssetContext for ModuleAssetContext {
                                     CachedExternalTracingMode::Untraced
                                 };
 
+                                // Only read here, so other resolve results don't depend on it.
+                                let import_externals = self
+                                    .module_options_context()
+                                    .await?
+                                    .ecmascript
+                                    .import_externals;
                                 replace_external(&name, ty, target, import_externals, analyze_mode)
                                     .await?
                             } else {

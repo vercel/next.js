@@ -1052,6 +1052,16 @@ impl ModuleGraph {
         .await
     }
 
+    /// Whether the graph contains any async module (see [`ModuleGraph::async_module_info`]).
+    ///
+    /// Prefer this over reading the whole [`AsyncModulesInfo`] set just to check emptiness: the
+    /// result is a `bool` cell, so dependents are only invalidated when the set transitions
+    /// between empty and nonempty, not on every change of its members.
+    #[turbo_tasks::function]
+    pub async fn has_async_modules(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(!self.async_module_info().await?.is_empty()))
+    }
+
     #[turbo_tasks::function]
     pub async fn referenced_async_modules(
         self: Vc<Self>,

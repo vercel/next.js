@@ -214,7 +214,7 @@ impl ChunkGroupInfo {
         &self,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ChunkGroups>> {
-        let module_chunk_groups = self.module_chunk_groups.await?;
+        let module_chunk_groups = self.module_chunk_groups.keyed_reader().await?;
         let Some(groups) = module_chunk_groups.get(&module) else {
             return Ok(Vc::cell(Vec::new()));
         };
@@ -229,6 +229,44 @@ impl ChunkGroupInfo {
                 })
                 .collect::<Result<_>>()?,
         ))
+    }
+
+    /// Returns the chunk groups containing loaders of `module`, including their transitive
+    /// importers across async boundaries. Non-async groups terminate a path; an async cycle is
+    /// visited only once.
+    #[turbo_tasks::function]
+    pub async fn get_async_loader_ancestor_chunk_groups(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ChunkGroups>> {
+        let loaders = self.async_loader_chunk_groups.keyed_reader().await?;
+        let mut pending = vec![module];
+        let mut visited = FxHashSet::default();
+        let mut groups = FxIndexMap::default();
+        while let Some(module) = pending.pop() {
+            if !visited.insert(module) {
+                continue;
+            }
+            if let Some(indices) = loaders.get(&module) {
+                for index in indices.iter() {
+                    if groups.contains_key(&index) {
+                        continue;
+                    }
+                    let chunk_group = self.chunk_group_at(index as usize)?;
+                    if let ChunkGroup::Async(parent_module) = chunk_group {
+                        pending.push(*parent_module);
+                    }
+                    groups.insert(
+                        index,
+                        ChunkGroupWithIndex {
+                            index,
+                            chunk_group: chunk_group.clone(),
+                        },
+                    );
+                }
+            }
+        }
+        Ok(Vc::cell(groups.into_values().collect()))
     }
 
     /// Returns the shared merged chunk group with `merge_tag` that `parent` is the parent of, if

@@ -1,4 +1,5 @@
 import './node-environment'
+import type { NativeRouteManager } from './lib/native-route.external'
 import './require-hook'
 import './node-polyfill-crypto'
 
@@ -602,7 +603,11 @@ export default class NextNodeServer extends BaseServer<
     // Dev definitions retain source filenames for watcher bookkeeping. API
     // execution still needs to load the compiled server bundle.
     const modulePath = this.isDev
-      ? join(this.distDir, 'server', `${match.definition.bundlePath}.js`)
+      ? join(
+          /* turbopackIgnore: true */ this.distDir,
+          'server',
+          `${match.definition.bundlePath}.js`
+        )
       : match.definition.filename
     const module = (await loader.load(modulePath)) as {
       handler: (
@@ -697,8 +702,8 @@ export default class NextNodeServer extends BaseServer<
             href,
             req.originalRequest,
             res.originalResponse,
-            this.nextConfig.images.maximumResponseBody,
-            handleInternalReq
+            handleInternalReq,
+            this.nextConfig.images
           )
 
       return imageOptimizer(imageUpstream, paramsResult, this.nextConfig, {
@@ -1087,6 +1092,43 @@ export default class NextNodeServer extends BaseServer<
       // for the same request.
       addRequestMeta(req, 'match', match)
 
+      if (
+        this.nextConfig.experimental.goRoutes &&
+        match.definition.kind === RouteKind.APP_ROUTE_GO
+      ) {
+        if (this.dev) {
+          await this.ensurePage({
+            page: match.definition.page,
+            definition: match.definition,
+            clientOnly: false,
+            appPaths: null,
+            url: req.url,
+          })
+        }
+        const entry = this.getAppPathsManifest()?.[match.definition.page]
+        if (!entry) {
+          throw new InvariantError('Missing Go route manifest entry')
+        }
+        if (!this.nativeRoutes) {
+          const { NativeRouteManager } =
+            require('./lib/native-route.external') as typeof import('./lib/native-route.external')
+          this.nativeRoutes = new NativeRouteManager(this.distDir, this.dev)
+          if (this.nativeRoutePages)
+            this.nativeRoutes.reconcile(this.nativeRoutePages)
+        }
+        await this.nativeRoutes.invoke(
+          match.definition.page,
+          entry,
+          req.originalRequest,
+          res.originalResponse,
+          formatUrl({
+            pathname: this.nextConfig.basePath + pathname,
+            query,
+          })
+        )
+        return true
+      }
+
       // TODO-APP: move this to a route handler
       const edgeFunctionsPages = this.getEdgeFunctionsPages()
       for (const edgeFunctionsPage of edgeFunctionsPages) {
@@ -1185,6 +1227,7 @@ export default class NextNodeServer extends BaseServer<
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     match?: RouteMatch
+    definition?: RouteMatch['definition']
     url?: string
   }): Promise<void> {
     throw new Error(
@@ -1886,7 +1929,15 @@ export default class NextNodeServer extends BaseServer<
         for (const [key, value] of Object.entries(
           toNodeOutgoingHttpHeaders(result.response.headers)
         )) {
-          if (key !== 'content-encoding' && value !== undefined) {
+          // The body may have been transparently decoded, so the framing
+          // headers of the encoded body no longer apply. Matches
+          // FORBIDDEN_HEADERS in send-response.ts.
+          if (
+            key !== 'content-length' &&
+            key !== 'content-encoding' &&
+            key !== 'transfer-encoding' &&
+            value !== undefined
+          ) {
             res.setHeader(key, value as string | string[])
           }
         }
@@ -2132,8 +2183,14 @@ export default class NextNodeServer extends BaseServer<
     // TODO: (wyattjoh) investigate improving this
 
     result.response.headers.forEach((value, key) => {
+      const lowerKey = key.toLowerCase()
+      // `x-middleware-set-cookie` is an internal header not needed for the response
+      if (lowerKey === 'x-middleware-set-cookie') {
+        return
+      }
+
       // The append handling is special cased for `set-cookie`.
-      if (key.toLowerCase() === 'set-cookie') {
+      if (lowerKey === 'set-cookie') {
         // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
         for (const cookie of splitCookiesString(value)) {
           params.res.appendHeader(key, cookie)
@@ -2191,7 +2248,17 @@ export default class NextNodeServer extends BaseServer<
     this.cleanupListeners.add(listener)
   }
 
+  protected reconcileNativeRoutes(pages: ReadonlySet<string>) {
+    this.nativeRoutePages = pages
+    this.nativeRoutes?.reconcile(pages)
+  }
+
+  private nativeRoutePages: ReadonlySet<string> | undefined = undefined
+
+  private nativeRoutes: NativeRouteManager | undefined = undefined
+
   async close(): Promise<void> {
+    await this.nativeRoutes?.close()
     await this.cleanupListeners.runAll()
   }
 

@@ -40,6 +40,7 @@ import type { RouteMatch } from './route-matches/route-match'
 import type { RouteDefinition } from './route-definitions/route-definition'
 import type { AppPageRouteDefinition } from './route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from './route-definitions/app-route-route-definition'
+import type { AppGoRouteRouteDefinition } from './route-definitions/app-go-route-route-definition'
 import type { LocaleRouteDefinition } from './route-definitions/locale-route-definition'
 import type {
   Server as HTTPServer,
@@ -120,7 +121,11 @@ import {
   SpanStatusCode,
 } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
-import { runWithRequestInsightsIdentity } from './lib/trace/request-insights-identity'
+import {
+  resolveRequestInsightsIdentity,
+  runWithRequestInsightsIdentity,
+  type RequestInsightsIdentity,
+} from './lib/trace/request-insights-identity'
 import { isRequestInsightsEnabled } from './lib/trace/span-store'
 import { I18NProvider, type LocaleAnalysisResult } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
@@ -652,6 +657,8 @@ export default abstract class Server<
           (this.dev === true ||
             this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
               true),
+        externalBrowserRuntime:
+          this.nextConfig.experimental.externalBrowserRuntime === true,
       },
       prefetchHints: {},
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
@@ -1025,25 +1032,39 @@ export default abstract class Server<
       return handleRequest()
     }
 
-    const requestIdHeader = req.headers[NEXT_REQUEST_ID_HEADER]
-    const requestId =
-      typeof requestIdHeader === 'string' ? requestIdHeader : nanoid()
-    const htmlRequestIdHeader = req.headers[NEXT_HTML_REQUEST_ID_HEADER]
+    const resolvedRequestInsightsIdentity = resolveRequestInsightsIdentity({
+      previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
+      requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
+      htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+      url: req.url,
+      createRequestId: nanoid,
+    })
+    const isMiddlewareInvoke = getRequestMeta(req, 'middlewareInvoke') === true
+    const requestInsightsIdentity: RequestInsightsIdentity = isMiddlewareInvoke
+      ? {
+          ...resolvedRequestInsightsIdentity,
+          source: 'proxy',
+        }
+      : resolvedRequestInsightsIdentity
+    addRequestMeta(req, 'requestInsightsIdentity', requestInsightsIdentity)
 
     // The request root and route-matching spans start before App Render creates
     // its workStore. Carry their identity in this outer scope; App Render copies
     // it into the workStore so the complete timeline uses one request ID.
-    return runWithRequestInsightsIdentity(
-      {
-        requestId,
-        htmlRequestId:
-          typeof htmlRequestIdHeader === 'string'
-            ? htmlRequestIdHeader
-            : requestId,
-        url: req.url,
-      },
-      handleRequest
-    )
+    try {
+      return await runWithRequestInsightsIdentity(
+        requestInsightsIdentity,
+        handleRequest
+      )
+    } finally {
+      if (isMiddlewareInvoke) {
+        addRequestMeta(
+          req,
+          'requestInsightsIdentity',
+          resolvedRequestInsightsIdentity
+        )
+      }
+    }
   }
 
   private async handleRequestImpl(
@@ -1870,14 +1891,16 @@ export default abstract class Server<
 
   private getAppRouteRouteDefinition(
     page: string
-  ): AppRouteRouteDefinition | undefined {
+  ): AppRouteRouteDefinition | AppGoRouteRouteDefinition | undefined {
     const filename = this.appPathsManifest?.[page]
     if (!filename) return
 
     const pathname = this.appNormalizers.pathname.normalize(page)
 
     return {
-      kind: RouteKind.APP_ROUTE,
+      kind: filename.endsWith('.native.json')
+        ? RouteKind.APP_ROUTE_GO
+        : RouteKind.APP_ROUTE,
       pathname,
       page,
       bundlePath: this.appNormalizers.bundlePath.normalize(page),

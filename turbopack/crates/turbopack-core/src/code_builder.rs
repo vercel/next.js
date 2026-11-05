@@ -1,7 +1,7 @@
 use std::{
     cmp::min,
     io::{BufRead, Result as IoResult, Write},
-    ops,
+    ops::{self, Range},
     sync::Arc,
 };
 
@@ -70,6 +70,9 @@ impl SectionMap {
 /// A mapping of byte-offset in the code string to an associated source map.
 pub type Mapping = (usize, Option<SectionMap>);
 
+/// The `"use strict";` directive written by [`CodeBuilder::push_strict_directive`].
+pub const STRICT_DIRECTIVE: &str = "\"use strict\";";
+
 /// Code stores combined output code and the source map of that output code.
 #[turbo_tasks::value(shared, serialization = "hash")]
 #[derive(Debug, Clone, Encode, Decode)]
@@ -77,6 +80,10 @@ pub struct Code {
     code: Rope,
     mappings: Arc<Vec<Mapping>>,
     should_generate_debug_id: bool,
+    /// Byte offset in `code` of a [`STRICT_DIRECTIVE`] that a consumer may remove, see
+    /// [`CodeBuilder::push_code_without_strict_directive`]. The directive is its own unmapped
+    /// section: no mapping starts inside it, and the code after it starts a new section.
+    strict_directive: Option<usize>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -104,6 +111,13 @@ impl Code {
     // Whether this code should have a debug id generated for it
     pub fn should_generate_debug_id(&self) -> bool {
         self.should_generate_debug_id
+    }
+
+    /// The byte range of the removable `"use strict"` directive, if this code has one. See
+    /// [`CodeBuilder::push_strict_directive`].
+    pub fn strict_directive(&self) -> Option<Range<usize>> {
+        self.strict_directive
+            .map(|start| start..start + STRICT_DIRECTIVE.len())
     }
 
     /// Take the source code out of the Code.
@@ -178,6 +192,7 @@ pub struct CodeBuilder {
     code: RopeBuilder,
     mappings: Option<Vec<Mapping>>,
     should_generate_debug_id: bool,
+    strict_directive: Option<usize>,
 }
 
 impl Default for CodeBuilder {
@@ -186,6 +201,7 @@ impl Default for CodeBuilder {
             code: RopeBuilder::default(),
             mappings: Some(Vec::new()),
             should_generate_debug_id: false,
+            strict_directive: None,
         }
     }
 }
@@ -196,7 +212,23 @@ impl CodeBuilder {
             code: RopeBuilder::default(),
             mappings: collect_mappings.then(Vec::new),
             should_generate_debug_id,
+            strict_directive: None,
         }
+    }
+
+    /// Pushes a `"use strict";` directive as synthetic code and records its position, so that
+    /// a consumer that places this code in a strict context anyway can remove it again with
+    /// [`CodeBuilder::push_code_without_strict_directive`].
+    ///
+    /// The directive becomes its own unmapped section; code pushed after it starts a new
+    /// section. At most one directive can be recorded per [`Code`].
+    pub fn push_strict_directive(&mut self) {
+        debug_assert!(
+            self.strict_directive.is_none(),
+            "only one strict directive can be recorded"
+        );
+        self.strict_directive = Some(self.code.len());
+        self.push_static_bytes(STRICT_DIRECTIVE.as_bytes());
     }
 
     /// Pushes synthetic runtime code without an associated source map. This is
@@ -244,6 +276,48 @@ impl CodeBuilder {
         self.code += &prebuilt.code;
     }
 
+    /// Like [`CodeBuilder::push_code`], but leaves out the code's recorded `"use strict"`
+    /// directive (see [`CodeBuilder::push_strict_directive`]), if it has one. Use it only where
+    /// the code is placed in a strict context by other means.
+    ///
+    /// The directive is its own unmapped section, so this only drops its bytes and moves the
+    /// following sections up; no section map has to be rewritten.
+    pub fn push_code_without_strict_directive(&mut self, prebuilt: &Code) {
+        let Some(directive) = prebuilt.strict_directive() else {
+            self.push_code(prebuilt);
+            return;
+        };
+        debug_assert!(
+            prebuilt
+                .mappings
+                .iter()
+                .all(|(index, map)| !directive.contains(index) || map.is_none()),
+            "a strict directive must be unmapped"
+        );
+        let removed = directive.len();
+        // Mappings starting inside the directive only end the preceding section, which the
+        // section after the directive does as well, so they are dropped.
+        let mappings = prebuilt
+            .mappings
+            .iter()
+            .filter(|(index, _)| !directive.contains(index))
+            .map(|(index, map)| {
+                let index = if *index >= directive.end {
+                    index - removed
+                } else {
+                    *index
+                };
+                (index, map.clone())
+            })
+            .collect();
+        self.push_code(&Code {
+            code: prebuilt.code.skip(directive),
+            mappings: Arc::new(mappings),
+            should_generate_debug_id: prebuilt.should_generate_debug_id,
+            strict_directive: None,
+        });
+    }
+
     /// Setting breakpoints on synthetic code can cause weird behaviors
     /// because Chrome will treat the location as belonging to the previous
     /// original code section. By inserting an empty source map when reaching a
@@ -277,6 +351,7 @@ impl CodeBuilder {
             code: self.code.build(),
             mappings: Arc::new(self.mappings.unwrap_or_default()),
             should_generate_debug_id: self.should_generate_debug_id,
+            strict_directive: self.strict_directive,
         }
     }
 }
@@ -418,13 +493,14 @@ impl Code {
 #[cfg(test)]
 mod tests {
     use serde_json::Value;
+    use swc_sourcemap::{DecodedMap, SourceMapBuilder};
     use turbo_tasks_fs::rope::Rope;
 
-    use super::CodeBuilder;
+    use super::*;
 
     const SECTION_MAP: &str = r#"{"version":3,"sources":["a.js"],"names":[],"mappings":"AAAA"}"#;
 
-    fn section_offsets(code: &super::Code) -> Vec<(u64, u64)> {
+    fn section_offsets(code: &Code) -> Vec<(u64, u64)> {
         let map = code.generate_source_map_ref(None);
         let map: Value = serde_json::from_str(&map.to_str().unwrap()).unwrap();
         map["sections"]
@@ -456,5 +532,135 @@ mod tests {
         let expected_column = "\"🦀é\"; ".encode_utf16().count() as u64;
         assert_eq!(expected_column, 7);
         assert_eq!(section_offsets(&code), vec![(1, expected_column)]);
+    }
+
+    /// A map for `src` that maps the start of every line to line `n` column 0 of `a.js`, and
+    /// every `x` to the same line and the column it has in `src`.
+    fn line_map(src: &str) -> Rope {
+        let mut builder = SourceMapBuilder::new(None);
+        let id = builder.add_source("a.js".into());
+        builder.set_source_contents(id, Some(src.to_string().into()));
+        for (line, text) in src.lines().enumerate() {
+            builder.add_raw(line as u32, 0, line as u32, 0, Some(id), None, false);
+            for (col, _) in text.match_indices('x') {
+                builder.add_raw(
+                    line as u32,
+                    col as u32,
+                    line as u32,
+                    col as u32,
+                    Some(id),
+                    None,
+                    false,
+                );
+            }
+        }
+        let mut out = Vec::new();
+        builder.into_sourcemap().to_writer(&mut out).unwrap();
+        out.into()
+    }
+
+    /// `(generated line, generated column, original line, original column)` of every token
+    /// mapped to an original source.
+    fn tokens(code: &Code) -> Vec<(u32, u32, u32, u32)> {
+        let map = match swc_sourcemap::decode_slice(&code.generate_source_map_ref(None).to_bytes())
+            .unwrap()
+        {
+            DecodedMap::Regular(map) => map,
+            DecodedMap::Index(index) => index.flatten().unwrap(),
+            DecodedMap::Hermes(_) => unreachable!(),
+        };
+        map.tokens()
+            .filter(|token| token.has_source())
+            .map(|token| {
+                (
+                    token.get_dst_line(),
+                    token.get_dst_col(),
+                    token.get_src_line(),
+                    token.get_src_col(),
+                )
+            })
+            .collect()
+    }
+
+    fn factory(head: &'static str, gap: &'static str, body: &str) -> Code {
+        let mut code = CodeBuilder::new(true, false);
+        code += head;
+        code.push_strict_directive();
+        code += gap;
+        code.push_source(&body.to_string().into(), Some(line_map(body)));
+        code += "})";
+        code.build()
+    }
+
+    fn compose(factory: &Code, without_directive: bool) -> Code {
+        let mut code = CodeBuilder::new(true, false);
+        code += "[1,";
+        if without_directive {
+            code.push_code_without_strict_directive(factory);
+        } else {
+            code.push_code(factory);
+        }
+        code += "]";
+        code.build()
+    }
+
+    #[test]
+    fn strict_directive_is_recorded() {
+        let code = factory("((ctx) => {\n", "\n\n", "x();\n");
+        let range = code.strict_directive().unwrap();
+        let text = code.source_code().to_str().unwrap().into_owned();
+        assert_eq!(&text[range], STRICT_DIRECTIVE);
+    }
+
+    #[test]
+    fn removing_strict_directive_keeps_following_lines_mapped() {
+        // An unminified factory: the directive is on a line of its own.
+        let factory = factory("((ctx) => {\n", "\n\n", "a; x();\nb; x();\n");
+        let with = compose(&factory, false);
+        let without = compose(&factory, true);
+        assert_eq!(
+            without.source_code().to_str().unwrap(),
+            "[1,((ctx) => {\n\n\na; x();\nb; x();\n})]"
+        );
+        assert!(without.strict_directive().is_none());
+        // The directive line keeps its line break, so no generated position moves.
+        assert!(!tokens(&with).is_empty());
+        assert_eq!(tokens(&with), tokens(&without));
+    }
+
+    #[test]
+    fn removing_strict_directive_shifts_columns_on_its_line() {
+        // A minified factory: the directive and the mapped body share a line.
+        let factory = factory("(e=>{", "", "a;x();x()");
+        let with = compose(&factory, false);
+        let without = compose(&factory, true);
+        assert_eq!(
+            without.source_code().to_str().unwrap(),
+            "[1,(e=>{a;x();x()})]"
+        );
+        let shifted = tokens(&with)
+            .into_iter()
+            .map(|(line, col, src_line, src_col)| {
+                (line, col - STRICT_DIRECTIVE.len() as u32, src_line, src_col)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(shifted.len(), 3);
+        assert_eq!(tokens(&without), shifted);
+    }
+
+    #[test]
+    fn pushing_code_without_a_directive_is_unchanged() {
+        let mut code = CodeBuilder::new(true, false);
+        code.push_source(&"x();".to_string().into(), Some(line_map("x();")));
+        let code = code.build();
+        assert!(code.strict_directive().is_none());
+        assert_eq!(
+            compose(&code, true).source_code().to_str().unwrap(),
+            compose(&code, false).source_code().to_str().unwrap()
+        );
+        assert_eq!(
+            tokens(&compose(&code, true)),
+            tokens(&compose(&code, false))
+        );
     }
 }

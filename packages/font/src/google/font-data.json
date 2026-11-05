@@ -6262,6 +6262,7 @@
       }
     ],
     "subsets": [
+      "arabic",
       "armenian",
       "bengali",
       "canadian-aboriginal",
@@ -6275,6 +6276,7 @@
       "gujarati",
       "gurmukhi",
       "hebrew",
+      "kannada",
       "khmer",
       "lao",
       "latin",

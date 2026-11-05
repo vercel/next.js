@@ -307,6 +307,7 @@ export async function adapter(
   })
   let response
   let cookiesFromResponse
+  const isMiddleware = isMiddlewarePage(params.page)
   // The trace context of the span the middleware span and the downstream
   // request share as their parent, to forward to the downstream request (see
   // `forwardTraceContextToRequest`), and the request headers as the
@@ -316,8 +317,6 @@ export async function adapter(
 
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
-    const isMiddleware = isMiddlewarePage(params.page)
-
     if (isMiddleware) {
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
       // so we have to inject it via DefinePlugin.
@@ -472,6 +471,15 @@ export async function adapter(
   // check if response is a Response object
   if (response && !(response instanceof Response)) {
     throw new TypeError('Expected an instance of Response to be returned')
+  }
+
+  if (
+    response &&
+    !isMiddleware &&
+    response.headers.has('x-middleware-set-cookie')
+  ) {
+    response = new Response(response.body, response)
+    response.headers.delete('x-middleware-set-cookie')
   }
 
   if (response && cookiesFromResponse) {
