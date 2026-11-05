@@ -17,13 +17,10 @@ declare const __turbopack_chunk_relative_url__: (
 declare const __turbopack_chunk_base_path__: string
 declare const __turbopack_chunk_asset_suffix__: string
 
-// The JS chunks already loaded in the runtime that is creating this worker.
-// Worker chunk groups are built with normal (nested) availability info, so the
-// worker's own chunk list only contains what the creating runtime does *not*
-// already have. Passing the creating runtime's loaded chunks along gives the
-// worker realm its own copies of those module factories (functions cannot be
-// structured-cloned across realms). They are already in the browser cache, so
-// this is cheap.
+// JS chunks already loaded in a worker runtime that is creating a nested worker.
+// The nested chunk group omits factories already available in its parent worker,
+// so the child re-imports those chunks (functions cannot cross worker realms).
+// A worker created by a page has a self-contained chunk group instead.
 declare const __turbopack_get_loaded_chunk_paths__: (() => string[]) | undefined
 
 declare const _TURBOPACK_WORKER_FORWARDED_GLOBALS_: string[]
@@ -75,12 +72,11 @@ function createWorker(
   )
   const workerChunkSet = new Set(workerChunkPaths)
 
-  // Chunks already loaded in the runtime creating this worker. Worker chunk
-  // groups use normal (nested) availability info, so modules the creating
-  // runtime already has are *not* in `moduleChunks`. The worker realm needs its
-  // own copies of those factories (functions can't be structured-cloned), so we
-  // hand over the chunk paths and let the worker re-import them — cheap, since
-  // the browser has them cached.
+  // Only a worker created by another worker inherits availability. A worker
+  // created by a page has a self-contained chunk group and must not import all
+  // the page's JS chunks. Workers have no `document`, including shared workers.
+  // Nested workers re-import their parent's chunks because module factories
+  // cannot be transferred across realms.
   //
   // These must be registered *before* the worker's own chunks, for two reasons:
   //  1. The worker's evaluate chunk instantiates the entry module, whose
@@ -91,6 +87,7 @@ function createWorker(
   //     wins, so a nested worker gets the correctly-pruned chunk list.
   // They travel in their own params slot — first, since they load first.
   const preloadChunkPaths = (
+    typeof document === 'undefined' &&
     typeof __turbopack_get_loaded_chunk_paths__ === 'function'
       ? __turbopack_get_loaded_chunk_paths__()
       : []
