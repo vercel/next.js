@@ -167,6 +167,8 @@ function navigateImpl(
   ) {
     const completedRoute = preparation.completedRoute
     preparation.completedRoute = null
+    // A rejected entry may signal a redirect or rewrite. Fetch again instead
+    // of overriding it with the completed preparation's route information.
     if (
       (route === null ||
         route.status === EntryStatus.Empty ||

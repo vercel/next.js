@@ -193,14 +193,13 @@ describe('router.experimental_prepare', () => {
       await expectTargetRendered(browser)
     })
 
-    it.each([
+    for (const { method, href } of [
       { method: 'push', href: '/static-target' },
       { method: 'replace', href: '/static-target' },
       { method: 'push', href: '/static-target#static-target' },
       { method: 'replace', href: '/static-target#static-target' },
-    ])(
-      'committing with $method reuses a completed preparation of $href',
-      async ({ method, href }) => {
+    ]) {
+      it(`committing with ${method} reuses a completed preparation of ${href}`, async () => {
         const { browser, act } = await startBrowser()
         const historyLength = await getHistoryLength(browser)
 
@@ -223,8 +222,8 @@ describe('router.experimental_prepare', () => {
         expect(await getHistoryLength(browser)).toBe(
           historyLength + (method === 'push' ? 1 : 0)
         )
-      }
-    )
+      })
+    }
 
     it('commits the prepared URL when a sibling route pattern was prefetched', async () => {
       const { browser, act } = await startBrowser()
