@@ -547,6 +547,7 @@ function decodeNavigationResponse<T>(
   return createFromNextReadableStream<T>(stream, headers, {
     // Only a stream that closes on abort may end before the response does.
     allowPartialStream: signal !== undefined,
+    observeTiming: true,
   }) as Promise<T> & { _debugInfo?: Array<any> }
 }
 
@@ -765,12 +766,35 @@ export async function createFetch(
 export function createFromNextReadableStream<T>(
   flightStream: ReadableStream<Uint8Array>,
   requestHeaders: RequestHeaders | undefined,
-  options?: { allowPartialStream?: boolean }
+  options?: { allowPartialStream?: boolean; observeTiming?: boolean }
 ): Promise<T> {
-  return createFromReadableStream(flightStream, {
-    callServer,
-    findSourceMapURL,
-    debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
-    unstable_allowPartialStream: options?.allowPartialStream,
-  })
+  const debugChannel = createDebugChannel && createDebugChannel(requestHeaders)
+  if (
+    process.env.__NEXT_DEV_SERVER &&
+    process.env.__NEXT_REQUEST_INSIGHTS &&
+    options?.observeTiming &&
+    requestHeaders
+  ) {
+    const { createBrowserReactTiming } =
+      require('../../dev/react-render-timing') as typeof import('../../dev/react-render-timing')
+    const timing = createBrowserReactTiming(requestHeaders)
+    if (debugChannel?.readable) {
+      debugChannel.readable = timing.wrapStream(debugChannel.readable)
+    }
+    return timing.run(() =>
+      createFromReadableStream<T>(timing.wrapStream(flightStream), {
+        callServer,
+        findSourceMapURL,
+        debugChannel,
+        unstable_allowPartialStream: options.allowPartialStream,
+      })
+    )
+  } else {
+    return createFromReadableStream(flightStream, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      unstable_allowPartialStream: options?.allowPartialStream,
+    })
+  }
 }

@@ -294,6 +294,7 @@ function getSpanTraceItem(
   const environment = span.attributes?.['next.rsc.environment']
   const renderId = span.attributes?.['next.rsc.render_id']
   const componentPath = span.attributes?.['next.rsc.component_path']
+  const outcome = span.attributes?.['next.rsc.outcome']
   const incompleteReason = span.attributes?.['next.rsc.incomplete_reason']
   const file = span.attributes?.['next.rsc.source.file']
   const line1 = span.attributes?.['next.rsc.source.line']
@@ -343,7 +344,7 @@ function getSpanTraceItem(
     category: getSpanCategory(span),
     label,
     fullLabel: reactTiming
-      ? `${label} · ${reactTiming}${typeof environment === 'string' && environment ? ` · ${environment}` : ''}${environment === 'Cache' ? ' · May include replayed timings from cached output' : ''}`
+      ? `${label} · ${reactTiming}${typeof environment === 'string' && environment ? ` · ${environment}` : ''}${outcome === 'errored' ? ' · Errored' : outcome === 'aborted' ? ' · Aborted' : ''}${environment === 'Cache' ? ' · May include replayed timings from cached output' : ''}`
       : undefined,
     startTime: span.startTime,
     durationMs: span.durationMs,

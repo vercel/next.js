@@ -5,7 +5,6 @@
 
 import { PassThrough, Writable, type Readable } from 'node:stream'
 import type { DebugChannelServer } from './debug-channel-server.web'
-import type { LocalRenderTiming } from '../lib/trace/react-render-timing'
 
 export { createWebDebugChannel } from './debug-channel-server.web'
 
@@ -17,7 +16,6 @@ export { createWebDebugChannel } from './debug-channel-server.web'
 export type NodeDebugChannelPair = {
   serverSide: DebugChannelServer
   clientSide: { readable: Readable }
-  localRenderTiming?: LocalRenderTiming
 }
 
 /**
@@ -26,14 +24,6 @@ export type NodeDebugChannelPair = {
  * which expects debugChannel to be a Node.js stream with a .write() method.
  */
 export function createNodeDebugChannel(): NodeDebugChannelPair {
-  let localRenderTiming: LocalRenderTiming | undefined
-  if (process.env.__NEXT_DEV_SERVER) {
-    const { createLocalRenderTiming } =
-      require('../lib/trace/react-render-timing') as typeof import('../lib/trace/react-render-timing')
-    localRenderTiming = createLocalRenderTiming()
-  } else {
-    localRenderTiming = undefined
-  }
   // The readable side is a PassThrough that the client reads from. The
   // server-side write target is a separate, write-only Writable that forwards
   // into it rather than the PassThrough itself: React's renderToPipeableStream
@@ -52,24 +42,15 @@ export function createNodeDebugChannel(): NodeDebugChannelPair {
 
   const writable = new Writable({
     write(chunk, encoding, callback) {
-      localRenderTiming?.readDebugChunk(chunk)
       passthrough.write(chunk, encoding, callback)
     },
     final(callback) {
-      localRenderTiming?.finishDebug()
       passthrough.end(callback)
     },
-  })
-  writable.once('close', () => {
-    if (!writable.writableFinished) localRenderTiming?.abort()
-  })
-  passthrough.once('close', () => {
-    if (!passthrough.readableEnded) localRenderTiming?.abort()
   })
 
   return {
     serverSide: writable,
     clientSide: { readable: passthrough },
-    localRenderTiming,
   }
 }
