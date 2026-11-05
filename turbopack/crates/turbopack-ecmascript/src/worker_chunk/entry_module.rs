@@ -36,19 +36,35 @@ impl WorkerEntryModule {
             asset_context,
         })
     }
+
+    /// The ident shared by this marker and the `WorkerLoaderModule` that is created from it
+    /// during chunking.
+    ///
+    /// Both must route through this single memoized function, not just compute an equal
+    /// `AssetIdent`: the module id map is keyed by the resolved `Vc<AssetIdent>`, so a lookup
+    /// only hits when the ident originates from the same memoized call. The marker is the
+    /// module that appears in the module graph (and therefore the one registered in the id
+    /// map), while the loader is what actually becomes the chunk item — they have to agree on
+    /// the id. This mirrors `AsyncLoaderModule::asset_ident_for`.
+    #[turbo_tasks::function]
+    pub async fn asset_ident_for(
+        inner: Vc<Box<dyn ChunkableModule>>,
+        worker_type: WorkerType,
+    ) -> Result<Vc<AssetIdent>> {
+        Ok(inner
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(worker_type.modifier_str())
+            .into_vc())
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl Module for WorkerEntryModule {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .inner
-            .ident()
-            .owned()
-            .await?
-            .with_modifier(self.worker_type.modifier_str())
-            .into_vc())
+    fn ident(&self) -> Vc<AssetIdent> {
+        Self::asset_ident_for(*self.inner, self.worker_type)
     }
 
     #[turbo_tasks::function]
