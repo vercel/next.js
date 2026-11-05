@@ -98,6 +98,9 @@ Versioned dependencies that do not require CGO must already be in `GOMODCACHE`. 
 downloads and use `-mod=readonly`; missing dependencies or checksums produce
 Go diagnostics without modifying `go.mod` or `go.sum`.
 
+Versioned `replace` directives in `go.mod` are supported. Their targets must also
+be prepared in the module cache before building.
+
 The CLI tracks the resolved module cache as a separate filesystem root. Watch mode
 observes both roots, so preparing a missing dependency can repair a running watch
 session. This root is configured automatically and does not need to be inside
@@ -179,7 +182,7 @@ Go's build and module caches are separate from the Turbo Tasks cache.
   are unsupported.
 - Go inputs are filenames, not package paths or patterns. All Go entries in one
   invocation must have the same parent directory and form one executable.
-- Module replacements (all `replace` directives), project Go workspaces, vendoring,
+- Local-directory module replacements, project Go workspaces, vendoring,
   source symlinks and cross-compilation are unsupported. Symlink checks cover files
   and directory components in consumed inputs.
 
