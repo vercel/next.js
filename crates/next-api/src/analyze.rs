@@ -17,6 +17,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, JoinIterExt, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
     TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
+    debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_fs::{
@@ -678,7 +679,7 @@ pub struct AnalyzeRouteInput {
 #[turbo_tasks::value(transparent)]
 pub struct AnalyzeRouteInputs(FxHashMap<RcStr, AnalyzeRouteInput>);
 
-#[turbo_tasks::value(serialization = "skip")]
+#[derive(PartialEq, Eq, NonLocalValue, ValueDebugFormat)]
 pub struct AnalyzedRouteFiles {
     output_files: Vec<ReadRef<OptionAnalyzedOutputFile>>,
 }
@@ -767,25 +768,15 @@ pub async fn analyze_route_files(
 
     let mut prepared = FxHashMap::default();
     for (key, assets, paths) in routes {
-        let route_graph = AdjacencyMap::new()
-            .visit(
-                assets.iter().copied().map(ExpandOutputAssetsInput::Asset),
-                |input| {
-                    std::future::ready(anyhow::Ok(
-                        graph
-                            .get(&input)
-                            .unwrap()
-                            .map(|&(node, ())| node)
-                            .collect::<Vec<_>>(),
-                    ))
-                },
-            )
-            .await
-            .completed()?;
-        let mut route_files: Vec<_> = route_graph
-            .into_postorder_topological()
+        let roots: Vec<_> = assets
+            .iter()
+            .copied()
+            .map(ExpandOutputAssetsInput::Asset)
+            .collect();
+        let mut route_files: Vec<_> = graph
+            .postorder_topological_from(&roots)
             .filter_map(|input| match input {
-                ExpandOutputAssetsInput::Asset(asset) => Some(files[&asset].clone()),
+                ExpandOutputAssetsInput::Asset(asset) => Some(files[asset].clone()),
                 ExpandOutputAssetsInput::Reference(_) => None,
             })
             .collect();
