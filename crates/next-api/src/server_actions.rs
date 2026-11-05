@@ -1,6 +1,7 @@
 use std::{borrow::Cow, collections::BTreeMap, io::Write, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
 use itertools::Itertools;
@@ -47,6 +48,7 @@ use turbopack_core::{
     environment::{ChunkLoading, Environment},
     file_source::FileSource,
     ident::AssetIdent,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::{Module, Modules},
     module_graph::{
         GraphTraversalAction, ModuleGraph, ModuleGraphLayer, SingleModuleGraphNode,
@@ -326,6 +328,8 @@ impl Asset for ServerActionManifestAsset {
                             modules_to_ignore
                                 .expect("cache metadata collection requires module exclusions"),
                             durable_use_cache_entries_config,
+                            // TODO this invalidates the whole function if the boolean changes
+                            meta.durable,
                         )
                         .await?,
                     )
@@ -518,6 +522,66 @@ fn collect_cache_modules(
     Ok(modules)
 }
 
+#[turbo_tasks::value(shared)]
+struct UnstableDurableCacheEnvIssue {
+    entry: ResolvedVc<Box<dyn Module>>,
+    dependency: ResolvedVc<Box<dyn Module>>,
+    env_var: RcStr,
+}
+
+#[turbo_tasks::value_impl]
+impl UnstableDurableCacheEnvIssue {
+    #[turbo_tasks::function]
+    fn new(
+        entry: ResolvedVc<Box<dyn Module>>,
+        dependency: ResolvedVc<Box<dyn Module>>,
+        env_var: RcStr,
+    ) -> Vc<Self> {
+        UnstableDurableCacheEnvIssue::cell(UnstableDurableCacheEnvIssue {
+            entry,
+            dependency,
+            env_var,
+        })
+    }
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for UnstableDurableCacheEnvIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Analysis
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.entry.ident().await?.path.clone())
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Durable cache references an unstable environment variable"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(
+            format!(
+                "This function is marked with the \"durable\" cache modifier, but its dependency \
+                 {} references the unstable environment variable \"{}\". Durable cache functions \
+                 must not depend on variables listed in \
+                 experimental.durableUseCacheEntriesConfig.unstableEnvVars. Remove the dependency \
+                 or the \"durable\" modifier.",
+                self.dependency.ident().await?.path.to_string_ref().await?,
+                self.env_var,
+            )
+            .into(),
+        )))
+    }
+}
+
 // Returns the sorted root param dependencies from this cache module's graph. A
 // callable received at runtime can read other root params. The runtime must
 // check reads against this list when it uses the list for upfront cache keys.
@@ -572,6 +636,7 @@ async fn compute_subtree_content_hash(
     hash_salt: Vc<RcStr>,
     modules_to_ignore: Vc<Modules>,
     durable_use_cache_entries_config: Vc<OptionDurableUseCacheEntriesConfig>,
+    declared_durable: bool,
 ) -> Result<Vc<OptionModulesInformation>> {
     let span = tracing::info_span!(
         "compute use-cache code hash",
@@ -657,7 +722,9 @@ async fn compute_subtree_content_hash(
         let mut hashes = Vec::with_capacity(data.len());
         let mut runtime_env_vars = FxIndexMap::<RcStr, EnvVarAccessMode>::default();
 
-        for (_m, data) in &data {
+        let mut issues = vec![];
+
+        for (m, data) in &data {
             hashes.push(&data.path_code_hash);
             if let Some(env) = &data.env_var_info {
                 for (name, access) in &env.runtime {
@@ -667,11 +734,31 @@ async fn compute_subtree_content_hash(
                     {
                         continue;
                     }
+
+                    if declared_durable
+                        && durable_use_cache_entries_config
+                            .unstable_env_vars
+                            .contains(name)
+                    {
+                        issues.push(UnstableDurableCacheEnvIssue::new(*entry, **m, name.clone()));
+                    }
+
                     runtime_env_vars
                         .entry(name.clone())
                         .and_modify(|existing| *existing = existing.merge(access.mode))
                         .or_insert(access.mode);
                 }
+            }
+        }
+
+        if !issues.is_empty() {
+            for issue in issues
+                .into_iter()
+                .map(|v| v.to_resolved())
+                .try_join()
+                .await?
+            {
+                issue.emit();
             }
         }
 
@@ -820,15 +907,22 @@ async fn module_hash(
 enum ServerActionInfoRaw {
     /// Old format: just the export name as a string
     Name(String),
-    /// New format: object with name
-    WithName { name: String },
+    /// Object metadata, with an optional durable cache assertion.
+    WithName {
+        name: String,
+        #[serde(default)]
+        durable: bool,
+    },
 }
 
 impl ServerActionInfoRaw {
     fn into_action_entry(self) -> ActionEntry {
         match self {
-            ServerActionInfoRaw::Name(name) => ActionEntry { name },
-            ServerActionInfoRaw::WithName { name } => ActionEntry { name },
+            ServerActionInfoRaw::Name(name) => ActionEntry {
+                name,
+                durable: false,
+            },
+            ServerActionInfoRaw::WithName { name, durable } => ActionEntry { name, durable },
         }
     }
 }
@@ -837,6 +931,7 @@ impl ServerActionInfoRaw {
 #[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ActionEntry {
     pub name: String,
+    pub durable: bool,
 }
 
 /// Parses the Server Actions comment for all exported action function names.
@@ -1032,6 +1127,7 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
 #[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ActionMeta {
     pub name: String,
+    pub durable: bool,
     /// The original source file path (from entry_path in the action comment)
     pub source_path: String,
 }
