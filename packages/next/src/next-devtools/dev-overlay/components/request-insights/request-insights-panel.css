@@ -287,6 +287,14 @@
   background: var(--color-gray-1000);
 }
 
+.request-insights-copy-error {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-gray-400);
+  color: var(--color-red-900);
+  font-size: var(--size-12);
+}
+
 .request-insights-context-positioner {
   z-index: var(--top-z-index);
 }

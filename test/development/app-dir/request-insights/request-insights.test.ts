@@ -1430,6 +1430,45 @@ describe('request insights', () => {
       expect(copied).toContain(selectedRequestId)
       expect(copied).toContain(spanId)
     })
+
+    for (const failure of ['unavailable', 'rejected']) {
+      await browser.eval((mode: string) => {
+        Object.defineProperty(navigator, 'clipboard', {
+          configurable: true,
+          value:
+            mode === 'unavailable'
+              ? undefined
+              : {
+                  writeText: async () => {
+                    throw new DOMException(
+                      'Permission denied',
+                      'NotAllowedError'
+                    )
+                  },
+                },
+        })
+      }, failure)
+      await firstSpan.click({ button: 'right' })
+      await browser
+        .locator('nextjs-portal .request-insights-context-item')
+        .filter({ hasText: 'Copy span ID' })
+        .click()
+      await retry(async () => {
+        const message = await browser
+          .elementByCss('.request-insights-copy-error[role="alert"]')
+          .text()
+        expect(message).toBe(
+          failure === 'unavailable'
+            ? 'Copy is unavailable. Use HTTPS or localhost.'
+            : 'Could not copy. Check browser permissions and try again.'
+        )
+        expect(
+          await browser
+            .locator('nextjs-portal .request-insights-context-menu')
+            .count()
+        ).toBe(0)
+      })
+    }
   })
 
   it('shows trace tooltips on hover and clears the preview outside the trace', async () => {
