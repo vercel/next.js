@@ -916,9 +916,9 @@ async function exportAppImpl(
     }
   }
 
-  // Export mode provide static outputs that are not compatible with PPR mode.
+  // Config validation rejects Cache Components with static export. Guard callers
+  // that pass a preloaded config as well.
   if (!options.buildExport && nextConfig.cacheComponents) {
-    // TODO: add message
     throw new Error('Invariant: PPR cannot be enabled in export mode')
   }
 

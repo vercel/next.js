@@ -57,6 +57,8 @@ The sections below cover each config and API and what to do with it under Cache 
 
 Cache Components requires Next.js 16. If you're on Next.js 15 or earlier, upgrade first by following the [version 16 upgrade guide](/docs/app/guides/upgrading/version-16). Coming from an older version, work through the [upgrade guides](/docs/app/guides/upgrading) to reach 16 before continuing.
 
+Cache Components is not currently supported with [`output: 'export'`](/docs/app/guides/static-exports). Remove `output: 'export'` before enabling Cache Components, or keep `cacheComponents` and `partialPrefetching` disabled to continue generating a static export.
+
 Then enable the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag in `next.config.ts`:
 
 ```ts filename="next.config.ts"
