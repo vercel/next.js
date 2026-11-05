@@ -1,8 +1,12 @@
 # Next testing: stable release requirements
 
-Status: proposed release requirements, October 13, 2026. This document defines the target for graduating the experiment; it does not claim that these requirements are implemented or verified.
+These requirements define graduation beyond the experiment. They do not claim
+that every requirement is implemented or verified.
 
-Original implementation baseline: [PR #98869](https://github.com/vercel/next.js/pull/98869) at `3371432a55`. The October 13 [remaining-work document](NEXT_TESTING_REMAINING_WORK.md) describes historical gaps. Use the [reviewed compatibility inventory](packages/next/src/experimental/testing/compatibility-inventory.md), [runtime capabilities](packages/next/src/experimental/testing/capabilities.ts) and [progress ledger](NEXT_TESTING_STABLE_PROGRESS.md) for current implementation scope and verification. The requirements below remain the stable release target.
+Use `next test --capabilities`, the [capability definitions](packages/next/src/experimental/testing/capabilities.ts)
+and [current implementation status](NEXT_TESTING_STABLE_PROGRESS.md) for actual
+support and remaining qualification. The requirements below remain the stable
+release target.
 
 ## Release goal
 

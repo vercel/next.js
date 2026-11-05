@@ -2,7 +2,11 @@ const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
-const { spawn } = require('node:child_process')
+const {
+  runReporterCommand,
+  assertForeignReport,
+  retainReporterEvidence,
+} = require('./reporter-command.cjs')
 const { createHash } = require('node:crypto')
 const repo = path.resolve(__dirname, '../../..')
 const source = path.join(__dirname, 'fixtures/case-result-foreign')
@@ -12,63 +16,18 @@ const digest = (file) =>
   createHash('sha256').update(fs.readFileSync(file)).digest('hex')
 
 async function run(root, mode, extension) {
-  const env = { ...process.env, NODE_ENV: mode, NEXT_TELEMETRY_DISABLED: '1' }
-  delete env.CI
-  const child = spawn(
-    process.execPath,
-    [
-      path.join(repo, 'packages/next/dist/bin/next'),
-      'test',
-      root,
+  return runReporterCommand({
+    root,
+    mode,
+    args: [
       '--merge-reports=./blobs',
       '--reporter=./reporter.' + extension,
       '--reporter=json',
       '--outputFile=merged.json',
     ],
-    { cwd: root, env, detached: process.platform !== 'win32' }
-  )
-  let stdout = '',
-    stderr = '',
-    closed = false,
-    timer
-  child.stdout.on('data', (data) => (stdout += data))
-  child.stderr.on('data', (data) => (stderr += data))
-  const completion = new Promise((resolve, reject) => {
-    child.once('error', reject)
-    child.once('close', (code, signal) => {
-      closed = true
-      resolve({ code, signal })
-    })
+    timeoutMessage: 'TypeScript reporter merge did not close',
+    cleanupMessage: 'TypeScript reporter cleanup did not close',
   })
-  try {
-    const ended = await Promise.race([
-      completion,
-      new Promise((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error('TypeScript reporter merge did not close')),
-          35000
-        )
-      }),
-    ])
-    assert.equal(ended.signal, null)
-    return { ...ended, stdout, stderr }
-  } finally {
-    clearTimeout(timer)
-    if (!closed) {
-      if (process.platform === 'win32') child.kill('SIGTERM')
-      else process.kill(-child.pid, 'SIGTERM')
-      await Promise.race([
-        completion,
-        new Promise((_, reject) => {
-          timer = setTimeout(
-            () =>
-              reject(new Error('TypeScript reporter cleanup did not close')),
-            10000
-          )
-        }),
-      ]).finally(() => clearTimeout(timer))
-    }
-  }
 }
 
 async function main() {
@@ -111,17 +70,7 @@ async function main() {
       }
       const result = await run(root, mode, extension)
       const evidence = process.env.NEXT_TESTING_TYPESCRIPT_REPORTER_EVIDENCE
-      if (evidence) {
-        const dest = path.join(evidence, name)
-        fs.mkdirSync(dest, { recursive: true })
-        for (const file of ['rows.json', 'merged.json'])
-          if (fs.existsSync(path.join(root, file)))
-            fs.copyFileSync(path.join(root, file), path.join(dest, file))
-        fs.writeFileSync(
-          path.join(dest, 'outcome.json'),
-          JSON.stringify(result)
-        )
-      }
+      retainReporterEvidence(root, result, evidence, name)
       assert.equal(result.code, 1, result.stdout + result.stderr)
       const rows = read(path.join(root, 'rows.json'))
       assert.deepEqual(
@@ -129,25 +78,10 @@ async function main() {
         read(resolveFixturePath(path.join(typed, name + '.rows.json')))
       )
       const imported = read(path.join(root, 'merged.json'))
-      assert.equal(imported.next, undefined)
-      assert.equal(imported.vitest.attemptHistory, 'unavailable')
-      assert.equal(imported.vitest.runBoundaries, 'unavailable')
-      assert.equal(imported.vitest.environmentGraphs, 'opaque-not-restored')
-      assert.deepEqual(imported.vitest.blobs[0].flatted, read(blobPath))
       const expected = read(
         resolveFixturePath(path.join(typed, name + '.report.json'))
       )
-      expected.startTime = imported.startTime
-      for (const file of expected.testResults)
-        if (
-          file.assertionResults.every((test) => test.duration === undefined)
-        ) {
-          file.startTime = imported.startTime
-          file.endTime = imported.startTime
-        }
-      const { vitest: foreign, ...standard } = imported
-      assert.equal(foreign.version, '5.0.4')
-      assert.deepEqual(standard, expected)
+      assertForeignReport(imported, expected, read(blobPath))
       assert.equal(digest(blobPath), before.blob)
       assert.equal(
         digest(path.join(root, 'reporter.' + extension)),

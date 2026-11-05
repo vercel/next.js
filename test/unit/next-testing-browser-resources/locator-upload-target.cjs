@@ -2,8 +2,7 @@
 const assert = require('node:assert/strict')
 const { createRequire } = require('node:module')
 const load = process.argv[3] ? createRequire(process.argv[3]) : require
-const provider = createRequire(load.resolve('jest-environment-jsdom'))
-const { JSDOM } = provider(provider.resolve('jsdom'))
+
 const scopes = load('next/dist/experimental/testing/client/async-context')
 const api = load('next/dist/experimental/testing/client/browser-context')
 const { getBrowserActionThen } = load(
@@ -24,27 +23,13 @@ assert(
     'closed-scope',
   ].includes(mode)
 )
-const dom = new JSDOM('<!DOCTYPE html><body></body>')
-const saved = new Map()
-for (const name of [
-  'document',
-  'window',
-  'Element',
-  'Node',
-  'HTMLInputElement',
-  'HTMLTextAreaElement',
-  'HTMLFormElement',
-  'HTMLIFrameElement',
-  'ShadowRoot',
-  'XPathResult',
-  'FileReader',
-]) {
-  saved.set(name, Object.getOwnPropertyDescriptor(globalThis, name))
-  Object.defineProperty(globalThis, name, {
-    configurable: true,
-    value: name === 'window' ? dom.window : dom.window[name],
-  })
-}
+const { createDOMFixture, locatorGlobals } = require('./dom-fixture.cjs')
+const { dom, restoreGlobals } = createDOMFixture({
+  html: '<!DOCTYPE html><body></body>',
+  globals: [...locatorGlobals, 'FileReader'],
+  load,
+  saveGlobals: 'during',
+})
 const late = [],
   commands = [],
   trace = [],
@@ -230,10 +215,7 @@ async function main() {
     scope.close()
     leave()
     dom.window.close()
-    for (const [name, descriptor] of saved) {
-      if (descriptor) Object.defineProperty(globalThis, name, descriptor)
-      else Reflect.deleteProperty(globalThis, name)
-    }
+    restoreGlobals()
   }
 }
 main().catch((error) => {

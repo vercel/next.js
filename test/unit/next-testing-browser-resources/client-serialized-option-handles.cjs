@@ -1,9 +1,8 @@
 'use strict'
 const assert = require('node:assert/strict')
-const { createRequire } = require('node:module')
+const createClientTransportFixture = require('./client-transport-fixture.cjs')
 const { EventEmitter } = require('node:events')
 const [mode, executePath] = process.argv.slice(2)
-const req = createRequire(executePath)
 assert(
   [
     'normal',
@@ -165,108 +164,29 @@ page.goto = async () => {
   }
   complete({})
 }
-const context = {
-  newPage: async () => page,
-  async close() {
-    trace.push('context-close')
+const execute = createClientTransportFixture({
+  executePath,
+  page,
+  trace,
+  failures,
+  completion,
+  setDispatch(value) {
+    dispatch = value
+  },
+  getOperation: () => operation,
+  beforePageClose: () => {
     releaseDispose?.()
     rejectLookup?.(cancellation)
-    page.emit('close')
-  },
-}
-const browser = {
-  newContext: async () => context,
-  async close() {
-    trace.push('browser-close')
-  },
-}
-const host = {
-  wsEndpoint: 'ws://unit',
-  async dispose() {
-    trace.push('host-close')
-  },
-}
-const server = {
-  url: 'http://unit/',
-  completion,
-  verify: async () => {},
-  assertClean() {},
-  mapStack: () => [],
-  fail() {},
-  async dispose() {
-    trace.push('server-close')
-    await operation?.catch(() => {})
-  },
-}
-const collector = {
-  events: [],
-  accept() {},
-  fail(error) {
-    failures.push(error)
-  },
-  hasFailure: () => failures.length > 0,
-  result: () => ({
-    status: failures.length ? 'failed' : 'passed',
-    updates: [],
-  }),
-}
-const brand = {
-  start: async () => {},
-  fact: () => ({}),
-  close() {},
-  afterOwnersClosed: async () => {},
-}
-function replace(name, exports) {
-  const filename = req.resolve(name)
-  require.cache[filename] = { id: filename, filename, loaded: true, exports }
-}
-replace('../browser/host', {
-  createBrowserHost: async () => host,
-  connectBrowserHost: async () => browser,
-})
-replace('./server', {
-  createClientServer: async (options) => {
-    dispatch = options.onBrowserCommand
-    return server
   },
 })
-replace('./results', { createClientResultCollector: () => collector })
-replace('./engine-brand', { createClientEngineBrand: () => brand })
-const profile = {
-  id: 'serialized-option-handles',
-  environment: 'browser',
-  mode: 'development',
-  runtime: 'nodejs',
-  bundler: 'turbopack',
-  browserClient: true,
-}
-const entry = { id: 'entry', file: '/project/options.test.mjs', profile }
-const artifact = {
-  version: 2,
-  kind: 'browser',
-  entryId: entry.id,
-  revision: 'revision',
-  profile,
-  client: {
-    sourceFile: entry.file,
-    asyncScope: 'promise-continuations-v1',
-    creatorScope: 'synchronous-source-v1',
-    creatorPromiseRoute: 'native-engine-v1',
-  },
-}
 ;(async () => {
   let result, failure
   try {
-    result = await require(executePath).executeClient(artifact, {
-      entry,
-      runId: 'run',
+    result = await execute({
+      profileId: 'serialized-option-handles',
+      sourceFile: '/project/options.test.mjs',
       projectDir: '/project',
-      setupFiles: [],
       signal: controller.signal,
-      updateSnapshots: false,
-      testTimeout: 1000,
-      hookTimeout: 1000,
-      fileTimeout: 5000,
       onEvent: (event) => events.push(event),
     })
   } catch (error) {

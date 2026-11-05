@@ -45,6 +45,11 @@ import { createDevTurbopackProject } from 'next/dist/build/swc/dev-project'
 import { Lockfile } from 'next/dist/build/lockfile'
 import { createCompiledRouteRenderOpts } from 'next/dist/experimental/testing/compiler/route-render'
 import { serialize, deserialize } from 'v8'
+import { readFileSync } from 'node:fs'
+import {
+  runNodeHelperSync,
+  withOutputDirectorySync,
+} from '../../lib/next-testing-node-helpers'
 
 jest.mock('next/dist/build/swc', () => ({
   loadBindings: async () => ({ isWasm: false }),
@@ -3362,6 +3367,172 @@ describe('private native TypeScript config provenance ABI', () => {
 
 // Component-only native/session model. This mocked endpoint is never evidence of
 // an actual negotiated native producer; live qualification stays root-owned.
+async function createNativeConfigIssuer(
+  prefix: string,
+  controls: {
+    createdRoot(value: string): void
+    hashMode(): 'sha256' | 'xxh' | 'mismatch' | 'noncanonical'
+    omitListed(): boolean
+    deferredSnapshot(): Promise<void> | undefined
+    recordSidecarHash(value: string): void
+  }
+) {
+  const { realpath } = await import('fs/promises')
+  const root = await realpath(await mkdtemp(prefix))
+  controls.createdRoot(root)
+  await writeFile(join(root, 'subject.ts'), 'export const value = 1\n')
+  await writeFile(join(root, 'config.json'), '{}\n')
+  const selectedProfile: import('next/dist/experimental/testing/contracts').TestProfile =
+    {
+      id: 'native-session-component',
+      mode: 'development',
+      environment: 'node',
+      runtime: 'nodejs',
+      bundler: 'turbopack',
+    }
+  const requests: any[] = []
+  const shutdownNative = jest.fn(async () => {})
+  const sha = (bytes: string | Buffer) =>
+    createHash('sha256').update(bytes).digest('hex')
+  jest.mocked(createDevTurbopackProject).mockImplementation(
+    async () =>
+      ({
+        nativeProjectPaths: Object.freeze({
+          rootPath: root,
+          projectPath: '.',
+        }),
+        project: {
+          shutdown: shutdownNative,
+          testEntry: async (input: any) => {
+            requests.push({ ...input })
+            return {
+              writeToDiskSnapshot: async (directory: string) => {
+                await controls.deferredSnapshot()
+                const destination = join(root, '.next', directory)
+                const entryPath = `server/next-test/${input.id}.js`
+                await mkdir(dirname(join(destination, entryPath)), {
+                  recursive: true,
+                })
+                const code = 'export const value = 1\n'
+                await writeFile(join(destination, entryPath), code)
+                const serverPaths = [
+                  {
+                    path: entryPath,
+                    contentHash: 'ordinary-native-opaque-hash',
+                  },
+                ]
+                if (input.tsconfigInputRevision !== undefined) {
+                  const nativePath = (file: string) => ({
+                    nativePath:
+                      file === root ? '' : file.slice(root.length + 1),
+                    path: file,
+                  })
+                  const config = nativePath(join(root, 'config.json'))
+                  const records = [
+                    'aliases',
+                    'decorators',
+                    'jsx',
+                    'typescript',
+                  ].flatMap((consumer) => {
+                    const context = {
+                      consumer,
+                      configuredPath: config,
+                      consumerPath: nativePath(root),
+                      lookupPath: nativePath(root),
+                      request: 'native-options',
+                      chainIndex: 0,
+                      attemptIndex: 0,
+                    }
+                    return [
+                      {
+                        context,
+                        order: [],
+                        kind: 'selection',
+                        path: nativePath(root),
+                        fact: { selected: config },
+                      },
+                      {
+                        context,
+                        order: [],
+                        kind: 'config-read',
+                        path: config,
+                        fact: {
+                          status: 'parsed',
+                          sha256: sha('{}\n'),
+                          observed: 'file',
+                          identity: {
+                            status: 'found',
+                            target: config,
+                            symlinks: [],
+                          },
+                        },
+                      },
+                    ]
+                  })
+                  const payload = {
+                    version: 1,
+                    kind: 'native-typescript-config-inputs',
+                    mode: 'development',
+                    environment: 'node',
+                    route: null,
+                    browserClient: false,
+                    sourceCoverage: false,
+                    entryId: input.id,
+                    entryFile: input.file,
+                    entryPath,
+                    revision: input.tsconfigInputRevision,
+                    filesystemRoot: nativePath(root),
+                    projectPath: nativePath(root),
+                    complete: true,
+                    reasons: [],
+                    scripts: [
+                      {
+                        path: entryPath,
+                        sha256: sha(code),
+                        mapPath: null,
+                        mapSha256: null,
+                      },
+                    ],
+                    records,
+                  }
+                  const bytes = JSON.stringify(payload),
+                    path = entryPath.replace(/\.js$/, '.tsconfig-inputs.json')
+                  await writeFile(join(destination, path), bytes)
+                  controls.recordSidecarHash(sha(bytes))
+                  const nativeHash = createHash('sha256')
+                    .update(bytes)
+                    .digest('base64')
+                  if (!controls.omitListed())
+                    serverPaths.push({
+                      path,
+                      contentHash:
+                        controls.hashMode() === 'sha256'
+                          ? nativeHash
+                          : controls.hashMode() === 'xxh'
+                            ? '0123456789abcdef0123456789abcdef'
+                            : controls.hashMode() === 'mismatch'
+                              ? Buffer.alloc(32).toString('base64')
+                              : nativeHash.replace(/=$/, ''),
+                    })
+                }
+                return {
+                  value: {
+                    type: 'nodejs',
+                    entryPath,
+                    serverPaths,
+                    clientPaths: [],
+                  },
+                  issues: [],
+                }
+              },
+            }
+          },
+        },
+      }) as any
+  )
+  return { root, selectedProfile, requests, shutdownNative }
+}
+
 describe('private native TypeScript config Session issuance components', () => {
   let root: string
   let owned: Awaited<ReturnType<typeof createTestCompilerSession>> | undefined
@@ -3376,162 +3547,26 @@ describe('private native TypeScript config Session issuance components', () => {
   const sha = (bytes: string | Buffer) =>
     createHash('sha256').update(bytes).digest('hex')
   beforeEach(async () => {
-    const { realpath } = await import('fs/promises')
     process.env = { ...process.env, NODE_ENV: 'development' }
-    root = await realpath(
-      await mkdtemp('/private/tmp/next-session-native-config-')
-    )
-    await writeFile(join(root, 'subject.ts'), 'export const value = 1\n')
-    await writeFile(join(root, 'config.json'), '{}\n')
-    selectedProfile = {
-      id: 'native-session-component',
-      mode: 'development',
-      environment: 'node',
-      runtime: 'nodejs',
-      bundler: 'turbopack',
-    }
-    requests = []
     hashMode = 'sha256'
     omitListed = false
     emittedSidecarSha256 = undefined
     deferredSnapshot = undefined
-    shutdownNative = jest.fn(async () => {})
-    jest.mocked(createDevTurbopackProject).mockImplementation(
-      async () =>
-        ({
-          nativeProjectPaths: Object.freeze({
-            rootPath: root,
-            projectPath: '.',
-          }),
-          project: {
-            shutdown: shutdownNative,
-            testEntry: async (input: any) => {
-              requests.push({ ...input })
-              return {
-                writeToDiskSnapshot: async (directory: string) => {
-                  await deferredSnapshot?.()
-                  const destination = join(root, '.next', directory)
-                  const entryPath = `server/next-test/${input.id}.js`
-                  await mkdir(dirname(join(destination, entryPath)), {
-                    recursive: true,
-                  })
-                  const code = 'export const value = 1\n'
-                  await writeFile(join(destination, entryPath), code)
-                  const serverPaths = [
-                    {
-                      path: entryPath,
-                      contentHash: 'ordinary-native-opaque-hash',
-                    },
-                  ]
-                  if (input.tsconfigInputRevision !== undefined) {
-                    const nativePath = (file: string) => ({
-                      nativePath:
-                        file === root ? '' : file.slice(root.length + 1),
-                      path: file,
-                    })
-                    const config = nativePath(join(root, 'config.json'))
-                    const records = [
-                      'aliases',
-                      'decorators',
-                      'jsx',
-                      'typescript',
-                    ].flatMap((consumer) => {
-                      const context = {
-                        consumer,
-                        configuredPath: config,
-                        consumerPath: nativePath(root),
-                        lookupPath: nativePath(root),
-                        request: 'native-options',
-                        chainIndex: 0,
-                        attemptIndex: 0,
-                      }
-                      return [
-                        {
-                          context,
-                          order: [],
-                          kind: 'selection',
-                          path: nativePath(root),
-                          fact: { selected: config },
-                        },
-                        {
-                          context,
-                          order: [],
-                          kind: 'config-read',
-                          path: config,
-                          fact: {
-                            status: 'parsed',
-                            sha256: sha('{}\n'),
-                            observed: 'file',
-                            identity: {
-                              status: 'found',
-                              target: config,
-                              symlinks: [],
-                            },
-                          },
-                        },
-                      ]
-                    })
-                    const payload = {
-                      version: 1,
-                      kind: 'native-typescript-config-inputs',
-                      mode: 'development',
-                      environment: 'node',
-                      route: null,
-                      browserClient: false,
-                      sourceCoverage: false,
-                      entryId: input.id,
-                      entryFile: input.file,
-                      entryPath,
-                      revision: input.tsconfigInputRevision,
-                      filesystemRoot: nativePath(root),
-                      projectPath: nativePath(root),
-                      complete: true,
-                      reasons: [],
-                      scripts: [
-                        {
-                          path: entryPath,
-                          sha256: sha(code),
-                          mapPath: null,
-                          mapSha256: null,
-                        },
-                      ],
-                      records,
-                    }
-                    const bytes = JSON.stringify(payload),
-                      path = entryPath.replace(/\.js$/, '.tsconfig-inputs.json')
-                    await writeFile(join(destination, path), bytes)
-                    emittedSidecarSha256 = sha(bytes)
-                    const nativeHash = createHash('sha256')
-                      .update(bytes)
-                      .digest('base64')
-                    if (!omitListed)
-                      serverPaths.push({
-                        path,
-                        contentHash:
-                          hashMode === 'sha256'
-                            ? nativeHash
-                            : hashMode === 'xxh'
-                              ? '0123456789abcdef0123456789abcdef'
-                              : hashMode === 'mismatch'
-                                ? Buffer.alloc(32).toString('base64')
-                                : nativeHash.replace(/=$/, ''),
-                      })
-                  }
-                  return {
-                    value: {
-                      type: 'nodejs',
-                      entryPath,
-                      serverPaths,
-                      clientPaths: [],
-                    },
-                    issues: [],
-                  }
-                },
-              }
-            },
+    ;({ root, selectedProfile, requests, shutdownNative } =
+      await createNativeConfigIssuer(
+        '/private/tmp/next-session-native-config-',
+        {
+          createdRoot: (value) => {
+            root = value
           },
-        }) as any
-    )
+          hashMode: () => hashMode,
+          omitListed: () => omitListed,
+          deferredSnapshot: () => deferredSnapshot?.(),
+          recordSidecarHash: (value) => {
+            emittedSidecarSha256 = value
+          },
+        }
+      ))
     owned = await createTestCompilerSession(root, selectedProfile)
   })
   afterEach(async () => {
@@ -4102,172 +4137,33 @@ describe('private native runtime conversion grants (component issuer)', () => {
   let root: string
   let owned: Awaited<ReturnType<typeof createTestCompilerSession>> | undefined
   let selectedProfile: import('next/dist/experimental/testing/contracts').TestProfile
-  let requests: any[]
   let hashMode: 'sha256' | 'xxh' | 'mismatch' | 'noncanonical'
   let omitListed: boolean
   let emittedSidecarSha256: string | undefined
-  let shutdownNative: jest.Mock
   let deferredSnapshot: (() => Promise<void>) | undefined
   const previousEnvironment = process.env.NODE_ENV
   const sha = (bytes: string | Buffer) =>
     createHash('sha256').update(bytes).digest('hex')
   beforeEach(async () => {
-    const { realpath } = await import('fs/promises')
     process.env = { ...process.env, NODE_ENV: 'development' }
-    root = await realpath(
-      await mkdtemp('/private/tmp/next-session-native-config-')
-    )
-    await writeFile(join(root, 'subject.ts'), 'export const value = 1\n')
-    await writeFile(join(root, 'config.json'), '{}\n')
-    selectedProfile = {
-      id: 'native-session-component',
-      mode: 'development',
-      environment: 'node',
-      runtime: 'nodejs',
-      bundler: 'turbopack',
-    }
-    requests = []
     hashMode = 'sha256'
     omitListed = false
     emittedSidecarSha256 = undefined
     deferredSnapshot = undefined
-    shutdownNative = jest.fn(async () => {})
-    jest.mocked(createDevTurbopackProject).mockImplementation(
-      async () =>
-        ({
-          nativeProjectPaths: Object.freeze({
-            rootPath: root,
-            projectPath: '.',
-          }),
-          project: {
-            shutdown: shutdownNative,
-            testEntry: async (input: any) => {
-              requests.push({ ...input })
-              return {
-                writeToDiskSnapshot: async (directory: string) => {
-                  await deferredSnapshot?.()
-                  const destination = join(root, '.next', directory)
-                  const entryPath = `server/next-test/${input.id}.js`
-                  await mkdir(dirname(join(destination, entryPath)), {
-                    recursive: true,
-                  })
-                  const code = 'export const value = 1\n'
-                  await writeFile(join(destination, entryPath), code)
-                  const serverPaths = [
-                    {
-                      path: entryPath,
-                      contentHash: 'ordinary-native-opaque-hash',
-                    },
-                  ]
-                  if (input.tsconfigInputRevision !== undefined) {
-                    const nativePath = (file: string) => ({
-                      nativePath:
-                        file === root ? '' : file.slice(root.length + 1),
-                      path: file,
-                    })
-                    const config = nativePath(join(root, 'config.json'))
-                    const records = [
-                      'aliases',
-                      'decorators',
-                      'jsx',
-                      'typescript',
-                    ].flatMap((consumer) => {
-                      const context = {
-                        consumer,
-                        configuredPath: config,
-                        consumerPath: nativePath(root),
-                        lookupPath: nativePath(root),
-                        request: 'native-options',
-                        chainIndex: 0,
-                        attemptIndex: 0,
-                      }
-                      return [
-                        {
-                          context,
-                          order: [],
-                          kind: 'selection',
-                          path: nativePath(root),
-                          fact: { selected: config },
-                        },
-                        {
-                          context,
-                          order: [],
-                          kind: 'config-read',
-                          path: config,
-                          fact: {
-                            status: 'parsed',
-                            sha256: sha('{}\n'),
-                            observed: 'file',
-                            identity: {
-                              status: 'found',
-                              target: config,
-                              symlinks: [],
-                            },
-                          },
-                        },
-                      ]
-                    })
-                    const payload = {
-                      version: 1,
-                      kind: 'native-typescript-config-inputs',
-                      mode: 'development',
-                      environment: 'node',
-                      route: null,
-                      browserClient: false,
-                      sourceCoverage: false,
-                      entryId: input.id,
-                      entryFile: input.file,
-                      entryPath,
-                      revision: input.tsconfigInputRevision,
-                      filesystemRoot: nativePath(root),
-                      projectPath: nativePath(root),
-                      complete: true,
-                      reasons: [],
-                      scripts: [
-                        {
-                          path: entryPath,
-                          sha256: sha(code),
-                          mapPath: null,
-                          mapSha256: null,
-                        },
-                      ],
-                      records,
-                    }
-                    const bytes = JSON.stringify(payload),
-                      path = entryPath.replace(/\.js$/, '.tsconfig-inputs.json')
-                    await writeFile(join(destination, path), bytes)
-                    emittedSidecarSha256 = sha(bytes)
-                    const nativeHash = createHash('sha256')
-                      .update(bytes)
-                      .digest('base64')
-                    if (!omitListed)
-                      serverPaths.push({
-                        path,
-                        contentHash:
-                          hashMode === 'sha256'
-                            ? nativeHash
-                            : hashMode === 'xxh'
-                              ? '0123456789abcdef0123456789abcdef'
-                              : hashMode === 'mismatch'
-                                ? Buffer.alloc(32).toString('base64')
-                                : nativeHash.replace(/=$/, ''),
-                      })
-                  }
-                  return {
-                    value: {
-                      type: 'nodejs',
-                      entryPath,
-                      serverPaths,
-                      clientPaths: [],
-                    },
-                    issues: [],
-                  }
-                },
-              }
-            },
-          },
-        }) as any
-    )
+    ;({ root, selectedProfile } = await createNativeConfigIssuer(
+      '/private/tmp/next-session-native-config-',
+      {
+        createdRoot: (value) => {
+          root = value
+        },
+        hashMode: () => hashMode,
+        omitListed: () => omitListed,
+        deferredSnapshot: () => deferredSnapshot?.(),
+        recordSidecarHash: (value) => {
+          emittedSidecarSha256 = value
+        },
+      }
+    ))
     owned = await createTestCompilerSession(root, selectedProfile)
   })
   afterEach(async () => {
@@ -5031,172 +4927,33 @@ describe('private native compiler-source conversion grants (synthetic component 
   let root: string
   let owned: Awaited<ReturnType<typeof createTestCompilerSession>> | undefined
   let selectedProfile: import('next/dist/experimental/testing/contracts').TestProfile
-  let requests: any[]
   let hashMode: 'sha256' | 'xxh' | 'mismatch' | 'noncanonical'
   let omitListed: boolean
   let emittedSidecarSha256: string | undefined
-  let shutdownNative: jest.Mock
   let deferredSnapshot: (() => Promise<void>) | undefined
   const previousEnvironment = process.env.NODE_ENV
   const sha = (bytes: string | Buffer) =>
     createHash('sha256').update(bytes).digest('hex')
   beforeEach(async () => {
-    const { realpath } = await import('fs/promises')
     process.env = { ...process.env, NODE_ENV: 'development' }
-    root = await realpath(
-      await mkdtemp('/private/tmp/next-source-grant-component107-')
-    )
-    await writeFile(join(root, 'subject.ts'), 'export const value = 1\n')
-    await writeFile(join(root, 'config.json'), '{}\n')
-    selectedProfile = {
-      id: 'native-session-component',
-      mode: 'development',
-      environment: 'node',
-      runtime: 'nodejs',
-      bundler: 'turbopack',
-    }
-    requests = []
     hashMode = 'sha256'
     omitListed = false
     emittedSidecarSha256 = undefined
     deferredSnapshot = undefined
-    shutdownNative = jest.fn(async () => {})
-    jest.mocked(createDevTurbopackProject).mockImplementation(
-      async () =>
-        ({
-          nativeProjectPaths: Object.freeze({
-            rootPath: root,
-            projectPath: '.',
-          }),
-          project: {
-            shutdown: shutdownNative,
-            testEntry: async (input: any) => {
-              requests.push({ ...input })
-              return {
-                writeToDiskSnapshot: async (directory: string) => {
-                  await deferredSnapshot?.()
-                  const destination = join(root, '.next', directory)
-                  const entryPath = `server/next-test/${input.id}.js`
-                  await mkdir(dirname(join(destination, entryPath)), {
-                    recursive: true,
-                  })
-                  const code = 'export const value = 1\n'
-                  await writeFile(join(destination, entryPath), code)
-                  const serverPaths = [
-                    {
-                      path: entryPath,
-                      contentHash: 'ordinary-native-opaque-hash',
-                    },
-                  ]
-                  if (input.tsconfigInputRevision !== undefined) {
-                    const nativePath = (file: string) => ({
-                      nativePath:
-                        file === root ? '' : file.slice(root.length + 1),
-                      path: file,
-                    })
-                    const config = nativePath(join(root, 'config.json'))
-                    const records = [
-                      'aliases',
-                      'decorators',
-                      'jsx',
-                      'typescript',
-                    ].flatMap((consumer) => {
-                      const context = {
-                        consumer,
-                        configuredPath: config,
-                        consumerPath: nativePath(root),
-                        lookupPath: nativePath(root),
-                        request: 'native-options',
-                        chainIndex: 0,
-                        attemptIndex: 0,
-                      }
-                      return [
-                        {
-                          context,
-                          order: [],
-                          kind: 'selection',
-                          path: nativePath(root),
-                          fact: { selected: config },
-                        },
-                        {
-                          context,
-                          order: [],
-                          kind: 'config-read',
-                          path: config,
-                          fact: {
-                            status: 'parsed',
-                            sha256: sha('{}\n'),
-                            observed: 'file',
-                            identity: {
-                              status: 'found',
-                              target: config,
-                              symlinks: [],
-                            },
-                          },
-                        },
-                      ]
-                    })
-                    const payload = {
-                      version: 1,
-                      kind: 'native-typescript-config-inputs',
-                      mode: 'development',
-                      environment: 'node',
-                      route: null,
-                      browserClient: false,
-                      sourceCoverage: false,
-                      entryId: input.id,
-                      entryFile: input.file,
-                      entryPath,
-                      revision: input.tsconfigInputRevision,
-                      filesystemRoot: nativePath(root),
-                      projectPath: nativePath(root),
-                      complete: true,
-                      reasons: [],
-                      scripts: [
-                        {
-                          path: entryPath,
-                          sha256: sha(code),
-                          mapPath: null,
-                          mapSha256: null,
-                        },
-                      ],
-                      records,
-                    }
-                    const bytes = JSON.stringify(payload),
-                      path = entryPath.replace(/\.js$/, '.tsconfig-inputs.json')
-                    await writeFile(join(destination, path), bytes)
-                    emittedSidecarSha256 = sha(bytes)
-                    const nativeHash = createHash('sha256')
-                      .update(bytes)
-                      .digest('base64')
-                    if (!omitListed)
-                      serverPaths.push({
-                        path,
-                        contentHash:
-                          hashMode === 'sha256'
-                            ? nativeHash
-                            : hashMode === 'xxh'
-                              ? '0123456789abcdef0123456789abcdef'
-                              : hashMode === 'mismatch'
-                                ? Buffer.alloc(32).toString('base64')
-                                : nativeHash.replace(/=$/, ''),
-                      })
-                  }
-                  return {
-                    value: {
-                      type: 'nodejs',
-                      entryPath,
-                      serverPaths,
-                      clientPaths: [],
-                    },
-                    issues: [],
-                  }
-                },
-              }
-            },
-          },
-        }) as any
-    )
+    ;({ root, selectedProfile } = await createNativeConfigIssuer(
+      '/private/tmp/next-source-grant-component107-',
+      {
+        createdRoot: (value) => {
+          root = value
+        },
+        hashMode: () => hashMode,
+        omitListed: () => omitListed,
+        deferredSnapshot: () => deferredSnapshot?.(),
+        recordSidecarHash: (value) => {
+          emittedSidecarSha256 = value
+        },
+      }
+    ))
     owned = await createTestCompilerSession(root, selectedProfile)
   })
   afterEach(async () => {
@@ -6045,172 +5802,33 @@ describe('native opaque identities (synthetic component issuer)', () => {
   let root: string
   let owned: Awaited<ReturnType<typeof createTestCompilerSession>> | undefined
   let selectedProfile: import('next/dist/experimental/testing/contracts').TestProfile
-  let requests: any[]
   let hashMode: 'sha256' | 'xxh' | 'mismatch' | 'noncanonical'
   let omitListed: boolean
   let emittedSidecarSha256: string | undefined
-  let shutdownNative: jest.Mock
   let deferredSnapshot: (() => Promise<void>) | undefined
   const previousEnvironment = process.env.NODE_ENV
   const sha = (bytes: string | Buffer) =>
     createHash('sha256').update(bytes).digest('hex')
   beforeEach(async () => {
-    const { realpath } = await import('fs/promises')
     process.env = { ...process.env, NODE_ENV: 'development' }
-    root = await realpath(
-      await mkdtemp('/private/tmp/next-native-opaque-component122-')
-    )
-    await writeFile(join(root, 'subject.ts'), 'export const value = 1\n')
-    await writeFile(join(root, 'config.json'), '{}\n')
-    selectedProfile = {
-      id: 'native-session-component',
-      mode: 'development',
-      environment: 'node',
-      runtime: 'nodejs',
-      bundler: 'turbopack',
-    }
-    requests = []
     hashMode = 'sha256'
     omitListed = false
     emittedSidecarSha256 = undefined
     deferredSnapshot = undefined
-    shutdownNative = jest.fn(async () => {})
-    jest.mocked(createDevTurbopackProject).mockImplementation(
-      async () =>
-        ({
-          nativeProjectPaths: Object.freeze({
-            rootPath: root,
-            projectPath: '.',
-          }),
-          project: {
-            shutdown: shutdownNative,
-            testEntry: async (input: any) => {
-              requests.push({ ...input })
-              return {
-                writeToDiskSnapshot: async (directory: string) => {
-                  await deferredSnapshot?.()
-                  const destination = join(root, '.next', directory)
-                  const entryPath = `server/next-test/${input.id}.js`
-                  await mkdir(dirname(join(destination, entryPath)), {
-                    recursive: true,
-                  })
-                  const code = 'export const value = 1\n'
-                  await writeFile(join(destination, entryPath), code)
-                  const serverPaths = [
-                    {
-                      path: entryPath,
-                      contentHash: 'ordinary-native-opaque-hash',
-                    },
-                  ]
-                  if (input.tsconfigInputRevision !== undefined) {
-                    const nativePath = (file: string) => ({
-                      nativePath:
-                        file === root ? '' : file.slice(root.length + 1),
-                      path: file,
-                    })
-                    const config = nativePath(join(root, 'config.json'))
-                    const records = [
-                      'aliases',
-                      'decorators',
-                      'jsx',
-                      'typescript',
-                    ].flatMap((consumer) => {
-                      const context = {
-                        consumer,
-                        configuredPath: config,
-                        consumerPath: nativePath(root),
-                        lookupPath: nativePath(root),
-                        request: 'native-options',
-                        chainIndex: 0,
-                        attemptIndex: 0,
-                      }
-                      return [
-                        {
-                          context,
-                          order: [],
-                          kind: 'selection',
-                          path: nativePath(root),
-                          fact: { selected: config },
-                        },
-                        {
-                          context,
-                          order: [],
-                          kind: 'config-read',
-                          path: config,
-                          fact: {
-                            status: 'parsed',
-                            sha256: sha('{}\n'),
-                            observed: 'file',
-                            identity: {
-                              status: 'found',
-                              target: config,
-                              symlinks: [],
-                            },
-                          },
-                        },
-                      ]
-                    })
-                    const payload = {
-                      version: 1,
-                      kind: 'native-typescript-config-inputs',
-                      mode: 'development',
-                      environment: 'node',
-                      route: null,
-                      browserClient: false,
-                      sourceCoverage: false,
-                      entryId: input.id,
-                      entryFile: input.file,
-                      entryPath,
-                      revision: input.tsconfigInputRevision,
-                      filesystemRoot: nativePath(root),
-                      projectPath: nativePath(root),
-                      complete: true,
-                      reasons: [],
-                      scripts: [
-                        {
-                          path: entryPath,
-                          sha256: sha(code),
-                          mapPath: null,
-                          mapSha256: null,
-                        },
-                      ],
-                      records,
-                    }
-                    const bytes = JSON.stringify(payload),
-                      path = entryPath.replace(/\.js$/, '.tsconfig-inputs.json')
-                    await writeFile(join(destination, path), bytes)
-                    emittedSidecarSha256 = sha(bytes)
-                    const nativeHash = createHash('sha256')
-                      .update(bytes)
-                      .digest('base64')
-                    if (!omitListed)
-                      serverPaths.push({
-                        path,
-                        contentHash:
-                          hashMode === 'sha256'
-                            ? nativeHash
-                            : hashMode === 'xxh'
-                              ? '0123456789abcdef0123456789abcdef'
-                              : hashMode === 'mismatch'
-                                ? Buffer.alloc(32).toString('base64')
-                                : nativeHash.replace(/=$/, ''),
-                      })
-                  }
-                  return {
-                    value: {
-                      type: 'nodejs',
-                      entryPath,
-                      serverPaths,
-                      clientPaths: [],
-                    },
-                    issues: [],
-                  }
-                },
-              }
-            },
-          },
-        }) as any
-    )
+    ;({ root, selectedProfile } = await createNativeConfigIssuer(
+      '/private/tmp/next-native-opaque-component122-',
+      {
+        createdRoot: (value) => {
+          root = value
+        },
+        hashMode: () => hashMode,
+        omitListed: () => omitListed,
+        deferredSnapshot: () => deferredSnapshot?.(),
+        recordSidecarHash: (value) => {
+          emittedSidecarSha256 = value
+        },
+      }
+    ))
     owned = await createTestCompilerSession(root, selectedProfile)
   })
   afterEach(async () => {
@@ -8040,46 +7658,75 @@ const asyncShorthandForms = [
   'generator:named-self',
 ] as const
 
-it.each(
-  asyncShorthandForms.flatMap((form) =>
-    (['development', 'production'] as const).map((mode) => ({ form, mode }))
+function runCompilerLauncherCheck(
+  prefix: string,
+  helper: string,
+  argv: string[],
+  check: (checks: unknown) => void,
+  options: {
+    nestedOutput?: boolean
+    resultFile?: string
+    maxBuffer?: number
+  } = {}
+) {
+  return withOutputDirectorySync(
+    prefix,
+    (directory) => {
+      const output = options.nestedOutput ? join(directory, 'run') : directory
+      runNodeHelperSync(
+        [join(__dirname, helper), join(__dirname, '../../..'), output, ...argv],
+        {
+          encoding: 'utf8',
+          timeout: 125000,
+          ...(options.maxBuffer === undefined
+            ? {}
+            : { maxBuffer: options.maxBuffer }),
+        }
+      )
+      check(
+        JSON.parse(
+          readFileSync(
+            join(output, options.resultFile ?? 'CHECKS.json'),
+            'utf8'
+          )
+        )
+      )
+    },
+    { cleanup: 'success' }
   )
-)(
+}
+
+function registerCommonJSDefaultLauncher(
+  forms: readonly string[],
+  title: string,
+  prefix: string,
+  helper: string,
+  extraArgs: string[] = []
+) {
+  it.each(
+    forms.flatMap((form) =>
+      (['development', 'production'] as const).map((mode) => ({ form, mode }))
+    )
+  )(
+    title,
+    ({ form, mode }) =>
+      runCompilerLauncherCheck(
+        prefix,
+        helper,
+        [mode, form, 'source', ...extraArgs],
+        (checks) => {
+          expect(checks).toMatchObject({ form, mode, cases: 3, passed: true })
+        }
+      ),
+    130000
+  )
+}
+
+registerCommonJSDefaultLauncher(
+  asyncShorthandForms,
   'preserves actual CommonJS async shorthand defaults: $form/$mode',
-  ({ form, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-cjs-async-defaults-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'cjs-async-defaults.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          form,
-          'source',
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      const checks = JSON.parse(
-        readFileSync(join(output, 'CHECKS.json'), 'utf8')
-      )
-      expect(checks).toMatchObject({
-        form,
-        mode,
-        cases: 3,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
-  },
-  130000
+  'next-cjs-async-defaults-',
+  'cjs-async-defaults.mjs'
 )
 
 const arrowShorthandForms = [
@@ -8091,46 +7738,11 @@ const arrowShorthandForms = [
   'sync:literal',
 ] as const
 
-it.each(
-  arrowShorthandForms.flatMap((form) =>
-    (['development', 'production'] as const).map((mode) => ({ form, mode }))
-  )
-)(
+registerCommonJSDefaultLauncher(
+  arrowShorthandForms,
   'preserves actual CommonJS arrow shorthand defaults: $form/$mode',
-  ({ form, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-cjs-arrow-defaults-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'cjs-arrow-defaults.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          form,
-          'source',
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      const checks = JSON.parse(
-        readFileSync(join(output, 'CHECKS.json'), 'utf8')
-      )
-      expect(checks).toMatchObject({
-        form,
-        mode,
-        cases: 3,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
-  },
-  130000
+  'next-cjs-arrow-defaults-',
+  'cjs-arrow-defaults.mjs'
 )
 
 const bindingSelfForms = [
@@ -8139,90 +7751,20 @@ const bindingSelfForms = [
   'async-generator:binding-self',
 ] as const
 
-it.each(
-  bindingSelfForms.flatMap((form) =>
-    (['development', 'production'] as const).map((mode) => ({ form, mode }))
-  )
-)(
+registerCommonJSDefaultLauncher(
+  bindingSelfForms,
   'preserves actual declared CommonJS binding self defaults: $form/$mode',
-  ({ form, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-cjs-binding-self-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'cjs-binding-self-defaults.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          form,
-          'source',
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      const checks = JSON.parse(
-        readFileSync(join(output, 'CHECKS.json'), 'utf8')
-      )
-      expect(checks).toMatchObject({
-        form,
-        mode,
-        cases: 3,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
-  },
-  130000
+  'next-cjs-binding-self-',
+  'cjs-binding-self-defaults.mjs'
 )
 
 const synchronousBindingSelfForms = ['sync:binding-self'] as const
 
-it.each(
-  synchronousBindingSelfForms.flatMap((form) =>
-    (['development', 'production'] as const).map((mode) => ({ form, mode }))
-  )
-)(
+registerCommonJSDefaultLauncher(
+  synchronousBindingSelfForms,
   'preserves actual synchronous CommonJS binding self defaults: $form/$mode',
-  ({ form, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-cjs-sync-binding-self-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'cjs-binding-self-defaults.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          form,
-          'source',
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      const checks = JSON.parse(
-        readFileSync(join(output, 'CHECKS.json'), 'utf8')
-      )
-      expect(checks).toMatchObject({
-        form,
-        mode,
-        cases: 3,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
-  },
-  130000
+  'next-cjs-sync-binding-self-',
+  'cjs-binding-self-defaults.mjs'
 )
 
 const recursiveBindingForms = [
@@ -8232,206 +7774,48 @@ const recursiveBindingForms = [
   'async-generator:binding-recursive',
 ] as const
 
-it.each(
-  recursiveBindingForms.flatMap((form) =>
-    (['development', 'production'] as const).map((mode) => ({ form, mode }))
-  )
-)(
+registerCommonJSDefaultLauncher(
+  recursiveBindingForms,
   'preserves actual recursive CommonJS binding defaults: $form/$mode',
-  ({ form, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-cjs-recursive-binding-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'cjs-recursive-binding.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          form,
-          'source',
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      const checks = JSON.parse(
-        readFileSync(join(output, 'CHECKS.json'), 'utf8')
-      )
-      expect(checks).toMatchObject({
-        form,
-        mode,
-        cases: 3,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
-  },
-  130000
+  'next-cjs-recursive-binding-',
+  'cjs-recursive-binding.mjs'
 )
 
-it.each(
-  Object.keys(require('./cjs-renamed-defaults-forms.cjs').forms).flatMap(
-    (form) =>
-      (['development', 'production'] as const).map((mode) => ({ form, mode }))
-  )
-)(
+registerCommonJSDefaultLauncher(
+  Object.keys(require('./cjs-renamed-defaults-forms.cjs').forms),
   'preserves actual renamed CommonJS object defaults: $form/$mode',
-  ({ form, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-cjs-renamed-defaults-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'cjs-async-defaults.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          form,
-          'source',
-          'renamed',
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      const checks = JSON.parse(
-        readFileSync(join(output, 'CHECKS.json'), 'utf8')
-      )
-      expect(checks).toMatchObject({
-        form,
-        mode,
-        cases: 3,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
-  },
-  130000
+  'next-cjs-renamed-defaults-',
+  'cjs-async-defaults.mjs',
+  ['renamed']
 )
 
-it.each(
-  Object.keys(require('./cjs-array-defaults-forms.cjs').forms).flatMap((form) =>
-    (['development', 'production'] as const).map((mode) => ({ form, mode }))
-  )
-)(
+registerCommonJSDefaultLauncher(
+  Object.keys(require('./cjs-array-defaults-forms.cjs').forms),
   'preserves actual flat CommonJS array defaults: $form/$mode',
-  ({ form, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-cjs-array-defaults-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'cjs-async-defaults.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          form,
-          'source',
-          'array',
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      const checks = JSON.parse(
-        readFileSync(join(output, 'CHECKS.json'), 'utf8')
-      )
-      expect(checks).toMatchObject({
-        form,
-        mode,
-        cases: 3,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
-  },
-  130000
+  'next-cjs-array-defaults-',
+  'cjs-async-defaults.mjs',
+  ['array']
 )
 
-it.each(
-  Object.keys(require('./cjs-whole-array-defaults-forms.cjs').forms).flatMap(
-    (form) =>
-      (['development', 'production'] as const).map((mode) => ({ form, mode }))
-  )
-)(
+registerCommonJSDefaultLauncher(
+  Object.keys(require('./cjs-whole-array-defaults-forms.cjs').forms),
   'preserves actual whole CommonJS array defaults: $form/$mode',
-  ({ form, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-cjs-whole-array-defaults-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'cjs-async-defaults.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          form,
-          'source',
-          'whole-array',
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      const checks = JSON.parse(
-        readFileSync(join(output, 'CHECKS.json'), 'utf8')
-      )
-      expect(checks).toMatchObject({
-        form,
-        mode,
-        cases: 3,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
-  },
-  130000
+  'next-cjs-whole-array-defaults-',
+  'cjs-async-defaults.mjs',
+  ['whole-array']
 )
 
 it.each(['development', 'production'] as const)(
   'preserves recursive CommonJS parameter behavior in %s',
   (mode) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-cjs-parameter-grammar-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'cjs-parameter-grammar.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          'source',
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toEqual({ mode, cases: 378, passed: true })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
+    return runCompilerLauncherCheck(
+      'next-cjs-parameter-grammar-',
+      'cjs-parameter-grammar.mjs',
+      [mode, 'source'],
+      (checks) => {
+        expect(checks).toEqual({ mode, cases: 378, passed: true })
+      }
+    )
   },
   130000
 )
@@ -8439,34 +7823,18 @@ it.each(['development', 'production'] as const)(
 it.each(['development', 'production'] as const)(
   'combines native static runtime and actual helpers in %s',
   (mode) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-native-runtime-actual-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'native-runtime-actual.mjs'),
-          join(__dirname, '../../..'),
-          output,
+    return runCompilerLauncherCheck(
+      'next-native-runtime-actual-',
+      'native-runtime-actual.mjs',
+      [mode, 'source'],
+      (checks) => {
+        expect(checks).toEqual({
           mode,
-          'source',
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toEqual({
-        mode,
-        cases: 2,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
+          cases: 2,
+          passed: true,
+        })
+      }
+    )
   },
   130000
 )
@@ -8479,36 +7847,19 @@ it.each([
 ] as const)(
   'retains native paired targets and CommonJS cycle in %s %s',
   (mode, group) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-native-paired-cycle-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'native-paired-cycles.mjs'),
-          join(__dirname, '../../..'),
-          output,
+    return runCompilerLauncherCheck(
+      'next-native-paired-cycle-',
+      'native-paired-cycles.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({
           mode,
-          'source',
           group,
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toEqual({
-        mode,
-        group,
-        cases: 1,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
+          cases: 1,
+          passed: true,
+        })
+      }
+    )
   },
   130000
 )
@@ -8521,36 +7872,19 @@ it.each([
 ] as const)(
   'preserves nested factory callable this in %s %s',
   (mode, group) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-factory-own-this-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'factory-own-this.mjs'),
-          join(__dirname, '../../..'),
-          output,
+    return runCompilerLauncherCheck(
+      'next-factory-own-this-',
+      'factory-own-this.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({
           mode,
-          'source',
           group,
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toEqual({
-        mode,
-        group,
-        cases: 1,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
+          cases: 1,
+          passed: true,
+        })
+      }
+    )
   },
   130000
 )
@@ -8563,36 +7897,19 @@ it.each([
 ] as const)(
   'preserves retained before-cut native pair in %s %s',
   (mode, group) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-native-unmock-before-cut-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'native-unmock-before-cut.mjs'),
-          join(__dirname, '../../..'),
-          output,
+    return runCompilerLauncherCheck(
+      'next-native-unmock-before-cut-',
+      'native-unmock-before-cut.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({
           mode,
-          'source',
           group,
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toEqual({
-        mode,
-        group,
-        cases: 1,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
+          cases: 1,
+          passed: true,
+        })
+      }
+    )
   },
   130000
 )
@@ -8605,36 +7922,19 @@ it.each([
 ] as const)(
   'preserves cancelled after-cut native original in %s %s',
   (mode, group) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(join(tmpdir(), 'next-native-unmock-after-cut-'))
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'native-unmock-after-cut.mjs'),
-          join(__dirname, '../../..'),
-          output,
+    return runCompilerLauncherCheck(
+      'next-native-unmock-after-cut-',
+      'native-unmock-after-cut.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({
           mode,
-          'source',
           group,
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toEqual({
-        mode,
-        group,
-        cases: 1,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
+          cases: 1,
+          passed: true,
+        })
+      }
+    )
   },
   130000
 )
@@ -8647,38 +7947,19 @@ it.each([
 ] as const)(
   'preserves the last ordered native mock cut in %s %s',
   (mode, group) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const { tmpdir } = require('node:os')
-    const output = mkdtempSync(
-      join(tmpdir(), 'next-native-unmock-multiple-cuts-')
-    )
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'native-unmock-multiple-cuts.mjs'),
-          join(__dirname, '../../..'),
-          output,
+    return runCompilerLauncherCheck(
+      'next-native-unmock-multiple-cuts-',
+      'native-unmock-multiple-cuts.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({
           mode,
-          'source',
           group,
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toEqual({
-        mode,
-        group,
-        cases: 1,
-        passed: true,
-      })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
+          cases: 1,
+          passed: true,
+        })
+      }
+    )
   },
   130000
 )
@@ -8692,32 +7973,14 @@ it.each(
 )(
   'retains actual native factory registrations and cuts in %s %s',
   (mode, group) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const output = mkdtempSync(
-      join(tmpdir(), 'next-native-multiple-factories-')
+    return runCompilerLauncherCheck(
+      'next-native-multiple-factories-',
+      'native-unmock-multiple-factories.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({ mode, group, cases: 1, passed: true })
+      }
     )
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'native-unmock-multiple-factories.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          'source',
-          group,
-        ],
-        { encoding: 'utf8', timeout: 125000 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toEqual({ mode, group, cases: 1, passed: true })
-      complete = true
-    } finally {
-      if (complete) rmSync(output, { recursive: true, force: true })
-    }
   },
   130000
 )
@@ -8735,88 +7998,62 @@ it.each(
 )(
   'retains independent native targets through ordered cuts in %s %s',
   (mode, group) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const parent = mkdtempSync(join(tmpdir(), 'next-native-multi-target-'))
-    const output = join(parent, 'run')
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'native-multi-target.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          'source',
-          group,
-        ],
-        { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
-      ).toEqual({ mode, group, cases: 1, passed: true })
-      complete = true
-    } finally {
-      if (complete) rmSync(parent, { recursive: true, force: true })
-    }
+    return runCompilerLauncherCheck(
+      'next-native-multi-target-',
+      'native-multi-target.mjs',
+      [mode, 'source', group],
+      (checks) => {
+        expect(checks).toEqual({ mode, group, cases: 1, passed: true })
+      },
+      {
+        nestedOutput: true,
+        resultFile: 'RESULT.json',
+        maxBuffer: 4 * 1024 * 1024,
+      }
+    )
   },
   130000
 )
 
 it('renders independent RSC requests using one shared AppPage module graph', () => {
-  const { execFileSync } = require('node:child_process')
-  const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-  const parent = mkdtempSync(join(tmpdir(), 'next-shared-rsc-public-'))
-  const output = join(parent, 'run')
-  let complete = false
-  try {
-    execFileSync(
-      process.execPath,
-      [join(__dirname, 'shared-rsc.mjs'), join(__dirname, '../../..'), output],
-      { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
-    )
-    expect(
-      JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
-    ).toEqual({
-      cases: 2,
-      files: 2,
-      sharedCounts: [1, 2],
-    })
-    complete = true
-  } finally {
-    if (complete) rmSync(parent, { recursive: true, force: true })
-  }
+  return runCompilerLauncherCheck(
+    'next-shared-rsc-public-',
+    'shared-rsc.mjs',
+    [],
+    (checks) => {
+      expect(checks).toEqual({
+        cases: 2,
+        files: 2,
+        sharedCounts: [1, 2],
+      })
+    },
+    {
+      nestedOutput: true,
+      resultFile: 'RESULT.json',
+      maxBuffer: 4 * 1024 * 1024,
+    }
+  )
 }, 130000)
 
 it('owns real AppPage handlers cache tags and after work independently for shared RSC files', () => {
-  const { execFileSync } = require('node:child_process')
-  const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-  const parent = mkdtempSync(join(tmpdir(), 'next-shared-rsc-cache-public-'))
-  const output = join(parent, 'run')
-  let complete = false
-  try {
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'shared-rsc-cache.mjs'),
-        join(__dirname, '../../..'),
-        output,
-      ],
-      { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
-    )
-    expect(
-      JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
-    ).toEqual({
-      cases: 2,
-      renderCounts: [1, 2, 3, 4, 5, 6],
-      cachedValues: [1, 1, 2, 3, 3, 4],
-      afterValues: [1, 2],
-    })
-    complete = true
-  } finally {
-    if (complete) rmSync(parent, { recursive: true, force: true })
-  }
+  return runCompilerLauncherCheck(
+    'next-shared-rsc-cache-public-',
+    'shared-rsc-cache.mjs',
+    [],
+    (checks) => {
+      expect(checks).toEqual({
+        cases: 2,
+        renderCounts: [1, 2, 3, 4, 5, 6],
+        cachedValues: [1, 1, 2, 3, 3, 4],
+        afterValues: [1, 2],
+      })
+    },
+    {
+      nestedOutput: true,
+      resultFile: 'RESULT.json',
+      maxBuffer: 4 * 1024 * 1024,
+    }
+  )
 }, 130000)
 it.each([
   ['development', 'v1'],
@@ -8826,46 +8063,44 @@ it.each([
 ] as const)(
   'preserves real reset utility identity and module cache ownership in %s %s',
   (mode, variant) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const temporary = mkdtempSync(join(tmpdir(), 'next-reset-utility-'))
-    const output = join(temporary, 'run')
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'module-reset-utility.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          variant,
-          'source',
-        ],
-        { encoding: 'utf8', timeout: 125000, maxBuffer: 1024 * 1024 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toEqual({
-        passed: true,
-        mode,
-        variant,
-        cases: variant === 'v1' ? 4 : 6,
-      })
-      expect(
-        JSON.parse(readFileSync(join(output, 'CLOSED.json'), 'utf8'))
-      ).toEqual({
-        allActualProcessesJoined: true,
-        fixtureRetired: true,
-      })
-      complete = true
-    } catch (cause) {
-      throw new Error(`Reset utility evidence retained at ${temporary}`, {
-        cause,
-      })
-    } finally {
-      if (complete) rmSync(temporary, { recursive: true, force: true })
-    }
+    return withOutputDirectorySync(
+      'next-reset-utility-',
+      (temporary) => {
+        const output = join(temporary, 'run')
+        try {
+          runNodeHelperSync(
+            [
+              join(__dirname, 'module-reset-utility.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+              variant,
+              'source',
+            ],
+            { encoding: 'utf8', timeout: 125000, maxBuffer: 1024 * 1024 }
+          )
+          expect(
+            JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+          ).toEqual({
+            passed: true,
+            mode,
+            variant,
+            cases: variant === 'v1' ? 4 : 6,
+          })
+          expect(
+            JSON.parse(readFileSync(join(output, 'CLOSED.json'), 'utf8'))
+          ).toEqual({
+            allActualProcessesJoined: true,
+            fixtureRetired: true,
+          })
+        } catch (cause) {
+          throw new Error(`Reset utility evidence retained at ${temporary}`, {
+            cause,
+          })
+        }
+      },
+      { cleanup: 'success' }
+    )
   },
   130000
 )
@@ -8880,46 +8115,44 @@ it.each([
 ] as const)(
   'preserves real reset property descriptors and module cache ownership in %s %s',
   (mode, variant, cases) => {
-    const { execFileSync } = require('node:child_process')
-    const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
-    const temporary = mkdtempSync(join(tmpdir(), 'next-reset-property-'))
-    const output = join(temporary, 'run')
-    let complete = false
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'module-reset-property.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          mode,
-          variant,
-          'source',
-        ],
-        { encoding: 'utf8', timeout: 125000, maxBuffer: 1024 * 1024 }
-      )
-      expect(
-        JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toEqual({
-        passed: true,
-        mode,
-        variant,
-        cases,
-      })
-      expect(
-        JSON.parse(readFileSync(join(output, 'CLOSED.json'), 'utf8'))
-      ).toEqual({
-        allActualProcessesJoined: true,
-        fixtureRetired: true,
-      })
-      complete = true
-    } catch (cause) {
-      throw new Error(`Reset property evidence retained at ${temporary}`, {
-        cause,
-      })
-    } finally {
-      if (complete) rmSync(temporary, { recursive: true, force: true })
-    }
+    return withOutputDirectorySync(
+      'next-reset-property-',
+      (temporary) => {
+        const output = join(temporary, 'run')
+        try {
+          runNodeHelperSync(
+            [
+              join(__dirname, 'module-reset-property.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+              variant,
+              'source',
+            ],
+            { encoding: 'utf8', timeout: 125000, maxBuffer: 1024 * 1024 }
+          )
+          expect(
+            JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
+          ).toEqual({
+            passed: true,
+            mode,
+            variant,
+            cases,
+          })
+          expect(
+            JSON.parse(readFileSync(join(output, 'CLOSED.json'), 'utf8'))
+          ).toEqual({
+            allActualProcessesJoined: true,
+            fixtureRetired: true,
+          })
+        } catch (cause) {
+          throw new Error(`Reset property evidence retained at ${temporary}`, {
+            cause,
+          })
+        }
+      },
+      { cleanup: 'success' }
+    )
   },
   130000
 )
@@ -8958,9 +8191,7 @@ it.each([
 ] as const)(
   'checks focused module behavior for %s in %s',
   (group, mode, cases) => {
-    const { execFileSync } = require('node:child_process')
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [join(__dirname, 'external-package-integration.cjs'), group, mode],
       { encoding: 'utf8', timeout: 135000 }
     )

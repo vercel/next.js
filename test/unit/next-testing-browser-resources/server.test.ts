@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { runNodeHelperSync } from '../../lib/next-testing-node-helpers'
 import {
   copyFile,
   mkdir,
@@ -5069,9 +5069,7 @@ it('maps measured Gecko srcScript diagnostic frames without changing raw errors 
 })
 
 it('tracks private concurrent logical finals by immutable case and exact attempt while preserving rejection controls', () => {
-  const { execFileSync } = require('node:child_process')
-  const output = execFileSync(
-    process.execPath,
+  const output = runNodeHelperSync(
     [join(__dirname, 'concurrent-case-finals.cjs')],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -5130,9 +5128,7 @@ it('copies effective concurrent and sequential flags from closed definitions wit
 })
 
 it('admits native Browser commands only from the exact immutable active attempt without accepting stale retry or public fields', () => {
-  const { execFileSync } = require('node:child_process')
-  const output = execFileSync(
-    process.execPath,
+  const output = runNodeHelperSync(
     [join(__dirname, 'native-command-origins.cjs')],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -5146,9 +5142,7 @@ it('admits native Browser commands only from the exact immutable active attempt 
 })
 
 it('admits collected public Browser concurrency while enforcing native owner, limit and legacy boundaries', () => {
-  const { execFileSync } = require('node:child_process')
-  const output = execFileSync(
-    process.execPath,
+  const output = runNodeHelperSync(
     [join(__dirname, 'public-concurrency-admission.cjs')],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -5163,9 +5157,7 @@ it('admits collected public Browser concurrency while enforcing native owner, li
 })
 
 it('admits plain Browser fixture resources only through the file-owned capability', () => {
-  const { execFileSync } = require('node:child_process')
-  const output = execFileSync(
-    process.execPath,
+  const output = runNodeHelperSync(
     [join(__dirname, 'public-fixture-admission.cjs')],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -5180,16 +5172,11 @@ it('admits plain Browser fixture resources only through the file-owned capabilit
 })
 
 it('keeps native Browser fixture scope and awaited disposal ownership separate from attempt authority', () => {
-  const { execFileSync } = require('node:child_process')
   const scopes = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [join(__dirname, 'native-fixture-scopes.cjs')],
-      {
-        encoding: 'utf8',
-        timeout: 15000,
-      }
-    )
+    runNodeHelperSync([join(__dirname, 'native-fixture-scopes.cjs')], {
+      encoding: 'utf8',
+      timeout: 15000,
+    })
   )
   expect(scopes).toEqual({
     controls: 18,
@@ -5208,8 +5195,7 @@ it('keeps native Browser fixture scope and awaited disposal ownership separate f
     'cancelled',
   ]) {
     const result = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'native-fixture-disposal.cjs'), mode],
         { encoding: 'utf8', timeout: 15000 }
       )
@@ -5225,7 +5211,6 @@ it('keeps native Browser fixture scope and awaited disposal ownership separate f
 })
 
 it('owns the real before-worker cleanup boundary and preserves component and keyboard cleanup contracts', () => {
-  const { execFileSync } = require('node:child_process')
   for (const mode of [
     'default',
     'ordered',
@@ -5234,8 +5219,7 @@ it('owns the real before-worker cleanup boundary and preserves component and key
     'mixed-same',
   ]) {
     const result = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'native-fixture-ordering.cjs'), mode],
         { encoding: 'utf8', timeout: 15000 }
       )
@@ -5256,8 +5240,7 @@ it('owns the real before-worker cleanup boundary and preserves component and key
     'noncallable',
   ]) {
     const result = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'native-fixture-component-cleanup.cjs'), mode],
         { encoding: 'utf8', timeout: 15000 }
       )
@@ -5275,11 +5258,9 @@ it('owns the real before-worker cleanup boundary and preserves component and key
 }, 45000)
 
 it('joins the same Browser cleanup promise when an older file ignores or does not await the private callback', () => {
-  const { execFileSync } = require('node:child_process')
   for (const mode of ['awaited', 'unawaited', 'missing-file']) {
     const result = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'native-fixture-cleanup-join.cjs'), mode],
         { encoding: 'utf8', timeout: 15000 }
       )
@@ -5295,7 +5276,6 @@ it('joins the same Browser cleanup promise when an older file ignores or does no
 }, 30000)
 
 it('classifies only the actual joined isolated worker fixture disposal occurrence', () => {
-  const { execFileSync } = require('node:child_process')
   for (const mode of [
     'normal',
     'worker',
@@ -5304,8 +5284,7 @@ it('classifies only the actual joined isolated worker fixture disposal occurrenc
     'assertion',
     'worker-assertion-same',
   ]) {
-    const output = execFileSync(
-      process.execPath,
+    const output = runNodeHelperSync(
       [join(__dirname, 'worker-fixture-failure-carrier.cjs'), mode],
       { encoding: 'utf8', timeout: 15000 }
     )
@@ -5319,10 +5298,8 @@ it('classifies only the actual joined isolated worker fixture disposal occurrenc
 })
 
 it('captures worker cleanup name, message and stack at the joined occurrence before other disposal mutates them', () => {
-  const { execFileSync } = require('node:child_process')
   const value = JSON.parse(
-    execFileSync(
-      process.execPath,
+    runNodeHelperSync(
       [join(__dirname, 'worker-fixture-failure-consumer.cjs'), 'worker'],
       { encoding: 'utf8', timeout: 15000 }
     )
@@ -5336,7 +5313,6 @@ it('captures worker cleanup name, message and stack at the joined occurrence bef
 })
 
 it('retains actual component cleanup occurrences, observer failures and legacy consumer fallback', () => {
-  const { execFileSync } = require('node:child_process')
   for (const mode of [
     'normal',
     'sole',
@@ -5349,8 +5325,7 @@ it('retains actual component cleanup occurrences, observer failures and legacy c
     'keyboard-only',
   ]) {
     const value = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'component-failure-occurrence.cjs'), mode],
         { encoding: 'utf8', timeout: 15000 }
       )
@@ -5374,8 +5349,7 @@ it('retains actual component cleanup occurrences, observer failures and legacy c
     'getter-values',
   ]) {
     const value = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'component-failure-consumer.cjs'), mode],
         { encoding: 'utf8', timeout: 15000 }
       )
@@ -5391,7 +5365,6 @@ it('retains actual component cleanup occurrences, observer failures and legacy c
 })
 
 it('retains joined keyboard outcome authority and the legacy fallback', () => {
-  const { execFileSync } = require('node:child_process')
   for (const mode of [
     'normal',
     'sole',
@@ -5406,8 +5379,7 @@ it('retains joined keyboard outcome authority and the legacy fallback', () => {
     'fulfilled-observer-error',
   ]) {
     const result = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'keyboard-failure-occurrence.cjs'), mode],
         { encoding: 'utf8' }
       )
@@ -5433,8 +5405,7 @@ it('retains joined keyboard outcome authority and the legacy fallback', () => {
     'fulfilled-then-failure',
   ]) {
     const result = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'keyboard-failure-consumer.cjs'), mode],
         { encoding: 'utf8' }
       )
@@ -5475,10 +5446,8 @@ it.each([
   'foreign-resource-after-await',
   'foreign-live-caller',
 ])('delegates the joined public default cleanup: %s', (mode) => {
-  const { execFileSync } = require('node:child_process')
   const result = JSON.parse(
-    execFileSync(
-      process.execPath,
+    runNodeHelperSync(
       [join(__dirname, 'public-cleanup-occurrence.cjs'), mode],
       { encoding: 'utf8', timeout: 15000 }
     )
@@ -5492,10 +5461,8 @@ it.each([
 it.each(['call-failure', 'joined-captured', 'late-owned'])(
   'preserves public cleanup failure ownership: %s',
   (mode) => {
-    const { execFileSync } = require('node:child_process')
     const result = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'public-cleanup-consumer.cjs'), mode],
         { encoding: 'utf8', timeout: 15000 }
       )
@@ -5509,13 +5476,11 @@ it.each(['call-failure', 'joined-captured', 'late-owned'])(
   }
 )
 it('keeps the actual creator owner and an ownerless cleanup out of public task facts', () => {
-  const { execFileSync } = require('node:child_process')
   const result = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [join(__dirname, 'public-cleanup-owner.cjs')],
-      { encoding: 'utf8', timeout: 15000 }
-    )
+    runNodeHelperSync([join(__dirname, 'public-cleanup-owner.cjs')], {
+      encoding: 'utf8',
+      timeout: 15000,
+    })
   )
   expect(result).toEqual({
     canonicalAttemptIdentityHeld: true,
@@ -5527,13 +5492,11 @@ it('keeps the actual creator owner and an ownerless cleanup out of public task f
 })
 
 it('validates the captured default cleanup lease after its actual native join', () => {
-  const { execFileSync } = require('node:child_process')
   const result = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [join(__dirname, 'public-cleanup-inflight.cjs')],
-      { encoding: 'utf8', timeout: 15000 }
-    )
+    runNodeHelperSync([join(__dirname, 'public-cleanup-inflight.cjs')], {
+      encoding: 'utf8',
+      timeout: 15000,
+    })
   )
   expect(result).toEqual({
     sameEntryAdmissionValidatedAfterActualJoin: true,
@@ -5557,10 +5520,8 @@ it.each([
   'context-getter',
   'call-failure',
 ])('records only the actual joined context cleanup pair: %s', (mode) => {
-  const { execFileSync } = require('node:child_process')
   const result = JSON.parse(
-    execFileSync(
-      process.execPath,
+    runNodeHelperSync(
       [join(__dirname, 'context-failure-occurrence.cjs'), mode],
       { encoding: 'utf8', timeout: 15000 }
     )
@@ -5587,10 +5548,8 @@ it.each([
 ])(
   'preserves independent context and worker cleanup occurrences: %s',
   (mode) => {
-    const { execFileSync } = require('node:child_process')
     const result = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'context-failure-consumer.cjs'), mode],
         { encoding: 'utf8', timeout: 15000 }
       )
@@ -5612,10 +5571,8 @@ it.each([
 ])(
   'joins actual component error observation before keyboard cleanup: %s',
   (mode) => {
-    const { execFileSync } = require('node:child_process')
     const result = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'context-failure-occurrence.cjs'), mode],
         { encoding: 'utf8', timeout: 15000 }
       )
@@ -5634,10 +5591,8 @@ it.each([
 it.each(['fulfilled', 'rejected', 'native-reject', 'legacy'])(
   'bounds new Native cleanup work to the actual file invocation: %s',
   (mode) => {
-    const { execFileSync } = require('node:child_process')
     const result = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'native-cleanup-invocation.cjs'), mode],
         { encoding: 'utf8', timeout: 15000 }
       )
@@ -5657,10 +5612,8 @@ it.each(['fulfilled', 'rejected', 'native-reject', 'legacy'])(
 it.each(['fulfilled', 'rejected', 'native-reject', 'legacy'])(
   'retains actual component invocation and original command lifetime: %s',
   (mode) => {
-    const { execFileSync } = require('node:child_process')
     const result = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [join(__dirname, 'component-native-invocation.cjs'), mode],
         { encoding: 'utf8', timeout: 15000 }
       )
@@ -5690,8 +5643,7 @@ it.each([
   'distinct-slots',
   'unhandled-promise',
 ])('retains exact Browser suite-error producer occurrences: %s', (mode) => {
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'suite-error-producer.cjs'), mode],
     { encoding: 'utf8', timeout: 30000 }
   )
@@ -5716,8 +5668,7 @@ it.each([
   'repeated',
   'cleanup-owner',
 ])('retains exact Browser suite-error consumer slots: %s', (mode) => {
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'suite-error-consumer.cjs'), mode],
     { encoding: 'utf8', timeout: 30000 }
   )
@@ -5729,11 +5680,10 @@ it.each([
 })
 
 it('enriches only actual final Browser root error presentation with owned stack facts', () => {
-  const result = execFileSync(
-    process.execPath,
-    [join(__dirname, 'root-error-stacks.cjs')],
-    { encoding: 'utf8', timeout: 15000 }
-  )
+  const result = runNodeHelperSync([join(__dirname, 'root-error-stacks.cjs')], {
+    encoding: 'utf8',
+    timeout: 15000,
+  })
   expect(JSON.parse(result)).toEqual({
     comparisons: 13,
     receivedAndCollectedGraphsUnchanged: true,
@@ -5761,8 +5711,7 @@ it.each([
 ])(
   'captures private Browser RPC primitives before authored mutations: %s',
   (mode) => {
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [join(__dirname, 'rpc-primitives.cjs'), mode],
       { encoding: 'utf8', timeout: 15000 }
     )
@@ -5787,11 +5736,10 @@ it.each([
   'late-executor-snapshot',
   'cancel-before-start',
 ])('owns the actual Browser RPC constructor and send lifetime: %s', (mode) => {
-  const result = execFileSync(
-    process.execPath,
-    [join(__dirname, 'rpc-call.cjs'), mode],
-    { encoding: 'utf8', timeout: 15000 }
-  )
+  const result = runNodeHelperSync([join(__dirname, 'rpc-call.cjs'), mode], {
+    encoding: 'utf8',
+    timeout: 15000,
+  })
   expect(JSON.parse(result)).toEqual({
     mode,
     actualStartAndReplyOnly: true,
@@ -5801,11 +5749,10 @@ it.each([
 })
 
 it('decodes only actual void RPC sentinels before the public resolver', () => {
-  const result = execFileSync(
-    process.execPath,
-    [join(__dirname, 'rpc-void-values.cjs')],
-    { encoding: 'utf8', timeout: 15000 }
-  )
+  const result = runNodeHelperSync([join(__dirname, 'rpc-void-values.cjs')], {
+    encoding: 'utf8',
+    timeout: 15000,
+  })
   expect(JSON.parse(result)).toEqual({
     knownVoidKindsOnly: true,
     immutableReplyKindAtActualStart: true,
@@ -5824,8 +5771,7 @@ it.each([
   'noncallable',
   'proxy-bootstrap',
 ])('captures only data-backed private RPC serialization: %s', (mode) => {
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'rpc-stringify.cjs'), mode],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -5845,8 +5791,7 @@ it.each([
 ])(
   'serializes real public Locator metadata with pinned effects: %s',
   (mode) => {
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [join(__dirname, 'locator-public-serialization.cjs'), mode],
       { encoding: 'utf8', timeout: 15000 }
     )
@@ -5860,8 +5805,7 @@ it.each([
 )
 
 it('preserves genuine public Locator serialization declaration fields', () => {
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'locator-public-types.cjs')],
     { encoding: 'utf8', timeout: 30000 }
   )
@@ -5886,8 +5830,7 @@ it.each([
 ])(
   'consumes a real serialized click while preserving legacy transport: %s',
   (mode) => {
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [join(__dirname, 'locator-click-target.cjs'), mode],
       { encoding: 'utf8', timeout: 15000 }
     )
@@ -5911,8 +5854,7 @@ it.each(
     ].map((mode) => [method, mode])
   )
 )('consumes the actual serialized %s target in %s', (method, mode) => {
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'locator-action-targets.cjs'), mode, method],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -5928,8 +5870,7 @@ it.each(
 it.each(['descriptor', 'immutable', 'utilities', 'definition-call'])(
   'preserves the actual public Locator brand: %s',
   (mode) => {
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [join(__dirname, 'locator-brand.cjs'), mode],
       { encoding: 'utf8', timeout: 15000 }
     )
@@ -5954,8 +5895,7 @@ it.each([
   'construction',
   'legacy-construction',
 ])('captures the actual rooted utility factory: %s', (mode) => {
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'locator-rooted-utility.cjs'), mode],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -5977,8 +5917,7 @@ it.each([
   'target-error',
   'legacy',
 ])('retains actual serialized option producer values: %s', (mode) => {
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'locator-select-serialized.cjs'), mode],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -6002,8 +5941,7 @@ it.each([
 ])(
   'joins actual serialized option handles without gating replies: %s',
   (mode) => {
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [
         join(__dirname, 'client-serialized-option-handles.cjs'),
         mode,
@@ -6025,8 +5963,7 @@ it.each([
   'producer-error',
   'producer-legacy',
 ])('consumes the actual serialized fill target: %s', (mode) => {
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'locator-fill-target.cjs'), mode, 'fill'],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -6042,8 +5979,7 @@ it.each([
 it.each(['success', 'native-error', 'wrong-value', 'legacy-invalid', 'cancel'])(
   'retains actual fill admission, error and cleanup lifetime: %s',
   (mode) => {
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [
         join(__dirname, 'client-serialized-fill.cjs'),
         mode,
@@ -6072,8 +6008,7 @@ it.each([
   'no-callback',
   'late',
 ])('delegates unhover to its actual body target and receiver: %s', (mode) => {
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'locator-unhover-target.cjs'), mode],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -6095,8 +6030,7 @@ it.each([
   'legacy',
   'late',
 ])('consumes actual serialized drag targets and delegation: %s', (mode) => {
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'locator-drop-target.cjs'), mode],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -6110,8 +6044,7 @@ it.each([
 it.each(['success', 'native-error', 'invalid-target', 'legacy', 'cancel'])(
   'retains owned native drag execution and cleanup: %s',
   (mode) => {
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [
         join(__dirname, 'client-serialized-drag.cjs'),
         mode,
@@ -6143,8 +6076,7 @@ it.each([
 ])(
   'consumes actual Locator filter selectors and query ownership: %s',
   (mode) => {
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [join(__dirname, 'locator-filter.cjs'), mode],
       { encoding: 'utf8', timeout: 15000 }
     )
@@ -6172,8 +6104,7 @@ it.each([
 ])(
   'captures the actual upload target while retaining lazy payloads: %s',
   (mode) => {
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [join(__dirname, 'locator-upload-target.cjs'), mode],
       { encoding: 'utf8', timeout: 15000 }
     )
@@ -6253,8 +6184,7 @@ it.each([
   'once',
   'mask',
 ])('retains actual screenshot action, options and delegation: %s', (mode) => {
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'locator-screenshot.cjs'), mode],
     { encoding: 'utf8', timeout: 15000 }
   )
@@ -6306,8 +6236,7 @@ it.each([
 ])(
   'joins real screenshot consumer paths, values and native operation: %s',
   (mode) => {
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [
         join(__dirname, 'client-screenshot.cjs'),
         mode,

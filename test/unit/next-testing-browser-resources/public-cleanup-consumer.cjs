@@ -1,5 +1,10 @@
-const assert = require('node:assert/strict'),
-  { createRequire } = require('node:module')
+const assert = require('node:assert/strict')
+const {
+  createRuntimeFile,
+  installClientRuntime,
+  createRuntimeConfig,
+  installRuntimeEnvironment,
+} = require('./runtime-fixtures.cjs')
 const mode = process.argv[2]
 assert(
   [
@@ -17,14 +22,6 @@ assert(
     'late-owned',
   ].includes(mode)
 )
-const runtimePath = require.resolve(
-    'next/dist/experimental/testing/client/runtime'
-  ),
-  local = createRequire(runtimePath)
-const replace = (name, exports) => {
-  const filename = local.resolve(name)
-  require.cache[filename] = { id: filename, filename, loaded: true, exports }
-}
 const trace = [],
   messages = [],
   shared = Object.assign(new Error('same actual keyboard failure'), {
@@ -60,10 +57,7 @@ let runtimeOptions
 let snapshots = false,
   workerJoined = false,
   workerTaken = false
-const file = {
-  enableBrowserPublicTaskQueues() {},
-  collect: async (load) => load(),
-  validateBrowserClient: () => [],
+const file = createRuntimeFile({
   run: async (options) => (
     (runtimeOptions = options),
     {
@@ -85,108 +79,85 @@ const file = {
     workerTaken = true
     return Object.freeze({ error })
   },
-  getSnapshotSummary: () => ({}),
   takeSnapshotUpdates() {
     snapshots = true
     return []
   },
-}
-replace('../runner', {
-  getConsoleTask: () => undefined,
-  getCurrentConsoleTask: () => undefined,
+})
+const runtimePath = installClientRuntime({
+  file,
   initializeTestFile: (options) => {
     runtimeOptions = options
     return file
   },
-})
-replace('./snapshot-environment', { installBrowserSnapshotBridge() {} })
-replace('./source-maps', {
-  createClientSourceMapResolver: () => ({ mapLocation: (value) => value }),
-})
-replace('./browser-context', {
-  initializeBrowserContext: () => ({
-    install() {},
-    dispose: () => trace.push('context-dispose'),
-  }),
-  async cleanupBrowserContext(observation) {
-    trace.push('context')
-    if (mode === 'legacy') throw shared
-    trace.push('actual-keyboard')
-    if (mode === 'late-owned')
-      runtimeOptions.onLateFailure(new Error('actual independent late failure'))
-    if (mode === 'joined-captured') {
-      const captured = Object.freeze({
-        value: observation.captureKeyboardError(keyboard),
-      })
-      fields.name = 'LaterName'
-      fields.message = 'later keyboard mutation'
-      fields.stack = 'later stack'
-      observation.onKeyboardCleanup(
-        Object.freeze({
-          status: 'rejected',
-          error: keyboard,
-          ownership: 'cleanup',
-          captured,
+  browserContext: {
+    initializeBrowserContext: () => ({
+      install() {},
+      dispose: () => trace.push('context-dispose'),
+    }),
+    async cleanupBrowserContext(observation) {
+      trace.push('context')
+      if (mode === 'legacy') throw shared
+      trace.push('actual-keyboard')
+      if (mode === 'late-owned')
+        runtimeOptions.onLateFailure(
+          new Error('actual independent late failure')
+        )
+      if (mode === 'joined-captured') {
+        const captured = Object.freeze({
+          value: observation.captureKeyboardError(keyboard),
         })
+        fields.name = 'LaterName'
+        fields.message = 'later keyboard mutation'
+        fields.stack = 'later stack'
+        observation.onKeyboardCleanup(
+          Object.freeze({
+            status: 'rejected',
+            error: keyboard,
+            ownership: 'cleanup',
+            captured,
+          })
+        )
+        throw keyboard
+      }
+      if (mode === 'call-failure') {
+        observation.onKeyboardCleanup(
+          Object.freeze({
+            status: 'rejected',
+            error: keyboard,
+            ownership: 'call',
+          })
+        )
+        throw keyboard
+      }
+      if (mode === 'normal' || mode === 'fulfilled-then-failure') {
+        observation?.onKeyboardCleanup?.(Object.freeze({ status: 'fulfilled' }))
+        if (mode !== 'normal') throw shared
+        return
+      }
+      if (mode === 'aggregate-same')
+        observation?.onComponentFailure?.(Object.freeze({ error: shared }))
+      observation?.onKeyboardCleanup?.(
+        Object.freeze({ status: 'rejected', error: keyboard })
       )
+      if (['getter-values', 'joined-captured'].includes(mode)) {
+        fields.name = 'LaterName'
+        fields.message = 'later keyboard mutation'
+        fields.stack = 'later stack'
+      }
+      if (mode === 'aggregate-same')
+        throw new AggregateError([shared, shared], 'actual mixed cleanup')
       throw keyboard
-    }
-    if (mode === 'call-failure') {
-      observation.onKeyboardCleanup(
-        Object.freeze({
-          status: 'rejected',
-          error: keyboard,
-          ownership: 'call',
-        })
-      )
-      throw keyboard
-    }
-    if (mode === 'normal' || mode === 'fulfilled-then-failure') {
-      observation?.onKeyboardCleanup?.(Object.freeze({ status: 'fulfilled' }))
-      if (mode !== 'normal') throw shared
-      return
-    }
-    if (mode === 'aggregate-same')
-      observation?.onComponentFailure?.(Object.freeze({ error: shared }))
-    observation?.onKeyboardCleanup?.(
-      Object.freeze({ status: 'rejected', error: keyboard })
-    )
-    if (['getter-values', 'joined-captured'].includes(mode)) {
-      fields.name = 'LaterName'
-      fields.message = 'later keyboard mutation'
-      fields.stack = 'later stack'
-    }
-    if (mode === 'aggregate-same')
-      throw new AggregateError([shared, shared], 'actual mixed cleanup')
-    throw keyboard
-  },
-  async cleanupBrowserKeyboard() {
-    trace.push('fallback-keyboard')
+    },
+    async cleanupBrowserKeyboard() {
+      trace.push('fallback-keyboard')
+    },
   },
 })
-const config = {
-    version: 1,
-    ownerToken: 'keyboard-occurrence',
-    authorization: 'keyboard-occurrence',
-    sourceHash: 'a'.repeat(64),
-    rpcURL: 'http://unit/rpc',
-    runId: 'keyboard-occurrence',
-    entryId: 'keyboard-occurrence',
-    revision: 'keyboard-occurrence',
-    filePath: '/keyboard.test.mjs',
-    sourceMaps: [],
-  },
+const config = createRuntimeConfig('keyboard-occurrence', '/keyboard.test.mjs'),
   originalConsole = console
 async function main() {
-  globalThis.location = { href: 'http://unit/' }
-  globalThis.addEventListener = () => {}
-  globalThis.removeEventListener = () => {}
-  globalThis.fetch = async (_url, request) => {
-    if (!request?.method) return { ok: true, json: async () => config }
-    messages.push(JSON.parse(request.body))
-    return { ok: true, json: async () => ({ value: null }) }
-  }
-  globalThis.console = { ...originalConsole, debug() {} }
+  installRuntimeEnvironment(config, messages, originalConsole)
   try {
     await require(runtimePath).startClientTest(
       () => trace.push('load'),

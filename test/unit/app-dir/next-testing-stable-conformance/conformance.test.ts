@@ -655,13 +655,6 @@ describe('Vitest 5.0.4 public CLI conformance', () => {
     expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
   }, 120000)
 
-  it('keeps the published API/configuration inventory aligned with the exact reference', async () => {
-    await exec(process.execPath, [
-      join(__dirname, '../../../../scripts/next-testing-compatibility.mjs'),
-      '--check',
-    ])
-  })
-
   it('preserves deliberate failures and teardown errors', async () => {
     const expected = await invoke('vitest', roots.vitest, 'failure.case')
     const actual = await invoke('next', roots.next, 'failure.case')

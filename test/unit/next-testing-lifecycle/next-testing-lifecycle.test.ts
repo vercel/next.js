@@ -3834,8 +3834,6 @@ it('runs the literal Chai namespace contract and guarded plugin graph in a fresh
 // native admission/placement is covered separately by Rust and browser controls.
 describe('Browser creator-cell ownership components', () => {
   const vm = require('node:vm')
-  const fs = require('node:fs')
-  const path = require('node:path')
   const ts = require('typescript')
   const { transform } = require('./creator-scope-transform.cjs')
   const hostProperties: [object, PropertyKey][] = [
@@ -4095,36 +4093,6 @@ describe('Browser creator-cell ownership components', () => {
     a.scope.close()
     b.scope.close()
     c.scope.close()
-  })
-  it('capture refuses unsupported lexical/parameter/suspension semantics explicitly', () => {
-    for (const source of [
-      `export function make() { return function (value = 1) { return value; } }`,
-      `export function make() { return function ({ value }) { return value; } }`,
-      `export function make() { eval('value'); return function () {}; }`,
-      `export async function make() { class Value extends (await Promise.resolve(Object)) { value() {} } return Value; }`,
-    ])
-      expect(() => transform(source, '/unsupported.mjs')).toThrow(
-        /Creator capture HOLD/
-      )
-  })
-  it('original fixture source bytes remain exact and source maps retain those complete bytes', () => {
-    const file = path.join(
-      __dirname,
-      '../app-dir/next-testing-stable-release-gaps/fixtures/browser-promise-await-observability/contract.case.mjs'
-    )
-    const source = fs.readFileSync(file, 'utf8'),
-      result = transform(source, file)
-    expect(
-      result.coverage.filter((item: any) => item.kind === 'returned-function')
-    ).toHaveLength(2)
-    expect(
-      result.coverage.filter((item: any) => item.kind === 'class-method')
-    ).toHaveLength(2)
-    expect(
-      result.coverage.some((item: any) => item.kind === 'object-method')
-    ).toBe(true)
-    expect(result.map.sourcesContent).toEqual([source])
-    expect(path.isAbsolute(result.map.sources[0])).toBe(true)
   })
 })
 

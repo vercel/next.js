@@ -1,28 +1,13 @@
 'use strict'
 const assert = require('node:assert/strict')
-const { createRequire } = require('node:module')
-const provider = createRequire(require.resolve('jest-environment-jsdom'))
-const { JSDOM } = provider('jsdom')
+
 const mode = process.argv[2]
-const dom = new JSDOM(
-  '<!DOCTYPE html><body><button data-testid="subject"></button></body>'
-)
-for (const name of [
-  'document',
-  'window',
-  'Element',
-  'Node',
-  'HTMLInputElement',
-  'HTMLTextAreaElement',
-  'HTMLFormElement',
-  'HTMLIFrameElement',
-  'ShadowRoot',
-  'XPathResult',
-])
-  Object.defineProperty(globalThis, name, {
-    configurable: true,
-    value: name === 'window' ? dom.window : dom.window[name],
-  })
+const { createDOMFixture, locatorGlobals } = require('./dom-fixture.cjs')
+const { dom } = createDOMFixture({
+  html: '<!DOCTYPE html><body><button data-testid="subject"></button></body>',
+  globals: locatorGlobals,
+  load: require,
+})
 const scopes = require('next/dist/experimental/testing/client/async-context')
 const api = require('next/dist/experimental/testing/client/browser-context')
 const late = [],

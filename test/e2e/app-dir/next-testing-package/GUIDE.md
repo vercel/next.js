@@ -219,11 +219,10 @@ still need an explicit mapping or implementation.
 Development Node factory mocks accept string literals and type-safe literal
 `import()` targets. Ordered setup files run first against the original graph;
 the per-spec mock substitution remains isolated to that spec.
-Use the installed capability manifest and [testing contracts](../../../../NEXT_TESTING_CONTRACTS.md)
+Use the `next test --capabilities` report and [testing contracts](../../../../NEXT_TESTING_CONTRACTS.md)
 to check each API before migration. Browser specs are Node drivers using real
 browser fixtures. RSC observations describe the server subtree; use browser
 assertions for client behavior.
 
-Keep the [acceptance record](STAGE3_PACKAGING.md) with the exact archive and source
-manifests. These isolated test profiles do not certify an ordinary application
-build or the separately instrumented `instant()` lane.
+These isolated test profiles do not certify an ordinary application build or the
+separately instrumented `instant()` lane.

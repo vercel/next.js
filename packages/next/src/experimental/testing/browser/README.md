@@ -1,11 +1,11 @@
 # Browser resources for the Next-owned test runtime
 
-This document retains resource architecture and initial bring-up notes. The early
-capability limits below predate later implementation. Consult
-[`../capabilities.ts`](../capabilities.ts) and
-[`../compatibility-inventory.json`](../compatibility-inventory.json) for current
-qualified functionality and remaining gaps. Stable release requirements remain
-in [`NEXT_TESTING_STABLE_RELEASE.md`](../../../../../../NEXT_TESTING_STABLE_RELEASE.md).
+These notes describe internal resource ownership and initial bring-up boundaries.
+Run `next test --capabilities` for current execution support; the early limits
+below do not replace that report. The [capability definitions](../capabilities.ts)
+and [current implementation status](../../../../../../NEXT_TESTING_STABLE_PROGRESS.md)
+record supported profiles and remaining qualification. Stable release requirements
+remain in [`NEXT_TESTING_STABLE_RELEASE.md`](../../../../../../NEXT_TESTING_STABLE_RELEASE.md).
 
 These internal resource primitives do not start Playwright Test, Vitest, or Vite.
 The test project supplies `playwright` and `@next/playwright`. Chromium is the

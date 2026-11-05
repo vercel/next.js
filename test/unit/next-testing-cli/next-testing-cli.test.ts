@@ -20,6 +20,11 @@ import { spawn, execFile } from 'node:child_process'
 import { once } from 'node:events'
 import { retry } from 'next-test-utils'
 import {
+  runNodeHelper,
+  runNodeHelperSync,
+  withOutputDirectory,
+} from '../../lib/next-testing-node-helpers'
+import {
   evaluateTestConfig,
   openTestConfigModule,
 } from 'next/dist/experimental/testing/config-modules'
@@ -1172,10 +1177,8 @@ describe('Next-owned test discovery and configuration', () => {
   }, 30000)
 
   it('applies inline compiler and setup inheritance through the real CLI', async () => {
-    const { execFileSync } = await import('node:child_process')
     const output = path.join(directory, 'inline-cli-proof')
-    execFileSync(
-      process.execPath,
+    runNodeHelperSync(
       [
         path.join(__dirname, 'inline-project-reports.mjs'),
         path.join(__dirname, '../../..'),
@@ -2602,6 +2605,16 @@ describe('Next-owned test discovery and configuration', () => {
     })
     const inventory = JSON.parse(log.mock.calls[0][0])
     expect(inventory.version).toBe(1)
+    expect(inventory.compatibility).toEqual({
+      api: 'vitest',
+      targetVersion: '5.0.4',
+      supportedVersionRange: null,
+      stableReady: false,
+      reference: '6a11cf66f99fa610b7364363d5ca42b66d994f40',
+      scope:
+        'Explicit Next-owned subset; not the full Vitest API or ecosystem.',
+    })
+    expect(inventory).not.toHaveProperty('compatibilityInventory')
     expect(inventory.execution.modes).toEqual(['development', 'production'])
     expect(inventory.features.production.supported).toBe(true)
     expect(inventory.features.production.environments).toEqual([
@@ -10155,9 +10168,7 @@ if (process.platform === 'win32') {
   it.skip('POSIX cleanup verifier is unavailable on Windows', () => {})
 } else {
   it('reclaims closed POSIX descendants within the existing cleanup budget and retains live/timeout failures', async () => {
-    const { execFileSync } = await import('node:child_process')
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [path.join(__dirname, 'process-supervisor-stress.mjs')],
       { encoding: 'utf8', timeout: 170000 }
     )
@@ -10194,9 +10205,7 @@ it.each([
 ])(
   'retains actual-entry native rejection snapshot receipt fences: %s',
   async (scenario) => {
-    const { execFile } = await import('node:child_process')
-    const { promisify } = await import('node:util')
-    const { stdout } = await promisify(execFile)(process.execPath, [
+    const { stdout } = await runNodeHelper([
       path.join(__dirname, 'coordinator-native-rejections.cjs'),
       require.resolve('next/dist/experimental/testing/watch-process'),
       scenario,
@@ -10301,206 +10310,270 @@ describe('owned watch editor generations', () => {
   it.each(['development', 'production'] as const)(
     'reruns and cancels actual %s CLI watch generations while keeping the API alive until final cleanup',
     async (mode) => {
-      const { copyFile, readdir } = await import('node:fs/promises')
-      const directory = await mkdtemp(
-        path.join(process.cwd(), '.next-test-editor-watch-')
-      )
-      const controlsDirectory = await mkdtemp(
-        path.join(os.tmpdir(), 'next-editor-watch-controls-')
-      )
-      const app = path.join(directory, 'app')
-      const control = path.join(controlsDirectory, 'control.txt')
-      const trace = path.join(controlsDirectory, 'trace.txt')
-      const fixture = path.join(__dirname, 'fixtures/editor-watch')
-      await mkdir(app)
-      for (const name of ['contract.test.mjs'])
-        await copyFile(path.join(fixture, name + '.txt'), path.join(app, name))
-      await writeFile(control, 'healthy')
-      await writeFile(trace, '')
-      await writeFile(path.join(app, 'package.json'), '{"type":"module"}\n')
-      await writeFile(
-        path.join(app, 'next.test.config.json'),
-        JSON.stringify({
-          maxWorkers: 1,
-          projects: [
-            {
-              name: 'editor',
-              environment: 'node',
-              mode,
-              include: ['contract.test.mjs'],
-              testTimeout: 30000,
-            },
-          ],
-        })
-      )
-      const child = spawn(
-        process.execPath,
-        [
-          path.join(
-            path.dirname(require.resolve('next/package.json')),
-            'dist/bin/next'
-          ),
-          'test',
-          app,
-          '--watch',
-          '--api',
-          '0',
-          '--reporter=json',
-          '--outputFile',
-          path.join(app, 'result.json'),
-        ],
-        {
-          cwd: app,
-          env: {
-            ...process.env,
-            NODE_ENV: mode,
-            NEXT_TELEMETRY_DISABLED: '1',
-            NEXT_TEST_EDITOR_TRACE: trace,
-            NEXT_TEST_EDITOR_CONTROL: control,
-          },
-          stdio: ['ignore', 'pipe', 'pipe'],
-        }
-      )
-      const closed = once(child, 'close')
-      let stdout = '',
-        stderr = ''
-      child.stdout.on('data', (chunk) => {
-        stdout += chunk
-      })
-      child.stderr.on('data', (chunk) => {
-        stderr += chunk
-      })
-      let url = ''
-      async function current() {
-        if (child.exitCode !== null || child.signalCode !== null)
-          throw new Error('Watch CLI closed: ' + stdout + stderr)
-        const match =
-          /Next test discovery API: (http:\/\/127\.0\.0\.1:\d+\/v1\/discovery)/.exec(
-            stderr
-          )
-        expect(match).not.toBeNull()
-        url = match![1]
-        const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
-        expect(response.status).toBe(200)
-        return response.json()
-      }
-      async function settled(previous?: string) {
-        let value: Awaited<ReturnType<typeof current>>
-        await retry(
-          async () => {
-            value = await current()
-            expect(value.run?.status).toBe('passed')
-            if (previous) expect(value.run.id).not.toBe(previous)
-          },
-          20000,
-          100
-        )
-        return value!
-      }
-      async function command(id: string, action: string) {
-        return fetch(
-          new URL('/v1/runs/' + encodeURIComponent(id) + '/' + action, url),
-          { method: 'POST', signal: AbortSignal.timeout(5000) }
-        )
-      }
-      try {
-        const first = await settled()
-        expect(first.controls).toEqual({ cancel: true, rerun: true })
-        expect(first.cases).toMatchObject([
-          { name: 'actual watch generation', status: 'passed' },
-        ])
-        expect((await command(first.run.id, 'rerun')).status).toBe(202)
-        const second = await settled(first.run.id)
-        expect(second.files).toEqual(first.files)
-        expect((await command(first.run.id, 'rerun')).status).toBe(409)
-        await writeFile(control, 'hold')
-        expect((await command(second.run.id, 'rerun')).status).toBe(202)
-        let active: Awaited<ReturnType<typeof current>>
-        await retry(
-          async () => {
-            active = await current()
-            expect(active.run.status).toBe('running')
-            expect(active.run.id).not.toBe(second.run.id)
-            expect(await readFile(trace, 'utf8')).toContain('body hold\n')
-          },
-          20000,
-          100
-        )
-        expect((await command(active!.run.id, 'cancel')).status).toBe(202)
-        await retry(
-          async () => {
-            const cancelled = await current()
-            expect(cancelled.run).toEqual({
-              id: active!.run.id,
-              status: 'cancelled',
-            })
-            const rows = (await readFile(trace, 'utf8')).trim().split('\n')
-            expect(
-              rows.filter((row) => row === 'fixture cleanup')
-            ).toHaveLength(3)
-            expect(rows.filter((row) => row === 'afterAll')).toHaveLength(3)
-          },
-          20000,
-          100
-        )
-        await writeFile(control, 'healthy')
-        expect((await command(active!.run.id, 'rerun')).status).toBe(202)
-        const fourth = await settled(active!.run.id)
-        expect(fourth.cases).toMatchObject([
-          { name: 'actual watch generation', status: 'passed' },
-        ])
-        expect((await command(active!.run.id, 'cancel')).status).toBe(409)
-        expect(child.kill('SIGINT')).toBe(true)
-        expect(await closed).toEqual([130, null])
-        const rows = (await readFile(trace, 'utf8')).trim().split('\n')
-        for (const event of [
-          'fixture setup',
-          'fixture cleanup',
-          'finished',
-          'afterAll',
-        ])
-          expect(rows.filter((row) => row === event)).toHaveLength(4)
-        expect(rows[0]).toBe('fixture setup')
-        expect(rows.at(-1)).toBe('afterAll')
-        expect(
-          (await readdir(app)).filter((name) => name.startsWith('.next-test-'))
-        ).toEqual([])
-        const { execFileSync } = await import('node:child_process')
-        expect(
-          execFileSync(
-            process.execPath,
-            [
-              path.join(__dirname, 'editor-watch-lock.cjs'),
-              require.resolve('next/dist/experimental/testing/scheduling'),
-              app,
-            ],
-            { encoding: 'utf8', timeout: 10000 }
-          )
-        ).toBe('released')
-        await expect(
-          fetch(url, { signal: AbortSignal.timeout(5000) })
-        ).rejects.toThrow()
-        for (const name of ['contract.test.mjs'])
-          expect(await readFile(path.join(app, name))).toEqual(
-            await readFile(path.join(fixture, name + '.txt'))
-          )
-      } catch (error) {
-        throw new Error(String(error) + '\n' + stdout + '\n' + stderr)
-      } finally {
-        if (child.exitCode === null && child.signalCode === null) {
-          child.kill('SIGTERM')
-          await closed
-        }
-        await Promise.all(
-          [directory, controlsDirectory].map((owner) =>
-            rm(owner, { recursive: true, force: true })
-          )
-        )
-      }
+      await assertEditorWatchGenerations(mode)
     },
     120000
   )
 })
+
+function createEditorWatchController<
+  State extends { run: { id: string; status: string } } = any,
+>({
+  app,
+  mode,
+  trace,
+  control,
+  settleTimeout,
+  closedMessage,
+  assertResponseStatus,
+}: {
+  app: string
+  mode: 'development' | 'production'
+  trace: string
+  control: string
+  settleTimeout: number
+  closedMessage: string
+  assertResponseStatus: boolean
+}) {
+  const child = spawn(
+    process.execPath,
+    [
+      path.join(
+        path.dirname(require.resolve('next/package.json')),
+        'dist/bin/next'
+      ),
+      'test',
+      app,
+      '--watch',
+      '--api',
+      '0',
+      '--reporter=json',
+      '--outputFile',
+      path.join(app, 'result.json'),
+    ],
+    {
+      cwd: app,
+      env: {
+        ...process.env,
+        NODE_ENV: mode,
+        NEXT_TELEMETRY_DISABLED: '1',
+        NEXT_TEST_EDITOR_TRACE: trace,
+        NEXT_TEST_EDITOR_CONTROL: control,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  )
+  const closed = once(child, 'close')
+  let stdout = '',
+    stderr = '',
+    url = ''
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk
+  })
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk
+  })
+  async function current(): Promise<State> {
+    if (child.exitCode !== null || child.signalCode !== null)
+      throw new Error(closedMessage + stdout + stderr)
+    const match =
+      /Next test discovery API: (http:\/\/127\.0\.0\.1:\d+\/v1\/discovery)/.exec(
+        stderr
+      )
+    expect(match).not.toBeNull()
+    url = match![1]
+    const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    if (assertResponseStatus) expect(response.status).toBe(200)
+    return response.json()
+  }
+  async function settled(previous?: string) {
+    let value: State
+    await retry(
+      async () => {
+        value = await current()
+        expect(value.run?.status).toBe('passed')
+        if (previous) expect(value.run.id).not.toBe(previous)
+      },
+      settleTimeout,
+      100
+    )
+    return value!
+  }
+  return {
+    child,
+    closed,
+    current,
+    settled,
+    get url() {
+      return url
+    },
+    post(route: string) {
+      return fetch(new URL(route, url), {
+        method: 'POST',
+        signal: AbortSignal.timeout(5000),
+      })
+    },
+    errorWithOutput(error: unknown) {
+      return new Error(String(error) + '\n' + stdout + '\n' + stderr)
+    },
+    async dispose() {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill('SIGTERM')
+        await closed
+      }
+    },
+  }
+}
+
+async function assertEditorWatchGenerations(
+  mode: 'development' | 'production',
+  globalSetup = false
+) {
+  const { copyFile, readdir } = await import('node:fs/promises')
+  const directory = await mkdtemp(
+    path.join(process.cwd(), '.next-test-editor-watch-')
+  )
+  const controlsDirectory = await mkdtemp(
+    path.join(os.tmpdir(), 'next-editor-watch-controls-')
+  )
+  const app = path.join(directory, 'app')
+  const control = path.join(controlsDirectory, 'control.txt')
+  const trace = path.join(controlsDirectory, 'trace.txt')
+  const fixture = path.join(__dirname, 'fixtures/editor-watch')
+  const names = globalSetup
+    ? ['contract.test.mjs', 'global-setup.mjs']
+    : ['contract.test.mjs']
+  await mkdir(app)
+  for (const name of names)
+    await copyFile(path.join(fixture, name + '.txt'), path.join(app, name))
+  await writeFile(control, 'healthy')
+  await writeFile(trace, '')
+  await writeFile(path.join(app, 'package.json'), '{"type":"module"}\n')
+  await writeFile(
+    path.join(app, 'next.test.config.json'),
+    JSON.stringify({
+      maxWorkers: 1,
+      projects: [
+        {
+          name: 'editor',
+          environment: 'node',
+          mode,
+          include: ['contract.test.mjs'],
+          ...(globalSetup ? { globalSetup: ['./global-setup.mjs'] } : {}),
+          testTimeout: 30000,
+        },
+      ],
+    })
+  )
+  const watch = createEditorWatchController({
+    app,
+    mode,
+    trace,
+    control,
+    settleTimeout: 20000,
+    closedMessage: 'Watch CLI closed: ',
+    assertResponseStatus: true,
+  })
+  const { child, closed, current, settled } = watch
+  const command = (id: string, action: string) =>
+    watch.post('/v1/runs/' + encodeURIComponent(id) + '/' + action)
+  try {
+    const first = await settled()
+    expect(first.controls).toEqual({ cancel: true, rerun: true })
+    expect(first.cases).toMatchObject([
+      { name: 'actual watch generation', status: 'passed' },
+    ])
+    expect((await command(first.run.id, 'rerun')).status).toBe(202)
+    const second = await settled(first.run.id)
+    expect(second.files).toEqual(first.files)
+    expect((await command(first.run.id, 'rerun')).status).toBe(409)
+    await writeFile(control, 'hold')
+    expect((await command(second.run.id, 'rerun')).status).toBe(202)
+    let active: Awaited<ReturnType<typeof current>>
+    await retry(
+      async () => {
+        active = await current()
+        expect(active.run.status).toBe('running')
+        expect(active.run.id).not.toBe(second.run.id)
+        expect(await readFile(trace, 'utf8')).toContain('body hold\n')
+      },
+      20000,
+      100
+    )
+    expect((await command(active!.run.id, 'cancel')).status).toBe(202)
+    await retry(
+      async () => {
+        const cancelled = await current()
+        expect(cancelled.run).toEqual({
+          id: active!.run.id,
+          status: 'cancelled',
+        })
+        const rows = (await readFile(trace, 'utf8')).trim().split('\n')
+        expect(rows.filter((row) => row === 'fixture cleanup')).toHaveLength(3)
+        expect(rows.filter((row) => row === 'afterAll')).toHaveLength(3)
+      },
+      20000,
+      100
+    )
+    await writeFile(control, 'healthy')
+    expect((await command(active!.run.id, 'rerun')).status).toBe(202)
+    const fourth = await settled(active!.run.id)
+    expect(fourth.cases).toMatchObject([
+      { name: 'actual watch generation', status: 'passed' },
+    ])
+    expect((await command(active!.run.id, 'cancel')).status).toBe(409)
+    expect(child.kill('SIGINT')).toBe(true)
+    expect(await closed).toEqual([130, null])
+    const rows = (await readFile(trace, 'utf8')).trim().split('\n')
+    for (const event of [
+      'fixture setup',
+      'fixture cleanup',
+      'finished',
+      'afterAll',
+    ])
+      expect(rows.filter((row) => row === event)).toHaveLength(4)
+    if (globalSetup) {
+      expect(rows.filter((row) => row === 'global setup')).toHaveLength(1)
+      expect(rows.filter((row) => row === 'global teardown')).toHaveLength(1)
+      expect(rows[0]).toBe('global setup')
+      expect(rows.at(-1)).toBe('global teardown')
+    } else {
+      expect(rows[0]).toBe('fixture setup')
+      expect(rows.at(-1)).toBe('afterAll')
+    }
+    expect(
+      (await readdir(app)).filter((name) => name.startsWith('.next-test-'))
+    ).toEqual([])
+    const { execFileSync } = await import('node:child_process')
+    expect(
+      execFileSync(
+        process.execPath,
+        [
+          path.join(__dirname, 'editor-watch-lock.cjs'),
+          require.resolve('next/dist/experimental/testing/scheduling'),
+          app,
+        ],
+        { encoding: 'utf8', timeout: 10000 }
+      )
+    ).toBe('released')
+    await expect(
+      fetch(watch.url, { signal: AbortSignal.timeout(5000) })
+    ).rejects.toThrow()
+    for (const name of names)
+      expect(await readFile(path.join(app, name))).toEqual(
+        await readFile(path.join(fixture, name + '.txt'))
+      )
+  } catch (error) {
+    throw watch.errorWithOutput(error)
+  } finally {
+    await watch.dispose()
+    await Promise.all(
+      [directory, controlsDirectory].map((owner) =>
+        rm(owner, { recursive: true, force: true })
+      )
+    )
+  }
+}
 
 describe('retained JSON global setup watch ownership', () => {
   let directory: string
@@ -10916,205 +10989,7 @@ describe('retained JSON global setup watch ownership', () => {
   it.each(['development'] as const)(
     'retains one global setup owner through actual %s CLI watch reruns and cancellation',
     async (mode) => {
-      const { copyFile, readdir } = await import('node:fs/promises')
-      const directory = await mkdtemp(
-        path.join(process.cwd(), '.next-test-editor-watch-')
-      )
-      const controlsDirectory = await mkdtemp(
-        path.join(os.tmpdir(), 'next-editor-watch-controls-')
-      )
-      const app = path.join(directory, 'app')
-      const control = path.join(controlsDirectory, 'control.txt')
-      const trace = path.join(controlsDirectory, 'trace.txt')
-      const fixture = path.join(__dirname, 'fixtures/editor-watch')
-      await mkdir(app)
-      for (const name of ['contract.test.mjs', 'global-setup.mjs'])
-        await copyFile(path.join(fixture, name + '.txt'), path.join(app, name))
-      await writeFile(control, 'healthy')
-      await writeFile(trace, '')
-      await writeFile(path.join(app, 'package.json'), '{"type":"module"}\n')
-      await writeFile(
-        path.join(app, 'next.test.config.json'),
-        JSON.stringify({
-          maxWorkers: 1,
-          projects: [
-            {
-              name: 'editor',
-              environment: 'node',
-              mode,
-              include: ['contract.test.mjs'],
-              globalSetup: ['./global-setup.mjs'],
-              testTimeout: 30000,
-            },
-          ],
-        })
-      )
-      const child = spawn(
-        process.execPath,
-        [
-          path.join(
-            path.dirname(require.resolve('next/package.json')),
-            'dist/bin/next'
-          ),
-          'test',
-          app,
-          '--watch',
-          '--api',
-          '0',
-          '--reporter=json',
-          '--outputFile',
-          path.join(app, 'result.json'),
-        ],
-        {
-          cwd: app,
-          env: {
-            ...process.env,
-            NODE_ENV: mode,
-            NEXT_TELEMETRY_DISABLED: '1',
-            NEXT_TEST_EDITOR_TRACE: trace,
-            NEXT_TEST_EDITOR_CONTROL: control,
-          },
-          stdio: ['ignore', 'pipe', 'pipe'],
-        }
-      )
-      const closed = once(child, 'close')
-      let stdout = '',
-        stderr = ''
-      child.stdout.on('data', (chunk) => {
-        stdout += chunk
-      })
-      child.stderr.on('data', (chunk) => {
-        stderr += chunk
-      })
-      let url = ''
-      async function current() {
-        if (child.exitCode !== null || child.signalCode !== null)
-          throw new Error('Watch CLI closed: ' + stdout + stderr)
-        const match =
-          /Next test discovery API: (http:\/\/127\.0\.0\.1:\d+\/v1\/discovery)/.exec(
-            stderr
-          )
-        expect(match).not.toBeNull()
-        url = match![1]
-        const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
-        expect(response.status).toBe(200)
-        return response.json()
-      }
-      async function settled(previous?: string) {
-        let value: Awaited<ReturnType<typeof current>>
-        await retry(
-          async () => {
-            value = await current()
-            expect(value.run?.status).toBe('passed')
-            if (previous) expect(value.run.id).not.toBe(previous)
-          },
-          20000,
-          100
-        )
-        return value!
-      }
-      async function command(id: string, action: string) {
-        return fetch(
-          new URL('/v1/runs/' + encodeURIComponent(id) + '/' + action, url),
-          { method: 'POST', signal: AbortSignal.timeout(5000) }
-        )
-      }
-      try {
-        const first = await settled()
-        expect(first.controls).toEqual({ cancel: true, rerun: true })
-        expect(first.cases).toMatchObject([
-          { name: 'actual watch generation', status: 'passed' },
-        ])
-        expect((await command(first.run.id, 'rerun')).status).toBe(202)
-        const second = await settled(first.run.id)
-        expect(second.files).toEqual(first.files)
-        expect((await command(first.run.id, 'rerun')).status).toBe(409)
-        await writeFile(control, 'hold')
-        expect((await command(second.run.id, 'rerun')).status).toBe(202)
-        let active: Awaited<ReturnType<typeof current>>
-        await retry(
-          async () => {
-            active = await current()
-            expect(active.run.status).toBe('running')
-            expect(active.run.id).not.toBe(second.run.id)
-            expect(await readFile(trace, 'utf8')).toContain('body hold\n')
-          },
-          20000,
-          100
-        )
-        expect((await command(active!.run.id, 'cancel')).status).toBe(202)
-        await retry(
-          async () => {
-            const cancelled = await current()
-            expect(cancelled.run).toEqual({
-              id: active!.run.id,
-              status: 'cancelled',
-            })
-            const rows = (await readFile(trace, 'utf8')).trim().split('\n')
-            expect(
-              rows.filter((row) => row === 'fixture cleanup')
-            ).toHaveLength(3)
-            expect(rows.filter((row) => row === 'afterAll')).toHaveLength(3)
-          },
-          20000,
-          100
-        )
-        await writeFile(control, 'healthy')
-        expect((await command(active!.run.id, 'rerun')).status).toBe(202)
-        const fourth = await settled(active!.run.id)
-        expect(fourth.cases).toMatchObject([
-          { name: 'actual watch generation', status: 'passed' },
-        ])
-        expect((await command(active!.run.id, 'cancel')).status).toBe(409)
-        expect(child.kill('SIGINT')).toBe(true)
-        expect(await closed).toEqual([130, null])
-        const rows = (await readFile(trace, 'utf8')).trim().split('\n')
-        for (const event of [
-          'fixture setup',
-          'fixture cleanup',
-          'finished',
-          'afterAll',
-        ])
-          expect(rows.filter((row) => row === event)).toHaveLength(4)
-        expect(rows.filter((row) => row === 'global setup')).toHaveLength(1)
-        expect(rows.filter((row) => row === 'global teardown')).toHaveLength(1)
-        expect(rows[0]).toBe('global setup')
-        expect(rows.at(-1)).toBe('global teardown')
-        expect(
-          (await readdir(app)).filter((name) => name.startsWith('.next-test-'))
-        ).toEqual([])
-        const { execFileSync } = await import('node:child_process')
-        expect(
-          execFileSync(
-            process.execPath,
-            [
-              path.join(__dirname, 'editor-watch-lock.cjs'),
-              require.resolve('next/dist/experimental/testing/scheduling'),
-              app,
-            ],
-            { encoding: 'utf8', timeout: 10000 }
-          )
-        ).toBe('released')
-        await expect(
-          fetch(url, { signal: AbortSignal.timeout(5000) })
-        ).rejects.toThrow()
-        for (const name of ['contract.test.mjs', 'global-setup.mjs'])
-          expect(await readFile(path.join(app, name))).toEqual(
-            await readFile(path.join(fixture, name + '.txt'))
-          )
-      } catch (error) {
-        throw new Error(String(error) + '\n' + stdout + '\n' + stderr)
-      } finally {
-        if (child.exitCode === null && child.signalCode === null) {
-          child.kill('SIGTERM')
-          await closed
-        }
-        await Promise.all(
-          [directory, controlsDirectory].map((owner) =>
-            rm(owner, { recursive: true, force: true })
-          )
-        )
-      }
+      await assertEditorWatchGenerations(mode, true)
     },
     120000
   )
@@ -11526,86 +11401,34 @@ describe('editor physical file reruns', () => {
           ],
         })
       )
-      const child = spawn(
-        process.execPath,
-        [
-          path.join(
-            path.dirname(require.resolve('next/package.json')),
-            'dist/bin/next'
-          ),
-          'test',
-          app,
-          '--watch',
-          '--api',
-          '0',
-          '--reporter=json',
-          '--outputFile',
-          path.join(app, 'result.json'),
-        ],
-        {
-          cwd: app,
-          env: {
-            ...process.env,
-            NODE_ENV: mode,
-            NEXT_TELEMETRY_DISABLED: '1',
-            NEXT_TEST_EDITOR_TRACE: trace,
-            NEXT_TEST_EDITOR_CONTROL: control,
-          },
-          stdio: ['ignore', 'pipe', 'pipe'],
-        }
-      )
-      const closed = once(child, 'close')
-      let stdout = '',
-        stderr = '',
-        url = ''
-      child.stdout.on('data', (chunk) => {
-        stdout += chunk
-      })
-      child.stderr.on('data', (chunk) => {
-        stderr += chunk
-      })
-      const commands: { run: string; file?: string; status: number }[] = []
-      const observations: unknown[] = []
       type FileState = {
         files: { id: string; file: string; project: string }[]
         cases: { entryId: string }[]
         run: { id: string; status: string }
         fileControls: { entries: string[] }
       }
-      const current = async (): Promise<FileState> => {
-        if (child.exitCode !== null || child.signalCode !== null)
-          throw new Error('File watch closed: ' + stdout + stderr)
-        const match =
-          /Next test discovery API: (http:\/\/127\.0\.0\.1:\d+\/v1\/discovery)/.exec(
-            stderr
-          )
-        expect(match).not.toBeNull()
-        url = match![1]
-        return (await fetch(url, { signal: AbortSignal.timeout(5000) })).json()
-      }
+      const watch = createEditorWatchController<FileState>({
+        app,
+        mode,
+        trace,
+        control,
+        settleTimeout: 30000,
+        closedMessage: 'File watch closed: ',
+        assertResponseStatus: false,
+      })
+      const { child, closed, current } = watch
+      const commands: { run: string; file?: string; status: number }[] = []
+      const observations: unknown[] = []
       const settled = async (previous?: string) => {
-        let value: Awaited<ReturnType<typeof current>>
-        await retry(
-          async () => {
-            value = await current()
-            expect(value.run?.status).toBe('passed')
-            if (previous) expect(value.run.id).not.toBe(previous)
-          },
-          30000,
-          100
-        )
-        observations.push(value!)
-        return value!
+        const value = await watch.settled(previous)
+        observations.push(value)
+        return value
       }
       const command = async (run: string, file?: string, action = 'rerun') => {
-        const response = await fetch(
-          new URL(
-            file === undefined
-              ? '/v1/runs/' + encodeURIComponent(run) + '/' + action
-              : route(run, file),
-            url
-          ),
-          { method: 'POST', signal: AbortSignal.timeout(5000) }
+        const response = await watch.post(
+          file === undefined
+            ? '/v1/runs/' + encodeURIComponent(run) + '/' + action
+            : route(run, file)
         )
         commands.push({ run, file, status: response.status })
         return response
@@ -11695,7 +11518,7 @@ describe('editor physical file reruns', () => {
           )
         ).toBe('released')
         await expect(
-          fetch(url, { signal: AbortSignal.timeout(5000) })
+          fetch(watch.url, { signal: AbortSignal.timeout(5000) })
         ).rejects.toThrow()
         for (const file of [
           'only.test.mjs',
@@ -11730,12 +11553,9 @@ describe('editor physical file reruns', () => {
           )
         }
       } catch (error) {
-        throw new Error(String(error) + '\n' + stdout + '\n' + stderr)
+        throw watch.errorWithOutput(error)
       } finally {
-        if (child.exitCode === null && child.signalCode === null) {
-          child.kill('SIGTERM')
-          await closed
-        }
+        await watch.dispose()
         await Promise.all(
           [directory, controls].map((owner) =>
             rm(owner, { recursive: true, force: true })
@@ -12225,20 +12045,15 @@ it.each(['development', 'production'] as const)(
   'uses actual persistent cache history through the default-worker %s CLI',
   async (mode) => {
     const repo = path.resolve(__dirname, '../../..')
-    const stdout = await new Promise<string>((resolve, reject) => {
-      execFile(
-        process.execPath,
-        [path.join(__dirname, 'result-cache-integration.cjs'), repo, mode],
-        {
-          cwd: repo,
-          env: { ...process.env, NODE_ENV: mode },
-          timeout: 260000,
-        },
-        (error, output, stderr) =>
-          error
-            ? reject(new Error(String(error) + '\n' + stderr))
-            : resolve(output)
-      )
+    const { stdout } = await runNodeHelper(
+      [path.join(__dirname, 'result-cache-integration.cjs'), repo, mode],
+      {
+        cwd: repo,
+        env: { ...process.env, NODE_ENV: mode },
+        timeout: 260000,
+      }
+    ).catch((error) => {
+      throw new Error(String(error) + '\n' + error.stderr)
     })
     expect(JSON.parse(stdout.trim())).toEqual({
       mode,
@@ -12257,20 +12072,15 @@ it.each(['development', 'production'] as const)(
   'persists actual two/three-worker result history through the %s CLI',
   async (mode) => {
     const repo = path.resolve(__dirname, '../../..')
-    const stdout = await new Promise<string>((resolve, reject) => {
-      execFile(
-        process.execPath,
-        [path.join(__dirname, 'result-cache-concurrency.cjs'), repo, mode],
-        {
-          cwd: repo,
-          env: { ...process.env, NODE_ENV: mode },
-          timeout: 260000,
-        },
-        (error, output, stderr) =>
-          error
-            ? reject(new Error(String(error) + '\n' + stderr))
-            : resolve(output)
-      )
+    const { stdout } = await runNodeHelper(
+      [path.join(__dirname, 'result-cache-concurrency.cjs'), repo, mode],
+      {
+        cwd: repo,
+        env: { ...process.env, NODE_ENV: mode },
+        timeout: 260000,
+      }
+    ).catch((error) => {
+      throw new Error(String(error) + '\n' + error.stderr)
     })
     expect(JSON.parse(stdout.trim())).toEqual({
       mode,
@@ -12320,20 +12130,15 @@ it.each(['development', 'production'] as const)(
   'applies authored result cache and explicit CLI precedence through actual %s runs',
   async (mode) => {
     const repo = path.resolve(__dirname, '../../..')
-    const stdout = await new Promise<string>((resolve, reject) => {
-      execFile(
-        process.execPath,
-        [path.join(__dirname, 'result-cache-config.cjs'), repo, mode],
-        {
-          cwd: repo,
-          env: { ...process.env, NODE_ENV: mode },
-          timeout: 1080000,
-        },
-        (error, output, stderr) =>
-          error
-            ? reject(new Error(String(error) + '\n' + stderr))
-            : resolve(output)
-      )
+    const { stdout } = await runNodeHelper(
+      [path.join(__dirname, 'result-cache-config.cjs'), repo, mode],
+      {
+        cwd: repo,
+        env: { ...process.env, NODE_ENV: mode },
+        timeout: 1080000,
+      }
+    ).catch((error) => {
+      throw new Error(String(error) + '\n' + error.stderr)
     })
     expect(JSON.parse(stdout.trim())).toEqual({
       mode,
@@ -12467,13 +12272,11 @@ describe('ordinary production Node project environment', () => {
 })
 
 it('retains strict named project/workspace configuration type relationships and genuine rejected fields', () => {
-  const { execFileSync } = require('node:child_process')
   const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [path.join(__dirname, 'config-project-types.cjs')],
-      { encoding: 'utf8', timeout: 60000 }
-    )
+    runNodeHelperSync([path.join(__dirname, 'config-project-types.cjs')], {
+      encoding: 'utf8',
+      timeout: 60000,
+    })
   )
   expect(actual).toMatchObject({
     namedTypes: 6,
@@ -12493,10 +12296,8 @@ it('retains strict named project/workspace configuration type relationships and 
 }, 65000)
 
 it('types modeled project plugins, server and Browser fields without permissive helper overloads', () => {
-  const { execFileSync } = require('node:child_process')
   const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
+    runNodeHelperSync(
       [path.join(__dirname, 'config-project-model-types.cjs')],
       { encoding: 'utf8', timeout: 60000 }
     )
@@ -12515,10 +12316,8 @@ it('types modeled project plugins, server and Browser fields without permissive 
 
 describe('root file parallelism configuration', () => {
   it('types the named root and project Boolean fields with exact strict negative diagnostics', () => {
-    const { execFileSync } = require('node:child_process')
     const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [path.join(__dirname, 'config-file-parallelism-types.cjs')],
         { encoding: 'utf8', timeout: 60000 }
       )
@@ -12636,33 +12435,28 @@ describe('qualified public snapshot preparation CLI forwarding', () => {
   ])(
     'forwards the phase role only for measured sinks $reporter',
     async ({ reporter, expected }) => {
-      const directory = await mkdtemp(
-        path.join(os.tmpdir(), 'next-snapshot-cli-role-')
-      )
-      try {
-        const output = path.join(directory, 'observed.json')
-        await new Promise<void>((resolve, reject) =>
-          execFile(
-            process.execPath,
+      await withOutputDirectory(
+        'next-snapshot-cli-role-',
+        async (directory) => {
+          const output = path.join(directory, 'observed.json')
+          await runNodeHelper(
             [
               path.join(__dirname, 'snapshot-preparation-admission.mjs'),
               JSON.stringify(reporter ?? null),
               String(expected),
               output,
             ],
-            { timeout: 35000, encoding: 'utf8' },
-            (error) => (error ? reject(error) : resolve())
+            { timeout: 35000, encoding: 'utf8' }
           )
-        )
-        expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
-          expected,
-          actualCLIForwarded: true,
-          execPath: process.execPath,
-          version: process.version,
-        })
-      } finally {
-        await rm(directory, { recursive: true, force: true })
-      }
+          expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+            expected,
+            actualCLIForwarded: true,
+            execPath: process.execPath,
+            version: process.version,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     40000
   )
@@ -12775,48 +12569,39 @@ describe('actual cache owner snapshot admission', () => {
   )(
     'matches actual cache creation and one-shot snapshot role for $label',
     async ({ expected, ...specification }) => {
-      const directory = await mkdtemp(
-        path.join(os.tmpdir(), 'next-cache-snapshot-role-')
-      )
-      try {
-        const output = path.join(directory, 'observed.json')
-        await new Promise<void>((resolve, reject) =>
-          execFile(
-            process.execPath,
+      await withOutputDirectory(
+        'next-cache-snapshot-role-',
+        async (directory) => {
+          const output = path.join(directory, 'observed.json')
+          await runNodeHelper(
             [
               path.join(__dirname, 'snapshot-cache-admission.mjs'),
               JSON.stringify(specification),
               String(expected),
               output,
             ],
-            { timeout: 35000, encoding: 'utf8' },
-            (error) => (error ? reject(error) : resolve())
+            { timeout: 35000, encoding: 'utf8' }
           )
-        )
-        expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
-          expected,
-          actualCLIForwarded: true,
-          customNeverCreatesCache: true,
-          cachedJsonDefaultRoleRemainsAbsent: true,
-        })
-      } finally {
-        await rm(directory, { recursive: true, force: true })
-      }
+          expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({
+            expected,
+            actualCLIForwarded: true,
+            customNeverCreatesCache: true,
+            cachedJsonDefaultRoleRemainsAbsent: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     40000
   )
 })
 
 it('copies owned project clock getters without coercing values or touching excluded owners', async () => {
-  const output = await new Promise<string>((resolve, reject) =>
-    execFile(
-      process.execPath,
-      [path.join(__dirname, 'project-fake-timers.cjs')],
-      { timeout: 30000, encoding: 'utf8' },
-      (error, stdout, stderr) =>
-        error || stderr ? reject(error ?? new Error(stderr)) : resolve(stdout)
-    )
+  const { stdout: output, stderr } = await runNodeHelper(
+    [path.join(__dirname, 'project-fake-timers.cjs')],
+    { timeout: 30000, encoding: 'utf8' }
   )
+  if (stderr) throw new Error(stderr)
   expect(JSON.parse(output)).toEqual({
     controls: 42,
     actualBuiltProducer: true,
@@ -12831,68 +12616,58 @@ it('copies owned project clock getters without coercing values or touching exclu
 it.each(['development', 'production'])(
   'matches genuine Date project getters, second throws and explicit undefined (%s)',
   async (mode) => {
-    const directory = await mkdtemp(
-      path.join(os.tmpdir(), 'next-project-clock-')
-    )
-    try {
-      const output = await new Promise<string>((resolve, reject) =>
-        execFile(
-          process.execPath,
-          [
-            path.join(__dirname, 'project-fake-timers-public.mjs'),
-            mode,
-            path.join(directory, 'observed'),
-          ],
-          { timeout: 370000, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 },
-          (error, stdout, stderr) =>
-            error || stderr
-              ? reject(error ?? new Error(stderr))
-              : resolve(stdout)
-        )
-      )
-      expect(JSON.parse(output)).toEqual({
-        profiles: 3,
-        cases: 4,
-        modes: 1,
-        exactGetterAndClockModels: true,
-        secondFailureStopsBodies: true,
-        explicitUndefinedRetained: true,
-        allOwnersJoined: true,
-      })
-    } finally {
-      try {
-        if (process.env.NEXT_TESTING_CLOCK_EVIDENCE_DIR) {
-          await mkdir(process.env.NEXT_TESTING_CLOCK_EVIDENCE_DIR, {
-            recursive: true,
-          })
-          await cp(
-            directory,
-            path.join(process.env.NEXT_TESTING_CLOCK_EVIDENCE_DIR, mode),
-            {
-              recursive: true,
-              errorOnExist: true,
-              force: false,
-            }
+    await withOutputDirectory(
+      'next-project-clock-',
+      async (directory) => {
+        try {
+          const { stdout: output, stderr } = await runNodeHelper(
+            [
+              path.join(__dirname, 'project-fake-timers-public.mjs'),
+              mode,
+              path.join(directory, 'observed'),
+            ],
+            { timeout: 370000, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 }
           )
+          if (stderr) throw new Error(stderr)
+          expect(JSON.parse(output)).toEqual({
+            profiles: 3,
+            cases: 4,
+            modes: 1,
+            exactGetterAndClockModels: true,
+            secondFailureStopsBodies: true,
+            explicitUndefinedRetained: true,
+            allOwnersJoined: true,
+          })
+        } finally {
+          if (process.env.NEXT_TESTING_CLOCK_EVIDENCE_DIR) {
+            await mkdir(process.env.NEXT_TESTING_CLOCK_EVIDENCE_DIR, {
+              recursive: true,
+            })
+            await cp(
+              directory,
+              path.join(process.env.NEXT_TESTING_CLOCK_EVIDENCE_DIR, mode),
+              {
+                recursive: true,
+                errorOnExist: true,
+                force: false,
+              }
+            )
+          }
         }
-      } finally {
-        await rm(directory, { recursive: true, force: true })
-      }
-    }
+      },
+      { cleanup: 'always' }
+    )
   },
   380000
 )
 
 it('preserves OS interruption exit precedence over an earlier settled failure', async () => {
-  const directory = await mkdtemp(
-    path.join(process.cwd(), '.next-test-signal-exit-')
-  )
-  try {
-    // The helper owns and audits every CLI and descendant itself. A second
-    // supervisor would replace its startup audit when nesting those owners.
-    const stdout = await new Promise<string>((resolve, reject) => {
-      execFile(
-        process.execPath,
+  await withOutputDirectory(
+    '.next-test-signal-exit-',
+    async (directory) => {
+      // The helper owns and audits every CLI and descendant itself. A second
+      // supervisor would replace its startup audit when nesting those owners.
+      const { stdout } = await runNodeHelper(
         [
           path.join(__dirname, 'signal-exit-public.mjs'),
           path.dirname(require.resolve('next/package.json')),
@@ -12904,24 +12679,21 @@ it('preserves OS interruption exit precedence over an earlier settled failure', 
           cwd: process.cwd(),
           env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
           timeout: 140000,
-        },
-        (error, output, stderr) =>
-          error
-            ? reject(new Error(String(error) + '\n' + output + stderr))
-            : resolve(output)
-      )
-    })
-    expect(JSON.parse(stdout)).toEqual({
-      profiles: 8,
-      actualCliRuns: 16,
-      actualSignalCancellations: 4,
-      actualApiCancellations: 4,
-      historyBytesPreserved: true,
-      allOwnedWorkersAndArtifactsReleased: true,
-    })
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
+        }
+      ).catch((error) => {
+        throw new Error(String(error) + '\n' + error.stdout + error.stderr)
+      })
+      expect(JSON.parse(stdout)).toEqual({
+        profiles: 8,
+        actualCliRuns: 16,
+        actualSignalCancellations: 4,
+        actualApiCancellations: 4,
+        historyBytesPreserved: true,
+        allOwnedWorkersAndArtifactsReleased: true,
+      })
+    },
+    { cleanup: 'always', base: process.cwd() }
+  )
 }, 150000)
 
 describe('project filter patterns before shard assignment', () => {
@@ -13441,14 +13213,10 @@ describe('root reporter resource and final-exit ownership', () => {
   ])(
     'keeps the actual configuration realm through %s finalization',
     async (scenario) => {
-      await new Promise<void>((resolve, reject) => {
-        execFile(
-          process.execPath,
-          [path.join(__dirname, 'reporter-root-owner.cjs'), scenario],
-          { env: { ...process.env }, timeout: 15000, maxBuffer: 1024 * 1024 },
-          (error) => (error ? reject(error) : resolve())
-        )
-      })
+      await runNodeHelper(
+        [path.join(__dirname, 'reporter-root-owner.cjs'), scenario],
+        { env: { ...process.env }, timeout: 15000, maxBuffer: 1024 * 1024 }
+      )
     },
     20000
   )
@@ -13456,14 +13224,10 @@ describe('root reporter resource and final-exit ownership', () => {
   it.each(['root', 'inline', 'external'])(
     'attests only the actual shared %s physical owner',
     async (mode) => {
-      await new Promise<void>((resolve, reject) => {
-        execFile(
-          process.execPath,
-          [path.join(__dirname, 'reporter-controller-owner.cjs'), mode],
-          { env: { ...process.env }, timeout: 15000, maxBuffer: 1024 * 1024 },
-          (error) => (error ? reject(error) : resolve())
-        )
-      })
+      await runNodeHelper(
+        [path.join(__dirname, 'reporter-controller-owner.cjs'), mode],
+        { env: { ...process.env }, timeout: 15000, maxBuffer: 1024 * 1024 }
+      )
     },
     20000
   )
@@ -13471,14 +13235,10 @@ describe('root reporter resource and final-exit ownership', () => {
   it.each(['numeric-mutable', 'status-pass-preserve', 'status-fail-clear'])(
     'retains the actual timeout getter and typed status ownership: %s',
     async (scenario) => {
-      await new Promise<void>((resolve, reject) => {
-        execFile(
-          process.execPath,
-          [path.join(__dirname, 'reporter-timeout-status.cjs'), scenario],
-          { env: { ...process.env }, timeout: 30000, maxBuffer: 1024 * 1024 },
-          (error) => (error ? reject(error) : resolve())
-        )
-      })
+      await runNodeHelper(
+        [path.join(__dirname, 'reporter-timeout-status.cjs'), scenario],
+        { env: { ...process.env }, timeout: 30000, maxBuffer: 1024 * 1024 }
+      )
     },
     35000
   )
@@ -13496,19 +13256,15 @@ describe('reporter initialization exit ownership', () => {
   ])(
     'preserves actual %s initialization with initial %s and close %s',
     async (kind, initial, close) => {
-      await new Promise<void>((resolve, reject) => {
-        execFile(
-          process.execPath,
-          [
-            path.join(__dirname, 'reporter-initialization-exit.cjs'),
-            kind,
-            initial,
-            close,
-          ],
-          { env: { ...process.env }, timeout: 15000, maxBuffer: 1024 * 1024 },
-          (error) => (error ? reject(error) : resolve())
-        )
-      })
+      await runNodeHelper(
+        [
+          path.join(__dirname, 'reporter-initialization-exit.cjs'),
+          kind,
+          initial,
+          close,
+        ],
+        { env: { ...process.env }, timeout: 15000, maxBuffer: 1024 * 1024 }
+      )
     },
     20000
   )
@@ -13533,13 +13289,10 @@ it.each([
 ] as const)(
   'preserves the empty-file reporting lifecycle for %s with passWithNoTests=%s',
   async (role, passing) => {
-    const output = await mkdtemp(
-      path.join(os.tmpdir(), 'next-empty-selection-')
-    )
-    try {
-      await new Promise<void>((resolve, reject) => {
-        execFile(
-          process.execPath,
+    await withOutputDirectory(
+      'next-empty-selection-',
+      async (output) => {
+        await runNodeHelper(
           [
             path.join(__dirname, 'empty-selection-lifecycle.cjs'),
             output,
@@ -13555,31 +13308,28 @@ it.each([
             },
             timeout: 30000,
             encoding: 'utf8',
-          },
-          (error, stdout, stderr) =>
-            error
-              ? reject(new Error(stderr || stdout || error.message))
-              : resolve()
+          }
+        ).catch((error) => {
+          throw new Error(error.stderr || error.stdout || error.message)
+        })
+        const result = JSON.parse(
+          await readFile(path.join(output, 'VERIFIED.json'), 'utf8')
         )
-      })
-      const result = JSON.parse(
-        await readFile(path.join(output, 'VERIFIED.json'), 'utf8')
-      )
-      expect(result).toMatchObject({
-        role,
-        passing,
-        success: true,
-        nativeCompilerOrExecutionAttempts: 0,
-      })
-      expect(
-        result.children.every(
-          (child: { joined: boolean; groupAbsent: boolean }) =>
-            child.joined && child.groupAbsent
-        )
-      ).toBe(true)
-    } finally {
-      await rm(output, { recursive: true, force: true })
-    }
+        expect(result).toMatchObject({
+          role,
+          passing,
+          success: true,
+          nativeCompilerOrExecutionAttempts: 0,
+        })
+        expect(
+          result.children.every(
+            (child: { joined: boolean; groupAbsent: boolean }) =>
+              child.joined && child.groupAbsent
+          )
+        ).toBe(true)
+      },
+      { cleanup: 'always' }
+    )
   },
   45000
 )

@@ -146,10 +146,9 @@ the remaining Node/OS/architecture matrix still need their own qualification.
 This verifier currently runs on macOS arm64; its result does
 not declare the implementation ready for release.
 
-Use the installed `next test --capabilities` output and the current implementation
-ledger before selecting another environment or API. The [historical package
-example](GUIDE.md) and [stage-three record](STAGE3_PACKAGING.md) retain their own
-archive versions and proof; they do not describe this consumer's build.
+Use `next test --capabilities` before selecting another environment or API. The
+[current implementation status](../../../../NEXT_TESTING_STABLE_PROGRESS.md)
+records known gaps and remaining release qualification.
 
 ### Cancel a one-shot editor run
 

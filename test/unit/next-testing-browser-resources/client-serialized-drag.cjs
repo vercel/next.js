@@ -1,8 +1,7 @@
 const assert = require('node:assert/strict')
-const { createRequire } = require('node:module')
+const createClientTransportFixture = require('./client-transport-fixture.cjs')
 const { EventEmitter } = require('node:events')
-const [mode, executePath] = process.argv.slice(2),
-  req = createRequire(executePath)
+const [mode, executePath] = process.argv.slice(2)
 assert(
   ['success', 'native-error', 'invalid-target', 'legacy', 'cancel'].includes(
     mode
@@ -92,119 +91,31 @@ page.goto = async () => {
   } else assert.equal(await operation, null)
   complete({})
 }
-const context = {
-  newPage: async () => page,
-  close: async () => {
-    trace.push('context-close')
-    page.emit('close')
+const execute = createClientTransportFixture({
+  executePath,
+  page,
+  trace,
+  failures,
+  completion,
+  setDispatch(value) {
+    dispatch = value
+  },
+  getOperation: () => operation,
+  onRegisterSelectors: async () => {
+    trace.push('register')
+  },
+  onConnect: () => trace.push('connect'),
+  onNewContext: () => trace.push('new-context'),
+  afterPageClose: () => {
     if (mode === 'cancel') rejectNative(cancel)
   },
-}
-const browser = {
-  newContext: async () => {
-    trace.push('new-context')
-    return context
-  },
-  close: async () => {
-    trace.push('browser-close')
-  },
-}
-const host = {
-  wsEndpoint: 'ws://unit',
-  dispose: async () => {
-    trace.push('host-close')
-  },
-}
-const server = {
-  url: 'http://unit/',
-  completion,
-  verify: async () => {},
-  assertClean() {},
-  mapStack: () => [],
-  fail() {},
-  dispose: async () => {
-    trace.push('server-close')
-    await operation?.catch(() => {})
-  },
-}
-const collector = {
-  events: [],
-  accept() {},
-  fail(error) {
-    failures.push(error)
-  },
-  hasFailure: () => failures.length > 0,
-  result: () => ({
-    status: failures.length ? 'failed' : 'passed',
-    updates: [],
-  }),
-}
-function replace(name, exports) {
-  const filename = req.resolve(name)
-  require.cache[filename] = { id: filename, filename, loaded: true, exports }
-}
-replace('../browser/host', {
-  createBrowserHost: async () => host,
-  connectBrowserHost: async (options) => {
-    await options.beforeConnect({
-      selectors: {
-        register: async () => {
-          trace.push('register')
-        },
-      },
-    })
-    trace.push('connect')
-    return browser
-  },
 })
-replace('./server', {
-  createClientServer: async (options) => {
-    dispatch = options.onBrowserCommand
-    return server
-  },
-})
-replace('./results', { createClientResultCollector: () => collector })
-replace('./engine-brand', {
-  createClientEngineBrand: () => ({
-    start: async () => {},
-    fact: () => ({}),
-    close() {},
-    afterOwnersClosed: async () => {},
-  }),
-})
-const profile = {
-    id: 'unit-selection',
-    environment: 'browser',
-    mode: 'development',
-    runtime: 'nodejs',
-    bundler: 'turbopack',
-    browserClient: true,
-  },
-  entry = { id: 'entry', file: '/project/select.test.mjs', profile },
-  artifact = {
-    version: 2,
-    kind: 'browser',
-    entryId: entry.id,
-    revision: 'revision',
-    profile,
-    client: {
-      sourceFile: entry.file,
-      asyncScope: 'promise-continuations-v1',
-      creatorScope: 'synchronous-source-v1',
-      creatorPromiseRoute: 'native-engine-v1',
-    },
-  }
 ;(async () => {
-  const result = await require(executePath).executeClient(artifact, {
-    entry,
-    runId: 'run',
+  const result = await execute({
+    profileId: 'unit-selection',
+    sourceFile: '/project/select.test.mjs',
     projectDir: '/project',
-    setupFiles: [],
     signal: controller.signal,
-    updateSnapshots: false,
-    testTimeout: 1000,
-    hookTimeout: 1000,
-    fileTimeout: 5000,
     onEvent() {},
   })
   assert.equal(result.status, mode === 'cancel' ? 'cancelled' : 'passed')

@@ -1,7 +1,5 @@
 const assert = require('node:assert/strict')
-const { createRequire } = require('node:module')
-const provider = createRequire(require.resolve('jest-environment-jsdom'))
-const { JSDOM } = require(provider.resolve('jsdom'))
+const { createDOMFixture, locatorGlobals } = require('./dom-fixture.cjs')
 const mode = process.argv[2]
 assert(
   [
@@ -18,27 +16,12 @@ assert(
     'fulfilled-observer-error',
   ].includes(mode)
 )
-const dom = new JSDOM('<!DOCTYPE html><body></body>')
-const names = [
-  'document',
-  'window',
-  'Element',
-  'Node',
-  'HTMLInputElement',
-  'HTMLTextAreaElement',
-  'HTMLFormElement',
-  'HTMLIFrameElement',
-  'ShadowRoot',
-  'XPathResult',
-]
-const saved = new Map(
-  names.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)])
-)
-for (const name of names)
-  Object.defineProperty(globalThis, name, {
-    configurable: true,
-    value: name === 'window' ? dom.window : dom.window[name],
-  })
+const { dom, restoreGlobals } = createDOMFixture({
+  html: '<!DOCTYPE html><body></body>',
+  globals: locatorGlobals,
+  load: require,
+  saveGlobals: 'before',
+})
 const scopes = require('next/dist/experimental/testing/client/async-context'),
   api = require('next/dist/experimental/testing/client/browser-context')
 const late = [],
@@ -169,10 +152,7 @@ async function main() {
     hook.close()
     leave()
     dom.window.close()
-    for (const [name, descriptor] of saved) {
-      if (descriptor) Object.defineProperty(globalThis, name, descriptor)
-      else Reflect.deleteProperty(globalThis, name)
-    }
+    restoreGlobals()
   }
 }
 main().catch((error) => {

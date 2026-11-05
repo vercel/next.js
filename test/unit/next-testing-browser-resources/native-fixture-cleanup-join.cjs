@@ -1,15 +1,12 @@
 const assert = require('node:assert/strict')
-const { createRequire } = require('node:module')
+const {
+  createRuntimeFile,
+  installClientRuntime,
+  createRuntimeConfig,
+  installRuntimeEnvironment,
+} = require('./runtime-fixtures.cjs')
 const mode = process.argv[2]
 assert(['awaited', 'unawaited', 'missing-file'].includes(mode))
-const runtimePath = require.resolve(
-  'next/dist/experimental/testing/client/runtime'
-)
-const load = createRequire(runtimePath)
-const replace = (name, exports) => {
-  const filename = load.resolve(name)
-  require.cache[filename] = { id: filename, filename, loaded: true, exports }
-}
 const trace = [],
   messages = [],
   originalConsole = console
@@ -25,10 +22,7 @@ const gate = new Promise((resolve) => {
 const started = new Promise((resolve) => {
   entered = resolve
 })
-const file = {
-  enableBrowserPublicTaskQueues() {},
-  collect: async (fn) => fn(),
-  validateBrowserClient: () => [],
+const file = createRuntimeFile({
   run: async () => ({ cases: [], errors: [], interrupted: false }),
   async dispose(options) {
     trace.push('file-start')
@@ -39,65 +33,40 @@ const file = {
     if (mode === 'awaited') await first
     trace.push('file-end')
   },
-  getSnapshotSummary: () => ({}),
   takeSnapshotUpdates() {
     assert.equal(componentCalls, 1)
     assert.equal(keyboardCalls, 1)
     trace.push('snapshot-read')
     return []
   },
-}
-replace('../runner', {
-  getConsoleTask: () => undefined,
-  getCurrentConsoleTask: () => undefined,
+})
+const runtimePath = installClientRuntime({
+  file,
   initializeTestFile() {
     if (mode === 'missing-file') throw initializationError
     return file
   },
-})
-replace('./snapshot-environment', { installBrowserSnapshotBridge() {} })
-replace('./source-maps', {
-  createClientSourceMapResolver: () => ({ mapLocation: (value) => value }),
-})
-replace('./browser-context', {
-  initializeBrowserContext: () => ({
-    install() {},
-    dispose: () => trace.push('context-dispose'),
-  }),
-  async cleanupBrowserContext() {
-    componentCalls++
-    trace.push('component-start')
-    entered()
-    await gate
-    trace.push('component-end')
-  },
-  cleanupBrowserKeyboard() {
-    keyboardCalls++
-    trace.push('keyboard')
+  browserContext: {
+    initializeBrowserContext: () => ({
+      install() {},
+      dispose: () => trace.push('context-dispose'),
+    }),
+    async cleanupBrowserContext() {
+      componentCalls++
+      trace.push('component-start')
+      entered()
+      await gate
+      trace.push('component-end')
+    },
+    cleanupBrowserKeyboard() {
+      keyboardCalls++
+      trace.push('keyboard')
+    },
   },
 })
-const config = {
-  version: 1,
-  ownerToken: 'joined-cleanup',
-  authorization: 'joined-cleanup',
-  sourceHash: 'a'.repeat(64),
-  rpcURL: 'http://unit/rpc',
-  runId: 'joined-cleanup',
-  entryId: 'joined-cleanup',
-  revision: 'joined-cleanup',
-  filePath: '/joined-cleanup.test.mjs',
-  sourceMaps: [],
-}
+const config = createRuntimeConfig('joined-cleanup', '/joined-cleanup.test.mjs')
 async function main() {
-  globalThis.location = { href: 'http://unit/' }
-  globalThis.addEventListener = () => {}
-  globalThis.removeEventListener = () => {}
-  globalThis.fetch = async (_url, request) => {
-    if (!request?.method) return { ok: true, json: async () => config }
-    messages.push(JSON.parse(request.body))
-    return { ok: true, json: async () => ({ value: null }) }
-  }
-  globalThis.console = { ...originalConsole, debug() {} }
+  installRuntimeEnvironment(config, messages, originalConsole)
   const running = require(runtimePath).startClientTest(
     () => trace.push('load'),
     {

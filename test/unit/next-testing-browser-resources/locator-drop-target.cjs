@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict')
-const { createRequire } = require('node:module')
+
 const mode = process.argv[2]
 const {
   resolveClientCommandTarget,
@@ -58,27 +58,12 @@ async function run() {
         /Invalid Browser Mode element command/
       )
   } else {
-    const provider = createRequire(require.resolve('jest-environment-jsdom')),
-      { JSDOM } = provider('jsdom')
-    const dom = new JSDOM(
-      '<!DOCTYPE html><body><div data-testid="source"></div><div data-testid="target"></div></body>'
-    )
-    for (const name of [
-      'document',
-      'window',
-      'Element',
-      'Node',
-      'HTMLInputElement',
-      'HTMLTextAreaElement',
-      'HTMLFormElement',
-      'HTMLIFrameElement',
-      'ShadowRoot',
-      'XPathResult',
-    ])
-      Object.defineProperty(globalThis, name, {
-        configurable: true,
-        value: name === 'window' ? dom.window : dom.window[name],
-      })
+    const { createDOMFixture, locatorGlobals } = require('./dom-fixture.cjs')
+    const { dom } = createDOMFixture({
+      html: '<!DOCTYPE html><body><div data-testid="source"></div><div data-testid="target"></div></body>',
+      globals: locatorGlobals,
+      load: require,
+    })
     const scopes = require('next/dist/experimental/testing/client/async-context'),
       api = require('next/dist/experimental/testing/client/browser-context'),
       late = [],

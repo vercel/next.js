@@ -1,70 +1,24 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
-const { spawn } = require('node:child_process')
+const { runReporterCommand } = require('./reporter-command.cjs')
 const repo = path.resolve(__dirname, '../../..')
 const source = path.join(__dirname, 'fixtures/case-result-cohort')
 const pristine = path.join(__dirname, 'fixtures/case-result-blob')
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'))
 async function run(root, args, mode) {
-  const env = { ...process.env, NODE_ENV: mode, NEXT_TELEMETRY_DISABLED: '1' }
-  delete env.CI
-  const child = spawn(
-    process.execPath,
-    [path.join(repo, 'packages/next/dist/bin/next'), 'test', root, ...args],
-    {
-      cwd: root,
-      env,
-      detached: process.platform !== 'win32',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }
-  )
-  let stdout = '',
-    stderr = '',
-    closed = false,
-    timer
-  child.stdout.on('data', (data) => {
-    stdout += data
+  return runReporterCommand({
+    root,
+    mode,
+    args: [...args],
+    timeoutMs: 40000,
+    cleanupMs: 5000,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeoutMessage: 'Actual blob reporter phase did not close',
+    cleanupMessage: 'Blob reporter cleanup did not close',
   })
-  child.stderr.on('data', (data) => {
-    stderr += data
-  })
-  const completion = new Promise((resolve, reject) => {
-    child.once('error', reject)
-    child.once('close', (code, signal) => {
-      closed = true
-      resolve({ code, signal })
-    })
-  })
-  try {
-    const ended = await Promise.race([
-      completion,
-      new Promise((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error('Actual blob reporter phase did not close')),
-          40000
-        )
-      }),
-    ])
-    assert.equal(ended.signal, null)
-    return { ...ended, stdout, stderr }
-  } finally {
-    clearTimeout(timer)
-    if (!closed) {
-      if (process.platform === 'win32') child.kill('SIGTERM')
-      else process.kill(-child.pid, 'SIGTERM')
-      await Promise.race([
-        completion,
-        new Promise((_, reject) => {
-          timer = setTimeout(
-            () => reject(new Error('Blob reporter cleanup did not close')),
-            5000
-          )
-        }),
-      ]).finally(() => clearTimeout(timer))
-    }
-  }
 }
+
 async function main() {
   for (const [mode, cohort] of [
     ['development', false],

@@ -1,15 +1,12 @@
 const assert = require('node:assert/strict')
-const { createRequire } = require('node:module')
+const {
+  createRuntimeFile,
+  installClientRuntime,
+  createRuntimeConfig,
+  installRuntimeEnvironment,
+} = require('./runtime-fixtures.cjs')
 const mode = process.argv[2]
 assert.equal(mode, 'worker')
-const runtimePath = require.resolve(
-  'next/dist/experimental/testing/client/runtime'
-)
-const local = createRequire(runtimePath)
-const replace = (name, exports) => {
-  const filename = local.resolve(name)
-  require.cache[filename] = { id: filename, filename, loaded: true, exports }
-}
 const trace = [],
   messages = []
 let fileSettled = false,
@@ -37,10 +34,7 @@ for (const key of ['name', 'message', 'stack'])
     },
   })
 const throws = (stage) => stage === 'file'
-const file = {
-  enableBrowserPublicTaskQueues() {},
-  collect: async (load) => load(),
-  validateBrowserClient: () => [],
+const file = createRuntimeFile({
   run: async () => ({
     cases: [],
     errors: [],
@@ -59,61 +53,34 @@ const file = {
     assert.equal(error, failure)
     return Object.freeze({ error })
   },
-  getSnapshotSummary: () => ({}),
   takeSnapshotUpdates() {
     snapshotsTaken = true
     return []
   },
-}
-replace('../runner', {
-  getConsoleTask: () => undefined,
-  getCurrentConsoleTask: () => undefined,
-  initializeTestFile: () => file,
 })
-replace('./snapshot-environment', { installBrowserSnapshotBridge() {} })
-replace('./source-maps', {
-  createClientSourceMapResolver: () => ({ mapLocation: (value) => value }),
-})
-replace('./browser-context', {
-  initializeBrowserContext: () => ({
-    install() {},
-    dispose: () => trace.push('context-dispose'),
-  }),
-  async cleanupBrowserContext() {
-    assert(fileSettled)
-    trace.push('browser')
-    if (throws('browser')) throw new Error('actual browser cleanup failed')
-  },
-  async cleanupBrowserKeyboard() {
-    assert(fileSettled)
-    trace.push('keyboard')
-    if (throws('keyboard')) throw new Error('actual keyboard cleanup failed')
+const runtimePath = installClientRuntime({
+  file,
+  browserContext: {
+    initializeBrowserContext: () => ({
+      install() {},
+      dispose: () => trace.push('context-dispose'),
+    }),
+    async cleanupBrowserContext() {
+      assert(fileSettled)
+      trace.push('browser')
+      if (throws('browser')) throw new Error('actual browser cleanup failed')
+    },
+    async cleanupBrowserKeyboard() {
+      assert(fileSettled)
+      trace.push('keyboard')
+      if (throws('keyboard')) throw new Error('actual keyboard cleanup failed')
+    },
   },
 })
-const config = {
-  version: 1,
-  ownerToken: 'fixture-order',
-  authorization: 'fixture-order',
-  sourceHash: 'a'.repeat(64),
-  rpcURL: 'http://unit/rpc',
-  runId: 'fixture-order',
-  entryId: 'fixture-order',
-  revision: 'fixture-order',
-  filePath: '/fixture-order.test.mjs',
-  sourceMaps: [],
-}
+const config = createRuntimeConfig('fixture-order', '/fixture-order.test.mjs')
 const originalConsole = console
 async function main() {
-  globalThis.location = { href: 'http://unit/' }
-  globalThis.addEventListener = () => {}
-  globalThis.removeEventListener = () => {}
-  globalThis.fetch = async (_url, request) => {
-    if (!request?.method) return { ok: true, json: async () => config }
-    messages.push(JSON.parse(request.body))
-    return { ok: true, json: async () => ({ value: null }) }
-  }
-  // Runtime console control markers belong to this helper's private sink.
-  globalThis.console = { ...originalConsole, debug() {} }
+  installRuntimeEnvironment(config, messages, originalConsole)
   const running = require(runtimePath).startClientTest(
     () => trace.push('load'),
     {
