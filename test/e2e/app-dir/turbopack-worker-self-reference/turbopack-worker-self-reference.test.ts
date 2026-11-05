@@ -5,7 +5,18 @@ const expected =
   'child:client-and-worker:worker-only:ping|parent:client-and-worker:worker-only:via-worker1'
 
 describe('self-referencing web workers', () => {
-  const { next } = nextTestSetup({ files: __dirname })
+  const { next, isTurbopack } = nextTestSetup({ files: __dirname })
+
+  it('reports loaded CSS chunk paths in the browser runtime', async () => {
+    const browser = await next.browser('/')
+    await browser.elementByCss('#inspect-chunks').click()
+    const paths = await browser.elementByCss('#loaded-chunk-paths').text()
+    if (isTurbopack) {
+      expect(paths).toMatch(/\.css(?:,|$)/)
+    } else {
+      expect(paths).toBe('unavailable')
+    }
+  })
 
   for (const [kind, button] of [
     ['co-located', '#inline'],
