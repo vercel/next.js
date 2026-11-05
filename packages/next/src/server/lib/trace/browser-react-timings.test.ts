@@ -3,12 +3,12 @@ import {
   decoderConsole,
   decoderPerformance,
   decoderSetTimeout,
-} from '../../../../packages/next/src/client/dev/react-decoder-host'
+} from '../../../client/dev/react-decoder-host'
 import {
   createBrowserReactTiming,
   setReactTimingSender,
-} from '../../../../packages/next/src/client/dev/react-render-timing'
-import { createBrowserReactTimingReceiver } from '../../../../packages/next/src/server/lib/trace/browser-react-timings'
+} from '../../../client/dev/react-render-timing'
+import { createBrowserReactTimingReceiver } from './browser-react-timings'
 import {
   clearRequestInsightsForTest,
   completeRequestInsight,
@@ -16,15 +16,15 @@ import {
   registerRequestInsightsExporter,
   setRequestInsightRootParent,
   startRequestInsight,
-} from '../../../../packages/next/src/server/lib/trace/request-insights'
+} from './request-insights'
 import {
   recordSpan,
   setSpanRecorderForTest,
   type SpanStoreRecord,
-} from '../../../../packages/next/src/server/lib/trace/span-store'
-import { NEXT_REQUEST_ID_HEADER } from '../../../../packages/next/src/client/components/app-router-headers'
-import { HMR_MESSAGE_SENT_TO_SERVER } from '../../../../packages/next/src/server/dev/hot-reloader-types'
-import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from '../../../../packages/next/src/shared/lib/request-insights'
+} from './span-store'
+import { NEXT_REQUEST_ID_HEADER } from '../../../client/components/app-router-headers'
+import { HMR_MESSAGE_SENT_TO_SERVER } from '../../dev/hot-reloader-types'
+import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from '../../../shared/lib/request-insights'
 
 const originalDevServer = process.env.__NEXT_DEV_SERVER
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
@@ -147,6 +147,90 @@ describe('browser React timing transport', () => {
     ])
   })
 
+  it('does not replay records after reconnecting', () => {
+    start()
+    setRequestInsightRootParent(
+      { requestId: 'server-owned' },
+      { traceId: 'server-trace', spanId: 'server-parent' }
+    )
+    const first = receiver()
+    first.receive(message(), 1000)
+    completeRequestInsight({ requestId: 'server-owned' })
+    first.dispose()
+    receiver().receive(message(), 1000)
+    expect(spans).toHaveLength(1)
+    receiver().receive(message({ id: 'decoded:1' }), 1000)
+    expect(spans).toHaveLength(2)
+  })
+
+  it('limits browser records for the whole request, across reconnects and time windows', () => {
+    jest.useFakeTimers({ doNotFake: ['performance'] })
+    start()
+    finish()
+    spans.length = 0
+    const first = receiver()
+    for (let batch = 0; batch < 257; batch++) {
+      const records = Array.from(
+        { length: 32 },
+        (_, i) => message({ id: `decoded:${batch * 32 + i}` }).records[0]
+      )
+      first.receive({ ...message(), records }, 32_000)
+    }
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.component')
+    ).toHaveLength(8192)
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.incomplete')
+    ).toHaveLength(1)
+    first.dispose()
+    jest.advanceTimersByTime(60_001)
+    const second = receiver()
+    const count = spans.length
+    second.receive({ ...message(), decoderId: '1' }, 1000)
+    second.receive(message({ id: 'decoded:9000' }), 1000)
+    expect(spans).toHaveLength(count)
+  })
+
+  it('bounds retained UTF-8 bytes as well as the number of records', () => {
+    start()
+    finish()
+    spans.length = 0
+    const ingest = receiver()
+    for (let i = 0; i < 1000; i++) {
+      ingest.receive(
+        message({
+          id: `decoded:${i}`,
+          name: '界'.repeat(256),
+          componentPath: '界'.repeat(2048),
+          source: {
+            file: '界'.repeat(2048),
+            line: 1,
+            column: 1,
+            methodName: 'Page',
+          },
+        }),
+        32_000
+      )
+    }
+    const timings = spans.filter(
+      (span) => span.name === 'ReactServerComponents.component'
+    )
+    expect(timings.length).toBeGreaterThan(0)
+    expect(timings.length).toBeLessThan(1000)
+    expect(
+      timings.reduce(
+        (bytes, span) => bytes + Buffer.byteLength(JSON.stringify(span)),
+        0
+      )
+    ).toBeLessThanOrEqual(8 * 1024 * 1024)
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.incomplete')
+    ).toHaveLength(1)
+    const count = spans.length
+    receiver().receive({ ...message(), decoderId: '1' }, 1000)
+    expect(spans).toHaveLength(count)
+  })
+
   it('accepts initial HTML timings only from that document connection', () => {
     startRequestInsight({
       requestId: 'html-owned',
@@ -214,7 +298,7 @@ describe('browser React timing transport', () => {
     })
   })
 
-  it('continues accepting decoders beyond the recent decoder window', () => {
+  it('bounds decoder state without evicting replay protection', () => {
     start()
     finish()
     spans.length = 0
@@ -222,7 +306,14 @@ describe('browser React timing transport', () => {
     for (let i = 0; i < 130; i++) {
       ingest.receive({ ...message(), decoderId: String(i) }, 1000)
     }
-    expect(spans).toHaveLength(130)
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.component')
+    ).toHaveLength(128)
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.incomplete')
+    ).toHaveLength(1)
+    receiver().receive(message(), 1000)
+    expect(spans).toHaveLength(129)
   })
 
   it('marks bounded client transport loss as partial observation', () => {
@@ -253,7 +344,10 @@ describe('browser React timing transport', () => {
       spans.find((span) => span.name === 'ReactServerComponents.incomplete')
     ).toMatchObject({
       parentSpanId: 'server-parent',
-      attributes: { 'next.rsc.observation_partial': true },
+      attributes: {
+        'next.rsc.observation_partial': true,
+        'next.rsc.incomplete_reason': 'transport',
+      },
     })
   })
 
@@ -270,27 +364,20 @@ describe('browser React timing transport', () => {
     expect(spans).toEqual([])
   })
 
-  it('bounds empty partial messages after the transport rate limit', () => {
+  it('reports transport loss only once per request, including across reconnects', () => {
     start()
     finish()
     spans.length = 0
     const ingest = receiver()
     const payload = message()
-    for (let i = 0; i < 256; i++) {
-      ingest.receive(
-        { ...payload, records: Array(32).fill(payload.records[0]) },
-        10_000
-      )
-    }
+    ingest.receive(payload, 1000)
     ingest.receive(
       { ...payload, decoderId: '1', partial: true, records: [] },
       1000
     )
-    expect(spans).toHaveLength(1)
-    ingest.receive(payload, 1000)
     expect(spans).toHaveLength(2)
     expect(spans[1].name).toBe('ReactServerComponents.incomplete')
-    ingest.receive(
+    receiver().receive(
       { ...payload, decoderId: '2', partial: true, records: [] },
       1000
     )
@@ -434,8 +521,8 @@ describe('browser React timing transport', () => {
     await Promise.all([a, b])
     await new Promise<void>((resolve) => setTimeout(resolve, 0))
     expect(
-      send.mock.calls.map(([message]) => {
-        const parsed = JSON.parse(message)
+      send.mock.calls.map(([payload]) => {
+        const parsed = JSON.parse(payload)
         return [parsed.requestId, parsed.records[0].name]
       })
     ).toEqual([
@@ -499,12 +586,12 @@ describe('browser React timing transport', () => {
       )
     })
     jest.runAllTimers()
-    const message = send.mock.calls[0][0]
+    const payload = send.mock.calls[0][0]
     expect(
-      JSON.parse(message).records.map((record: { name: string }) => record.name)
+      JSON.parse(payload).records.map((record: { name: string }) => record.name)
     ).toEqual(['Component', 'async work'])
-    expect(message).not.toContain('secret')
-    expect(message).not.toContain('password')
+    expect(payload).not.toContain('secret')
+    expect(payload).not.toContain('password')
     console.timeStamp = timeStamp
   })
 
