@@ -9270,14 +9270,8 @@ it.each(
       expect(checks).toMatchObject({
         form,
         mode,
-        completeAuthoredCasesAndRows: true,
-        namespaceAndFunctionDescriptors: true,
-        dependencyResetAndHeldValues: true,
-        exactDefaultParameterScope: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
         cases: 3,
-        rows: 3,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9327,14 +9321,8 @@ it.each(
       expect(checks).toMatchObject({
         form,
         mode,
-        completeAuthoredCasesAndRows: true,
-        namespaceAndFunctionDescriptors: true,
-        dependencyResetAndHeldValues: true,
-        exactDefaultParameterScope: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
         cases: 3,
-        rows: 3,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9381,14 +9369,8 @@ it.each(
       expect(checks).toMatchObject({
         form,
         mode,
-        completeAuthoredCasesAndRows: true,
-        namespaceAndFunctionDescriptors: true,
-        dependencyResetAndHeldValues: true,
-        exactDefaultParameterScope: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
         cases: 3,
-        rows: 3,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9431,14 +9413,8 @@ it.each(
       expect(checks).toMatchObject({
         form,
         mode,
-        completeAuthoredCasesAndRows: true,
-        namespaceAndFunctionDescriptors: true,
-        dependencyResetAndHeldValues: true,
-        exactDefaultParameterScope: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
         cases: 3,
-        rows: 3,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9486,14 +9462,8 @@ it.each(
       expect(checks).toMatchObject({
         form,
         mode,
-        completeAuthoredCasesAndRows: true,
-        namespaceAndFunctionDescriptors: true,
-        dependencyResetAndHeldValues: true,
-        exactDefaultParameterScope: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
         cases: 3,
-        rows: 3,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9504,7 +9474,7 @@ it.each(
 )
 
 it.each(
-  Object.keys(require('./cjs-renamed-defaults-pristine.json').forms).flatMap(
+  Object.keys(require('./cjs-renamed-defaults-forms.cjs').forms).flatMap(
     (form) =>
       (['development', 'production'] as const).map((mode) => ({ form, mode }))
   )
@@ -9536,14 +9506,8 @@ it.each(
       expect(checks).toMatchObject({
         form,
         mode,
-        completeAuthoredCasesAndRows: true,
-        namespaceAndFunctionDescriptors: true,
-        dependencyResetAndHeldValues: true,
-        exactDefaultParameterScope: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
         cases: 3,
-        rows: 3,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9554,9 +9518,8 @@ it.each(
 )
 
 it.each(
-  Object.keys(require('./cjs-array-defaults-pristine.json').forms).flatMap(
-    (form) =>
-      (['development', 'production'] as const).map((mode) => ({ form, mode }))
+  Object.keys(require('./cjs-array-defaults-forms.cjs').forms).flatMap((form) =>
+    (['development', 'production'] as const).map((mode) => ({ form, mode }))
   )
 )(
   'preserves actual flat CommonJS array defaults: $form/$mode',
@@ -9586,14 +9549,8 @@ it.each(
       expect(checks).toMatchObject({
         form,
         mode,
-        completeAuthoredCasesAndRows: true,
-        namespaceAndFunctionDescriptors: true,
-        dependencyResetAndHeldValues: true,
-        exactDefaultParameterScope: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
         cases: 3,
-        rows: 3,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9604,10 +9561,9 @@ it.each(
 )
 
 it.each(
-  Object.keys(
-    require('./cjs-whole-array-defaults-pristine.json').forms
-  ).flatMap((form) =>
-    (['development', 'production'] as const).map((mode) => ({ form, mode }))
+  Object.keys(require('./cjs-whole-array-defaults-forms.cjs').forms).flatMap(
+    (form) =>
+      (['development', 'production'] as const).map((mode) => ({ form, mode }))
   )
 )(
   'preserves actual whole CommonJS array defaults: $form/$mode',
@@ -9637,14 +9593,8 @@ it.each(
       expect(checks).toMatchObject({
         form,
         mode,
-        completeAuthoredCasesAndRows: true,
-        namespaceAndFunctionDescriptors: true,
-        dependencyResetAndHeldValues: true,
-        exactDefaultParameterScope: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
         cases: 3,
-        rows: 3,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9655,7 +9605,7 @@ it.each(
 )
 
 it.each(['development', 'production'] as const)(
-  'preserves complete recursive CommonJS parameter grammar in %s',
+  'preserves recursive CommonJS parameter behavior in %s',
   (mode) => {
     const { execFileSync } = require('node:child_process')
     const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
@@ -9676,18 +9626,7 @@ it.each(['development', 'production'] as const)(
       )
       expect(
         JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
-        mode,
-        forms: 126,
-        cases: 378,
-        rows: 378,
-        completeAuthoredCasesAndRows: true,
-        namespaceAndFunctionDescriptors: true,
-        dependencyResetAndHeldValues: true,
-        exactParameterEvaluation: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
-      })
+      ).toEqual({ mode, cases: 378, passed: true })
       complete = true
     } finally {
       if (complete) rmSync(output, { recursive: true, force: true })

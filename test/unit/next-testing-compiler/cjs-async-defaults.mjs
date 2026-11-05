@@ -2,186 +2,69 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
-import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
-import {
-  runOwnedNode,
-  assertOwnedNodeCompleted,
-} from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+import { runCompilerCase } from '../../lib/next-testing-case-runner.mjs'
 import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 
-const [repoArg, outputArg, mode, form, kind, family] = process.argv.slice(2)
-const repo = fs.realpathSync(repoArg),
-  output = path.resolve(outputArg),
-  here = path.dirname(fileURLToPath(import.meta.url))
-assert(['development', 'production'].includes(mode))
-assert(['source', 'installed'].includes(kind))
-assert(
-  family === undefined ||
-    family === 'renamed' ||
-    family === 'array' ||
-    family === 'whole-array'
-)
-const pristine = JSON.parse(
-  fs.readFileSync(
-    resolveFixturePath(
-      path.join(
-        here,
-        family === 'whole-array'
-          ? 'cjs-whole-array-defaults-pristine.json'
-          : family === 'array'
-            ? 'cjs-array-defaults-pristine.json'
-            : family === 'renamed'
-              ? 'cjs-renamed-defaults-pristine.json'
-              : 'cjs-async-defaults-pristine.json'
-      )
-    )
-  )
-)
-assert.equal(pristine.referenceVersion, '5.0.4')
-const expected = pristine.forms[form]
-assert(expected && !form.endsWith(':binding-self'))
-const load = createRequire(path.join(repo, 'package.json'))
-if (kind === 'installed')
-  for (const name of ['vitest', 'vite', '@vitest/mocker'])
-    assert.throws(() => load.resolve(name))
-fs.mkdirSync(output, { recursive: true })
-const fixture = fs.mkdtempSync(
-  path.join(repo, '.next-test-cjs-async-defaults-')
-)
-const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
-const body = fs.readFileSync(
-  resolveFixturePath(
-    path.join(
-      here,
-      family === 'whole-array'
-        ? 'cjs-whole-array-defaults-fixtures/contract.test.mjs.txt'
-        : family === 'array'
-          ? 'cjs-array-defaults-fixtures/contract.test.mjs.txt'
-          : 'cjs-async-defaults-fixtures/contract.test.mjs.txt'
-    )
-  )
-)
-assert.equal(sha(body), pristine.authoredBodySHA256)
-const sources = {
-  'contract.test.mjs': body,
-  'root.cjs': expected.root,
-  'dependency.cjs': fs.readFileSync(
-    resolveFixturePath(
-      path.join(here, 'cjs-async-defaults-fixtures/dependency.cjs.txt')
-    )
-  ),
-  'package.json': '{"private":true,"type":"module"}\n',
-  'next.config.mjs':
-    'export default ' + JSON.stringify({ turbopack: { root: repo } }) + '\n',
-  'next.test.config.json':
-    JSON.stringify({
+const here = path.dirname(fileURLToPath(import.meta.url))
+const load = createRequire(import.meta.url)
+
+export async function runDefaultForm(selectedFamily) {
+  const [repo, output, mode, form, , familyArg] = process.argv.slice(2)
+  const family = selectedFamily ?? familyArg ?? 'async'
+  let forms
+  if (['renamed', 'array', 'whole-array'].includes(family)) {
+    forms = load(`./cjs-${family}-defaults-forms.cjs`).forms
+  } else {
+    const sources = load('./cjs-async-defaults-forms.cjs')
+    forms =
+      family === 'arrow'
+        ? sources.arrows
+        : family === 'recursive'
+          ? sources.recursive
+          : family === 'binding-self' && form.startsWith('sync:')
+            ? sources.syncBindingSelf
+            : sources.forms
+  }
+  assert(Object.hasOwn(forms, form), `Unknown callable form: ${family}/${form}`)
+  const read = (name) =>
+    fs.readFileSync(resolveFixturePath(path.join(here, name)))
+  const result = await runCompilerCase({
+    repo,
+    output,
+    mode,
+    files: [
+      {
+        target: 'contract.test.mjs',
+        bytes: read('cjs-async-defaults-fixtures/contract.test.mjs.txt'),
+      },
+      { target: 'root.cjs', bytes: forms[form] },
+      {
+        target: 'dependency.cjs',
+        bytes: read('cjs-async-defaults-fixtures/dependency.cjs.txt'),
+      },
+      {
+        target: 'form.mjs',
+        bytes: `export const form=${JSON.stringify(form)},family=${JSON.stringify(family)}\n`,
+      },
+    ],
+    config: {
+      maxWorkers: 1,
       projects: [
         { name: 'cjs223', mode, environment: 'node', include: ['*.test.mjs'] },
       ],
-      maxWorkers: 1,
-    }) + '\n',
-}
-const pins = Object.fromEntries(
-  Object.entries(sources).map(([name, bytes]) => [name, sha(bytes)])
-)
-fs.writeFileSync(
-  path.join(output, 'SOURCE-PINS.json'),
-  JSON.stringify(pins, null, 2) + '\n'
-)
-try {
-  for (const [name, bytes] of Object.entries(sources))
-    fs.writeFileSync(path.join(fixture, name), bytes)
-  fs.symlinkSync(
-    path.join(repo, 'node_modules'),
-    path.join(fixture, 'node_modules'),
-    'dir'
-  )
-  const reportPath = path.join(output, 'report.json')
-  const env = {
-    ...process.env,
-    NODE_ENV: mode,
-    NEXT_TELEMETRY_DISABLED: '1',
-    TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
-    FORCE_COLOR: '0',
-  }
-  for (const name of [
-    'CI',
-    'NODE_OPTIONS',
-    'NODE_PATH',
-    'NEXT_TEST_NATIVE_DIR',
-    'NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL',
-  ])
-    delete env[name]
-  const owner = await runOwnedNode(
-    [
-      load.resolve('next/dist/bin/next'),
-      'test',
-      fixture,
-      '--run',
-      '--reporter=json',
-      '--outputFile=' + reportPath,
-    ],
-    {
-      cwd: fixture,
-      env,
-      timeoutMs: 120000,
-      auditDir: path.join(output, 'owners'),
-    }
-  )
-  fs.writeFileSync(
-    path.join(output, 'OWNER.json'),
-    JSON.stringify(owner, null, 2) + '\n'
-  )
-  fs.writeFileSync(path.join(output, 'stdout.log'), owner.stdout)
-  fs.writeFileSync(path.join(output, 'stderr.log'), owner.stderr)
-  assertOwnedNodeCompleted(owner, 'CommonJS async object default ' + form)
-  for (const [name, hash] of Object.entries(pins))
-    assert.equal(sha(fs.readFileSync(path.join(fixture, name))), hash)
-  const report = JSON.parse(fs.readFileSync(reportPath))
-  const cases = report.testResults.flatMap((file) =>
-    file.assertionResults.map((test) => ({
-      name: test.fullName,
-      status: test.status,
-      failureMessages: test.failureMessages,
-    }))
-  )
-  const rowPrefix =
-    family === 'whole-array'
-      ? 'CJS288:'
-      : family === 'array'
-        ? 'CJS280:'
-        : 'CJS223:'
-  const rows = report.next.events
-    .filter((event) => event.type === 'output')
-    .flatMap((event) => event.text.split('\n'))
-    .filter((text) => text.startsWith(rowPrefix))
-    .map((text) => JSON.parse(text.slice(rowPrefix.length)))
-  assert.equal(owner.status, 0, owner.stderr)
-  assert.equal(report.success, true)
-  assert.deepEqual(cases, expected.cases)
-  assert.deepEqual(
-    report.testResults.map((file) => file.message),
-    expected.fileMessages
-  )
-  assert.deepEqual(rows, expected.rows)
-  const checks = {
-    mode,
-    form,
-    completeAuthoredCasesAndRows: true,
-    namespaceAndFunctionDescriptors: true,
-    dependencyResetAndHeldValues: true,
-    exactDefaultParameterScope: true,
-    allAuthoredBytesHeld: true,
-    allOwnersJoined: true,
-    cases: cases.length,
-    rows: rows.length,
-  }
+    },
+    expectedCount: 3,
+  })
   fs.writeFileSync(
     path.join(output, 'CHECKS.json'),
-    JSON.stringify(checks, null, 2) + '\n'
+    JSON.stringify({ ...result, form }) + '\n'
   )
-  process.stdout.write(JSON.stringify(checks) + '\n')
-} finally {
-  fs.rmSync(fixture, { recursive: true, force: true })
+}
+
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  await runDefaultForm()
 }

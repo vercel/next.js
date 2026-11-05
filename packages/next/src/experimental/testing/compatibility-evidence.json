@@ -3,7 +3,7 @@
   "referenceVersion": "5.0.4",
   "scope": "Reviewed implementation claims supplement the generated pinned declaration inventory. Evidence groups qualify only their stated behavior and profiles, not full APIs or release readiness. Empty rowApi groups retain execution, CLI, rendering and release work absent from upstream declarations.",
   "implementationStatus": {
-    "scoped": "Maintained reference/consumer evidence verifies the stated subset; broader API, overload and profile conformance is still unverified.",
+    "scoped": "Maintained focused regression tests verify the stated implementation subset; broader API, overload and profile conformance is unverified.",
     "partial": "Positive functionality is implemented in the stated scope, with known gaps or unqualified combinations recorded explicitly.",
     "missing": "The mapped target export or behavior is absent or uses different semantics. Refusal and diagnostics do not implement it.",
     "unreviewed": "No complete implementation/evidence review for this surface is recorded. This is not proof that underlying functionality is absent."
@@ -3491,6 +3491,11 @@
       "node": "20.9.0",
       "scope": "Maintained Node-version fixture variants use the single Node20 baseline. Other Node22/24/26 variants are removed; development/production, Browser-engine and authored-case coverage are retained. Repository CI matrices are unchanged.",
       "referenceCaptureMetadata": "Historical capture versions remain truthful. Selecting a shared reference expectation and verifying Next on Node20.9.0 does not relabel the Vitest capture runtime."
+    },
+    "testStrategy": {
+      "scope": "The user approved replacing exhaustive saved Vitest compatibility captures with focused Next.js regression assertions. Small exact output, source-map and coverage counter goldens remain where exact bytes/positions/counters are the intended behavior.",
+      "historicalEvidence": "Earlier full-report, descriptor-matrix and provenance equality claims record past measurements; they are not maintained guarantees after their captures are retired. Surviving fixture assertions and focused tests are the current regression contract.",
+      "implementationAndRelease": "This test-maintenance change adds no API implementation credit and does not establish release readiness."
     }
   },
   "qualification": {
@@ -6197,16 +6202,13 @@
         "test/unit/next-testing-compiler/external-package/cjs-import-mock-self-default-publication/pristine-rows-node20.json",
         "test/unit/next-testing-compiler/external-package/cjs-import-mock-self-default-inherited/pristine-rows-node20.json",
         "test/unit/next-testing-compiler/cjs-arrow-defaults.mjs",
-        "test/unit/next-testing-compiler/cjs-arrow-defaults-pristine.json",
         "test/unit/next-testing-compiler/cjs-binding-self-defaults.mjs",
-        "test/unit/next-testing-compiler/cjs-sync-binding-self-pristine.json",
         "test/unit/next-testing-compiler/cjs-recursive-binding.mjs",
-        "test/unit/next-testing-compiler/cjs-recursive-binding-pristine.json",
         "test/unit/next-testing-compiler/cjs-async-defaults.mjs",
-        "test/unit/next-testing-compiler/cjs-renamed-defaults-pristine.json",
-        "test/unit/next-testing-compiler/cjs-array-defaults-pristine.json",
-        "test/unit/next-testing-compiler/cjs-whole-array-defaults-pristine.json",
-        "test/unit/next-testing-compiler/cjs-whole-array-defaults-fixtures/contract.test.mjs.txt"
+        "test/unit/next-testing-compiler/cjs-renamed-defaults-forms.cjs",
+        "test/unit/next-testing-compiler/cjs-array-defaults-forms.cjs",
+        "test/unit/next-testing-compiler/cjs-whole-array-defaults-forms.cjs",
+        "test/lib/next-testing-case-runner.mjs"
       ],
       "rowApi": []
     },
@@ -6245,15 +6247,12 @@
         "test/unit/next-testing-compiler/external-package/cjs-named-async-generator-expression-cycle-reset/contract.test.mjs.txt",
         "test/unit/next-testing-compiler/external-package/cjs-flat-object-control-dependency-reset/contract.test.mjs.txt",
         "test/unit/next-testing-compiler/cjs-async-defaults.mjs",
-        "test/unit/next-testing-compiler/cjs-async-defaults-pristine.json",
         "test/unit/next-testing-compiler/cjs-arrow-defaults.mjs",
-        "test/unit/next-testing-compiler/cjs-arrow-defaults-pristine.json",
         "test/unit/next-testing-compiler/cjs-binding-self-defaults.mjs",
-        "test/unit/next-testing-compiler/cjs-sync-binding-self-pristine.json",
         "test/unit/next-testing-compiler/cjs-recursive-binding.mjs",
-        "test/unit/next-testing-compiler/cjs-renamed-defaults-pristine.json",
+        "test/unit/next-testing-compiler/cjs-renamed-defaults-forms.cjs",
         "test/unit/next-testing-compiler/cjs-parameter-grammar.mjs",
-        "test/unit/next-testing-compiler/cjs-parameter-grammar-pristine.json",
+        "test/unit/next-testing-compiler/cjs-parameter-grammar-fixtures/contract.test.mjs.txt",
         "test/unit/next-testing-compiler/native-runtime-actual.mjs",
         "test/unit/next-testing-compiler/native-runtime-actual-pristine.json",
         "test/unit/app-dir/next-testing-mocking/native-actual-owner.cjs",
@@ -6287,7 +6286,8 @@
         "test/unit/app-dir/next-testing-mocking/verify-runtime-namespace.mjs",
         "test/unit/next-testing-execution/production-compiled-runtime-marker-entry.cjs",
         "test/lib/next-testing-fixtures.cjs",
-        "test/lib/next-testing-fixture-aliases.json"
+        "test/lib/next-testing-fixture-aliases.json",
+        "test/lib/next-testing-case-runner.mjs"
       ],
       "rowApi": ["vitest:vi.resetModules", "vitest:vitest.resetModules"]
     },

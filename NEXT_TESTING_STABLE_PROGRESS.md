@@ -76,6 +76,25 @@ profiles pass16 cases. Core build, official Root types, style and inventory chec
 pass; Native6d3 and all776 API classifications/counts remain unchanged. This is
 focused verification, not a fresh full acceptance or SDK qualification.
 
+### Focused regression-test maintenance — in progress, November 5, 2026
+
+The user approved retiring exhaustive saved compatibility captures in favor of
+ordinary Next.js behavioral assertions. The first integrated grammar/default/
+array increment removes eight expanded reference models, retaining 197 source
+forms and 1,182 development/production case executions. Values, errors, iterator
+returns, cache identities and reset/evaluation counts are asserted directly.
+Private Node 20.9 checks pass 816 cases; the integrated grammar suite passes both
+modes / 756 cases. The shared fixture runner also passes retry/skip/todo handling.
+Formatting, lint, official Root types and the generated inventory check pass.
+Framework implementation, Native and compiled outputs are unchanged; a coherent
+final build follows the independent runtime readers' closure. Other compiler,
+coverage, authoring, tooling and Browser conversions continue in parallel.
+
+Historical whole-report/descriptor/provenance parity measurements are not current
+regression guarantees after their captures are retired. Exact small counter/map,
+snapshot and output-format goldens remain where those values are the behavior.
+No API implementation credit or release-readiness promotion follows this change.
+
 ### Cumulative implementation
 
 These are implemented subsets, not claims that an entire workstream is complete.
