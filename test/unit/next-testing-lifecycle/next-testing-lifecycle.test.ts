@@ -15,6 +15,7 @@ import { runCollected } from 'next/dist/experimental/testing/runner/lifecycle'
 import type { Suite, Task } from 'next/dist/experimental/testing/runner/tasks'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { runNodeHelper } from '../../lib/next-testing-node-helpers'
 import { join } from 'node:path'
 import { shuffle } from 'next/dist/experimental/testing/runner/sequence'
 import { assertTestFileCollection } from 'next/dist/experimental/testing/execution/collection'
@@ -25,6 +26,92 @@ import { assertTestFileCollection } from 'next/dist/experimental/testing/executi
 const options = () => ({ runId: 'run', signal: new AbortController().signal })
 const run = (collector: ReturnType<typeof createCollector>) =>
   runCollected(collector.close(), options(), () => {})
+
+async function runFreshProcessTest(
+  argv: readonly string[],
+  {
+    evidenceEnv,
+    prefix,
+    tests,
+    receiptFile = 'original-child.json',
+    saveErrorMessage,
+  }: {
+    evidenceEnv: string
+    prefix: string
+    tests: number
+    receiptFile?: string
+    saveErrorMessage?: string
+  }
+) {
+  const fs = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const base = process.env[evidenceEnv] ?? tmpdir()
+  await fs.mkdir(base, { recursive: true })
+  const evidence = await fs.mkdtemp(join(base, prefix))
+  const pending = runNodeHelper(argv, { timeout: 20000 })
+  const child = pending.child
+  const closed = new Promise<{
+    code: number | null
+    signal: NodeJS.Signals | null
+  }>((resolve) => {
+    child.once('close', (code, signal) => resolve({ code, signal }))
+  })
+  let stdout = ''
+  let stderr = ''
+  let failure: unknown
+  try {
+    try {
+      const result = await pending
+      stdout = result.stdout
+      stderr = result.stderr
+    } catch (error) {
+      failure = error
+      const raw = error as { stdout?: string; stderr?: string }
+      stdout = raw.stdout ?? ''
+      stderr = raw.stderr ?? ''
+    }
+    const actualClose = await closed
+    const writes = [
+      () => fs.writeFile(join(evidence, 'stdout.log'), stdout),
+      () => fs.writeFile(join(evidence, 'stderr.log'), stderr),
+      () =>
+        fs.writeFile(
+          join(evidence, receiptFile),
+          JSON.stringify(
+            {
+              pid: child.pid,
+              argv: [process.execPath, ...argv],
+              actualClose,
+              stdoutClosed: child.stdout?.destroyed,
+              stderrClosed: child.stderr?.destroyed,
+              error: failure === undefined ? null : String(failure),
+            },
+            null,
+            2
+          )
+        ),
+    ]
+    if (saveErrorMessage) {
+      const saved = await Promise.allSettled(writes.map((write) => write()))
+      const errors = saved
+        .filter(
+          (row): row is PromiseRejectedResult => row.status === 'rejected'
+        )
+        .map((row) => row.reason)
+      if (errors.length) throw new AggregateError(errors, saveErrorMessage)
+    } else {
+      for (const write of writes) await write()
+    }
+    if (failure !== undefined) throw failure
+    expect(actualClose).toEqual({ code: 0, signal: null })
+    expect(stdout).toContain('# tests ' + tests)
+    expect(stdout).toContain('# pass ' + tests)
+    expect(stdout).toContain('# fail 0')
+  } finally {
+    if (!process.env[evidenceEnv])
+      await fs.rm(evidence, { recursive: true, force: true })
+  }
+}
 
 describe('Next-owned Vitest lifecycle', () => {
   it('provides fresh base test APIs to synchronous and asynchronous suite factories', async () => {
@@ -3695,198 +3782,51 @@ describe('immutable client ownership admission', () => {
 })
 
 it('keeps internal raw Chai facts and original owner admission in a fresh process', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI145_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-chai-assertions-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'chai-assertion-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-assertion-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-chai-assertions-',
+      tests: 3,
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'original-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 3')
-    expect(stdout).toContain('# pass 3')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI145_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('keeps actual Chai constructors bound to their original owner in a fresh process', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI145_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-chai-constructor-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'chai-constructor-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-constructor-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-chai-constructor-',
+      tests: 2,
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'original-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 2')
-    expect(stdout).toContain('# pass 2')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI145_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('runs the literal Chai namespace contract and guarded plugin graph in a fresh process', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI145_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-chai-namespace-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'chai-namespace-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-namespace-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-chai-namespace-',
+      tests: 5,
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'original-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 5')
-    expect(stdout).toContain('# pass 5')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI145_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 // Synthetic creator-cell components exercise real private Scope state. The
@@ -4189,458 +4129,115 @@ describe('Browser creator-cell ownership components', () => {
 })
 
 it('runs literal upstream hidden Chai helpers with original construction ownership in a fresh process', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI145_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-chai-hidden-helper-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'chai-hidden-helper-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-hidden-helper-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-chai-hidden-helper-',
+      tests: 3,
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'original-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 3')
-    expect(stdout).toContain('# pass 3')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI145_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('preserves length guard payload semantics and explicit Chai utility ownership boundaries in a fresh process', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI145_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-chai-utility-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'chai-utility-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-utility-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-chai-utility-',
+      tests: 3,
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'original-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 3')
-    expect(stdout).toContain('# pass 3')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI145_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('preserves genuine proxify payload traces and assertion lifecycle in a fresh process', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI145_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-chai-proxify-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'chai-proxify-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-proxify-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-chai-proxify-',
+      tests: 5,
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'original-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 5')
-    expect(stdout).toContain('# pass 5')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI145_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('matches Chai registration events and native listener behavior across file cleanup in a fresh process', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI145_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-chai-events-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'chai-events-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-events-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-chai-events-',
+      tests: 3,
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'original-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 3')
-    expect(stdout).toContain('# pass 3')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI145_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('matches genuine Chai static setting aliases in a fresh process', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI145_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-chai-static-settings-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'chai-static-settings-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-static-settings-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-chai-static-settings-',
+      tests: 1,
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'original-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 1')
-    expect(stdout).toContain('# pass 1')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI145_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('preserves Browser Chai namespace and should helper parity in a fresh process', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI145_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-chai-browser-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'chai-browser-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-browser-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-chai-browser-',
+      tests: 1,
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'original-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 1')
-    expect(stdout).toContain('# pass 1')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI145_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('preserves Browser global stubs and fluent vi parity in a fresh process', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI145_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-browser-vi-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'browser-vi-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'browser-vi-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-browser-vi-',
+      tests: 1,
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'original-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 1')
-    expect(stdout).toContain('# pass 1')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI145_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 describe('Browser importMock file materialization', () => {
@@ -4826,68 +4423,19 @@ it('preserves recording rejection identity without appending or failing a handle
 })
 
 it('records genuine artifact data and public types in a fresh process', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI145_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-artifact-data-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'artifact-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'artifact-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI145_EVIDENCE',
+      prefix: 'next-artifact-data-',
+      tests: 2,
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'original-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 2')
-    expect(stdout).toContain('# pass 2')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI145_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('resolves Node artifact attachment paths from cwd without an explicit project directory', async () => {
@@ -4932,79 +4480,19 @@ it('resolves Node artifact attachment paths from cwd without an explicit project
 it.each(['node', 'browser'] as const)(
   'preserves actual %s real-wait and assertion lifetime behavior in a fresh process',
   async (mode) => {
-    const fs = await import('node:fs/promises')
-    const { tmpdir } = await import('node:os')
-    const base = process.env.NEXT_TESTING_WAITS_EVIDENCE ?? tmpdir()
-    await fs.mkdir(base, { recursive: true })
-    const evidence = await fs.mkdtemp(join(base, `next-real-waits-${mode}-`))
-    const argv = [
-      '--test-reporter=tap',
-      join(__dirname, 'browser-real-waits-integration.cjs'),
-      mode,
-    ]
-    const pending = promisify(execFile)(process.execPath, argv, {
-      timeout: 20000,
-    })
-    const child = pending.child
-    const closed = new Promise<{
-      code: number | null
-      signal: NodeJS.Signals | null
-    }>((resolve) => {
-      child.once('close', (code, signal) => resolve({ code, signal }))
-    })
-    let stdout = ''
-    let stderr = ''
-    let failure: unknown
-    try {
-      try {
-        const result = await pending
-        stdout = result.stdout
-        stderr = result.stderr
-      } catch (error) {
-        failure = error
-        const raw = error as { stdout?: string; stderr?: string }
-        stdout = raw.stdout ?? ''
-        stderr = raw.stderr ?? ''
+    await runFreshProcessTest(
+      [
+        '--test-reporter=tap',
+        join(__dirname, 'browser-real-waits-integration.cjs'),
+        mode,
+      ],
+      {
+        evidenceEnv: 'NEXT_TESTING_WAITS_EVIDENCE',
+        prefix: `next-real-waits-${mode}-`,
+        tests: 1,
+        saveErrorMessage: 'Could not retain real-wait child output',
       }
-      const actualClose = await closed
-      const saved = await Promise.allSettled([
-        fs.writeFile(join(evidence, 'stdout.log'), stdout),
-        fs.writeFile(join(evidence, 'stderr.log'), stderr),
-        fs.writeFile(
-          join(evidence, 'original-child.json'),
-          JSON.stringify(
-            {
-              pid: child.pid,
-              argv: [process.execPath, ...argv],
-              actualClose,
-              stdoutClosed: child.stdout?.destroyed,
-              stderrClosed: child.stderr?.destroyed,
-              error: failure === undefined ? null : String(failure),
-            },
-            null,
-            2
-          )
-        ),
-      ])
-      const errors = saved
-        .filter(
-          (row): row is PromiseRejectedResult => row.status === 'rejected'
-        )
-        .map((row) => row.reason)
-      if (errors.length)
-        throw new AggregateError(
-          errors,
-          'Could not retain real-wait child output'
-        )
-      if (failure !== undefined) throw failure
-      expect(actualClose).toEqual({ code: 0, signal: null })
-      expect(stdout).toContain('# tests 1')
-      expect(stdout).toContain('# pass 1')
-      expect(stdout).toContain('# fail 0')
-    } finally {
-      if (!process.env.NEXT_TESTING_WAITS_EVIDENCE)
-        await fs.rm(evidence, { recursive: true, force: true })
-    }
+    )
   },
   30000
 )
@@ -5012,229 +4500,50 @@ it.each(['node', 'browser'] as const)(
 it.each(['node', 'browser', 'browser-late'] as const)(
   'preserves actual %s fake-clock algorithms and public fluent identity in a fresh process',
   async (mode) => {
-    const fs = await import('node:fs/promises')
-    const { tmpdir } = await import('node:os')
-    const base = process.env.NEXT_TESTING_FAKE_TIMERS_EVIDENCE ?? tmpdir()
-    await fs.mkdir(base, { recursive: true })
-    const evidence = await fs.mkdtemp(join(base, `next-fake-timers-${mode}-`))
-    const argv = [
-      '--test-reporter=tap',
-      join(__dirname, 'browser-fake-timers-integration.cjs'),
-      mode,
-    ]
-    const pending = promisify(execFile)(process.execPath, argv, {
-      timeout: 20000,
-    })
-    const child = pending.child
-    const closed = new Promise<{
-      code: number | null
-      signal: NodeJS.Signals | null
-    }>((resolve) => {
-      child.once('close', (code, signal) => resolve({ code, signal }))
-    })
-    let stdout = ''
-    let stderr = ''
-    let failure: unknown
-    try {
-      try {
-        const result = await pending
-        stdout = result.stdout
-        stderr = result.stderr
-      } catch (error) {
-        failure = error
-        const raw = error as { stdout?: string; stderr?: string }
-        stdout = raw.stdout ?? ''
-        stderr = raw.stderr ?? ''
+    await runFreshProcessTest(
+      [
+        '--test-reporter=tap',
+        join(__dirname, 'browser-fake-timers-integration.cjs'),
+        mode,
+      ],
+      {
+        evidenceEnv: 'NEXT_TESTING_FAKE_TIMERS_EVIDENCE',
+        prefix: `next-fake-timers-${mode}-`,
+        tests: 1,
+        saveErrorMessage: 'Could not retain fake-timer child output',
       }
-      const actualClose = await closed
-      const saved = await Promise.allSettled([
-        fs.writeFile(join(evidence, 'stdout.log'), stdout),
-        fs.writeFile(join(evidence, 'stderr.log'), stderr),
-        fs.writeFile(
-          join(evidence, 'original-child.json'),
-          JSON.stringify(
-            {
-              pid: child.pid,
-              argv: [process.execPath, ...argv],
-              actualClose,
-              stdoutClosed: child.stdout?.destroyed,
-              stderrClosed: child.stderr?.destroyed,
-              error: failure === undefined ? null : String(failure),
-            },
-            null,
-            2
-          )
-        ),
-      ])
-      const errors = saved
-        .filter(
-          (row): row is PromiseRejectedResult => row.status === 'rejected'
-        )
-        .map((row) => row.reason)
-      if (errors.length)
-        throw new AggregateError(
-          errors,
-          'Could not retain fake-timer child output'
-        )
-      if (failure !== undefined) throw failure
-      expect(actualClose).toEqual({ code: 0, signal: null })
-      expect(stdout).toContain('# tests 1')
-      expect(stdout).toContain('# pass 1')
-      expect(stdout).toContain('# fail 0')
-    } finally {
-      if (!process.env.NEXT_TESTING_FAKE_TIMERS_EVIDENCE)
-        await fs.rm(evidence, { recursive: true, force: true })
-    }
+    )
   },
   30000
 )
 
 it('preserves genuine project fake-timer defaults and shallow per-call overrides in the Browser backend', async () => {
   const mode = 'browser-project'
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_FAKE_TIMERS_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, `next-fake-timers-${mode}-`))
-  const argv = [
-    '--test-reporter=tap',
-    join(__dirname, 'browser-fake-timers-integration.cjs'),
-    mode,
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      join(__dirname, 'browser-fake-timers-integration.cjs'),
+      mode,
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_FAKE_TIMERS_EVIDENCE',
+      prefix: `next-fake-timers-${mode}-`,
+      tests: 1,
+      saveErrorMessage: 'Could not retain fake-timer child output',
     }
-    const actualClose = await closed
-    const saved = await Promise.allSettled([
-      fs.writeFile(join(evidence, 'stdout.log'), stdout),
-      fs.writeFile(join(evidence, 'stderr.log'), stderr),
-      fs.writeFile(
-        join(evidence, 'original-child.json'),
-        JSON.stringify(
-          {
-            pid: child.pid,
-            argv: [process.execPath, ...argv],
-            actualClose,
-            stdoutClosed: child.stdout?.destroyed,
-            stderrClosed: child.stderr?.destroyed,
-            error: failure === undefined ? null : String(failure),
-          },
-          null,
-          2
-        )
-      ),
-    ])
-    const errors = saved
-      .filter((row): row is PromiseRejectedResult => row.status === 'rejected')
-      .map((row) => row.reason)
-    if (errors.length)
-      throw new AggregateError(
-        errors,
-        'Could not retain fake-timer child output'
-      )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 1')
-    expect(stdout).toContain('# pass 1')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_FAKE_TIMERS_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('reports real lifecycle durations across retained fake Date', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_REAL_CLOCK_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-lifecycle-clock-'))
-  const argv = [
-    '--test-reporter=tap',
-    join(__dirname, 'lifecycle-real-clock.cjs'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    ['--test-reporter=tap', join(__dirname, 'lifecycle-real-clock.cjs')],
+    {
+      evidenceEnv: 'NEXT_TESTING_REAL_CLOCK_EVIDENCE',
+      prefix: 'next-lifecycle-clock-',
+      tests: 1,
+      saveErrorMessage: 'Could not retain lifecycle-clock child output',
     }
-    const actualClose = await closed
-    const saved = await Promise.allSettled([
-      fs.writeFile(join(evidence, 'stdout.log'), stdout),
-      fs.writeFile(join(evidence, 'stderr.log'), stderr),
-      fs.writeFile(
-        join(evidence, 'original-child.json'),
-        JSON.stringify(
-          {
-            pid: child.pid,
-            argv: [process.execPath, ...argv],
-            actualClose,
-            stdoutClosed: child.stdout?.destroyed,
-            stderrClosed: child.stderr?.destroyed,
-            error: failure === undefined ? null : String(failure),
-          },
-          null,
-          2
-        )
-      ),
-    ])
-    const errors = saved
-      .filter((row): row is PromiseRejectedResult => row.status === 'rejected')
-      .map((row) => row.reason)
-    if (errors.length)
-      throw new AggregateError(
-        errors,
-        'Could not retain lifecycle-clock child output'
-      )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 1')
-    expect(stdout).toContain('# pass 1')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_REAL_CLOCK_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('preserves the pinned zero-argument public next-timer surface', async () => {
@@ -5246,76 +4555,15 @@ it('preserves the pinned zero-argument public next-timer surface', async () => {
       : false,
   ] = [true, true]
   expect(zeroArgumentSurface).toEqual([true, true])
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_NEXT_TIMER_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-public-next-timer-'))
-  const argv = [
-    '--test-reporter=tap',
-    join(__dirname, 'timer-next-step-api.cjs'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    ['--test-reporter=tap', join(__dirname, 'timer-next-step-api.cjs')],
+    {
+      evidenceEnv: 'NEXT_TESTING_NEXT_TIMER_EVIDENCE',
+      prefix: 'next-public-next-timer-',
+      tests: 1,
+      saveErrorMessage: 'Could not retain next-timer child output',
     }
-    const actualClose = await closed
-    const saved = await Promise.allSettled([
-      fs.writeFile(join(evidence, 'stdout.log'), stdout),
-      fs.writeFile(join(evidence, 'stderr.log'), stderr),
-      fs.writeFile(
-        join(evidence, 'original-child.json'),
-        JSON.stringify(
-          {
-            pid: child.pid,
-            argv: [process.execPath, ...argv],
-            actualClose,
-            stdoutClosed: child.stdout?.destroyed,
-            stderrClosed: child.stderr?.destroyed,
-            error: failure === undefined ? null : String(failure),
-          },
-          null,
-          2
-        )
-      ),
-    ])
-    const errors = saved
-      .filter((row): row is PromiseRejectedResult => row.status === 'rejected')
-      .map((row) => row.reason)
-    if (errors.length)
-      throw new AggregateError(
-        errors,
-        'Could not retain next-timer child output'
-      )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 1')
-    expect(stdout).toContain('# pass 1')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_NEXT_TIMER_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('preserves genuine mutable Browser clock configuration and saved project defaults', async () => {
@@ -5326,77 +4574,19 @@ it('preserves genuine mutable Browser clock configuration and saved project defa
   ] = [true, true]
   expect(voidConfigMethods).toEqual([true, true])
   const mode = 'browser-runtime-config'
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_FAKE_TIMERS_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, `next-fake-timers-${mode}-`))
-  const argv = [
-    '--test-reporter=tap',
-    join(__dirname, 'browser-fake-timers-integration.cjs'),
-    mode,
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      join(__dirname, 'browser-fake-timers-integration.cjs'),
+      mode,
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_FAKE_TIMERS_EVIDENCE',
+      prefix: `next-fake-timers-${mode}-`,
+      tests: 1,
+      saveErrorMessage: 'Could not retain fake-timer child output',
     }
-    const actualClose = await closed
-    const saved = await Promise.allSettled([
-      fs.writeFile(join(evidence, 'stdout.log'), stdout),
-      fs.writeFile(join(evidence, 'stderr.log'), stderr),
-      fs.writeFile(
-        join(evidence, 'original-child.json'),
-        JSON.stringify(
-          {
-            pid: child.pid,
-            argv: [process.execPath, ...argv],
-            actualClose,
-            stdoutClosed: child.stdout?.destroyed,
-            stderrClosed: child.stderr?.destroyed,
-            error: failure === undefined ? null : String(failure),
-          },
-          null,
-          2
-        )
-      ),
-    ])
-    const errors = saved
-      .filter((row): row is PromiseRejectedResult => row.status === 'rejected')
-      .map((row) => row.reason)
-    if (errors.length)
-      throw new AggregateError(
-        errors,
-        'Could not retain fake-timer child output'
-      )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 1')
-    expect(stdout).toContain('# pass 1')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_FAKE_TIMERS_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 test('publishes one test context through actual Node and Browser callback platforms', async () => {
@@ -8021,133 +7211,37 @@ it('retains the captured All-hook budget and stack header when its declaration i
 })
 
 it('runs actual Chai prototype descriptor callbacks with guarded receiver and lifetime controls', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI199_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-chai-descriptors-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'chai-descriptors-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-descriptors-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI199_EVIDENCE',
+      prefix: 'next-chai-descriptors-',
+      tests: 4,
+      receiptFile: 'owned-child.json',
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'owned-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 4')
-    expect(stdout).toContain('# pass 4')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI199_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 it('runs collection-created Chai prototype callables with live invocation owners', async () => {
-  const fs = await import('node:fs/promises')
-  const { tmpdir } = await import('node:os')
-  const base = process.env.NEXT_TESTING_CHAI202_EVIDENCE ?? tmpdir()
-  await fs.mkdir(base, { recursive: true })
-  const evidence = await fs.mkdtemp(join(base, 'next-chai-collection-'))
-  const argv = [
-    '--test-reporter=tap',
-    '--import',
-    require.resolve('tsx'),
-    join(__dirname, 'chai-collection-integration.ts'),
-  ]
-  const pending = promisify(execFile)(process.execPath, argv, {
-    timeout: 20000,
-  })
-  const child = pending.child
-  const closed = new Promise<{
-    code: number | null
-    signal: NodeJS.Signals | null
-  }>((resolve) => {
-    child.once('close', (code, signal) => resolve({ code, signal }))
-  })
-  let stdout = ''
-  let stderr = ''
-  let failure: unknown
-  try {
-    try {
-      const result = await pending
-      stdout = result.stdout
-      stderr = result.stderr
-    } catch (error) {
-      failure = error
-      const raw = error as { stdout?: string; stderr?: string }
-      stdout = raw.stdout ?? ''
-      stderr = raw.stderr ?? ''
+  await runFreshProcessTest(
+    [
+      '--test-reporter=tap',
+      '--import',
+      require.resolve('tsx'),
+      join(__dirname, 'chai-collection-integration.ts'),
+    ],
+    {
+      evidenceEnv: 'NEXT_TESTING_CHAI202_EVIDENCE',
+      prefix: 'next-chai-collection-',
+      tests: 4,
+      receiptFile: 'owned-child.json',
     }
-    const actualClose = await closed
-    await fs.writeFile(join(evidence, 'stdout.log'), stdout)
-    await fs.writeFile(join(evidence, 'stderr.log'), stderr)
-    await fs.writeFile(
-      join(evidence, 'owned-child.json'),
-      JSON.stringify(
-        {
-          pid: child.pid,
-          argv: [process.execPath, ...argv],
-          actualClose,
-          stdoutClosed: child.stdout?.destroyed,
-          stderrClosed: child.stderr?.destroyed,
-          error: failure === undefined ? null : String(failure),
-        },
-        null,
-        2
-      )
-    )
-    if (failure !== undefined) throw failure
-    expect(actualClose).toEqual({ code: 0, signal: null })
-    expect(stdout).toContain('# tests 4')
-    expect(stdout).toContain('# pass 4')
-    expect(stdout).toContain('# fail 0')
-  } finally {
-    if (!process.env.NEXT_TESTING_CHAI202_EVIDENCE)
-      await fs.rm(evidence, { recursive: true, force: true })
-  }
+  )
 }, 30000)
 
 describe('raw test declaration fn', () => {
