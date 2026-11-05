@@ -119,7 +119,7 @@ export function j(j) {
   return i2()
 }
 
-class K {
+export class K {
   constructor() {
     try {
       k1()
@@ -186,7 +186,7 @@ class K {
   }
 }
 
-function p() {
+export function p() {
   class C {
     constructor() {
       p1()
@@ -200,7 +200,7 @@ function p() {
   p4()
 }
 
-function q() {
+export function q() {
   while (false) {
     q1()
     return
@@ -209,7 +209,7 @@ function q() {
   q3()
 }
 
-function r() {
+export function r() {
   {
     r1()
     return
@@ -218,8 +218,8 @@ function r() {
   r3()
 }
 
-z1()
+globalThis.z1Called = true
 
 return
 
-z2()
+globalThis.z2Called = true
