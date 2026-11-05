@@ -310,7 +310,6 @@ export default defineConfig([
             'itSkipDeploy',
             'itCI',
             'itHeaded',
-            'itTurbopack',
           ],
         },
       ],
