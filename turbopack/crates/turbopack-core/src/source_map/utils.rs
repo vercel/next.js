@@ -107,9 +107,10 @@ pub async fn resolve_source_map_sources(
 
     let resolve_source =
         async |source_url: &mut String, source_content: Option<&mut Option<Box<RawValue>>>| {
-            // An earlier transform may already have resolved this source into our internal URL
-            // namespace. Resolving it again against `origin` would corrupt the source identity.
-            if source_url.starts_with(concatcp!(SOURCE_URL_PROTOCOL_STR, "///")) {
+            // An earlier transform may already have resolved this source into a
+            // filesystem-qualified URL. Resolving it again against `origin` would
+            // corrupt the source identity.
+            if source_url.starts_with(concatcp!(SOURCE_URL_PROTOCOL_STR, "///[")) {
                 return Ok(());
             }
             // Other sources should be URLs (possibly `file://` URLs). If a source is a relative
@@ -439,6 +440,9 @@ mod tests {
                                     .unwrap(),
                                 // non-file URLs are preserved
                                 "https://example.com/page%20path.js",
+                                // Already-resolved sources must not be interpreted as disk paths.
+                                "turbopack:///[mock]/original source.less",
+                                "turbopack:///[other]/imported.less",
                             ],
                         )),
                         // NOTE: the percent encoding here should NOT be decoded, as this is not
@@ -487,6 +491,8 @@ mod tests {
                     Some(format!("{prefix}/server relative path.js")),
                     Some(format!("{prefix}/scheme relative path.js")),
                     Some("https://example.com/page%20path.js".to_owned()),
+                    Some("turbopack:///[mock]/original source.less".to_owned()),
+                    Some("turbopack:///[other]/imported.less".to_owned()),
                 ]
             );
 
