@@ -1109,7 +1109,7 @@ async function makeBlurPlaceholder(buffer: Buffer, contentType: string) {
   }
 }
 
-type ImageOptimizerConfig = {
+type ImageOptimizerNextConfig = {
   experimental: Pick<
     NextConfigComplete['experimental'],
     | 'imgOptConcurrency'
@@ -1125,8 +1125,20 @@ type ImageOptimizerConfig = {
   >
 }
 
+/**
+ * Helper that extracts fields from `NextConfigComplete` into
+ * `ImageOptimizerTransformOptions`.
+ *
+ * `next/image-optimizer-transform` is a public module, so it doesn't make
+ * sense for it's functions to depend on the structure of `NextConfigComplete`,
+ * which is an internal-only interface for the post-transformed `next.config.js`
+ * file.
+ *
+ * Internally, we would like to call these APIs with the `NextConfigComplete`,
+ * so this transforms it.
+ */
 export function getImageOptimizerTransformOptions(
-  nextConfig: ImageOptimizerConfig
+  nextConfig: ImageOptimizerNextConfig
 ): ImageOptimizerTransformOptions {
   return {
     dangerouslyAllowSVG: nextConfig.images.dangerouslyAllowSVG,
