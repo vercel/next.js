@@ -318,15 +318,22 @@ const deadline = setTimeout(() => {
       errors: [],
       reason: passing ? 'passed' : 'failed',
     })
-    const reference = JSON.parse(
-      fs.readFileSync(path.join(fixtures, 'reference.json'))
-    )[passing ? 'passed' : 'failed']
-    assert.deepEqual(
-      Object.fromEntries(
-        Object.keys(reference).map((key) => [key, result.report[key]])
-      ),
-      reference
-    )
+    assert.equal(result.report.success, passing)
+    assert.deepEqual(result.report.testResults, [])
+    for (const field of [
+      'numTotalTestSuites',
+      'numPassedTestSuites',
+      'numFailedTestSuites',
+      'numPendingTestSuites',
+      'numTotalTests',
+      'numPassedTests',
+      'numFailedTests',
+      'numPendingTests',
+      'numTodoTests',
+    ])
+      assert.equal(result.report[field], 0, field)
+    assert.equal(result.report.snapshot.total, 0)
+    assert.equal(result.report.snapshot.failure, false)
     assert.equal(typeof result.report.startTime, 'number')
     assert(result.report.startTime > 0)
     assert.equal(result.summary.status, passing ? 'passed' : 'failed')

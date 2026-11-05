@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -18,12 +17,11 @@ const row = JSON.parse(
     fs.readFileSync(
       join(
         dirname(fileURLToPath(import.meta.url)),
-        'fixtures/threshold-formatter-multiproject-pristine.json'
+        'fixtures/threshold-formatter-multiproject-cases.json'
       )
     )
   ).rows.find((row) => row.name === 'development-root-two'),
-  fixture = fs.mkdtempSync(join(consumer, '.next-root-formatter-refusal-')),
-  sha = (value) => createHash('sha256').update(value).digest('hex')
+  fixture = fs.mkdtempSync(join(consumer, '.next-root-formatter-refusal-'))
 const begin = row.configTemplate.indexOf('projects: ') + 10,
   end = row.configTemplate.indexOf(', maxWorkers: '),
   projects = JSON.parse(row.configTemplate.slice(begin, end))
@@ -99,7 +97,7 @@ try {
     config
   )
   for (const [name, value] of Object.entries(row.sourceFiles))
-    assert.equal(sha(fs.readFileSync(join(fixture, name))), value.sha256)
+    assert.equal(fs.readFileSync(join(fixture, name), 'utf8'), value.source)
   assert.deepEqual(fs.readdirSync(join(fixture, '__snapshots__')), [])
   fs.writeFileSync(
     join(output, 'CHECKS.json'),

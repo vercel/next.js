@@ -1,8 +1,27 @@
 import { test, describe, expect } from 'vitest'
-const row = (...event) => console.log('FIXTURE_DEPENDENCY_ROW ' + JSON.stringify({ contract: "override", event }))
-const owned = test.extend({ 42: async ({}, use) => { row('base setup'); await use(41); row('base cleanup') } })
-describe('override', () => {
-  owned.override('42', ({ 42: value }, { onCleanup }) => { row('override setup', value); onCleanup(() => row('override cleanup')); return value + 1 })
-  owned('numeric parent', ({ 42: value }) => { row('inner', value); expect(value).toBe(42) })
+const row = (phase) =>
+  console.log(
+    'FIXTURE_DEPENDENCY_ROW ' + JSON.stringify({ contract: 'override', phase })
+  )
+const owned = test.extend({
+  42: async ({}, use) => {
+    row('base setup')
+    await use(41)
+    row('base cleanup')
+  },
 })
-owned('numeric outside', ({ 42: value }) => { row('outside', value); expect(value).toBe(41) })
+describe('override', () => {
+  owned.override('42', ({ 42: value }, { onCleanup }) => {
+    row('override setup', value)
+    onCleanup(() => row('override cleanup'))
+    return value + 1
+  })
+  owned('numeric parent', ({ 42: value }) => {
+    row('inner', value)
+    expect(value).toBe(42)
+  })
+})
+owned('numeric outside', ({ 42: value }) => {
+  row('outside', value)
+  expect(value).toBe(41)
+})

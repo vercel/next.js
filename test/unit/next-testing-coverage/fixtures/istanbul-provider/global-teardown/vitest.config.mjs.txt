@@ -1,0 +1,1 @@
+export default{test:{name:'global-map214',include:['contract.test.mjs'],maxWorkers:1,globalSetup:['./setup.mjs'],coverage:{enabled:true,provider:'v8',include:['subject.mjs'],reportsDirectory:'coverage',clean:false,reporter:['json']}}}

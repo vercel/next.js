@@ -1,208 +1,15 @@
 {
-  "reference": "Vitest5.0.4 official unpatched; actual regex-filtered nested opposite exclusions; distinct existing formatted subject",
   "rows": [
     {
       "name": "istanbul-skip-todo-body",
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "modes.case.mjs": {
-          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n",
-          "sha256": "0f543380df0364164eec4b7995cf610f68f626685cb8ec39b7fcb9dd333bb9cd"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
       },
       "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
       "flags": ["-t", ".*"],
       "exitCode": 0,
-      "standardReport": {
-        "numTotalTestSuites": 4,
-        "numPassedTestSuites": 3,
-        "numFailedTestSuites": 0,
-        "numPendingTestSuites": 1,
-        "numTotalTests": 1,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "success": true,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": ["outer", "explicit todo", "implicit body"],
-                "fullName": "outer explicit todo implicit body body",
-                "status": "pending",
-                "title": "body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "status": "passed",
-            "message": "",
-            "name": "<fixture>/modes.case.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
-        }
-      },
       "trace": [
         {
           "actor": "author",
@@ -320,400 +127,47 @@
           ]
         }
       ],
-      "coverageFiles": {
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
-          },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            }
-          }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:5,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [["outer explicit todo implicit body body", "pending", []]],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
         }
       }
     },
     {
       "name": "istanbul-skip-todo-empty",
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "modes.case.mjs": {
-          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit empty',()=>{})})})\n",
-          "sha256": "cb0b423dff0b65a4a4e7e00ec9828caa0e9e312567f6e6a1fd43f19b91436b17"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit empty',()=>{})})})\n"
       },
       "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
       "flags": ["-t", ".*"],
       "exitCode": 0,
-      "standardReport": {
-        "numTotalTestSuites": 4,
-        "numPassedTestSuites": 3,
-        "numFailedTestSuites": 0,
-        "numPendingTestSuites": 1,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "success": true,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "status": "passed",
-            "message": "",
-            "name": "<fixture>/modes.case.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
-        }
-      },
       "trace": [
         {
           "actor": "author",
@@ -804,411 +258,47 @@
           ]
         }
       ],
-      "coverageFiles": {
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
-          },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            }
-          }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:5,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
         }
       }
     },
     {
       "name": "istanbul-todo-skip-body",
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "modes.case.mjs": {
-          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n",
-          "sha256": "7ea740a688872d2a03ef270bc3d1278eed6d487c99a2a81abc3a4696c0d1cce7"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
       },
       "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
       "flags": ["-t", ".*"],
       "exitCode": 0,
-      "standardReport": {
-        "numTotalTestSuites": 4,
-        "numPassedTestSuites": 3,
-        "numFailedTestSuites": 0,
-        "numPendingTestSuites": 1,
-        "numTotalTests": 1,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "success": true,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": ["outer", "explicit skip", "implicit body"],
-                "fullName": "outer explicit skip implicit body body",
-                "status": "pending",
-                "title": "body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "status": "passed",
-            "message": "",
-            "name": "<fixture>/modes.case.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
-        }
-      },
       "trace": [
         {
           "actor": "author",
@@ -1326,400 +416,47 @@
           ]
         }
       ],
-      "coverageFiles": {
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
-          },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            }
-          }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:5,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [["outer explicit skip implicit body body", "pending", []]],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
         }
       }
     },
     {
       "name": "istanbul-todo-skip-empty",
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "modes.case.mjs": {
-          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit empty',()=>{})})})\n",
-          "sha256": "ee867218b8dcb3bfd1be885cc84a89f2941e0958681963b9a8375e74ca5c183d"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit empty',()=>{})})})\n"
       },
       "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
       "flags": ["-t", ".*"],
       "exitCode": 0,
-      "standardReport": {
-        "numTotalTestSuites": 4,
-        "numPassedTestSuites": 3,
-        "numFailedTestSuites": 0,
-        "numPendingTestSuites": 1,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "success": true,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "status": "passed",
-            "message": "",
-            "name": "<fixture>/modes.case.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
-        }
-      },
       "trace": [
         {
           "actor": "author",
@@ -1810,429 +547,47 @@
           ]
         }
       ],
-      "coverageFiles": {
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
-          },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            }
-          }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:5,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
         }
       }
     },
     {
       "name": "v8-skip-todo-body",
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "modes.case.mjs": {
-          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n",
-          "sha256": "0f543380df0364164eec4b7995cf610f68f626685cb8ec39b7fcb9dd333bb9cd"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
       },
       "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
       "flags": ["-t", ".*"],
       "exitCode": 0,
-      "standardReport": {
-        "numTotalTestSuites": 4,
-        "numPassedTestSuites": 3,
-        "numFailedTestSuites": 0,
-        "numPendingTestSuites": 1,
-        "numTotalTests": 1,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "success": true,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": ["outer", "explicit todo", "implicit body"],
-                "fullName": "outer explicit todo implicit body body",
-                "status": "pending",
-                "title": "body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "status": "passed",
-            "message": "",
-            "name": "<fixture>/modes.case.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      },
       "trace": [
         {
           "actor": "author",
@@ -2350,436 +705,47 @@
           ]
         }
       ],
-      "coverageFiles": {
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
-          },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            }
-          }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:5,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [["outer explicit todo implicit body body", "pending", []]],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
         }
       }
     },
     {
       "name": "v8-skip-todo-empty",
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "modes.case.mjs": {
-          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit empty',()=>{})})})\n",
-          "sha256": "cb0b423dff0b65a4a4e7e00ec9828caa0e9e312567f6e6a1fd43f19b91436b17"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit empty',()=>{})})})\n"
       },
       "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
       "flags": ["-t", ".*"],
       "exitCode": 0,
-      "standardReport": {
-        "numTotalTestSuites": 4,
-        "numPassedTestSuites": 3,
-        "numFailedTestSuites": 0,
-        "numPendingTestSuites": 1,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "success": true,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "status": "passed",
-            "message": "",
-            "name": "<fixture>/modes.case.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      },
       "trace": [
         {
           "actor": "author",
@@ -2870,253 +836,12 @@
           ]
         }
       ],
-      "coverageFiles": {
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
-          },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            }
-          }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:5,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      }
-    },
-    {
-      "name": "v8-todo-skip-body",
-      "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "modes.case.mjs": {
-          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n",
-          "sha256": "7ea740a688872d2a03ef270bc3d1278eed6d487c99a2a81abc3a4696c0d1cce7"
-        }
-      },
-      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
-      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
-      "flags": ["-t", ".*"],
-      "exitCode": 0,
-      "standardReport": {
-        "numTotalTestSuites": 4,
-        "numPassedTestSuites": 3,
-        "numFailedTestSuites": 0,
-        "numPendingTestSuites": 1,
-        "numTotalTests": 1,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [],
+        "fileErrors": [""],
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -3132,185 +857,26 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
-        },
-        "success": true,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": ["outer", "explicit skip", "implicit body"],
-                "fullName": "outer explicit skip implicit body body",
-                "status": "pending",
-                "title": "body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "status": "passed",
-            "message": "",
-            "name": "<fixture>/modes.case.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
         }
       },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      }
+    },
+    {
+      "name": "v8-todo-skip-body",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
+      },
+      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
+      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "flags": ["-t", ".*"],
+      "exitCode": 0,
       "trace": [
         {
           "actor": "author",
@@ -3428,253 +994,12 @@
           ]
         }
       ],
-      "coverageFiles": {
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
-          },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            }
-          }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:5,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      }
-    },
-    {
-      "name": "v8-todo-skip-empty",
-      "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "modes.case.mjs": {
-          "source": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit empty',()=>{})})})\n",
-          "sha256": "ee867218b8dcb3bfd1be885cc84a89f2941e0958681963b9a8375e74ca5c183d"
-        }
-      },
-      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
-      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
-      "flags": ["-t", ".*"],
-      "exitCode": 0,
-      "standardReport": {
-        "numTotalTestSuites": 4,
-        "numPassedTestSuites": 3,
-        "numFailedTestSuites": 0,
-        "numPendingTestSuites": 1,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [["outer explicit skip implicit body body", "pending", []]],
+        "fileErrors": [""],
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -3690,174 +1015,26 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
-        },
-        "success": true,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "status": "passed",
-            "message": "",
-            "name": "<fixture>/modes.case.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
         }
       },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      }
+    },
+    {
+      "name": "v8-todo-skip-empty",
+      "sourceFiles": {
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit empty',()=>{})})})\n"
+      },
+      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
+      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
+      "flags": ["-t", ".*"],
+      "exitCode": 0,
       "trace": [
         {
           "actor": "author",
@@ -3948,224 +1125,34 @@
           ]
         }
       ],
-      "coverageFiles": {
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
-          },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "functions": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "statements": {
-              "total": 4,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            },
-            "branches": {
-              "total": 2,
-              "covered": 0,
-              "skipped": 0,
-              "pct": 0
-            }
-          }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:5,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "cases": [],
+        "fileErrors": [""],
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        }
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
         }
       }
     }

@@ -1,1 +1,27 @@
-import {test,expect,vi} from 'vitest';import * as mocked from './target.cjs';import required from './consumer.cjs';import{appendFileSync}from'node:fs';const counts=vi.hoisted(()=>({factory:0,pick:false}));vi.mock('./target.cjs',()=>{counts.factory++;if(counts.pick)return{value:'mocked'};return{default:{value:'mock-default'}}});test('missing export failure belongs to actual access',async()=>{const dynamic=await import('./target.cjs');const raw=required.read();expect(raw).toBe(required.initial);let accessError;try{void mocked.value}catch(error){accessError=error};expect(accessError).toBeInstanceOf(Error);appendFileSync(process.env.NEXT_REQUIRE_ROWS,JSON.stringify({accessError:{name:accessError.name,message:accessError.message,causeOwn:Object.hasOwn(accessError,'cause'),causeDescriptor:Object.getOwnPropertyDescriptor(accessError,'cause')??null,ownKeys:Reflect.ownKeys(accessError).map(String),brand:Object.prototype.toString.call(accessError),codeFrame:accessError.codeFrame??null},keys:Reflect.ownKeys(mocked),absentDescriptor:Object.getOwnPropertyDescriptor(mocked,'value')===undefined,identity:dynamic===mocked,factory:counts.factory,defaultValue:mocked.default.value})+'\n')})
+import { test, expect, vi } from 'vitest'
+import * as mocked from './target.cjs'
+import required from './consumer.cjs'
+const counts = vi.hoisted(() => ({ factory: 0, pick: false }))
+vi.mock('./target.cjs', () => {
+  counts.factory++
+  if (counts.pick) return { value: 'mocked' }
+  return { default: { value: 'mock-default' } }
+})
+test('missing export failure belongs to actual access', async () => {
+  const dynamic = await import('./target.cjs')
+  const raw = required.read()
+  expect(raw).toBe(required.initial)
+  let accessError
+  try {
+    void mocked.value
+  } catch (error) {
+    accessError = error
+  }
+  expect(accessError).toBeInstanceOf(Error)
+  expect(accessError.message).toContain('No "value" export')
+  expect(accessError.message).toContain('./target.cjs')
+  expect(Object.getOwnPropertyDescriptor(mocked, 'value')).toBe(undefined)
+  expect(dynamic).toBe(mocked)
+  expect(counts.factory).toBe(1)
+  expect(mocked.default.value).toBe('mock-default')
+})

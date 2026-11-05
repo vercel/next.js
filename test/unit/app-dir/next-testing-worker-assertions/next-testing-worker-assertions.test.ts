@@ -20,7 +20,7 @@ it('preserves actual worker assertion owners, cleanup errors and read-only snaps
 }, 35000)
 
 it.each(['pass', 'setup-assert', 'setup-throw', 'cleanup-assert'])(
-  'preserves every genuine worker callback row and the stable cleanup contract for %s',
+  'preserves worker assertion state and setup/cleanup failures for %s',
   async (profile) => {
     const temporary = await mkdtemp(join(tmpdir(), 'next-worker-assertions-'))
     let complete = false
@@ -38,7 +38,7 @@ it.each(['pass', 'setup-assert', 'setup-throw', 'cleanup-assert'])(
       expect(verified.profiles).toHaveLength(2)
       expect(verified.actualCases).toBe(4)
       expect(verified.allPhysicalOwnersJoined).toBe(true)
-      expect(verified.originalBoundsHeld).toBe(true)
+      expect(verified.behavioralChecks).toBe(true)
       complete = true
     } catch (cause) {
       throw new Error(`Worker assertion evidence retained at ${temporary}`, {

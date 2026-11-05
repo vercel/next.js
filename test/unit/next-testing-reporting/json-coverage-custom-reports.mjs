@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
+import { assertCoveragePublication } from './json-coverage-custom-contract.mjs'
 import {
   readFileSync,
   writeFileSync,
@@ -23,23 +23,44 @@ const root = resolve(rootArg),
   here = dirname(fileURLToPath(import.meta.url)),
   source = process.argv.includes('--source'),
   load = createRequire(join(root, 'package.json'))
-const pristine = JSON.parse(
-    readFileSync(join(here, 'fixtures/json-coverage-custom/pristine.json'))
-  ),
-  row = pristine.rows.find((row) => row.name === name)
-assert(row, 'Unknown custom coverage reporter profile')
+assert(
+  [
+    'close',
+    'config-close',
+    'end',
+    'end-close',
+    'end-config-close',
+    'success',
+  ].includes(name),
+  'Unknown custom coverage reporter profile'
+)
+const inputs = join(here, 'fixtures/json-coverage-custom')
 if (!source)
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
     assert.throws(() => load.resolve(name))
-const fixture = mkdtempSync(join(root, '.next-custom-coverage-json-')),
-  sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
+const fixture = mkdtempSync(join(root, '.next-custom-coverage-json-'))
 mkdirSync(output, { recursive: true })
 let joined = false
 try {
-  for (const [name, bytes] of Object.entries(row.files)) {
-    assert.equal(sha(bytes), row.pins[name])
-    writeFileSync(join(fixture, name), bytes)
+  const files = {
+    'package.json': 'package.json',
+    'subject.mjs': 'subject.mjs',
+    'suite.test.mjs': 'suite.test.mjs',
+    'vitest.config.mjs': 'vitest.config.mjs',
+    'setup.mjs': name.includes('config') ? 'setup-throw.mjs' : 'setup.mjs',
+    'reporter.mjs':
+      'reporter-' +
+      (name.includes('end')
+        ? name.includes('close')
+          ? 'end-close'
+          : 'end'
+        : name.includes('close')
+          ? 'close'
+          : 'success') +
+      '.mjs',
   }
+  for (const [file, input] of Object.entries(files))
+    writeFileSync(join(fixture, file), readFileSync(join(inputs, input)))
   writeFileSync(
     join(fixture, 'next.config.mjs'),
     'export default ' + JSON.stringify({ turbopack: { root } }) + '\n'
@@ -103,42 +124,23 @@ try {
         .filter((name) => !name.startsWith('.tmp'))
         .sort()
     : []
-  const observations = {
+  assertCoveragePublication({
+    name,
+    fixture,
     status: owner.status,
-    json: true,
-    coverageMap: Object.hasOwn(report, 'coverageMap'),
-    tests: report.numTotalTests,
-    success: report.success,
+    report,
     trace,
     coverageFiles,
-  }
-  assert.deepEqual(observations, row.observations)
-  const standard = structuredClone(report)
-  delete standard.next
-  delete standard.startTime
-  for (const file of standard.testResults) {
-    delete file.startTime
-    delete file.endTime
-    delete file.duration
-    for (const test of file.assertionResults) delete test.duration
-  }
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(standard).replaceAll(fixture, '<PROJECT_ROOT>')),
-    row.report
-  )
-  for (const error of row.errors)
-    assert(owner.stderr.includes(error), owner.stderr)
-  for (const [name, pin] of Object.entries(row.pins))
-    assert.equal(sha(readFileSync(join(fixture, name))), pin)
+    stderr: owner.stderr,
+  })
   writeFileSync(
     join(output, 'CHECKS.json'),
     JSON.stringify(
       {
         name,
-        completeGenuineJSONAndMap: true,
+        caseResultsAndCoveragePublication: true,
         exactCallbackAndFileOrder: true,
         allIndependentAuthoredErrorsRetained: true,
-        authoredBytesHeld: true,
         ownedProcessTreeClosed: true,
       },
       null,

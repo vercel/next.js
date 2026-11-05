@@ -21,16 +21,18 @@ export async function runCompilerCase({
   config,
   env = {},
   check,
+  checkOutcomes,
 }) {
   assert(
     expectedNames !== undefined ||
       Number.isInteger(expectedCount) ||
-      typeof check === 'function',
+      typeof check === 'function' ||
+      typeof checkOutcomes === 'function',
     'Specify expected case names/count or a focused report check'
   )
   assert(
-    expectedExit === 0 || typeof check === 'function',
-    'Failure scenarios require a focused report check'
+    expectedExit === 0 || typeof checkOutcomes === 'function',
+    'Failure scenarios require an explicit outcome check'
   )
   fs.mkdirSync(output, { recursive: true })
   const fixture = fs.mkdtempSync(path.join(repo, '.next-test-case-'))
@@ -134,12 +136,25 @@ export async function runCompilerCase({
       )
     if (expectedCount !== undefined) assert.equal(cases.length, expectedCount)
     if (expectedExit === 0) assert.equal(report.success, true)
-    // A custom check owns case states/errors, including skips and recovered retries.
-    if (expectedExit === 0 && !check) {
+    // Observational checks supplement strict outcomes unless a scenario explicitly owns them.
+    if (expectedExit === 0 && !checkOutcomes) {
       assert(cases.every((test) => test.status === 'passed'))
       assert(cases.every((test) => test.failureMessages.length === 0))
+      assert(report.testResults.every((file) => file.status === 'passed'))
       assert(report.testResults.every((file) => file.message === ''))
+      assert.deepEqual(
+        report.next.events.filter(
+          (event) =>
+            event.type === 'diagnostic' && event.diagnostic.severity === 'error'
+        ),
+        []
+      )
     }
+    await checkOutcomes?.(report, {
+      fixture,
+      stdout: owner.stdout,
+      stderr: owner.stderr,
+    })
     await check?.(report, {
       fixture,
       stdout: owner.stdout,

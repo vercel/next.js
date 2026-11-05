@@ -2,10 +2,8 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const os = require('node:os')
-const { createHash } = require('node:crypto')
 const { pathToFileURL } = require('node:url')
 
-const digest = (value) => createHash('sha256').update(value).digest('hex')
 const readRows = async (file) =>
   (await fs.readFile(file, 'utf8'))
     .trim()
@@ -13,16 +11,212 @@ const readRows = async (file) =>
     .filter(Boolean)
     .map((line) => JSON.parse(line))
 
-// Preserve all rows, while making the existing console-versus-task callback
-// scheduling difference explicit. This verifies log state/identity rather than
-// claiming that asynchronous callback dispatch has become fully conformant.
-function methodEvidence(rows) {
-  return {
-    lifecycle: rows.filter(
-      (row) => !['console', 'pending', 'identity'].includes(row.hook)
-    ),
-    console: rows.filter((row) => row.hook === 'console'),
-    causal: rows.filter((row) => ['pending', 'identity'].includes(row.hook)),
+function assertLogs(logs, contents) {
+  assert.deepEqual(
+    logs.map((log) => log.content.trimEnd()),
+    contents
+  )
+  for (const log of logs) {
+    assert.equal(log.type, log.content.includes('after') ? 'stderr' : 'stdout')
+    assert.equal(log.size, 1)
+    assert.equal(log.timeIsNumber, true)
+  }
+}
+
+function assertView(view) {
+  assert.equal(view.freshArray, true)
+  assert.equal(view.stableRows, true)
+  assert.equal(view.mutationIsolated, true)
+  for (const log of view.logs) {
+    assert.deepEqual(log.keys, [
+      'content',
+      'origin',
+      'size',
+      'taskId',
+      'time',
+      'type',
+    ])
+    assert.equal(log.timeIsNumber, true)
+    assert.equal(log.taskIdIsString, true)
+  }
+  for (const child of view.children) assertView(child)
+}
+
+function assertCompletedModule(module) {
+  assertView(module)
+  assert.equal(module.type, 'module')
+  assertLogs(module.logs, [
+    'collection-root',
+    'root-beforeAll',
+    'root-afterAll',
+  ])
+  assert.equal(module.children.length, 1)
+  const suite = module.children[0]
+  assert.equal(suite.name, 'outer')
+  assert.equal(suite.type, 'suite')
+  assertLogs(suite.logs, ['suite-beforeAll', 'suite-afterAll'])
+  assert.deepEqual(
+    suite.children.map((test) => test.name),
+    ['pass', 'retry', 'repeat', 'skipped', 'finish']
+  )
+  for (const [test, contents] of [
+    [suite.children[0], ['beforeEach', 'case-pass', 'afterEach']],
+    [
+      suite.children[1],
+      [
+        'beforeEach',
+        'case-retry-0',
+        'afterEach',
+        'beforeEach',
+        'case-retry-1',
+        'afterEach',
+      ],
+    ],
+    [
+      suite.children[2],
+      [
+        'beforeEach',
+        'case-repeat-0',
+        'afterEach',
+        'beforeEach',
+        'case-repeat-1',
+        'afterEach',
+      ],
+    ],
+    [suite.children[3], []],
+    [suite.children[4], ['beforeEach', 'case-finish', 'afterEach']],
+  ])
+    assertLogs(test.logs, contents)
+}
+
+function assertOneShot(trace, observer, events) {
+  const lifecycle = trace.filter(
+    (row) => !['console', 'pending', 'identity'].includes(row.hook)
+  )
+  const queuedEmpty = observer === 'queued-empty'
+  assert.deepEqual(
+    lifecycle.map((row) => row.hook),
+    queuedEmpty
+      ? ['queued', 'collected', 'module', 'end', 'close']
+      : [
+          'queued',
+          'collected',
+          'case',
+          'case',
+          'case',
+          'case',
+          'case',
+          'module',
+          'end',
+          'close',
+        ]
+  )
+  const completed = trace.find((row) => row.hook === 'module')
+  const end = trace.find((row) => row.hook === 'end')
+  const close = trace.find((row) => row.hook === 'close')
+  assert.equal(end.reason, 'passed')
+  assert.deepEqual(end.errors, [])
+  if (queuedEmpty) {
+    assert.deepEqual(lifecycle[0].logs, [])
+    assert.equal(lifecycle[1].differentModule, true)
+    assert.deepEqual(lifecycle[1].queued, [])
+    assert.deepEqual(lifecycle[1].collected, [])
+    assert.equal(completed.sameCollected, true)
+    assert.equal(end.sameCollected, true)
+    for (const row of [completed, end, close]) {
+      assert.deepEqual(row.queued, [])
+      assertLogs(row.collected, ['late-root'])
+    }
+    assert.equal(completed.tests.length, 1)
+    assert.equal(completed.tests[0].name, 'empty collection logs')
+    assertLogs(completed.tests[0].logs, ['body'])
+    return
+  }
+  assert.equal(completed.sameModule, true)
+  assert.equal(completed.observerIdentityRetained, true)
+  assert.equal(end.sameModule, true)
+  for (const row of [completed, end, close]) assertCompletedModule(row.module)
+  assert.deepEqual(
+    lifecycle.filter((row) => row.hook === 'case').map((row) => row.test.name),
+    ['pass', 'retry', 'repeat', 'skipped', 'finish']
+  )
+  for (const row of lifecycle) {
+    if (row.module) assertView(row.module)
+    if (row.test) assertView(row.test)
+  }
+  const consoleRows = trace.filter((row) => row.hook === 'console')
+  const producerLogs = events.filter(
+    (event) => event.type === 'output' && event.console
+  )
+  assert.equal(consoleRows.length, observer === 'observer' ? 23 : 0)
+  if (observer === 'observer') {
+    assert.deepEqual(
+      consoleRows.map(({ log }) => [log.content, log.type, log.size]),
+      producerLogs.map((event) => [
+        event.text,
+        event.stream,
+        event.console.size,
+      ])
+    )
+    assert.equal(consoleRows[0].owner, null)
+    assert.equal(consoleRows[0].alreadyRetained, null)
+    assert(consoleRows.slice(1).every((row) => row.alreadyRetained === true))
+  }
+  const pending = trace.filter((row) => row.hook === 'pending')
+  const identity = trace.filter((row) => row.hook === 'identity')
+  assert.equal(pending.length, observer === 'pending' ? 1 : 0)
+  assert.equal(identity.length, observer === 'pending' ? 1 : 0)
+  if (observer === 'pending') {
+    assertCompletedModule(pending[0].module)
+    assert.equal(identity[0].retainedRowIsEventualCallbackRow, true)
+    assert(trace.indexOf(pending[0]) < trace.indexOf(identity[0]))
+  }
+}
+
+function assertWatch(methods, variant) {
+  assert.deepEqual(
+    methods.map((row) => row.hook),
+    ['module', 'end', 'module', 'end']
+  )
+  function snapshot(value, generation, first = false) {
+    const shared = variant === 'shared'
+    const moduleLogs = shared
+      ? generation === 1
+        ? ['watch-collection-LABEL1']
+        : ['watch-collection-LABEL1', 'watch-collection-LABEL2']
+      : first || generation === 1
+        ? []
+        : ['watch-empty-collection-2']
+    assertLogs(value.module, moduleLogs)
+    assert.equal(value.tests.length, 1)
+    assert.equal(
+      value.tests[0].name,
+      shared ? 'watch' : 'watch empty file logs'
+    )
+    const bodyGeneration = first ? 1 : generation
+    assertLogs(value.tests[0].logs, [
+      shared
+        ? 'watch-body-LABEL' + bodyGeneration
+        : 'watch-empty-body-' + bodyGeneration,
+    ])
+  }
+  for (const generation of [1, 2]) {
+    const completed = methods[(generation - 1) * 2]
+    const end = methods[(generation - 1) * 2 + 1]
+    snapshot(completed.snapshot, generation)
+    snapshot(end.current, generation)
+    snapshot(end.first, generation, true)
+    assert.equal(end.reason, 'passed')
+    assert.deepEqual(end.errors, [])
+    assert.equal(end.sameAsFirst, generation === 1)
+    assert.equal(
+      end.retainedFirstSnapshotUnchanged,
+      generation === 1 || variant === 'empty'
+    )
+    assert.equal(
+      end.retainedRowIdentity,
+      generation === 1 || variant === 'empty'
+    )
   }
 }
 
@@ -86,15 +280,6 @@ async function main() {
   const watchOnly = selection === '--watch-only'
   const repo = path.resolve(__dirname, '../../..')
   const fixtures = path.join(__dirname, 'fixtures/task-logs')
-  const expected = JSON.parse(
-    await fs.readFile(path.join(fixtures, 'genuine.json'), 'utf8')
-  )
-  assert.equal(expected.version, '5.0.4')
-  const pins = JSON.parse(
-    await fs.readFile(path.join(fixtures, 'PINS.json'), 'utf8')
-  )
-  for (const [name, pin] of Object.entries(pins))
-    assert.equal(digest(await fs.readFile(path.join(fixtures, name))), pin)
   const { runOwnedNode, assertOwnedNodeCompleted } = await import(
     pathToFileURL(
       path.join(
@@ -208,14 +393,10 @@ async function main() {
           path.join(fixture, 'trace.jsonl'),
           path.join(out, 'trace.jsonl')
         )
-        assert.deepEqual(
-          methodEvidence(trace),
-          methodEvidence(expected.oneShot[observer]),
-          mode + '/' + observer
-        )
         const report = JSON.parse(
           await fs.readFile(path.join(out, 'report.json'), 'utf8')
         )
+        assertOneShot(trace, observer, report.next.events)
         assertProducerRows(trace, report.next.events, queuedEmpty)
         assert.equal(report.success, true)
         assert.equal(report.numTotalTests, queuedEmpty ? 1 : 5)
@@ -365,7 +546,7 @@ async function main() {
       const methods = trace.filter((row) =>
         ['module', 'end'].includes(row.hook)
       )
-      assert.deepEqual(methods, expected.watch[variant])
+      assertWatch(methods, variant)
       assert.equal(trace.filter((row) => row.hook === 'end').length, 2)
       assert.equal(
         await fs.readFile(path.join(fixture, 'watch.case.mjs'), 'utf8'),
@@ -428,7 +609,7 @@ async function main() {
       freshArraysWithRetainedRows: !watchOnly,
       fileLogsSharedAcrossWatchGenerations: true,
       absentFileListsRetainTheirActualOwner: true,
-      queuedAndCollectedFileSlotsMatchReference: !watchOnly,
+      queuedAndCollectedFileSlotsMatchProducer: !watchOnly,
       priorTestViewsRetainTheirGeneration: true,
       callbackSchedulingParityClaimed: false,
     }) + '\n'

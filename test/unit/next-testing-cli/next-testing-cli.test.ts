@@ -1171,7 +1171,7 @@ describe('Next-owned test discovery and configuration', () => {
     }
   }, 30000)
 
-  it('matches complete genuine inline inheritance rows through the real CLI', async () => {
+  it('applies inline compiler and setup inheritance through the real CLI', async () => {
     const { execFileSync } = await import('node:child_process')
     const output = path.join(directory, 'inline-cli-proof')
     execFileSync(
@@ -1192,9 +1192,9 @@ describe('Next-owned test discovery and configuration', () => {
       JSON.parse(await readFile(path.join(output, 'CHECKS.json'), 'utf8'))
     ).toMatchObject({
       profiles: 6,
-      completeCasesAndRowsEqual: true,
+      configurationInheritanceAssertions: true,
+      transformCallsVerified: true,
       allOwnersJoined: true,
-      authoredBytesHeld: true,
     })
   }, 125000)
 
@@ -12386,7 +12386,7 @@ it('retains test configuration watch inputs separately from evaluated compiler r
   }
 }, 30000)
 
-it('matches genuine ordered repeated coverage scalars before actual case allocation', async () => {
+it('applies ordered repeated coverage scalars before actual case allocation', async () => {
   const { promisify } = await import('node:util')
   const output = await mkdtemp(
     path.join(os.tmpdir(), 'next-coverage-repeat-cli-')
@@ -12407,7 +12407,7 @@ it('matches genuine ordered repeated coverage scalars before actual case allocat
     )
     expect(result).toMatchObject({
       profiles: 10,
-      allEqual: true,
+      allPassed: true,
       allOwnersClosed: true,
     })
   } finally {
@@ -12416,7 +12416,7 @@ it('matches genuine ordered repeated coverage scalars before actual case allocat
 }, 250000)
 
 it.each(['before', 'after'] as const)(
-  'matches genuine Boolean coverage arguments with the directory %s options',
+  'applies Boolean coverage arguments with the directory %s options',
   async (directoryPlacement) => {
     const { promisify } = await import('node:util')
     const output = await mkdtemp(
@@ -12442,7 +12442,7 @@ it.each(['before', 'after'] as const)(
       )
       expect(result).toMatchObject({
         profiles: 9,
-        allEqual: true,
+        allPassed: true,
         allOwnersClosed: true,
       })
     } finally {
@@ -12926,76 +12926,99 @@ it('preserves OS interruption exit precedence over an earlier settled failure', 
 
 describe('project filter patterns before shard assignment', () => {
   const corpus = path.join(__dirname, 'fixtures/project-pattern-selection')
-  const pristine = require('./fixtures/project-pattern-selection/pristine.json')
+  const projectNames = ['web-A', 'web-b', 'unit1', 'dbprod', 'api-e2e']
+  const caseFiles = ['a.case.mjs', 'b.case.mjs', 'c.case.mjs']
+  const selections = [
+    { label: 'wildcard', selection: 'web-*', projects: ['web-A', 'web-b'] },
+    {
+      label: 'case-wildcard',
+      selection: 'WEB-*',
+      projects: ['web-A', 'web-b'],
+    },
+    {
+      label: 'exclude',
+      selection: '!web-*',
+      projects: ['unit1', 'dbprod', 'api-e2e'],
+    },
+    { label: 'exact-unit', selection: 'unit1', projects: ['unit1'] },
+    { label: 'exact-db', selection: 'dbprod', projects: ['dbprod'] },
+    { label: 'exact-api', selection: 'api-e2e', projects: ['api-e2e'] },
+    {
+      label: 'shard-1',
+      selection: 'web-*',
+      shard: '1/2',
+      files: ['web-A:a.case.mjs', 'web-A:b.case.mjs', 'web-b:a.case.mjs'],
+    },
+    {
+      label: 'shard-2',
+      selection: 'web-*',
+      shard: '2/2',
+      files: ['web-A:c.case.mjs', 'web-b:b.case.mjs', 'web-b:c.case.mjs'],
+    },
+  ]
   async function fixture<T>(run: (root: string) => Promise<T>) {
     const root = await realpath(
       await mkdtemp(path.join(os.tmpdir(), 'next-project-pattern-'))
     )
     try {
-      for (const [name, pin] of Object.entries(pristine.sourceSHA256)) {
-        const bytes = await readFile(path.join(corpus, name + '.txt'))
-        expect(createHash('sha256').update(bytes).digest('hex')).toBe(pin)
-        await writeFile(path.join(root, name), bytes)
-      }
+      for (const name of caseFiles)
+        await cp(path.join(corpus, name + '.txt'), path.join(root, name))
       return await run(root)
     } finally {
       await rm(root, { recursive: true, force: true })
     }
   }
-  it.each(pristine.profiles)(
-    'matches genuine $mode $label selected project/file identities',
-    async (expected: any) => {
-      await fixture(async (root) => {
-        const config = parseTestConfig({
-          projects: pristine.projects.map((name: string) => ({
-            name,
-            mode: expected.mode,
-            include: ['*.case.mjs'],
-            provide: { project: name },
-          })),
-        })
-        const input = JSON.stringify(config)
-        const discovered = await discoverTests(root, config, {
-          project: expected.selection,
-        })
-        const projects = expected.shard
-          ? await shardTestProjects(
-              discovered,
-              parseTestShard(expected.shard),
-              root,
-              { sortFiles: false }
-            )
-          : discovered
-        const actual = projects.flatMap((project) =>
-          project.entries.map((entry) => ({
-            project: project.displayName,
-            file: path.basename(entry.file),
-          }))
-        )
-        const sorted = (values: any[]) =>
-          [...values].sort((a, b) =>
-            JSON.stringify(a).localeCompare(JSON.stringify(b))
-          )
-        expect(sorted(actual)).toEqual(
-          sorted(
-            expected.modules.map(({ project, file }: any) => ({
-              project,
-              file,
-            }))
-          )
-        )
-        expect(actual).toHaveLength(expected.rows.length)
-        expect(JSON.stringify(config)).toBe(input)
-        expect(
-          new Set(projects.map((project) => project.profile.mode))
-        ).toEqual(new Set([expected.mode]))
+  it.each(
+    ['development', 'production'].flatMap((mode) =>
+      selections.map((selection) => ({ ...selection, mode }))
+    )
+  )('selects $mode $label project/file identities', async (expected) => {
+    await fixture(async (root) => {
+      const config = parseTestConfig({
+        projects: projectNames.map((name) => ({
+          name,
+          mode: expected.mode,
+          include: ['*.case.mjs'],
+          provide: { project: name },
+        })),
       })
-    }
-  )
+      const input = JSON.stringify(config)
+      const discovered = await discoverTests(root, config, {
+        project: expected.selection,
+      })
+      const projects = expected.shard
+        ? await shardTestProjects(
+            discovered,
+            parseTestShard(expected.shard),
+            root,
+            { sortFiles: false }
+          )
+        : discovered
+      const actual = projects.flatMap((project) =>
+        project.entries.map((entry) => ({
+          project: project.displayName,
+          file: path.basename(entry.file),
+        }))
+      )
+      const expectedIds =
+        expected.files ??
+        expected.projects!.flatMap((name) =>
+          caseFiles.map((file) => `${name}:${file}`)
+        )
+      expect(
+        actual.map(({ project, file }) => `${project}:${file}`).sort()
+      ).toEqual([...expectedIds].sort())
+      expect(actual).toHaveLength(expectedIds.length)
+      expect(JSON.stringify(config)).toBe(input)
+      expect(new Set(projects.map((project) => project.profile.mode))).toEqual(
+        new Set([expected.mode])
+      )
+    })
+  })
   it('keeps file selection inside the project pattern and partitions each selected identity once', async () => {
     await fixture(async (root) => {
       const config = parseTestConfig({
-        projects: pristine.projects.map((name: string) => ({
+        projects: projectNames.map((name) => ({
           name,
           include: ['*.case.mjs'],
         })),
@@ -13025,7 +13048,7 @@ describe('project filter patterns before shard assignment', () => {
     async (project) => {
       await fixture(async (root) => {
         const config = parseTestConfig({
-          projects: pristine.projects.map((name: string) => ({
+          projects: projectNames.map((name) => ({
             name,
             include: ['*.case.mjs'],
           })),

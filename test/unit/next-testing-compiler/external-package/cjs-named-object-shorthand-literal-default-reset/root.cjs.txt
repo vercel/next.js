@@ -1,1 +1,0 @@
-module.exports = function named({value = 1}) { return value }

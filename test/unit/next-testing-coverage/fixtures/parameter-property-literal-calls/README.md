@@ -1,3 +1,9 @@
 # Constructor parameter-property numeric call defaults
 
-These are unchanged authored fixtures and complete reports from pinned Vitest 5.0.4 using its V8 provider in development and production. The untouched source throws if evaluated. `facts.json` and `emitted.js.txt` retain actual increment155 compiler/zero-converter input facts captured before the original refusal; no source map or hit counter is invented. The bounded association covers unique nonoptional identifier-call defaults with one same-token finite numeric Literal argument, preserving the existing class/constructor/parameter/generated-assignment guards.
+The fixtures check unique, nonoptional identifier-call defaults with one
+same-token finite numeric literal argument in development and production. They
+assert successful execution and exact coverage counters and locations. The
+untouched source throws if evaluated.
+
+`facts.json`, `emitted.js.txt` and source maps support focused association checks
+for the constructor, parameter, same-token argument and generated assignment.

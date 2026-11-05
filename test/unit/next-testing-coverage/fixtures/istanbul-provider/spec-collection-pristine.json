@@ -1,8 +1,4 @@
 {
-  "reference": {
-    "version": "Vitest5.0.4 coverage-istanbul",
-    "scope": "Independent spec-module no-case/partial collection; no setup wrappers, no body starts; complete original reference maps/file policy and raw early traces. Native error-stack presentation and unsupported early callbacks remain separate."
-  },
   "rows": [
     {
       "name": "js-no-case-sync",
@@ -27,184 +23,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793018894627,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793018894627,
-            "endTime": 1793018894627,
-            "status": "failed",
-            "message": "actual spec dependency load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-p4Nf6Y/contract.test.js"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-p4Nf6Y/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-p4Nf6Y/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
@@ -281,16 +99,59 @@
           "errors": []
         }
       ],
-      "reports": {
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-p4Nf6Y/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-p4Nf6Y/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":12},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":6,\"column\":2},\"end\":{\"line\":6,\"column\":null}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":29},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":7,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":0,\"1\":0,\"2\":0,\"3\":0},\"f\":{\"0\":0,\"1\":0},\"b\":{\"0\":[0,0]}}\n}\n",
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":0,\"skipped\":0,\"pct\":0},\"statements\":{\"total\":4,\"covered\":0,\"skipped\":0,\"pct\":0},\"functions\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"branches\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-p4Nf6Y/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":0,\"skipped\":0,\"pct\":0},\"functions\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"statements\":{\"total\":4,\"covered\":0,\"skipped\":0,\"pct\":0},\"branches\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n"
-      },
       "referenceSHA256": {
         "AUTHORED.json": "8ffde2bef5725df4ffd24931151cccdffa36954f6cdfb715321544ebca626b7d",
         "cases.json": "3637810223d2068bf6ad67154c8c527c99418406eef24a902447928a705a99e3",
         "OBSERVED.json": "623fea68f641975233973fa4f61527836b3185953da7cf71411ea3a6b0ab37b9"
-      }
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-p4Nf6Y/contract.test.js",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      },
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "js-no-case-sync-report-false",
@@ -315,184 +176,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793018895592,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793018895592,
-            "endTime": 1793018895592,
-            "status": "failed",
-            "message": "actual spec dependency load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-YiyYzH/contract.test.js"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-YiyYzH/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-YiyYzH/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
@@ -569,12 +252,55 @@
           "errors": []
         }
       ],
-      "reports": {},
       "referenceSHA256": {
         "AUTHORED.json": "491d1cf4779ee7ba5818ce540109032662e49be3734633d0aaadccb07194e95f",
         "cases.json": "fcef32239c060201b31c8bfa9f600fc294d771ad2ad988fe17c40d975f13dfed",
         "OBSERVED.json": "44a4014cf284a4171995e54440003fb37ab8035c9a16b5d93dc44d257d2ab7af"
-      }
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-YiyYzH/contract.test.js",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      },
+      "reportFiles": []
     },
     {
       "name": "js-partial-sync",
@@ -599,184 +325,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793018898404,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793018898404,
-            "endTime": 1793018898404,
-            "status": "failed",
-            "message": "actual partial spec load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-hOWEBn/contract.test.js"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-hOWEBn/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-hOWEBn/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84443}\n{\"event\":\"test-declared\",\"pid\":84443}\n",
       "reporterTrace": [
@@ -853,16 +401,59 @@
           "errors": []
         }
       ],
-      "reports": {
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-hOWEBn/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-hOWEBn/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":12},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":6,\"column\":2},\"end\":{\"line\":6,\"column\":null}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":29},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":7,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]}}\n}\n",
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-hOWEBn/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:6,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n"
-      },
       "referenceSHA256": {
         "AUTHORED.json": "a8bebf4d96b9a4e4813f405105eb9388596f95f61246a9db11adc8cf308cd791",
         "cases.json": "192afb04e47ed7d950e550216635760aab8ab5dfea65f1ab4481efe8c3d26c46",
         "OBSERVED.json": "7f15f9b94f8d2d97dea185e78b4be7b1d9d36ec303ebd3f382eafeb2e2eafe3b"
-      }
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-hOWEBn/contract.test.js",
+            "status": "failed",
+            "message": "actual partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "js-partial-sync-report-false",
@@ -887,184 +478,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793018899393,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793018899393,
-            "endTime": 1793018899393,
-            "status": "failed",
-            "message": "actual partial spec load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-5Pkp66/contract.test.js"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-5Pkp66/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-5Pkp66/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84665}\n{\"event\":\"test-declared\",\"pid\":84665}\n",
       "reporterTrace": [
@@ -1141,12 +554,55 @@
           "errors": []
         }
       ],
-      "reports": {},
       "referenceSHA256": {
         "AUTHORED.json": "1432800e653a13155567762ed502d53c705924341e56555f0fbefe5c886fe7f9",
         "cases.json": "a0a2a79acc30e53b2cfa26c75b9232f45a6a8004c5729f5cf484bc77463aa8fe",
         "OBSERVED.json": "1789f9b8a38327adbcd7e5e51d79677436d39be4da860c6cbb8e563ccd0befe5"
-      }
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-5Pkp66/contract.test.js",
+            "status": "failed",
+            "message": "actual partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "reportFiles": []
     },
     {
       "name": "mjs-no-case-sync",
@@ -1171,184 +627,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793018892691,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793018892691,
-            "endTime": 1793018892691,
-            "status": "failed",
-            "message": "actual spec dependency load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-54UWGg/contract.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-54UWGg/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-54UWGg/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
@@ -1425,16 +703,59 @@
           "errors": []
         }
       ],
-      "reports": {
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-54UWGg/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-54UWGg/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":12},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":6,\"column\":2},\"end\":{\"line\":6,\"column\":null}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":29},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":7,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":0,\"1\":0,\"2\":0,\"3\":0},\"f\":{\"0\":0,\"1\":0},\"b\":{\"0\":[0,0]}}\n}\n",
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":0,\"skipped\":0,\"pct\":0},\"statements\":{\"total\":4,\"covered\":0,\"skipped\":0,\"pct\":0},\"functions\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"branches\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-54UWGg/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":0,\"skipped\":0,\"pct\":0},\"functions\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"statements\":{\"total\":4,\"covered\":0,\"skipped\":0,\"pct\":0},\"branches\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n"
-      },
       "referenceSHA256": {
         "AUTHORED.json": "48c041275a7a5ca05d0f6d2f77ff6d0d9744d19514d39093f586945f261c3709",
         "cases.json": "5214c88d9fbd73450081d05a2cec59c2b67ae2551227762c10cc415858cfb395",
         "OBSERVED.json": "828fc794d69331006c606803c4f70e2d949ea6e09c985d05a16c54ddaf8eb2d4"
-      }
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-54UWGg/contract.test.mjs",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      },
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "mjs-no-case-sync-report-false",
@@ -1459,184 +780,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793018893671,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793018893671,
-            "endTime": 1793018893671,
-            "status": "failed",
-            "message": "actual spec dependency load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-mCgsAv/contract.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-mCgsAv/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-mCgsAv/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
@@ -1713,12 +856,55 @@
           "errors": []
         }
       ],
-      "reports": {},
       "referenceSHA256": {
         "AUTHORED.json": "7c8f76eb98d939b0d12205bbca77343ec8c25cde5c62798c95b94cb10ad58d2e",
         "cases.json": "c217f4703398c030b1fb41cc7131b6618f349aa509e68cb24a27d6cfca835a9c",
         "OBSERVED.json": "761983c35ba9b6348708864d5d6a075f996100ed05062161588e963078962ff3"
-      }
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-mCgsAv/contract.test.mjs",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      },
+      "reportFiles": []
     },
     {
       "name": "mjs-partial-async",
@@ -1743,184 +929,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793018896533,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793018896533,
-            "endTime": 1793018896533,
-            "status": "failed",
-            "message": "actual async partial spec load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-nvN7Mx/contract.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-nvN7Mx/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-nvN7Mx/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84360}\n{\"event\":\"test-declared\",\"pid\":84360}\n",
       "reporterTrace": [
@@ -1997,16 +1005,59 @@
           "errors": []
         }
       ],
-      "reports": {
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-nvN7Mx/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-nvN7Mx/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":12},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":6,\"column\":2},\"end\":{\"line\":6,\"column\":null}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":29},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":7,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]}}\n}\n",
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-nvN7Mx/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:6,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n"
-      },
       "referenceSHA256": {
         "AUTHORED.json": "4b16f22a7414b977aadc19e329b809bf09520c6696123cd2f664157016c6ee6e",
         "cases.json": "84a8be071a5331afc5824effe63dd05db611d7a0f8690bbf766ae695ef4a33cd",
         "OBSERVED.json": "66bc34cc4a29f4c1cfc87e79b7532d934e10a44387a519892beefd2921fd5755"
-      }
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-nvN7Mx/contract.test.mjs",
+            "status": "failed",
+            "message": "actual async partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "mjs-partial-async-report-false",
@@ -2031,184 +1082,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793018897476,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793018897476,
-            "endTime": 1793018897476,
-            "status": "failed",
-            "message": "actual async partial spec load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-FZa65u/contract.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-FZa65u/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-FZa65u/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84405}\n{\"event\":\"test-declared\",\"pid\":84405}\n",
       "reporterTrace": [
@@ -2285,36 +1158,55 @@
           "errors": []
         }
       ],
-      "reports": {},
       "referenceSHA256": {
         "AUTHORED.json": "25d9e8e89e125ec8357b0519a21fb20b8f27942904d457caeee7b65529f4e60d",
         "cases.json": "1d5067a462738c27c6cdabb0ac7428689c9083f621b9892880e391cc14df69c5",
         "OBSERVED.json": "517ea50ac0c4ea041e1fee58f4f0388765a0515bb55edc9fb92c5b887a18e18b"
-      }
-    },
-    {
-      "name": "pending-spec-control",
-      "entryName": "pending.test.mjs",
-      "sourceFiles": {
-        "pending.test.mjs": {
-          "source": "import {writeFileSync} from 'node:fs'\nwriteFileSync('pending-load.txt','ACTUAL_PENDING_LOAD')\nawait new Promise(()=>{})\n",
-          "sha256": "a54cc72c4c9b6078ec3d1c282f7f2da35a6f0b91f89b363938d2fd151829132c"
+      },
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
         },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-spec-collection-FZa65u/contract.test.mjs",
+            "status": "failed",
+            "message": "actual async partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
         "subject.mjs": {
-          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
-          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
-        },
-        "package.json": {
-          "source": "{\"type\":\"module\"}\n",
-          "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "config": "export default {\"test\":{\"include\":[\"pending.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
-      "snapshots": {
-        "pending.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`prior unpublished 1`] = `\"keep actual prior snapshot\"`;\n"
-      },
-      "pendingControl": true,
-      "genuineCompatibilityQualified": false
+      "reportFiles": []
     }
   ],
   "cancellation": {
@@ -2356,6 +1248,7 @@
         "numFailedTests": 0,
         "numPendingTests": 1,
         "numTodoTests": 0,
+        "success": true,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -2372,186 +1265,43 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793020293878,
-        "success": true,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-spec-cancel81-ci4Pdn/contract.test.mjs",
+            "status": "passed",
+            "message": "",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "pending spec cannot start body",
                 "status": "skipped",
                 "title": "pending spec cannot start body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               },
               {
                 "ancestorTitles": [],
                 "fullName": "spec recovery",
                 "status": "passed",
                 "title": "spec recovery",
-                "duration": 1.7851660000000038,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1793020293974,
-            "endTime": 1793020293975.7852,
-            "status": "passed",
-            "message": "",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-spec-cancel81-ci4Pdn/contract.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.istanbul-spec-cancel81-ci4Pdn/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.istanbul-spec-cancel81-ci4Pdn/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
+        ]
       },
       "recoveryTrace": "{\"event\":\"RECOVERY_BODY\"}\n",
-      "reports": {
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.istanbul-spec-cancel81-ci4Pdn/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.istanbul-spec-cancel81-ci4Pdn/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":12},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":6,\"column\":2},\"end\":{\"line\":6,\"column\":null}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":29},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":7,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]}}\n}\n",
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.istanbul-spec-cancel81-ci4Pdn/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:6,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n"
-      }
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     }
   }
 }

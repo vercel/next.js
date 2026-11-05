@@ -1,11 +1,11 @@
+import assert from 'node:assert/strict'
 import { aroundAll, beforeAll, afterAll, describe, expect, test } from 'vitest'
 import { appendFileSync } from 'node:fs'
 const phase = process.env.AROUND_PHASE
 let releaseSettled
 const settled = new Promise(resolve => { releaseSettled = resolve })
 const counts = { affectedSetup: 0, affectedBody: 0, affectedCleanup: 0, wrapper: 0, followingSetup: 0, followingBody: 0, followingCleanup: 0 }
-const row = (event, extra = {}) => appendFileSync(process.env.AROUND_TRACE, JSON.stringify({ event, phase, pid: process.pid, now: Date.now(), counts: { ...counts }, ...extra }) + '\n')
-const errorFields = error => ({ name: error?.name, message: error?.message, stack: error?.stack })
+const row = (event) => appendFileSync(process.env.AROUND_TRACE, JSON.stringify({ event, counts: { ...counts } }) + '\n')
 describe('affected', () => {
   aroundAll(async run => {
     counts.wrapper++
@@ -25,7 +25,7 @@ describe('affected', () => {
         row('late-run-after')
       }
     } catch (error) {
-      row('wrapper-caught-rethrown', { error: errorFields(error) })
+      row('wrapper-caught-rethrown')
       throw error
     } finally {
       row('wrapper-finally')
@@ -36,9 +36,11 @@ describe('affected', () => {
   afterAll(() => { counts.affectedCleanup++; row('affected-afterAll') })
   test('body', () => {
     counts.affectedBody++
-    row('affected-body-before', { assertions: expect.getState().assertionCalls })
+    assert.equal(expect.getState().assertionCalls, 0)
+    row('affected-body-before')
     expect(true).toBe(true)
-    row('affected-body-after', { assertions: expect.getState().assertionCalls })
+    assert.equal(expect.getState().assertionCalls, 1)
+    row('affected-body-after')
   })
 })
 describe('following', () => {
@@ -51,8 +53,10 @@ describe('following', () => {
   afterAll(() => { counts.followingCleanup++; row('following-afterAll') })
   test('body', () => {
     counts.followingBody++
-    row('following-body-before', { assertions: expect.getState().assertionCalls })
+    assert.equal(expect.getState().assertionCalls, 0)
+    row('following-body-before')
     expect(true).toBe(true)
-    row('following-body-after', { assertions: expect.getState().assertionCalls })
+    assert.equal(expect.getState().assertionCalls, 1)
+    row('following-body-after')
   })
 })

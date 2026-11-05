@@ -1,0 +1,3 @@
+import { writeFileSync } from 'node:fs'
+writeFileSync('provider-evaluated', 'unexpected provider import')
+throw new Error('The overridden custom coverage provider must not load')

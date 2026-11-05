@@ -1,0 +1,13 @@
+import { test, expect } from 'vitest'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+test('actual concurrent config edit before publication', () => {
+  const file = join(process.cwd(), 'vitest.config.mjs')
+  let source = readFileSync(file, 'utf8')
+  source = process.env.COVERAGE_TEST_EDIT_KIND === 'complex'
+    ? source.replace('export default ', 'export default Object.assign({}, ').replace('};\n// retained configuration footer', '});\n// retained configuration footer')
+    : source.replace('"lines": 0', '"lines": 90')
+  source += '\n// actual on-disk user edit retained\n'
+  writeFileSync(file, source)
+  expect(readFileSync(file, 'utf8')).toBe(source)
+})

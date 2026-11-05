@@ -1,6 +1,4 @@
 {
-  "typeInput": "9397e268023926b077d5478d2c765a00f41b287399fde67fa70b2a5a6d65673c",
-  "invalidTypeInput": "341174c62b97001aee0535e1b7e049d254621be5531ca241f11b2018e8086684",
   "typeNegativeCases": 6,
   "negativeDiagnostics": [
     "invalid.mts(3,1): error TS2322: Type '\"text\"' is not assignable to type '\"html\" | \"aria\" | \"all\"'.",

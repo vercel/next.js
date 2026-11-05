@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
-import { createHash, randomUUID } from 'node:crypto'
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   readdirSync,
   realpathSync,
@@ -11,7 +12,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { createRequire } from 'node:module'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   runOwnedNode,
@@ -19,55 +20,23 @@ import {
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
 
 const [consumerArg, outputArg] = process.argv.slice(2)
-assert(
-  consumerArg && outputArg,
-  'Usage: node verify.mjs <source-or-consumer-root> <new-evidence-dir>'
-)
-const consumer = realpathSync(consumerArg),
-  output = resolve(outputArg)
-mkdirSync(output)
+assert(consumerArg && outputArg, 'Expected a project root and output directory')
+const consumer = realpathSync(consumerArg)
+const output = resolve(outputArg)
 const directory = dirname(fileURLToPath(import.meta.url))
-const expected = JSON.parse(
-  readFileSync(join(directory, 'reference.json'), 'utf8')
-)
-const input = join(directory, 'cases')
-const sha = (value) => createHash('sha256').update(value).digest('hex')
-const authored = {}
-for (const name of readdirSync(input).sort()) {
-  const value = readFileSync(join(input, name))
-  assert.equal(sha(value), expected.inputs[name])
-  authored[name.slice(0, -4)] = value
-}
-assert.equal(Object.keys(authored).length, 7)
-const require = createRequire(join(consumer, 'package.json'))
-const next = require.resolve('next/dist/bin/next')
-const save = (dir, name, value) =>
-  writeFileSync(join(dir, name), JSON.stringify(value, null, 2) + '\n')
-save(output, 'inputs.json', {
-  runtime: process.version,
-  executable: realpathSync(process.execPath),
-  next: realpathSync(next),
-  fixtureSHA256: expected.inputs,
-  reference: expected.reference,
-})
-const env = { ...process.env, NEXT_TELEMETRY_DISABLED: '1', FORCE_COLOR: '0' }
-for (const key of [
-  'CI',
-  'NODE_OPTIONS',
-  'NODE_PATH',
-  'NEXT_TEST_NATIVE_DIR',
-  'NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL',
-])
-  delete env[key]
+const load = createRequire(join(consumer, 'package.json'))
+mkdirSync(output)
 const profiles = []
 for (const mode of ['development', 'production']) {
   const evidence = join(output, mode)
   mkdirSync(evidence)
-  const fixture = join(consumer, '.next-test-retry-publication-' + randomUUID())
-  mkdirSync(fixture)
+  const fixture = mkdtempSync(join(consumer, '.next-test-retry-publication-'))
   mkdirSync(join(fixture, 'cases'))
-  for (const [name, value] of Object.entries(authored))
-    writeFileSync(join(fixture, 'cases', name), value)
+  for (const name of readdirSync(join(directory, 'cases')))
+    copyFileSync(
+      join(directory, 'cases', name),
+      join(fixture, 'cases', name.replace(/\.txt$/, ''))
+    )
   symlinkSync(
     join(consumer, 'node_modules'),
     join(fixture, 'node_modules'),
@@ -81,152 +50,112 @@ for (const mode of ['development', 'production']) {
     join(fixture, 'next.config.mjs'),
     'export default ' + JSON.stringify({ turbopack: { root: consumer } }) + '\n'
   )
-  const test = {
-    mode,
-    environment: 'node',
-    include: ['cases/*.test.mjs'],
-    provide: { value: 0 },
-    maxWorkers: 1,
-    fileParallelism: false,
-    cache: false,
-    testTimeout: 5000,
-    hookTimeout: 5000,
-    retry: { count: 1, metadata: 'config' },
-  }
   writeFileSync(
     join(fixture, 'vitest.config.mjs'),
-    'export default ' + JSON.stringify({ test }) + '\n'
+    'export default ' +
+      JSON.stringify({
+        test: {
+          mode,
+          environment: 'node',
+          include: ['cases/*.test.mjs'],
+          provide: { value: 0 },
+          maxWorkers: 1,
+          fileParallelism: false,
+          cache: false,
+          testTimeout: 5000,
+          hookTimeout: 5000,
+          retry: { count: 1, metadata: 'config' },
+        },
+      }) +
+      '\n'
   )
-  const trace = join(evidence, 'rows.jsonl')
-  writeFileSync(trace, '')
-  writeFileSync(
-    join(fixture, 'reporter.mjs'),
-    readFileSync(join(directory, 'reporter.mjs'))
-  )
+  copyFileSync(join(directory, 'reporter.mjs'), join(fixture, 'reporter.mjs'))
+  const reporterResult = join(evidence, 'reporter-result.json')
+  const reportFile = join(evidence, 'report.json')
+  const env = {
+    ...process.env,
+    NODE_ENV: mode,
+    NEXT_TELEMETRY_DISABLED: '1',
+    FORCE_COLOR: '0',
+  }
+  for (const key of [
+    'CI',
+    'NODE_OPTIONS',
+    'NODE_PATH',
+    'NEXT_TEST_NATIVE_DIR',
+    'NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL',
+  ])
+    delete env[key]
+  env.NEXT_TESTING_RETRY_PUBLICATION_RESULT = reporterResult
   let joined = false
   try {
-    const args = [
-      next,
-      'test',
-      fixture,
-      '--run',
-      '--reporter=json',
-      '--reporter=' + join(fixture, 'reporter.mjs'),
-      '--outputFile=' + join(evidence, 'report.json'),
-    ]
-    save(evidence, 'authored.json', {
-      args,
-      test,
-      fixtureSHA256: expected.inputs,
-      bounds: { cli: 180000, test: 5000, hook: 5000 },
-    })
-    const result = await runOwnedNode(args, {
-      cwd: fixture,
-      env: {
-        ...env,
-        NODE_ENV: mode,
-        NEXT_TESTING_RETRY_PUBLICATION_TRACE: trace,
-      },
-      auditDir: join(evidence, 'owners'),
-      timeoutMs: 180000,
-    })
-    save(evidence, 'result.json', result)
+    const result = await runOwnedNode(
+      [
+        load.resolve('next/dist/bin/next'),
+        'test',
+        fixture,
+        '--run',
+        '--reporter=json',
+        '--reporter=' + join(fixture, 'reporter.mjs'),
+        '--outputFile=' + reportFile,
+      ],
+      {
+        cwd: fixture,
+        env,
+        auditDir: join(evidence, 'owners'),
+        timeoutMs: 180000,
+      }
+    )
     writeFileSync(join(evidence, 'stdout.log'), result.stdout)
     writeFileSync(join(evidence, 'stderr.log'), result.stderr)
     assertOwnedNodeCompleted(result, mode + ' retry publication')
     joined = true
-    assert.equal(
-      result.status,
-      0,
-      `Retry publication runtime failed; see ${evidence}`
+    assert.equal(result.status, 0, result.stderr)
+    const report = JSON.parse(readFileSync(reportFile, 'utf8'))
+    assert.equal(report.success, true)
+    assert.equal(report.numTotalTests, 8)
+    assert.equal(report.numPassedTests, 8)
+    assert.equal(report.numFailedTests, 0)
+    const cases = report.testResults.flatMap((file) =>
+      file.assertionResults.map((test) => ({ file: file.name, ...test }))
     )
-    const report = JSON.parse(
-      readFileSync(join(evidence, 'report.json'), 'utf8')
-    )
-    const actual = {
-      groups: Object.fromEntries(
-        Object.entries(
-          readFileSync(trace, 'utf8')
-            .split('\n')
-            .filter(Boolean)
-            .map((line) => JSON.parse(line))
-            .reduce((groups, row) => {
-              const key = row.actor === 'worker' ? row.contract : row.module
-              ;(groups[key] ??= []).push(row)
-              return groups
-            }, {})
-        ).sort(([a], [b]) => a.localeCompare(b))
-      ),
-      cases: report.testResults
-        .flatMap((file) =>
-          file.assertionResults.map((test) => ({
-            name: test.fullName,
-            state: test.status,
-            failureCount: test.failureMessages.length,
-            failureHeaders: test.failureMessages.map(
-              (message) => message.split('\n')[0]
-            ),
-            authoredFailureLocations: test.failureMessages.map(
-              (message) => message.match(/cases\/[^\s:]+:\d+:\d+/)?.[0] ?? null
-            ),
-          }))
-        )
-        .sort(
-          (a, b) =>
-            a.name.localeCompare(b.name) ||
-            JSON.stringify(a.authoredFailureLocations).localeCompare(
-              JSON.stringify(b.authoredFailureLocations)
-            )
-        ),
-      summary: Object.fromEntries(
-        Object.entries(report).filter(
-          ([key]) => key.startsWith('num') || key === 'success'
-        )
-      ),
-    }
-    save(
-      evidence,
-      'raw-failures.json',
-      report.testResults.map((file) => ({
-        file: file.name,
-        cases: file.assertionResults.map((test) => ({
-          name: test.fullName,
-          failureMessages: test.failureMessages,
-        })),
-      }))
-    )
-    save(evidence, 'actual-model.json', actual)
+    assert.equal(cases.length, 8)
     assert.deepEqual(
-      actual,
-      expected.models[mode],
-      'Complete ordered author rows, case states, retained failure counts/headers/actual authored coordinates and counts must match genuine; raw failure formatting and cross-process delivery scheduling are not asserted.'
+      [...new Set(cases.map((test) => basename(test.file)))].sort(),
+      readdirSync(join(directory, 'cases'))
+        .map((name) => name.replace(/\.txt$/, ''))
+        .sort()
     )
-    profiles.push({
-      mode,
-      cases: actual.cases.length,
-      wholeAuthorRows: Object.values(actual.groups).reduce(
-        (sum, rows) => sum + rows.length,
-        0
-      ),
-      completeGenuinePerContractModelExact: true,
-      allOwnersJoined: true,
+    for (const test of cases) {
+      assert.equal(test.status, 'passed', test.fullName)
+      assert.equal(
+        test.failureMessages.length,
+        test.fullName === 'worker live retry count' ? 2 : 0
+      )
+    }
+    assert.deepEqual(JSON.parse(readFileSync(reporterResult, 'utf8')), {
+      collected: 8,
+      ended: 8,
     })
+    profiles.push({ mode, cases: cases.length })
   } finally {
-    if (joined) rmSync(fixture, { recursive: true, force: true })
-    save(evidence, 'closure.json', {
-      allOwnersJoined: joined,
-      fixtureAbsent: !existsSync(fixture),
-    })
+    if (joined) {
+      rmSync(fixture, { recursive: true, force: true })
+      assert(!existsSync(fixture), 'The completed fixture must be removed')
+    }
   }
 }
-save(output, 'VERIFIED.json', {
-  profiles: profiles.length,
-  runs: profiles,
-  cases: profiles.reduce((sum, row) => sum + row.cases, 0),
-  wholeAuthorRows: profiles.reduce((sum, row) => sum + row.wholeAuthorRows, 0),
-  completePerContractGenuineModelsExact: true,
-  noCrossFileSchedulingClaimed: true,
-  allOwnersJoined: true,
-  allInputsRemovedAfterOwnedReadersJoined: true,
-  rawReportsRetained: true,
-})
+writeFileSync(
+  join(output, 'VERIFIED.json'),
+  JSON.stringify(
+    {
+      profiles: profiles.length,
+      runs: profiles,
+      cases: profiles.reduce((n, p) => n + p.cases, 0),
+      behavioralChecks: true,
+      allOwnersJoined: true,
+    },
+    null,
+    2
+  ) + '\n'
+)

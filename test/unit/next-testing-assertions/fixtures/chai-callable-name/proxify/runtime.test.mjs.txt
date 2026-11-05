@@ -1,23 +1,53 @@
-import { expect, test, chai, afterAll } from 'vitest'
-const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+import { chai, expect, test, afterAll } from 'vitest'
+import assert from 'node:assert/strict'
 const marker = {}
-let base, alias, firstReceiver, aliasReceiver, reads = 0
-chai.use((c, utils) => utils.addMethod(c.Assertion.prototype, 'nameAliased', function () { return this }))
+let base,
+  alias,
+  reads = 0
+chai.use((c, u) =>
+  u.addMethod(c.Assertion.prototype, 'nameAliased', function () {
+    return this
+  })
+)
+function checkDeleted() {
+  for (const fn of [base, alias]) {
+    assert.equal(Object.hasOwn(fn, 'name'), false)
+    assert.equal(fn.name, '')
+  }
+  assert.equal(reads, 2)
+}
 test('native proxify shares actual function metadata and getter receivers', () => {
   base = chai.Assertion.prototype.nameAliased
-  Object.defineProperty(base, 'sharedNameField', { configurable: true, value: marker })
-  const getter = function () { reads++; return this }
+  Object.defineProperty(base, 'sharedNameField', {
+    configurable: true,
+    value: marker,
+  })
+  const getter = function () {
+    reads++
+    return this
+  }
   Object.defineProperty(base, 'name', { configurable: true, get: getter })
   alias = chai.util.proxify(base)
-  firstReceiver = base.name
-  aliasReceiver = alias.name
-  const descriptor = Object.getOwnPropertyDescriptor(alias, 'name')
-  emit({ kind: 'alias-getter', sameAlias: alias === base, sameNativeGetterReceiver: firstReceiver === aliasReceiver, receiverIsBase: firstReceiver === base, receiverIsAlias: aliasReceiver === alias, sharedMarker: firstReceiver.sharedNameField === marker && aliasReceiver.sharedNameField === marker, actualGetter: descriptor.get === getter, reads })
-  Object.defineProperty(alias, 'name', { configurable: true, value: 'actual shared renamed callable' })
-  emit({ kind: 'alias-write', base: base.name, alias: alias.name, descriptor: Object.getOwnPropertyDescriptor(base, 'name').value, reads })
+  const first = base.name,
+    second = alias.name
+  assert.equal(alias === base, chai.config.useProxy === false)
+  assert.equal(first, second)
+  assert.equal(first === base, chai.config.useProxy === false)
+  assert.equal(second === alias, chai.config.useProxy === false)
+  assert.equal(first.sharedNameField, marker)
+  assert.equal(second.sharedNameField, marker)
+  assert.equal(Object.getOwnPropertyDescriptor(alias, 'name').get, getter)
+  assert.equal(reads, 2)
+  Object.defineProperty(alias, 'name', {
+    configurable: true,
+    value: 'actual shared renamed callable',
+  })
+  assert.equal(base.name, 'actual shared renamed callable')
+  assert.equal(alias.name, base.name)
+  assert.equal(Object.getOwnPropertyDescriptor(base, 'name').value, base.name)
 })
 test('retained aliases preserve real deletion and shared inherited name', () => {
-  const removed = delete base.name
-  emit({ kind: 'alias-delete', removed, baseOwn: Object.hasOwn(base, 'name'), aliasOwn: Object.hasOwn(alias, 'name'), base: base.name, alias: alias.name, reads })
+  assert.equal(delete base.name, true)
+  checkDeleted()
 })
-afterAll(() => emit({ kind: 'alias-afterAll', baseOwn: Object.hasOwn(base, 'name'), aliasOwn: Object.hasOwn(alias, 'name'), base: base.name, alias: alias.name, reads }))
+afterAll(checkDeleted)

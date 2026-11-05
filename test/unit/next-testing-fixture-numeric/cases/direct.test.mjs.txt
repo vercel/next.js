@@ -1,4 +1,16 @@
 import { test, describe, expect } from 'vitest'
-const row = (...event) => console.log('FIXTURE_DEPENDENCY_ROW ' + JSON.stringify({ contract: "direct", event }))
-const owned = test.extend({ 42: async ({}, use) => { row('setup'); await use(42); row('cleanup') } })
-owned('numeric direct', ({ 42: value }) => { row('body', value); expect(value).toBe(42) })
+const row = (phase) =>
+  console.log(
+    'FIXTURE_DEPENDENCY_ROW ' + JSON.stringify({ contract: 'direct', phase })
+  )
+const owned = test.extend({
+  42: async ({}, use) => {
+    row('setup')
+    await use(42)
+    row('cleanup')
+  },
+})
+owned('numeric direct', ({ 42: value }) => {
+  row('body', value)
+  expect(value).toBe(42)
+})

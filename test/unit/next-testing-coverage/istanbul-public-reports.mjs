@@ -1,5 +1,5 @@
+import { assertCoverageCounters } from './snapshot-coverage-assertions.mjs'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   readFileSync,
@@ -35,43 +35,18 @@ assert(
   row && !Object.hasOwn(pristine.unqualifiedProfiles, profile),
   'Profile still requires its recorded implementation increment'
 )
-const fixture = mkdtempSync(join(consumer, '.next-istanbul-public-')),
-  hash = (value) => createHash('sha256').update(value).digest('hex'),
-  canonical = (data) =>
-    Object.fromEntries(
-      Object.entries(data).map(([name, row]) => [
-        name === 'total' ? name : basename(name),
-        { ...row, ...('path' in row ? { path: basename(row.path) } : {}) },
-      ])
-    )
-function asset(name, bytes) {
-  if (!/\.(html|xml)$/.test(name)) return bytes
-  let text = bytes.toString('utf8').replaceAll(fixture, '<PROJECT_ROOT>')
-  if (name.endsWith('.html'))
-    text = text.replace(
-      /at \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g,
-      'at <DATETIME>'
-    )
-  if (name === 'clover.xml')
-    text = text.replace(/(generated|timestamp)="\d+"/g, '$1="<TIMESTAMP>"')
-  return Buffer.from(text)
-}
+const fixture = mkdtempSync(join(consumer, '.next-istanbul-public-'))
 const keys = [
   'ancestorTitles',
   'fullName',
   'status',
   'title',
   'failureMessages',
-  'meta',
-  'tags',
-  'benchmarks',
 ]
 mkdirSync(output, { recursive: true })
 try {
-  for (const [name, file] of Object.entries(pristine.sourceFiles)) {
-    assert.equal(hash(file.source), file.sha256)
-    writeFileSync(join(fixture, name), file.source)
-  }
+  for (const [name, source] of Object.entries(pristine.sourceFiles))
+    writeFileSync(join(fixture, name), source)
   writeFileSync(join(fixture, 'vitest.config.mjs'), row.before)
   writeFileSync(
     join(fixture, 'next.config.mjs'),
@@ -187,11 +162,36 @@ try {
     }
   }
   scan(join(fixture, 'coverage'))
-  assert.deepEqual(files.sort(), row.files.map((file) => file.name).sort())
-  for (const file of row.files) {
-    const bytes = readFileSync(join(fixture, 'coverage', file.name))
-    if (file.model) assert.deepEqual(canonical(JSON.parse(bytes)), file.model)
-    else assert.equal(hash(asset(file.name, bytes)), file.sha256, file.name)
+  assert.deepEqual(files.sort(), row.files.slice().sort())
+  for (const name of row.files) {
+    const bytes = readFileSync(join(fixture, 'coverage', name))
+    if (name === 'coverage-final.json')
+      assertCoverageCounters(JSON.parse(bytes), fixture, row.coverage)
+    else if (name === 'coverage-summary.json') {
+      const summary = JSON.parse(bytes)
+      assert.deepEqual(
+        Object.keys(summary)
+          .map((name) => basename(name))
+          .sort(),
+        row.summary.files
+      )
+      assert.deepEqual(summary.total, row.summary.total)
+    } else if (name === 'retained-sentinel.txt')
+      assert.equal(bytes.toString(), 'original report bytes\n')
+    else if (name === 'lcov.info') {
+      if (Object.keys(row.coverage ?? {}).length)
+        assert.match(bytes.toString(), /^SF:/m)
+      else assert.equal(bytes.length, 0)
+    } else if (name.endsWith('.html'))
+      assert.match(bytes.toString(), /<!doctype html>|<html/i)
+    else if (name.endsWith('.xml')) assert.match(bytes.toString(), /<\?xml/)
+    else if (name.endsWith('.png'))
+      assert.deepEqual(
+        [...bytes.subarray(0, 8)],
+        [137, 80, 78, 71, 13, 10, 26, 10]
+      )
+    else
+      assert(bytes.length > 0, 'Static report asset must not be empty: ' + name)
   }
   const lines = owner.stdout.split('\n'),
     offset = lines.findIndex(
@@ -208,16 +208,14 @@ try {
       .map((line) => line.replace(/^ERROR: /, '')),
     row.thresholdErrors
   )
-  for (const [name, file] of Object.entries(pristine.sourceFiles))
-    assert.equal(hash(readFileSync(join(fixture, name))), file.sha256)
   writeFileSync(
     join(output, 'CHECKS.json'),
     JSON.stringify(
       {
         profile,
         actualPublicCLI: true,
-        completeCaseProjection: true,
-        wholeMapsSummaryLCOVAndReportAssets: true,
+        caseOutcomes: true,
+        coverageHitsSummariesAndAssetFormats: true,
         actualThresholdsAndConfigBytes: true,
         disabledInstrumentationAbsent: disabled,
         ownedProcessTreeClosed: true,

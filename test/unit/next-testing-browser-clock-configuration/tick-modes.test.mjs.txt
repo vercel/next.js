@@ -1,0 +1,126 @@
+import { afterAll, expect, test, vi } from 'vitest'
+
+const epoch = 1700000000000
+const original = {
+  Date: globalThis.Date,
+  setTimeout: globalThis.setTimeout,
+  clearTimeout: globalThis.clearTimeout,
+  queueMicrotask: globalThis.queueMicrotask,
+}
+let pendingEvents
+
+function expectClock(now, count) {
+  expect(Date.now()).toBe(now)
+  expect(vi.isFakeTimers()).toBe(true)
+  expect(vi.getTimerCount()).toBe(count)
+  expect(vi.getMockedSystemTime().getTime()).toBe(now)
+}
+
+function expectRealTimers() {
+  expect(globalThis.Date).toBe(original.Date)
+  expect(globalThis.setTimeout).toBe(original.setTimeout)
+  expect(globalThis.clearTimeout).toBe(original.clearTimeout)
+  expect(globalThis.queueMicrotask).toBe(original.queueMicrotask)
+  expect(vi.isFakeTimers()).toBe(false)
+  expect(vi.getMockedSystemTime()).toBeNull()
+}
+
+afterAll(() => {
+  vi.useRealTimers()
+  expectRealTimers()
+})
+
+test('runs inside the actual browser realm', () => {
+  const element = document.createElement('span')
+  expect(element.ownerDocument).toBe(document)
+  expect(window).toBe(globalThis)
+  expect(element.tagName).toBe('SPAN')
+})
+
+test('next async ticks preserve nested Promise and fake microtask order', async () => {
+  vi.useFakeTimers({
+    now: epoch,
+    toFake: ['Date', 'setTimeout', 'clearTimeout', 'queueMicrotask'],
+  })
+  const events = []
+  expect(vi.setTimerTickMode('nextTimerAsync')).toBe(vi)
+  await new Promise((resolve) => {
+    setTimeout(() => {
+      events.push(['first', Date.now()])
+      queueMicrotask(() => events.push(['microtask', Date.now()]))
+      Promise.resolve().then(() => events.push(['promise', Date.now()]))
+      setTimeout(() => {
+        events.push(['nested', Date.now()])
+        vi.setTimerTickMode('manual')
+        resolve()
+      }, 7)
+    }, 5)
+  })
+  expect(events).toEqual([
+    ['first', epoch + 5],
+    ['microtask', epoch + 5],
+    ['promise', epoch + 5],
+    ['nested', epoch + 12],
+  ])
+  pendingEvents = events
+  setTimeout(() => events.push(['retained', Date.now()]), 11)
+  expectClock(epoch + 12, 1)
+})
+
+test('manual clock and pending native timer persist into the following case', () => {
+  expectClock(epoch + 12, 1)
+  expect(vi.advanceTimersByTime(11)).toBe(vi)
+  expect(pendingEvents.at(-1)).toEqual(['retained', epoch + 23])
+  expectClock(epoch + 23, 0)
+  vi.useRealTimers()
+  expectRealTimers()
+})
+
+test('interval ticking can return to manual mode inside its actual timer callback', async () => {
+  try {
+    vi.useFakeTimers({
+      now: epoch + 100,
+      toFake: ['Date', 'setTimeout', 'clearTimeout'],
+    })
+    const events = []
+    expect(vi.setTimerTickMode('interval', 5)).toBe(vi)
+    await new Promise((resolve) =>
+      setTimeout(() => {
+        events.push(['interval', Date.now()])
+        vi.setTimerTickMode('manual')
+        resolve()
+      }, 15)
+    )
+    expectClock(epoch + 115, 0)
+    setTimeout(() => events.push(['manual', Date.now()]), 5)
+    vi.advanceTimersByTime(5)
+    expectClock(epoch + 120, 0)
+    expect(events).toEqual([
+      ['interval', epoch + 115],
+      ['manual', epoch + 120],
+    ])
+  } finally {
+    vi.useRealTimers()
+    expectRealTimers()
+  }
+})
+
+test('next async timer callbacks can explicitly restore the real clock', async () => {
+  try {
+    vi.useFakeTimers({
+      now: epoch + 200,
+      toFake: ['Date', 'setTimeout', 'clearTimeout'],
+    })
+    expect(vi.setTimerTickMode('nextTimerAsync')).toBe(vi)
+    await new Promise((resolve) =>
+      setTimeout(() => {
+        expectClock(epoch + 204, 0)
+        vi.useRealTimers()
+        resolve()
+      }, 4)
+    )
+    expectRealTimers()
+  } finally {
+    vi.useRealTimers()
+  }
+})

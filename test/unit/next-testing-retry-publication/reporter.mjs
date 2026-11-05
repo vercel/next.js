@@ -1,84 +1,87 @@
-import { appendFileSync } from 'node:fs'
-const trace = process.env.NEXT_TESTING_RETRY_PUBLICATION_TRACE
-const record = (value) => appendFileSync(trace, JSON.stringify(value) + '\n')
-function snapshot(module) {
-  return [...module.children.allTests()].map((test) => {
-    const retry = test.options.retry
-    const metadata =
-      retry && typeof retry === 'object' ? retry.metadata : undefined
-    const count =
-      retry && typeof retry === 'object'
-        ? Object.getOwnPropertyDescriptor(retry, 'count')
-        : undefined
-    const value =
-      metadata && typeof metadata === 'object'
-        ? Object.getOwnPropertyDescriptor(metadata, 'value')
-        : undefined
-    return {
-      name: test.name,
-      retry,
-      metadata,
-      countDescriptor: count
-        ? {
-            hasValue: Object.hasOwn(count, 'value'),
-            getter: typeof count.get,
-            value: count.value,
-          }
-        : null,
-      ...(test.name === 'reporter retry identity' ? { meta: test.meta() } : {}),
-      metadataValueDescriptor: value
-        ? {
-            hasValue: Object.hasOwn(value, 'value'),
-            getter: typeof value.get,
-            value: value.value,
-          }
-        : null,
+import assert from 'node:assert/strict'
+import { writeFileSync } from 'node:fs'
+
+const names = [
+  'array metadata',
+  'count publication',
+  'inherits suite retry',
+  'nested getter publication',
+  'object metadata',
+  'replaces suite retry',
+  'reporter retry identity',
+  'worker live retry count',
+]
+
+function assertPublishedRetry(test, phase) {
+  const retry = test.options.retry
+  const count = Object.getOwnPropertyDescriptor(retry, 'count')
+  assert.equal(typeof count.get, 'undefined')
+  assert.equal(count.value, test.name === 'count publication' ? 1 : 0)
+
+  switch (test.name) {
+    case 'array metadata':
+      assert.deepEqual(retry.metadata, [42, { value: 7 }])
+      break
+    case 'object metadata':
+      assert.deepEqual(retry.metadata, { nested: { value: 42 } })
+      break
+    case 'nested getter publication': {
+      const value = Object.getOwnPropertyDescriptor(retry.metadata, 'value')
+      assert.equal(typeof value.get, 'undefined')
+      assert.equal(value.value, 42)
+      break
     }
-  })
+    case 'reporter retry identity':
+      assert.equal(retry.metadata.nested.value, phase === 'collected' ? 42 : 73)
+      assert.equal(retry.fromReporter, phase === 'collected' ? undefined : 111)
+      break
+    case 'inherits suite retry':
+      assert.deepEqual(retry.metadata, { value: 42 })
+      break
+    case 'replaces suite retry':
+      assert.deepEqual(retry.metadata, [7])
+      break
+    default:
+      assert.equal(retry.metadata, undefined)
+  }
 }
+
 export default class {
+  collected = new Set()
+  ended = new Set()
   held
-  onUserConsoleLog(log) {
-    for (const line of log.content.split('\n'))
-      if (line.startsWith('RETRY_PUBLICATION_ROW '))
-        appendFileSync(trace, line.slice(22) + '\n')
-  }
+
   onTestModuleCollected(module) {
-    record({
-      actor: 'reporter',
-      phase: 'collected',
-      module: module.relativeModuleId,
-      cases: snapshot(module),
-    })
-    if (module.relativeModuleId.endsWith('identity.test.mjs')) {
-      this.held = [...module.children.allTests()][0].options.retry
-      this.held.metadata.nested.value = 73
-      this.held.fromReporter = 111
-      record({
-        actor: 'reporter',
-        phase: 'mutated',
-        module: module.relativeModuleId,
-        value: this.held.metadata.nested.value,
-        fromReporter: this.held.fromReporter,
-      })
+    for (const test of module.children.allTests()) {
+      assertPublishedRetry(test, 'collected')
+      assert(!this.collected.has(test.name))
+      this.collected.add(test.name)
+      if (test.name === 'reporter retry identity') {
+        this.held = test.options.retry
+        this.held.metadata.nested.value = 73
+        this.held.fromReporter = 111
+      }
     }
   }
+
   onTestModuleEnd(module) {
-    record({
-      actor: 'reporter',
-      phase: 'end',
-      module: module.relativeModuleId,
-      cases: snapshot(module),
-    })
-    if (module.relativeModuleId.endsWith('identity.test.mjs'))
-      record({
-        actor: 'reporter',
-        phase: 'retained',
-        module: module.relativeModuleId,
-        sameRetry:
-          [...module.children.allTests()][0].options.retry === this.held,
-        value: this.held.metadata.nested.value,
-        fromReporter: this.held.fromReporter,
-      })
+    for (const test of module.children.allTests()) {
+      assert(this.collected.has(test.name))
+      assertPublishedRetry(test, 'end')
+      this.ended.add(test.name)
+      if (test.name === 'reporter retry identity') {
+        assert.equal(test.options.retry, this.held)
+        assert.equal(test.meta().marker, 'worker live')
+      }
+    }
+  }
+
+  onTestRunEnd() {
+    assert.deepEqual([...this.collected].sort(), names)
+    assert.deepEqual([...this.ended].sort(), names)
+    writeFileSync(
+      process.env.NEXT_TESTING_RETRY_PUBLICATION_RESULT,
+      JSON.stringify({ collected: this.collected.size, ended: this.ended.size })
+    )
   }
 }

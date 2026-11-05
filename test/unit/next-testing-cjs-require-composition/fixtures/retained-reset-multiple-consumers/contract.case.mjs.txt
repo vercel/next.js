@@ -1,39 +1,79 @@
-import {test,expect,vi} from 'vitest'
+import { test, expect, vi } from 'vitest'
 import * as mocked from './target.cjs'
 import required from './consumer.cjs'
-import {appendFileSync} from 'node:fs'
-vi.mock('./target.cjs',()=>{globalThis.__requireReset126FactoryCount=(globalThis.__requireReset126FactoryCount??0)+1;return{value:'mocked',default:{value:'mock-default',token:{}}}})
+vi.mock('./target.cjs', () => {
+  globalThis.__requireReset126FactoryCount =
+    (globalThis.__requireReset126FactoryCount ?? 0) + 1
+  return { value: 'mocked', default: { value: 'mock-default', token: {} } }
+})
 const reset = vi.resetModules
-const descriptor=(value)=>Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return{key:typeof key==='symbol'?String(key):key,enumerable:d.enumerable,configurable:d.configurable,...('writable'in d?{writable:d.writable}:{}),kind:'value'in d?'data':'accessor',type:typeof('value'in d?d.value:d.get)}})
-test('original CommonJS require and mocked ESM remain separate',async()=>{const raw=required.read(),dynamic=await import('./target.cjs');expect(raw).toBe(required.initial);expect(raw.value).toBe('actual');expect(mocked.value).toBe('mocked');expect(mocked.default.value).toBe('mock-default');expect(dynamic).toBe(mocked);expect(globalThis.__requireReset126FactoryCount).toBe(1);appendFileSync(process.env.NEXT_REQUIRE_ROWS,JSON.stringify({name:'ordinary-require-composition',rawValue:raw.value,mockedValue:mocked.value,defaultValue:mocked.default.value,rawIdentity:raw===required.initial,mockedIdentity:dynamic===mocked,factoryCalls:globalThis.__requireReset126FactoryCount,rawKeys:Reflect.ownKeys(raw),mockedKeys:Reflect.ownKeys(mocked).map(x=>typeof x==='symbol'?String(x):x),rawDescriptors:descriptor(raw),mockedDescriptors:descriptor(mocked),})+'\n')})
+test('original CommonJS require and mocked ESM remain separate', async () => {
+  const raw = required.read(),
+    dynamic = await import('./target.cjs')
+  expect(raw).toBe(required.initial)
+  expect(raw.value).toBe('actual')
+  expect(mocked.value).toBe('mocked')
+  expect(mocked.default.value).toBe('mock-default')
+  expect(dynamic).toBe(mocked)
+  expect(globalThis.__requireReset126FactoryCount).toBe(1)
+})
 
-test('reset composes the original require cache with the mocked ESM namespace',async()=>{
- const beforeRaw=required.read();
- const beforeMocked=await import('./target.cjs');
- const beforeConsumer=await import('./consumer.cjs');
- const returned=vi.resetModules();
- const afterMocked=await import('./target.cjs');
- const afterConsumer=await import('./consumer.cjs');
- const heldRaw=required.read();
- const afterRaw=afterConsumer.default.read();
- expect(heldRaw.value).toBe('actual');expect(afterRaw.value).toBe('actual');expect(afterMocked.value).toBe('mocked');
- appendFileSync(process.env.NEXT_REQUIRE_ROWS,JSON.stringify({name:'reset-require-composition',resetReturnSame:returned===vi,rawHeldIdentity:heldRaw===beforeRaw,rawReloadedIdentity:afterRaw===beforeRaw,rawTokenIdentity:afterRaw.token===beforeRaw.token,consumerDefaultIdentity:afterConsumer.default===required,consumerNamespaceIdentity:afterConsumer===beforeConsumer,consumerInitialIdentity:afterConsumer.default.initial===beforeRaw,mockedNamespaceIdentity:afterMocked===beforeMocked,staticNamespaceIdentity:afterMocked===mocked,defaultTokenIdentity:afterMocked.default.token===beforeMocked.default.token,factoryCalls:globalThis.__requireReset126FactoryCount,rawValue:afterRaw.value,mockedValue:afterMocked.value,defaultValue:afterMocked.default.value,beforeRawDescriptors:descriptor(beforeRaw),afterRawDescriptors:descriptor(afterRaw),beforeMockedDescriptors:descriptor(beforeMocked),afterMockedDescriptors:descriptor(afterMocked),beforeConsumerDescriptors:descriptor(beforeConsumer),afterConsumerDescriptors:descriptor(afterConsumer),beforeRequiredDescriptors:descriptor(required),afterRequiredDescriptors:descriptor(afterConsumer.default)})+'\n')
+test('reset composes the original require cache with the mocked ESM namespace', async () => {
+  const beforeRaw = required.read()
+  const beforeMocked = await import('./target.cjs')
+  const beforeConsumer = await import('./consumer.cjs')
+  const returned = vi.resetModules()
+  const afterMocked = await import('./target.cjs')
+  const afterConsumer = await import('./consumer.cjs')
+  const heldRaw = required.read()
+  const afterRaw = afterConsumer.default.read()
+  expect(heldRaw.value).toBe('actual')
+  expect(afterRaw.value).toBe('actual')
+  expect(afterMocked.value).toBe('mocked')
+  expect(returned).toBe(vi)
+  expect(heldRaw).toBe(beforeRaw)
+  expect(afterRaw).toBe(beforeRaw)
+  expect(afterRaw.token).toBe(beforeRaw.token)
+  expect(afterConsumer.default).not.toBe(required)
+  expect(afterConsumer).not.toBe(beforeConsumer)
+  expect(afterConsumer.default.initial).toBe(beforeRaw)
+  expect(afterMocked).toBe(beforeMocked)
+  expect(afterMocked).toBe(mocked)
+  expect(afterMocked.default.token).toBe(beforeMocked.default.token)
+  expect(globalThis.__requireReset126FactoryCount).toBe(1)
+  expect(afterMocked.default.value).toBe('mock-default')
 })
 
 import requiredB from './consumer-b.cjs'
 import requiredC from './consumer-c.cjs'
-const same=(values)=>values.map(value=>values.map(other=>value===other))
-test('multiple CommonJS consumers share one original leaf across reset',async()=>{
- const beforeNamespaces=[await import('./consumer.cjs'),await import('./consumer-b.cjs'),await import('./consumer-c.cjs')]
- const held=[required,requiredB,requiredC]
- const before=beforeNamespaces.map(value=>value.default)
- const beforeRaw=[...held,...before].map(value=>value.read())
- const returned=reset()
- const afterNamespaces=[await import('./consumer.cjs'),await import('./consumer-b.cjs'),await import('./consumer-c.cjs')]
- const after=afterNamespaces.map(value=>value.default)
- const afterRaw=[...held,...after].map(value=>value.read())
- const raw=[...beforeRaw,...afterRaw]
- expect(raw.map(value=>value.value)).toEqual(Array(raw.length).fill('actual'))
- expect(mocked.value).toBe('mocked')
- appendFileSync(process.env.NEXT_REQUIRE_ROWS,JSON.stringify({name:'multiple-consumer-graph',resetReturnSame:returned===vi,consumerIdentities:same([...held,...before,...after]),namespaceIdentities:same([...beforeNamespaces,...afterNamespaces]),rawIdentities:same(raw),rawTokenIdentities:same(raw.map(value=>value.token)),rawValues:raw.map(value=>value.value),factoryCalls:globalThis.__requireReset126FactoryCount,consumers:[...held,...before,...after].map(value=>({keys:Reflect.ownKeys(value).map(String),descriptors:descriptor(value),initialIsFirstRaw:value.initial===raw[0]})),mockDescriptors:descriptor(mocked)})+'\n')
+test('multiple CommonJS consumers share one original leaf across reset', async () => {
+  const beforeNamespaces = [
+    await import('./consumer.cjs'),
+    await import('./consumer-b.cjs'),
+    await import('./consumer-c.cjs'),
+  ]
+  const held = [required, requiredB, requiredC]
+  const before = beforeNamespaces.map((value) => value.default)
+  const beforeRaw = [...held, ...before].map((value) => value.read())
+  const returned = reset()
+  const afterNamespaces = [
+    await import('./consumer.cjs'),
+    await import('./consumer-b.cjs'),
+    await import('./consumer-c.cjs'),
+  ]
+  const after = afterNamespaces.map((value) => value.default)
+  const afterRaw = [...held, ...after].map((value) => value.read())
+  const raw = [...beforeRaw, ...afterRaw]
+  expect(raw.map((value) => value.value)).toEqual(
+    Array(raw.length).fill('actual')
+  )
+  expect(mocked.value).toBe('mocked')
+  expect(returned).toBe(vi)
+  expect(new Set([...held, ...before, ...after]).size).toBe(9)
+  expect(new Set([...beforeNamespaces, ...afterNamespaces]).size).toBe(6)
+  expect(new Set(raw).size).toBe(1)
+  expect(new Set(raw.map((value) => value.token)).size).toBe(1)
+  expect(globalThis.__requireReset126FactoryCount).toBe(1)
+  for (const consumer of [...held, ...before, ...after])
+    expect(consumer.initial).toBe(raw[0])
 })

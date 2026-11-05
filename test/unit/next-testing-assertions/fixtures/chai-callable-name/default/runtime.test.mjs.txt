@@ -1,48 +1,130 @@
-import { expect, test, chai, afterAll } from 'vitest'
-const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
-const TAG = '__vitest_poll_takeover__'
+import { chai, expect, test, afterAll } from 'vitest'
+import assert from 'node:assert/strict'
 const held = {}
-let inputNameReads = 0, reads = 0, writes = [], failGetter = false
-const sentinel = new Error('actual name getter failure')
-const setterSentinel = new Error('actual name setter failure')
-function ordinaryMatcher() { return { pass: true, message: () => 'ordinary' } }
-Object.defineProperty(ordinaryMatcher, 'name', { configurable: true, get() { inputNameReads++; return 'authored-input-name' } })
-function taggedMatcher() { return { pass: true, message: () => 'tagged' } }
-Object.defineProperty(taggedMatcher, TAG, { value: true })
-expect.extend({ toNameOrdinary: ordinaryMatcher, toNameTagged: taggedMatcher })
-chai.use((c, utils) => {
-  utils.addMethod(c.Assertion.prototype, 'nameNative', function () { return this })
-  utils.addMethod(c.Assertion.prototype, 'nameAccessor', function () { return this })
-  utils.addMethod(c.Assertion.prototype, 'nameDeleted', function () { return this })
-})
-const result = action => { try { return { ok: true, value: action() } } catch(error) { return { ok: false, sameSentinel: error === sentinel, sameSetterSentinel: error === setterSentinel, name: error.name, message: error.message } } }
-function describe(fn) {
-  return result(() => {
-    const d = Object.getOwnPropertyDescriptor(fn, 'name')
-    return d === undefined ? { own: false } : { own: true, keys: Reflect.ownKeys(d), configurable: d.configurable, enumerable: d.enumerable, writable: d.writable ?? null, value: d.value ?? null, getter: typeof d.get, setter: typeof d.set }
-  })
+let inputNameReads = 0,
+  reads = 0,
+  writes = [],
+  failGetter = false,
+  accessor,
+  getter,
+  setter
+const sentinel = new Error('actual name getter failure'),
+  setterSentinel = new Error('actual name setter failure')
+function ordinaryMatcher() {
+  return { pass: true, message: () => 'ordinary' }
 }
-function names() { return Object.fromEntries(Object.entries(held).map(([key, fn]) => [key, { descriptor: describe(fn), read: result(() => fn.name) }])) }
-test('actual callable name producers retain their native metadata', () => {
-  for (const [key, name] of Object.entries({ equal: 'equal', assert: 'assert', native: 'nameNative', ordinary: 'toNameOrdinary', tagged: 'toNameTagged' })) held[key] = chai.Assertion.prototype[name]
-  const input = chai.expect(1)
-  const returned = held.equal.call(input, 1)
-  emit({ kind: 'producer', names: names(), inputNameReads, sameReturnedAssertion: returned === input })
+Object.defineProperty(ordinaryMatcher, 'name', {
+  configurable: true,
+  get() {
+    inputNameReads++
+    return 'authored-input-name'
+  },
 })
-let accessor, getter, setter
+function taggedMatcher() {
+  return { pass: true, message: () => 'tagged' }
+}
+Object.defineProperty(taggedMatcher, '__vitest_poll_takeover__', {
+  value: true,
+})
+expect.extend({ toNameOrdinary: ordinaryMatcher, toNameTagged: taggedMatcher })
+chai.use((c, u) => {
+  for (const name of ['nameNative', 'nameAccessor', 'nameDeleted'])
+    u.addMethod(c.Assertion.prototype, name, function () {
+      return this
+    })
+})
+function names() {
+  return Object.fromEntries(
+    Object.entries(held).map(([key, fn]) => [
+      key,
+      Object.getOwnPropertyDescriptor(fn, 'name'),
+    ])
+  )
+}
+function checkNames() {
+  for (const [key, fn] of Object.entries(held))
+    assert.deepEqual(Object.getOwnPropertyDescriptor(fn, 'name'), {
+      value: key === 'assert' ? 'assert' : 'methodWrapper',
+      writable: false,
+      configurable: true,
+      enumerable: false,
+    })
+  assert.equal(inputNameReads, 0)
+}
+test('actual callable name producers retain their native metadata', () => {
+  for (const [key, name] of Object.entries({
+    equal: 'equal',
+    assert: 'assert',
+    native: 'nameNative',
+    ordinary: 'toNameOrdinary',
+    tagged: 'toNameTagged',
+  }))
+    held[key] = chai.Assertion.prototype[name]
+  const input = chai.expect(1)
+  assert.notEqual(held.equal.call(input, 1), input)
+  checkNames()
+})
 test('authored callable name accessors retain identity and exact native receivers', () => {
   accessor = chai.Assertion.prototype.nameAccessor
-  getter = function () { reads++; if (failGetter) throw sentinel; return { sameReceiver: this === accessor, receiverType: typeof this, ownsGetter: Object.getOwnPropertyDescriptor(this, 'name').get === getter } }
-  setter = function (value) { writes.push({ value, sameReceiver: this === accessor }); if (value === 'throw') throw setterSentinel }
-  Object.defineProperty(accessor, 'name', { configurable: true, enumerable: true, get: getter, set: setter })
-  const descriptor = result(() => { const d = Object.getOwnPropertyDescriptor(accessor, 'name'); return { sameGetter: d.get === getter, sameSetter: d.set === setter, hasValue: Object.hasOwn(d, 'value'), hasWritable: Object.hasOwn(d, 'writable'), enumerable: d.enumerable, configurable: d.configurable } })
-  emit({ kind: 'accessor', descriptor, readsBeforeAccess: reads, read: result(() => accessor.name), written: result(() => Reflect.set(accessor, 'name', 'value')), setterFailure: result(() => Reflect.set(accessor, 'name', 'throw')), reads, writes })
+  getter = function () {
+    reads++
+    if (failGetter) throw sentinel
+    return {
+      sameReceiver: this === accessor,
+      receiverType: typeof this,
+      ownsGetter: Object.getOwnPropertyDescriptor(this, 'name').get === getter,
+    }
+  }
+  setter = function (value) {
+    writes.push({ value, sameReceiver: this === accessor })
+    if (value === 'throw') throw setterSentinel
+  }
+  Object.defineProperty(accessor, 'name', {
+    configurable: true,
+    enumerable: true,
+    get: getter,
+    set: setter,
+  })
+  assert.deepEqual(Object.getOwnPropertyDescriptor(accessor, 'name'), {
+    get: getter,
+    set: setter,
+    configurable: true,
+    enumerable: true,
+  })
+  assert.equal(reads, 0)
+  assert.deepEqual(accessor.name, {
+    sameReceiver: chai.config.useProxy === false,
+    receiverType: 'function',
+    ownsGetter: true,
+  })
+  assert.equal(Reflect.set(accessor, 'name', 'value'), true)
+  assert.throws(
+    () => Reflect.set(accessor, 'name', 'throw'),
+    (error) => error === setterSentinel
+  )
+  assert.deepEqual(writes, [
+    { value: 'value', sameReceiver: true },
+    { value: 'throw', sameReceiver: true },
+  ])
+  assert.equal(reads, 1)
 })
 test('retained callable names and actual own-name deletion remain native', () => {
+  checkNames()
+  assert.equal(held.ordinary, chai.Assertion.prototype.toNameOrdinary)
   const deleted = chai.Assertion.prototype.nameDeleted
-  const prior = describe(deleted)
-  const removed = delete deleted.name
+  assert.equal(delete deleted.name, true)
+  assert.equal(Object.hasOwn(deleted, 'name'), false)
+  assert.equal(deleted.name, '')
   failGetter = true
-  emit({ kind: 'later', names: names(), inputNameReads, sameOrdinary: held.ordinary === chai.Assertion.prototype.toNameOrdinary, deleted: { prior, removed, after: describe(deleted), own: result(() => Object.hasOwn(deleted, 'name')), read: result(() => deleted.name) }, getterFailure: result(() => accessor.name), reads, writes })
+  assert.throws(
+    () => accessor.name,
+    (error) => error === sentinel
+  )
+  assert.equal(reads, 2)
 })
-afterAll(() => emit({ kind: 'afterAll', names: names(), inputNameReads, descriptor: result(() => { const d = Object.getOwnPropertyDescriptor(accessor, 'name'); return { sameGetter: d.get === getter, sameSetter: d.set === setter } }), reads, writes }))
+afterAll(() => {
+  checkNames()
+  assert.equal(Object.getOwnPropertyDescriptor(accessor, 'name').get, getter)
+  assert.equal(Object.getOwnPropertyDescriptor(accessor, 'name').set, setter)
+  assert.equal(reads, 2)
+})

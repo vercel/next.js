@@ -1,7 +1,0 @@
-[
-  {
-    "name": "preserves native external dependency diamonds cycles and package data",
-    "status": "passed",
-    "failureMessages": []
-  }
-]

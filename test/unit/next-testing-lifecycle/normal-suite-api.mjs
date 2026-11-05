@@ -1,74 +1,38 @@
 import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
+import { runCompilerCase } from '../../lib/next-testing-case-runner.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { createHash } from 'node:crypto'
-import {
-  runOwnedNode,
-  assertOwnedNodeCompleted,
-} from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+
 const [consumerArg, outputArg, mode = 'development', group = 'positive'] =
   process.argv.slice(2)
 assert(['development', 'production'].includes(mode))
 assert(
   ['positive', 'exact-multiple', 'load-failure', 'load-owned'].includes(group)
 )
-const consumer = path.resolve(consumerArg)
+const repo = path.resolve(consumerArg)
 const output = path.resolve(outputArg)
 const inputs = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   'normal-suite-records'
 )
-const load = createRequire(path.join(consumer, 'package.json'))
-const pkg = path.dirname(load.resolve('next/package.json'))
-const bin = load.resolve('next/dist/bin/next')
-const modelName = `20-${mode}-${group}`
-const genuineReport = JSON.parse(
-  fs.readFileSync(
-    resolveFixturePath(path.join(inputs, `${modelName}-report.json`))
-  )
-)
-const genuineObserved = JSON.parse(
-  fs.readFileSync(
-    resolveFixturePath(path.join(inputs, `${modelName}-observed.json`))
-  )
-)
-const body = fs.readFileSync(
-  resolveFixturePath(path.join(inputs, `${group}.test.mjs.txt`))
-)
-const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
-fs.mkdirSync(output, { recursive: true })
-const save = (name, value) =>
-  fs.writeFileSync(
-    path.join(output, name),
-    JSON.stringify(value, null, 2) + '\n'
-  )
-const pins = Object.fromEntries(
-  [
-    'package.json',
-    'dist/bin/next',
-    'dist/experimental/testing/runner/collector.js',
-    'dist/experimental/testing/runner/index.js',
-    'dist/experimental/testing/vitest.js',
-  ].map((name) => [name, sha(fs.readFileSync(path.join(pkg, name)))])
-)
-const fixture = fs.mkdtempSync(path.join(consumer, '.next-normal-suite-api-'))
-fs.writeFileSync(path.join(fixture, 'package.json'), '{"type":"module"}\n')
-fs.writeFileSync(path.join(fixture, 'suite.test.mjs'), body)
-fs.symlinkSync(
-  path.join(consumer, 'node_modules'),
-  path.join(fixture, 'node_modules'),
-  'dir'
-)
-fs.writeFileSync(
-  path.join(fixture, 'next.config.mjs'),
-  `export default ${JSON.stringify({ turbopack: { root: consumer } })}\n`
-)
-fs.writeFileSync(
-  path.join(fixture, 'next.test.config.json'),
-  JSON.stringify({
+const observedFile = path.join(output, 'observed.json')
+const result = await runCompilerCase({
+  repo,
+  output,
+  mode,
+  files: [
+    {
+      target: 'suite.test.mjs',
+      bytes: fs.readFileSync(
+        resolveFixturePath(path.join(inputs, `${group}.test.mjs.txt`))
+      ),
+    },
+  ],
+  expectedCount: group === 'positive' ? 6 : 0,
+  expectedExit: group === 'positive' ? 0 : 1,
+  config: {
     maxWorkers: 1,
     projects: [
       {
@@ -78,124 +42,103 @@ fs.writeFileSync(
         include: ['suite.test.mjs'],
       },
     ],
-  }) + '\n'
-)
-const reportFile = path.join(output, 'report.json')
-const observedFile = path.join(output, 'OBSERVED.json')
-const env = {
-  ...process.env,
-  NODE_ENV: mode,
-  NEXT_TELEMETRY_DISABLED: '1',
-  FORCE_COLOR: '0',
-  NEXT_SUITE_RETURN_OBSERVATION: observedFile,
-}
-for (const name of [
-  'CI',
-  'NODE_OPTIONS',
-  'NODE_PATH',
-  'NEXT_TEST_NATIVE_DIR',
-  'NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL',
-])
-  delete env[name]
-function standardReport(report) {
-  const { next, startTime, ...standard } = report
-  return {
-    ...standard,
-    testResults: report.testResults.map(
-      ({ startTime, endTime, name, assertionResults, ...file }) => ({
-        ...file,
-        name: path.basename(name),
-        assertionResults: assertionResults.map(({ duration, ...test }) => test),
-      })
-    ),
+  },
+  env: { NEXT_SUITE_RETURN_OBSERVATION: observedFile },
+  check: group === 'positive' ? checkReport : undefined,
+  checkOutcomes: group === 'positive' ? undefined : checkReport,
+})
+function checkReport(report) {
+  const positive = group === 'positive'
+  const message = positive
+    ? ''
+    : group === 'load-owned'
+      ? 'actual original module load failure'
+      : 'same actual callback cause across distinct stages'
+  const names = positive
+    ? [
+        'normal outer outer body',
+        'normal outer normal inner inner body',
+        'manual repeat manual child 1',
+        'manual repeat manual child 2',
+        'manual repeat manual child 3',
+        'records actual normal collector operations',
+      ]
+    : []
+  assert.equal(report.success, positive)
+  assert.equal(report.numTotalTests, names.length)
+  assert.equal(report.numPassedTests, names.length)
+  assert.equal(report.numFailedTests, 0)
+  assert.equal(report.numPendingTests, 0)
+  assert.equal(report.numTodoTests, 0)
+  assert.deepEqual(
+    report.testResults.map((file) => ({
+      status: file.status,
+      message: file.message,
+      cases: file.assertionResults.map(
+        ({ fullName, status, failureMessages }) => ({
+          fullName,
+          status,
+          failureMessages,
+        })
+      ),
+    })),
+    [
+      {
+        status: positive ? 'passed' : 'failed',
+        message,
+        cases: names.map((fullName) => ({
+          fullName,
+          status: 'passed',
+          failureMessages: [],
+        })),
+      },
+    ]
+  )
+  assert.deepEqual(
+    report.next.events
+      .filter((event) => event.type === 'diagnostic')
+      .map(({ entryId, diagnostic }) => ({
+        entryId,
+        phase: diagnostic.phase,
+        severity: diagnostic.severity,
+        name: diagnostic.name,
+        message: diagnostic.message,
+      })),
+    positive
+      ? []
+      : [
+          {
+            entryId: 'normal-suite-api:suite.test.mjs',
+            phase: 'collection',
+            severity: 'error',
+            name: 'Error',
+            message,
+          },
+        ]
+  )
+  if (positive) return
+  const observed = JSON.parse(fs.readFileSync(observedFile))
+  if (group === 'load-owned') {
+    assert.deepEqual(observed.trace, [
+      'before explicit collect',
+      'owned factory entered',
+      'after explicit collect',
+      'before original load throw',
+      'owned factory resumed',
+      ['owned rejected', true],
+    ])
+  } else {
+    assert.equal(observed.callbacks, group === 'load-failure' ? 0 : 1)
+    assert.equal(observed.rawErrorFieldsUnchanged, true)
+    if (group === 'exact-multiple')
+      assert.equal(
+        observed.message,
+        'same actual callback cause across distinct stages'
+      )
   }
 }
-const args = [
-  bin,
-  'test',
-  fixture,
-  '--run',
-  '--reporter=json',
-  `--outputFile=${reportFile}`,
-]
-save('INPUTS.json', {
-  runtime: process.version,
-  executable: fs.realpathSync(process.execPath),
-  args,
-  mode,
-  group,
-  package: pkg,
-  productPins: pins,
-  authoredSHA256: sha(body),
-  modelName,
-  standardComparisonExclusions: [
-    'startTime',
-    'testResults.startTime',
-    'testResults.endTime',
-    'assertionResults.duration',
-  ],
-  filenameNormalization: 'actual basename only',
-  nextEnvelopePreservedSeparately: true,
-})
-let owner
-let failure
-try {
-  owner = await runOwnedNode(args, {
-    cwd: fixture,
-    env,
-    auditDir: path.join(output, 'owners'),
-    timeoutMs: 120000,
-  })
-  save('OWNER.json', owner)
-  fs.writeFileSync(path.join(output, 'stdout.log'), owner.stdout)
-  fs.writeFileSync(path.join(output, 'stderr.log'), owner.stderr)
-  assertOwnedNodeCompleted(owner, `normal SuiteAPI ${mode}/${group}`)
-  assert.equal(owner.status, group === 'positive' ? 0 : 1, owner.stderr)
-  assert.equal(owner.signal, null)
-  const report = JSON.parse(fs.readFileSync(reportFile))
-  const observed = JSON.parse(fs.readFileSync(observedFile))
-  assert.deepEqual(observed, genuineObserved)
-  save('STANDARD-NEXT.json', standardReport(report))
-  save('STANDARD-GENUINE.json', standardReport(genuineReport))
-  save('NEXT-ENVELOPE.json', report.next)
-  assert.equal(report.next.version, 1)
-  assert.deepEqual(standardReport(report), standardReport(genuineReport))
-  save('CHECKS.json', {
-    actualCompleteObservedModelEqual: true,
-    allReferenceStandardFieldsEqual: true,
-    nextEnvelopeRetained: true,
-    originalAuthoredBytesHeld:
-      sha(fs.readFileSync(path.join(fixture, 'suite.test.mjs'))) === sha(body),
-    actualOwnersJoined: true,
-  })
-} catch (error) {
-  failure = error
-  save('ERROR.json', {
-    name: error?.name,
-    message: error?.message,
-    stack: error?.stack,
-  })
-} finally {
-  const after = Object.fromEntries(
-    Object.keys(pins).map((name) => [
-      name,
-      sha(fs.readFileSync(path.join(pkg, name))),
-    ])
-  )
-  assert.deepEqual(after, pins)
-  save('PRODUCT-AFTER.json', after)
-  if (
-    owner &&
-    !owner.timedOut &&
-    owner.leakedProcesses.length === 0 &&
-    owner.cleanupFailures.length === 0
-  )
-    fs.rmSync(fixture, { recursive: true, force: true })
-  save('CLOSED.json', {
-    passed: !failure,
-    actualOwnerReceiptRetained: !!owner,
-    productPinsHeld: true,
-    fixtureRetired: !fs.existsSync(fixture),
-  })
-}
-if (failure) throw failure
+
+fs.writeFileSync(
+  path.join(output, 'CHECKS.json'),
+  JSON.stringify({ ...result, group }) + '\n'
+)

@@ -1,50 +1,50 @@
-import { afterEach, expect, test } from "vitest";
-import { page, userEvent } from "vitest/browser";
-import { createElement, useState } from "react";
-import { createRoot } from "react-dom/client";
-import { flushSync } from "react-dom";
+import { afterEach, expect, test } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+import { createElement, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
 
 afterEach(() => {
-  document.body.innerHTML = "";
-});
+  document.body.innerHTML = ''
+})
 const styles = {
-  source: { width: "100px", height: "50px", background: "lightblue" },
+  source: { width: '100px', height: '50px', background: 'lightblue' },
   target: {
-    width: "140px",
-    height: "80px",
-    marginTop: "100px",
-    background: "lightgreen",
+    width: '140px',
+    height: '80px',
+    marginTop: '100px',
+    background: 'lightgreen',
   },
-};
+}
 const install = (source, target, events, accept = true, receive = () => {}) => {
-  let originalTransfer;
-  source.addEventListener("dragstart", (event) => {
-    originalTransfer = event.dataTransfer;
-    event.dataTransfer.setData("text/plain", "native-é東京✓");
-    event.dataTransfer.setData("text/html", "<b>owned markup</b>");
-    event.dataTransfer.setData("application/x-next-test", "owned-custom");
-    event.dataTransfer.effectAllowed = "copyMove";
-  });
+  let originalTransfer
+  source.addEventListener('dragstart', (event) => {
+    originalTransfer = event.dataTransfer
+    event.dataTransfer.setData('text/plain', 'native-é東京✓')
+    event.dataTransfer.setData('text/html', '<b>owned markup</b>')
+    event.dataTransfer.setData('application/x-next-test', 'owned-custom')
+    event.dataTransfer.effectAllowed = 'copyMove'
+  })
   if (accept)
-    target.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "copy";
-    });
-  target.addEventListener("drop", (event) => {
-    event.preventDefault();
-    receive(event.dataTransfer.getData("text/plain"));
-  });
+    target.addEventListener('dragover', (event) => {
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'copy'
+    })
+  target.addEventListener('drop', (event) => {
+    event.preventDefault()
+    receive(event.dataTransfer.getData('text/plain'))
+  })
   for (const element of [source, target])
     for (const type of [
-      "dragstart",
-      "dragenter",
-      "dragover",
-      "drop",
-      "dragend",
+      'dragstart',
+      'dragenter',
+      'dragover',
+      'drop',
+      'dragend',
     ]) {
       element.addEventListener(type, (event) =>
         events.push({
-          target: element.getAttribute("data-drag-role"),
+          target: element.getAttribute('data-drag-role'),
           type,
           trusted: event.isTrusted,
           cancelable: event.cancelable,
@@ -63,139 +63,158 @@ const install = (source, target, events, accept = true, receive = () => {}) => {
               type: file.type,
               size: file.size,
             })),
-            plain: event.dataTransfer.getData("text/plain"),
-            html: event.dataTransfer.getData("text/html"),
-            custom: event.dataTransfer.getData("application/x-next-test"),
+            plain: event.dataTransfer.getData('text/plain'),
+            html: event.dataTransfer.getData('text/html'),
+            custom: event.dataTransfer.getData('application/x-next-test'),
             effectAllowed: event.dataTransfer.effectAllowed,
             dropEffect: event.dataTransfer.dropEffect,
           },
-        }),
-      );
+        })
+      )
     }
-};
+}
 const area = (accept = true) => {
-  const source = document.createElement("div"),
-    target = document.createElement("div"),
-    output = document.createElement("output"),
-    events = [];
-  source.textContent = "Drag source";
-  source.draggable = true;
-  source.setAttribute("data-drag-role", "source");
-  Object.assign(source.style, styles.source);
-  target.textContent = "Drop target";
-  target.setAttribute("data-drag-role", "target");
-  Object.assign(target.style, styles.target);
-  output.textContent = "idle";
-  document.body.append(source, target, output);
+  const source = document.createElement('div'),
+    target = document.createElement('div'),
+    output = document.createElement('output'),
+    events = []
+  source.textContent = 'Drag source'
+  source.draggable = true
+  source.setAttribute('data-drag-role', 'source')
+  Object.assign(source.style, styles.source)
+  target.textContent = 'Drop target'
+  target.setAttribute('data-drag-role', 'target')
+  Object.assign(target.style, styles.target)
+  output.textContent = 'idle'
+  document.body.append(source, target, output)
   install(source, target, events, accept, (value) => {
-    output.textContent = value;
-  });
-  return { source, target, output, events };
-};
-const row = (name, events, extra) =>
-  console.log("DRAG_RAW " + JSON.stringify({ name, events, ...extra }));
+    output.textContent = value
+  })
+  return { source, target, output, events }
+}
+function assertDragEvents(events) {
+  expect(events.length).toBeGreaterThan(0)
+  expect(events.every((event) => event.trusted && event.transfer.native)).toBe(
+    true
+  )
+  const drop = events.find((event) => event.type === 'drop')
+  if (drop) {
+    expect(drop.transfer.plain).toBe('native-é東京✓')
+    expect(drop.transfer.html).toBe('<b>owned markup</b>')
+    expect(drop.transfer.custom).toBe('owned-custom')
+    expect(drop.transfer.types).toEqual(
+      expect.arrayContaining([
+        'text/plain',
+        'text/html',
+        'application/x-next-test',
+      ])
+    )
+    expect(drop.transfer.dropEffect).toBe('copy')
+  }
+}
 
-test("dragAndDrop moves real DataTransfer values from an element to a locator", async () => {
-  const { source, output, events } = area();
+test('dragAndDrop moves real DataTransfer values from an element to a locator', async () => {
+  const { source, output, events } = area()
   const returned = await userEvent.dragAndDrop(
     source,
-    page.getByText("Drop target"),
-  );
-  expect(output.textContent).toBe("native-é東京✓");
-  expect(returned).toBeUndefined();
-  row("native payload", events, {
-    output: output.textContent,
-    returnedUndefined: returned === undefined,
-  });
-});
+    page.getByText('Drop target')
+  )
+  expect(output.textContent).toBe('native-é東京✓')
+  expect(returned).toBeUndefined()
+  assertDragEvents(events)
+})
 
-test("dropTo retains native source and target positions for two locators", async () => {
-  const { output, events } = area();
+test('dropTo retains native source and target positions for two locators', async () => {
+  const { output, events } = area()
   const returned = await page
-    .getByText("Drag source")
-    .dropTo(page.getByText("Drop target"), {
+    .getByText('Drag source')
+    .dropTo(page.getByText('Drop target'), {
       sourcePosition: { x: 5, y: 5 },
       targetPosition: { x: 30, y: 20 },
-    });
-  expect(output.textContent).toBe("native-é東京✓");
-  row("locator positions", events, {
-    output: output.textContent,
-    returnedUndefined: returned === undefined,
-  });
-});
+    })
+  expect(output.textContent).toBe('native-é東京✓')
+  assertDragEvents(events)
+  expect(returned).toBeUndefined()
+  const sourceRect = page
+      .getByText('Drag source')
+      .element()
+      .getBoundingClientRect(),
+    targetRect = page.getByText('Drop target').element().getBoundingClientRect()
+  expect(events.find((event) => event.type === 'dragstart').point).toEqual([
+    sourceRect.left + 5,
+    sourceRect.top + 5,
+  ])
+  expect(events.find((event) => event.type === 'drop').point).toEqual([
+    targetRect.left + 30,
+    targetRect.top + 20,
+  ])
+})
 
-test("native drag without an accepting target does not invent a drop", async () => {
-  const { source, target, output, events } = area(false);
-  await userEvent.dragAndDrop(page.getByText("Drag source"), target);
-  expect(output.textContent).toBe("idle");
-  expect(events.some((event) => event.type === "drop")).toBe(false);
-  row("nonaccepting target", events, {
-    output: output.textContent,
-    sourceConnected: source.isConnected,
-    targetConnected: target.isConnected,
-  });
-});
+test('native drag without an accepting target does not invent a drop', async () => {
+  const { source, target, output, events } = area(false)
+  await userEvent.dragAndDrop(page.getByText('Drag source'), target)
+  expect(output.textContent).toBe('idle')
+  expect(events.some((event) => event.type === 'drop')).toBe(false)
+  assertDragEvents(events)
+  expect(source.isConnected).toBe(true)
+  expect(target.isConnected).toBe(true)
+})
 
-test("a setup instance drives real drop events and controlled component rendering", async () => {
-  const host = document.createElement("div"),
-    events = [];
-  document.body.append(host);
+test('a setup instance drives real drop events and controlled component rendering', async () => {
+  const host = document.createElement('div'),
+    events = []
+  document.body.append(host)
   function Component() {
-    const [value, setValue] = useState("idle");
+    const [value, setValue] = useState('idle')
     return createElement(
-      "div",
+      'div',
       null,
       createElement(
-        "div",
-        { draggable: true, "data-drag-role": "source", style: styles.source },
-        "Drag component",
+        'div',
+        { draggable: true, 'data-drag-role': 'source', style: styles.source },
+        'Drag component'
       ),
       createElement(
-        "div",
+        'div',
         {
-          "data-drag-role": "target",
+          'data-drag-role': 'target',
           style: styles.target,
-          onDrop: (event) => setValue(event.dataTransfer.getData("text/plain")),
+          onDrop: (event) => setValue(event.dataTransfer.getData('text/plain')),
         },
-        "Component target",
+        'Component target'
       ),
-      createElement("output", { "data-testid": "result" }, value),
-    );
+      createElement('output', { 'data-testid': 'result' }, value)
+    )
   }
-  const root = createRoot(host);
-  flushSync(() => root.render(createElement(Component)));
+  const root = createRoot(host)
+  flushSync(() => root.render(createElement(Component)))
   try {
-    const source = page.getByText("Drag component").element(),
-      target = page.getByText("Component target").element();
-    install(source, target, events);
-    const actor = userEvent.setup();
-    await actor.dragAndDrop(page.getByText("Drag component"), target);
+    const source = page.getByText('Drag component').element(),
+      target = page.getByText('Component target').element()
+    install(source, target, events)
+    const actor = userEvent.setup()
+    await actor.dragAndDrop(page.getByText('Drag component'), target)
     await expect
-      .element(page.getByTestId("result"))
-      .toHaveTextContent("native-é東京✓");
-    row("controlled setup component", events, {
-      output: host.querySelector("output").textContent,
-    });
+      .element(page.getByTestId('result'))
+      .toHaveTextContent('native-é東京✓')
+    assertDragEvents(events)
   } finally {
-    flushSync(() => root.unmount());
+    flushSync(() => root.unmount())
   }
-});
+})
 
-test("a native target timeout rejects the action and permits following drag work", async () => {
-  const { source, target, output, events } = area();
-  target.style.display = "none";
-  let failure;
+test('a native target timeout rejects the action and permits following drag work', async () => {
+  const { source, target, output, events } = area()
+  target.style.display = 'none'
+  let failure
   try {
-    await userEvent.dragAndDrop(source, target, { timeout: 100 });
+    await userEvent.dragAndDrop(source, target, { timeout: 100 })
   } catch (error) {
-    failure = error;
+    failure = error
   }
-  expect(failure).toBeInstanceOf(Error);
-  target.style.display = "block";
-  await userEvent.dragAndDrop(source, target);
-  expect(output.textContent).toBe("native-é東京✓");
-  row("recoverable native timeout", events, {
-    output: output.textContent,
-    failureName: failure.name,
-  });
-});
+  expect(failure).toBeInstanceOf(Error)
+  target.style.display = 'block'
+  await userEvent.dragAndDrop(source, target)
+  expect(output.textContent).toBe('native-é東京✓')
+  assertDragEvents(events)
+})

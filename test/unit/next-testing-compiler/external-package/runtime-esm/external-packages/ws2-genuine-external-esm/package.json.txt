@@ -1,0 +1,1 @@
+{"name":"ws2-genuine-external-esm","type":"module","exports":"./index.mjs"}

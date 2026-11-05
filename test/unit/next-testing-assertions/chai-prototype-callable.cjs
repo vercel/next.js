@@ -2,7 +2,6 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
-const { createHash } = require('node:crypto')
 const { createRequire } = require('node:module')
 const [project, family, output] = process.argv.slice(2)
 assert(
@@ -28,37 +27,56 @@ const input =
   family === 'identity'
     ? path.join(__dirname, 'fixtures/poll-takeover-descriptor/identity')
     : path.join(__dirname, 'fixtures/chai-prototype-callable', family)
-const model = JSON.parse(fs.readFileSync(path.join(input, 'reference.json')))
-const body = fs.readFileSync(path.join(input, model.source), 'utf8')
-assert.equal(createHash('sha256').update(body).digest('hex'), model.bodySHA256)
-const header = body.slice(0, body.indexOf('\n') + 1)
-assert(header.startsWith('import {') && header.endsWith("from 'vitest'\n"))
+const reference =
+  family === 'identity'
+    ? JSON.parse(fs.readFileSync(path.join(input, 'reference.json')))
+    : undefined
+const body = fs.readFileSync(path.join(input, 'runtime.test.mjs.txt'), 'utf8')
+const ts = req('typescript')
+const parsed = ts.createSourceFile(
+  'fixture.ts',
+  body,
+  ts.ScriptTarget.Latest,
+  true
+)
+const code = ts.transpileModule(
+  parsed.statements
+    .filter((statement) => !ts.isImportDeclaration(statement))
+    .map((statement) => statement.getFullText(parsed))
+    .join(''),
+  {
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.ESNext,
+    },
+  }
+).outputText
 const dir = fs.mkdtempSync(
-  path.join(os.tmpdir(), 'next-chai-callable-component-')
+  path.join(os.tmpdir(), 'next-chai-prototype-callable-')
 )
 const file = runner.initializeTestFile({
-  fileId: 'actual-chai-callable-' + family,
+  fileId: 'actual-chai-prototype-callable-' + family,
   filePath: path.join(dir, 'actual.test.mjs'),
 })
-const rows = [],
-  cases = []
-async function main() {
+const cases = [],
+  rows = []
+;(async () => {
   try {
     await file.collect(async () => {
       new Function(
         'vitest',
+        'assert',
         'console',
-        '"use strict";const{expect,test,chai,afterAll}=vitest;\n' +
-          body.slice(header.length)
-      )(vitest, {
-        log(content) {
-          assert(content.startsWith('POLL_OWNERSHIP_ROW '))
-          rows.push(JSON.parse(content.slice(19)))
+        '"use strict";const{expect,test,chai,afterAll}=vitest;\n' + code
+      )(vitest, assert, {
+        log(line) {
+          assert(reference && line.startsWith('POLL_OWNERSHIP_ROW '))
+          rows.push(JSON.parse(line.slice(19)))
         },
       })
     })
     const result = await file.run({
-      runId: 'actual-chai-callable-run',
+      runId: 'actual-chai-prototype-callable-run',
       signal: new AbortController().signal,
       onCaseResult(_task, value) {
         cases.push({
@@ -70,36 +88,52 @@ async function main() {
     })
     assert.equal(result.interrupted, false)
     assert.deepEqual(result.errors, [])
-    await file.dispose()
-    assert.deepEqual(rows, model.rows)
-    assert.deepEqual(
-      cases.map(({ name, state }) => ({ name, state })),
-      model.caseCallbacks ?? model.cases
+    assert.equal(
+      cases.length,
+      {
+        prototype: 4,
+        owners: 2,
+        dispatch: 2,
+        identity: 7,
+        'overwrite-static': 2,
+        'overwrite-utility': 2,
+        'native-alias': 1,
+        'super-this': 2,
+        subject: 2,
+      }[family]
     )
-    assert(cases.every((v) => v.state === 'passed' && v.errors.length === 0))
+    assert(
+      cases.every(
+        (value) => value.state === 'passed' && value.errors.length === 0
+      ),
+      cases
+        .flatMap((value) =>
+          value.errors.map(
+            (item) =>
+              item.error?.stack ?? item.error?.message ?? String(item.error)
+          )
+        )
+        .join('\n')
+    )
+    if (reference) assert.deepEqual(rows, reference.rows)
+    await file.dispose()
+    const facts = {
+      family,
+      cases: cases.length,
+      behaviorAssertions: true,
+      actualFileDisposalJoined: true,
+    }
     if (output)
       fs.writeFileSync(
         output,
-        JSON.stringify(
-          { family, rows, cases, actualFileDisposalJoined: true },
-          null,
-          2
-        ) + '\n'
+        JSON.stringify({ cases, ...facts }, null, 2) + '\n'
       )
-    process.stdout.write(
-      JSON.stringify({
-        family,
-        cases: cases.length,
-        completeGenuineRows: rows.length,
-        actualFileDisposalJoined: true,
-      }) + '\n'
-    )
+    console.log(JSON.stringify(facts))
   } finally {
     await file.dispose()
     fs.rmSync(dir, { recursive: true, force: true })
   }
-}
-main().catch((error) => {
+})().catch((error) => {
   console.error(error)
   process.exitCode = 1
 })

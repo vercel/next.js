@@ -1,1 +1,0 @@
-#setup-button { color: rgb(17, 34, 51); }

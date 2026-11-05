@@ -34,37 +34,16 @@ const canonical = (data) =>
 assert.equal(Object.hasOwn(report, 'coverageMap'), row.coverageMapPresent)
 if (row.coverageMapPresent)
   assert.deepEqual(canonical(report.coverageMap), row.coverageMap)
-const standard = structuredClone(report)
-delete standard.next
-delete standard.coverageMap
-delete standard.startTime
-for (const file of standard.testResults) {
-  delete file.startTime
-  delete file.endTime
-  delete file.duration
-  for (const test of file.assertionResults) delete test.duration
-}
-let wholeStandardReportEqual = true
-try {
-  assert.deepEqual(canonical(standard), row.standardReport)
-} catch (error) {
-  wholeStandardReportEqual = false
-  writeFileSync(join(output, 'STANDARD-REPORT-DIFFERENCE.txt'), String(error))
-  if (row.assertWholeStandardReport) throw error
-}
 writeFileSync(
   join(output, 'JSON-MAP-CHECKS.json'),
   JSON.stringify(
     {
       profile,
       actualPublicCLI: true,
-      completePreparedMapMatchesGenuine: true,
+      exactPreparedCoverageMap: true,
       coverageMapPresent: row.coverageMapPresent,
-      wholeStandardReportEqual,
-      wholeStandardReportRequired: row.assertWholeStandardReport,
       preservedCaseAndCoverageAssetChecks: true,
       originalOwnedProcessChecksPassed: true,
-      originalFailureMessageDifferencesRetained: !wholeStandardReportEqual,
     },
     null,
     2

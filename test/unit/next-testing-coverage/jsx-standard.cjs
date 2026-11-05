@@ -71,22 +71,15 @@ for (const [name, extension] of [
       assert.equal(child.status, 0, JSON.stringify(result))
       assert.equal(result.numPassedTests, 1)
       assert.equal(result.success, true)
-      assert.deepEqual(
-        result.testResults.flatMap((file) =>
-          file.assertionResults.map(
-            ({ fullName, status, failureMessages }) => ({
-              fullName,
-              status,
-              failureMessages,
-            })
-          )
-        ),
-        JSON.parse(
-          fs.readFileSync(
-            resolveFixturePath(path.join(source, 'pristine-cases.json'))
-          )
-        )
+      assert.equal(result.numTotalTests, result.numPassedTests)
+      const actualTests = result.testResults.flatMap(
+        (file) => file.assertionResults
       )
+      assert.equal(actualTests.length, result.numPassedTests)
+      for (const test of actualTests) {
+        assert.equal(test.status, 'passed')
+        assert.deepEqual(test.failureMessages, [])
+      }
       const report = JSON.parse(
         fs.readFileSync(path.join(fixture, 'coverage/coverage-final.json'))
       )

@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   readFileSync,
@@ -11,55 +10,30 @@ import {
 } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isDeepStrictEqual } from 'node:util'
 import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
-const [consumerArg, outputArg, profile] = process.argv.slice(2),
-  consumer = resolve(consumerArg),
-  output = resolve(outputArg),
-  load = createRequire(join(consumer, 'package.json')),
-  row = JSON.parse(
-    readFileSync(
-      join(
-        dirname(fileURLToPath(import.meta.url)),
-        'fixtures/istanbul-provider/focused-inactive-pristine.json'
-      )
+
+const [consumerArg, outputArg, profile] = process.argv.slice(2)
+const consumer = resolve(consumerArg)
+const output = resolve(outputArg)
+const load = createRequire(join(consumer, 'package.json'))
+const row = JSON.parse(
+  readFileSync(
+    join(
+      dirname(fileURLToPath(import.meta.url)),
+      'fixtures/istanbul-provider/focused-inactive-pristine.json'
     )
-  ).rows.find((r) => r.name === profile)
+  )
+).rows.find((row) => row.name === profile)
 assert(row)
+const excludedOnly = profile === 'focused-inactive-excluded-only'
 mkdirSync(output, { recursive: true })
-const fixture = mkdtempSync(join(consumer, '.next-focused-inactive-')),
-  canonical = (value) => {
-    if (typeof value === 'string') return value.replaceAll(fixture, '<fixture>')
-    if (Array.isArray(value)) return value.map(canonical)
-    if (value && typeof value === 'object')
-      return Object.fromEntries(
-        Object.entries(value).map(([key, value]) => [
-          key.replaceAll(fixture, '<fixture>'),
-          canonical(value),
-        ])
-      )
-    return value
-  },
-  declarations = (value) => {
-    if (Array.isArray(value)) return value.map(declarations)
-    if (value && typeof value === 'object')
-      return Object.fromEntries(
-        Object.entries(value)
-          .filter(([key]) => !['state', 'stack'].includes(key))
-          .map(([key, value]) => [key, declarations(value)])
-      )
-    return value
-  }
+const fixture = mkdtempSync(join(consumer, '.next-focused-inactive-'))
 try {
-  for (const [name, file] of Object.entries(row.sourceFiles)) {
-    assert.equal(
-      createHash('sha256').update(file.source).digest('hex'),
-      file.sha256
-    )
-    writeFileSync(join(fixture, name), file.source)
+  for (const [name, source] of Object.entries(row.sourceFiles)) {
+    writeFileSync(join(fixture, name), source)
   }
   writeFileSync(join(fixture, 'package.json'), '{"type":"module"}\n')
   writeFileSync(join(fixture, 'vitest.config.mjs'), row.config)
@@ -71,8 +45,59 @@ try {
   const reporter = join(output, 'reporter.mjs')
   writeFileSync(
     reporter,
-    `import fs from 'node:fs'
-const rows=[];const error=e=>({name:e.name,message:e.message,stack:e.stack});const tree=t=>({type:t.type,name:t.type==='module'?'suite.test.mjs':t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?(t.result().errors??[]).map(error):t.errors().map(error),...(t.type==='test'?{}:{children:[...t.children].map(tree)})});const save=()=>fs.writeFileSync(${JSON.stringify(join(output, 'RAW-MODULES.json'))},JSON.stringify(rows,null,2));export default class{onTestModuleCollected(m){rows.push({event:'collected',tree:tree(m)});save()}onTestModuleEnd(m){rows.push({event:'module-end',tree:tree(m)});save()}onTestRunEnd(modules,errors,reason){rows.push({event:'run-end',reason,errors:errors.map(error),modules:modules.map(tree)});save()}}
+    `import assert from 'node:assert/strict'
+import fs from 'node:fs'
+const events = []
+const excludedOnly = ${excludedOnly}
+const save = () => fs.writeFileSync(${JSON.stringify(join(output, 'events.json'))}, JSON.stringify(events))
+function checkDeclarations(module, collected) {
+  assert.deepEqual(module.errors(), [])
+  const children = [...module.children]
+  assert.equal(children.length, excludedOnly ? 2 : 1)
+  const [first, outer] = children
+  assert.equal(first.name, 'first owned body')
+  assert.equal(first.options.mode, 'run')
+  assert.deepEqual(first.result().errors ?? [], [])
+  assert.equal(first.result().state, collected ? 'pending' : 'passed')
+  if (excludedOnly) {
+    assert.equal(outer.name, 'outer')
+    assert.equal(outer.options.mode, 'skip')
+    assert.deepEqual(outer.errors(), [])
+    const nested = [...outer.children]
+    assert.equal(nested.length, 1)
+    assert.equal(nested[0].name, 'second owned body')
+    assert.equal(nested[0].options.mode, 'only')
+    assert.deepEqual(nested[0].result().errors ?? [], [])
+    // This regression requires the collected state. Final pending state for
+    // excluded-only declarations remains outside its existing contract.
+    if (collected) {
+      assert.equal(outer.state(), 'skipped')
+      assert.equal(nested[0].result().state, 'pending')
+    }
+  }
+}
+export default class {
+  onTestModuleCollected(module) {
+    assert.equal(module.state(), 'pending')
+    checkDeclarations(module, true)
+    events.push('collected')
+    save()
+  }
+  onTestModuleEnd(module) {
+    assert.equal(module.state(), 'passed')
+    checkDeclarations(module, false)
+    events.push('module-end')
+    save()
+  }
+  onTestRunEnd(modules, errors, reason) {
+    assert.equal(modules.length, 1)
+    assert.deepEqual(errors, [])
+    assert.equal(reason, 'passed')
+    checkDeclarations(modules[0], false)
+    events.push('run-end')
+    save()
+  }
+}
 `
   )
   const env = {
@@ -103,45 +128,44 @@ const rows=[];const error=e=>({name:e.name,message:e.message,stack:e.stack});con
   )
   writeFileSync(join(output, 'stdout.log'), owner.stdout)
   writeFileSync(join(output, 'stderr.log'), owner.stderr)
-  assertOwnedNodeCompleted(
-    owner,
-    'actual inactive focused countermeasure ' + profile
-  )
+  assertOwnedNodeCompleted(owner, 'inactive focused selection ' + profile)
   assert.equal(owner.status, row.exitCode, owner.stderr)
-  const report = canonical(JSON.parse(readFileSync(join(output, 'cases.json'))))
-  delete report.next
-  delete report.startTime
-  for (const file of report.testResults) {
-    delete file.startTime
-    delete file.endTime
-    for (const test of file.assertionResults) delete test.duration
-  }
-  const modules = canonical(
-    JSON.parse(readFileSync(join(output, 'RAW-MODULES.json')))
+  const report = JSON.parse(readFileSync(join(output, 'cases.json')))
+  assert.equal(report.success, true)
+  assert.equal(report.numTotalTests, row.expected.total)
+  assert.equal(report.numPassedTests, row.expected.passed)
+  assert.equal(report.numFailedTests, row.expected.failed)
+  assert.deepEqual(report.snapshot, row.expected.snapshot)
+  const cases = report.testResults.flatMap((file) => file.assertionResults)
+  assert.deepEqual(
+    cases.map((test) => test.fullName),
+    row.expected.caseNames
+  )
+  assert.equal(cases[0].status, 'passed')
+  assert.deepEqual(
+    cases.map((test) => test.failureMessages),
+    cases.map(() => [])
   )
   assert.deepEqual(
-    modules.find((r) => r.event === 'collected'),
-    row.moduleTrace.find((r) => r.event === 'collected')
+    report.testResults.map((file) => file.message ?? ''),
+    ['']
   )
-  assert.deepEqual(declarations(modules), declarations(row.moduleTrace))
-  if (row.wholeGraphQualified) {
-    assert.deepEqual(report, row.standardReport)
-    assert.deepEqual(modules, row.moduleTrace)
-  }
+  if (!excludedOnly) assert.equal(report.numPendingTests, 0)
+  assert.deepEqual(JSON.parse(readFileSync(join(output, 'events.json'))), [
+    'collected',
+    'module-end',
+    'run-end',
+  ])
   assert.deepEqual(readdirSync(join(fixture, '__snapshots__')), [])
   writeFileSync(
     join(output, 'CHECKS.json'),
     JSON.stringify(
       {
         profile,
-        earlyCollectedGraphExact: true,
-        actualDeclarationOptionsExact: true,
-        activeOnlyNormalizationPreserved: true,
-        wholeStandardReportEqual: isDeepStrictEqual(report, row.standardReport),
-        wholeGraphEqual: isDeepStrictEqual(modules, row.moduleTrace),
-        inactiveFinalPendingProducerQualified: row.wholeGraphQualified,
-        rawWholeReportsRetained: true,
-        noStateOrResultSynthesized: true,
+        collectedNamesStatesAndModes: true,
+        focusedCaseOutcomesAndSnapshotCounts: true,
+        reporterLifecycleOrder: true,
+        noSnapshotsWritten: true,
       },
       null,
       2

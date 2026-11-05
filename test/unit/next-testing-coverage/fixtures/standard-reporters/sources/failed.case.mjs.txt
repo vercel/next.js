@@ -1,0 +1,2 @@
+import { test, expect } from 'vitest'
+test('failed body still owns complete coverage', () => expect(1).toBe(2))

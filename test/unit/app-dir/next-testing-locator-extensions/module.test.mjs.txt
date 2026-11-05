@@ -1,33 +1,88 @@
 import { test, expect } from 'vitest'
 import { page, locators, utils } from 'vitest/browser'
-const calls=[]
-const registration=locators.extend({ getByModuleCSS(selector) { calls.push({ receiver:this===page?'page':'locator',selector }); return 'css='+selector } })
-const retained=page.getByModuleCSS('[data-module="target"]')
-const facade=locators.createElementLocators(document.body)
-const moduleKeys=Object.keys(facade)
-const emit=value=>console.log('BROWSER_NATIVE_FIXTURE:'+JSON.stringify(value))
+const calls = []
+const registration = locators.extend({
+  getByModuleCSS(selector) {
+    calls.push({ receiver: this === page ? 'page' : 'locator', selector })
+    return 'css=' + selector
+  },
+})
+const retained = page.getByModuleCSS('[data-module="target"]')
+const facade = locators.createElementLocators(document.body)
+const moduleKeys = Object.keys(facade)
 
-test('uses locator extensions and facade created during module evaluation',async()=>{
- const host=document.createElement('section'),events=[];host.innerHTML='<button data-module="target">module target</button>';document.body.append(host)
- const button=host.querySelector('button');button.addEventListener('click',event=>events.push({trusted:event.isTrusted,sameTarget:event.target===button}))
- try{
-  const fromFacade=facade.getByModuleCSS('[data-module="target"]')
-  await expect.element(retained).toHaveTextContent('module target')
-  await retained.click()
-  const facts={registrationUndefined:registration===undefined,moduleKeys,sameUtilityFunction:locators.createElementLocators===utils.getElementLocatorSelectors,retainedSameNode:retained.element()===button,facadeSameNode:fromFacade.element()===button,selector:retained.selector}
-  expect(events).toEqual([{trusted:true,sameTarget:true}]);expect(facts.retainedSameNode).toBe(true);expect(facts.facadeSameNode).toBe(true)
-  emit({facts,calls:[...calls],events})
- }finally{host.remove()}
+test('uses locator extensions and facade created during module evaluation', async () => {
+  const host = document.createElement('section'),
+    events = []
+  host.innerHTML = '<button data-module="target">module target</button>'
+  document.body.append(host)
+  const button = host.querySelector('button')
+  button.addEventListener('click', (event) =>
+    events.push({
+      trusted: event.isTrusted,
+      sameTarget: event.target === button,
+    })
+  )
+  try {
+    const fromFacade = facade.getByModuleCSS('[data-module="target"]')
+    await expect.element(retained).toHaveTextContent('module target')
+    await retained.click()
+    const facts = {
+      registrationUndefined: registration === undefined,
+      moduleKeys,
+      sameUtilityFunction:
+        locators.createElementLocators === utils.getElementLocatorSelectors,
+      retainedSameNode: retained.element() === button,
+      facadeSameNode: fromFacade.element() === button,
+      selector: retained.selector,
+    }
+    expect(events).toEqual([{ trusted: true, sameTarget: true }])
+    expect(facts.retainedSameNode).toBe(true)
+    expect(facts.facadeSameNode).toBe(true)
+    expect(facts.registrationUndefined).toBe(true)
+    expect(facts.sameUtilityFunction).toBe(true)
+    expect(moduleKeys).toContain('getByModuleCSS')
+    expect(calls).toEqual([
+      { receiver: 'page', selector: '[data-module="target"]' },
+      { receiver: 'locator', selector: '[data-module="target"]' },
+    ])
+  } finally {
+    host.remove()
+  }
 })
 
-test('retains module facade dispatch through a later body registration',async()=>{
- const host=document.createElement('section');host.innerHTML='<button data-module="replacement">new method</button>';document.body.append(host)
- try{
-  locators.extend({ getByModuleCSS(selector) { calls.push({receiver:this===page?'replacement-page':'replacement-locator',selector});return 'css=[data-module="replacement"]' } })
-  const current=facade.getByModuleCSS('ignored'),actual=host.querySelector('button')
-  await expect.element(current).toHaveTextContent('new method')
-  const facts={sameSnapshotKeys:JSON.stringify(Object.keys(facade))===JSON.stringify(moduleKeys),dynamicCurrentNode:current.element()===actual,retainedOriginalQueryAbsent:retained.query()===null,afterKeys:Object.keys(locators.createElementLocators(document.body))}
-  expect(facts.dynamicCurrentNode).toBe(true);expect(facts.retainedOriginalQueryAbsent).toBe(true)
-  emit({facts,calls:[...calls]})
- }finally{host.remove()}
+test('retains module facade dispatch through a later body registration', async () => {
+  const host = document.createElement('section')
+  host.innerHTML = '<button data-module="replacement">new method</button>'
+  document.body.append(host)
+  try {
+    locators.extend({
+      getByModuleCSS(selector) {
+        calls.push({
+          receiver: this === page ? 'replacement-page' : 'replacement-locator',
+          selector,
+        })
+        return 'css=[data-module="replacement"]'
+      },
+    })
+    const current = facade.getByModuleCSS('ignored'),
+      actual = host.querySelector('button')
+    await expect.element(current).toHaveTextContent('new method')
+    const facts = {
+      sameSnapshotKeys:
+        JSON.stringify(Object.keys(facade)) === JSON.stringify(moduleKeys),
+      dynamicCurrentNode: current.element() === actual,
+      retainedOriginalQueryAbsent: retained.query() === null,
+      afterKeys: Object.keys(locators.createElementLocators(document.body)),
+    }
+    expect(facts.dynamicCurrentNode).toBe(true)
+    expect(facts.retainedOriginalQueryAbsent).toBe(true)
+    expect(facts.sameSnapshotKeys).toBe(true)
+    expect(calls.at(-1)).toEqual({
+      receiver: 'replacement-locator',
+      selector: 'ignored',
+    })
+  } finally {
+    host.remove()
+  }
 })

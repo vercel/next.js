@@ -26,6 +26,7 @@
       "snapshots": {
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
+      "exitCode": 1,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -36,6 +37,7 @@
         "numFailedTests": 0,
         "numPendingTests": 2,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -52,185 +54,42 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1792958387424,
-        "success": false,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-LVUToi/suite.test.mjs",
+            "status": "failed",
+            "message": "owned settled setup beforeAll failure",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "skipped",
                 "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "skipped",
                 "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1792958387424,
-            "endTime": 1792958387424,
-            "status": "failed",
-            "message": "owned settled setup beforeAll failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-LVUToi/suite.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-LVUToi/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-LVUToi/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-LVUToi/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-LVUToi/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-LVUToi/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]}}\n}\n"
-      },
-      "exitCode": 1
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "beforeall-sync-report-false",
@@ -256,6 +115,7 @@
       "snapshots": {
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
+      "exitCode": 1,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -266,6 +126,7 @@
         "numFailedTests": 0,
         "numPendingTests": 2,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -282,181 +143,38 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1792958556203,
-        "success": false,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-vaxQ7d/suite.test.mjs",
+            "status": "failed",
+            "message": "owned settled setup beforeAll failure",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "skipped",
                 "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "skipped",
                 "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1792958556203,
-            "endTime": 1792958556203,
-            "status": "failed",
-            "message": "owned settled setup beforeAll failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-vaxQ7d/suite.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-vaxQ7d/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-vaxQ7d/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "reports": {},
-      "exitCode": 1
+      "reportFiles": []
     },
     {
       "name": "beforeall-async",
@@ -482,6 +200,7 @@
       "snapshots": {
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
+      "exitCode": 1,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -492,6 +211,7 @@
         "numFailedTests": 0,
         "numPendingTests": 2,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -508,185 +228,42 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1792958388408,
-        "success": false,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-MmE0cu/suite.test.mjs",
+            "status": "failed",
+            "message": "owned settled setup beforeAll failure",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "skipped",
                 "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "skipped",
                 "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1792958388408,
-            "endTime": 1792958388408,
-            "status": "failed",
-            "message": "owned settled setup beforeAll failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-MmE0cu/suite.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-MmE0cu/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-MmE0cu/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-MmE0cu/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-MmE0cu/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-MmE0cu/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]}}\n}\n"
-      },
-      "exitCode": 1
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "beforeall-async-report-false",
@@ -712,6 +289,7 @@
       "snapshots": {
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
+      "exitCode": 1,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -722,6 +300,7 @@
         "numFailedTests": 0,
         "numPendingTests": 2,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -738,181 +317,38 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1792958557153,
-        "success": false,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-tWiq3I/suite.test.mjs",
+            "status": "failed",
+            "message": "owned settled setup beforeAll failure",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "skipped",
                 "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "skipped",
                 "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1792958557153,
-            "endTime": 1792958557153,
-            "status": "failed",
-            "message": "owned settled setup beforeAll failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-tWiq3I/suite.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-tWiq3I/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-tWiq3I/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "reports": {},
-      "exitCode": 1
+      "reportFiles": []
     },
     {
       "name": "beforeall-mixed-stage",
@@ -938,6 +374,8 @@
       "snapshots": {
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
+      "exitCode": 1,
+      "independentDisposal": true,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -948,6 +386,7 @@
         "numFailedTests": 0,
         "numPendingTests": 2,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -964,186 +403,42 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1792959286028,
-        "success": false,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-VMS5OW/suite.test.mjs",
+            "status": "failed",
+            "message": "same actual authored and mock disposal failure",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "skipped",
                 "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "skipped",
                 "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1792959286028,
-            "endTime": 1792959286028,
-            "status": "failed",
-            "message": "same actual authored and mock disposal failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-VMS5OW/suite.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-VMS5OW/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-VMS5OW/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-VMS5OW/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-VMS5OW/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-VMS5OW/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]}}\n}\n"
-      },
-      "exitCode": 1,
-      "independentDisposal": true
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     }
   ]
 }

@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { createHash } from 'node:crypto'
 import { createServer } from 'node:net'
 import { execFileSync } from 'node:child_process'
 import {
@@ -19,7 +18,7 @@ const repository = path.resolve(__dirname, '../../../..')
 const consumer =
   process.env.NEXT_TESTING_SHARED_RSC_WATCH_CONSUMER ?? repository
 const nativeRequire = createRequire(path.join(consumer, 'package.json'))
-const { importFixtureModule } = nativeRequire(
+const { importFixtureModule, fixtureFiles, resolveFixturePath } = nativeRequire(
   path.join(repository, 'test/lib/next-testing-fixtures.cjs')
 ) as typeof import('../../../lib/next-testing-fixtures.cjs')
 type ProcessSupervisor =
@@ -38,22 +37,12 @@ const corpusDirectory = path.join(
   repository,
   'test/unit/next-testing-compiler/fixtures/shared-rsc'
 )
-const definition = JSON.parse(
-  readFileSync(path.join(corpusDirectory, 'corpus.json'), 'utf8')
-)
-assert.equal(
-  definition.authority,
-  'ordinary Next.js AppPage HTTP; no Vitest RSC substitution'
-)
-assert.match(definition.engines['20'].actualNodeVersion, /^v20\./)
+const sourceDirectory = path.join(corpusDirectory, 'sources')
 const sources: Record<string, Buffer> = {}
-for (const [file, record] of Object.entries(definition.sources) as [
-  string,
-  { stored: string; sha256: string },
-][]) {
-  const body = readFileSync(path.join(corpusDirectory, record.stored))
-  assert.equal(createHash('sha256').update(body).digest('hex'), record.sha256)
-  sources[file] = body
+for (const file of fixtureFiles(sourceDirectory)) {
+  sources[file.replace(/\.txt$/, '')] = readFileSync(
+    resolveFixturePath(path.join(sourceDirectory, file))
+  )
 }
 const corpus = { sources }
 const binary = nativeRequire.resolve('next/dist/bin/next')

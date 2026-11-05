@@ -1,3 +1,0 @@
-import {test} from 'vitest'
-console.log('BROWSER_SETUP_UNREACHED module')
-test('unreached body',()=>{throw new Error('authored body must not run')})

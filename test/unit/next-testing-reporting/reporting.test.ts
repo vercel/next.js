@@ -39,6 +39,11 @@ import type {
 import type { TestEntry } from 'next/dist/experimental/testing/contracts'
 import type { Suite } from 'next/dist/experimental/testing/runner/tasks'
 
+const {
+  completionInputs,
+  profiles: completionProfiles,
+} = require('./custom-completion-inputs.cjs')
+
 const entry: TestEntry = {
   id: 'node:example',
   file: '/project/example.test.ts',
@@ -6614,9 +6619,15 @@ describe('pinned JSON file error messages', () => {
 })
 
 describe('standard JSON coverage with custom reporter completion and close', () => {
-  const pristine = require('./fixtures/json-coverage-custom/pristine.json')
-  it.each(pristine.rows.map((row: { name: string }) => row.name))(
-    'retains genuine complete maps, report files and independent errors for %s',
+  it.each([
+    'close',
+    'config-close',
+    'end',
+    'end-close',
+    'end-config-close',
+    'success',
+  ])(
+    'publishes case results and coverage while retaining independent errors for %s',
     async (name: string) => {
       const output = await mkdtemp(join(tmpdir(), 'next-custom-json-coverage-'))
       try {
@@ -6635,10 +6646,9 @@ describe('standard JSON coverage with custom reporter completion and close', () 
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           name,
-          completeGenuineJSONAndMap: true,
+          caseResultsAndCoveragePublication: true,
           exactCallbackAndFileOrder: true,
           allIndependentAuthoredErrorsRetained: true,
-          authoredBytesHeld: true,
           ownedProcessTreeClosed: true,
         })
       } finally {
@@ -9303,9 +9313,8 @@ describe('actual synchronous custom JSON ordering', () => {
 })
 
 describe('actual custom synchronous JSON publication', () => {
-  const models = require('./fixtures/custom-sync-json-pristine.json')
-  it.each(models.rows.map((row: { name: string }) => row.name))(
-    'matches genuine publication and retained errors for %s',
+  it.each(completionProfiles['sync-json'] as string[])(
+    'preserves JSON publication and reporter errors for %s',
     async (name) => {
       const output = await mkdtemp(join(tmpdir(), 'next-sync-json-public-'))
       try {
@@ -9427,9 +9436,8 @@ describe('actual mixed custom completion dispatch', () => {
 })
 
 describe('actual mixed custom reporter publication', () => {
-  const models = require('./fixtures/custom-dispatch-pristine.json')
-  it.each(models.rows.map((row: { name: string }) => row.name))(
-    'matches genuine dispatch and publication for %s',
+  it.each(completionProfiles['dispatch'] as string[])(
+    'preserves reporter dispatch and JSON publication for %s',
     async (name) => {
       const output = await mkdtemp(join(tmpdir(), 'next-dispatch-public116-'))
       try {
@@ -9463,7 +9471,6 @@ describe('actual mixed custom reporter publication', () => {
 })
 
 describe('actual prior custom completion ownership through close', () => {
-  const models = require('./fixtures/custom-pending-pristine.json')
   const leaves = (error: unknown): Error[] =>
     error instanceof AggregateError
       ? error.errors.flatMap(leaves)
@@ -9483,22 +9490,18 @@ describe('actual prior custom completion ownership through close', () => {
       const { openCustomReporters } = await import(
         'next/dist/experimental/testing/reporting/custom-reporter'
       )
-      const row = models.rows.find(
-        (value: { name: string }) =>
-          value.name ===
-          (['abort', 'worker-death'].includes(name) ? 'resolve' : name)
+      const input = completionInputs(
+        'pending',
+        ['abort', 'worker-death'].includes(name) ? 'resolve' : name
       )
       const root = await mkdtemp(join(tmpdir(), 'next-pending117-'))
-      for (const [file, value] of Object.entries(row.sourceFiles) as [
+      for (const [file, sourceFile] of Object.entries(input.files) as [
         string,
-        { source: string },
+        string,
       ][]) {
-        let source = value.source
+        let source = await readFile(sourceFile, 'utf8')
         if (name === 'worker-death' && file === 'first.mjs')
-          source = source.replace(
-            "trace('first-close');this.release?.()",
-            "trace('first-close');process.exit(23)"
-          )
+          source = source.replace('this.release?.()', 'process.exit(23)')
         await writeFile(join(root, file), source)
       }
       const controller = new AbortController()
@@ -9588,8 +9591,7 @@ describe('actual prior custom completion ownership through close', () => {
 })
 
 describe('actual custom pending completion lifecycle publication', () => {
-  const models = require('./fixtures/custom-pending-pristine.json')
-  it.each(models.rows.map((row: { name: string }) => row.name))(
+  it.each(completionProfiles['pending'] as string[])(
     'matches actual close and retained completion lifecycle for %s',
     async (name) => {
       const output = await mkdtemp(join(tmpdir(), 'next-pending-public117-'))
@@ -9624,7 +9626,6 @@ describe('actual custom pending completion lifecycle publication', () => {
 })
 
 describe('actual ordinary end hook descriptor planning', () => {
-  const models = require('./fixtures/custom-getter-planning-pristine.json')
   it.each([
     'function',
     'undefined',
@@ -9640,11 +9641,11 @@ describe('actual ordinary end hook descriptor planning', () => {
       const { openCustomReporters } = await import(
         'next/dist/experimental/testing/reporting/custom-reporter'
       )
-      const row = models.rows.find(
-        (value: { name: string }) => value.name === name
-      )
       const root = await mkdtemp(join(tmpdir(), 'next-getter118-'))
-      let source = row.sourceFiles['observer.mjs'].source
+      let source = await readFile(
+        join(__dirname, 'fixtures/custom-getter-planning', name + '.mjs'),
+        'utf8'
+      )
       if (name.startsWith('proxy-'))
         source = source.replace(
           "record('proxy-descriptor-end')",
@@ -9766,9 +9767,17 @@ describe('actual ordinary end hook descriptor planning', () => {
 })
 
 describe('actual getter planning provider lifecycle', () => {
-  const models = require('./fixtures/custom-getter-planning-pristine.json')
-  it.each(models.rows.map((row: { name: string }) => row.name))(
-    'retains exact genuine or declared legacy preservation for %s',
+  it.each([
+    'function',
+    'undefined',
+    'null',
+    'inherited-function',
+    'shadow-undefined',
+    'proxy-instance',
+    'proxy-prototype',
+    'throw-before',
+  ])(
+    'defers end-hook access until provider completion for %s',
     async (name) => {
       const output = await mkdtemp(join(tmpdir(), 'next-getter-public118-'))
       try {
@@ -9802,23 +9811,23 @@ describe('actual getter planning provider lifecycle', () => {
 })
 
 describe('actual completion failure prefix ownership', () => {
-  const models = require('./fixtures/custom-completion-failure-pristine.json')
-  it.each(models.rows.map((row: { name: string }) => row.name))(
+  it.each(completionProfiles['completion-failure'] as string[])(
     'maps actual failure and true invocation count for %s',
     async (name) => {
       const { openCustomReporters } = await import(
         'next/dist/experimental/testing/reporting/custom-reporter'
       )
-      const row = models.rows.find(
-        (value: { name: string }) => value.name === name
-      )
+      const input = completionInputs('completion-failure', name)
+      const failingIndex = name.startsWith('zero-') ? 0 : 1
+      const kind = name.endsWith('-getter') ? 'access' : 'noncallable'
+      const actualInvocationCount = name.startsWith('plain-') ? 1 : 0
       const root = await mkdtemp(join(tmpdir(), 'next-failure119-'))
-      for (const [file, value] of Object.entries(row.sourceFiles) as [
+      for (const [file, source] of Object.entries(input.files) as [
         string,
-        { source: string },
+        string,
       ][])
-        await writeFile(join(root, file), value.source)
-      const names = row.reporters.filter((value: string) => value !== 'json')
+        await cp(source, join(root, file))
+      const names = input.reporters.filter((value: string) => value !== 'json')
       const session = await openCustomReporters({
         projectDir: root,
         reporters: names,
@@ -9832,7 +9841,7 @@ describe('actual completion failure prefix ownership', () => {
       }
       const machine = createMachineReporter({
         projectDir: root,
-        reporters: parseResultReporters(row.reporters),
+        reporters: parseResultReporters(input.reporters),
         outputFile: join(root, 'cases.json'),
         customReporterSession: session,
         write() {},
@@ -9849,19 +9858,19 @@ describe('actual completion failure prefix ownership', () => {
         const prefix = await machine.beginCustomCompletionPrefix()
         expect(prefix).toEqual({
           completionFailure: {
-            reporterIndex: row.failingIndex,
-            kind: row.kind,
+            reporterIndex: failingIndex,
+            kind,
           },
-          ...(row.actualInvocationCount
-            ? { invocation: { count: row.actualInvocationCount } }
+          ...(actualInvocationCount
+            ? { invocation: { count: actualInvocationCount } }
             : {}),
         })
         failure = await machine.finish().catch((error) => error)
         const completion = await operation!.completed.catch((error) => error)
         expect(failure).toBe(completion)
-        if (row.actualInvocationCount)
+        if (actualInvocationCount)
           expect(await operation!.invoked).toEqual({
-            count: row.actualInvocationCount,
+            count: actualInvocationCount,
           })
         else
           expect(await operation!.invoked.catch((error) => error)).toBe(
@@ -9869,7 +9878,7 @@ describe('actual completion failure prefix ownership', () => {
           )
         expect(failure).toMatchObject({
           message:
-            row.kind === 'access'
+            kind === 'access'
               ? name.startsWith('zero')
                 ? 'actual113 reporter failure'
                 : 'actual access failure118'
@@ -10066,8 +10075,7 @@ describe('actual completion failure prefix ownership', () => {
 })
 
 describe('actual completion failure mapping publication', () => {
-  const models = require('./fixtures/custom-completion-failure-pristine.json')
-  it.each(models.rows.map((row: { name: string }) => row.name))(
+  it.each(completionProfiles['completion-failure'] as string[])(
     'matches JSON-after failure dispatch for %s',
     async (name) => {
       const output = await mkdtemp(join(tmpdir(), 'next-failure-public119-'))
@@ -10102,29 +10110,37 @@ describe('actual completion failure mapping publication', () => {
 })
 
 describe('actual pre-call completion failure owns earlier callbacks until close', () => {
-  const models = require('./fixtures/custom-access-pending-pristine.json')
   const leaves = (error: unknown): Error[] =>
     error instanceof AggregateError
       ? error.errors.flatMap(leaves)
       : error instanceof Error
         ? [error]
         : []
-  it.each(models.rows.map((row: { name: string }) => row.name))(
+  it.each([
+    'getter-reject',
+    'getter-close-throw',
+    'getter-reject-close-throw',
+    'invalid-reject',
+    'invalid-close-throw',
+    'invalid-reject-close-throw',
+  ])(
     'preserves actual access failure and physical ownership for %s',
     async (name) => {
       const { openCustomReporters } = await import(
         'next/dist/experimental/testing/reporting/custom-reporter'
       )
-      const row = models.rows.find(
-        (value: { name: string }) => value.name === name
-      )
       const root = await mkdtemp(join(tmpdir(), 'next-access-pending416-'))
-      for (const [file, value] of Object.entries(row.sourceFiles) as [
-        string,
-        { source: string },
-      ][]) {
-        await writeFile(join(root, file), value.source)
-      }
+      const kind = name.startsWith('getter-') ? 'getter' : 'invalid'
+      const variant = name.slice(kind.length + 1)
+      for (const [file, source] of [
+        ['first.mjs', variant + '.mjs'],
+        ['second.mjs', kind + '.mjs'],
+        ['third.mjs', 'third.mjs'],
+      ])
+        await cp(
+          join(__dirname, 'fixtures/custom-access-pending', source),
+          join(root, file)
+        )
       const controller = new AbortController()
       const reporters = ['./first.mjs', './second.mjs', './third.mjs']
       const session = await openCustomReporters({
@@ -10158,20 +10174,20 @@ describe('actual pre-call completion failure owns earlier callbacks until close'
         expect(await machine.beginCustomCompletionPrefix()).toEqual({
           completionFailure: {
             reporterIndex: 1,
-            kind: row.kind === 'getter' ? 'access' : 'noncallable',
+            kind: kind === 'getter' ? 'access' : 'noncallable',
           },
           invocation: { count: 1 },
         })
         failure = await machine.finish().catch((error) => error)
         expect(failure).toMatchObject({
           message:
-            row.kind === 'getter'
+            kind === 'getter'
               ? 'actual access failure118'
               : 'Custom reporter onTestRunEnd is not a function.',
         })
         expect(await trace()).toEqual([
           { name: 'first-enter', jsonExists: false },
-          ...(row.kind === 'getter'
+          ...(kind === 'getter'
             ? [{ name: 'second-getter', jsonExists: false }]
             : []),
         ])
@@ -10183,18 +10199,21 @@ describe('actual pre-call completion failure owns earlier callbacks until close'
           .catch((error) => error)
         disposed = true
         expect(leaves(cleanup).map((error) => error.message)).toEqual([
-          ...(row.variant.includes('close-throw')
+          ...(variant.includes('close-throw')
             ? ['actual accessor close failure120']
             : []),
-          ...(row.variant.includes('reject')
+          ...(variant.includes('reject')
             ? ['actual accessor prior rejection120']
             : []),
         ])
-        expect(await trace()).toEqual(
-          row.expected.trace.filter((value: { name: string }) =>
-            /^(first|second|third)-/.test(value.name)
-          )
-        )
+        expect(await trace()).toEqual([
+          { name: 'first-enter', jsonExists: false },
+          ...(kind === 'getter'
+            ? [{ name: 'second-getter', jsonExists: false }]
+            : []),
+          { name: 'first-close', jsonExists: false },
+          { name: 'first-settled', jsonExists: false },
+        ])
       } finally {
         await machine.dispose()
         if (!disposed) {
@@ -10209,8 +10228,14 @@ describe('actual pre-call completion failure owns earlier callbacks until close'
 })
 
 describe('actual pre-call pending completion lifecycle publication', () => {
-  const models = require('./fixtures/custom-access-pending-pristine.json')
-  it.each(models.rows.map((row: { name: string }) => row.name))(
+  it.each([
+    'getter-reject',
+    'getter-close-throw',
+    'getter-reject-close-throw',
+    'invalid-reject',
+    'invalid-close-throw',
+    'invalid-reject-close-throw',
+  ])(
     'matches actual close and retained completion lifecycle for %s',
     async (name) => {
       const output = await mkdtemp(
@@ -10657,7 +10682,7 @@ it('preserves actual annotation and artifact RPC values, failures and concurrent
       scenarios: 33,
       actualCallbacks: 54,
       actualGetterReads: 58,
-      completeCallbackRows: 165,
+      checkedCallbackRows: 165,
       globalReporterErrors: 0,
       allSessionsDisposed: true,
     })
@@ -11050,7 +11075,7 @@ it('retains canonical reporter logs from real producer events and watch generati
     freshArraysWithRetainedRows: true,
     fileLogsSharedAcrossWatchGenerations: true,
     absentFileListsRetainTheirActualOwner: true,
-    queuedAndCollectedFileSlotsMatchReference: true,
+    queuedAndCollectedFileSlotsMatchProducer: true,
     priorTestViewsRetainTheirGeneration: true,
     callbackSchedulingParityClaimed: false,
   })

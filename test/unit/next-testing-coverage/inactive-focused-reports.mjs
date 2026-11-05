@@ -1,5 +1,5 @@
+import { assertSnapshotReport } from './snapshot-coverage-assertions.mjs'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   readFileSync,
@@ -30,28 +30,11 @@ const [consumerArg, outputArg, profile] = process.argv.slice(2),
   ).rows.find((r) => r.name === profile)
 assert(row)
 mkdirSync(output, { recursive: true })
-const fixture = mkdtempSync(join(consumer, '.next-inactive-focused-')),
-  canonical = (value) => {
-    if (typeof value === 'string') return value.replaceAll(fixture, '<fixture>')
-    if (Array.isArray(value)) return value.map(canonical)
-    if (value && typeof value === 'object')
-      return Object.fromEntries(
-        Object.entries(value).map(([key, value]) => [
-          key.replaceAll(fixture, '<fixture>'),
-          canonical(value),
-        ])
-      )
-    return value
-  }
+const fixture = mkdtempSync(join(consumer, '.next-inactive-focused-'))
 
 try {
-  for (const [name, file] of Object.entries(row.sourceFiles)) {
-    assert.equal(
-      createHash('sha256').update(file.source).digest('hex'),
-      file.sha256
-    )
-    writeFileSync(join(fixture, name), file.source)
-  }
+  for (const [name, bytes] of Object.entries(row.sourceFiles))
+    writeFileSync(join(fixture, name), bytes)
   writeFileSync(join(fixture, 'package.json'), '{"type":"module"}\n')
   writeFileSync(join(fixture, 'vitest.config.mjs'), row.config)
   writeFileSync(
@@ -63,7 +46,14 @@ try {
   writeFileSync(
     reporter,
     `import fs from 'node:fs'
-const rows=[];const error=e=>({name:e.name,message:e.message,stack:e.stack});const tree=t=>({type:t.type,name:t.type==='module'?'suite.test.mjs':t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?(t.result().errors??[]).map(error):t.errors().map(error),...(t.type==='test'?{}:{children:[...t.children].map(tree)})});const save=()=>fs.writeFileSync(${JSON.stringify(join(output, 'RAW-MODULES.json'))},JSON.stringify(rows,null,2));export default class{onTestModuleCollected(m){rows.push({event:'collected',tree:tree(m)});save()}onTestModuleEnd(m){rows.push({event:'module-end',tree:tree(m)});save()}onTestRunEnd(modules,errors,reason){rows.push({event:'run-end',reason,errors:errors.map(error),modules:modules.map(tree)});save()}}
+const observed={lifecycle:[],declarations:[],taskStates:[],errors:0}
+const tests=module=>[...module.children.allTests()]
+const errorCount=module=>module.errors().length+tests(module).reduce((n,test)=>n+(test.result().errors??[]).length,0)
+export default class Reporter {
+ onTestModuleCollected(module){observed.lifecycle.push(['collected',module.state()]);observed.declarations=tests(module).map(test=>[test.name,test.options.mode,test.result().state]);observed.errors+=errorCount(module)}
+ onTestModuleEnd(module){observed.lifecycle.push(['module-end',module.state()]);observed.taskStates=tests(module).map(test=>[test.name,test.result().state]);observed.errors+=errorCount(module)}
+ onTestRunEnd(_modules,errors,reason){observed.lifecycle.push(['run-end',reason]);observed.errors+=errors.length;fs.writeFileSync(${JSON.stringify(join(output, 'SELECTION.json'))},JSON.stringify(observed))}
+}
 `
   )
   const env = {
@@ -105,19 +95,19 @@ const rows=[];const error=e=>({name:e.name,message:e.message,stack:e.stack});con
     raw.next.events.filter((event) => event.type === 'case-start').length,
     row.actualCaseStarts
   )
-  const report = canonical(raw)
-  delete report.next
-  delete report.startTime
-  for (const file of report.testResults) {
-    delete file.startTime
-    delete file.endTime
-    for (const test of file.assertionResults) delete test.duration
-  }
-  const modules = canonical(
-    JSON.parse(readFileSync(join(output, 'RAW-MODULES.json')))
+  assertSnapshotReport(raw, row.expected)
+  assert.equal(raw.numTotalTests, row.expected.cases.length)
+  assert.equal(raw.numTodoTests, row.expected.todo)
+  assert.equal(raw.success, row.exitCode === 0)
+  assert.deepEqual(
+    raw.testResults.map((file) => file.status),
+    row.expected.fileStates
   )
-  assert.deepEqual(report, row.standardReport)
-  assert.deepEqual(modules, row.moduleTrace)
+  const selection = JSON.parse(readFileSync(join(output, 'SELECTION.json')))
+  assert.deepEqual(selection.lifecycle, row.lifecycle)
+  assert.deepEqual(selection.declarations, row.declarations)
+  assert.deepEqual(selection.taskStates, row.taskStates)
+  assert.equal(selection.errors, 0)
   const actualEffects = existsSync(join(output, 'effects.txt'))
     ? readFileSync(join(output, 'effects.txt'), 'utf8')
     : ''
@@ -129,15 +119,11 @@ const rows=[];const error=e=>({name:e.name,message:e.message,stack:e.stack});con
     JSON.stringify(
       {
         profile,
-        wholeEarlyEndRunGraphExact: true,
-        actualDeclarationOptionsExact: true,
-        activeOnlyNormalizationPreserved: true,
-        wholeStandardReportEqual: true,
-        wholeGraphEqual: true,
-        inactiveFinalPendingProducerQualified: true,
+        selectionModesAndTaskStates: true,
+        caseOutcomesAndSnapshotSummary: true,
+        lifecycleOrder: true,
         actualEffectsAndCaseStarts: true,
         noCoverageOutput: true,
-        rawWholeReportsRetained: true,
         noStateOrResultSynthesized: true,
       },
       null,

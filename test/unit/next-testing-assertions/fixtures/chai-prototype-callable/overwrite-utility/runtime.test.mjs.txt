@@ -1,24 +1,71 @@
 import { chai, test } from 'vitest'
+import assert from 'node:assert/strict'
 const trace = []
-const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
+function emit(row) {
+  const value = row.kind === 'same-task' ? 1 : 2
+  if ('sameCallable' in row) assert.equal(row.sameCallable, true)
+  assert.equal(row.result.passed, true, row.result.error?.message)
+  assert.equal(row.result.subject, value)
+  assert.equal(row.result.sameResult, false)
+  assert.deepEqual(row.trace, [
+    { phase: 'before-super', subject: value },
+    { phase: 'after-super', subject: value, sameResult: false },
+  ])
+}
 chai.use((c, utils) => {
-  utils.overwriteMethod.bind(utils, c.Assertion.prototype, 'equal')((original) => function (value) {
-    trace.push({ phase: 'before-super', subject: this._obj })
-    const result = original.call(this, value)
-    trace.push({ phase: 'after-super', subject: result._obj, sameResult: result === this })
-    return result
-  })
+  utils.overwriteMethod.bind(
+    utils,
+    c.Assertion.prototype,
+    'equal'
+  )(
+    (original) =>
+      function (value) {
+        trace.push({ phase: 'before-super', subject: this._obj })
+        const result = original.call(this, value)
+        trace.push({
+          phase: 'after-super',
+          subject: result._obj,
+          sameResult: result === this,
+        })
+        return result
+      }
+  )
 })
 let retained
 function action(method, receiver, value) {
-  try { const result = method.call(receiver, value); return { passed: true, subject: result._obj, sameResult: result === receiver } }
-  catch(error) { return { passed: false, error: { name: error.name, message: error.message, actual: error.actual, expected: error.expected } } }
+  try {
+    const result = method.call(receiver, value)
+    return {
+      passed: true,
+      subject: result._obj,
+      sameResult: result === receiver,
+    }
+  } catch (error) {
+    return {
+      passed: false,
+      error: {
+        name: error.name,
+        message: error.message,
+        actual: error.actual,
+        expected: error.expected,
+      },
+    }
+  }
 }
 test('same-task prototype overwrite delegates to native super with actual receiver', () => {
   retained = chai.Assertion.prototype.equal
   const value = chai.expect(1)
-  emit({ kind: 'same-task', result: action(retained, value, 1), trace: trace.splice(0) })
+  emit({
+    kind: 'same-task',
+    result: action(retained, value, 1),
+    trace: trace.splice(0),
+  })
 })
 test('retained prototype overwrite delegates with next actual receiver', () => {
-  emit({ kind: 'later-task', sameCallable: retained === chai.Assertion.prototype.equal, result: action(retained, chai.expect(2), 2), trace: trace.splice(0) })
+  emit({
+    kind: 'later-task',
+    sameCallable: retained === chai.Assertion.prototype.equal,
+    result: action(retained, chai.expect(2), 2),
+    trace: trace.splice(0),
+  })
 })

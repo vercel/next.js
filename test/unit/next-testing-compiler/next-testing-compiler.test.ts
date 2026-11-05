@@ -7361,7 +7361,7 @@ it('caches compiled original imports by resolved target with fresh outer promise
   const { execFileSync } = require('node:child_process')
   const result = execFileSync(
     process.execPath,
-    [join(__dirname, 'cjs-actual-cache-integration.cjs')],
+    [join(__dirname, 'run-fixture.cjs'), 'cjs-actual-cache'],
     { encoding: 'utf8', timeout: 135000 }
   )
   const actual = JSON.parse(result)
@@ -7373,7 +7373,7 @@ it('automatically mocks compiled CommonJS default and named exports', () => {
   const { execFileSync } = require('node:child_process')
   const result = execFileSync(
     process.execPath,
-    [join(__dirname, 'cjs-import-mock-integration.cjs')],
+    [join(__dirname, 'run-fixture.cjs'), 'cjs-import-mock'],
     { encoding: 'utf8', timeout: 135000 }
   )
   const actual = JSON.parse(result)
@@ -7385,7 +7385,7 @@ it('applies explicit CommonJS object factories while retaining lazy original imp
   const { execFileSync } = require('node:child_process')
   const result = execFileSync(
     process.execPath,
-    [join(__dirname, 'cjs-factory-integration.cjs')],
+    [join(__dirname, 'run-fixture.cjs'), 'cjs-factory'],
     { encoding: 'utf8', timeout: 135000 }
   )
   const actual = JSON.parse(result)
@@ -7454,7 +7454,7 @@ it('resets compiled leaf CommonJS object, callable and Promise modules', () => {
   const { execFileSync } = require('node:child_process')
   const result = execFileSync(
     process.execPath,
-    [join(__dirname, 'cjs-reset-integration.cjs')],
+    [join(__dirname, 'run-fixture.cjs'), 'cjs-reset'],
     { encoding: 'utf8', timeout: 135000 }
   )
   const actual = JSON.parse(result)
@@ -7466,7 +7466,7 @@ it('supplies missing bare modules through actual shared factory namespaces', () 
   const { execFileSync } = require('node:child_process')
   const result = execFileSync(
     process.execPath,
-    [join(__dirname, 'virtual-bare-integration.cjs')],
+    [join(__dirname, 'run-fixture.cjs'), 'virtual-bare'],
     { encoding: 'utf8', timeout: 135000 }
   )
   const actual = JSON.parse(result)
@@ -7478,7 +7478,7 @@ it('shares missing bare factory values through importMock and import namespaces'
   const { execFileSync } = require('node:child_process')
   const result = execFileSync(
     process.execPath,
-    [join(__dirname, 'virtual-import-integration.cjs')],
+    [join(__dirname, 'run-fixture.cjs'), 'virtual-import'],
     { encoding: 'utf8', timeout: 135000 }
   )
   const actual = JSON.parse(result)
@@ -7556,7 +7556,7 @@ it('supplies certified Node builtin factories through project ESM consumers', ()
   const { execFileSync } = require('node:child_process')
   const result = execFileSync(
     process.execPath,
-    [join(__dirname, 'builtin-factory-integration.cjs')],
+    [join(__dirname, 'run-fixture.cjs'), 'builtin-factory'],
     { encoding: 'utf8', timeout: 135000 }
   )
   const actual = JSON.parse(result)
@@ -7578,80 +7578,6 @@ it('retains runtime window observations in actual development and production Nod
     fullRows: 4,
   })
 }, 160000)
-
-for (const mode of ['development', 'production'] as const) {
-  it(`preserves native builtin namespace identity in ordinary ${mode} Node tests`, () => {
-    const { execFileSync } = require('node:child_process')
-    const result = execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'builtin-control',
-        mode,
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-    const actual = JSON.parse(result)
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.cases).toHaveLength(2)
-    expect(actual.rows).toHaveLength(2)
-  }, 140000)
-}
-
-for (const [group, count] of [
-  ['external', 3],
-  ['external-control', 2],
-  ['external-graph', 1],
-  ['external-conditions', 1],
-  ['external-actual', 3],
-  ['unmock-after', 1],
-  ['unmock-before', 1],
-  ['unmock-only', 1],
-  ['builtin-actual', 3],
-  ['builtin-control', 2],
-  ['compiled-builtin', 1],
-  ['compiled-external', 1],
-  ['builtin-unmock-after', 1],
-  ['builtin-unmock-before', 1],
-  ['builtin-unmock-only', 1],
-  ['runtime-cjs', 6],
-  ['runtime-esm', 6],
-  ['runtime-builtin', 6],
-  ['runtime-ownership', 1],
-  ['runtime-ownership-no-reset', 1],
-  ['compiled-runtime', 4],
-  ['compiled-parallel-fast', 2],
-  ['static-runtime-cjs-unused', 1],
-  ['static-runtime-esm-unused', 1],
-  ['static-runtime-builtin-unused', 1],
-  ['static-runtime-cjs', 1],
-  ['static-runtime-esm', 1],
-  ['static-runtime-builtin', 1],
-  ['static-runtime-cjs-failure', 1],
-  ['static-runtime-cjs-pending-resolve', 1],
-  ['static-runtime-cjs-pending-reject', 1],
-  ['static-runtime-cjs-unmock-first', 1],
-  ['static-runtime-esm-failure', 1],
-  ['static-runtime-esm-pending-resolve', 1],
-  ['static-runtime-esm-pending-reject', 1],
-  ['static-runtime-esm-unmock-first', 1],
-  ['static-runtime-builtin-failure', 1],
-  ['static-runtime-builtin-pending-resolve', 1],
-  ['static-runtime-builtin-pending-reject', 1],
-  ['static-runtime-builtin-unmock-first', 1],
-] as const) {
-  it(`publishes owned native package artifacts for ${group}`, () => {
-    const { execFileSync } = require('node:child_process')
-    const result = execFileSync(
-      process.execPath,
-      [join(__dirname, 'external-package-integration.cjs'), group],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-    const actual = JSON.parse(result)
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.rows).toHaveLength(count)
-  }, 140000)
-}
 
 it.each(['development', 'production'])(
   'validates explicit %s Node RSC AppProject routes',
@@ -7741,22 +7667,6 @@ it.each(['development', 'production'] as const)(
   }
 )
 
-it('preserves complete compiled terminal-throw runtime factory rows', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'compiled-purethrow',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(4)
-}, 140000)
-
 for (const target of [
   'commonjs',
   'transitive',
@@ -7780,22 +7690,6 @@ for (const target of [
     expect(actual.bodyOutput).toBe(false)
   }, 140000)
 }
-
-it('retains compiled ESM dependency and cycle runtime registration lifetimes', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'compiled-esm-graph',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(7)
-}, 140000)
 
 for (const target of [
   'commonjs',
@@ -7824,22 +7718,6 @@ for (const target of [
     expect(actual.bodyOutput).toBe(false)
   }, 140000)
 }
-
-it('uses the configured actual resolver target in runtime ESM graph certificates', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'compiled-esm-graph-alias',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(1)
-}, 140000)
 
 for (const target of [
   'async-module',
@@ -7880,33 +7758,6 @@ it('starts distinct declared runtime factories at actual original dependency dem
   expect(actual.bodyOutput).toBe(true)
 }, 140000)
 
-for (const [target, rows] of [
-  ['compiled-cross-namespace-shadow', 1],
-  ['compiled-cross-target', 12],
-  ['compiled-cross-lifetime', 4],
-  ['compiled-cross-namespace', 4],
-  ['compiled-cross-namespace-cycle', 1],
-  ['compiled-cross-namespace-reset', 1],
-  ['compiled-cross-namespace-getter', 1],
-  ['factory-cause-cjs', 1],
-  ['factory-cause-esm', 1],
-  ['factory-cause-builtin', 1],
-  ['factory-cause-compiled', 1],
-] as const) {
-  it(`matches complete cross-target runtime and namespace reference rows: ${target}`, () => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), target],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.rows).toHaveLength(rows)
-  }, 140000)
-}
-
 it('preserves the same-directory foreign importer boundary for marked runtime demand graphs', () => {
   const { execFileSync } = require('node:child_process')
   const actual = JSON.parse(
@@ -7923,34 +7774,6 @@ it('preserves the same-directory foreign importer boundary for marked runtime de
   expect(actual.total).toBe(0)
   expect(actual.bodyOutput).toBe(false)
 }, 140000)
-
-for (const target of [
-  'cjs-reset-dependency',
-  'cjs-reset-direct-dependency',
-  'cjs-reset-cycle',
-  'cjs-reset-static-held-dependency',
-  'cjs-reset-unused-dependency',
-  'cjs-reset-unused-cycle',
-  'cjs-reset-nonleaf-callable-plain',
-  'cjs-reset-nonleaf-callable-cycle',
-  'cjs-reset-nonleaf-callable-static',
-  'cjs-reset-nonleaf-callable-unused',
-  'cjs-reset-nonleaf-member-object',
-  'cjs-reset-nonleaf-member-callable',
-] as const) {
-  it(`matches full nonleaf CommonJS namespace and require-lifetime reference rows: ${target}`, () => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), target],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.rows).toHaveLength(1)
-  }, 140000)
-}
 
 for (const target of [
   'cjs-reset-negative-unresolved',
@@ -7989,28 +7812,6 @@ for (const target of [
   }, 140000)
 }
 
-for (const [target, rows] of [
-  ['compiled-native-order-before', 1],
-  ['compiled-native-order-after', 1],
-  ['compiled-native-namespace-before', 1],
-  ['compiled-native-namespace-after', 1],
-  ['compiled-native-cross-target', 13],
-  ['compiled-native-cross-lifetime', 5],
-] as const) {
-  it(`preserves native import ordering and complete cross-target namespace/lifetime rows: ${target}`, () => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), target],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.rows).toHaveLength(rows)
-  }, 140000)
-}
-
 it('preserves foreign importer refusal for compiled demand graphs with certified native imports', () => {
   const { execFileSync } = require('node:child_process')
   const actual = JSON.parse(
@@ -8027,38 +7828,6 @@ it('preserves foreign importer refusal for compiled demand graphs with certified
   expect(actual.total).toBe(0)
   expect(actual.bodyOutput).toBe(false)
 }, 140000)
-
-for (const [target, rows] of [
-  ['cjs-reset-actual-dependency', 2],
-  ['cjs-reset-actual-cycle', 2],
-  ['cjs-reset-actual-nonleaf-callable-plain', 2],
-  ['cjs-reset-actual-nonleaf-callable-cycle', 2],
-  ['cjs-reset-actual-dependency-actual-only', 1],
-  ['cjs-reset-actual-dependency-unused-only', 1],
-  ['cjs-reset-actual-cycle-actual-only', 1],
-  ['cjs-reset-actual-cycle-unused-only', 1],
-  ['cjs-reset-actual-nonleaf-callable-plain-actual-only', 1],
-  ['cjs-reset-actual-nonleaf-callable-plain-unused-only', 1],
-  ['cjs-reset-actual-nonleaf-callable-cycle-actual-only', 1],
-  ['cjs-reset-actual-nonleaf-callable-cycle-unused-only', 1],
-  ['cjs-reset-actual-dependency-mutation', 1],
-  ['cjs-reset-actual-cycle-mutation', 1],
-  ['cjs-reset-actual-nonleaf-callable-plain-mutation', 1],
-  ['cjs-reset-actual-nonleaf-callable-cycle-mutation', 1],
-] as const) {
-  it(`matches complete CommonJS actual/reset namespace and held require rows: ${target}`, () => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), target],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.rows).toHaveLength(rows)
-  }, 140000)
-}
 
 for (const target of [
   'cjs-actual-reset-negative-query',
@@ -8100,37 +7869,6 @@ for (const target of [
   )
 }
 
-for (const [target, rows] of [
-  ['compiled-cjs-runtime-leaf-object', 8],
-  ['compiled-cjs-runtime-leaf-callable', 8],
-  ['compiled-cjs-runtime-dependency', 8],
-  ['compiled-cjs-runtime-cycle', 8],
-  ['compiled-cjs-runtime-nonleaf-callable-plain', 8],
-  ['compiled-cjs-runtime-nonleaf-callable-cycle', 8],
-  ['compiled-cjs-runtime-leaf-object-lifetimes', 4],
-  ['compiled-cjs-runtime-leaf-callable-lifetimes', 4],
-  ['compiled-cjs-runtime-dependency-lifetimes', 4],
-  ['compiled-cjs-runtime-cycle-lifetimes', 4],
-  ['compiled-cjs-runtime-nonleaf-callable-plain-lifetimes', 4],
-  ['compiled-cjs-runtime-nonleaf-callable-cycle-lifetimes', 4],
-  ['compiled-cjs-runtime-leaf-object-esmflag', 8],
-  ['compiled-cjs-runtime-leaf-object-default', 8],
-  ['compiled-cjs-runtime-leaf-callable-esmflag', 8],
-] as const) {
-  it(`matches complete compiled CommonJS runtime registration and held namespace rows: ${target}`, () => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), target],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.rows).toHaveLength(rows)
-  }, 140000)
-}
-
 for (const target of [
   'compiled-cjs-runtime-negative-query',
   'compiled-cjs-runtime-negative-fragment',
@@ -8164,316 +7902,6 @@ for (const target of [
   }, 140000)
 }
 
-for (const [target, rows] of [
-  ['runtime-registration-leaf-object-no-reset', 2],
-  ['runtime-registration-leaf-callable-no-reset', 2],
-  ['runtime-registration-dependency-no-reset', 2],
-  ['runtime-registration-cycle-no-reset', 2],
-  ['runtime-registration-nonleaf-callable-plain-no-reset', 2],
-  ['runtime-registration-nonleaf-callable-cycle-no-reset', 2],
-  ['runtime-registration-leaf-object-transitions-v2', 6],
-  ['runtime-registration-dependency-transitions-v2', 6],
-  ['runtime-registration-leaf-tla-order', 8],
-  ['runtime-registration-two-tla-order', 8],
-  ['runtime-registration-original-adoption', 3],
-  ['runtime-registration-completed-attempt', 4],
-  ['runtime-registration-builtin-transitions', 6],
-  ['runtime-registration-esm-demand-literal-v5', 1],
-  ['runtime-registration-leaf-object-invalidation-v1', 2],
-  ['runtime-registration-leaf-callable-invalidation-v1', 2],
-  ['runtime-registration-dependency-invalidation-v1', 2],
-  ['runtime-registration-esm-transitions-invalidation-v1', 2],
-  ['runtime-registration-builtin-transitions-invalidation-v1', 2],
-] as const) {
-  it(`matches complete runtime registration cache and ownership observations: ${target}`, () => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), target],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.rows).toHaveLength(rows)
-  }, 140000)
-}
-
-for (const [target, rows] of [
-  ['runtime-namespace-esm-transitions', 6],
-  ['runtime-namespace-ordinary-values', 4],
-  ['runtime-namespace-ordinary-hygiene', 2],
-] as const) {
-  it(`matches complete ordinary runtime ESM namespace observations: ${target}`, () => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), target],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.rows).toHaveLength(rows)
-  }, 140000)
-}
-
-it('matches complete compiled A pending original lifetime observations', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'runtime-namespace-compiled-pending-lifetimes',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(8)
-}, 140000)
-
-it('matches complete compiled A pending original loader failures', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'runtime-namespace-compiled-loader-error',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(2)
-}, 140000)
-
-it('retains complete ordinary TLA namespaces with a second unused runtime target', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'runtime-namespace-ordinary-tla',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(3)
-}, 140000)
-
-it('retains the complete ordinary importOriginal callback function shape', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'runtime-import-original-callback-shape',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(1)
-}, 140000)
-
-it('retains complete anonymous CommonJS function dependency-reset namespaces and lifetimes', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-function-expression-dependency-reset',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(3)
-}, 140000)
-
-it('retains complete anonymous CommonJS function cycle-reset namespaces and lifetimes', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-function-expression-cycle-reset',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(3)
-}, 140000)
-
-it('retains complete anonymous CommonJS function dependency-runtime namespaces and lifetimes', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-function-expression-dependency-runtime',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(3)
-}, 140000)
-
-it('retains complete anonymous CommonJS function cycle-runtime namespaces and lifetimes', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-function-expression-cycle-runtime',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(3)
-}, 140000)
-
-it('retains the complete ordinary static importOriginal callback function shape', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'static-import-original-callback-shape',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(1)
-}, 140000)
-
-it('retains complete ordinary callable CommonJS importMock key order and mock identities', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-import-mock-callable-order',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(7)
-}, 140000)
-
-it('retains complete certified async CommonJS importMock publication and lazy aliases', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-import-mock-certified-async',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(4)
-}, 140000)
-
-it('retains complete CommonJS callable publication before raw-member mutations', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-import-mock-publication-mutation',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(6)
-}, 140000)
-
-it('retains complete async callable publication before raw-member mutations', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-import-mock-async-publication-mutation',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(18)
-}, 140000)
-
-it('retains complete certified CommonJS publication namespace descriptors and held aliases', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-import-mock-publication-namespace',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(4)
-}, 140000)
-
-it('retains complete inherited CommonJS export-flag observations during automatic publication', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-import-mock-inherited-flag',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(2)
-}, 140000)
-
-it('retains complete callable CommonJS original strict receiver and raw descriptors', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-import-mock-strict-receiver',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(2)
-}, 140000)
-
 it.each(
   (['development', 'production'] as const).flatMap((mode) =>
     ([true, false, undefined] as const).map((flag) => [mode, flag] as const)
@@ -8498,68 +7926,6 @@ it.each(
   }
 )
 
-it('retains complete callable self-default publication and lazy alias identities', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-import-mock-self-default-publication',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(9)
-}, 140000)
-
-it('retains complete callable self-default inherited setter observations', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'cjs-import-mock-self-default-inherited',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.rows).toHaveLength(2)
-}, 140000)
-
-it.each([
-  ['owned-descriptor-callable', 8],
-  ['owned-descriptor-observation', 5],
-  ['owned-descriptor-proxy', 4],
-  ['hidden-flag-body-definitions', 2],
-  ['hidden-flag-callable', 9],
-  ['hidden-flag-inherited', 2],
-  ['hidden-flag-definition-observation', 2],
-  ['hidden-flag-all-definitions', 2],
-  ['hidden-flag-publication-proxy', 3],
-])(
-  'retains complete CommonJS %s publication behavior',
-  (group, cases) => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'external-package-integration.cjs'),
-          `cjs-import-mock-${group}`,
-        ],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.rows).toHaveLength(cases)
-  },
-  140000
-)
-
 it('keeps callable publication namespaces private to each module generation', () => {
   const { execFileSync } = require('node:child_process')
   const actual = JSON.parse(
@@ -8574,571 +7940,6 @@ it('keeps callable publication namespaces private to each module generation', ()
   )
   expect(actual).toEqual({ assertions: 20 })
 })
-
-it.each(['dependency', 'cycle'])(
-  'preserves named CommonJS function expression reset and %s ownership',
-  (kind) => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'external-package-integration.cjs'),
-          `cjs-named-function-expression-${kind}-reset`,
-        ],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.cases).toHaveLength(4)
-    expect(actual.rows).toHaveLength(4)
-  },
-  140000
-)
-
-it.each([
-  ['default', 'dependency'],
-  ['default', 'cycle'],
-  ['rest', 'dependency'],
-  ['rest', 'cycle'],
-  ['anonymous-default', 'dependency'],
-  ['anonymous-default', 'cycle'],
-  ['anonymous-rest', 'dependency'],
-  ['anonymous-rest', 'cycle'],
-])(
-  'preserves ordinary %s parameters through CommonJS %s resets',
-  (form, kind) => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'external-package-integration.cjs'),
-          `cjs-${form}-function-expression-${kind}-reset`,
-        ],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.cases).toHaveLength(form.startsWith('anonymous-') ? 4 : 5)
-    expect(actual.rows).toHaveLength(form.startsWith('anonymous-') ? 4 : 5)
-  },
-  140000
-)
-
-it.each([
-  {
-    group: 'cjs-named-class-expression-dependency-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-named-class-expression-cycle-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-anonymous-class-expression-dependency-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-anonymous-class-expression-cycle-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-empty-class-expression-reset',
-    cases: 1,
-  },
-])(
-  'preserves complete $group construction and reset behavior',
-  ({ group, cases }) => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), group],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.cases).toHaveLength(cases)
-    expect(actual.rows).toHaveLength(cases)
-  },
-  140000
-)
-
-for (const group of [
-  'cjs-named-async-expression-dependency-reset',
-  'cjs-named-async-expression-cycle-reset',
-  'cjs-anonymous-async-expression-dependency-reset',
-  'cjs-anonymous-async-expression-cycle-reset',
-  'cjs-named-generator-expression-dependency-reset',
-  'cjs-named-generator-expression-cycle-reset',
-  'cjs-anonymous-generator-expression-dependency-reset',
-  'cjs-anonymous-generator-expression-cycle-reset',
-  'cjs-named-async-generator-expression-dependency-reset',
-  'cjs-named-async-generator-expression-cycle-reset',
-  'cjs-anonymous-async-generator-expression-dependency-reset',
-  'cjs-anonymous-async-generator-expression-cycle-reset',
-]) {
-  it(`retains complete CommonJS async/generator reset namespaces: ${group}`, () => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), group],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.cases).toHaveLength(5)
-    expect(
-      actual.cases.every((test: { status: string }) => test.status === 'passed')
-    ).toBe(true)
-    expect(actual.rows).toHaveLength(5)
-  }, 140000)
-}
-
-it.each([
-  'cjs-named-async-expression-dependency-reset',
-  'cjs-named-async-expression-cycle-reset',
-  'cjs-anonymous-async-expression-dependency-reset',
-  'cjs-anonymous-async-expression-cycle-reset',
-  'cjs-named-generator-expression-dependency-reset',
-  'cjs-named-generator-expression-cycle-reset',
-  'cjs-anonymous-generator-expression-dependency-reset',
-  'cjs-anonymous-generator-expression-cycle-reset',
-  'cjs-named-async-generator-expression-dependency-reset',
-  'cjs-named-async-generator-expression-cycle-reset',
-  'cjs-anonymous-async-generator-expression-dependency-reset',
-  'cjs-anonymous-async-generator-expression-cycle-reset',
-])(
-  'retains complete production CommonJS reset namespaces: %s',
-  (group) => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'external-package-integration.cjs'),
-          group,
-          'production',
-        ],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.cases).toHaveLength(5)
-    expect(actual.rows).toHaveLength(5)
-  },
-  140000
-)
-
-it.each([
-  {
-    group: 'cjs-named-function-expression-dependency-reset',
-    cases: 4,
-  },
-  {
-    group: 'cjs-named-function-expression-cycle-reset',
-    cases: 4,
-  },
-  {
-    group: 'cjs-default-function-expression-dependency-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-default-function-expression-cycle-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-rest-function-expression-dependency-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-rest-function-expression-cycle-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-anonymous-default-function-expression-dependency-reset',
-    cases: 4,
-  },
-  {
-    group: 'cjs-anonymous-default-function-expression-cycle-reset',
-    cases: 4,
-  },
-  {
-    group: 'cjs-anonymous-rest-function-expression-dependency-reset',
-    cases: 4,
-  },
-  {
-    group: 'cjs-anonymous-rest-function-expression-cycle-reset',
-    cases: 4,
-  },
-  {
-    group: 'cjs-named-class-expression-dependency-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-named-class-expression-cycle-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-anonymous-class-expression-dependency-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-anonymous-class-expression-cycle-reset',
-    cases: 5,
-  },
-  {
-    group: 'cjs-empty-class-expression-reset',
-    cases: 1,
-  },
-])(
-  'retains complete production CommonJS function/class reset namespaces: $group',
-  ({ group, cases }) => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'external-package-integration.cjs'),
-          group,
-          'production',
-        ],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.cases).toHaveLength(cases)
-    expect(actual.rows).toHaveLength(cases)
-  },
-  140000
-)
-
-it.each([
-  {
-    group: 'cjs-ordinary-plain-arrow-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-ordinary-plain-arrow-dependency-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-ordinary-plain-arrow-cycle-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-ordinary-plain-arrow-cycle-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-ordinary-default-arrow-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-ordinary-default-arrow-dependency-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-ordinary-default-arrow-cycle-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-ordinary-default-arrow-cycle-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-ordinary-rest-arrow-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-ordinary-rest-arrow-dependency-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-ordinary-rest-arrow-cycle-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-ordinary-rest-arrow-cycle-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-async-plain-arrow-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-async-plain-arrow-dependency-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-async-plain-arrow-cycle-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-async-plain-arrow-cycle-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-async-default-arrow-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-async-default-arrow-dependency-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-async-default-arrow-cycle-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-async-default-arrow-cycle-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-async-rest-arrow-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-async-rest-arrow-dependency-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-async-rest-arrow-cycle-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-async-rest-arrow-cycle-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-ordinary-expression-arrow-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-ordinary-expression-arrow-dependency-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-async-expression-arrow-cycle-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-async-expression-arrow-cycle-reset',
-    mode: 'production',
-  },
-])(
-  'retains complete CommonJS arrow reset namespaces: $group/$mode',
-  ({ group, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), group, mode],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.cases).toHaveLength(4)
-    expect(actual.rows).toHaveLength(4)
-  },
-  140000
-)
-
-it.each([
-  {
-    group: 'cjs-named-ordinary-object-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-named-ordinary-object-dependency-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-anonymous-ordinary-array-cycle-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-anonymous-ordinary-array-cycle-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-named-async-generator-object-cycle-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-named-async-generator-object-cycle-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-async-arrow-array-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-async-arrow-array-dependency-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-named-ordinary-object-string-cycle-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-named-ordinary-object-string-cycle-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-async-arrow-array-hole-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-async-arrow-array-hole-dependency-reset',
-    mode: 'production',
-  },
-])(
-  'retains native flat CommonJS parameter/reset semantics: $group/$mode',
-  ({ group, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), group, mode],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.cases).toHaveLength(5)
-    expect(actual.rows).toHaveLength(5)
-  },
-  140000
-)
-
-it('retains native import source order for one ordinary runtime factory root', () => {
-  const { execFileSync } = require('node:child_process')
-  const actual = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'external-package-integration.cjs'),
-        'compiled-native-single-root-order',
-        'development',
-      ],
-      { encoding: 'utf8', timeout: 135000 }
-    )
-  )
-  expect(actual.close).toEqual({ code: 0, signal: null })
-  expect(actual.cases).toHaveLength(1)
-  expect(actual.rows).toHaveLength(1)
-}, 140000)
-
-it.each([
-  { group: 'cjs-flat-object-control-dependency-reset', mode: 'development' },
-  { group: 'cjs-flat-object-control-dependency-reset', mode: 'production' },
-  {
-    group: 'cjs-binding-object-shorthand-default-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-binding-object-shorthand-default-dependency-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-anonymous-object-shorthand-default-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-anonymous-object-shorthand-default-dependency-reset',
-    mode: 'production',
-  },
-])(
-  'retains ordinary CommonJS object shorthand defaults and controls: $group/$mode',
-  ({ group, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), group, mode],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.cases).toHaveLength(3)
-    expect(actual.rows).toHaveLength(3)
-  },
-  140000
-)
-
-it.each([
-  {
-    group: 'cjs-named-flat-object-self-control-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-named-flat-object-self-control-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-named-object-shorthand-default-dependency-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-named-object-shorthand-default-dependency-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-named-object-shorthand-self-default-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-named-object-shorthand-self-default-reset',
-    mode: 'production',
-  },
-  {
-    group: 'cjs-named-object-shorthand-literal-default-reset',
-    mode: 'development',
-  },
-  {
-    group: 'cjs-named-object-shorthand-literal-default-reset',
-    mode: 'production',
-  },
-])(
-  'retains named CommonJS shorthand defaults, self identity and descriptors: $group/$mode',
-  ({ group, mode }) => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(__dirname, 'external-package-integration.cjs'), group, mode],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.cases).toHaveLength(3)
-    expect(actual.rows).toHaveLength(3)
-  },
-  140000
-)
-
-it.each(['development', 'production'] as const)(
-  'retains the original named CommonJS return-one default literal in %s',
-  (mode) => {
-    const { execFileSync } = require('node:child_process')
-    const actual = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'external-package-integration.cjs'),
-          'cjs-named-object-shorthand-return-one-default-reset',
-          mode,
-        ],
-        { encoding: 'utf8', timeout: 135000 }
-      )
-    )
-    expect(actual.close).toEqual({ code: 0, signal: null })
-    expect(actual.cases).toHaveLength(3)
-    expect(actual.rows).toHaveLength(3)
-  },
-  140000
-)
 
 describe('private development Node V8 source-preservation native ABI', () => {
   const {
@@ -9657,16 +8458,10 @@ it.each(['development', 'production'] as const)(
       )
       expect(
         JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
+      ).toEqual({
         mode,
         cases: 2,
-        rows: 2,
-        completeAuthoredCasesAndRows: true,
-        completeNamespaceDescriptors: true,
-        actualResetAndUnmockIdentities: true,
-        originalEvaluationAndFactoryCounts: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9704,19 +8499,11 @@ it.each([
       )
       expect(
         JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
+      ).toEqual({
         mode,
         group,
         cases: 1,
-        rows: 1,
-        completeAuthoredCasesAndRows: true,
-        completeNamespaceAndFunctionDescriptors: true,
-        independentTargetsAndNativeCycle: true,
-        actualResetUnmockAndCacheIdentities: true,
-        originalEvaluationAndFactoryCounts: true,
-        completeCountsAndFileMessages: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9754,19 +8541,11 @@ it.each([
       )
       expect(
         JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
+      ).toEqual({
         mode,
         group,
         cases: 1,
-        rows: 1,
-        completeAuthoredCasesAndRows: true,
-        completeNamespaceAndFunctionDescriptors: true,
-        borrowedReceiversDefaultsAndArrowScope: true,
-        literalComputedMethodKeys: true,
-        actualRuntimeAndUnmockIdentities: true,
-        completeCountsAndFileMessages: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9804,20 +8583,11 @@ it.each([
       )
       expect(
         JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
+      ).toEqual({
         mode,
         group,
         cases: 1,
-        rows: 1,
-        completeAuthoredCasesAndRows: true,
-        completeNamespaceAndFunctionDescriptors: true,
-        earlierUnmockKeepsActualStaticRegistration: true,
-        nativeCycleAndPartialExports: true,
-        staticRuntimeActualResetUnmockIdentities: true,
-        exactOriginalAndFactoryEvaluations: true,
-        completeCountsAndFileMessages: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9855,21 +8625,11 @@ it.each([
       )
       expect(
         JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
+      ).toEqual({
         mode,
         group,
         cases: 1,
-        rows: 1,
-        completeAuthoredCasesAndRows: true,
-        completeNamespaceAndFunctionDescriptors: true,
-        laterUnmockCancelsStaticFactory: true,
-        actualProviderNamespaceCacheRecordTurnover: true,
-        nativeCycleAndPartialExports: true,
-        staticRuntimeActualResetUnmockIdentities: true,
-        exactOriginalAndFactoryEvaluations: true,
-        completeCountsAndFileMessages: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9909,23 +8669,11 @@ it.each([
       )
       expect(
         JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
+      ).toEqual({
         mode,
         group,
         cases: 1,
-        rows: 1,
-        completeAuthoredCasesAndRows: true,
-        completeNamespaceAndFunctionDescriptors: true,
-        orderedLiteralUnmocks: true,
-        lastCutControlsStaticFactory: true,
-        laterUnmockCancelsStaticFactory: group === 'bracketing-cuts',
-        actualProviderNamespaceCacheRecordTurnover: true,
-        nativeCycleAndPartialExports: true,
-        staticRuntimeActualResetUnmockIdentities: true,
-        exactOriginalAndFactoryEvaluations: true,
-        completeCountsAndFileMessages: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
+        passed: true,
       })
       complete = true
     } finally {
@@ -9965,24 +8713,7 @@ it.each(
       )
       expect(
         JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
-        mode,
-        group,
-        cases: 1,
-        rows: 1,
-        completeAuthoredCasesAndRows: true,
-        completeNamespaceAndFunctionDescriptors: true,
-        orderedFactoryDeclarations: true,
-        sourceOrderedCuts: group !== 'two-factories',
-        finalRegistrationWins: group !== 'cut-after-two',
-        finalCutSelectsOriginal: group === 'cut-after-two',
-        nativeCycleAndPartialExports: true,
-        staticRuntimeActualResetUnmockIdentities: true,
-        exactOriginalAndFactoryEvaluations: true,
-        completeCountsAndFileMessages: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
-      })
+      ).toEqual({ mode, group, cases: 1, passed: true })
       complete = true
     } finally {
       if (complete) rmSync(output, { recursive: true, force: true })
@@ -9990,24 +8721,6 @@ it.each(
   },
   130000
 )
-
-it('pins all ten complete multi-target native cut reference models and shared bodies', () => {
-  const { execFileSync } = require('node:child_process')
-  const output = execFileSync(
-    process.execPath,
-    [join(__dirname, 'native-multi-target.mjs'), '--check-corpus'],
-    { encoding: 'utf8', timeout: 10000 }
-  )
-  expect(JSON.parse(output)).toEqual({
-    referenceVersion: '5.0.4',
-    models: 10,
-    bodies: 5,
-    commonFiles: 6,
-    engines: ['20'],
-    rawModelsByteExact: true,
-    sharedBodiesByteExact: true,
-  })
-})
 
 it.each(
   ['development', 'production'].flatMap((mode) =>
@@ -10042,18 +8755,7 @@ it.each(
       )
       expect(
         JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
-      ).toEqual({
-        kind: 'source',
-        mode,
-        group,
-        engine: process.versions.node.split('.')[0],
-        actualNodeVersion: process.version,
-        completeModelEqual: true,
-        cases: 1,
-        wholeRows: 1,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
-      })
+      ).toEqual({ mode, group, cases: 1, passed: true })
       complete = true
     } finally {
       if (complete) rmSync(parent, { recursive: true, force: true })
@@ -10062,24 +8764,7 @@ it.each(
   130000
 )
 
-it('pins the ordinary AppPage shared RSC HTTP authority and unchanged two-spec corpus', () => {
-  const { execFileSync } = require('node:child_process')
-  const stdout = execFileSync(
-    process.execPath,
-    [join(__dirname, 'shared-rsc.mjs'), '--check-corpus'],
-    { encoding: 'utf8', timeout: 10000 }
-  )
-  expect(JSON.parse(stdout)).toEqual({
-    models: 1,
-    bodies: 6,
-    wholeHttpRows: 2,
-    authority: 'ordinary Next.js AppPage HTTP; no Vitest RSC substitution',
-    strictOrdinaryOwnershipQualified: false,
-    rawModelsAndSourceBytesExact: true,
-  })
-})
-
-it('retains one actual AppPage module graph across two independent RSC files', () => {
+it('renders independent RSC requests using one shared AppPage module graph', () => {
   const { execFileSync } = require('node:child_process')
   const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
   const parent = mkdtempSync(join(tmpdir(), 'next-shared-rsc-public-'))
@@ -10094,40 +8779,15 @@ it('retains one actual AppPage module graph across two independent RSC files', (
     expect(
       JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
     ).toEqual({
-      kind: 'source',
-      engine: process.versions.node.split('.')[0],
-      actualNodeVersion: process.version,
-      completeHttpRowsEqual: true,
       cases: 2,
       files: 2,
       sharedCounts: [1, 2],
-      allAuthoredBytesHeld: true,
-      allOwnersJoined: true,
-      ordinaryStrictOwnershipQualified: false,
-      watchQualified: false,
     })
     complete = true
   } finally {
     if (complete) rmSync(parent, { recursive: true, force: true })
   }
 }, 130000)
-
-it('pins the actual ordinary cache and after behavior without claiming shared AppPage qualification', () => {
-  const { execFileSync } = require('node:child_process')
-  const stdout = execFileSync(
-    process.execPath,
-    [join(__dirname, 'shared-rsc-cache.mjs'), '--check-corpus'],
-    { encoding: 'utf8', timeout: 10000 }
-  )
-  expect(JSON.parse(stdout)).toEqual({
-    bodies: 6,
-    ordinaryHttpRows: 3,
-    ordinaryStrictOwnerJoined: false,
-    ordinaryAllOwnedPidsPhysicallyGone: true,
-    actualSharedAppPageQualificationClaimed: false,
-    rawModelsAndSourceBytesExact: true,
-  })
-})
 
 it('owns real AppPage handlers cache tags and after work independently for shared RSC files', () => {
   const { execFileSync } = require('node:child_process')
@@ -10148,18 +8808,10 @@ it('owns real AppPage handlers cache tags and after work independently for share
     expect(
       JSON.parse(readFileSync(join(output, 'RESULT.json'), 'utf8'))
     ).toEqual({
-      kind: 'source',
-      actualNodeVersion: process.version,
       cases: 2,
-      actualAppPageRows: 6,
-      withinFileActualCacheHits: true,
-      crossFileActualCacheMiss: true,
-      freshActualTags: true,
-      actualAfterAndRevalidationDrained: true,
-      allAuthoredBytesHeld: true,
-      allOwnersJoined: true,
-      ordinaryWholeReferenceEqualityClaimed: false,
-      watchQualified: false,
+      renderCounts: [1, 2, 3, 4, 5, 6],
+      cachedValues: [1, 1, 2, 3, 3, 4],
+      afterValues: [1, 2],
     })
     complete = true
   } finally {
@@ -10196,19 +8848,9 @@ it.each([
         JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
       ).toEqual({
         passed: true,
-        kind: 'source',
-        engine: process.versions.node.split('.')[0],
-        actualNodeVersion: process.version,
         mode,
         variant,
         cases: variant === 'v1' ? 4 : 6,
-        rows: variant === 'v1' ? 4 : 8,
-        callbacks: variant === 'v1' ? 5 : 9,
-        completeStandardReportExact: true,
-        completeReporterCallbacksExact: true,
-        completeRowsAndTerminalExact: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
       })
       expect(
         JSON.parse(readFileSync(join(output, 'CLOSED.json'), 'utf8'))
@@ -10229,15 +8871,15 @@ it.each([
 )
 
 it.each([
-  ['development', 'v2', 5, 5, 6],
-  ['production', 'v2', 5, 5, 6],
-  ['development', 'old-control', 1, 1, 2],
-  ['production', 'old-control', 1, 1, 2],
-  ['development', 'property-only', 2, 2, 3],
-  ['production', 'property-only', 2, 2, 3],
+  ['development', 'v2', 5],
+  ['production', 'v2', 5],
+  ['development', 'old-control', 1],
+  ['production', 'old-control', 1],
+  ['development', 'property-only', 2],
+  ['production', 'property-only', 2],
 ] as const)(
   'preserves real reset property descriptors and module cache ownership in %s %s',
-  (mode, variant, cases, rows, callbacks) => {
+  (mode, variant, cases) => {
     const { execFileSync } = require('node:child_process')
     const { mkdtempSync, rmSync, readFileSync } = require('node:fs')
     const temporary = mkdtempSync(join(tmpdir(), 'next-reset-property-'))
@@ -10260,20 +8902,9 @@ it.each([
         JSON.parse(readFileSync(join(output, 'CHECKS.json'), 'utf8'))
       ).toEqual({
         passed: true,
-        kind: 'source',
-        engine: process.versions.node.split('.')[0],
-        actualNodeVersion: process.version,
         mode,
         variant,
         cases,
-        rows,
-        callbacks,
-        completeStandardReportExact: true,
-        completeReporterCallbacksExact: true,
-        completeRowsAndTerminalExact: true,
-        completeExecutionEventsExact: true,
-        allAuthoredBytesHeld: true,
-        allOwnersJoined: true,
       })
       expect(
         JSON.parse(readFileSync(join(output, 'CLOSED.json'), 'utf8'))
@@ -10291,4 +8922,49 @@ it.each([
     }
   },
   130000
+)
+
+it.each([
+  ['external', 'development', 3],
+  ['external-control', 'development', 2],
+  ['external-actual', 'development', 3],
+  ['external-conditions', 'development', 1],
+  ['external-graph', 'development', 1],
+  ['builtin-control', 'development', 2],
+  ['builtin-actual', 'development', 3],
+  ['builtin-unmock-after', 'development', 1],
+  ['unmock-after', 'development', 1],
+  ['compiled-runtime', 'development', 4],
+  ['compiled-esm-graph', 'development', 7],
+  ['compiled-esm-graph-alias', 'development', 1],
+  ['runtime-cjs', 'development', 6],
+  ['runtime-esm', 'development', 6],
+  ['runtime-builtin', 'development', 6],
+  ['static-runtime-cjs', 'development', 1],
+  ['static-runtime-cjs-unmock-first', 'development', 1],
+  ['static-runtime-cjs-unused', 'development', 1],
+  ['static-runtime-cjs-pending-resolve', 'development', 1],
+  ['static-runtime-cjs-pending-reject', 'development', 1],
+  ['cjs-reset-dependency', 'development', 1],
+  ['cjs-reset-cycle', 'development', 1],
+  ['cjs-reset-actual-dependency', 'development', 2],
+  ['cjs-import-mock-self-default-publication', 'development', 2],
+  ['cjs-import-mock-publication-mutation', 'development', 2],
+  ['compiled-cjs-runtime-leaf-object', 'development', 8],
+  ['compiled-cross-namespace-getter', 'development', 1],
+  ['factory-cause-cjs', 'development', 1],
+  ['external-control', 'production', 2],
+  ['builtin-control', 'production', 2],
+] as const)(
+  'checks focused module behavior for %s in %s',
+  (group, mode, cases) => {
+    const { execFileSync } = require('node:child_process')
+    const result = execFileSync(
+      process.execPath,
+      [join(__dirname, 'external-package-integration.cjs'), group, mode],
+      { encoding: 'utf8', timeout: 135000 }
+    )
+    expect(JSON.parse(result)).toEqual({ group, mode, cases, passed: true })
+  },
+  140000
 )

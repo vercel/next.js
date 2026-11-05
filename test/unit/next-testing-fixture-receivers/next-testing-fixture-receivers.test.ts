@@ -17,7 +17,7 @@ it('preserves ordinary fixture factory receivers and actual return/failure/clean
   })
 }, 15000)
 
-it('matches genuine fixture factory receiver semantics through setup body and cleanup in both Node modes', async () => {
+it('preserves fixture factory receiver semantics through setup body and cleanup in both Node modes', async () => {
   const temporary = await mkdtemp(join(tmpdir(), 'next-fixture-receivers-'))
   let complete = false
   try {
@@ -36,10 +36,9 @@ it('matches genuine fixture factory receiver semantics through setup body and cl
     )
     expect(verified.allPassed).toBe(true)
     expect(verified.profiles).toHaveLength(2)
-    expect(verified.actualCases).toBe(4)
-    expect(verified.wholeRows).toBe(36)
-    expect(verified.allPhysicalOwnersJoined).toBe(true)
-    expect(verified.originalBoundsHeld).toBe(true)
+    expect(verified.cases).toBe(4)
+    expect(verified.behavioralChecks).toBe(true)
+    expect(verified.allOwnersJoined).toBe(true)
     complete = true
   } catch (cause) {
     throw new Error(`Fixture receiver evidence retained at ${temporary}`, {

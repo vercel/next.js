@@ -1,20 +1,24 @@
 import { expect, test } from 'vitest'
 
-test('records the actual Browser document baseline', () => {
+test('uses the Browser viewport and default document geometry', () => {
   const marker = document.createElement('div')
-  marker.textContent = 'Owned geometry marker'
   marker.style.width = '100px'
   marker.style.height = '50px'
   document.body.append(marker)
-  const styles = element => {
-    const computed = getComputedStyle(element)
-    return Object.fromEntries(['margin', 'padding', 'fontFamily', 'fontSize', 'lineHeight', 'boxSizing', 'display', 'backgroundColor', 'overflow', 'width', 'height', 'minHeight', 'position'].map(property => [property, computed[property]]))
+  try {
+    expect(marker.isConnected).toBe(true)
+    expect(getComputedStyle(document.documentElement).margin).toBe('0px')
+    expect(getComputedStyle(document.body).margin).toBe('0px')
+    expect(getComputedStyle(document.body).padding).toBe('0px')
+    const { left, top, width, height } = marker.getBoundingClientRect()
+    expect({ left, top, width, height }).toEqual({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 50,
+    })
+    expect([innerWidth, innerHeight]).toEqual([640, 480])
+  } finally {
+    marker.remove()
   }
-  const bounds = element => {
-    const rect = element.getBoundingClientRect()
-    return { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
-  }
-  expect(marker.isConnected).toBe(true)
-  console.log('DRAGENV_RAW ' + JSON.stringify({ html: styles(document.documentElement), body: styles(document.body), htmlStyleAttribute: document.documentElement.getAttribute('style'), bodyStyleAttribute: document.body.getAttribute('style'), marker: bounds(marker), viewport: [innerWidth, innerHeight] }))
-  marker.remove()
 })

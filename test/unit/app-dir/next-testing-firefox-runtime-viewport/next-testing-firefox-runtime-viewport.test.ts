@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
-it('resizes the actual owned Firefox frame and preserves genuine responsive and zero viewport models', async () => {
+it('resizes the actual owned Firefox frame and preserves responsive layout and zero viewport geometry', async () => {
   const retained = process.env.NEXT_TESTING_FIREFOX_RUNTIME_VIEWPORT_EVIDENCE
   const temporary =
     retained ??
@@ -20,9 +20,9 @@ it('resizes the actual owned Firefox frame and preserves genuine responsive and 
     const verified = JSON.parse(
       await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
     )
-    expect(verified.profiles).toBe(4)
+    expect(verified.profiles).toBe(2)
     expect(verified.cases).toBe(4)
-    expect(verified.completeGenuineFirefoxViewportModelsExact).toBe(true)
+    expect(verified.viewportBehaviorAssertionsPassed).toBe(true)
     expect(verified.allOwnersJoined).toBe(true)
     complete = true
   } catch (error) {

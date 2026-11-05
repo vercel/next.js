@@ -1,9 +1,8 @@
 import { test as base, expect } from 'vitest'
-const label="inherited-scope-array"
-const definition=[44,Object.create({scope:'test'})]
-const expected=definition
-const owned=base.extend({value:definition})
-owned(label,({value})=>{
-  console.log('FIXTURE_OVERLOAD_ROW '+JSON.stringify({label, kind:typeof value, array:Array.isArray(value), scalar:['number','string','boolean'].includes(typeof value)?value:null, length:Array.isArray(value)?value.length:null, same:value===expected}))
+const label = 'inherited-scope-array'
+const definition = [44, Object.create({ scope: 'test' })]
+const expected = definition
+const owned = base.extend({ value: definition })
+owned(label, ({ value }) => {
   expect(value).toBe(expected)
 })

@@ -6947,7 +6947,7 @@ describe('ordinary development Node project environment', () => {
         )
       ).toMatchObject({
         profiles: 3,
-        completeCasesRowsAndGlobalContextMatch: true,
+        environmentLifecycleAndRestoration: true,
         actualWorkerExitRestoredHostValues: true,
         parentEnvironmentUnchanged: true,
         allOwnersJoined: true,
@@ -7123,7 +7123,7 @@ describe('ordinary production Node project environment', () => {
           helper === 'project-env-reports.mjs'
             ? {
                 profiles: 3,
-                completeCasesRowsAndGlobalContextMatch: true,
+                environmentLifecycleAndRestoration: true,
                 actualWorkerExitRestoredHostValues: true,
                 parentEnvironmentUnchanged: true,
                 allOwnersJoined: true,
@@ -7157,39 +7157,8 @@ describe('ordinary production Node project environment', () => {
 })
 
 describe('actual public Node finished assertion observation', () => {
-  it('drives the real finished failure and coverage without unrequested module metadata', () => {
-    const output = mkdtempSync(path.join(tmpdir(), 'next-node-finished-host-'))
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          path.join(__dirname, 'native-node-finished.cjs'),
-          path.join(
-            require.resolve('next/dist/experimental/testing/runner'),
-            '..',
-            '..'
-          ),
-          output,
-        ],
-        { encoding: 'utf8', timeout: 35000 }
-      )
-      expect(
-        JSON.parse(readFileSync(path.join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
-        genuineFinishedAssertionFailure: true,
-        actualNativeRunErrorPreserved: true,
-        noRequestedModuleOrNativeWireMetadata: true,
-        actualCoverageComplete: true,
-        inheritedAuditPreserved: true,
-        allOwnersJoined: true,
-      })
-    } finally {
-      rmSync(output, { recursive: true, force: true })
-    }
-  }, 40000)
-
   it.each(['exercised', 'read-exercised', 'update'])(
-    'retains genuine case states/messages, native error, whole reports and snapshot bytes for %s',
+    'retains assertion failures, native errors, coverage and snapshot publication for %s',
     (profile) => {
       const output = mkdtempSync(
         path.join(tmpdir(), 'next-node-finished-public-')
@@ -7213,11 +7182,10 @@ describe('actual public Node finished assertion observation', () => {
         expect(
           JSON.parse(readFileSync(path.join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
-          completeAuthoredMessagesAndCaseFields: true,
-          authoredFrameLinesEqual: true,
-          frameColumnsAndRawPresentationRecorded: true,
+          caseOutcomesAndFailureMessage: true,
+          authoredFailureLocation: true,
           actualNativeErrorChannel: true,
-          wholeCoverageJSONSummaryLCOV: true,
+          coverageCountsAndPublication: true,
           exactSnapshotBytes: true,
           allOwnersJoined: true,
         })
@@ -7229,18 +7197,16 @@ describe('actual public Node finished assertion observation', () => {
   )
 })
 
-it('matches the pinned pure keyboard parser and native membership contract', () => {
+it('parses keyboard characters, physical keys, modifiers and malformed descriptors', () => {
   const stdout = execFileSync(
     process.execPath,
     [path.join(__dirname, 'browser-keyboard-parser.cjs')],
     { encoding: 'utf8', timeout: 10000 }
   )
   expect(JSON.parse(stdout)).toEqual({
-    parserInputs: 516,
-    nativeMemberships: 324,
-    actualIdentityPairs: 8,
-    purePinnedPrimitive: true,
-    noAdapterAdmissionClaim: true,
+    characterAndPhysicalMappings: true,
+    grammarModifiersAndErrors: true,
+    nativeMembershipAndKeyIdentity: true,
   })
 })
 
@@ -7460,18 +7426,16 @@ describe('actual authored native producer runtime', () => {
   )
 })
 
-it('forwards the pinned keyboard grammar and distinct native release roles', () => {
+it('forwards native keyboard actions and preserves held-key cleanup and preflight', () => {
   const stdout = execFileSync(
     process.execPath,
     [path.join(__dirname, 'browser-keyboard-runtime.cjs')],
     { encoding: 'utf8', timeout: 10000 }
   )
   expect(JSON.parse(stdout)).toEqual({
-    runtimeCases: 548,
+    nativeActionsAndTextFallback: true,
+    heldKeyReleaseAndCleanup: true,
     completePreflightAndFrozenStates: true,
-    distinctFileAndTypeRelease: true,
-    exactPinnedNativeCallContract: true,
-    existingLargeRepeatGuardRetained: true,
   })
 })
 

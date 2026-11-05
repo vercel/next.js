@@ -1,0 +1,794 @@
+{
+  "coverage": {
+    "fully.mjs": {
+      "path": "fully.mjs",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 1,
+            "column": 31
+          },
+          "end": {
+            "line": 1,
+            "column": 47
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "fully",
+          "decl": {
+            "start": {
+              "line": 1,
+              "column": 16
+            },
+            "end": {
+              "line": 1,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 29
+            },
+            "end": {
+              "line": 1,
+              "column": null
+            }
+          },
+          "line": 1
+        }
+      },
+      "branchMap": {},
+      "s": {
+        "0": 1
+      },
+      "f": {
+        "0": 1
+      },
+      "b": {},
+      "meta": {
+        "lastBranch": 0,
+        "lastFunction": 1,
+        "lastStatement": 1,
+        "seen": {
+          "f:1:16:1:21": 0,
+          "s:1:31:1:47": 0
+        },
+        "fnNames": {}
+      }
+    },
+    "subject.mjs": {
+      "path": "subject.mjs",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 2,
+            "column": 12
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "3": {
+          "start": {
+            "line": 6,
+            "column": 2
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "choose",
+          "decl": {
+            "start": {
+              "line": 1,
+              "column": 16
+            },
+            "end": {
+              "line": 1,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 29
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 1
+        },
+        "1": {
+          "name": "unused",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 16
+            },
+            "end": {
+              "line": 5,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 25
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 5
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 2
+        }
+      },
+      "s": {
+        "0": 1,
+        "1": 1,
+        "2": 0,
+        "3": 0
+      },
+      "f": {
+        "0": 1,
+        "1": 0
+      },
+      "b": {
+        "0": [1, 0]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 4,
+        "seen": {
+          "f:1:16:1:22": 0,
+          "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+          "s:2:2:2:Infinity": 0,
+          "s:2:12:2:Infinity": 1,
+          "s:3:2:3:Infinity": 2,
+          "f:5:16:5:22": 1,
+          "s:6:2:6:Infinity": 3
+        },
+        "fnNames": {}
+      }
+    },
+    "unimported.mjs": {
+      "path": "unimported.mjs",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 2,
+            "column": 12
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 3,
+            "column": 2
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "3": {
+          "start": {
+            "line": 6,
+            "column": 2
+          },
+          "end": {
+            "line": 6,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "choose",
+          "decl": {
+            "start": {
+              "line": 1,
+              "column": 16
+            },
+            "end": {
+              "line": 1,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 29
+            },
+            "end": {
+              "line": 4,
+              "column": null
+            }
+          },
+          "line": 1
+        },
+        "1": {
+          "name": "unused",
+          "decl": {
+            "start": {
+              "line": 5,
+              "column": 16
+            },
+            "end": {
+              "line": 5,
+              "column": 22
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 5,
+              "column": 25
+            },
+            "end": {
+              "line": 7,
+              "column": null
+            }
+          },
+          "line": 5
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 2
+        }
+      },
+      "s": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 0
+      },
+      "f": {
+        "0": 0,
+        "1": 0
+      },
+      "b": {
+        "0": [0, 0]
+      },
+      "meta": {
+        "lastBranch": 1,
+        "lastFunction": 2,
+        "lastStatement": 4,
+        "seen": {
+          "f:1:16:1:22": 0,
+          "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+          "s:2:2:2:Infinity": 0,
+          "s:2:12:2:Infinity": 1,
+          "s:3:2:3:Infinity": 2,
+          "f:5:16:5:22": 1,
+          "s:6:2:6:Infinity": 3
+        },
+        "fnNames": {}
+      }
+    }
+  },
+  "rows": [
+    {
+      "name": "cobertura-config",
+      "reporter": "cobertura",
+      "input": "config",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"cobertura\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["cobertura-coverage.xml", "coverage-final.json"],
+      "expectCoverage": true,
+      "stdout": ""
+    },
+    {
+      "name": "cobertura-cli",
+      "reporter": "cobertura",
+      "input": "cli",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["cobertura-coverage.xml", "coverage-final.json"],
+      "expectCoverage": true,
+      "stdout": ""
+    },
+    {
+      "name": "html-spa-config",
+      "reporter": "html-spa",
+      "input": "config",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"html-spa\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": [
+        "base.css",
+        "block-navigation.js",
+        "bundle.js",
+        "coverage-final.json",
+        "favicon.png",
+        "fully.mjs.html",
+        "index.html",
+        "prettify.css",
+        "prettify.js",
+        "sort-arrow-sprite.png",
+        "sorter.js",
+        "spa.css",
+        "subject.mjs.html",
+        "unimported.mjs.html"
+      ],
+      "expectCoverage": true,
+      "stdout": ""
+    },
+    {
+      "name": "html-spa-cli",
+      "reporter": "html-spa",
+      "input": "cli",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": [
+        "base.css",
+        "block-navigation.js",
+        "bundle.js",
+        "coverage-final.json",
+        "favicon.png",
+        "fully.mjs.html",
+        "index.html",
+        "prettify.css",
+        "prettify.js",
+        "sort-arrow-sprite.png",
+        "sorter.js",
+        "spa.css",
+        "subject.mjs.html",
+        "unimported.mjs.html"
+      ],
+      "expectCoverage": true,
+      "stdout": ""
+    },
+    {
+      "name": "teamcity-config",
+      "reporter": "teamcity",
+      "input": "config",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"teamcity\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["coverage-final.json"],
+      "expectCoverage": true,
+      "stdout": "##teamcity[blockOpened name='Code Coverage Summary']\n##teamcity[buildStatisticValue key='CodeCoverageAbsBCovered' value='3']\n##teamcity[buildStatisticValue key='CodeCoverageAbsBTotal' value='9']\n##teamcity[buildStatisticValue key='CodeCoverageAbsRCovered' value='1']\n##teamcity[buildStatisticValue key='CodeCoverageAbsRTotal' value='4']\n##teamcity[buildStatisticValue key='CodeCoverageAbsMCovered' value='2']\n##teamcity[buildStatisticValue key='CodeCoverageAbsMTotal' value='5']\n##teamcity[buildStatisticValue key='CodeCoverageAbsLCovered' value='2']\n##teamcity[buildStatisticValue key='CodeCoverageAbsLTotal' value='7']\n##teamcity[blockClosed name='Code Coverage Summary']"
+    },
+    {
+      "name": "teamcity-cli",
+      "reporter": "teamcity",
+      "input": "cli",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["coverage-final.json"],
+      "expectCoverage": true,
+      "stdout": "##teamcity[blockOpened name='Code Coverage Summary']\n##teamcity[buildStatisticValue key='CodeCoverageAbsBCovered' value='3']\n##teamcity[buildStatisticValue key='CodeCoverageAbsBTotal' value='9']\n##teamcity[buildStatisticValue key='CodeCoverageAbsRCovered' value='1']\n##teamcity[buildStatisticValue key='CodeCoverageAbsRTotal' value='4']\n##teamcity[buildStatisticValue key='CodeCoverageAbsMCovered' value='2']\n##teamcity[buildStatisticValue key='CodeCoverageAbsMTotal' value='5']\n##teamcity[buildStatisticValue key='CodeCoverageAbsLCovered' value='2']\n##teamcity[buildStatisticValue key='CodeCoverageAbsLTotal' value='7']\n##teamcity[blockClosed name='Code Coverage Summary']"
+    },
+    {
+      "name": "text-lcov-config",
+      "reporter": "text-lcov",
+      "input": "config",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"text-lcov\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["coverage-final.json"],
+      "expectCoverage": true,
+      "stdout": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record"
+    },
+    {
+      "name": "text-lcov-cli",
+      "reporter": "text-lcov",
+      "input": "cli",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["coverage-final.json"],
+      "expectCoverage": true,
+      "stdout": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record"
+    },
+    {
+      "name": "none-config",
+      "reporter": "none",
+      "input": "config",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"none\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["coverage-final.json"],
+      "expectCoverage": true,
+      "stdout": ""
+    },
+    {
+      "name": "none-cli",
+      "reporter": "none",
+      "input": "cli",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["coverage-final.json"],
+      "expectCoverage": true,
+      "stdout": ""
+    },
+    {
+      "name": "cobertura-solo",
+      "reporter": "cobertura",
+      "input": "solo",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"cobertura\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["cobertura-coverage.xml"],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "html-spa-solo",
+      "reporter": "html-spa",
+      "input": "solo",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"html-spa\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": [
+        "base.css",
+        "block-navigation.js",
+        "bundle.js",
+        "favicon.png",
+        "fully.mjs.html",
+        "index.html",
+        "prettify.css",
+        "prettify.js",
+        "sort-arrow-sprite.png",
+        "sorter.js",
+        "spa.css",
+        "subject.mjs.html",
+        "unimported.mjs.html"
+      ],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "teamcity-solo",
+      "reporter": "teamcity",
+      "input": "solo",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"teamcity\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": false,
+      "files": [],
+      "expectCoverage": false,
+      "stdout": "##teamcity[blockOpened name='Code Coverage Summary']\n##teamcity[buildStatisticValue key='CodeCoverageAbsBCovered' value='3']\n##teamcity[buildStatisticValue key='CodeCoverageAbsBTotal' value='9']\n##teamcity[buildStatisticValue key='CodeCoverageAbsRCovered' value='1']\n##teamcity[buildStatisticValue key='CodeCoverageAbsRTotal' value='4']\n##teamcity[buildStatisticValue key='CodeCoverageAbsMCovered' value='2']\n##teamcity[buildStatisticValue key='CodeCoverageAbsMTotal' value='5']\n##teamcity[buildStatisticValue key='CodeCoverageAbsLCovered' value='2']\n##teamcity[buildStatisticValue key='CodeCoverageAbsLTotal' value='7']\n##teamcity[blockClosed name='Code Coverage Summary']"
+    },
+    {
+      "name": "text-lcov-solo",
+      "reporter": "text-lcov",
+      "input": "solo",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"text-lcov\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": false,
+      "files": [],
+      "expectCoverage": false,
+      "stdout": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record"
+    },
+    {
+      "name": "none-solo",
+      "reporter": "none",
+      "input": "solo",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": false,
+      "files": [],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "teamcity-clean-true",
+      "reporter": "teamcity",
+      "input": "clean-true",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"teamcity\"\n      ],\n      \"clean\": true,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": false,
+      "files": [],
+      "expectCoverage": false,
+      "stdout": "##teamcity[blockOpened name='Code Coverage Summary']\n##teamcity[buildStatisticValue key='CodeCoverageAbsBCovered' value='3']\n##teamcity[buildStatisticValue key='CodeCoverageAbsBTotal' value='9']\n##teamcity[buildStatisticValue key='CodeCoverageAbsRCovered' value='1']\n##teamcity[buildStatisticValue key='CodeCoverageAbsRTotal' value='4']\n##teamcity[buildStatisticValue key='CodeCoverageAbsMCovered' value='2']\n##teamcity[buildStatisticValue key='CodeCoverageAbsMTotal' value='5']\n##teamcity[buildStatisticValue key='CodeCoverageAbsLCovered' value='2']\n##teamcity[buildStatisticValue key='CodeCoverageAbsLTotal' value='7']\n##teamcity[blockClosed name='Code Coverage Summary']"
+    },
+    {
+      "name": "teamcity-clean-false",
+      "reporter": "teamcity",
+      "input": "clean-false",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"teamcity\"\n      ],\n      \"clean\": false,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": "##teamcity[blockOpened name='Code Coverage Summary']\n##teamcity[buildStatisticValue key='CodeCoverageAbsBCovered' value='3']\n##teamcity[buildStatisticValue key='CodeCoverageAbsBTotal' value='9']\n##teamcity[buildStatisticValue key='CodeCoverageAbsRCovered' value='1']\n##teamcity[buildStatisticValue key='CodeCoverageAbsRTotal' value='4']\n##teamcity[buildStatisticValue key='CodeCoverageAbsMCovered' value='2']\n##teamcity[buildStatisticValue key='CodeCoverageAbsMTotal' value='5']\n##teamcity[buildStatisticValue key='CodeCoverageAbsLCovered' value='2']\n##teamcity[buildStatisticValue key='CodeCoverageAbsLTotal' value='7']\n##teamcity[blockClosed name='Code Coverage Summary']"
+    },
+    {
+      "name": "teamcity-disabled-clean-true",
+      "reporter": "teamcity",
+      "input": "disabled-clean-true",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"teamcity\"\n      ],\n      \"clean\": true,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "teamcity-disabled-clean-false",
+      "reporter": "teamcity",
+      "input": "disabled-clean-false",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"teamcity\"\n      ],\n      \"clean\": false,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "teamcity-failed-clean-true",
+      "reporter": "teamcity",
+      "input": "failed-clean-true",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"teamcity\"\n      ],\n      \"clean\": true,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "directoryExists": false,
+      "files": [],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "teamcity-failed-clean-false",
+      "reporter": "teamcity",
+      "input": "failed-clean-false",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"teamcity\"\n      ],\n      \"clean\": false,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "text-lcov-clean-true",
+      "reporter": "text-lcov",
+      "input": "clean-true",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"text-lcov\"\n      ],\n      \"clean\": true,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": false,
+      "files": [],
+      "expectCoverage": false,
+      "stdout": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record"
+    },
+    {
+      "name": "text-lcov-clean-false",
+      "reporter": "text-lcov",
+      "input": "clean-false",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"text-lcov\"\n      ],\n      \"clean\": false,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": "TN:\nSF:fully.mjs\nFN:1,fully\nFNF:1\nFNH:1\nFNDA:1,fully\nDA:1,1\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,0\nDA:6,0\nLF:3\nLH:1\nBRDA:2,0,0,1\nBRDA:2,0,1,0\nBRF:2\nBRH:1\nend_of_record\nTN:\nSF:unimported.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record"
+    },
+    {
+      "name": "text-lcov-disabled-clean-true",
+      "reporter": "text-lcov",
+      "input": "disabled-clean-true",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"text-lcov\"\n      ],\n      \"clean\": true,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "text-lcov-disabled-clean-false",
+      "reporter": "text-lcov",
+      "input": "disabled-clean-false",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"text-lcov\"\n      ],\n      \"clean\": false,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "text-lcov-failed-clean-true",
+      "reporter": "text-lcov",
+      "input": "failed-clean-true",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"text-lcov\"\n      ],\n      \"clean\": true,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "directoryExists": false,
+      "files": [],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "text-lcov-failed-clean-false",
+      "reporter": "text-lcov",
+      "input": "failed-clean-false",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"text-lcov\"\n      ],\n      \"clean\": false,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "none-clean-true",
+      "reporter": "none",
+      "input": "clean-true",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"clean\": true,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": false,
+      "files": [],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "none-clean-false",
+      "reporter": "none",
+      "input": "clean-false",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"clean\": false,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "none-disabled-clean-true",
+      "reporter": "none",
+      "input": "disabled-clean-true",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"clean\": true,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "none-disabled-clean-false",
+      "reporter": "none",
+      "input": "disabled-clean-false",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"clean\": false,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "none-failed-clean-true",
+      "reporter": "none",
+      "input": "failed-clean-true",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"clean\": true,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "directoryExists": false,
+      "files": [],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "none-failed-clean-false",
+      "reporter": "none",
+      "input": "failed-clean-false",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"failed.case.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"clean\": false,\n      \"reportOnFailure\": false,\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 1,
+      "directoryExists": true,
+      "files": ["prior-report.txt"],
+      "expectCoverage": false,
+      "stdout": ""
+    },
+    {
+      "name": "none-auto-update",
+      "reporter": "none",
+      "input": "auto-update",
+      "config": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      },\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+      "exitCode": 0,
+      "directoryExists": false,
+      "files": [],
+      "expectCoverage": false,
+      "stdout": "",
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"thresholds\": {\n        \"autoUpdate\": true,\n        \"lines\": 28.57,\n        \"functions\": 40,\n        \"statements\": 33.33,\n        \"branches\": 25\n      },\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n"
+    }
+  ]
+}

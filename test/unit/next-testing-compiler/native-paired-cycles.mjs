@@ -1,201 +1,61 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { createRequire } from 'node:module'
-import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
+import { runCompilerCase } from '../../lib/next-testing-case-runner.mjs'
 import {
-  runOwnedNode,
-  assertOwnedNodeCompleted,
-} from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
-import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
+  resolveFixturePath,
+  fixtureFiles,
+} from '../../lib/next-testing-fixtures.cjs'
 
-const [repoArg, outputArg, mode, kind, group] = process.argv.slice(2)
-const repo = fs.realpathSync(repoArg)
-const output = path.resolve(outputArg)
+const [repo, output, mode, , group] = process.argv.slice(2)
 const here = path.dirname(fileURLToPath(import.meta.url))
-assert(['development', 'production'].includes(mode))
-assert(['source', 'installed'].includes(kind))
 assert(['paired-two', 'cycle-runtime'].includes(group))
-const stored = JSON.parse(
-  fs.readFileSync(
-    resolveFixturePath(path.join(here, 'native-paired-cycles-pristine.json'))
-  )
-)
-assert.equal(stored.referenceVersion, '5.0.4')
-const engine = stored.engines['20']
-assert(engine, 'Missing genuine native graph model for this Node major')
-const expected = engine.groups[group][mode]
-const authored = stored.authoredSHA256[group]
-const load = createRequire(path.join(repo, 'package.json'))
-if (kind === 'installed') {
-  for (const name of ['vitest', 'vite', '@vitest/mocker']) {
-    assert.throws(() => load.resolve(name))
+const packages = {
+  'paired-two': ['next-test-pair2-a', 'next-test-pair2-b'],
+  'cycle-runtime': ['next-test-native-cycle2'],
+}[group]
+const expectedNames = {
+  'paired-two': [
+    'keeps two independent native static runtime actual reset and unmock targets',
+  ],
+  'cycle-runtime': [
+    'retains actual external CommonJS cycle across static runtime actual reset and unmock',
+  ],
+}[group]
+
+const source = path.join(here, 'native-paired-cycles-fixtures', group)
+const files = fixtureFiles(source).map((file) => {
+  const relative = file.replace(/\.txt$/, '')
+  return {
+    target: relative,
+    bytes: fs.readFileSync(resolveFixturePath(path.join(source, file))),
   }
-}
-const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
-fs.mkdirSync(output, { recursive: true })
-const fixture = fs.mkdtempSync(
-  path.join(repo, '.next-test-native-paired-cycle-')
-)
-let joined = false
-try {
-  for (const [name, hash] of Object.entries(authored)) {
-    const bytes = fs.readFileSync(
-      resolveFixturePath(
-        path.join(here, 'native-paired-cycles-fixtures', group, name + '.txt')
-      )
-    )
-    assert.equal(sha(bytes), hash, name)
-    const target = path.join(fixture, name)
-    fs.mkdirSync(path.dirname(target), { recursive: true })
-    fs.writeFileSync(target, bytes)
-  }
-  fs.writeFileSync(
-    path.join(fixture, 'package.json'),
-    '{"private":true,"type":"module"}\n'
-  )
-  fs.writeFileSync(
-    path.join(fixture, 'next.config.mjs'),
-    'export default ' +
-      JSON.stringify({
-        turbopack: { root: repo },
-        serverExternalPackages: stored.packages[group],
-      }) +
-      '\n'
-  )
-  fs.writeFileSync(
-    path.join(fixture, 'next.test.config.json'),
-    JSON.stringify({
-      maxWorkers: 1,
-      projects: [
-        {
-          name: 'native-pair-cycle',
-          mode,
-          environment: 'node',
-          include: ['contract.test.mjs'],
-          testTimeout: 10000,
-          hookTimeout: 10000,
-        },
-      ],
-    }) + '\n'
-  )
-  const modules = path.join(fixture, 'node_modules')
-  for (const name of fs.readdirSync(path.join(repo, 'node_modules'))) {
-    const target = path.join(modules, name)
-    assert(
-      !fs.existsSync(target),
-      'Fixture package conflicts with the consumer'
-    )
-    if (['.vite', '.vite-temp', '.cache', '.vitest-cache'].includes(name)) {
-      fs.mkdirSync(target)
-    } else {
-      fs.symlinkSync(path.join(repo, 'node_modules', name), target, 'dir')
-    }
-  }
-  const trace = path.join(output, 'console.raw.jsonl')
-  const reporter = path.join(fixture, 'reporter.mjs')
-  fs.writeFileSync(
-    reporter,
-    "import fs from 'node:fs';export default class{onUserConsoleLog(log){fs.appendFileSync(process.env.MOCKPAIR_TRACE,JSON.stringify({log})+'\\n')}}\n"
-  )
-  const reportPath = path.join(output, 'report.json')
-  const env = {
-    ...process.env,
-    NODE_ENV: mode,
-    NEXT_TELEMETRY_DISABLED: '1',
-    TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
-    FORCE_COLOR: '0',
-    MOCKPAIR_TRACE: trace,
-  }
-  for (const name of [
-    'CI',
-    'NODE_OPTIONS',
-    'NODE_PATH',
-    'NEXT_TEST_NATIVE_DIR',
-    'NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL',
-  ])
-    delete env[name]
-  const owner = await runOwnedNode(
-    [
-      load.resolve('next/dist/bin/next'),
-      'test',
-      fixture,
-      '--run',
-      '--reporter=json',
-      '--reporter=' + reporter,
-      '--outputFile=' + reportPath,
+})
+const result = await runCompilerCase({
+  repo,
+  output,
+  mode,
+  files,
+  packages,
+  expectedNames,
+  config: {
+    maxWorkers: 1,
+    projects: [
+      {
+        name: 'native-pair-cycle',
+        mode,
+        environment: 'node',
+        include: ['*.test.mjs'],
+        testTimeout: 10000,
+        hookTimeout: 10000,
+      },
     ],
-    {
-      cwd: fixture,
-      env,
-      timeoutMs: 120000,
-      auditDir: path.join(output, 'owners'),
-    }
-  )
-  fs.writeFileSync(
-    path.join(output, 'OWNER.json'),
-    JSON.stringify(owner, null, 2) + '\n'
-  )
-  fs.writeFileSync(path.join(output, 'stdout.log'), owner.stdout)
-  fs.writeFileSync(path.join(output, 'stderr.log'), owner.stderr)
-  assertOwnedNodeCompleted(owner, 'Native paired external and CommonJS cycle')
-  joined = true
-  for (const [name, hash] of Object.entries(authored)) {
-    assert.equal(sha(fs.readFileSync(path.join(fixture, name))), hash, name)
-  }
-  const report = JSON.parse(fs.readFileSync(reportPath))
-  const logs = fs.readFileSync(trace, 'utf8').trim().split('\n').filter(Boolean)
-  const observed = {
-    cases: report.testResults.flatMap((file) =>
-      file.assertionResults.map((test) => ({
-        name: test.fullName,
-        status: test.status,
-        failureMessages: test.failureMessages,
-      }))
-    ),
-    rows: logs.flatMap((line) => {
-      const { log } = JSON.parse(line)
-      return log.content
-        .split('\n')
-        .filter((entry) => entry.startsWith('MOCKPAIR:'))
-        .map((entry) => ({
-          type: log.type,
-          value: JSON.parse(entry.slice(9)),
-        }))
-    }),
-    fileMessages: report.testResults.map((file) => file.message),
-    counts: Object.fromEntries(
-      Object.entries(report).filter(([key]) => key.startsWith('num'))
-    ),
-    success: report.success,
-    exit: owner.status,
-  }
-  fs.writeFileSync(
-    path.join(output, 'OBSERVED.json'),
-    JSON.stringify(observed, null, 2) + '\n'
-  )
-  assert.deepEqual(observed, expected)
-  const checks = {
-    mode,
-    group,
-    runtime: process.version,
-    cases: observed.cases.length,
-    rows: observed.rows.length,
-    completeAuthoredCasesAndRows: true,
-    completeNamespaceAndFunctionDescriptors: true,
-    independentTargetsAndNativeCycle: true,
-    actualResetUnmockAndCacheIdentities: true,
-    originalEvaluationAndFactoryCounts: true,
-    completeCountsAndFileMessages: true,
-    allAuthoredBytesHeld: true,
-    allOwnersJoined: true,
-  }
-  fs.writeFileSync(
-    path.join(output, 'CHECKS.json'),
-    JSON.stringify(checks, null, 2) + '\n'
-  )
-  process.stdout.write(JSON.stringify(checks) + '\n')
-} finally {
-  if (joined) fs.rmSync(fixture, { recursive: true, force: true })
-}
+  },
+})
+const checks = { ...result, group }
+fs.writeFileSync(
+  path.join(output, 'CHECKS.json'),
+  JSON.stringify(checks) + '\n'
+)
+process.stdout.write(JSON.stringify(checks) + '\n')

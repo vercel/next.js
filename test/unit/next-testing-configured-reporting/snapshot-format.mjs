@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   existsSync,
@@ -10,7 +9,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
-import { basename, dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   runOwnedNode,
@@ -27,14 +26,70 @@ const fixtures = join(
   dirname(fileURLToPath(import.meta.url)),
   'fixtures/snapshot-format'
 )
-const expected = JSON.parse(
-  readFileSync(join(fixtures, 'reference.json'), 'utf8')
-)
 const body = readFileSync(join(fixtures, 'format.case.mjs.txt'), 'utf8')
-assert.equal(
-  createHash('sha256').update(body).digest('hex'),
-  expected.bodySHA256
-)
+const profiles = {
+  default: {
+    format: 'undefined',
+    expected: 'default',
+  },
+  expanded: {
+    format: '{ indent: 4, escapeString: false, printBasicPrototype: true }',
+    expected: 'expanded',
+  },
+  'compact-unsorted': {
+    format: '{ min: true, indent: 0, compareKeys: null }',
+    expected: 'compact-unsorted',
+  },
+  bounded: {
+    format:
+      '{ maxDepth: 1, maxWidth: 1, callToJSON: false, printFunctionName: false }',
+    expected: 'bounded',
+  },
+  unlimited: {
+    format:
+      '{ maxDepth: Infinity, maxWidth: Infinity, maxOutputLength: Infinity }',
+    expected: 'default',
+  },
+  'root-global-extends-false': {
+    format: '{ indent: 4, escapeString: false, printBasicPrototype: true }',
+    expected: 'expanded',
+    projects: [
+      {
+        extends: false,
+        test: {
+          name: 'independent',
+          include: ['format.case.mjs'],
+        },
+      },
+    ],
+  },
+  'root-child-ignored': {
+    format: '{ indent: 4, escapeString: false, printBasicPrototype: true }',
+    expected: 'expanded',
+    projects: [
+      {
+        extends: false,
+        test: {
+          name: 'independent',
+          include: ['format.case.mjs'],
+          snapshotFormat: {
+            min: true,
+            indent: 0,
+          },
+        },
+      },
+    ],
+  },
+  'explicit-undefined': {
+    format: '{ printBasicPrototype: undefined, escapeString: undefined }',
+    expected: 'explicit-undefined',
+  },
+  spacequotes: {
+    format:
+      "{ quoteKeys: false, singleQuote: true, spacingInner: ' ', spacingOuter: ' ', escapeRegex: true, printFunctionName: false, callToJSON: false }",
+    expected: 'spacequotes',
+  },
+}
 const load = createRequire(join(consumer, 'package.json'))
 if (kind === 'installed')
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
@@ -44,22 +99,40 @@ const next =
     ? join(consumer, 'packages/next/dist/bin/next')
     : load.resolve('next/dist/bin/next')
 const receipts = []
-function stableReport(report) {
-  const { startTime, next: _nextMetadata, ...stable } = report
-  return {
-    ...stable,
-    testResults: stable.testResults.map(
-      ({ startTime, endTime, name, assertionResults, ...file }) => ({
-        ...file,
-        name: basename(name),
-        assertionResults: assertionResults.map(({ duration, ...test }) => test),
-      })
-    ),
-  }
+function assertSnapshotReport(report, round) {
+  assert.equal(report.success, true)
+  assert.equal(report.numTotalTests, 5)
+  assert.equal(report.numPassedTests, 5)
+  assert.equal(report.numFailedTests, 0)
+  assert.equal(report.testResults.length, 1)
+  assert.equal(report.testResults[0].status, 'passed')
+  assert.equal(report.testResults[0].message, '')
+  assert.deepEqual(
+    report.testResults[0].assertionResults.map((test) => [
+      test.fullName,
+      test.status,
+    ]),
+    [
+      ['tree', 'passed'],
+      ['special values', 'passed'],
+      ['property matcher', 'passed'],
+      ['inline', 'passed'],
+      ['raw file', 'passed'],
+    ]
+  )
+  for (const test of report.testResults[0].assertionResults)
+    assert.deepEqual(test.failureMessages, [])
+  assert.equal(report.snapshot.total, 5)
+  assert.equal(report.snapshot.added, round === 'update' ? 5 : 0)
+  assert.equal(report.snapshot.matched, round === 'read' ? 5 : 0)
+  assert.equal(report.snapshot.unmatched, 0)
+  assert.equal(report.snapshot.unchecked, 0)
+  assert.equal(report.snapshot.failure, false)
+  assert.equal(report.snapshot.didUpdate, round === 'update')
 }
-for (const [profile, entry] of Object.entries(expected.profiles)) {
+for (const [profile, entry] of Object.entries(profiles)) {
   if (selectedProfile && profile !== selectedProfile) continue
-  for (const [mode, reference] of Object.entries(entry.modes)) {
+  for (const mode of ['development', 'production']) {
     if (selectedMode && mode !== selectedMode) continue
     const fixture = mkdtempSync(join(consumer, '.next-test-snapshot-format-'))
     const sink = join(output, mode + '-' + profile)
@@ -139,14 +212,12 @@ for (const [profile, entry] of Object.entries(expected.profiles)) {
         writeFileSync(join(dir, 'stderr.log'), result.stderr)
         assertOwnedNodeCompleted(result, `${kind} ${mode} ${profile} ${round}`)
         assert.equal(result.status, 0, result.stderr)
-        const report = stableReport(
-          JSON.parse(readFileSync(reportPath, 'utf8'))
-        )
+        const report = JSON.parse(readFileSync(reportPath, 'utf8'))
         writeFileSync(
           join(dir, 'OBSERVED.json'),
           JSON.stringify(report, null, 2) + '\n'
         )
-        assert.deepEqual(report, reference.reports[round])
+        assertSnapshotReport(report, round)
         const actual = {
           snapshot: readFileSync(
             join(fixture, '__snapshots__/format.case.mjs.snap'),
@@ -155,7 +226,21 @@ for (const [profile, entry] of Object.entries(expected.profiles)) {
           source: readFileSync(join(fixture, 'format.case.mjs'), 'utf8'),
           raw: readFileSync(join(fixture, 'raw.txt'), 'utf8'),
         }
-        assert.deepEqual(actual, reference.files)
+        assert.equal(
+          actual.snapshot,
+          readFileSync(
+            join(fixtures, 'expected', entry.expected + '.snap.txt'),
+            'utf8'
+          )
+        )
+        assert.equal(
+          actual.source,
+          readFileSync(
+            join(fixtures, 'expected', entry.expected + '.mjs.txt'),
+            'utf8'
+          )
+        )
+        assert.equal(actual.raw, 'raw\nbytes')
         for (const name of [
           '.next-test.lock',
           '.next-test-snapshot-journal.json',
@@ -169,7 +254,7 @@ for (const [profile, entry] of Object.entries(expected.profiles)) {
           cases: report.numPassedTests,
           status: result.status,
           filesMatched: true,
-          reportMatched: true,
+          reportBehaviorChecked: true,
         })
       }
       completed = true
@@ -183,6 +268,4 @@ writeFileSync(
   join(output, 'MATRIX.json'),
   JSON.stringify(receipts, null, 2) + '\n'
 )
-console.log(
-  'snapshot-format: all profiles matched ' + receipts.length + ' runs'
-)
+console.log('snapshot-format: all profiles passed ' + receipts.length + ' runs')

@@ -10,7 +10,6 @@ const {
   Option,
 } = require('next/dist/compiled/commander')
 import { ModuleKind, transpileModule } from 'typescript'
-import watchReference from './reference.json'
 import { createTestTypecheckCliArguments } from 'next/dist/experimental/testing/typecheck-cli'
 import {
   normalizeTestConfig,
@@ -70,14 +69,58 @@ it.each([null, 'true', 1, {}, []])(
   }
 )
 
-const parserCases = watchReference.parser.rows as {
-  flags: string[]
-  actual?: { options: { watch?: boolean } }
-  error?: { name: string; message: string }
-}[]
+const parserCases: { flags: string[]; watch?: boolean; error?: string }[] = [
+  { flags: [] },
+  { flags: ['--watch'], watch: true },
+  { flags: ['-w'], watch: true },
+  { flags: ['--watch=true'], watch: true },
+  { flags: ['--watch=false'], watch: false },
+  { flags: ['--no-watch'], watch: false },
+  { flags: ['--watch', 'true'], watch: true },
+  { flags: ['--watch', 'false'], watch: false },
+  {
+    flags: ['--watch', '--watch=false'],
+    error:
+      'Expected a single value for option "-w, --watch", received [true, false]',
+  },
+  {
+    flags: ['--watch=false', '--watch'],
+    error:
+      'Expected a single value for option "-w, --watch", received [false, true]',
+  },
+  {
+    flags: ['--no-watch', '--watch=true'],
+    error:
+      'Expected a single value for option "-w, --watch", received [false, true]',
+  },
+  { flags: ['--watch=true', '--no-watch'], watch: false },
+  {
+    flags: ['--watch', '--watch'],
+    error:
+      'Expected a single value for option "-w, --watch", received [true, true]',
+  },
+  {
+    flags: ['--watch=false', '--watch=false'],
+    error:
+      'Expected a single value for option "-w, --watch", received [false, false]',
+  },
+  { flags: ['--no-watch', '--no-watch'], watch: false },
+  { flags: ['--watch=false', '--no-watch'], watch: false },
+  {
+    flags: ['--no-watch', '--watch=false'],
+    error:
+      'Expected a single value for option "-w, --watch", received [false, false]',
+  },
+  {
+    flags: ['--watch=false', '--watch=true', '--run'],
+    error:
+      'Expected a single value for option "-w, --watch", received [false, true]',
+  },
+  { flags: ['--run', '--watch=true'], watch: true },
+]
 it.each(parserCases)(
-  'matches actual Commander parsing with the pinned watch options: $flags',
-  async ({ flags, actual, error }) => {
+  'parses watch flags and rejects conflicting values: $flags',
+  async ({ flags, watch, error }) => {
     const source = await readFile(
       path.join(__dirname, '../../../packages/next/src/bin/next.ts'),
       'utf8'
@@ -118,11 +161,14 @@ it.each(parserCases)(
       context
     )
     if (error) {
-      await expect(context.completion).rejects.toMatchObject(error)
+      await expect(context.completion).rejects.toMatchObject({
+        name: 'Error',
+        message: error,
+      })
       expect(options).toBeUndefined()
     } else {
       await context.completion
-      expect(options?.watch).toBe(actual?.options.watch)
+      expect(options?.watch).toBe(watch)
     }
   }
 )

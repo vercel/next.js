@@ -1,5 +1,4 @@
 {
-  "reference": "Actual pinned Vitest5.0.4 coverage-v8 thirteen provider-only unchanged authored fixtures; full raw snapshot mismatches retained separately",
   "rows": [
     {
       "name": "setup-import-sync",
@@ -26,6 +25,13 @@
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
       "exitCode": 1,
+      "independentStage": null,
+      "dataset": "setup",
+      "originalName": "import-sync",
+      "entryName": "suite.test.mjs",
+      "authoredTrace": "",
+      "referenceProvider": "v8",
+      "knownSnapshotStatisticsGap": true,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -36,6 +42,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -52,188 +59,27 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793020923749,
-        "success": false,
         "testResults": [
           {
-            "assertionResults": [],
-            "startTime": 1793020923749,
-            "endTime": 1793020923749,
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-CtiZO6/suite.test.mjs",
             "status": "failed",
             "message": "owned settled setup import failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-CtiZO6/suite.test.mjs"
+            "assertionResults": []
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-CtiZO6/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-CtiZO6/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-CtiZO6/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-CtiZO6/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-CtiZO6/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}},\"line\":1},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}},\"line\":5}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}],\"line\":2}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]},\"meta\":{\"lastBranch\":1,\"lastFunction\":2,\"lastStatement\":4,\"seen\":{\"f:1:16:1:22\":0,\"b:2:2:2:Infinity:undefined:undefined:undefined:undefined\":0,\"s:2:2:2:Infinity\":0,\"s:2:13:2:Infinity\":1,\"s:3:2:3:Infinity\":2,\"f:5:16:5:22\":1,\"s:5:27:5:35\":3},\"fnNames\":{}}}\n}\n"
-      },
-      "independentStage": null,
-      "dataset": "setup",
-      "originalName": "import-sync",
-      "entryName": "suite.test.mjs",
-      "authoredTrace": "",
-      "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": true
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "setup-import-async",
@@ -260,6 +106,13 @@
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
       "exitCode": 1,
+      "independentStage": null,
+      "dataset": "setup",
+      "originalName": "import-async",
+      "entryName": "suite.test.mjs",
+      "authoredTrace": "",
+      "referenceProvider": "v8",
+      "knownSnapshotStatisticsGap": true,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -270,6 +123,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -286,188 +140,27 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793020925046,
-        "success": false,
         "testResults": [
           {
-            "assertionResults": [],
-            "startTime": 1793020925046,
-            "endTime": 1793020925046,
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-N2yQ9s/suite.test.mjs",
             "status": "failed",
             "message": "owned settled setup import failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-N2yQ9s/suite.test.mjs"
+            "assertionResults": []
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-N2yQ9s/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-N2yQ9s/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-N2yQ9s/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-N2yQ9s/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-N2yQ9s/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}},\"line\":1},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}},\"line\":5}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}],\"line\":2}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]},\"meta\":{\"lastBranch\":1,\"lastFunction\":2,\"lastStatement\":4,\"seen\":{\"f:1:16:1:22\":0,\"b:2:2:2:Infinity:undefined:undefined:undefined:undefined\":0,\"s:2:2:2:Infinity\":0,\"s:2:13:2:Infinity\":1,\"s:3:2:3:Infinity\":2,\"f:5:16:5:22\":1,\"s:5:27:5:35\":3},\"fnNames\":{}}}\n}\n"
-      },
-      "independentStage": null,
-      "dataset": "setup",
-      "originalName": "import-async",
-      "entryName": "suite.test.mjs",
-      "authoredTrace": "",
-      "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": true
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "setup-import-undefined",
@@ -494,6 +187,13 @@
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
       "exitCode": 1,
+      "independentStage": null,
+      "dataset": "setup",
+      "originalName": "import-undefined",
+      "entryName": "suite.test.mjs",
+      "authoredTrace": "",
+      "referenceProvider": "v8",
+      "knownSnapshotStatisticsGap": true,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -504,6 +204,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -520,188 +221,27 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793020926666,
-        "success": false,
         "testResults": [
           {
-            "assertionResults": [],
-            "startTime": 1793020926666,
-            "endTime": 1793020926666,
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-LUHhoC/suite.test.mjs",
             "status": "failed",
             "message": "undefined",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-LUHhoC/suite.test.mjs"
+            "assertionResults": []
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-LUHhoC/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-LUHhoC/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-LUHhoC/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-LUHhoC/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-LUHhoC/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}},\"line\":1},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}},\"line\":5}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}],\"line\":2}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]},\"meta\":{\"lastBranch\":1,\"lastFunction\":2,\"lastStatement\":4,\"seen\":{\"f:1:16:1:22\":0,\"b:2:2:2:Infinity:undefined:undefined:undefined:undefined\":0,\"s:2:2:2:Infinity\":0,\"s:2:13:2:Infinity\":1,\"s:3:2:3:Infinity\":2,\"f:5:16:5:22\":1,\"s:5:27:5:35\":3},\"fnNames\":{}}}\n}\n"
-      },
-      "independentStage": null,
-      "dataset": "setup",
-      "originalName": "import-undefined",
-      "entryName": "suite.test.mjs",
-      "authoredTrace": "",
-      "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": true
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "setup-import-sync-report-false",
@@ -728,6 +268,13 @@
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
       "exitCode": 1,
+      "independentStage": null,
+      "dataset": "setup",
+      "originalName": "import-sync-report-false",
+      "entryName": "suite.test.mjs",
+      "authoredTrace": "",
+      "referenceProvider": "v8",
+      "knownSnapshotStatisticsGap": true,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -738,6 +285,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -754,184 +302,23 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793020928052,
-        "success": false,
         "testResults": [
           {
-            "assertionResults": [],
-            "startTime": 1793020928052,
-            "endTime": 1793020928052,
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-gY7TqP/suite.test.mjs",
             "status": "failed",
             "message": "owned settled setup import failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-gY7TqP/suite.test.mjs"
+            "assertionResults": []
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-gY7TqP/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-gY7TqP/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "reports": {},
-      "independentStage": null,
-      "dataset": "setup",
-      "originalName": "import-sync-report-false",
-      "entryName": "suite.test.mjs",
-      "authoredTrace": "",
-      "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": true
+      "reportFiles": []
     },
     {
       "name": "setup-import-async-report-false",
@@ -958,6 +345,13 @@
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
       "exitCode": 1,
+      "independentStage": null,
+      "dataset": "setup",
+      "originalName": "import-async-report-false",
+      "entryName": "suite.test.mjs",
+      "authoredTrace": "",
+      "referenceProvider": "v8",
+      "knownSnapshotStatisticsGap": true,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -968,6 +362,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -984,184 +379,23 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793020929431,
-        "success": false,
         "testResults": [
           {
-            "assertionResults": [],
-            "startTime": 1793020929431,
-            "endTime": 1793020929431,
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-7fffkd/suite.test.mjs",
             "status": "failed",
             "message": "owned settled setup import failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-7fffkd/suite.test.mjs"
+            "assertionResults": []
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-7fffkd/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-7fffkd/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:13:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:5:27:5:35": 3
-              },
-              "fnNames": {}
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "reports": {},
-      "independentStage": null,
-      "dataset": "setup",
-      "originalName": "import-async-report-false",
-      "entryName": "suite.test.mjs",
-      "authoredTrace": "",
-      "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": true
+      "reportFiles": []
     },
     {
       "name": "spec-mjs-no-case-sync",
@@ -1186,202 +420,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793020930555,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793020930555,
-            "endTime": 1793020930555,
-            "status": "failed",
-            "message": "actual spec dependency load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-ojKXIn/contract.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-ojKXIn/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-ojKXIn/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:12:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:6:2:6:Infinity": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
@@ -1458,11 +496,6 @@
           "errors": []
         }
       ],
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":0,\"skipped\":0,\"pct\":0},\"statements\":{\"total\":4,\"covered\":0,\"skipped\":0,\"pct\":0},\"functions\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"branches\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-ojKXIn/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":0,\"skipped\":0,\"pct\":0},\"functions\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"statements\":{\"total\":4,\"covered\":0,\"skipped\":0,\"pct\":0},\"branches\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-ojKXIn/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-ojKXIn/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":12},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":6,\"column\":2},\"end\":{\"line\":6,\"column\":null}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":29},\"end\":{\"line\":4,\"column\":null}},\"line\":1},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":7,\"column\":null}},\"line\":5}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}],\"line\":2}},\"s\":{\"0\":0,\"1\":0,\"2\":0,\"3\":0},\"f\":{\"0\":0,\"1\":0},\"b\":{\"0\":[0,0]},\"meta\":{\"lastBranch\":1,\"lastFunction\":2,\"lastStatement\":4,\"seen\":{\"f:1:16:1:22\":0,\"b:2:2:2:Infinity:undefined:undefined:undefined:undefined\":0,\"s:2:2:2:Infinity\":0,\"s:2:12:2:Infinity\":1,\"s:3:2:3:Infinity\":2,\"f:5:16:5:22\":1,\"s:6:2:6:Infinity\":3},\"fnNames\":{}}}\n}\n"
-      },
       "referenceSHA256": {
         "AUTHORED.json": "48c041275a7a5ca05d0f6d2f77ff6d0d9744d19514d39093f586945f261c3709",
         "cases.json": "5214c88d9fbd73450081d05a2cec59c2b67ae2551227762c10cc415858cfb395",
@@ -1471,7 +504,55 @@
       "dataset": "spec",
       "originalName": "mjs-no-case-sync",
       "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": false
+      "knownSnapshotStatisticsGap": false,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-ojKXIn/contract.test.mjs",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      },
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "spec-mjs-no-case-sync-report-false",
@@ -1496,202 +577,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793020931672,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793020931672,
-            "endTime": 1793020931672,
-            "status": "failed",
-            "message": "actual spec dependency load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-WiB9le/contract.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-WiB9le/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-WiB9le/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:12:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:6:2:6:Infinity": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
@@ -1768,7 +653,6 @@
           "errors": []
         }
       ],
-      "reports": {},
       "referenceSHA256": {
         "AUTHORED.json": "7c8f76eb98d939b0d12205bbca77343ec8c25cde5c62798c95b94cb10ad58d2e",
         "cases.json": "c217f4703398c030b1fb41cc7131b6618f349aa509e68cb24a27d6cfca835a9c",
@@ -1777,7 +661,51 @@
       "dataset": "spec",
       "originalName": "mjs-no-case-sync-report-false",
       "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": false
+      "knownSnapshotStatisticsGap": false,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-WiB9le/contract.test.mjs",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      },
+      "reportFiles": []
     },
     {
       "name": "spec-js-no-case-sync",
@@ -1802,202 +730,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793020932672,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793020932672,
-            "endTime": 1793020932672,
-            "status": "failed",
-            "message": "actual spec dependency load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-eFZzDr/contract.test.js"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-eFZzDr/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-eFZzDr/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:12:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:6:2:6:Infinity": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
@@ -2074,11 +806,6 @@
           "errors": []
         }
       ],
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":0,\"skipped\":0,\"pct\":0},\"statements\":{\"total\":4,\"covered\":0,\"skipped\":0,\"pct\":0},\"functions\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"branches\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-eFZzDr/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":0,\"skipped\":0,\"pct\":0},\"functions\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0},\"statements\":{\"total\":4,\"covered\":0,\"skipped\":0,\"pct\":0},\"branches\":{\"total\":2,\"covered\":0,\"skipped\":0,\"pct\":0}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:0\nFNDA:0,choose\nFNDA:0,unused\nDA:2,0\nDA:3,0\nDA:6,0\nLF:3\nLH:0\nBRDA:2,0,0,0\nBRDA:2,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-eFZzDr/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-eFZzDr/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":12},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":6,\"column\":2},\"end\":{\"line\":6,\"column\":null}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":29},\"end\":{\"line\":4,\"column\":null}},\"line\":1},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":7,\"column\":null}},\"line\":5}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}],\"line\":2}},\"s\":{\"0\":0,\"1\":0,\"2\":0,\"3\":0},\"f\":{\"0\":0,\"1\":0},\"b\":{\"0\":[0,0]},\"meta\":{\"lastBranch\":1,\"lastFunction\":2,\"lastStatement\":4,\"seen\":{\"f:1:16:1:22\":0,\"b:2:2:2:Infinity:undefined:undefined:undefined:undefined\":0,\"s:2:2:2:Infinity\":0,\"s:2:12:2:Infinity\":1,\"s:3:2:3:Infinity\":2,\"f:5:16:5:22\":1,\"s:6:2:6:Infinity\":3},\"fnNames\":{}}}\n}\n"
-      },
       "referenceSHA256": {
         "AUTHORED.json": "8ffde2bef5725df4ffd24931151cccdffa36954f6cdfb715321544ebca626b7d",
         "cases.json": "3637810223d2068bf6ad67154c8c527c99418406eef24a902447928a705a99e3",
@@ -2087,7 +814,55 @@
       "dataset": "spec",
       "originalName": "js-no-case-sync",
       "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": false
+      "knownSnapshotStatisticsGap": false,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-eFZzDr/contract.test.js",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      },
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "spec-js-no-case-sync-report-false",
@@ -2112,202 +887,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793020933663,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793020933663,
-            "endTime": 1793020933663,
-            "status": "failed",
-            "message": "actual spec dependency load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-4LEmam/contract.test.js"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-4LEmam/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-4LEmam/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 0,
-              "1": 0,
-              "2": 0,
-              "3": 0
-            },
-            "f": {
-              "0": 0,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 0]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:12:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:6:2:6:Infinity": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
@@ -2384,7 +963,6 @@
           "errors": []
         }
       ],
-      "reports": {},
       "referenceSHA256": {
         "AUTHORED.json": "491d1cf4779ee7ba5818ce540109032662e49be3734633d0aaadccb07194e95f",
         "cases.json": "fcef32239c060201b31c8bfa9f600fc294d771ad2ad988fe17c40d975f13dfed",
@@ -2393,7 +971,51 @@
       "dataset": "spec",
       "originalName": "js-no-case-sync-report-false",
       "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": false
+      "knownSnapshotStatisticsGap": false,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-4LEmam/contract.test.js",
+            "status": "failed",
+            "message": "actual spec dependency load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [0, 0, 0, 0],
+          "functions": [0, 0],
+          "branches": [[0, 0]]
+        }
+      },
+      "reportFiles": []
     },
     {
       "name": "spec-mjs-partial-async",
@@ -2418,202 +1040,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793020934529,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793020934529,
-            "endTime": 1793020934529,
-            "status": "failed",
-            "message": "actual async partial spec load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-zerfd6/contract.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-zerfd6/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-zerfd6/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:12:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:6:2:6:Infinity": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":6972}\n{\"event\":\"test-declared\",\"pid\":6972}\n",
       "reporterTrace": [
@@ -2690,11 +1116,6 @@
           "errors": []
         }
       ],
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-zerfd6/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:6,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-zerfd6/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-zerfd6/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":12},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":6,\"column\":2},\"end\":{\"line\":6,\"column\":null}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":29},\"end\":{\"line\":4,\"column\":null}},\"line\":1},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":7,\"column\":null}},\"line\":5}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}],\"line\":2}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]},\"meta\":{\"lastBranch\":1,\"lastFunction\":2,\"lastStatement\":4,\"seen\":{\"f:1:16:1:22\":0,\"b:2:2:2:Infinity:undefined:undefined:undefined:undefined\":0,\"s:2:2:2:Infinity\":0,\"s:2:12:2:Infinity\":1,\"s:3:2:3:Infinity\":2,\"f:5:16:5:22\":1,\"s:6:2:6:Infinity\":3},\"fnNames\":{}}}\n}\n"
-      },
       "referenceSHA256": {
         "AUTHORED.json": "4b16f22a7414b977aadc19e329b809bf09520c6696123cd2f664157016c6ee6e",
         "cases.json": "84a8be071a5331afc5824effe63dd05db611d7a0f8690bbf766ae695ef4a33cd",
@@ -2703,7 +1124,55 @@
       "dataset": "spec",
       "originalName": "mjs-partial-async",
       "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": false
+      "knownSnapshotStatisticsGap": false,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-zerfd6/contract.test.mjs",
+            "status": "failed",
+            "message": "actual async partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "spec-mjs-partial-async-report-false",
@@ -2728,202 +1197,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793020935378,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793020935378,
-            "endTime": 1793020935378,
-            "status": "failed",
-            "message": "actual async partial spec load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-Pdilyu/contract.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-Pdilyu/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-Pdilyu/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:12:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:6:2:6:Infinity": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":7011}\n{\"event\":\"test-declared\",\"pid\":7011}\n",
       "reporterTrace": [
@@ -3000,7 +1273,6 @@
           "errors": []
         }
       ],
-      "reports": {},
       "referenceSHA256": {
         "AUTHORED.json": "25d9e8e89e125ec8357b0519a21fb20b8f27942904d457caeee7b65529f4e60d",
         "cases.json": "1d5067a462738c27c6cdabb0ac7428689c9083f621b9892880e391cc14df69c5",
@@ -3009,7 +1281,51 @@
       "dataset": "spec",
       "originalName": "mjs-partial-async-report-false",
       "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": false
+      "knownSnapshotStatisticsGap": false,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-Pdilyu/contract.test.mjs",
+            "status": "failed",
+            "message": "actual async partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "reportFiles": []
     },
     {
       "name": "spec-js-partial-sync",
@@ -3034,202 +1350,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793020936230,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793020936230,
-            "endTime": 1793020936230,
-            "status": "failed",
-            "message": "actual partial spec load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-MhwjI3/contract.test.js"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-MhwjI3/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-MhwjI3/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:12:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:6:2:6:Infinity": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":7035}\n{\"event\":\"test-declared\",\"pid\":7035}\n",
       "reporterTrace": [
@@ -3306,11 +1426,6 @@
           "errors": []
         }
       ],
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-MhwjI3/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:6,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-MhwjI3/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-MhwjI3/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":12},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":6,\"column\":2},\"end\":{\"line\":6,\"column\":null}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":29},\"end\":{\"line\":4,\"column\":null}},\"line\":1},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":7,\"column\":null}},\"line\":5}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}],\"line\":2}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]},\"meta\":{\"lastBranch\":1,\"lastFunction\":2,\"lastStatement\":4,\"seen\":{\"f:1:16:1:22\":0,\"b:2:2:2:Infinity:undefined:undefined:undefined:undefined\":0,\"s:2:2:2:Infinity\":0,\"s:2:12:2:Infinity\":1,\"s:3:2:3:Infinity\":2,\"f:5:16:5:22\":1,\"s:6:2:6:Infinity\":3},\"fnNames\":{}}}\n}\n"
-      },
       "referenceSHA256": {
         "AUTHORED.json": "a8bebf4d96b9a4e4813f405105eb9388596f95f61246a9db11adc8cf308cd791",
         "cases.json": "192afb04e47ed7d950e550216635760aab8ab5dfea65f1ab4481efe8c3d26c46",
@@ -3319,7 +1434,55 @@
       "dataset": "spec",
       "originalName": "js-partial-sync",
       "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": false
+      "knownSnapshotStatisticsGap": false,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-MhwjI3/contract.test.js",
+            "status": "failed",
+            "message": "actual partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "spec-js-partial-sync-report-false",
@@ -3344,202 +1507,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
       "snapshots": {},
-      "cases": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793020937077,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793020937077,
-            "endTime": 1793020937077,
-            "status": "failed",
-            "message": "actual partial spec load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-vB8vYn/contract.test.js"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-vB8vYn/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-vB8vYn/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:12:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:6:2:6:Infinity": 3
-              },
-              "fnNames": {}
-            }
-          }
-        }
-      },
       "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":7059}\n{\"event\":\"test-declared\",\"pid\":7059}\n",
       "reporterTrace": [
@@ -3616,7 +1583,6 @@
           "errors": []
         }
       ],
-      "reports": {},
       "referenceSHA256": {
         "AUTHORED.json": "1432800e653a13155567762ed502d53c705924341e56555f0fbefe5c886fe7f9",
         "cases.json": "a0a2a79acc30e53b2cfa26c75b9232f45a6a8004c5729f5cf484bc77463aa8fe",
@@ -3625,7 +1591,51 @@
       "dataset": "spec",
       "originalName": "js-partial-sync-report-false",
       "referenceProvider": "v8",
-      "knownSnapshotStatisticsGap": false
+      "knownSnapshotStatisticsGap": false,
+      "cases": {
+        "numTotalTestSuites": 1,
+        "numPassedTestSuites": 0,
+        "numFailedTestSuites": 1,
+        "numPendingTestSuites": 0,
+        "numTotalTests": 0,
+        "numPassedTests": 0,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "success": false,
+        "snapshot": {
+          "added": 0,
+          "failure": false,
+          "filesAdded": 0,
+          "filesRemoved": 0,
+          "filesRemovedList": [],
+          "filesUnmatched": 0,
+          "filesUpdated": 0,
+          "matched": 0,
+          "total": 0,
+          "unchecked": 0,
+          "uncheckedKeysByFile": [],
+          "unmatched": 0,
+          "updated": 0,
+          "didUpdate": false
+        },
+        "testResults": [
+          {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-v8-collection82-vB8vYn/contract.test.js",
+            "status": "failed",
+            "message": "actual partial spec load failed",
+            "assertionResults": []
+          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
+        }
+      },
+      "reportFiles": []
     },
     {
       "name": "setup-import-mixed-disposal",
@@ -3652,6 +1662,12 @@
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
       "exitCode": 1,
+      "independentStage": "disposal",
+      "dataset": "setup",
+      "originalName": "import-mixed-disposal",
+      "entryName": "suite.test.mjs",
+      "referenceProvider": "not-newly-V8-qualified-control",
+      "knownSnapshotStatisticsGap": true,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -3662,6 +1678,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -3678,169 +1695,27 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793008432386,
-        "success": false,
         "testResults": [
           {
-            "assertionResults": [],
-            "startTime": 1793008432386,
-            "endTime": 1793008432386,
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-plJfdc/suite.test.mjs",
             "status": "failed",
             "message": "same actual load and disposal failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-plJfdc/suite.test.mjs"
+            "assertionResults": []
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-plJfdc/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-plJfdc/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-plJfdc/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-plJfdc/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-plJfdc/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]}}\n}\n"
-      },
-      "independentStage": "disposal",
-      "dataset": "setup",
-      "originalName": "import-mixed-disposal",
-      "entryName": "suite.test.mjs",
-      "referenceProvider": "not-newly-V8-qualified-control",
-      "knownSnapshotStatisticsGap": true
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "setup-import-mixed-settle",
@@ -3867,6 +1742,12 @@
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
       "exitCode": 1,
+      "independentStage": "settle",
+      "dataset": "setup",
+      "originalName": "import-mixed-settle",
+      "entryName": "suite.test.mjs",
+      "referenceProvider": "not-newly-V8-qualified-control",
+      "knownSnapshotStatisticsGap": true,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -3877,6 +1758,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -3893,230 +1775,27 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793008433318,
-        "success": false,
         "testResults": [
           {
-            "assertionResults": [],
-            "startTime": 1793008433318,
-            "endTime": 1793008433318,
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-enWnGV/suite.test.mjs",
             "status": "failed",
             "message": "same actual load and collector-settle failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-enWnGV/suite.test.mjs"
+            "assertionResults": []
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-enWnGV/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-enWnGV/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
+        ]
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-enWnGV/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-enWnGV/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-enWnGV/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]}}\n}\n"
-      },
-      "independentStage": "settle",
-      "dataset": "setup",
-      "originalName": "import-mixed-settle",
-      "entryName": "suite.test.mjs",
-      "referenceProvider": "not-newly-V8-qualified-control",
-      "knownSnapshotStatisticsGap": true
-    },
-    {
-      "name": "setup-import-pending-control",
-      "sourceFiles": {
+      "coverage": {
         "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "import {choose} from './subject.mjs'\nimport {writeFileSync} from 'node:fs'\nchoose(false)\nwriteFileSync('pending-load.txt','ACTUAL_PENDING_LOAD')\nawait new Promise(()=>{})\n",
-          "sha256": "74bafb6c5c1cf42877713ad4c3854d11b7e8aee7e60b59c10efe7f4a74c80527"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
-          "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
+          "statements": [1, 0, 1, 0],
+          "functions": [1, 0],
+          "branches": [[0, 1]]
         }
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {
-        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
-      },
-      "pendingControl": true,
-      "reference": false,
-      "purpose": "Actual process-deadline/no-capture control; no genuine compatibility assertion.",
-      "dataset": "setup",
-      "originalName": "import-pending-control",
-      "entryName": "suite.test.mjs",
-      "referenceProvider": "not-newly-V8-qualified-control",
-      "knownSnapshotStatisticsGap": true
-    },
-    {
-      "name": "spec-pending-spec-control",
-      "entryName": "pending.test.mjs",
-      "sourceFiles": {
-        "pending.test.mjs": {
-          "source": "import {writeFileSync} from 'node:fs'\nwriteFileSync('pending-load.txt','ACTUAL_PENDING_LOAD')\nawait new Promise(()=>{})\n",
-          "sha256": "a54cc72c4c9b6078ec3d1c282f7f2da35a6f0b91f89b363938d2fd151829132c"
-        },
-        "subject.mjs": {
-          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
-          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
-        },
-        "package.json": {
-          "source": "{\"type\":\"module\"}\n",
-          "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
-        }
-      },
-      "config": "export default {\"test\":{\"include\":[\"pending.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
-      "snapshots": {
-        "pending.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`prior unpublished 1`] = `\"keep actual prior snapshot\"`;\n"
-      },
-      "pendingControl": true,
-      "genuineCompatibilityQualified": false,
-      "dataset": "spec",
-      "originalName": "pending-spec-control",
-      "referenceProvider": "not-newly-V8-qualified-control",
-      "knownSnapshotStatisticsGap": false
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     }
   ]
 }

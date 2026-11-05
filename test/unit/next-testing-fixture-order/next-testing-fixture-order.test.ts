@@ -17,7 +17,7 @@ it('preserves registration selection order, dependency DFS, lazy builtins and re
   })
 }, 15000)
 
-it('matches genuine requested and auto registration order with real scoped cache and cleanup in both Node modes', async () => {
+it('preserves requested and auto registration order with real scoped cache and cleanup in both Node modes', async () => {
   const temporary = await mkdtemp(join(tmpdir(), 'next-fixture-order-'))
   let complete = false
   try {
@@ -36,10 +36,9 @@ it('matches genuine requested and auto registration order with real scoped cache
     )
     expect(verified.allPassed).toBe(true)
     expect(verified.profiles).toHaveLength(2)
-    expect(verified.actualCases).toBe(10)
-    expect(verified.wholeRows).toBe(62)
-    expect(verified.allPhysicalOwnersJoined).toBe(true)
-    expect(verified.originalBoundsHeld).toBe(true)
+    expect(verified.cases).toBe(10)
+    expect(verified.behavioralChecks).toBe(true)
+    expect(verified.allOwnersJoined).toBe(true)
     complete = true
   } catch (cause) {
     throw new Error(`Fixture ordering evidence retained at ${temporary}`, {

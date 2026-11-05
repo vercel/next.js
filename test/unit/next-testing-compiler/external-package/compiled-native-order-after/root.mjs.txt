@@ -1,3 +1,0 @@
-import {value} from './peer.mjs';
-import {setupPrimary} from 'node:cluster';
-export function read(){return {value,original:setupPrimary===globalThis.__ws2Original,patched:setupPrimary===globalThis.__ws2Patched}}

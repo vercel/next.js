@@ -1,7 +1,7 @@
 import { test, expect } from 'vitest'
 const groups = Object.create(null)
-function record(group, phase, value = null) {
-  const row = { group, phase, value }
+function record(group, phase) {
+  const row = { group, phase }
   ;(groups[group] ||= []).push(row)
   console.log('FIXTURE_ORDER_ROW ' + JSON.stringify(row))
 }

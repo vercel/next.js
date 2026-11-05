@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
-it('matches genuine Chromium and Firefox Browser clock configuration in both modes', async () => {
+it('preserves Browser clock configuration, automatic ticks and cross-case timers in both engines and modes', async () => {
   const temporary = await mkdtemp(
     join(tmpdir(), 'next-browser-clock-configuration-')
   )
@@ -19,10 +19,9 @@ it('matches genuine Chromium and Firefox Browser clock configuration in both mod
     const verified = JSON.parse(
       await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
     )
-    expect(verified.profiles).toBe(4)
-    expect(verified.cases).toBe(28)
-    expect(verified.wholeAuthorRows).toBe(28)
-    expect(verified.exactGenuineRowsCasesAndCounts).toBe(true)
+    expect(verified.profiles).toHaveLength(4)
+    expect(verified.cases).toBe(48)
+    expect(verified.clockBehaviorAssertionsPassed).toBe(true)
     expect(verified.actualDOMRealmAsserted).toBe(true)
     expect(verified.allOwnersJoined).toBe(true)
     expect(verified.allInputsRemovedAfterOwnedReadersJoined).toBe(true)

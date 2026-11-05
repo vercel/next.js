@@ -2,39 +2,24 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
-import { createHash } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
+import {
+  fixtureFiles,
+  resolveFixturePath,
+} from '../../lib/next-testing-fixtures.cjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const corpus = path.join(here, 'fixtures/shared-rsc')
-const stored = JSON.parse(
-  fs.readFileSync(resolveFixturePath(path.join(corpus, 'corpus.json')), 'utf8')
-)
-const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
-export function readSharedRscCorpus(engine = '20') {
-  assert.equal(
-    stored.authority,
-    'ordinary Next.js AppPage HTTP; no Vitest RSC substitution'
+export function readSharedRscSources() {
+  const directory = path.join(corpus, 'sources')
+  return Object.fromEntries(
+    fixtureFiles(directory).map((file) => [
+      file.replace(/\.txt$/, ''),
+      fs.readFileSync(resolveFixturePath(path.join(directory, file))),
+    ])
   )
-  const profile = stored.engines[engine]
-  assert(profile, 'Shared RSC corpus requires a measured actual Node version')
-  const sources = Object.fromEntries(
-    Object.entries(stored.sources).map(([file, value]) => {
-      const bytes = fs.readFileSync(
-        resolveFixturePath(path.join(corpus, value.stored))
-      )
-      assert.equal(sha(bytes), value.sha256)
-      return [file, bytes]
-    })
-  )
-  const bytes = fs.readFileSync(
-    resolveFixturePath(path.join(corpus, profile.model))
-  )
-  assert.equal(sha(bytes), profile.sha256)
-  return { profile, sources, model: JSON.parse(bytes) }
 }
-export async function qualifySharedRsc(
+export async function runSharedRsc(
   consumer,
   output,
   repository = path.resolve(here, '../../..'),
@@ -46,13 +31,7 @@ export async function qualifySharedRsc(
   assert(['source', 'installed'].includes(kind))
   assert(!fs.existsSync(output))
   fs.mkdirSync(output, { recursive: true })
-  const engine = process.versions.node.split('.')[0],
-    reference = readSharedRscCorpus('20')
-  assert.match(
-    reference.profile.actualNodeVersion,
-    /^v20\./,
-    'Requires the retained ordinary Node 20 reference'
-  )
+  const sources = readSharedRscSources()
   const load = createRequire(path.join(consumer, 'package.json'))
   const { runOwnedNode, assertOwnedNodeCompleted } = await import(
     pathToFileURL(
@@ -68,7 +47,7 @@ export async function qualifySharedRsc(
       path.join(output, name),
       JSON.stringify(value, null, 2) + '\n'
     )
-  for (const [file, bytes] of Object.entries(reference.sources)) {
+  for (const [file, bytes] of Object.entries(sources)) {
     const target = path.join(fixture, file)
     fs.mkdirSync(path.dirname(target), { recursive: true })
     fs.writeFileSync(target, bytes)
@@ -132,19 +111,6 @@ export async function qualifySharedRsc(
     GIT_OPTIONAL_LOCKS: '0',
     FORCE_COLOR: '0',
   })
-  save('REQUEST.json', {
-    kind,
-    consumer,
-    actualNodeVersion: process.version,
-    execPath: process.execPath,
-    fixture,
-    nextConfig,
-    testConfig,
-    args,
-    sourcePins: stored.sources,
-    actualOrdinaryAuthority: reference.profile,
-    rootPackage: load.resolve('next/package.json'),
-  })
   let joined = false,
     complete = false
   try {
@@ -195,47 +161,31 @@ export async function qualifySharedRsc(
       if (at >= 0)
         rows.push(JSON.parse(line.slice(at + 'SHARED_RSC_ROW '.length)))
     }
-    save('OBSERVED.json', { cases, rows, report })
+    save('OBSERVED.json', { cases, rows })
     assert.deepEqual(
-      rows,
-      reference.model.rows.map((row, index) => ({
-        file: index ? 'second' : 'first',
-        row,
-      }))
+      rows.map((value) => value.file),
+      ['first', 'second']
+    )
+    assert.deepEqual(
+      rows.map((value) => value.row.subject.version),
+      ['A', 'A']
+    )
+    assert.deepEqual(
+      rows.map((value) => value.row.subject.count),
+      [1, 2]
     )
     save('RESULT.json', {
-      kind,
-      engine,
-      actualNodeVersion: process.version,
-      completeHttpRowsEqual: true,
-      cases: 2,
-      files: 2,
+      cases: cases.length,
+      files: report.testResults.length,
       sharedCounts: rows.map((value) => value.row.subject.count),
-      allAuthoredBytesHeld: true,
-      allOwnersJoined: true,
-      ordinaryStrictOwnershipQualified: false,
-      watchQualified: false,
     })
     complete = true
   } finally {
-    for (const [file, bytes] of Object.entries(reference.sources))
-      assert.deepEqual(fs.readFileSync(path.join(fixture, file)), bytes)
-    fs.mkdirSync(path.join(output, 'fixture-config'), { recursive: true })
-    for (const file of [
-      'package.json',
-      'next.config.mjs',
-      'next.test.config.json',
-    ])
-      fs.copyFileSync(
-        path.join(fixture, file),
-        path.join(output, 'fixture-config', file)
-      )
     if (joined) fs.rmSync(fixture, { recursive: true, force: true })
     save('CLOSED.json', {
       joined,
       complete,
       fixtureRemoved: !fs.existsSync(fixture),
-      allAuthoredBytesHeld: true,
     })
   }
 }
@@ -243,33 +193,18 @@ if (
   process.argv[1] &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  if (process.argv[2] === '--check-corpus') {
-    for (const engine of Object.keys(stored.engines))
-      readSharedRscCorpus(engine)
-    console.log(
-      JSON.stringify({
-        models: 1,
-        bodies: 6,
-        wholeHttpRows: 2,
-        authority: stored.authority,
-        strictOrdinaryOwnershipQualified: false,
-        rawModelsAndSourceBytesExact: true,
-      })
-    )
-  } else {
-    await qualifySharedRsc(
-      process.argv[2],
-      process.argv[3],
-      process.argv[4],
-      process.argv[5]
-    )
-    console.log(
-      fs
-        .readFileSync(
-          path.join(path.resolve(process.argv[3]), 'RESULT.json'),
-          'utf8'
-        )
-        .trim()
-    )
-  }
+  await runSharedRsc(
+    process.argv[2],
+    process.argv[3],
+    process.argv[4],
+    process.argv[5]
+  )
+  console.log(
+    fs
+      .readFileSync(
+        path.join(path.resolve(process.argv[3]), 'RESULT.json'),
+        'utf8'
+      )
+      .trim()
+  )
 }

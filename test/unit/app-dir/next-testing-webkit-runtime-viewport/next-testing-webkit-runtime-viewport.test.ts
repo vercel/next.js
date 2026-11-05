@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
-it('resizes the actual owned WebKit main Page with genuine responsive layout and Promise behavior', async () => {
+it('resizes the actual owned WebKit main Page with responsive layout and Promise behavior', async () => {
   const retained = process.env.NEXT_TESTING_WEBKIT_RUNTIME_VIEWPORT_EVIDENCE
   const temporary =
     retained ?? (await mkdtemp(join(tmpdir(), 'next-webkit-runtime-viewport-')))
@@ -21,7 +21,7 @@ it('resizes the actual owned WebKit main Page with genuine responsive layout and
     )
     expect(verified.profiles).toBe(2)
     expect(verified.cases).toBe(2)
-    expect(verified.completeGenuineWebKitViewportModelsExact).toBe(true)
+    expect(verified.viewportBehaviorAssertionsPassed).toBe(true)
     expect(verified.allOwnersJoined).toBe(true)
     complete = true
   } catch (error) {

@@ -1,0 +1,5 @@
+{
+  "aria": "ARIA tree:\n- heading \"Hello\" [level=2]\n- button \"Save\": go",
+  "html": "<section>\n  <h2>\n    Hello\n  </h2>\n  <button\n    aria-label=\"Save\"\n  >\n    go\n  </button>\n</section>",
+  "clippedHTML": "<section>\n  <h2 \u2026 />\n  <button \u2026 />\n</section>"
+}

@@ -1,15 +1,35 @@
 import { test, chai, expect } from 'vitest'
-const proxify=value=>Reflect.apply(chai.util.proxify,chai.util,[value,'equal'])
-for(const useProxy of[true,false])for(const kind of['method','proxied-method','prototype','proxied-prototype'])for(const receiver of[undefined,null])test((useProxy?'enabled ':'disabled ')+kind+' '+String(receiver),()=>{
- const previous=chai.config.useProxy
- chai.config.useProxy=useProxy
- try{
-  const assertion=chai.expect(3)
-  let method=kind.includes('prototype')?Reflect.get(chai.Assertion.prototype,'equal'):assertion.equal
-  if(kind.startsWith('proxied'))method=proxify(method)
-  let error,threw=false,result
-  try{result=Reflect.apply(method,receiver,[3])}catch(caught){error=caught;threw=true}
-  console.log('POLL_OWNERSHIP_ROW '+JSON.stringify({useProxy,kind,receiver:String(receiver),threw,returnKind:typeof result,error:threw?{name:error?.name,message:error?.message}:null,assertionCalls:expect.getState().assertionCalls}))
-  if(threw)throw error
- }finally{chai.config.useProxy=previous}
-})
+import assert from 'node:assert/strict'
+const proxify = (value) =>
+  Reflect.apply(chai.util.proxify, chai.util, [value, 'equal'])
+for (const useProxy of [true, false])
+  for (const kind of [
+    'method',
+    'proxied-method',
+    'prototype',
+    'proxied-prototype',
+  ])
+    for (const receiver of [undefined, null])
+      test(
+        (useProxy ? 'enabled ' : 'disabled ') + kind + ' ' + String(receiver),
+        () => {
+          const previous = chai.config.useProxy
+          chai.config.useProxy = useProxy
+          try {
+            const assertion = chai.expect(3)
+            let method = kind.includes('prototype')
+              ? Reflect.get(chai.Assertion.prototype, 'equal')
+              : assertion.equal
+            if (kind.startsWith('proxied')) method = proxify(method)
+            assert.throws(
+              () => Reflect.apply(method, receiver, [3]),
+              (error) =>
+                error?.name === 'TypeError' &&
+                error.message.includes(String(receiver))
+            )
+            assert.equal(expect.getState().assertionCalls, 0)
+          } finally {
+            chai.config.useProxy = previous
+          }
+        }
+      )

@@ -17,7 +17,7 @@ it('preserves actual test fixture contexts, lazy builtins and existing private/f
   })
 }, 15000)
 
-it('matches genuine context identity and getter reads across setup hooks body and cleanup in both Node modes', async () => {
+it('preserves context identity and getter reads across setup hooks body and cleanup in both Node modes', async () => {
   const temporary = await mkdtemp(join(tmpdir(), 'next-fixture-context-'))
   let complete = false
   try {
@@ -36,10 +36,9 @@ it('matches genuine context identity and getter reads across setup hooks body an
     )
     expect(verified.allPassed).toBe(true)
     expect(verified.profiles).toHaveLength(2)
-    expect(verified.actualCases).toBe(4)
-    expect(verified.wholeRows).toBe(30)
-    expect(verified.allPhysicalOwnersJoined).toBe(true)
-    expect(verified.originalBoundsHeld).toBe(true)
+    expect(verified.cases).toBe(4)
+    expect(verified.behavioralChecks).toBe(true)
+    expect(verified.allOwnersJoined).toBe(true)
     complete = true
   } catch (cause) {
     throw new Error(`Fixture context evidence retained at ${temporary}`, {

@@ -1,6 +1,5 @@
 import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   mkdir,
@@ -26,16 +25,21 @@ const corpus = join(
   dirname(fileURLToPath(import.meta.url)),
   'fixtures/inline-project-inheritance'
 )
-const expected = JSON.parse(
-  await readFile(resolveFixturePath(join(corpus, 'pristine.json')), 'utf8')
+const profiles = ['compiler', 'settings'].flatMap((kind) =>
+  ['omitted', 'true', 'false'].map((flag) => ({ kind, flag }))
 )
-const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const authored = new Map()
-for (const [name, pin] of Object.entries(expected.sourceSHA256)) {
-  const bytes = await readFile(resolveFixturePath(join(corpus, name)))
-  assert.equal(sha(bytes), pin)
-  authored.set(name, bytes)
-}
+for (const name of [
+  'package.json.txt',
+  'subject.mjs.txt',
+  'aliased.mjs.txt',
+  'root-setup.mjs.txt',
+  'child-setup.mjs.txt',
+  'contract.case.mjs.txt',
+  'real-package/package.json.txt',
+  'real-package/index.mjs.txt',
+])
+  authored.set(name, await readFile(resolveFixturePath(join(corpus, name))))
 const load = createRequire(join(root, 'package.json'))
 if (!process.argv.includes('--source'))
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
@@ -56,7 +60,7 @@ function destination(fixture, name) {
       )
     : join(fixture, name.replace(/\.txt$/, ''))
 }
-for (const profile of expected.profiles) {
+for (const profile of profiles) {
   const label = profile.kind + '-' + profile.flag
   const fixture = await mkdtemp(join(root, '.next-test-inline-inheritance-')),
     evidence = join(output, label)
@@ -74,7 +78,15 @@ for (const profile of expected.profiles) {
     await writeFile(target, bytes)
   }
   const trace = join(evidence, 'transforms.jsonl')
-  const definition = `{${profile.flag === 'omitted' ? '' : `extends:${profile.flag},`}test:{name:'child',include:['*.case.mjs'],provide:{child:7}${profile.kind === 'settings' ? ",setupFiles:['./child-setup.mjs']" : ''}}}`
+  const inherited = profile.flag !== 'false'
+  const expected = {
+    value: profile.kind === 'compiler' && inherited ? 9 : 1,
+    aliasValue: profile.kind === 'compiler' && inherited ? 99 : 1,
+    rootSetup: profile.kind === 'settings' && inherited ? 1 : 0,
+    childSetup: profile.kind === 'settings' ? 1 : 0,
+    taskTimeout: inherited ? 789 : 5000,
+  }
+  const definition = `{${profile.flag === 'omitted' ? '' : `extends:${profile.flag},`}test:{name:'child',include:['*.case.mjs'],provide:{child:7,expected:${JSON.stringify(expected)}}${profile.kind === 'settings' ? ",setupFiles:['./child-setup.mjs']" : ''}}}`
   const compiler =
     profile.kind === 'compiler'
       ? `plugins:[{name:'root-hook',transform(code,id){if(id.endsWith('/subject.mjs')){appendFileSync(${JSON.stringify(trace)},JSON.stringify({target:'subject.mjs',value:9})+'\\n');return code.replace('= 1','= 9')}}}],resolve:{alias:{'inline-target':${JSON.stringify(join(fixture, 'aliased.mjs'))}}},`
@@ -140,41 +152,35 @@ try {
     assertOwnedNodeCompleted(owner, label)
     readersClosed = true
     const report = JSON.parse(await readFile(reportPath, 'utf8'))
-    const actual = {
-      kind: profile.kind,
-      flag: profile.flag,
-      exit: owner.status,
-      cases: report.testResults.flatMap((file) =>
+    assert.equal(owner.status, 0, owner.stderr)
+    assert.equal(report.success, true)
+    assert.deepEqual(
+      report.testResults.flatMap((file) =>
         file.assertionResults.map((test) => ({
           name: test.fullName,
           status: test.status,
-          failureMessages: test.failureMessages,
+          failures: test.failureMessages,
         }))
       ),
-      observations: report.next.events
-        .filter((event) => event.type === 'output')
-        .flatMap((event) => event.text.split('\n'))
-        .filter((line) => line.startsWith('INLINE207:'))
-        .map((line) => JSON.parse(line.slice(10))),
-      transforms: await readFile(trace, 'utf8')
-        .then((text) => text.trim().split('\n').filter(Boolean).map(JSON.parse))
-        .catch((error) => {
-          if (error.code === 'ENOENT') return []
-          throw error
-        }),
-    }
-    await writeFile(
-      join(evidence, 'ACTUAL.json'),
-      JSON.stringify(actual, null, 2) + '\n'
+      [{ name: 'inline inheritance contract', status: 'passed', failures: [] }]
     )
-    assert.deepEqual(actual, profile)
-    for (const [name, bytes] of authored)
-      assert.deepEqual(await readFile(destination(fixture, name)), bytes)
+    const transforms = await readFile(trace, 'utf8')
+      .then((text) => text.trim().split('\n').filter(Boolean).map(JSON.parse))
+      .catch((error) => {
+        if (error.code === 'ENOENT') return []
+        throw error
+      })
+    assert.deepEqual(
+      transforms,
+      profile.kind === 'compiler' && profile.flag !== 'false'
+        ? [{ target: 'subject.mjs', value: 9 }]
+        : []
+    )
     facts.push({
       label,
-      completeCasesAndRowsEqual: true,
+      configurationInheritanceAssertions: true,
+      transformCallsVerified: true,
       ownersClosed: true,
-      authoredBytesHeld: true,
     })
     await writeFile(
       join(output, 'PROGRESS.json'),
@@ -191,9 +197,9 @@ await writeFile(
   JSON.stringify(
     {
       profiles: facts.length,
-      completeCasesAndRowsEqual: true,
+      configurationInheritanceAssertions: true,
+      transformCallsVerified: true,
       allOwnersJoined: readersClosed,
-      authoredBytesHeld: true,
     },
     null,
     2

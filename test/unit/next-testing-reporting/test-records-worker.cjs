@@ -5,7 +5,6 @@ const { createRequire } = require('node:module')
 const { pathToFileURL } = require('node:url')
 const { fork } = require('node:child_process')
 const { createHash } = require('node:crypto')
-const { serialize } = require('node:v8')
 const driver = process.argv[2] === '--driver'
 const producer = process.argv[2] === '--producer'
 const [project, output, only, captureMode, attachmentsDir] = process.argv.slice(
@@ -72,12 +71,43 @@ async function main() {
     return
   }
   const fixture = path.join(__dirname, 'fixtures/test-record-reporters')
-  const model = require('./fixtures/test-record-reporters/genuine-models.json')
-  const selected = only
-    ? model.profiles.filter((item) =>
-        only.split(',').includes(item.profile.name)
-      )
-    : model.profiles
+  const profiles = [
+    'basic',
+    'async',
+    'mutate',
+    'dormant',
+    'internal-only',
+    'getter-undefined',
+    'getter-throw-annotation',
+    'async-reject-artifact',
+    'caught-errors',
+    'unawaited-annotation',
+    'unawaited-artifact',
+    'multi-getter-throw',
+    'multi-sync-throw',
+    'multi-async-reject',
+    'attachment',
+    'concurrent-three',
+    'primitive-sync-undefined',
+    'primitive-sync-null',
+    'primitive-sync-false',
+    'primitive-sync-zero',
+    'primitive-sync-empty',
+    'primitive-async-undefined',
+    'primitive-async-null',
+    'primitive-async-false',
+    'primitive-async-zero',
+    'primitive-async-empty',
+    'concurrent-out-of-order',
+    'truthy-text',
+    'truthy-number',
+    'truthy-object',
+    'truthy-array',
+    'truthy-aggregate',
+  ]
+  const selected = (
+    only ? profiles.filter((name) => only.split(',').includes(name)) : profiles
+  ).map((name) => ({ profile: { name, multi: name.startsWith('multi-') } }))
   assert(selected.length || only === 'local-attachment')
   const verified = []
   for (const profile of selected) verified.push(await scenario(profile))
@@ -87,8 +117,8 @@ async function main() {
     scenarios: verified.length,
     actualCallbacks: verified.reduce((n, x) => n + x.actualCallbacks, 0),
     actualGetterReads: verified.reduce((n, x) => n + x.actualGetterReads, 0),
-    completeCallbackRows: verified.reduce(
-      (n, x) => n + x.completeCallbackRows,
+    checkedCallbackRows: verified.reduce(
+      (n, x) => n + x.checkedCallbackRows,
       0
     ),
     globalReporterErrors: 0,
@@ -172,7 +202,7 @@ async function main() {
         name: 'local-attachment',
         actualCallbacks: 2,
         actualGetterReads: 2,
-        completeCallbackRows: 0,
+        checkedCallbackRows: 0,
         legacyCopies: 2,
         capturedCopies: 2,
         retainedFiles: 2,
@@ -189,18 +219,6 @@ async function main() {
     fs.mkdirSync(dir, { recursive: true })
     const trace = path.join(dir, (settings.prefix || '') + 'trace.jsonl')
     const source = path.join(fixture, 'sources', name)
-    if (!expected.functionalOnly)
-      for (const authored of expected.sourceFiles.filter(
-        (item) =>
-          item.name.endsWith('.mjs') && item.name !== 'vitest.config.mjs'
-      )) {
-        const bytes = fs.readFileSync(path.join(source, authored.name + '.txt'))
-        assert.equal(
-          createHash('sha256').update(bytes).digest('hex'),
-          authored.sha256,
-          'Frozen genuine authored source: ' + name + '/' + authored.name
-        )
-      }
     const file = path.join(dir, 'contract.test.mjs')
     const body = fs.readFileSync(
       path.join(source, 'contract.test.mjs.txt'),
@@ -231,11 +249,7 @@ async function main() {
         })
       : undefined
     if (session) assert.equal(session.captureTestRecords, true)
-    const events = [],
-      packets = [],
-      records = [],
-      replies = [],
-      operations = new Set()
+    const operations = new Set()
     const child = fork(
       __filename,
       [
@@ -274,15 +288,8 @@ async function main() {
       )
     child.on('message', (message) => {
       if (message.type === 'event') {
-        events.push(message.event)
         if (message.event.type === 'file-collected')
           initialTree = message.event.taskTree
-        if (message.event.type === 'task-update') packets.push(message.event)
-        if (
-          message.event.type === 'test-annotation' ||
-          message.event.type === 'test-artifact'
-        )
-          records.push(message.event)
         try {
           session?.onEvent(message.event)
         } catch (error) {
@@ -304,7 +311,6 @@ async function main() {
         relayFailure ||= new Error('Unknown actual producer IPC message')
         return
       }
-      records.push(message.event)
       const operation = (async () => {
         let outcome
         try {
@@ -313,11 +319,6 @@ async function main() {
         } catch (error) {
           outcome = { kind: 'throw', error }
         }
-        replies.push({
-          requestId: message.requestId,
-          event: message.event,
-          outcome,
-        })
         await send({
           type: 'test-recorded',
           requestId: message.requestId,
@@ -356,30 +357,6 @@ async function main() {
     } finally {
       if (child.connected) child.disconnect()
       await session?.dispose()
-      // Preserve native nonenumerable Error fields in the actual IPC evidence.
-      fs.writeFileSync(
-        path.join(dir, (settings.prefix || '') + 'wire-v8.bin'),
-        serialize({
-          packets,
-          records,
-          replies,
-          result,
-          events,
-          initialTree,
-          relayFailure,
-        })
-      )
-      for (const [name, value] of Object.entries({
-        packets,
-        records,
-        replies,
-        result,
-        events,
-      }))
-        fs.writeFileSync(
-          path.join(dir, (settings.prefix || '') + name + '.json'),
-          JSON.stringify(value ?? { noResult: true }, null, 2) + '\n'
-        )
       fs.writeFileSync(
         path.join(dir, (settings.prefix || '') + 'PRODUCER-CLOSED.json'),
         JSON.stringify(
@@ -415,22 +392,6 @@ async function main() {
       path.join(dir, (settings.prefix || '') + 'trace.json'),
       JSON.stringify(rows, null, 2) + '\n'
     )
-    fs.writeFileSync(
-      path.join(dir, (settings.prefix || '') + 'packets.json'),
-      JSON.stringify(packets, null, 2) + '\n'
-    )
-    fs.writeFileSync(
-      path.join(dir, (settings.prefix || '') + 'records.json'),
-      JSON.stringify(records, null, 2) + '\n'
-    )
-    fs.writeFileSync(
-      path.join(dir, (settings.prefix || '') + 'replies.json'),
-      JSON.stringify(replies, null, 2) + '\n'
-    )
-    fs.writeFileSync(
-      path.join(dir, (settings.prefix || '') + 'result.json'),
-      JSON.stringify(result ?? { noResult: true }, null, 2) + '\n'
-    )
     if (expected.functionalOnly) {
       assert(result.cases.every((value) => value.status === 'passed'))
       assert.equal(result.interrupted, false)
@@ -445,35 +406,14 @@ async function main() {
         actualCallbacks: rows.filter((row) => row.event === 'callback-enter')
           .length,
         actualGetterReads: rows.filter((row) => row.event === 'getter').length,
-        completeCallbackRows: 0,
+        checkedCallbackRows: 0,
         sessionDisposed: true,
         continuation,
         rows,
-        records,
         copyCalls,
       }
     }
-    const ids = new Map()
-    for (const row of rows)
-      if (row.entity) {
-        const genuine = expected.trace.find(
-          (item) => item.entity?.name === row.entity.name
-        )
-        assert(genuine, 'actual unknown TestCase')
-        ids.set(row.entity.id, genuine.entity.id)
-      }
-    function normalize(value) {
-      if (typeof value === 'string')
-        return ids.get(value) ?? value.split(dir).join('<fixture-root>')
-      if (Array.isArray(value)) return value.map(normalize)
-      if (value && typeof value === 'object')
-        return Object.fromEntries(
-          Object.entries(value).map(([key, v]) => [key, normalize(v)])
-        )
-      return value
-    }
-    const actual = normalize(rows)
-    // Full callback rows preserve every captured entity, payload and receiver field.
+    assertRecordBehavior(name, rows, result, expected.profile.multi)
     const callbacks = (value) =>
       value.filter((item) =>
         [
@@ -485,55 +425,12 @@ async function main() {
           'gate-release',
         ].includes(item.event)
       )
-    assert.deepEqual(
-      callbacks(actual),
-      callbacks(expected.trace),
-      name + ': complete callback rows'
-    )
-    const bodyEvents = (value) =>
-      value.filter(
-        (item) =>
-          item.source === 'body' && !['begin', 'following'].includes(item.event)
-      )
-    assert.deepEqual(
-      bodyEvents(actual),
-      bodyEvents(expected.trace),
-      name + ': complete authored record continuations'
-    )
-    const terminals = (value) =>
-      value
-        .filter((item) => item.event === 'case-result')
-        .map((item) => ({
-          source: item.source,
-          name: item.entity.name,
-          state: item.entity.result.state,
-          annotations: item.entity.annotations,
-          artifacts: item.entity.artifacts,
-          meta: item.entity.meta,
-        }))
-    assert.deepEqual(
-      terminals(actual),
-      terminals(expected.trace),
-      name +
-        ': controller-owned records persist through actual worker result packs'
-    )
-    assert.deepEqual(
-      result.cases.map((value) => value.status),
-      expected.report.testResults[0].assertionResults.map((value) =>
-        value.status === 'passed' ? 'passed' : 'failed'
-      )
-    )
-    assert.equal(
-      rows.filter((item) => item.event === 'close').length,
-      expected.profile.multi ? 2 : 1
-    )
-    assert.equal(result.interrupted, false)
     return {
       name,
       actualCallbacks: rows.filter((item) => item.event === 'callback-enter')
         .length,
       actualGetterReads: rows.filter((item) => item.event === 'getter').length,
-      completeCallbackRows: callbacks(rows).length,
+      checkedCallbackRows: callbacks(rows).length,
       cases: result.cases.map((value) => value.status),
       sessionDisposed: true,
     }
@@ -1151,4 +1048,311 @@ onTestCaseResult(test){state.result++;state.resultTest=test;state.rows.push(['re
   } finally {
     delete globalThis[key]
   }
+}
+
+function assertRecordBehavior(name, rows, result, multi) {
+  const body = rows.filter((row) => row.source === 'body')
+  const getters = rows.filter((row) => row.event === 'getter')
+  const entered = rows.filter((row) => row.event === 'callback-enter')
+  const exited = rows.filter((row) => row.event === 'callback-exit')
+  const failed = ['getter-throw-annotation', 'async-reject-artifact'].includes(
+    name
+  )
+  assert.deepEqual(
+    result.cases.map((test) => [test.name, test.status]),
+    [
+      ['records', failed ? 'failed' : 'passed'],
+      ['following', 'passed'],
+    ]
+  )
+  assert.equal(result.interrupted, false)
+  assert.equal(
+    rows.filter((row) => row.event === 'close').length,
+    multi ? 2 : 1
+  )
+  const counts =
+    name === 'dormant' || name === 'internal-only'
+      ? [0, 0]
+      : name === 'getter-undefined'
+        ? [2, 0]
+        : name === 'getter-throw-annotation' || name === 'multi-getter-throw'
+          ? [1, 0]
+          : name === 'multi-sync-throw' ||
+              name === 'async-reject-artifact' ||
+              name.startsWith('unawaited-')
+            ? [1, 1]
+            : name.startsWith('concurrent-')
+              ? [3, 3]
+              : [2, 2]
+  assert.deepEqual([getters.length, entered.length], counts)
+  const beginning = body.find((row) => row.event === 'begin')
+  assert(beginning)
+  assert.deepEqual(beginning.values, {
+    annotations: [],
+    artifacts: [],
+    meta: { user: 'authored' },
+  })
+  const following = body.find((row) => row.event === 'following')
+  assert(following)
+  assert.deepEqual(following.values, {
+    annotations: [],
+    artifacts: [],
+    meta: {},
+  })
+  for (const getter of getters) {
+    assert.equal(getter.receiver, true)
+    assert(
+      rows.indexOf(getter) > rows.indexOf(beginning),
+      'Record getters stay lazy until the body requests a record'
+    )
+  }
+  for (const row of entered) {
+    assert.equal(row.argc, 2)
+    assert.equal(row.receiver, true)
+    assert.equal(row.sameCaseReady, true)
+    assert.equal(row.sameArrayValue, true)
+    assert.equal(row.entity.name, 'records')
+    assert.equal(row.entity.id, beginning.taskId)
+    assert.equal(row.entity.meta.user, 'authored')
+    const ready = rows.find(
+      (item) =>
+        item.source === row.source &&
+        item.event === 'case-ready' &&
+        item.entity.name === 'records'
+    )
+    assert(ready)
+    assert.equal(ready.entity.id, row.entity.id)
+    assert(
+      getters.some(
+        (getter) =>
+          getter.source === row.source &&
+          getter.name === row.name &&
+          rows.indexOf(getter) < rows.indexOf(row)
+      )
+    )
+    assert.equal(typeof row.value.location.file, 'string')
+    assert(row.value.location.file.endsWith('/contract.test.mjs'))
+    assert(row.value.location.line > 0)
+    assert(row.value.location.column > 0)
+  }
+  const prefixes = rows.filter((row) => row.event === 'async-prefix')
+  const prefixCount =
+    name === 'async' ||
+    name === 'caught-errors' ||
+    name.startsWith('primitive-async-') ||
+    name.startsWith('truthy-')
+      ? 2
+      : name === 'async-reject-artifact' ||
+          name === 'multi-async-reject' ||
+          name.startsWith('unawaited-')
+        ? 1
+        : 0
+  assert.equal(prefixes.length, prefixCount)
+  for (const row of [...prefixes, ...exited]) {
+    assert(
+      entered.some(
+        (entry) =>
+          entry.source === row.source &&
+          entry.name === row.name &&
+          rows.indexOf(entry) < rows.indexOf(row)
+      )
+    )
+  }
+  const terminal = rows.find(
+    (row) => row.event === 'case-result' && row.entity.name === 'records'
+  ).entity
+  assert.equal(terminal.result.state, failed ? 'failed' : 'passed')
+  assert.equal(terminal.meta.user, 'authored')
+  const recordCounts =
+    name === 'dormant' || name === 'internal-only'
+      ? [0, 0]
+      : name === 'async-reject-artifact' || name === 'unawaited-artifact'
+        ? [0, 1]
+        : name === 'getter-throw-annotation' ||
+            name.startsWith('multi-') ||
+            name === 'unawaited-annotation'
+          ? [1, 0]
+          : name.startsWith('concurrent-')
+            ? [2, 1]
+            : [1, 1]
+  assert.deepEqual(
+    [terminal.annotations.length, terminal.artifacts.length],
+    recordCounts
+  )
+  for (const row of body.filter(
+    (row) => row.event === 'annotation-after' || row.event === 'artifact-after'
+  )) {
+    assert.equal(row.sameTaskValue, true)
+    if (row.event === 'artifact-after') {
+      assert.equal(row.sameInput, false)
+      assert.equal(row.input.type, 'custom:payload')
+      assert.equal(row.input.title, 'artifact-title')
+      assert.deepEqual(row.input.data, { counter: 1 })
+      assert(row.input.location.line > 0)
+      if (name.startsWith('primitive-')) {
+        assert.equal(row.value, undefined)
+        assert.deepEqual(row.values.artifacts, [null])
+      } else assert.deepEqual(row.input.location, row.value.location)
+    }
+  }
+  if (name === 'mutate') {
+    assert.equal(terminal.annotations[0].message, 'notice-message-changed')
+    assert.equal(terminal.annotations[0].reporterAdded, 'A')
+    assert.equal(terminal.artifacts[0].title, 'artifact-title-changed')
+    assert.deepEqual(terminal.artifacts[0].data, { counter: 2 })
+    assert.equal(terminal.artifacts[0].reporterAdded, 'A')
+  } else if (name.startsWith('concurrent-')) {
+    assert.deepEqual(
+      terminal.annotations.map((value) => value.message),
+      ['parallel-one', 'parallel-two']
+    )
+    assert.equal(terminal.artifacts[0].title, 'concurrent-artifact')
+    const gates = rows.filter((row) => row.event === 'gate-enter')
+    const releases = rows.filter((row) => row.event === 'gate-release')
+    assert.equal(gates.length, 3)
+    assert.deepEqual(releases.map((row) => row.message).sort(), [
+      'concurrent-artifact',
+      'parallel-one',
+      'parallel-two',
+    ])
+    if (name === 'concurrent-out-of-order')
+      assert.deepEqual(
+        releases.map((row) => row.message),
+        ['concurrent-artifact', 'parallel-two', 'parallel-one']
+      )
+    assert(
+      Math.max(...gates.map((row) => rows.indexOf(row))) <
+        Math.min(...releases.map((row) => rows.indexOf(row)))
+    )
+    const continued = body.find((row) => row.event === 'concurrent-after')
+    assert(continued)
+    assert.deepEqual(
+      continued.values.map((value) => value.message ?? value.title),
+      ['parallel-one', 'parallel-two', 'concurrent-artifact']
+    )
+    assert(
+      continued.values.every((value) => value.reporterAdded === 'concurrent')
+    )
+    assert(
+      rows.indexOf(continued) >
+        Math.max(...releases.map((row) => rows.indexOf(row)))
+    )
+  } else if (name === 'attachment') {
+    assert.equal(terminal.annotations[0].message, 'with-attachment')
+    assert.equal(terminal.annotations[0].type, 'warning')
+    assert.deepEqual(terminal.annotations[0].attachment, {
+      path: 'https://example.invalid/notice.txt',
+      contentType: 'text/plain',
+    })
+    assert.equal(terminal.artifacts[0].title, 'remote-artifact')
+    assert.deepEqual(terminal.artifacts[0].attachments, [
+      {
+        path: 'https://example.invalid/image.png',
+        name: 'remote-image',
+        contentType: 'image/png',
+      },
+    ])
+  } else {
+    for (const annotation of terminal.annotations)
+      assert.equal(annotation.message, 'notice-message')
+    for (const artifact of terminal.artifacts) {
+      assert.equal(artifact.type, 'custom:payload')
+      assert.equal(artifact.title, 'artifact-title')
+      assert.deepEqual(artifact.data, { counter: 1 })
+    }
+  }
+  if (name === 'internal-only') {
+    const returned = body.find((row) => row.event === 'internal-return')
+    assert(returned)
+    assert.equal(returned.sameInput, true)
+    assert.equal(returned.result.type, 'internal:annotation')
+    assert.equal(returned.result.annotation.message, 'low-level')
+    assert.equal(returned.result.annotation.type, 'notice')
+    assert.equal(returned.result.custom, 'retained')
+    assert.deepEqual(
+      returned.result.location,
+      returned.result.annotation.location
+    )
+  }
+  if (name.startsWith('multi-')) {
+    assert.deepEqual(
+      entered.map((row) => row.source),
+      name === 'multi-async-reject'
+        ? ['A', 'B']
+        : name === 'multi-sync-throw'
+          ? ['A']
+          : []
+    )
+  }
+  const caught = body.filter((row) => row.event.endsWith('-caught'))
+  if (name.startsWith('primitive-')) {
+    assert.equal(caught.length, 1)
+    assert.equal(caught[0].event, 'annotation-caught')
+    assert.equal(caught[0].error.name, 'TypeError')
+    assert.match(caught[0].error.message, /undefined.*annotation/)
+    assert.equal(caught[0].error.errorInstance, true)
+    assert(body.some((row) => row.event === 'artifact-after'))
+  } else if (name.startsWith('truthy-')) {
+    assert.equal(caught.length, 2)
+    for (const row of caught) {
+      const error = row.error
+      if (name === 'truthy-aggregate') {
+        assert.equal(error.name, 'Error')
+        assert.equal(error.message, 'aggregate-message')
+        assert.equal(error.cause, 'aggregate-cause')
+        assert.equal(error.errorInstance, true)
+      } else {
+        assert.equal(error.errorInstance, false)
+        const value =
+          name === 'truthy-text'
+            ? 'truthy-reporter'
+            : name === 'truthy-number'
+              ? 42
+              : name === 'truthy-object'
+                ? {
+                    message: 'plain-message',
+                    custom: 'plain-custom',
+                    nested: { value: 1 },
+                  }
+                : ['array-failure']
+        assert.deepEqual(error.rawValue, value)
+      }
+    }
+  } else if (name === 'caught-errors' || name.startsWith('multi-')) {
+    assert.equal(caught.length, name === 'caught-errors' ? 2 : 1)
+    for (const row of caught) {
+      assert.equal(row.error.name, 'Error')
+      assert.equal(
+        row.error.message,
+        'authored reporter ' +
+          (name === 'multi-getter-throw'
+            ? 'getter'
+            : name === 'multi-sync-throw'
+              ? 'sync'
+              : 'async')
+      )
+      assert.equal(row.error.cause, 'reporter-cause')
+    }
+  } else assert.equal(caught.length, 0)
+  if (name.startsWith('unawaited-')) {
+    const returned = body.find((row) => row.event === 'unawaited-return')
+    const completed = body.find((row) => row.event.endsWith('-after'))
+    assert(returned && completed)
+    assert(rows.indexOf(returned) < rows.indexOf(completed))
+    assert(
+      rows.indexOf(completed) < rows.findIndex((row) => row.event === 'close')
+    )
+  }
+  const successfulCallbacks =
+    name === 'basic' ||
+    name === 'async' ||
+    name === 'mutate' ||
+    name === 'attachment'
+      ? 2
+      : name.startsWith('unawaited-') || name === 'multi-async-reject'
+        ? 1
+        : name.startsWith('concurrent-')
+          ? 3
+          : 0
+  assert.equal(exited.length, successfulCallbacks)
 }

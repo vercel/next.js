@@ -72,28 +72,15 @@ async function main() {
           fs.readFileSync(path.join(fixture, 'result.json'))
         )
         assert.equal(child.status, 0, JSON.stringify(result))
-        const cases = (data) =>
-          data.testResults.flatMap((file) =>
-            file.assertionResults.map(
-              ({ fullName, status, failureMessages }) => ({
-                fullName,
-                status,
-                failureMessages,
-              })
-            )
-          )
-        assert.deepEqual(
-          cases(result),
-          cases(
-            JSON.parse(
-              fs.readFileSync(
-                resolveFixturePath(
-                  path.join(source, mode, 'pristine-cases.json')
-                )
-              )
-            )
-          )
+        assert.equal(result.numTotalTests, result.numPassedTests)
+        const actualTests = result.testResults.flatMap(
+          (file) => file.assertionResults
         )
+        assert.equal(actualTests.length, result.numPassedTests)
+        for (const test of actualTests) {
+          assert.equal(test.status, 'passed')
+          assert.deepEqual(test.failureMessages, [])
+        }
         assert.equal(result.numPassedTests, 1)
         assert.equal(result.success, true)
         const report = JSON.parse(

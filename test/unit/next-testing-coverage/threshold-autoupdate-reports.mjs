@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   existsSync,
@@ -28,79 +27,38 @@ if (!process.argv.includes('--source'))
   for (const name of ['vitest', 'vite'])
     assert.throws(() => require.resolve(name))
 const pristine = JSON.parse(
-  readFileSync(join(here, 'fixtures/threshold-autoupdate/pristine.json'))
+  readFileSync(join(here, 'fixtures/threshold-autoupdate/expectations.json'))
 )
-assert(mode === pristine.mode || pristine.productionRows)
 const selectedProfile = process.argv
   .find((argument) => argument.startsWith('--profile='))
   ?.slice('--profile='.length)
 const rows = (
   process.argv.includes('--concurrent')
     ? pristine.currentEditRows
-    : (mode === 'production'
-        ? pristine.productionRows.filter((row) => !row.profile.noConfig)
-        : [...pristine.rows, ...pristine.sharedCliRows]
-      ).filter(
-        (row) =>
-          !process.argv.includes('--writer') || row.name !== 'missing-config'
-      )
-).filter((row) => selectedProfile === undefined || row.name === selectedProfile)
-const records = [],
-  hash = (bytes) => createHash('sha256').update(bytes).digest('hex')
-const portable = (data) =>
-  data &&
-  Object.fromEntries(
-    Object.entries(data).map(([file, row]) => [
-      file === 'total' ? file : basename(file),
-      { ...row, ...('path' in row ? { path: basename(file) } : {}) },
-    ])
-  )
-const caseKeys = [
-  'ancestorTitles',
-  'fullName',
-  'status',
-  'title',
-  'failureMessages',
-  'meta',
-  'tags',
-  'benchmarks',
-]
-const cases = (report) =>
-  report.testResults
-    .map((file) => ({
-      file: basename(file.name),
-      cases: file.assertionResults.map((test) =>
-        Object.fromEntries(
-          caseKeys.filter((key) => key in test).map((key) => [key, test[key]])
-        )
-      ),
-    }))
-    .sort((a, b) => a.file.localeCompare(b.file))
-const failureMessages = (rows) =>
-  rows.map((file) => ({
-    ...file,
-    cases: file.cases.map((test) => ({
-      ...test,
-      failureMessages: test.failureMessages.map(
-        (message) => message.split('\n')[0]
-      ),
-    })),
-  }))
-const coverageText = (stdout) => {
-  const lines = stdout.split('\n'),
-    start = lines.findIndex(
-      (line) => line.startsWith('---') && line.includes('|')
-    )
-  return start < 0
-    ? null
-    : lines
-        .slice(start)
+    : [...pristine.rows, ...pristine.sharedCliRows]
+        .filter((row) => mode !== 'production' || !row.profile.noConfig)
         .filter(
-          (line) =>
-            !line.startsWith('Updating thresholds to configuration file.')
+          (row) =>
+            !process.argv.includes('--writer') || row.name !== 'missing-config'
         )
-        .join('\n')
-        .trim()
+).filter((row) => selectedProfile === undefined || row.name === selectedProfile)
+const records = []
+const configureMode = (source) => {
+  if (
+    source === null ||
+    mode !== 'production' ||
+    process.argv.includes('--concurrent')
+  )
+    return source
+  return source.includes('"test": {')
+    ? source.replace('"test": {', '"test": {\n    "mode": "production",')
+    : source.replace('"test":{', '"test":{"mode":"production",')
+}
+const expectedCounters = (row) => {
+  const counters = structuredClone(pristine.counters)
+  if (!row.fullTestRan)
+    counters['fully.mjs'] = { s: { 0: 0 }, f: { 0: 0 }, b: {} }
+  return counters
 }
 mkdirSync(destination, { recursive: true })
 for (const row of rows) {
@@ -108,13 +66,25 @@ for (const row of rows) {
     fixture = mkdtempSync(join(consumer, '.next-threshold-autoupdate-'))
   mkdirSync(output)
   try {
-    const sources = process.argv.includes('--concurrent')
-      ? pristine.editSourceFiles
-      : pristine.sourceFiles
-    for (const [name, file] of Object.entries(sources)) {
-      assert.equal(hash(file.source), file.sha256)
-      writeFileSync(join(fixture, name), file.source)
-    }
+    const sourceNames = [
+      'contract.test.mjs',
+      'subject.mjs',
+      'unimported.mjs',
+      'fully.mjs',
+      'full.test.mjs',
+      'failed.case.mjs',
+      'package.json',
+      ...(process.argv.includes('--concurrent')
+        ? ['edit-config.case.mjs']
+        : []),
+    ]
+    for (const name of sourceNames)
+      writeFileSync(
+        join(fixture, name),
+        readFileSync(
+          join(here, 'fixtures/threshold-autoupdate/sources', name + '.txt')
+        )
+      )
     writeFileSync(
       join(fixture, 'next.config.mjs'),
       'export default ' +
@@ -122,7 +92,8 @@ for (const row of rows) {
         '\n'
     )
     const configuration = join(fixture, 'vitest.config.mjs')
-    if (row.before !== null) writeFileSync(configuration, row.before)
+    if (row.before !== null)
+      writeFileSync(configuration, configureMode(row.before))
     const env = {
       ...process.env,
       NODE_ENV: mode,
@@ -166,83 +137,73 @@ for (const row of rows) {
       join(output, 'after.mjs'),
       after ?? '// absent configuration\n'
     )
-    const reports = join(fixture, 'coverage'),
-      coverage = existsSync(join(reports, 'coverage-final.json'))
-        ? portable(
-            JSON.parse(readFileSync(join(reports, 'coverage-final.json')))
-          )
-        : null
-    writeFileSync(
-      join(output, 'actual-coverage.json'),
-      JSON.stringify(coverage, null, 2) + '\n'
-    )
-    assertOwnedNodeCompleted(owner, 'Actual threshold autoUpdate ' + row.name)
+    assertOwnedNodeCompleted(owner, 'Threshold autoUpdate ' + row.name)
     assert.equal(owner.status, row.exitCode, owner.stdout + owner.stderr)
-    assert.equal(after, row.after)
-    const report = JSON.parse(readFileSync(join(output, 'cases.json'))),
-      actualCases = cases(report),
-      expectedCases = [...row.cases].sort((a, b) =>
-        a.file.localeCompare(b.file)
-      )
+    assert.equal(after, configureMode(row.after))
+    const report = JSON.parse(readFileSync(join(output, 'cases.json')))
     const started = report.next.events.filter(
       (event) => event.type === 'file-start'
     )
     assert(started.length > 0)
     assert(started.every((event) => event.entry.profile.mode === mode))
-    const failingBody = actualCases.some((file) =>
-      file.cases.some((test) => test.status === 'failed')
-    )
-    if (failingBody) {
-      // Runner implementation frames differ; preserve the full raw errors and
-      // compare the actual assertion message, authored source frame and rows.
-      assert.deepEqual(
-        failureMessages(actualCases),
-        failureMessages(expectedCases)
-      )
-      for (const file of actualCases)
-        for (const test of file.cases)
-          if (test.status === 'failed')
-            assert(
-              test.failureMessages.every((message) =>
-                message.includes(file.file + ':2:')
-              )
+    for (const [key, expected] of Object.entries(row.reportSummary))
+      assert.equal(report[key], expected)
+    for (const file of report.testResults)
+      for (const test of file.assertionResults)
+        if (test.status === 'failed') {
+          assert.equal(basename(file.name), 'failed.case.mjs')
+          assert(
+            test.failureMessages.every((message) =>
+              message.includes('expected 1 to be 2')
             )
-    } else assert.deepEqual(actualCases, expectedCases)
-    for (const key of [
-      'success',
-      'numTotalTests',
-      'numPassedTests',
-      'numFailedTests',
-      'numPendingTests',
+          )
+          assert(
+            test.failureMessages.every((message) =>
+              message.includes('failed.case.mjs:2:')
+            )
+          )
+        }
+    const reports = join(fixture, 'coverage')
+    for (const name of [
+      'coverage-final.json',
+      'coverage-summary.json',
+      'lcov.info',
     ])
-      assert.equal(report[key], row.reportSummary[key])
-    assert.deepEqual(coverage, row.coverage)
-    if (row.summary !== null)
-      assert.deepEqual(
-        portable(
-          JSON.parse(readFileSync(join(reports, 'coverage-summary.json')))
-        ),
-        row.summary
+      assert.equal(
+        existsSync(join(reports, name)),
+        row.reports.includes(name),
+        name
       )
-    if (row.lcov !== null)
-      assert.equal(readFileSync(join(reports, 'lcov.info'), 'utf8'), row.lcov)
-    assert.equal(coverageText(owner.stdout), row.coverageText)
-    const expectedError = row.diagnostics.match(/Error: ([^\n]+)/)?.[1]
-    if (expectedError)
-      assert(owner.stderr.includes(expectedError), owner.stderr)
+    if (row.reports.includes('coverage-final.json')) {
+      const coverage = JSON.parse(
+        readFileSync(join(reports, 'coverage-final.json'))
+      )
+      const counters = Object.fromEntries(
+        Object.entries(coverage).map(([file, data]) => [
+          basename(file),
+          { s: data.s, f: data.f, b: data.b },
+        ])
+      )
+      assert.deepEqual(counters, expectedCounters(row))
+    }
+    if (row.error) assert(owner.stderr.includes(row.error), owner.stderr)
+    for (const error of row.thresholdErrors)
+      assert(
+        (owner.stdout + owner.stderr).includes(error.replace(/^ERROR: /, '')),
+        owner.stdout + owner.stderr
+      )
     const updated = owner.stdout.includes(
       'Updating thresholds to configuration file.'
     )
-    assert.equal(updated, row.updateLog.length > 0)
+    assert.equal(updated, row.updated)
     const record = {
       name: row.name,
       mode,
       exitCode: owner.status,
       configBytesEqual: true,
-      completeReportsEqual: true,
-      completeCaseRowsEqual: !failingBody,
-      assertionMessageAndSourceFrameEqual: failingBody ? true : undefined,
-      failingBodyRunnerFramesCompared: failingBody ? false : undefined,
+      caseCountsEqual: true,
+      coverageCountersEqual: true,
+      reportFilesEqual: true,
     }
     records.push(record)
     writeFileSync(
@@ -262,9 +223,6 @@ writeFileSync(
       mode,
       profiles: records.length,
       records,
-      ...(process.argv.includes('--writer')
-        ? { unqualifiedPrerequisites: [pristine.originalNonSharedCliBoundary] }
-        : {}),
     },
     null,
     2

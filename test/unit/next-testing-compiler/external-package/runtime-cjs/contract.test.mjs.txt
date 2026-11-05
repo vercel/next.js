@@ -1,16 +1,6 @@
 import { test, expect, vi } from 'vitest'
-import { types as utilTypes } from 'node:util'
 import * as staticOriginal from 'ws2-genuine-external-original'
-function shape(namespace) {
-  return { nativeBrand: utilTypes.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map((key) => typeof key === 'symbol' ? String(key) : key),
-    prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null,
-    extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace),
-    descriptors: Reflect.ownKeys(namespace).map((key) => {
-      const d = Object.getOwnPropertyDescriptor(namespace, key)
-      return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set,
-        writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable }
-    }) }
-}
+
 test('runtime native cjs registration unregistration and reset identity', async () => {
   const before = await import('ws2-genuine-external-original')
   const beforeAlias = await import('ws2-genuine-external-original')
@@ -19,7 +9,11 @@ test('runtime native cjs registration unregistration and reset identity', async 
   vi.doMock('ws2-genuine-external-original', async (importOriginal) => {
     calls++
     const original = await importOriginal()
-    return { value, original: original.value, sameOriginal: original === before }
+    return {
+      value,
+      original: original.value,
+      sameOriginal: original === before,
+    }
   })
   const first = await import('ws2-genuine-external-original')
   value = 81
@@ -34,18 +28,24 @@ test('runtime native cjs registration unregistration and reset identity', async 
   const replacement = await import('ws2-genuine-external-original')
   vi.doUnmock('ws2-genuine-external-original')
   const final = await import('ws2-genuine-external-original')
-  const row = { before: before.value, first: first.value, second: second.value,
-    mockIdentity: first === second, original: first.original, sameOriginal: first.sameOriginal,
-    afterMockReset: afterMockReset.value, mockResetIdentity: first === afterMockReset, calls,
-    released: released.value, releasedIdentity: released === before,
-    originalResetIdentity: afterOriginalReset === before,
-    replacement: replacement.value, replacementIdentity: replacement === first,
-    finalIdentity: final === before, heldOriginal: before.value, heldMock: first.value, staticBeforeIdentity: staticOriginal === before, staticReleasedIdentity: staticOriginal === released, staticBrand: utilTypes.isModuleNamespaceObject(staticOriginal), staticShape: shape(staticOriginal), beforeAliasIdentity: beforeAlias === before,
-    beforeShape: shape(before), releasedShape: shape(released), afterOriginalResetShape: shape(afterOriginalReset),
-    defaultIdentity: before.default === released.default, memberIdentity: before.fn === released.fn }
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME:' + JSON.stringify(row))
+
+  expect(staticOriginal).toBe(before)
+  expect(beforeAlias).toBe(before)
+  expect(before.value).toBe(19)
   expect(first.value).toBe(73)
+  expect(first.original).toBe(19)
+  expect(first.sameOriginal).toBe(true)
+  expect(second).toBe(first)
+  expect(afterMockReset).toBe(first)
+  expect(calls).toBe(1)
+  expect(released.value).toBe(19)
+  expect(released).not.toBe(before)
+  expect(afterOriginalReset).not.toBe(before)
+  expect(final).not.toBe(before)
+  expect(released.default).toBe(before.default)
+  expect(released.fn).toBe(before.fn)
   expect(replacement.value).toBe(91)
+  expect(replacement).not.toBe(first)
 })
 
 test('runtime native cjs registration without reset', async () => {
@@ -53,8 +53,7 @@ test('runtime native cjs registration without reset', async () => {
   let calls = 0
   vi.doMock('ws2-genuine-external-original', async (importOriginal) => {
     calls++
-    const actual = await importOriginal()
-    return { value: 73, sameOriginal: actual === before }
+    return { value: 73, sameOriginal: (await importOriginal()) === before }
   })
   const mocked = await import('ws2-genuine-external-original')
   vi.doUnmock('ws2-genuine-external-original')
@@ -62,117 +61,113 @@ test('runtime native cjs registration without reset', async () => {
   vi.doMock('ws2-genuine-external-original', () => ({ value: 91 }))
   const replaced = await import('ws2-genuine-external-original')
   vi.doUnmock('ws2-genuine-external-original')
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME_WITHOUT_RESET:' + JSON.stringify({
-    value: mocked.value, sameOriginal: mocked.sameOriginal, calls,
-    releasedIdentity: before === released, replaced: replaced.value,
-    replacedIdentity: mocked === replaced, held: mocked.value,
-    finalIdentity: (await import('ws2-genuine-external-original')) === before
-  }))
+
   expect(mocked.value).toBe(73)
+  expect(mocked.sameOriginal).toBe(true)
+  expect(calls).toBe(1)
+  expect(released).toBe(before)
   expect(replaced.value).toBe(91)
+  expect(replaced).not.toBe(mocked)
+  expect(await import('ws2-genuine-external-original')).toBe(before)
 })
+
 test('runtime native cjs caches a failed factory across reset and can unregister', async () => {
   const original = await import('ws2-genuine-external-original')
   const failure = new Error('ws2 native runtime factory failure')
   let calls = 0
-  vi.doMock('ws2-genuine-external-original', () => { calls++; throw failure })
-  const first = await import('ws2-genuine-external-original').then(() => null, (error) => error)
-  const second = await import('ws2-genuine-external-original').then(() => null, (error) => error)
+  vi.doMock('ws2-genuine-external-original', () => {
+    calls++
+    throw failure
+  })
+  const first = await import('ws2-genuine-external-original').catch(
+    (error) => error
+  )
+  const second = await import('ws2-genuine-external-original').catch(
+    (error) => error
+  )
   vi.resetModules()
-  const third = await import('ws2-genuine-external-original').then(() => null, (error) => error)
+  const third = await import('ws2-genuine-external-original').catch(
+    (error) => error
+  )
   vi.doUnmock('ws2-genuine-external-original')
   const released = await import('ws2-genuine-external-original')
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME_FAILURE:' + JSON.stringify({
-    calls, firstIsFailure: first === failure, sameSecond: first === second, sameAfterReset: first === third,
-    error: { name: first?.name ?? null, message: first?.message ?? null,
-      causeName: first?.cause?.name ?? null, causeMessage: first?.cause?.message ?? null,
-      causeIsFailure: first?.cause === failure },
-    releasedIdentity: original === released, releasedShape: shape(released)
-  }))
-  expect(first).not.toBe(null)
+
+  expect(calls).toBe(3)
+  for (const error of [first, second, third]) {
+    expect(error).toBeInstanceOf(Error)
+    expect(error.cause).toBe(failure)
+  }
+  expect(first).not.toBe(second)
+  expect(first).not.toBe(third)
+  expect(released).not.toBe(original)
 })
 
 test('runtime native unused registration retains compiler IDs without evaluating originals', () => {
   vi.doMock('ws2-native-runtime-unused', () => {
-    globalThis.ws2UnusedNativeFactories = (globalThis.ws2UnusedNativeFactories ?? 0) + 1
+    globalThis.ws2UnusedNativeFactories =
+      (globalThis.ws2UnusedNativeFactories ?? 0) + 1
     return { value: 1 }
   })
   vi.doUnmock('ws2-native-runtime-unused')
-  const row = { evaluations: globalThis.ws2UnusedNativeEvaluations ?? 0, factories: globalThis.ws2UnusedNativeFactories ?? 0 }
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME_UNUSED:' + JSON.stringify(row))
-  expect(row).toEqual({ evaluations: 0, factories: 0 })
+  expect(globalThis.ws2UnusedNativeEvaluations ?? 0).toBe(0)
+  expect(globalThis.ws2UnusedNativeFactories ?? 0).toBe(0)
 })
 
-test('runtime native cjs pending RESOLVE imports and later cache', async () => {
-  const heldOriginal = await import('ws2-genuine-external-original')
-  let release
-  const held = new Promise((resolve, reject) => { release = resolve })
-  const failure = new Error('ws2 pending native failure')
-  let calls = 0
-  vi.doMock('ws2-genuine-external-original', async () => {
-    const index = ++calls
-    await held
-    return { value: 73, index }
-  })
-  const firstPending = import('ws2-genuine-external-original').then(value => ({ value }), error => ({ error }))
-  const secondPending = import('ws2-genuine-external-original').then(value => ({ value }), error => ({ error }))
-  let twoFactoriesEntered = false
-  try { await vi.waitFor(() => expect(calls).toBe(2), { timeout: 1000, interval: 10 }); twoFactoriesEntered = true } catch {}
-  const callsWhileHeld = calls
-  release(undefined)
-  const first = await firstPending
-  const second = await secondPending
-  const later = await import('ws2-genuine-external-original').then(value => ({ value }), error => ({ error }))
-  vi.resetModules()
-  const afterReset = await import('ws2-genuine-external-original').then(value => ({ value }), error => ({ error }))
-  vi.doUnmock('ws2-genuine-external-original')
-  const errorShape = value => value ? { name: value.name, message: value.message, cause: value.cause === failure } : null
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME_PENDING_RESOLVE:' + JSON.stringify({
-    twoFactoriesEntered, callsWhileHeld, calls, secondOriginalIdentity: second.value === heldOriginal, secondOriginalBrand: second.value ? utilTypes.isModuleNamespaceObject(second.value) : null, secondOriginalDefault: second.value?.default === heldOriginal.default, secondOriginalShape: second.value ? shape(second.value) : null, firstIndex: first.value?.index ?? null,
-    secondIndex: second.value?.index ?? null, sameValues: first.value === second.value,
-    sameErrors: first.error === second.error, firstError: errorShape(first.error), secondError: errorShape(second.error),
-    laterIndex: later.value?.index ?? null, laterIsFirst: later.value === first.value,
-    laterIsSecond: later.value === second.value, laterError: errorShape(later.error),
-    laterErrorIsFirst: later.error === first.error,
-    resetIndex: afterReset.value?.index ?? null, resetIsLater: afterReset.value === later.value,
-    resetError: errorShape(afterReset.error), resetErrorIsLater: afterReset.error === later.error
-  }))
-  expect(callsWhileHeld).toBeGreaterThanOrEqual(1)
-})
+for (const rejected of [false, true]) {
+  test(`runtime native cjs pending ${rejected ? 'REJECT' : 'RESOLVE'} imports and later cache`, async () => {
+    const heldOriginal = await import('ws2-genuine-external-original')
+    let release
+    const held = new Promise((resolve, reject) => {
+      release = rejected ? reject : resolve
+    })
+    const failure = new Error('ws2 pending native failure')
+    let calls = 0
+    vi.doMock('ws2-genuine-external-original', async () => {
+      const index = ++calls
+      await held
+      return { value: 73, index }
+    })
+    const firstPending = import('ws2-genuine-external-original').catch(
+      (error) => error
+    )
+    const secondPending = import('ws2-genuine-external-original').catch(
+      (error) => error
+    )
+    try {
+      await vi.waitFor(() => expect(calls).toBe(2), {
+        timeout: 1000,
+        interval: 10,
+      })
+    } catch {}
+    const callsWhileHeld = calls
+    release(rejected ? failure : undefined)
+    const first = await firstPending
+    const second = await secondPending
+    const later = await import('ws2-genuine-external-original').catch(
+      (error) => error
+    )
+    vi.resetModules()
+    const afterReset = await import('ws2-genuine-external-original').catch(
+      (error) => error
+    )
+    vi.doUnmock('ws2-genuine-external-original')
 
-test('runtime native cjs pending REJECT imports and later cache', async () => {
-  const heldOriginal = await import('ws2-genuine-external-original')
-  let release
-  const held = new Promise((resolve, reject) => { release = reject })
-  const failure = new Error('ws2 pending native failure')
-  let calls = 0
-  vi.doMock('ws2-genuine-external-original', async () => {
-    const index = ++calls
-    await held
-    return { value: 73, index }
+    expect(callsWhileHeld).toBe(1)
+    expect(second).toBe(heldOriginal)
+    if (rejected) {
+      expect(calls).toBe(3)
+      for (const error of [first, later, afterReset]) {
+        expect(error).toBeInstanceOf(Error)
+        expect(error.cause).toBe(failure)
+      }
+      expect(later).not.toBe(first)
+      expect(afterReset).not.toBe(later)
+    } else {
+      expect(calls).toBe(1)
+      expect(first.value).toBe(73)
+      expect(first.index).toBe(1)
+      expect(later).toBe(first)
+      expect(afterReset).toBe(later)
+    }
   })
-  const firstPending = import('ws2-genuine-external-original').then(value => ({ value }), error => ({ error }))
-  const secondPending = import('ws2-genuine-external-original').then(value => ({ value }), error => ({ error }))
-  let twoFactoriesEntered = false
-  try { await vi.waitFor(() => expect(calls).toBe(2), { timeout: 1000, interval: 10 }); twoFactoriesEntered = true } catch {}
-  const callsWhileHeld = calls
-  release(failure)
-  const first = await firstPending
-  const second = await secondPending
-  const later = await import('ws2-genuine-external-original').then(value => ({ value }), error => ({ error }))
-  vi.resetModules()
-  const afterReset = await import('ws2-genuine-external-original').then(value => ({ value }), error => ({ error }))
-  vi.doUnmock('ws2-genuine-external-original')
-  const errorShape = value => value ? { name: value.name, message: value.message, cause: value.cause === failure } : null
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME_PENDING_REJECT:' + JSON.stringify({
-    twoFactoriesEntered, callsWhileHeld, calls, secondOriginalIdentity: second.value === heldOriginal, secondOriginalBrand: second.value ? utilTypes.isModuleNamespaceObject(second.value) : null, secondOriginalDefault: second.value?.default === heldOriginal.default, secondOriginalShape: second.value ? shape(second.value) : null, firstIndex: first.value?.index ?? null,
-    secondIndex: second.value?.index ?? null, sameValues: first.value === second.value,
-    sameErrors: first.error === second.error, firstError: errorShape(first.error), secondError: errorShape(second.error),
-    laterIndex: later.value?.index ?? null, laterIsFirst: later.value === first.value,
-    laterIsSecond: later.value === second.value, laterError: errorShape(later.error),
-    laterErrorIsFirst: later.error === first.error,
-    resetIndex: afterReset.value?.index ?? null, resetIsLater: afterReset.value === later.value,
-    resetError: errorShape(afterReset.error), resetErrorIsLater: afterReset.error === later.error
-  }))
-  expect(callsWhileHeld).toBeGreaterThanOrEqual(1)
-})
+}

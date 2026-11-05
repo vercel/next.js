@@ -2,7 +2,6 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
-const { createHash } = require('node:crypto')
 const { createRequire } = require('node:module')
 const [project, output, family = 'default'] = process.argv.slice(2)
 assert(project && ['default', 'disabled'].includes(family))
@@ -12,36 +11,24 @@ req(next + '/dist/server/node-environment-baseline')
 const runner = req(next + '/dist/experimental/testing/runner')
 const vitest = req(next + '/dist/experimental/testing/vitest')
 const input = path.join(__dirname, 'fixtures/chai-callable-intrinsic', family)
-const model = JSON.parse(fs.readFileSync(path.join(input, 'reference.json')))
-const body = fs.readFileSync(path.join(input, model.source), 'utf8')
-assert.equal(createHash('sha256').update(body).digest('hex'), model.bodySHA256)
-const header = body.slice(0, body.indexOf('\n') + 1)
-assert(header.startsWith('import {') && header.endsWith("from 'vitest'\n"))
-const dir = fs.mkdtempSync(
-  path.join(os.tmpdir(), 'next-chai-intrinsic-component-')
-)
+const body = fs.readFileSync(path.join(input, 'runtime.test.mjs.txt'), 'utf8')
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'next-chai-intrinsic-'))
 const file = runner.initializeTestFile({
   fileId: 'actual-chai-intrinsic',
   filePath: path.join(dir, 'actual.test.mjs'),
 })
-const rows = [],
-  cases = []
+const cases = []
 async function main() {
   try {
     let captured
     await file.collect(async () => {
       captured = new Function(
         'vitest',
-        'console',
+        'assert',
         '"use strict";const{expect,test,chai,afterAll}=vitest;\n' +
-          body.slice(header.length) +
+          body.split('\n').slice(2).join('\n') +
           '\nreturn { held, retained, intrinsic, getter: () => getter, getterTarget: () => getterTarget, getterReads: () => getterReads, readonly: chai.Assertion.prototype.intrinsicReadonly }'
-      )(vitest, {
-        log(content) {
-          assert(content.startsWith('POLL_OWNERSHIP_ROW '))
-          rows.push(JSON.parse(content.slice(19)))
-        },
-      })
+      )(vitest, assert)
     })
     const result = await file.run({
       runId: 'actual-chai-intrinsic-run',
@@ -56,11 +43,8 @@ async function main() {
     })
     assert.equal(result.interrupted, false)
     assert.deepEqual(result.errors, [])
-    assert.deepEqual(rows, model.rows)
-    assert.deepEqual(
-      cases.map(({ name, state }) => ({ name, state })),
-      model.caseCallbacks ?? model.cases
-    )
+    assert.equal(cases.length, 3)
+    assert.equal(new Set(cases.map((value) => value.name)).size, cases.length)
     assert(
       cases.every(
         (value) => value.state === 'passed' && value.errors.length === 0
@@ -90,7 +74,7 @@ async function main() {
     assert.equal(captured.getterReads(), 4)
     const facts = {
       cases: cases.length,
-      completeGenuineRows: rows.length,
+      behaviorAssertions: true,
       actualFileDisposalJoined: true,
       retainedIntrinsicAfterDispose: true,
       exactNativeReceiverErrorsAfterDispose: true,
@@ -99,7 +83,7 @@ async function main() {
     if (output)
       fs.writeFileSync(
         output,
-        JSON.stringify({ rows, cases, ...facts }, null, 2) + '\n'
+        JSON.stringify({ cases, ...facts }, null, 2) + '\n'
       )
     process.stdout.write(JSON.stringify(facts) + '\n')
   } finally {

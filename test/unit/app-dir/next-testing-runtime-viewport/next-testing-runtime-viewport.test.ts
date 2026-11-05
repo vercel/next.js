@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
-it('resizes a real main-frame Chromium layout and preserves native Promise and zero viewport geometry', async () => {
+it('resizes a real main-frame Chromium layout and preserves native Promise zero viewport geometry and lazy polling behavior', async () => {
   const retained = process.env.NEXT_TESTING_RUNTIME_VIEWPORT_EVIDENCE
   const temporary =
     retained ?? (await mkdtemp(join(tmpdir(), 'next-runtime-viewport-')))
@@ -19,9 +19,10 @@ it('resizes a real main-frame Chromium layout and preserves native Promise and z
     const verified = JSON.parse(
       await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
     )
-    expect(verified.profiles).toBe(4)
-    expect(verified.cases).toBe(4)
-    expect(verified.completeGenuinePositiveViewportModelsExact).toBe(true)
+    expect(verified.profiles).toBe(2)
+    expect(verified.cases).toBe(12)
+    expect(verified.viewportBehaviorAssertionsPassed).toBe(true)
+    expect(verified.pollBehaviorAssertionsPassed).toBe(true)
     expect(verified.allOwnersJoined).toBe(true)
     complete = true
   } catch (error) {
@@ -33,37 +34,3 @@ it('resizes a real main-frame Chromium layout and preserves native Promise and z
       await rm(temporary, { recursive: true, force: true })
   }
 }, 540000)
-
-it('retains real poll facade descriptors, lazy methods and altered or borrowed then behavior', async () => {
-  const retained = process.env.NEXT_TESTING_POLL_FACADE_EVIDENCE
-  const temporary =
-    retained ?? (await mkdtemp(join(tmpdir(), 'next-poll-facade-')))
-  let complete = false
-  try {
-    const evidence = retained ?? join(temporary, 'evidence')
-    await promisify(execFile)(
-      process.execPath,
-      [
-        join(__dirname, 'verify-poll.mjs'),
-        join(__dirname, '../../../..'),
-        evidence,
-      ],
-      { timeout: 270000, maxBuffer: 1024 * 1024 }
-    )
-    const verified = JSON.parse(
-      await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
-    )
-    expect(verified.profiles).toBe(2)
-    expect(verified.cases).toBe(8)
-    expect(verified.completeGenuinePollFacadeModelsExact).toBe(true)
-    expect(verified.allOwnersJoined).toBe(true)
-    complete = true
-  } catch (error) {
-    throw new Error(`Poll facade evidence retained at ${temporary}`, {
-      cause: error,
-    })
-  } finally {
-    if (complete && !retained)
-      await rm(temporary, { recursive: true, force: true })
-  }
-}, 300000)

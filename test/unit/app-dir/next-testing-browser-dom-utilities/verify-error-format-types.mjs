@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import {
@@ -20,7 +19,6 @@ const consumer = fs.realpathSync(consumerArg),
   compilerRoot = fs.realpathSync(compilerRootArg),
   output = path.resolve(outputArg),
   directory = path.dirname(fileURLToPath(import.meta.url)),
-  hash = (value) => createHash('sha256').update(value).digest('hex'),
   save = (where, name, value) =>
     fs.writeFileSync(
       path.join(where, name),
@@ -43,8 +41,6 @@ const consumer = fs.realpathSync(consumerArg),
   invalid = fs.readFileSync(
     path.join(directory, 'error-format.invalid.mts.txt')
   )
-assert.equal(hash(base), expected.typeInput)
-assert.equal(hash(invalid), expected.invalidTypeInput)
 assert.equal(
   (base.toString().match(/@ts-expect-error/g) || []).length,
   expected.typeNegativeCases
@@ -54,8 +50,6 @@ assert(
     'experimental/testing/vitest-browser.d.ts'
   )
 )
-const entryPin = hash(fs.readFileSync(entry)),
-  declPin = hash(fs.readFileSync(decl))
 fs.mkdirSync(path.dirname(output), { recursive: true })
 fs.mkdirSync(output)
 const fixture = fs.realpathSync(
@@ -84,13 +78,6 @@ const config = {
 }
 save(fixture, 'tsconfig.json', config)
 save(fixture, 'tsconfig.invalid.json', { ...config, files: ['invalid.mts'] })
-fs.writeFileSync(path.join(output, 'consumer.mts.txt'), base)
-fs.writeFileSync(path.join(output, 'invalid.mts.txt'), invalid)
-save(output, 'tsconfig.json.txt', config)
-save(output, 'tsconfig.invalid.json.txt', {
-  ...config,
-  files: ['invalid.mts'],
-})
 const env = { ...process.env }
 for (const key of ['NODE_OPTIONS', 'NODE_PATH']) delete env[key]
 const runs = []
@@ -125,23 +112,23 @@ try {
     joinedOwners++
     assert.equal(owner.status, kind === 'positive' ? 0 : 2, owner.stdout)
     assert.equal(owner.stderr, '')
-    const closure = {},
+    const listedFiles = [],
       diagnostics = []
     for (const line of owner.stdout.split('\n')) {
       if (!line) continue
       if (line.includes('error TS')) diagnostics.push(line)
       else {
         assert(path.isAbsolute(line) && fs.statSync(line).isFile(), line)
-        closure[line] = hash(fs.readFileSync(line))
+        listedFiles.push(line)
       }
     }
     assert.deepEqual(
       diagnostics,
       kind === 'positive' ? [] : expected.negativeDiagnostics
     )
-    assert(Object.hasOwn(closure, entry))
-    assert(Object.hasOwn(closure, decl))
-    const transitiveVitestFiles = Object.keys(closure).filter((file) =>
+    assert(listedFiles.includes(entry))
+    assert(listedFiles.includes(decl))
+    const transitiveVitestFiles = listedFiles.filter((file) =>
       /\/node_modules\/(?:vitest\/|@vitest\/)/.test(
         fs.realpathSync(file).split(path.sep).join('/')
       )
@@ -152,14 +139,10 @@ try {
         0,
         'Installed Next declarations must not load separate Vitest declarations'
       )
-    save(evidence, 'COMPILED-CLOSURE.json', closure)
-    save(evidence, 'TRANSITIVE-VITEST.json', transitiveVitestFiles)
-    save(evidence, 'DIAGNOSTICS.json', diagnostics)
     runs.push({
       kind,
       status: owner.status,
       diagnosticCount: diagnostics.length,
-      listedClosureFiles: Object.keys(closure).length,
       separateVitestFiles: transitiveVitestFiles.length,
       installedZeroVitestQualified: qualification === 'installed',
       allOwnersJoined: true,
@@ -224,9 +207,6 @@ try {
     symbols.map((symbol) => symbol.specifier),
     ['vitest/browser', '@vitest/browser/context']
   )
-  save(output, 'SYMBOL-OWNERSHIP.json', symbols)
-  assert.equal(hash(fs.readFileSync(entry)), entryPin)
-  assert.equal(hash(fs.readFileSync(decl)), declPin)
   save(output, 'VERIFIED.json', {
     qualification,
     profiles: runs.length,
@@ -241,8 +221,6 @@ try {
     installedZeroVitestQualified: qualification === 'installed',
     allOwnersJoined: true,
     allFixturesRemoved: true,
-    entrySHA256: entryPin,
-    declarationSHA256: declPin,
   })
 } finally {
   const allOwnersJoined = startedOwners > 0 && joinedOwners === startedOwners

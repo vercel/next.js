@@ -1,32 +1,124 @@
-import { test, expect, beforeAll, afterAll, beforeEach, afterEach, beforeEach as setup } from 'vitest'
+import {
+  test,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+  beforeEach as setup,
+} from 'vitest'
 const trace = []
-function emit(value) { console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value)) }
+function emit(value) {
+  console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value))
+}
 function record(phase, fn, args, target, receiver, value, rest) {
   trace.push(phase + ':body')
-  emit({ phase, trace: [...trace], function: { name: fn.name, length: fn.length, ownPrototype: Object.hasOwn(fn, 'prototype'), prototypeConstructor: fn.prototype.constructor === fn }, arguments: { length: args.length, firstType: typeof args[0], firstHasTask: !!args[0] && 'task' in args[0], restKeys: rest === undefined ? null : Object.keys(rest).sort() }, newTargetUndefined: target === undefined, receiverUndefined: receiver === undefined, initializedValue: value })
+  expect(fn.name).toBe('named' + phase[0].toUpperCase() + phase.slice(1))
+  expect(target).toBeUndefined()
+  expect(receiver).toBeUndefined()
+  if (phase.endsWith('Each')) {
+    expect(args).toHaveLength(1)
+    expect(args[0].task.context).toBe(args[0])
+    expect(rest.task).toBe(args[0].task)
+    expect(rest.signal).toBe(args[0].signal)
+    expect(value).toBe(phase + '-value')
+  } else {
+    expect(args).toHaveLength(2)
+    expect(typeof args[0]).toBe('object')
+    expect('task' in args[0]).toBe(false)
+  }
+  emit({ phase })
 }
-function initializeBeforeAll() { trace.push('beforeAll:parameter'); expect(1).toBe(1); return 'beforeAll-value' }
-function initializeBeforeEach() { trace.push('beforeEach:parameter'); expect(1).toBe(1); return 'beforeEach-value' }
-function initializeRenamedBeforeEach() { trace.push('renamedBeforeEach:parameter'); expect(1).toBe(1); return 'renamedBeforeEach-value' }
-function initializeAfterEach() { trace.push('afterEach:parameter'); expect(1).toBe(1); return 'afterEach-value' }
-function initializeAfterAll() { trace.push('afterAll:parameter'); expect(1).toBe(1); return 'afterAll-value' }
+
+function initializeBeforeEach() {
+  trace.push('beforeEach:parameter')
+  expect(1).toBe(1)
+  return 'beforeEach-value'
+}
+function initializeRenamedBeforeEach() {
+  trace.push('renamedBeforeEach:parameter')
+  expect(1).toBe(1)
+  return 'renamedBeforeEach-value'
+}
+function initializeAfterEach() {
+  trace.push('afterEach:parameter')
+  expect(1).toBe(1)
+  return 'afterEach-value'
+}
+
 beforeAll(function namedBeforeAll() {
-  record('beforeAll', namedBeforeAll, arguments, new.target, this, undefined, undefined)
+  record(
+    'beforeAll',
+    namedBeforeAll,
+    arguments,
+    new.target,
+    this,
+    undefined,
+    undefined
+  )
 })
-beforeEach(function namedBeforeEach({ missing = initializeBeforeEach(), ...rest }) {
-  record('beforeEach', namedBeforeEach, arguments, new.target, this, missing, rest)
+beforeEach(function namedBeforeEach({
+  missing = initializeBeforeEach(),
+  ...rest
+}) {
+  record(
+    'beforeEach',
+    namedBeforeEach,
+    arguments,
+    new.target,
+    this,
+    missing,
+    rest
+  )
 })
-setup(function namedRenamedBeforeEach({ missing = initializeRenamedBeforeEach(), ...rest }) {
-  record('renamedBeforeEach', namedRenamedBeforeEach, arguments, new.target, this, missing, rest)
+setup(function namedRenamedBeforeEach({
+  missing = initializeRenamedBeforeEach(),
+  ...rest
+}) {
+  record(
+    'renamedBeforeEach',
+    namedRenamedBeforeEach,
+    arguments,
+    new.target,
+    this,
+    missing,
+    rest
+  )
 })
-afterEach(function namedAfterEach({ missing = initializeAfterEach(), ...rest }) {
-  record('afterEach', namedAfterEach, arguments, new.target, this, missing, rest)
+afterEach(function namedAfterEach({
+  missing = initializeAfterEach(),
+  ...rest
+}) {
+  record(
+    'afterEach',
+    namedAfterEach,
+    arguments,
+    new.target,
+    this,
+    missing,
+    rest
+  )
 })
 afterAll(function namedAfterAll() {
-  record('afterAll', namedAfterAll, arguments, new.target, this, undefined, undefined)
+  record(
+    'afterAll',
+    namedAfterAll,
+    arguments,
+    new.target,
+    this,
+    undefined,
+    undefined
+  )
 })
 test('initializes direct synchronous hook parameters before their original bodies', function namedCase() {
   trace.push('test:body')
-  expect(trace).toEqual(['beforeAll:body', 'beforeEach:parameter', 'beforeEach:body', 'renamedBeforeEach:parameter', 'renamedBeforeEach:body', 'test:body'])
-  emit({ phase: 'test', trace: [...trace] })
+  expect(trace).toEqual([
+    'beforeAll:body',
+    'beforeEach:parameter',
+    'beforeEach:body',
+    'renamedBeforeEach:parameter',
+    'renamedBeforeEach:body',
+    'test:body',
+  ])
+  emit({ phase: 'test' })
 })

@@ -1,40 +1,102 @@
-import { expect, test, chai, afterAll } from 'vitest'
-const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
-const held = {}, marker = {}, field = Symbol.for('next.chai.descriptor.field')
-let reads = 0, writes = 0, authored, getter, setter
-const TAG = '__vitest_poll_takeover__'
-function taggedMatcher() { return { pass: true, message: () => 'descriptor tagged' } }
-Object.defineProperty(taggedMatcher, TAG, { value: false })
+import { chai, expect, test, afterAll } from 'vitest'
+import assert from 'node:assert/strict'
+const held = {},
+  marker = {},
+  field = Symbol.for('next.chai.descriptor.field')
+let reads = 0,
+  writes = 0,
+  authored,
+  getter,
+  setter
+function taggedMatcher() {
+  return { pass: true, message: () => 'descriptor tagged' }
+}
+Object.defineProperty(taggedMatcher, '__vitest_poll_takeover__', {
+  value: false,
+})
 expect.extend({ toFieldsTagged: taggedMatcher })
-chai.use((c, utils) => utils.addMethod(c.Assertion.prototype, 'fieldsNative', function () { return this }))
-const result = action => { try { return { ok: true, value: action() } } catch (error) { return { ok: false, name: error.name, message: error.message } } }
-function descriptor(fn, key) {
-  const d = Object.getOwnPropertyDescriptor(fn, key)
-  if (!d) return null
-  return { descriptorKeys: Reflect.ownKeys(d).map(String), configurable: d.configurable, enumerable: d.enumerable, writable: 'writable' in d ? d.writable : null, valueType: 'value' in d ? typeof d.value : null, primitiveValue: 'value' in d && (d.value === null || typeof d.value !== 'object' && typeof d.value !== 'function') ? d.value : null, getType: typeof d.get, setType: typeof d.set, samePrototypeValue: key === 'prototype' ? d.value === fn.prototype : null }
-}
-function inspect(fn) {
-  return { ownKeys: result(() => Reflect.ownKeys(fn).map(String)), enumerableKeys: result(() => Object.keys(fn)), ownDescriptors: result(() => { const ds = Object.getOwnPropertyDescriptors(fn); return Reflect.ownKeys(ds).map(key => [String(key), descriptor(fn, key)]) }), absent: result(() => Object.getOwnPropertyDescriptor(fn, 'absentCallableField') === undefined), symbolAbsent: result(() => Object.getOwnPropertyDescriptor(fn, Symbol('absent')) === undefined) }
-}
-function authoredFields() {
+chai.use((c, u) =>
+  u.addMethod(c.Assertion.prototype, 'fieldsNative', function () {
+    return this
+  })
+)
+function checkFields() {
   const before = reads
-  return { enumeration: inspect(authored), descriptorIdentity: result(() => { const ds = Object.getOwnPropertyDescriptors(authored); return { marker: ds.authoredReadonly.value === marker, getter: ds.authoredAccessor.get === getter, setter: ds.authoredAccessor.set === setter, symbol: ds[field].value === 73, prototype: ds.prototype.value === authored.prototype, noGetterReads: reads === before } }), reads, writes }
+  const descriptors = Object.getOwnPropertyDescriptors(authored)
+  assert.deepEqual(descriptors.authoredReadonly, {
+    value: marker,
+    writable: false,
+    configurable: false,
+    enumerable: true,
+  })
+  assert.deepEqual(descriptors.authoredAccessor, {
+    get: getter,
+    set: setter,
+    configurable: true,
+    enumerable: true,
+  })
+  assert.equal(descriptors[field].value, 73)
+  assert.equal(descriptors.prototype.value, authored.prototype)
+  assert(Reflect.ownKeys(authored).includes(field))
+  assert(Object.keys(authored).includes('authoredReadonly'))
+  assert(Object.keys(authored).includes('authoredAccessor'))
+  assert.equal(
+    Object.getOwnPropertyDescriptor(authored, 'absentCallableField'),
+    undefined
+  )
+  assert.equal(
+    Object.getOwnPropertyDescriptor(authored, Symbol('absent')),
+    undefined
+  )
+  assert.equal(reads, before)
+  assert.equal(reads, 0)
+  assert.equal(writes, 0)
 }
 test('native callable own descriptors enumerate exact fields without invoking accessors', () => {
-  held.equal = chai.Assertion.prototype.equal
-  held.assert = chai.Assertion.prototype.assert
-  held.native = chai.Assertion.prototype.fieldsNative
-  held.tagged = chai.Assertion.prototype.toFieldsTagged
-  emit({ kind: 'native', rows: Object.entries(held).map(([name, fn]) => ({ name, inspection: inspect(fn) })) })
+  Object.assign(held, {
+    equal: chai.Assertion.prototype.equal,
+    assert: chai.Assertion.prototype.assert,
+    native: chai.Assertion.prototype.fieldsNative,
+    tagged: chai.Assertion.prototype.toFieldsTagged,
+  })
+  for (const fn of Object.values(held)) {
+    assert.equal(typeof fn, 'function')
+    assert(Object.hasOwn(fn, 'name'))
+    assert(Object.hasOwn(fn, 'length'))
+    assert.equal(
+      Object.getOwnPropertyDescriptor(fn, 'absentCallableField'),
+      undefined
+    )
+  }
   authored = held.native
-  getter = function () { reads++; return this }
-  setter = function () { writes++ }
-  Object.defineProperty(authored, 'authoredReadonly', { value: marker, enumerable: true, configurable: false, writable: false })
-  Object.defineProperty(authored, 'authoredAccessor', { get: getter, set: setter, enumerable: true, configurable: true })
-  Object.defineProperty(authored, field, { value: 73, enumerable: true, configurable: true })
-  emit({ kind: 'authored', ...authoredFields() })
+  getter = function () {
+    reads++
+    return this
+  }
+  setter = function () {
+    writes++
+  }
+  Object.defineProperty(authored, 'authoredReadonly', {
+    value: marker,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  })
+  Object.defineProperty(authored, 'authoredAccessor', {
+    get: getter,
+    set: setter,
+    enumerable: true,
+    configurable: true,
+  })
+  Object.defineProperty(authored, field, {
+    value: 73,
+    enumerable: true,
+    configurable: true,
+  })
+  checkFields()
 })
 test('retained native descriptor identities remain exact in later cases', () => {
-  emit({ kind: 'later', sameNative: authored === chai.Assertion.prototype.fieldsNative, ...authoredFields() })
+  assert.equal(authored, chai.Assertion.prototype.fieldsNative)
+  checkFields()
 })
-afterAll(() => emit({ kind: 'afterAll', ...authoredFields() }))
+afterAll(checkFields)

@@ -1,3 +1,7 @@
+import {
+  assertCoverageCounters,
+  assertCoverageReports,
+} from './settled-coverage-assertions.mjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -56,21 +60,21 @@ assert.equal(row.genuine.cancel.traceAfterCancel, '')
 assert.equal(row.genuine.recoveryExit, 0)
 const fixture = mkdtempSync(join(consumer, '.next-istanbul-spec-cancel-'))
 mkdirSync(output, { recursive: true })
-const canonical = (map) =>
-  Object.fromEntries(
-    Object.entries(map).map(([file, data]) => [
-      file === 'total' ? file : basename(file),
-      { ...data, ...('path' in data ? { path: basename(data.path) } : {}) },
-    ])
-  )
+
 const cases = (report) =>
   report.testResults.map((file) => ({
     file: basename(file.name),
     status: file.status,
     message: file.message,
-    cases: file.assertionResults.map(
-      ({ duration: _duration, ...value }) => value
-    ),
+    cases: file.assertionResults.map((test) => ({
+      ancestorTitles: test.ancestorTitles,
+      fullName: test.fullName,
+      status: test.status,
+      title: test.title,
+      failureMessages: test.failureMessages.map(
+        (message) => message.split('\n')[0]
+      ),
+    })),
   }))
 const summary = (report) =>
   Object.fromEntries(
@@ -231,20 +235,15 @@ try {
   const report = JSON.parse(readFileSync(join(output, 'recovery-cases.json')))
   assert.deepEqual(cases(report), cases(row.genuine.cases))
   assert.deepEqual(summary(report), summary(row.genuine.cases))
-  assert.deepEqual(
-    canonical(report.coverageMap),
-    canonical(row.genuine.cases.coverageMap)
+  assertCoverageCounters(report.coverageMap, fixture, row.genuine.coverage)
+  assertCoverageReports(
+    join(fixture, 'coverage'),
+    fixture,
+    row.genuine.coverage,
+    [...row.genuine.reportFiles, 'retained-sentinel.txt']
   )
-  for (const [name, expected] of Object.entries(row.genuine.reports)) {
-    const actual = readFileSync(join(fixture, 'coverage', name), 'utf8')
-    if (name.endsWith('.json'))
-      assert.deepEqual(
-        canonical(JSON.parse(actual)),
-        canonical(JSON.parse(expected))
-      )
-    else assert.equal(actual, expected)
+  for (const name of row.genuine.reportFiles)
     copyFileSync(join(fixture, 'coverage', name), join(output, name))
-  }
   assert.equal(
     readFileSync(join(fixture, 'trace.jsonl'), 'utf8'),
     row.genuine.recoveryTrace
@@ -273,9 +272,9 @@ try {
         priorReportUnchanged: true,
         priorSnapshotUnchanged: true,
         recoveryExit: 0,
-        completeRecoveryCaseProjection: true,
-        completeRecoveryMaps: true,
-        actualJSONCoverageMap: true,
+        recoveryCaseStatusesAndErrors: true,
+        recoveryCoverageCountersAndReports: true,
+        actualJSONCoverageCounters: true,
         exactExistingSnapshot: true,
         allOwnersClosed: true,
       },

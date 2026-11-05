@@ -1,7 +1,19 @@
-import {test,expect,vi} from 'vitest'
+import { existsSync } from 'node:fs'
+import { test, expect, vi } from 'vitest'
 import * as mocked from './target.cjs'
 import required from './consumer.cjs'
-import {appendFileSync,existsSync} from 'node:fs'
-vi.mock('./target.cjs',()=>{return{value:'mocked',default:{value:'mock-default',token:{}}}})
-const descriptor=(value)=>Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return{key:typeof key==='symbol'?String(key):key,enumerable:d.enumerable,configurable:d.configurable,...('writable'in d?{writable:d.writable}:{}),kind:'value'in d?'data':'accessor',type:typeof('value'in d?d.value:d.get)}})
-test('original CommonJS require and mocked ESM remain separate',async()=>{const originalLazyBefore=!existsSync(process.env.NEXT_REQUIRE_EVENTS);expect(originalLazyBefore).toBe(true);const raw=required.read(),again=required.read(),dynamic=await import('./target.cjs');expect(raw).toBe(again);expect(raw.value).toBe('actual');expect(mocked.value).toBe('mocked');expect(mocked.default.value).toBe('mock-default');expect(dynamic).toBe(mocked);appendFileSync(process.env.NEXT_REQUIRE_ROWS,JSON.stringify({name:'ordinary-lazy-require-composition',originalLazyBefore,rawValue:raw.value,mockedValue:mocked.value,defaultValue:mocked.default.value,rawIdentity:raw===again,mockedIdentity:dynamic===mocked,rawKeys:Reflect.ownKeys(raw),mockedKeys:Reflect.ownKeys(mocked).map(x=>typeof x==='symbol'?String(x):x),rawDescriptors:descriptor(raw),mockedDescriptors:descriptor(mocked),})+'\n')})
+vi.mock('./target.cjs', () => {
+  return { value: 'mocked', default: { value: 'mock-default', token: {} } }
+})
+test('original CommonJS require and mocked ESM remain separate', async () => {
+  const originalLazyBefore = !existsSync(process.env.NEXT_REQUIRE_EVENTS)
+  expect(originalLazyBefore).toBe(true)
+  const raw = required.read(),
+    again = required.read(),
+    dynamic = await import('./target.cjs')
+  expect(raw).toBe(again)
+  expect(raw.value).toBe('actual')
+  expect(mocked.value).toBe('mocked')
+  expect(mocked.default.value).toBe('mock-default')
+  expect(dynamic).toBe(mocked)
+})

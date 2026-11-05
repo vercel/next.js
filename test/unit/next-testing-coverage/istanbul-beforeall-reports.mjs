@@ -1,3 +1,4 @@
+import { assertCoverageReports } from './settled-coverage-assertions.mjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -38,22 +39,13 @@ const pristine = JSON.parse(
 const row = pristine.rows.find((value) => value.name === profile)
 assert(row, 'Missing genuine beforeAll profile')
 const fixture = mkdtempSync(join(consumer, '.next-istanbul-beforeall-'))
-const canonical = (map) =>
-  Object.fromEntries(
-    Object.entries(map).map(([file, data]) => [
-      file === 'total' ? file : basename(file),
-      { ...data, ...('path' in data ? { path: basename(data.path) } : {}) },
-    ])
-  )
+
 const keys = [
   'ancestorTitles',
   'fullName',
   'status',
   'title',
   'failureMessages',
-  'meta',
-  'tags',
-  'benchmarks',
 ]
 const cases = (report) =>
   report.testResults.map((file) => ({
@@ -144,21 +136,21 @@ try {
       ? readdirSync(join(fixture, 'coverage'))
       : []
     ).sort(),
-    Object.keys(row.reports).sort()
+    row.reportFiles.slice().sort()
   )
   mkdirSync(join(output, 'coverage'))
-  for (const [name, expected] of Object.entries(row.reports)) {
-    const actual = readFileSync(join(fixture, 'coverage', name), 'utf8')
-    if (name.endsWith('.json'))
-      assert.deepEqual(
-        canonical(JSON.parse(actual)),
-        canonical(JSON.parse(expected))
-      )
-    else assert.equal(actual, expected, name)
-    copyFileSync(
-      join(fixture, 'coverage', name),
-      join(output, 'coverage', name)
+  if (row.reportFiles.length) {
+    assertCoverageReports(
+      join(fixture, 'coverage'),
+      fixture,
+      row.coverage,
+      row.reportFiles
     )
+    for (const name of row.reportFiles)
+      copyFileSync(
+        join(fixture, 'coverage', name),
+        join(output, 'coverage', name)
+      )
   }
   const snapshots = existsSync(join(fixture, '__snapshots__'))
     ? Object.fromEntries(
@@ -185,8 +177,8 @@ try {
         profile,
         actualSettledBeforeAllFailure: true,
         reportOnFailure: !profile.endsWith('-report-false'),
-        wholeCaseProjection: true,
-        completeMapsSummaryLCOV: true,
+        caseStatusesAndErrors: true,
+        coverageCountersAndReportFiles: true,
         exactExistingSnapshots: true,
         configUnchanged: true,
         allOwnersJoined: true,

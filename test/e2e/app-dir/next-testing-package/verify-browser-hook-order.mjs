@@ -2,322 +2,219 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
-import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
+import { runCompilerCase } from '../../../lib/next-testing-case-runner.mjs'
+import { resolveFixturePath } from '../../../lib/next-testing-fixtures.cjs'
 import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from './process-supervisor.mjs'
-import { resolveFixturePath } from '../../../lib/next-testing-fixtures.cjs'
+import {
+  hookProfiles,
+  assertHookRows,
+} from './browser-hook-order/assertions.mjs'
 
 const [consumerArg, outputArg, enginesArg = 'chromium,firefox'] =
   process.argv.slice(2)
-assert(
-  consumerArg && outputArg,
-  'Expected installed consumer and new evidence directory'
+assert(consumerArg && outputArg, 'Expected consumer and output directory')
+const consumer = fs.realpathSync(consumerArg)
+const output = path.resolve(outputArg)
+const corpus = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'browser-hook-order'
 )
-const consumer = fs.realpathSync(consumerArg),
-  output = path.resolve(outputArg),
-  here = path.dirname(fileURLToPath(import.meta.url)),
-  corpus = path.join(here, 'browser-hook-order'),
-  expected = JSON.parse(
-    fs.readFileSync(resolveFixturePath(path.join(corpus, 'reference.json')))
-  ),
-  load = createRequire(path.join(consumer, 'package.json')),
-  nextRoot = path.dirname(load.resolve('next/package.json')),
-  engines = enginesArg.split(','),
-  prepared = [],
-  facts = []
+const engines = enginesArg.split(',')
 assert(
-  engines.length > 0 &&
-    engines.every((e) => ['chromium', 'firefox'].includes(e)) &&
+  engines.length &&
+    engines.every((engine) => ['chromium', 'firefox'].includes(engine)) &&
     new Set(engines).size === engines.length
 )
-for (const name of ['vitest', 'vite', '@vitest/mocker'])
-  assert.throws(() => load.resolve(name))
-const hash = (file) =>
-    createHash('sha256')
-      .update(fs.readFileSync(resolveFixturePath(file)))
-      .digest('hex'),
-  save = (dir, name, value) =>
-    fs.writeFileSync(
-      path.join(dir, name),
-      JSON.stringify(value, null, 2) + '\n'
-    )
-fs.mkdirSync(output)
-for (const profile of expected.profiles.filter((p) =>
-  engines.includes(p.browser)
-)) {
-  for (const entry of [
-    profile.source,
-    profile.projected,
-    profile.rawStandardReport,
-    profile.rawConsole,
-    ...(profile.rawRunCompletion ? [profile.rawRunCompletion] : []),
-    ...(profile.rawCaseErrors
-      ? [
-          profile.rawCaseErrors,
-          profile.rawErrorObservationReport,
-          profile.rawErrorObservationConsole,
-        ]
-      : []),
-  ])
-    assert.equal(hash(path.join(corpus, entry.path)), entry.sha256)
-  const fixture = fs.mkdtempSync(path.join(consumer, '.next-test-hook-order-')),
-    destination = path.join(output, profile.label)
-  fs.mkdirSync(destination)
-  fs.copyFileSync(
-    resolveFixturePath(path.join(corpus, profile.source.path)),
-    path.join(fixture, 'hooks.test.mjs')
-  )
+const load = createRequire(path.join(consumer, 'package.json'))
+const nextRoot = path.dirname(load.resolve('next/package.json'))
+const facts = []
+const save = (directory, name, value) =>
   fs.writeFileSync(
-    path.join(fixture, 'package.json'),
-    '{"type":"module","private":true}\n'
+    path.join(directory, name),
+    JSON.stringify(value, null, 2) + '\n'
   )
-  fs.symlinkSync(
-    path.join(consumer, 'node_modules'),
-    path.join(fixture, 'node_modules'),
-    'dir'
-  )
-  fs.writeFileSync(
-    path.join(fixture, 'next.config.mjs'),
-    'export default ' + JSON.stringify({ turbopack: { root: consumer } }) + '\n'
-  )
-  fs.writeFileSync(
-    path.join(fixture, 'next.test.config.json'),
-    JSON.stringify({
-      maxWorkers: 1,
-      projects: [
-        {
-          name: 'browser-hook-order',
-          environment: 'browser',
-          mode: profile.mode,
-          browser: {
-            enabled: true,
-            headless: true,
-            instances: [{ browser: profile.browser }],
-          },
-          include: ['hooks.test.mjs'],
-          testTimeout: 1000,
-          hookTimeout: 1000,
-          includeTaskLocation: false,
-          sequence: { hooks: profile.order },
-          ...(profile.limit === null ? {} : { maxConcurrency: profile.limit }),
-        },
-      ],
-    }) + '\n'
-  )
-  prepared.push({
-    ...profile,
-    fixture,
-    destination,
-    started: false,
-    joined: false,
-  })
-}
-save(output, 'inputs.json', {
-  reference: expected.reference,
-  profiles: prepared.length,
-  allInputsPreparedBeforeReaders: true,
-  playwright: {
-    path: fs.realpathSync(load.resolve('playwright/package.json')),
-    version: load('playwright/package.json').version,
-  },
+const configFor = (profile) => ({
+  maxWorkers: 1,
+  projects: [
+    {
+      name: 'browser-hook-order',
+      environment: 'browser',
+      mode: profile.mode,
+      browser: {
+        enabled: true,
+        headless: true,
+        instances: [{ browser: profile.browser }],
+      },
+      include: ['hooks.test.mjs'],
+      testTimeout: 1000,
+      hookTimeout: 1000,
+      includeTaskLocation: false,
+      sequence: { hooks: profile.order },
+      ...(profile.limit === null ? {} : { maxConcurrency: profile.limit }),
+    },
+  ],
 })
-try {
-  const engineResults = await Promise.allSettled(
-    engines.map(async (browser) => {
-      for (const r of prepared.filter((record) => record.browser === browser)) {
-        const report = path.join(r.destination, 'report.raw.json'),
-          env = {
-            ...process.env,
-            NODE_ENV: r.mode,
-            NEXT_TELEMETRY_DISABLED: '1',
-            FORCE_COLOR: '0',
-          }
-        for (const key of [
-          'CI',
-          'NODE_OPTIONS',
-          'NODE_PATH',
-          'NEXT_TEST_NATIVE_DIR',
-          'NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL',
-        ])
-          delete env[key]
-        const args =
-          r.suite === 'ordering'
-            ? [
-                path.join(nextRoot, 'dist/bin/next'),
-                'test',
-                r.fixture,
-                '--run',
-                '--reporter=json',
-                '--outputFile=' + report,
-              ]
-            : [
-                path.join(corpus, 'resource-worker.mjs'),
-                nextRoot,
-                r.fixture,
-                r.destination,
-                r.browser,
-                r.mode,
-                r.kind,
-                r.order,
-                String(r.limit),
-              ]
-        r.started = true
-        const owner = await runOwnedNode(args, {
-          cwd: r.fixture,
-          env,
-          auditDir: path.join(r.destination, 'owners'),
-          timeoutMs: 120000,
-        })
-        save(r.destination, 'owner.json', owner)
-        fs.writeFileSync(path.join(r.destination, 'stdout.log'), owner.stdout)
-        fs.writeFileSync(path.join(r.destination, 'stderr.log'), owner.stderr)
-        assertOwnedNodeCompleted(owner, r.label)
-        r.joined = true
-        const reference = JSON.parse(
-          fs.readFileSync(
-            resolveFixturePath(path.join(corpus, r.projected.path))
-          )
-        )
-        let actual
-        if (r.suite === 'ordering') {
-          const raw = JSON.parse(fs.readFileSync(report))
-          actual = {
-            rows: raw.next.events
-              .filter((e) => e.type === 'output')
-              .flatMap((e) =>
-                e.text
-                  .split('\n')
-                  .filter((line) => line.startsWith(r.prefix))
-                  .map((line) => JSON.parse(line.slice(r.prefix.length)))
-              ),
-            cases: raw.testResults
-              .flatMap((f) => f.assertionResults)
-              .map((t) => ({
-                name: t.fullName,
-                status: t.status,
-                failureMessages: t.failureMessages,
-              })),
-            success: raw.success,
-            exit: owner.status,
-          }
-          save(r.destination, 'actual.json', actual)
-          assert.deepEqual(actual, reference)
-        } else {
-          assert.equal(owner.status, 0)
-          actual = JSON.parse(
-            fs.readFileSync(path.join(r.destination, 'actual.json'))
-          )
-          assert.deepEqual(actual.rows, reference.rows)
-          assert.deepEqual(
-            actual.cases.map((c) => ({ name: c.name, status: c.status })),
-            reference.cases.map((c) => ({ name: c.name, status: c.status }))
-          )
-          assert.deepEqual(actual.diagnostics, [])
-          assert.equal(actual.compilerDisposed, true)
-          assert.equal(
-            actual.result.status,
-            reference.success ? 'passed' : 'failed'
-          )
-          assert.equal(
-            actual.result.moduleExecution?.completion?.kind,
-            'fulfilled'
-          )
-          assert.equal(
-            actual.result.moduleExecution?.completion?.resultVersion,
-            2
-          )
-          if (r.kind === 'user-cancel') {
-            assert.deepEqual(reference.completion, {
-              errors: [],
-              reason: 'interrupted',
-            })
-            assert.equal(reference.exit, 1)
-            assert.equal(actual.ready, 1)
-            assert.equal(actual.userAborted, true)
-            assert.equal(actual.result.closedUserCancellation, true)
-            assert(actual.cases.every((c) => c.errors.length === 0))
-          } else {
-            assert.equal(actual.ready, 0)
-            assert.equal(actual.userAborted, false)
-            assert.equal(actual.result.closedUserCancellation, undefined)
-            assert.equal(actual.cases.length, 1)
-            assert.equal(actual.cases[0].errors.length, 1)
-            const diagnostic = actual.cases[0].errors[0],
-              observation = JSON.parse(
-                fs
-                  .readFileSync(
-                    resolveFixturePath(path.join(corpus, r.rawCaseErrors.path)),
-                    'utf8'
-                  )
-                  .trim()
-              )
-            assert.equal(observation.name, actual.cases[0].name)
-            assert.equal(observation.result.state, 'failed')
-            assert.equal(observation.result.errors.length, 1)
-            assert.equal(diagnostic.name, observation.result.errors[0].name)
-            assert.equal(
-              diagnostic.message,
-              observation.result.errors[0].message
-            )
-            assert.equal(diagnostic.phase, 'runtime')
-            assert.equal(diagnostic.severity, 'error')
-            assert(
-              diagnostic.frames.some(
-                (frame) =>
-                  frame.file === path.join(r.fixture, 'hooks.test.mjs') &&
-                  frame.line === 7 &&
-                  frame.original === true
-              )
-            )
-          }
-        }
-        assert.equal(
-          hash(path.join(r.fixture, 'hooks.test.mjs')),
-          r.source.sha256
-        )
-        facts.push({
-          browser: r.browser,
-          mode: r.mode,
-          kind: r.kind,
-          order: r.order,
-          limit: r.limit,
-          fullAuthoredRowsMatch: true,
-          caseProjectionMatch: true,
-          diagnosticScope:
-            r.suite === 'ordering'
-              ? 'complete failureMessages'
-              : 'name/message and authored mapped line; raw stacks retained',
-          allOwnersClosed: true,
-        })
-        save(output, 'checks.json', { facts })
-        console.log(JSON.stringify(facts.at(-1)))
-      }
-    })
+fs.mkdirSync(output)
+for (const profile of hookProfiles(engines)) {
+  const destination = path.join(output, profile.label)
+  const source = fs.readFileSync(
+    resolveFixturePath(
+      path.join(corpus, 'sources', profile.source + '.test.mjs.txt')
+    )
   )
-  const failed = engineResults.find((result) => result.status === 'rejected')
-  if (failed) throw failed.reason
-} finally {
-  for (const r of prepared)
-    if (!r.started || r.joined)
-      fs.rmSync(r.fixture, { recursive: true, force: true })
+  const config = configFor(profile)
+  if (profile.suite === 'ordering') {
+    const failed = profile.kind !== 'async-suite-ordering'
+    await runCompilerCase({
+      repo: consumer,
+      output: destination,
+      mode: profile.mode,
+      files: [{ target: 'hooks.test.mjs', bytes: source }],
+      config,
+      expectedCount: 1,
+      expectedExit: failed ? 1 : 0,
+      checkOutcomes(report) {
+        assert.deepEqual(
+          report.testResults.map((file) => path.basename(file.name)),
+          ['hooks.test.mjs']
+        )
+        assert.equal(report.testResults[0].status, failed ? 'failed' : 'passed')
+        assert.equal(report.testResults[0].message, '')
+        const cases = report.testResults.flatMap(
+          (file) => file.assertionResults
+        )
+        assert.equal(report.success, !failed)
+        assert.equal(report.next.summary.errors, Number(failed))
+        assert.deepEqual(
+          report.next.events.filter(
+            (event) =>
+              event.type === 'diagnostic' &&
+              event.diagnostic.severity === 'error'
+          ),
+          []
+        )
+        assert.equal(cases[0].status, failed ? 'failed' : 'passed')
+        assert.deepEqual(
+          cases[0].failureMessages,
+          failed
+            ? [
+                profile.kind === 'async-ordering'
+                  ? 'actual hook sequence controlled body failure'
+                  : 'actual controlled body failure',
+              ]
+            : []
+        )
+        const rows = report.next.events
+          .filter((event) => event.type === 'output')
+          .flatMap((event) =>
+            event.text
+              .split('\n')
+              .filter((line) => line.startsWith(profile.prefix))
+              .map((line) => JSON.parse(line.slice(profile.prefix.length)))
+          )
+        assertHookRows(profile, rows)
+      },
+    })
+  } else {
+    const fixture = fs.mkdtempSync(
+      path.join(consumer, '.next-test-hook-resource-')
+    )
+    let joined = false
+    let started = false
+    try {
+      fs.mkdirSync(destination)
+      fs.writeFileSync(path.join(fixture, 'hooks.test.mjs'), source)
+      fs.writeFileSync(
+        path.join(fixture, 'package.json'),
+        '{"type":"module","private":true}\n'
+      )
+      fs.symlinkSync(
+        path.join(consumer, 'node_modules'),
+        path.join(fixture, 'node_modules'),
+        'dir'
+      )
+      fs.writeFileSync(
+        path.join(fixture, 'next.config.mjs'),
+        'export default ' +
+          JSON.stringify({ turbopack: { root: consumer } }) +
+          '\n'
+      )
+      fs.writeFileSync(
+        path.join(fixture, 'next.test.config.json'),
+        JSON.stringify(config) + '\n'
+      )
+      const env = {
+        ...process.env,
+        NODE_ENV: profile.mode,
+        NEXT_TELEMETRY_DISABLED: '1',
+        FORCE_COLOR: '0',
+      }
+      for (const key of [
+        'CI',
+        'NODE_OPTIONS',
+        'NODE_PATH',
+        'NEXT_TEST_NATIVE_DIR',
+        'NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL',
+      ])
+        delete env[key]
+      started = true
+      const owner = await runOwnedNode(
+        [
+          path.join(corpus, 'resource-worker.mjs'),
+          nextRoot,
+          fixture,
+          destination,
+          profile.browser,
+          profile.mode,
+          profile.kind,
+          profile.order,
+          String(profile.limit),
+        ],
+        {
+          cwd: fixture,
+          env,
+          auditDir: path.join(destination, 'owners'),
+          timeoutMs: 120000,
+        }
+      )
+      fs.writeFileSync(path.join(destination, 'stdout.log'), owner.stdout)
+      fs.writeFileSync(path.join(destination, 'stderr.log'), owner.stderr)
+      assertOwnedNodeCompleted(owner, profile.label)
+      joined = true
+      assert.equal(owner.status, 0, owner.stdout + owner.stderr)
+      assert.equal(
+        JSON.parse(fs.readFileSync(path.join(destination, 'actual.json')))
+          .behaviorAssertions,
+        true
+      )
+    } finally {
+      if (!started || joined)
+        fs.rmSync(fixture, { recursive: true, force: true })
+    }
+  }
+  facts.push({
+    browser: profile.browser,
+    mode: profile.mode,
+    kind: profile.kind,
+    order: profile.order,
+    limit: profile.limit,
+    behaviorAssertions: true,
+  })
+  save(output, 'checks.json', { facts })
 }
 save(output, 'verified.json', {
   profiles: facts.length,
   orderingProfiles: facts.filter(
-    (f) =>
-      f.kind === 'async-ordering' ||
-      f.kind === 'async-suite-ordering' ||
-      f.kind.startsWith('getter-')
+    (fact) => !['user-cancel', 'hook-deadline'].includes(fact.kind)
   ).length,
-  resourceProfiles: facts.filter((f) =>
-    ['user-cancel', 'hook-deadline'].includes(f.kind)
+  resourceProfiles: facts.filter((fact) =>
+    ['user-cancel', 'hook-deadline'].includes(fact.kind)
   ).length,
-  fullAuthoredRowsAndCaseProjectionsMatch: true,
+  behaviorAssertions: true,
   allOwnersClosed: true,
-  allInputsRemovedAfterOwnedReadersJoined: prepared.every(
-    (r) => !fs.existsSync(r.fixture)
-  ),
+  allInputsRemovedAfterOwnedReadersJoined: true,
 })

@@ -1,7 +1,0 @@
-[
-  {
-    "name": "unused nonleaf callable source and require graph stay lazy across resets",
-    "status": "passed",
-    "failureMessages": []
-  }
-]

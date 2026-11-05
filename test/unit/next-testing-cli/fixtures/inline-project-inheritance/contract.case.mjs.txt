@@ -1,1 +1,15 @@
-import{test,expect,inject}from'vitest';import{value}from'./subject.mjs';import{aliasValue}from'inline-target';test('inline inheritance contract',({task})=>{expect(typeof value).toBe('number');console.log('INLINE207:'+JSON.stringify({value,aliasValue,rootSetup:globalThis.inlineRootSetup??0,childSetup:globalThis.inlineChildSetup??0,env:process.env.WS2_INLINE_ENV??null,rootProvide:inject('root')??null,childProvide:inject('child')??null,taskTimeout:task.timeout??null}))})
+import { test, expect, inject } from 'vitest'
+import { value } from './subject.mjs'
+import { aliasValue } from 'inline-target'
+
+test('inline inheritance contract', ({ task }) => {
+  const expected = inject('expected')
+  expect(value).toBe(expected.value)
+  expect(aliasValue).toBe(expected.aliasValue)
+  expect(globalThis.inlineRootSetup ?? 0).toBe(expected.rootSetup)
+  expect(globalThis.inlineChildSetup ?? 0).toBe(expected.childSetup)
+  expect(process.env.WS2_INLINE_ENV).toBeUndefined()
+  expect(inject('root')).toBe(5)
+  expect(inject('child')).toBe(7)
+  expect(task.timeout).toBe(expected.taskTimeout)
+})

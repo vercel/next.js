@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   access,
@@ -26,20 +25,77 @@ const corpus = join(
   dirname(fileURLToPath(import.meta.url)),
   'fixtures/coverage-repeat'
 )
-const expected = JSON.parse(
-  await readFile(
-    join(
-      corpus,
-      process.argv.includes('--typed') ? 'pristine-typed.json' : 'pristine.json'
-    ),
-    'utf8'
-  )
-)
-const source = await readFile(join(corpus, 'case.test.mjs.txt'))
-assert.equal(
-  createHash('sha256').update(source).digest('hex'),
-  expected.sourceSHA256
-)
+const profiles = (
+  process.argv.includes('--typed')
+    ? [
+        ['equalsTrue', ['--coverage=true'], true, null],
+        ['equalsFalse', ['--coverage=false'], false, null],
+        ['equalsEmpty', ['--coverage='], true, null],
+        ['spaceTrue', ['--coverage', 'true'], true, null],
+        ['spaceFalse', ['--coverage', 'false'], false, null],
+        [
+          'equalsFalsePositive',
+          ['--coverage=false', '--coverage'],
+          false,
+          'Expected a single value for option "--coverage ", received [false, true]',
+        ],
+        [
+          'positiveEqualsFalse',
+          ['--coverage', '--coverage=false'],
+          false,
+          'Expected a single value for option "--coverage ", received [true, false]',
+        ],
+        [
+          'equalsTrueRepeated',
+          ['--coverage=true', '--coverage=true'],
+          false,
+          'Expected a single value for option "--coverage ", received [true, true]',
+        ],
+        [
+          'equalsFalseNegative',
+          ['--coverage=false', '--no-coverage'],
+          false,
+          null,
+        ],
+      ]
+    : [
+        ['baseline', [], false, null],
+        ['enabled', ['--coverage'], true, null],
+        ['disabled', ['--no-coverage'], false, null],
+        [
+          'doubleEnabled',
+          ['--coverage', '--coverage'],
+          false,
+          'Expected a single value for option "--coverage ", received [true, true]',
+        ],
+        ['enabledDisabled', ['--coverage', '--no-coverage'], false, null],
+        [
+          'disabledEnabled',
+          ['--no-coverage', '--coverage'],
+          false,
+          'Expected a single value for option "--coverage ", received [false, true]',
+        ],
+        ['doubleDisabled', ['--no-coverage', '--no-coverage'], false, null],
+        [
+          'disabledEnabledDisabled',
+          ['--no-coverage', '--coverage', '--no-coverage'],
+          false,
+          null,
+        ],
+        [
+          'enabledEnabledDisabled',
+          ['--coverage', '--coverage', '--no-coverage'],
+          false,
+          null,
+        ],
+        [
+          'enabledDisabledEnabled',
+          ['--coverage', '--no-coverage', '--coverage'],
+          false,
+          'Expected a single value for option "--coverage ", received [false, true]',
+        ],
+      ]
+).map(([name, args, coverage, error]) => ({ name, args, coverage, error }))
 const load = createRequire(join(consumer, 'package.json'))
 if (!process.argv.includes('--source'))
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
@@ -49,7 +105,7 @@ await mkdir(output)
 const prepared = []
 const facts = []
 let readersClosed = true
-for (const profile of expected.profiles) {
+for (const profile of profiles) {
   const fixture = await mkdtemp(join(consumer, '.next-test-coverage-repeat-'))
   const evidence = join(output, profile.name)
   await mkdir(evidence)
@@ -153,11 +209,20 @@ try {
       join(evidence, 'actual.json'),
       JSON.stringify(actual, null, 2) + '\n'
     )
-    assert.deepEqual(actual, profile)
-    assert.deepEqual(await readFile(join(fixture, 'case.test.mjs')), source)
+    assert.equal(actual.exit, profile.error ? 1 : 0)
+    assert.equal(actual.body, !profile.error)
+    assert.equal(actual.coverage, profile.coverage)
+    assert.equal(actual.error, profile.error)
+    assert.deepEqual(
+      actual.cases,
+      profile.error
+        ? []
+        : [{ name: 'repeated coverage scalar', status: 'passed' }]
+    )
+    assert.equal(raw?.success, profile.error ? undefined : true)
     facts.push({
       name: profile.name,
-      completeCasesBodyCoverageErrorExitEqual: true,
+      coverageFlagAssertions: true,
       ownersClosed: true,
     })
     await writeFile(
@@ -173,9 +238,9 @@ try {
 await writeFile(
   join(output, 'verified.json'),
   JSON.stringify(
-    { profiles: facts.length, allEqual: true, allOwnersClosed: true, facts },
+    { profiles: facts.length, allPassed: true, allOwnersClosed: true, facts },
     null,
     2
   ) + '\n'
 )
-console.log(JSON.stringify({ profiles: facts.length, allEqual: true }))
+console.log(JSON.stringify({ profiles: facts.length, allPassed: true }))

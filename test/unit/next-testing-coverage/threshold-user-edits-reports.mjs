@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +7,7 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+import { assertSnapshotReport } from './snapshot-coverage-assertions.mjs'
 const [consumerArg, outputArg, variant] = process.argv.slice(2),
   consumer = resolve(consumerArg),
   output = resolve(outputArg),
@@ -16,18 +16,23 @@ assert(consumerArg && outputArg && variant)
 if (!process.argv.includes('--source'))
   for (const module of ['vitest', 'vite', '@vitest/mocker'])
     assert.throws(() => load.resolve(module))
-const row = JSON.parse(
-  fs.readFileSync(
-    join(
-      dirname(fileURLToPath(import.meta.url)),
-      'fixtures/threshold-user-edits-pristine.json'
-    )
-  )
-).rows.find((row) => row.variant === variant)
-assert(row, 'Missing genuine live configuration edit model')
+const fixtureFiles = join(
+  dirname(fileURLToPath(import.meta.url)),
+  'fixtures/threshold-user-edits'
+)
+const expected = JSON.parse(
+  fs.readFileSync(join(fixtureFiles, 'expected.json'))
+)
+const row = expected.rows.find((row) => row.variant === variant)
+assert(row, 'Missing configuration edit scenario')
+const sourceFiles = Object.fromEntries(
+  ['subject.mjs', 'contract.test.mjs'].map((file) => [
+    file,
+    fs.readFileSync(join(fixtureFiles, file + '.txt'), 'utf8'),
+  ])
+)
 fs.mkdirSync(output, { recursive: true })
 const fixture = fs.mkdtempSync(join(consumer, '.next-threshold-user-edit-')),
-  sha = (value) => createHash('sha256').update(value).digest('hex'),
   config = row.configTemplate
     .replaceAll('<FIXTURE_DIR>', fixture)
     .replaceAll('<OUTPUT_DIR>', output)
@@ -46,10 +51,8 @@ const canonical = (value) =>
         : value
 let joined = false
 try {
-  for (const [file, value] of Object.entries(row.sourceFiles)) {
-    assert.equal(sha(value.source), value.sha256)
-    fs.writeFileSync(join(fixture, file), value.source)
-  }
+  for (const [file, source] of Object.entries(sourceFiles))
+    fs.writeFileSync(join(fixture, file), source)
   fs.writeFileSync(join(fixture, 'package.json'), ' {"type":"module"}\n')
   fs.writeFileSync(join(fixture, 'vitest.config.mjs'), config)
   fs.writeFileSync(
@@ -101,18 +104,37 @@ try {
     fs.readFileSync(join(fixture, 'vitest.config.mjs'))
   )
   assert.equal(owner.status, row.status, owner.stderr)
-  const raw = JSON.parse(fs.readFileSync(join(output, 'cases.json'))),
-    report = canonical(raw)
-  assert.equal(raw.next.version, 1)
-  assert.equal(raw.next.events.filter((e) => e.type === 'case-start').length, 1)
-  delete report.next
-  delete report.startTime
-  for (const file of report.testResults) {
-    delete file.startTime
-    delete file.endTime
-    for (const test of file.assertionResults) delete test.duration
-  }
-  assert.deepEqual(report, row.standardReport)
+  const report = JSON.parse(fs.readFileSync(join(output, 'cases.json')))
+  assert.equal(report.next.version, 1)
+  assert.equal(
+    report.next.events.filter((e) => e.type === 'case-start').length,
+    1
+  )
+  assert.equal(report.success, true)
+  assert.equal(report.numTotalTests, 1)
+  assert.equal(report.numTotalTestSuites, 1)
+  assert.deepEqual(
+    report.testResults.map((file) => file.status),
+    ['passed']
+  )
+  assertSnapshotReport(report, {
+    passed: 1,
+    failed: 0,
+    pending: 0,
+    cases: [[expected.caseName, 'passed', []]],
+    fileErrors: [''],
+    snapshot: expected.snapshot,
+  })
+  const coverageMap = (map) =>
+    canonical(
+      Object.fromEntries(
+        Object.entries(map).map(([name, { meta: _meta, ...coverage }]) => [
+          name,
+          coverage,
+        ])
+      )
+    )
+  assert.deepEqual(coverageMap(report.coverageMap), expected.coverageMap)
   const trace = fs
     .readFileSync(join(output, 'trace.jsonl'), 'utf8')
     .trim()
@@ -133,19 +155,30 @@ try {
         row[key]
       )
     else assert(!fs.existsSync(join(output, name)))
+  const coverage = join(output, 'coverage')
+  assert.deepEqual(fs.readdirSync(coverage).sort(), [
+    'coverage-final.json',
+    'coverage-summary.json',
+    'lcov.info',
+  ])
   assert.deepEqual(
-    fs.readdirSync(join(output, 'coverage')).sort(),
-    Object.keys(row.completeCoverageReports).sort()
+    coverageMap(
+      JSON.parse(fs.readFileSync(join(coverage, 'coverage-final.json')))
+    ),
+    expected.coverageMap
   )
-  for (const [file, expected] of Object.entries(row.completeCoverageReports)) {
-    const bytes = fs.readFileSync(join(output, 'coverage', file), 'utf8')
-    assert.deepEqual(
-      canonical(file.endsWith('.json') ? JSON.parse(bytes) : bytes),
-      expected
-    )
-  }
-  for (const [file, value] of Object.entries(row.sourceFiles))
-    assert.equal(sha(fs.readFileSync(join(fixture, file))), value.sha256)
+  assert.deepEqual(
+    canonical(
+      JSON.parse(fs.readFileSync(join(coverage, 'coverage-summary.json')))
+    ),
+    expected.coverageSummary
+  )
+  assert.equal(
+    fs.readFileSync(join(coverage, 'lcov.info'), 'utf8'),
+    expected.lcov
+  )
+  for (const [file, source] of Object.entries(sourceFiles))
+    assert.equal(fs.readFileSync(join(fixture, file), 'utf8'), source)
   assert.deepEqual(fs.readdirSync(join(fixture, '__snapshots__')), [])
   fs.writeFileSync(
     join(output, 'CHECKS.json'),
@@ -153,7 +186,7 @@ try {
       {
         variant,
         node: process.version,
-        wholeCasesMapsReportsTraceFinalConfigAndActualEditSnapshotsExact: true,
+        caseResultsCoverageFormatterOrderAndConfigEditsExact: true,
         sourceAndSnapshotsHeld: true,
         physicallyJoined: true,
       },

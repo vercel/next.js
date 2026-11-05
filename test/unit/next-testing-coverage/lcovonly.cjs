@@ -77,24 +77,15 @@ for (const mode of ['development', 'production'])
       assert.equal(result.success, true)
       assert.equal(result.numTotalTests, 2)
       assert.equal(result.numPassedTests, 2)
-      assert.deepEqual(
-        result.testResults.flatMap((file) =>
-          file.assertionResults.map(
-            ({ fullName, status, failureMessages }) => ({
-              fullName,
-              status,
-              failureMessages,
-            })
-          )
-        ),
-        JSON.parse(
-          fs.readFileSync(
-            resolveFixturePath(
-              path.join(source, 'pristine-cases-' + mode + '.json')
-            )
-          )
-        )
+      assert.equal(result.numTotalTests, result.numPassedTests)
+      const actualTests = result.testResults.flatMap(
+        (file) => file.assertionResults
       )
+      assert.equal(actualTests.length, result.numPassedTests)
+      for (const test of actualTests) {
+        assert.equal(test.status, 'passed')
+        assert.deepEqual(test.failureMessages, [])
+      }
       const coverage = path.join(fixture, 'coverage')
       assert.deepEqual(
         fs.readdirSync(coverage).sort(),

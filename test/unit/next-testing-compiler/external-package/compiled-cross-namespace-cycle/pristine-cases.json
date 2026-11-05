@@ -1,7 +1,0 @@
-[
-  {
-    "name": "real cycle namespace exists before evaluation and retains temporal bindings",
-    "status": "passed",
-    "failureMessages": []
-  }
-]

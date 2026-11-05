@@ -1,47 +1,131 @@
-import fs from 'node:fs'
 import { describe, test, expect } from 'vitest'
 const trace = []
-const observations = []
-function view(label, collector) {
-  return { label, keys: Object.keys(collector), name: collector.name, mode: collector.mode,
-    taskNames: collector.tasks.map(task => task.name), suiteTaskNames: collector.suite.tasks.map(task => task.name),
-    fileIdentity: collector.file === collector.suite.file }
+function check(value, message) {
+  if (!value) throw new Error(message)
 }
-let outer
-let inner
+function names(collector) {
+  check(
+    collector.file === collector.suite.file,
+    'collector must retain its File'
+  )
+  return collector.tasks.map((task) => task.name)
+}
+let outer, inner
 trace.push('before registration')
-outer = describe('normal outer', { meta: { declared: true } }, async provided => {
-  trace.push(['outer factory', provided === outer.test])
-  await Promise.resolve()
-  provided('outer body', context => {
-    trace.push(['outer body', context.task.suite === outer.suite])
-  })
-  inner = describe('normal inner', nested => {
-    trace.push(['inner factory', nested === inner.test, inner.suite.suite === outer.suite, nested === provided])
-    nested('inner body', context => {
-      trace.push(['inner body', context.task.suite === inner.suite, context.task.file === inner.file])
+outer = describe(
+  'normal outer',
+  { meta: { declared: true } },
+  async (provided) => {
+    check(provided === outer.test, 'factory must receive its own test API')
+    trace.push('outer factory')
+    await Promise.resolve()
+    provided('outer body', (context) => {
+      check(
+        context.task.suite === outer.suite,
+        'outer body must retain its Suite'
+      )
+      trace.push('outer body')
     })
-  })
-  observations.push(view('inner registered', inner))
-})
+    inner = describe('normal inner', (nested) => {
+      check(
+        nested === inner.test && nested !== provided,
+        'nested factory needs its own test API'
+      )
+      check(
+        inner.suite.suite === outer.suite,
+        'nested Suite must retain its parent'
+      )
+      trace.push('inner factory')
+      nested('inner body', (context) => {
+        check(
+          context.task.suite === inner.suite,
+          'inner body must retain its Suite'
+        )
+        check(
+          context.task.file === inner.file,
+          'inner body must retain its File'
+        )
+        trace.push('inner body')
+      })
+    })
+    check(names(inner).length === 0, 'nested factory must remain deferred')
+  }
+)
 trace.push('after registration')
-observations.push(view('outer registered', outer))
-outer.on('beforeAll', suite => { trace.push(['beforeAll', suite === outer.suite]) })
-outer.on('beforeEach', (context, suite) => { trace.push(['beforeEach', context.task.suite === suite, suite.name]) })
-outer.on('afterEach', (context, suite) => { trace.push(['afterEach', context.task.suite === suite, suite.name]) })
-outer.on('afterAll', suite => { trace.push(['afterAll', suite === outer.suite]) })
-let calls = 0
-const manual = describe('manual repeat', provided => {
-  trace.push(['manual factory', ++calls, provided === manual.test])
-  provided('manual child ' + calls, () => { trace.push('manual body ' + calls) })
+check(names(outer).length === 0, 'normal factory must remain deferred')
+outer.on('beforeAll', (suite) => {
+  check(suite === outer.suite, 'beforeAll must receive the registered Suite')
+  trace.push('beforeAll')
 })
-const manualSuite = manual.suite
-const manuallyCollected = await manual.collect(manual.file)
-observations.push({ label: 'manual collect', originalSuite: manuallyCollected === manualSuite, collectorSuite: manual.suite === manualSuite, ...view('manual collect view', manual) })
-const secondCollected = await manual.collect(manual.file)
-observations.push({ label: 'manual repeat', sameSuite: secondCollected === manuallyCollected, ...view('manual repeat view', manual) })
+outer.on('beforeEach', (context, suite) => {
+  check(
+    context.task.suite === suite,
+    'beforeEach must receive the current Suite'
+  )
+  trace.push('beforeEach ' + suite.name)
+})
+outer.on('afterEach', (context, suite) => {
+  check(
+    context.task.suite === suite,
+    'afterEach must receive the current Suite'
+  )
+  trace.push('afterEach ' + suite.name)
+})
+outer.on('afterAll', (suite) => {
+  check(suite === outer.suite, 'afterAll must receive the registered Suite')
+  trace.push('afterAll')
+})
+let calls = 0
+const manual = describe('manual repeat', (provided) => {
+  check(provided === manual.test, 'manual collection must retain its test API')
+  trace.push('manual factory ' + ++calls)
+  provided('manual child ' + calls, () => trace.push('manual body'))
+})
+const originalSuite = manual.suite
+check(
+  (await manual.collect(manual.file)) === originalSuite,
+  'collect must return the registered Suite'
+)
+check(manual.suite === originalSuite, 'collect must preserve Suite identity')
+check(
+  names(manual).join(',') === 'manual child 1',
+  'first collect must publish the first child'
+)
+check(
+  (await manual.collect(manual.file)) === originalSuite,
+  'repeated collect must preserve Suite identity'
+)
+check(
+  names(manual).join(',') === 'manual child 1,manual child 2',
+  'repeated collect must append its child'
+)
 test('records actual normal collector operations', () => {
-  observations.push(view('outer executed', outer), view('inner executed', inner), view('manual executed', manual))
-  fs.writeFileSync(process.env.NEXT_SUITE_RETURN_OBSERVATION, JSON.stringify({ trace, observations, calls }, null, 2) + '\n')
   expect(calls).toBe(3)
+  expect(names(outer)).toEqual(['outer body', 'normal inner'])
+  expect(names(inner)).toEqual(['inner body'])
+  expect(names(manual)).toEqual([
+    'manual child 1',
+    'manual child 2',
+    'manual child 3',
+  ])
+  expect(trace).toEqual([
+    'before registration',
+    'after registration',
+    'manual factory 1',
+    'manual factory 2',
+    'outer factory',
+    'inner factory',
+    'manual factory 3',
+    'beforeAll',
+    'beforeEach normal outer',
+    'outer body',
+    'afterEach normal outer',
+    'beforeEach normal inner',
+    'inner body',
+    'afterEach normal inner',
+    'afterAll',
+    'manual body',
+    'manual body',
+    'manual body',
+  ])
 })

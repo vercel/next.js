@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import {
   existsSync,
   mkdirSync,
@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { createRequire } from 'node:module'
-import { basename, dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   runOwnedNode,
@@ -26,25 +26,12 @@ const consumer = realpathSync(consumerArg),
   output = resolve(outputArg)
 mkdirSync(output)
 const directory = dirname(fileURLToPath(import.meta.url))
-const reference = JSON.parse(
-  readFileSync(join(directory, 'reference.json'), 'utf8')
-)
 const body = readFileSync(join(directory, 'report.test.ts.txt'), 'utf8')
 const reporter = readFileSync(join(directory, 'reporter.mjs.txt'), 'utf8')
-const sha = (value) => createHash('sha256').update(value).digest('hex')
-assert.equal(sha(body), reference.bodySHA256)
 const require = createRequire(join(consumer, 'package.json'))
 const next = require.resolve('next/dist/bin/next')
 const save = (directory, name, value) =>
   writeFileSync(join(directory, name), JSON.stringify(value, null, 2) + '\n')
-save(output, 'inputs.json', {
-  runtime: process.version,
-  executable: realpathSync(process.execPath),
-  next: realpathSync(next),
-  bodySHA256: sha(body),
-  reporterSHA256: sha(reporter),
-  reference: reference.reference,
-})
 const env = { ...process.env, NEXT_TELEMETRY_DISABLED: '1', FORCE_COLOR: '0' }
 for (const name of [
   'CI',
@@ -54,17 +41,67 @@ for (const name of [
   'NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL',
 ])
   delete env[name]
-function jsonModel(report) {
-  const model = structuredClone(report)
-  delete model.next
-  delete model.startTime
-  for (const file of model.testResults) {
-    file.name = basename(file.name)
-    delete file.startTime
-    delete file.endTime
-    for (const test of file.assertionResults) delete test.duration
-  }
-  return model
+const cases = [
+  ['configured reporter passes', 'passed'],
+  ['configured reporter skips', 'skipped'],
+  ['configured reporter todo', 'todo'],
+]
+function assertJsonReport(report) {
+  assert.equal(report.success, true)
+  assert.equal(report.numTotalTests, 3)
+  assert.equal(report.numPassedTests, 1)
+  assert.equal(report.numFailedTests, 0)
+  assert.equal(report.numPendingTests, 1)
+  assert.equal(report.numTodoTests, 1)
+  assert.equal(report.testResults.length, 1)
+  assert.equal(report.testResults[0].status, 'passed')
+  assert.equal(report.testResults[0].message, '')
+  assert.deepEqual(
+    report.testResults[0].assertionResults.map((test) => [
+      test.fullName,
+      test.status,
+    ]),
+    cases
+  )
+  for (const test of report.testResults[0].assertionResults)
+    assert.deepEqual(test.failureMessages, [])
+}
+const plans = {
+  'json-string': {
+    reporters: 'json',
+    flags: [],
+    outputFile: 'out/configured.json',
+    outputs: ['configured.json'],
+  },
+  'json-junit-map': {
+    reporters: ['json', 'junit'],
+    flags: [],
+    outputFile: { json: 'out/configured.json', junit: 'out/configured.xml' },
+    outputs: ['configured.json', 'configured.xml'],
+  },
+  'cli-both-overrides': {
+    reporters: ['json'],
+    flags: ['--reporter=junit', '--outputFile=out/cli.xml'],
+    outputFile: 'out/configured.json',
+    outputs: ['cli.xml'],
+  },
+  'cli-output-only': {
+    reporters: ['json'],
+    flags: ['--outputFile=out/cli.json'],
+    outputFile: 'out/configured.json',
+    outputs: ['cli.json'],
+  },
+  'cli-reporter-only': {
+    reporters: ['json'],
+    flags: ['--reporter=junit'],
+    outputFile: 'out/configured.json',
+    outputs: ['configured.json'],
+  },
+  'configured-custom-file': {
+    reporters: ['./reporter.mjs'],
+    flags: [],
+    outputs: ['custom.jsonl'],
+  },
 }
 const attributes = (text) =>
   Object.fromEntries(
@@ -113,7 +150,7 @@ function junitModel(text) {
 }
 const runs = []
 for (const mode of ['development', 'production']) {
-  for (const [name, plan] of Object.entries(reference.plans)) {
+  for (const [name, plan] of Object.entries(plans)) {
     const evidence = join(output, mode + '-' + name)
     mkdirSync(evidence)
     const fixture = join(
@@ -157,13 +194,6 @@ for (const mode of ['development', 'production']) {
     let joined = false
     try {
       const args = [next, 'test', fixture, '--run', ...plan.flags]
-      save(evidence, 'authored.json', {
-        args,
-        test,
-        bodySHA256: sha(body),
-        reporterSHA256: sha(reporter),
-        bounds: { cli: 120000, test: 5000, hook: 5000 },
-      })
       const result = await runOwnedNode(args, {
         cwd: fixture,
         env: { ...env, NODE_ENV: mode },
@@ -203,29 +233,56 @@ for (const mode of ['development', 'production']) {
       const xml = Object.values(outputs).find((text) =>
         text.trim().startsWith('<?xml')
       )
-      const actual = {
-        outputs: Object.keys(outputs),
-        custom: outputs['custom.jsonl']
-          ? outputs['custom.jsonl']
-              .trim()
-              .split('\n')
-              .map((line) => JSON.parse(line))
-          : null,
-        ...(json ? { json: jsonModel(JSON.parse(json)) } : {}),
-        ...(xml ? { junit: junitModel(xml) } : {}),
+      assert.deepEqual(Object.keys(outputs), plan.outputs)
+      if (json) assertJsonReport(JSON.parse(json))
+      if (xml) {
+        const actual = junitModel(xml)
+        assert.equal(actual.suites.length, 1)
+        assert.deepEqual(actual.suites[0].attributes, {
+          name: 'report.test.ts',
+          tests: '3',
+          failures: '0',
+          errors: '0',
+          skipped: '2',
+        })
+        assert.deepEqual(
+          actual.suites[0].cases.map((test) => [
+            test.attributes.name,
+            test.skipped,
+          ]),
+          cases.map(([name, status]) => [name, status !== 'passed'])
+        )
+        for (const test of actual.suites[0].cases) {
+          assert.equal(test.attributes.classname, 'report.test.ts')
+          assert.equal(test.failure, false)
+          assert.equal(test.error, false)
+        }
+        assert.deepEqual(actual.authorRows, [{ label: 'body', answer: 42 }])
       }
-      save(evidence, 'actual-model.json', actual)
-      assert.deepEqual(
-        actual,
-        plan.model,
-        `${mode}-${name}: configured report or CLI precedence differs from genuine`
-      )
+      if (outputs['custom.jsonl']) {
+        assert.deepEqual(
+          outputs['custom.jsonl']
+            .trim()
+            .split('\n')
+            .map((line) => JSON.parse(line)),
+          [
+            { phase: 'init', root: true },
+            {
+              phase: 'module',
+              state: 'passed',
+              names: cases.map(([name]) => name),
+            },
+            { phase: 'run', count: 1, errors: 0, reason: 'passed' },
+            { phase: 'close' },
+          ]
+        )
+      }
       runs.push({
         mode,
         name,
-        outputFiles: actual.outputs,
+        outputFiles: Object.keys(outputs),
         actualCases: 3,
-        genuineSupportedReportModelMatched: true,
+        configuredReporterBehaviorChecked: true,
         allOwnersJoined: true,
       })
     } finally {
@@ -245,6 +302,4 @@ save(output, 'VERIFIED.json', {
   relativeCustomReporterRootAndCloseMatched: true,
   allOwnersJoined: true,
   allInputsRemovedAfterOwnedReadersJoined: true,
-  rawReportsRetained: true,
-  completeRawJUnitParityClaimed: false,
 })

@@ -25,9 +25,7 @@ const require = createRequire(path.join(consumer, 'package.json')),
   ),
   next = path.dirname(require.resolve('next/package.json')),
   entry = path.join(next, 'experimental/testing/vitest-browser.d.ts'),
-  base = fs.readFileSync(path.join(directory, 'consumer.mts.txt'), 'utf8'),
-  expected = JSON.parse(fs.readFileSync(path.join(directory, 'reference.json')))
-assert.equal(hash(base), expected.typeInput)
+  base = fs.readFileSync(path.join(directory, 'consumer.mts.txt'), 'utf8')
 assert.equal((base.match(/@ts-expect-error/g) || []).length, 3)
 assert(
   JSON.parse(fs.readFileSync(path.join(next, 'package.json'))).files.includes(

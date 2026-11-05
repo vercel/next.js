@@ -1,5 +1,5 @@
+import { assertSnapshotReport } from './snapshot-coverage-assertions.mjs'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   readFileSync,
@@ -36,49 +36,21 @@ const pristine = JSON.parse(
 const row = pristine.rows.find((r) => r.name === profile)
 assert(row, 'Missing genuine passed-file profile')
 const fixture = mkdtempSync(join(consumer, '.next-readonly-passing-public-'))
-const canonical = (value) => {
-  if (typeof value === 'string') return value.replaceAll(fixture, '<fixture>')
-  if (Array.isArray(value)) return value.map(canonical)
-  if (value && typeof value === 'object')
-    return Object.fromEntries(
-      Object.entries(value).map(([key, value]) => [
-        key.replaceAll(fixture, '<fixture>'),
-        canonical(value),
-      ])
-    )
-  return value
-}
-const stableReport = (raw) => {
-  const report = canonical(raw)
-  // This existing Next-only event extension is retained in raw cases.json and
-  // checked separately; every standard reference field remains in this comparison.
-  delete report.next
-  delete report.startTime
-  for (const file of report.testResults) {
-    delete file.startTime
-    delete file.endTime
-    for (const test of file.assertionResults) delete test.duration
-  }
-  return report
-}
+const normalizeCoverageMap = (map) =>
+  Object.fromEntries(
+    Object.entries(map).map(([name, data]) => [
+      name.replaceAll(fixture, '<fixture>'),
+      { ...data, path: data.path.replaceAll(fixture, '<fixture>') },
+    ])
+  )
 const projectError = (error) => ({
   ...(Object.hasOwn(error, 'name') ? { name: error.name } : {}),
   ...(Object.hasOwn(error, 'message') ? { message: error.message } : {}),
 })
-const stableModule = (module) => ({
-  state: module.state,
-  tests: module.tests,
-  errors: module.errors.map(projectError),
-})
 mkdirSync(output, { recursive: true })
 try {
-  for (const [name, file] of Object.entries(row.sourceFiles)) {
-    assert.equal(
-      createHash('sha256').update(file.source).digest('hex'),
-      file.sha256
-    )
-    writeFileSync(join(fixture, name), file.source)
-  }
+  for (const [name, bytes] of Object.entries(row.sourceFiles))
+    writeFileSync(join(fixture, name), bytes)
   writeFileSync(join(fixture, 'package.json'), '{"type":"module"}\n')
   writeFileSync(join(fixture, 'vitest.config.mjs'), row.config)
   writeFileSync(
@@ -92,7 +64,12 @@ try {
   writeFileSync(
     reporter,
     `import fs from 'node:fs'
-const rows=[];const error=e=>({name:e.name,message:e.message,stack:e.stack});const module=m=>({state:m.state(),errors:m.errors().map(error),tests:Array.from(m.children.allTests()).map(t=>({name:t.name,state:t.result().state,errors:(t.result().errors||[]).map(error)}))});export default class Reporter{onTestModuleEnd(m){rows.push({event:'module-end',...module(m)})}onTestRunEnd(modules,errors,reason){rows.push({event:'run-end',reason,errors:errors.map(error),modules:modules.map(module)});fs.writeFileSync(${JSON.stringify(join(output, 'RAW-MODULES.json'))},JSON.stringify(rows,null,2))}}
+const observed={lifecycle:[],rootErrors:[],runErrors:[]}
+const error=e=>({...('name' in e?{name:e.name}:{}),...('message' in e?{message:e.message}:{})})
+export default class Reporter {
+ onTestModuleEnd(module){observed.lifecycle.push(['module-end',module.state()]);observed.rootErrors=module.errors().map(error)}
+ onTestRunEnd(_modules,errors,reason){observed.lifecycle.push(['run-end',reason]);observed.runErrors=errors.map(error);fs.writeFileSync(${JSON.stringify(join(output, 'LIFECYCLE.json'))},JSON.stringify(observed))}
+}
 `
   )
   const env = {
@@ -160,36 +137,31 @@ const rows=[];const error=e=>({name:e.name,message:e.message,stack:e.stack});con
       file.assertionResults.every((test) => test.status === 'skipped')
     )
   )
+  assert.deepEqual(roots[0].errors.map(projectError), row.rootErrors)
+  assertSnapshotReport(actual, row.expected)
+  assert.equal(actual.numTotalTests, row.expected.cases.length)
+  assert.equal(actual.numTodoTests, row.expected.todo)
+  assert.equal(actual.success, row.exitCode === 0)
   assert.deepEqual(
-    roots[0].errors.map(projectError),
-    row.moduleTrace.find((event) => event.event === 'module-end').errors
+    actual.testResults.map((file) => file.status),
+    row.expected.fileStates
   )
-  assert.deepEqual(stableReport(actual), row.json)
-  const rawModules = JSON.parse(readFileSync(join(output, 'RAW-MODULES.json')))
-  const modules = rawModules.map((r) =>
-    r.event === 'module-end'
-      ? { event: r.event, ...stableModule(r) }
-      : {
-          event: r.event,
-          reason: r.reason,
-          errors: r.errors.map(projectError),
-          modules: r.modules.map(stableModule),
-        }
-  )
-  assert.deepEqual(modules, row.moduleTrace)
+  assert.deepEqual(normalizeCoverageMap(actual.coverageMap), row.coverageMap)
+  const lifecycle = JSON.parse(readFileSync(join(output, 'LIFECYCLE.json')))
+  assert.deepEqual(lifecycle.lifecycle, row.lifecycle)
+  assert.deepEqual(lifecycle.rootErrors, row.rootErrors)
+  assert.deepEqual(lifecycle.runErrors, [])
   assert.deepEqual(snapshots, row.snapshots)
   if (row.reportOnFailure) {
-    assert.deepEqual(
-      readdirSync(join(output, 'coverage')).sort(),
-      Object.keys(row.coverageFiles).sort()
+    assert.deepEqual(readdirSync(join(output, 'coverage')).sort(), [
+      'coverage-final.json',
+      'coverage-summary.json',
+      'lcov.info',
+    ])
+    const coverage = JSON.parse(
+      readFileSync(join(output, 'coverage/coverage-final.json'))
     )
-    for (const [name, expected] of Object.entries(row.coverageFiles)) {
-      const file = readFileSync(join(output, 'coverage', name), 'utf8')
-      assert.deepEqual(
-        name.endsWith('.json') ? canonical(JSON.parse(file)) : canonical(file),
-        expected
-      )
-    }
+    assert.deepEqual(normalizeCoverageMap(coverage), row.coverageMap)
   } else assert.equal(existsSync(join(output, 'coverage')), false)
   writeFileSync(
     join(output, 'CHECKS.json'),
@@ -197,16 +169,12 @@ const rows=[];const error=e=>({name:e.name,message:e.message,stack:e.stack});con
       {
         profile,
         actualBeforeAllArray: true,
-        actualOrderedModuleErrors: true,
         actualOrderedRootErrors: true,
-        nextExtensionRetainedSeparately: true,
-        completeCaseReportAndMap: true,
-        completeCoverageFiles: true,
+        lifecycleOrder: true,
+        caseOutcomesAndSnapshotSummary: true,
+        exactCoverageMaps: true,
         reportOnFailure: row.reportOnFailure,
         snapshotBytesUnchanged: true,
-        rawErrorStacksRetained: true,
-        rawFrameEqualityQualified: false,
-        publicTaskAccessorQualified: false,
       },
       null,
       2

@@ -1,10 +1,14 @@
 import { test, expect } from 'vitest'
-const row = (...event) => console.log('RETRY_PUBLICATION_ROW ' + JSON.stringify({ actor: 'worker', contract: 'live-count', event }))
-let reads = 0, attempts = 0
-const retry = { get count() { const value = ++reads === 1 ? 0 : 2; row('count', reads, value); return value } }
+
+let reads = 0
+let attempts = 0
+const retry = {
+  get count() {
+    return ++reads === 1 ? 0 : 2
+  },
+}
+
 test('worker live retry count', { retry }, () => {
-  row('body', reads, ++attempts)
   expect(reads).toBe(2)
-  expect(attempts).toBe(3)
+  expect(++attempts).toBe(3)
 })
-row('registered', reads)

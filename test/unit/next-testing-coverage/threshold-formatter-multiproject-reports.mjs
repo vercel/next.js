@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   runOwnedNode,
@@ -20,34 +19,21 @@ const row = JSON.parse(
   fs.readFileSync(
     join(
       dirname(fileURLToPath(import.meta.url)),
-      'fixtures/threshold-formatter-multiproject-pristine.json'
+      'fixtures/threshold-formatter-multiproject-cases.json'
     )
   )
 ).rows.find((row) => row.name === name)
-assert(row, 'Missing complete genuine root formatter model')
+assert(row, 'Missing root formatter scenario')
 fs.mkdirSync(output, { recursive: true })
 const fixture = fs.mkdtempSync(
     join(consumer, '.next-root-formatter-projects-')
   ),
-  sha = (value) => createHash('sha256').update(value).digest('hex'),
   config = row.configTemplate.replaceAll('<OUTPUT_DIR>', output)
 const canonical = (value) =>
-  typeof value === 'string'
-    ? value.replaceAll(fixture, '<fixture>').replaceAll(output, '<output>')
-    : Array.isArray(value)
-      ? value.map(canonical)
-      : value && typeof value === 'object'
-        ? Object.fromEntries(
-            Object.entries(value).map(([key, value]) => [
-              key.replaceAll(fixture, '<fixture>'),
-              canonical(value),
-            ])
-          )
-        : value
+  value.replaceAll(fixture, '<fixture>').replaceAll(output, '<output>')
 let joined = false
 try {
   for (const [file, value] of Object.entries(row.sourceFiles)) {
-    assert.equal(sha(value.source), value.sha256)
     fs.writeFileSync(join(fixture, file), value.source)
   }
   fs.writeFileSync(join(fixture, 'package.json'), ' {"type":"module"}\n')
@@ -101,21 +87,26 @@ try {
     fs.readFileSync(join(fixture, 'vitest.config.mjs'))
   )
   assert.equal(owner.status, row.status, owner.stderr)
-  const raw = JSON.parse(fs.readFileSync(join(output, 'cases.json'))),
-    report = canonical(raw)
+  const raw = JSON.parse(fs.readFileSync(join(output, 'cases.json')))
   assert.equal(raw.next.version, 1)
   assert.equal(
     raw.next.events.filter((e) => e.type === 'case-start').length,
     row.passed
   )
-  delete report.next
-  delete report.startTime
-  for (const file of report.testResults) {
-    delete file.startTime
-    delete file.endTime
-    for (const test of file.assertionResults) delete test.duration
-  }
-  assert.deepEqual(report, row.standardReport)
+  assert.equal(raw.success, true)
+  assert.equal(raw.numTotalTests, row.passed)
+  assert.equal(raw.numPassedTests, row.passed)
+  assert.equal(raw.numFailedTests, 0)
+  assert.equal(raw.numPendingTests, 0)
+  assert.deepEqual(
+    raw.testResults.flatMap((file) =>
+      file.assertionResults.map((test) => [test.fullName, test.status])
+    ),
+    Array.from({ length: row.passed }, () => [
+      'each inherited project owns its case',
+      'passed',
+    ])
+  )
   const trace = fs
     .readFileSync(join(output, 'trace.jsonl'), 'utf8')
     .trim()
@@ -130,15 +121,44 @@ try {
     fs.readdirSync(join(output, 'coverage')).sort(),
     row.coverageFiles
   )
-  for (const [file, expected] of Object.entries(row.completeCoverageReports)) {
-    const bytes = fs.readFileSync(join(output, 'coverage', file), 'utf8')
-    assert.deepEqual(
-      canonical(file.endsWith('.json') ? JSON.parse(bytes) : bytes),
-      expected
-    )
+  const map = JSON.parse(
+    fs.readFileSync(join(output, 'coverage/coverage-final.json'))
+  )
+  const expectedFiles = [
+    'subject.mjs',
+    ...('unimported.mjs' in row.sourceFiles ? ['unimported.mjs'] : []),
+  ]
+  assert.deepEqual(
+    Object.keys(map)
+      .map((file) => basename(file))
+      .sort(),
+    [...expectedFiles].sort()
+  )
+  for (const file of expectedFiles) {
+    const coverage = Object.entries(map).find(
+      ([name]) => basename(name) === file
+    )[1]
+    const hits = file === 'subject.mjs' ? row.projects : 0
+    assert.deepEqual(Object.values(coverage.f), [hits, 0])
+    assert.deepEqual(Object.values(coverage.s), [hits, hits, 0, 0])
+    assert.deepEqual(Object.values(coverage.b), [[hits, 0]])
   }
+  const totals = JSON.parse(
+    fs.readFileSync(join(output, 'coverage/coverage-summary.json'))
+  ).total
+  assert.equal(totals.lines.total, expectedFiles.length * 3)
+  assert.equal(totals.lines.covered, 1)
+  assert.equal(totals.functions.total, expectedFiles.length * 2)
+  assert.equal(totals.functions.covered, 1)
+  assert.equal(totals.statements.total, expectedFiles.length * 4)
+  assert.equal(totals.statements.covered, 2)
+  assert.equal(totals.branches.total, expectedFiles.length * 2)
+  assert.equal(totals.branches.covered, 1)
+  const lcov = fs.readFileSync(join(output, 'coverage/lcov.info'), 'utf8')
+  assert(lcov.includes(`FNDA:${row.projects},choose`))
+  assert(lcov.includes('FNDA:0,unused'))
   for (const [file, value] of Object.entries(row.sourceFiles))
-    assert.equal(sha(fs.readFileSync(join(fixture, file))), value.sha256)
+    assert.equal(fs.readFileSync(join(fixture, file), 'utf8'), value.source)
   assert.deepEqual(fs.readdirSync(join(fixture, '__snapshots__')), [])
   fs.writeFileSync(
     join(output, 'CHECKS.json'),
@@ -150,7 +170,7 @@ try {
         passed: row.passed,
         orderedActualCallbacks: trace.length,
         undefinedReceiver: trace.every((row) => row.receiver),
-        completeCasesJSONCoverageMapReportsAndFinalConfigBytesExact: true,
+        formatterInputsConfigAndMergedCountsEqual: true,
         sourceAndSnapshotsHeld: true,
         physicallyJoined: true,
       },

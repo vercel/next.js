@@ -133,7 +133,7 @@ it('matches configured external, inline and raw snapshots in public development 
       ],
       { timeout: 1500000, maxBuffer: 1024 * 1024 }
     )
-    expect(stdout).toContain('snapshot-format: all profiles matched')
+    expect(stdout).toContain('snapshot-format: all profiles passed')
     complete = true
   } finally {
     if (complete) await rm(temporary, { recursive: true, force: true })
@@ -266,7 +266,10 @@ it.each([
 ])(
   'keeps root snapshot formatting after inline child admission for %s',
   (_name, value) => {
-    const snapshotFormat: SnapshotFormat = { indent: 4, compareKeys: undefined }
+    const snapshotFormat: SnapshotFormat = {
+      indent: 4,
+      compareKeys: undefined,
+    }
     for (const extendsRoot of [true, false]) {
       const config = normalizeTestConfig({
         test: {

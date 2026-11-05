@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { createHash } from 'node:crypto'
 import {
   readFileSync,
   writeFileSync,
@@ -29,55 +28,37 @@ const consumer = resolve(consumerArg),
 if (!process.argv.includes('--source'))
   for (const name of ['vitest', 'vite'])
     assert.throws(() => require.resolve(name))
-const pristine = JSON.parse(
-    readFileSync(join(here, 'fixtures/threshold-formatter/pristine.json'))
+const scenarios = JSON.parse(
+    readFileSync(join(here, 'fixtures/threshold-formatter/cases.json'))
   ),
-  hash = (value) => createHash('sha256').update(value).digest('hex'),
   results = []
 const selectedProfiles = process.argv
   .find((argument) => argument.startsWith('--profiles='))
   ?.slice('--profiles='.length)
   .split(',')
-const portable = (data) =>
-  data &&
-  Object.fromEntries(
-    Object.entries(data).map(([file, row]) => [
-      file === 'total' ? file : basename(file),
-      { ...row, ...('path' in row ? { path: basename(file) } : {}) },
-    ])
-  )
-const keys = [
-  'ancestorTitles',
-  'fullName',
-  'status',
-  'title',
-  'failureMessages',
-  'meta',
-  'tags',
-  'benchmarks',
-]
-const cases = (result) =>
-  result.testResults
-    .map((file) => ({
-      file: basename(file.name),
-      cases: file.assertionResults.map((test) =>
-        Object.fromEntries(
-          keys.filter((key) => key in test).map((key) => [key, test[key]])
-        )
-      ),
-    }))
-    .sort((a, b) => a.file.localeCompare(b.file))
+const caseOutcomes = (report) =>
+  report.testResults
+    .flatMap((file) =>
+      file.assertionResults.map((test) => [
+        basename(file.name),
+        test.fullName,
+        test.status,
+      ])
+    )
+    .sort(
+      ([file, name], [otherFile, otherName]) =>
+        file.localeCompare(otherFile) || name.localeCompare(otherName)
+    )
 mkdirSync(output, { recursive: true })
 for (const row of (mode === 'production'
-  ? pristine.productionRows
-  : pristine.rows
+  ? scenarios.productionRows
+  : scenarios.rows
 ).filter((row) => !selectedProfiles || selectedProfiles.includes(row.name))) {
   const destination = join(output, row.name),
     fixture = mkdtempSync(join(consumer, '.next-threshold-formatter-'))
   mkdirSync(destination)
   try {
-    for (const [name, source] of Object.entries(pristine.sourceFiles)) {
-      assert.equal(hash(source.source), source.sha256)
+    for (const [name, source] of Object.entries(scenarios.sourceFiles)) {
       writeFileSync(join(fixture, name), source.source)
     }
     writeFileSync(
@@ -90,7 +71,7 @@ for (const row of (mode === 'production'
       configFile = join(fixture, 'vitest.config.mjs'),
       before = row.before.replaceAll('<TRACE_DIR>', output)
     writeFileSync(configFile, before)
-    // These are the exact setup callbacks authored by the pristine measurement.
+    // The setup and teardown callbacks share the formatter lifetime.
     writeFileSync(
       join(fixture, 'setup.mjs'),
       `import { appendFileSync } from 'node:fs'\nconst emit = value => appendFileSync(${JSON.stringify(trace)}, JSON.stringify(value)+'\\n')\nexport default function setup() { emit({kind:'setup'}); return () => { emit({kind:'teardown'}); ${row.profile.teardownThrows ? "throw new Error('actual formatter setup teardown failure')" : ''} } }\n`
@@ -141,10 +122,7 @@ for (const row of (mode === 'production'
     )
     assert(started.length > 0)
     assert(started.every((event) => event.entry.profile.mode === mode))
-    assert.deepEqual(
-      cases(report),
-      [...row.cases].sort((a, b) => a.file.localeCompare(b.file))
-    )
+    assert.deepEqual(caseOutcomes(report), row.cases)
     for (const key of [
       'success',
       'numTotalTests',
@@ -164,26 +142,29 @@ for (const row of (mode === 'production'
       : []
     assert.deepEqual(actualTrace, row.trace)
     const directory = join(fixture, 'coverage')
-    for (const [name, expected] of [
-      ['coverage-final.json', row.coverage],
-      ['coverage-summary.json', row.summary],
-    ]) {
-      const actual = existsSync(join(directory, name))
-        ? portable(JSON.parse(readFileSync(join(directory, name))))
-        : null
-      writeFileSync(
-        join(destination, name),
-        JSON.stringify(actual, null, 2) + '\n'
+    for (const name of [
+      'coverage-final.json',
+      'coverage-summary.json',
+      'lcov.info',
+    ])
+      assert(
+        existsSync(join(directory, name)),
+        `Missing coverage report: ${name}`
       )
-      assert.deepEqual(actual, expected)
-    }
-    assert.equal(readFileSync(join(directory, 'lcov.info'), 'utf8'), row.lcov)
-    const lines = owner.stdout.split('\n'),
-      start = lines.findIndex(
-        (line) => line.startsWith('---') && line.includes('|')
-      ),
-      text = start < 0 ? null : lines.slice(start).join('\n').trim()
-    assert.equal(text, row.coverageText)
+    const coverage = JSON.parse(
+      readFileSync(join(directory, 'coverage-final.json'))
+    )
+    assert.deepEqual(
+      Object.keys(coverage)
+        .map((file) => basename(file))
+        .sort(),
+      row.coveredFiles
+    )
+    const summary = JSON.parse(
+      readFileSync(join(directory, 'coverage-summary.json'))
+    ).total
+    for (const [metric, percentage] of Object.entries(row.coveragePercentages))
+      assert.equal(summary[metric].pct, percentage)
     if (row.profile.formatterThrows)
       assert(owner.stderr.includes('actual threshold formatter failure'))
     if (row.profile.teardownThrows)
@@ -191,8 +172,8 @@ for (const row of (mode === 'production'
     const result = {
       name: row.name,
       status: 'passed',
-      completeCaseRowsEqual: true,
-      completeReportsEqual: true,
+      caseOutcomesEqual: true,
+      coverageMetricsAndPublicationEqual: true,
       currentConfigBytesEqual: true,
       actualFormatterSetupTeardownTraceEqual: true,
       exitCode: owner.status,

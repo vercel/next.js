@@ -1,42 +1,29 @@
 {
-  "reference": "Official unpatched Vitest/coverage-istanbul5.0.4",
-  "scope": "Plain serial beforeAll throws actual dense Array, sync/async Errors, repeated same Error,1+undefined. Complete standard JSON/maps/summary/LCOV with only fixture paths/clocks excluded; root/module error optional name/message presence exact, raw stacks/task accessor unqualified.",
   "rows": [
     {
       "name": "istanbul-beforeall-array-async-report-false",
       "exitCode": 1,
       "reportOnFailure": false,
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(async()=>{await Promise.resolve();choose(false);throw failures})\n",
-          "sha256": "d5e1c397bc629c0f01b6fd3a911e2cfe525bcd5d42b28828a7f47e98b232e6a1"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n",
-          "sha256": "0ca876c04d27f6da4f7444b69b9c3ad255ddc436d4a153fe3c359a2f327444b5"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(async()=>{await Promise.resolve();choose(false);throw failures})\n",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
       "snapshots": {},
       "flags": [],
-      "json": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 2,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 2,
-        "numTodoTests": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 2,
+        "todo": 0,
+        "cases": [
+          ["first owned body", "skipped", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": ["actual beforeAll Array first"],
+        "fileStates": ["failed"],
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -52,42 +39,118 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
+        }
+      },
+      "rootErrors": [
+        {
+          "name": "Error",
+          "message": "actual beforeAll Array first"
         },
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "first owned body",
-                "status": "skipped",
-                "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+        {
+          "name": "Error",
+          "message": "actual beforeAll Array second"
+        }
+      ],
+      "lifecycle": [
+        ["module-end", "failed"],
+        ["run-end", "failed"]
+      ],
+      "coverageMap": {
+        "<fixture>/subject.mjs": {
+          "path": "<fixture>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
               },
-              {
-                "ancestorTitles": [],
-                "fullName": "second owned body",
-                "status": "skipped",
-                "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+              "end": {
+                "line": 2,
+                "column": null
               }
-            ],
-            "status": "failed",
-            "message": "actual beforeAll Array first",
-            "name": "<fixture>/suite.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 13
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 5,
+                "column": 27
+              },
+              "end": {
+                "line": 5,
+                "column": 35
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 5,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
                 "start": {
                   "line": 2,
                   "column": 2
@@ -97,88 +160,9 @@
                   "column": null
                 }
               },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
+              "type": "if",
+              "locations": [
+                {
                   "start": {
                     "line": 2,
                     "column": 2
@@ -188,138 +172,53 @@
                     "column": null
                   }
                 },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
-      },
-      "moduleTrace": [
-        {
-          "event": "module-end",
-          "state": "failed",
-          "tests": [
-            {
-              "name": "first owned body",
-              "state": "skipped",
-              "errors": []
-            },
-            {
-              "name": "second owned body",
-              "state": "skipped",
-              "errors": []
-            }
-          ],
-          "errors": [
-            {
-              "name": "Error",
-              "message": "actual beforeAll Array first"
-            },
-            {
-              "name": "Error",
-              "message": "actual beforeAll Array second"
-            }
-          ]
-        },
-        {
-          "event": "run-end",
-          "reason": "failed",
-          "errors": [],
-          "modules": [
-            {
-              "state": "failed",
-              "tests": [
                 {
-                  "name": "first owned body",
-                  "state": "skipped",
-                  "errors": []
-                },
-                {
-                  "name": "second owned body",
-                  "state": "skipped",
-                  "errors": []
-                }
-              ],
-              "errors": [
-                {
-                  "name": "Error",
-                  "message": "actual beforeAll Array first"
-                },
-                {
-                  "name": "Error",
-                  "message": "actual beforeAll Array second"
+                  "start": {},
+                  "end": {}
                 }
               ]
             }
-          ]
+          },
+          "s": {
+            "0": 1,
+            "1": 0,
+            "2": 1,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 1]
+          }
         }
-      ],
-      "coverageFiles": {}
+      }
     },
     {
       "name": "istanbul-beforeall-array-async-report-true",
       "exitCode": 1,
       "reportOnFailure": true,
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(async()=>{await Promise.resolve();choose(false);throw failures})\n",
-          "sha256": "d5e1c397bc629c0f01b6fd3a911e2cfe525bcd5d42b28828a7f47e98b232e6a1"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n",
-          "sha256": "0ca876c04d27f6da4f7444b69b9c3ad255ddc436d4a153fe3c359a2f327444b5"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(async()=>{await Promise.resolve();choose(false);throw failures})\n",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "snapshots": {},
       "flags": [],
-      "json": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 2,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 2,
-        "numTodoTests": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 2,
+        "todo": 0,
+        "cases": [
+          ["first owned body", "skipped", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": ["actual beforeAll Array first"],
+        "fileStates": ["failed"],
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -335,42 +234,118 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
+        }
+      },
+      "rootErrors": [
+        {
+          "name": "Error",
+          "message": "actual beforeAll Array first"
         },
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "first owned body",
-                "status": "skipped",
-                "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+        {
+          "name": "Error",
+          "message": "actual beforeAll Array second"
+        }
+      ],
+      "lifecycle": [
+        ["module-end", "failed"],
+        ["run-end", "failed"]
+      ],
+      "coverageMap": {
+        "<fixture>/subject.mjs": {
+          "path": "<fixture>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
               },
-              {
-                "ancestorTitles": [],
-                "fullName": "second owned body",
-                "status": "skipped",
-                "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+              "end": {
+                "line": 2,
+                "column": null
               }
-            ],
-            "status": "failed",
-            "message": "actual beforeAll Array first",
-            "name": "<fixture>/suite.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 13
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 5,
+                "column": 27
+              },
+              "end": {
+                "line": 5,
+                "column": 35
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 5,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
                 "start": {
                   "line": 2,
                   "column": 2
@@ -380,88 +355,9 @@
                   "column": null
                 }
               },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
+              "type": "if",
+              "locations": [
+                {
                   "start": {
                     "line": 2,
                     "column": 2
@@ -471,302 +367,27 @@
                     "column": null
                   }
                 },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
-      },
-      "moduleTrace": [
-        {
-          "event": "module-end",
-          "state": "failed",
-          "tests": [
-            {
-              "name": "first owned body",
-              "state": "skipped",
-              "errors": []
-            },
-            {
-              "name": "second owned body",
-              "state": "skipped",
-              "errors": []
-            }
-          ],
-          "errors": [
-            {
-              "name": "Error",
-              "message": "actual beforeAll Array first"
-            },
-            {
-              "name": "Error",
-              "message": "actual beforeAll Array second"
-            }
-          ]
-        },
-        {
-          "event": "run-end",
-          "reason": "failed",
-          "errors": [],
-          "modules": [
-            {
-              "state": "failed",
-              "tests": [
                 {
-                  "name": "first owned body",
-                  "state": "skipped",
-                  "errors": []
-                },
-                {
-                  "name": "second owned body",
-                  "state": "skipped",
-                  "errors": []
-                }
-              ],
-              "errors": [
-                {
-                  "name": "Error",
-                  "message": "actual beforeAll Array first"
-                },
-                {
-                  "name": "Error",
-                  "message": "actual beforeAll Array second"
+                  "start": {},
+                  "end": {}
                 }
               ]
             }
-          ]
-        }
-      ],
-      "coverageFiles": {
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        },
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
           },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            }
+          "s": {
+            "0": 1,
+            "1": 0,
+            "2": 1,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 1]
           }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n"
+        }
       }
     },
     {
@@ -774,36 +395,25 @@
       "exitCode": 1,
       "reportOnFailure": true,
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=first\nconst failures=[first,second]\nbeforeAll(()=>{choose(false);throw failures})\n",
-          "sha256": "80ffcdd199a933b7a81c900f0a1870cab56dba2f7caa535d862eb44d4895dac6"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n",
-          "sha256": "0ca876c04d27f6da4f7444b69b9c3ad255ddc436d4a153fe3c359a2f327444b5"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=first\nconst failures=[first,second]\nbeforeAll(()=>{choose(false);throw failures})\n",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "snapshots": {},
       "flags": [],
-      "json": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 2,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 2,
-        "numTodoTests": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 2,
+        "todo": 0,
+        "cases": [
+          ["first owned body", "skipped", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": ["actual beforeAll Array first"],
+        "fileStates": ["failed"],
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -819,42 +429,118 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
+        }
+      },
+      "rootErrors": [
+        {
+          "name": "Error",
+          "message": "actual beforeAll Array first"
         },
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "first owned body",
-                "status": "skipped",
-                "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+        {
+          "name": "Error",
+          "message": "actual beforeAll Array first"
+        }
+      ],
+      "lifecycle": [
+        ["module-end", "failed"],
+        ["run-end", "failed"]
+      ],
+      "coverageMap": {
+        "<fixture>/subject.mjs": {
+          "path": "<fixture>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
               },
-              {
-                "ancestorTitles": [],
-                "fullName": "second owned body",
-                "status": "skipped",
-                "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+              "end": {
+                "line": 2,
+                "column": null
               }
-            ],
-            "status": "failed",
-            "message": "actual beforeAll Array first",
-            "name": "<fixture>/suite.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 13
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 5,
+                "column": 27
+              },
+              "end": {
+                "line": 5,
+                "column": 35
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 5,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
                 "start": {
                   "line": 2,
                   "column": 2
@@ -864,88 +550,9 @@
                   "column": null
                 }
               },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
+              "type": "if",
+              "locations": [
+                {
                   "start": {
                     "line": 2,
                     "column": 2
@@ -955,302 +562,27 @@
                     "column": null
                   }
                 },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
-      },
-      "moduleTrace": [
-        {
-          "event": "module-end",
-          "state": "failed",
-          "tests": [
-            {
-              "name": "first owned body",
-              "state": "skipped",
-              "errors": []
-            },
-            {
-              "name": "second owned body",
-              "state": "skipped",
-              "errors": []
-            }
-          ],
-          "errors": [
-            {
-              "name": "Error",
-              "message": "actual beforeAll Array first"
-            },
-            {
-              "name": "Error",
-              "message": "actual beforeAll Array first"
-            }
-          ]
-        },
-        {
-          "event": "run-end",
-          "reason": "failed",
-          "errors": [],
-          "modules": [
-            {
-              "state": "failed",
-              "tests": [
                 {
-                  "name": "first owned body",
-                  "state": "skipped",
-                  "errors": []
-                },
-                {
-                  "name": "second owned body",
-                  "state": "skipped",
-                  "errors": []
-                }
-              ],
-              "errors": [
-                {
-                  "name": "Error",
-                  "message": "actual beforeAll Array first"
-                },
-                {
-                  "name": "Error",
-                  "message": "actual beforeAll Array first"
+                  "start": {},
+                  "end": {}
                 }
               ]
             }
-          ]
-        }
-      ],
-      "coverageFiles": {
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        },
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
           },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            }
+          "s": {
+            "0": 1,
+            "1": 0,
+            "2": 1,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 1]
           }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n"
+        }
       }
     },
     {
@@ -1258,36 +590,25 @@
       "exitCode": 1,
       "reportOnFailure": false,
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(()=>{choose(false);throw failures})\n",
-          "sha256": "5dae1dbac1e33a60a8850bc7d71a892466f5c686118151f683bce98cf1ff8afd"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n",
-          "sha256": "0ca876c04d27f6da4f7444b69b9c3ad255ddc436d4a153fe3c359a2f327444b5"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(()=>{choose(false);throw failures})\n",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
       "snapshots": {},
       "flags": [],
-      "json": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 2,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 2,
-        "numTodoTests": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 2,
+        "todo": 0,
+        "cases": [
+          ["first owned body", "skipped", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": ["actual beforeAll Array first"],
+        "fileStates": ["failed"],
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -1303,42 +624,118 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
+        }
+      },
+      "rootErrors": [
+        {
+          "name": "Error",
+          "message": "actual beforeAll Array first"
         },
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "first owned body",
-                "status": "skipped",
-                "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+        {
+          "name": "Error",
+          "message": "actual beforeAll Array second"
+        }
+      ],
+      "lifecycle": [
+        ["module-end", "failed"],
+        ["run-end", "failed"]
+      ],
+      "coverageMap": {
+        "<fixture>/subject.mjs": {
+          "path": "<fixture>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
               },
-              {
-                "ancestorTitles": [],
-                "fullName": "second owned body",
-                "status": "skipped",
-                "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+              "end": {
+                "line": 2,
+                "column": null
               }
-            ],
-            "status": "failed",
-            "message": "actual beforeAll Array first",
-            "name": "<fixture>/suite.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 13
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 5,
+                "column": 27
+              },
+              "end": {
+                "line": 5,
+                "column": 35
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 5,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
                 "start": {
                   "line": 2,
                   "column": 2
@@ -1348,88 +745,9 @@
                   "column": null
                 }
               },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
+              "type": "if",
+              "locations": [
+                {
                   "start": {
                     "line": 2,
                     "column": 2
@@ -1439,138 +757,53 @@
                     "column": null
                   }
                 },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
-      },
-      "moduleTrace": [
-        {
-          "event": "module-end",
-          "state": "failed",
-          "tests": [
-            {
-              "name": "first owned body",
-              "state": "skipped",
-              "errors": []
-            },
-            {
-              "name": "second owned body",
-              "state": "skipped",
-              "errors": []
-            }
-          ],
-          "errors": [
-            {
-              "name": "Error",
-              "message": "actual beforeAll Array first"
-            },
-            {
-              "name": "Error",
-              "message": "actual beforeAll Array second"
-            }
-          ]
-        },
-        {
-          "event": "run-end",
-          "reason": "failed",
-          "errors": [],
-          "modules": [
-            {
-              "state": "failed",
-              "tests": [
                 {
-                  "name": "first owned body",
-                  "state": "skipped",
-                  "errors": []
-                },
-                {
-                  "name": "second owned body",
-                  "state": "skipped",
-                  "errors": []
-                }
-              ],
-              "errors": [
-                {
-                  "name": "Error",
-                  "message": "actual beforeAll Array first"
-                },
-                {
-                  "name": "Error",
-                  "message": "actual beforeAll Array second"
+                  "start": {},
+                  "end": {}
                 }
               ]
             }
-          ]
+          },
+          "s": {
+            "0": 1,
+            "1": 0,
+            "2": 1,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 1]
+          }
         }
-      ],
-      "coverageFiles": {}
+      }
     },
     {
       "name": "istanbul-beforeall-array-sync-report-true",
       "exitCode": 1,
       "reportOnFailure": true,
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(()=>{choose(false);throw failures})\n",
-          "sha256": "5dae1dbac1e33a60a8850bc7d71a892466f5c686118151f683bce98cf1ff8afd"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n",
-          "sha256": "0ca876c04d27f6da4f7444b69b9c3ad255ddc436d4a153fe3c359a2f327444b5"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(()=>{choose(false);throw failures})\n",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "snapshots": {},
       "flags": [],
-      "json": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 2,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 2,
-        "numTodoTests": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 2,
+        "todo": 0,
+        "cases": [
+          ["first owned body", "skipped", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": ["actual beforeAll Array first"],
+        "fileStates": ["failed"],
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -1586,42 +819,118 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
+        }
+      },
+      "rootErrors": [
+        {
+          "name": "Error",
+          "message": "actual beforeAll Array first"
         },
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "first owned body",
-                "status": "skipped",
-                "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+        {
+          "name": "Error",
+          "message": "actual beforeAll Array second"
+        }
+      ],
+      "lifecycle": [
+        ["module-end", "failed"],
+        ["run-end", "failed"]
+      ],
+      "coverageMap": {
+        "<fixture>/subject.mjs": {
+          "path": "<fixture>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
               },
-              {
-                "ancestorTitles": [],
-                "fullName": "second owned body",
-                "status": "skipped",
-                "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+              "end": {
+                "line": 2,
+                "column": null
               }
-            ],
-            "status": "failed",
-            "message": "actual beforeAll Array first",
-            "name": "<fixture>/suite.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 13
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 5,
+                "column": 27
+              },
+              "end": {
+                "line": 5,
+                "column": 35
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 5,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
                 "start": {
                   "line": 2,
                   "column": 2
@@ -1631,88 +940,9 @@
                   "column": null
                 }
               },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
+              "type": "if",
+              "locations": [
+                {
                   "start": {
                     "line": 2,
                     "column": 2
@@ -1722,302 +952,27 @@
                     "column": null
                   }
                 },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
-      },
-      "moduleTrace": [
-        {
-          "event": "module-end",
-          "state": "failed",
-          "tests": [
-            {
-              "name": "first owned body",
-              "state": "skipped",
-              "errors": []
-            },
-            {
-              "name": "second owned body",
-              "state": "skipped",
-              "errors": []
-            }
-          ],
-          "errors": [
-            {
-              "name": "Error",
-              "message": "actual beforeAll Array first"
-            },
-            {
-              "name": "Error",
-              "message": "actual beforeAll Array second"
-            }
-          ]
-        },
-        {
-          "event": "run-end",
-          "reason": "failed",
-          "errors": [],
-          "modules": [
-            {
-              "state": "failed",
-              "tests": [
                 {
-                  "name": "first owned body",
-                  "state": "skipped",
-                  "errors": []
-                },
-                {
-                  "name": "second owned body",
-                  "state": "skipped",
-                  "errors": []
-                }
-              ],
-              "errors": [
-                {
-                  "name": "Error",
-                  "message": "actual beforeAll Array first"
-                },
-                {
-                  "name": "Error",
-                  "message": "actual beforeAll Array second"
+                  "start": {},
+                  "end": {}
                 }
               ]
             }
-          ]
-        }
-      ],
-      "coverageFiles": {
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        },
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
           },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            }
+          "s": {
+            "0": 1,
+            "1": 0,
+            "2": 1,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 1]
           }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n"
+        }
       }
     },
     {
@@ -2025,36 +980,25 @@
       "exitCode": 1,
       "reportOnFailure": true,
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[1,undefined]\nbeforeAll(async()=>{await Promise.resolve();choose(false);throw failures})\n",
-          "sha256": "726048b76a99f5a9ea6874237c7ae761a875b60adb665889fdfaf662412fb21b"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n",
-          "sha256": "0ca876c04d27f6da4f7444b69b9c3ad255ddc436d4a153fe3c359a2f327444b5"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[1,undefined]\nbeforeAll(async()=>{await Promise.resolve();choose(false);throw failures})\n",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "snapshots": {},
       "flags": [],
-      "json": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 2,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 2,
-        "numTodoTests": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 2,
+        "todo": 0,
+        "cases": [
+          ["first owned body", "skipped", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": ["1"],
+        "fileStates": ["failed"],
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -2070,42 +1014,116 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
+        }
+      },
+      "rootErrors": [
+        {
+          "message": "1"
         },
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "first owned body",
-                "status": "skipped",
-                "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+        {
+          "message": "undefined"
+        }
+      ],
+      "lifecycle": [
+        ["module-end", "failed"],
+        ["run-end", "failed"]
+      ],
+      "coverageMap": {
+        "<fixture>/subject.mjs": {
+          "path": "<fixture>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
               },
-              {
-                "ancestorTitles": [],
-                "fullName": "second owned body",
-                "status": "skipped",
-                "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+              "end": {
+                "line": 2,
+                "column": null
               }
-            ],
-            "status": "failed",
-            "message": "1",
-            "name": "<fixture>/suite.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 13
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 5,
+                "column": 27
+              },
+              "end": {
+                "line": 5,
+                "column": 35
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 5,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
                 "start": {
                   "line": 2,
                   "column": 2
@@ -2115,88 +1133,9 @@
                   "column": null
                 }
               },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
+              "type": "if",
+              "locations": [
+                {
                   "start": {
                     "line": 2,
                     "column": 2
@@ -2206,298 +1145,27 @@
                     "column": null
                   }
                 },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
-      },
-      "moduleTrace": [
-        {
-          "event": "module-end",
-          "state": "failed",
-          "tests": [
-            {
-              "name": "first owned body",
-              "state": "skipped",
-              "errors": []
-            },
-            {
-              "name": "second owned body",
-              "state": "skipped",
-              "errors": []
-            }
-          ],
-          "errors": [
-            {
-              "message": "1"
-            },
-            {
-              "message": "undefined"
-            }
-          ]
-        },
-        {
-          "event": "run-end",
-          "reason": "failed",
-          "errors": [],
-          "modules": [
-            {
-              "state": "failed",
-              "tests": [
                 {
-                  "name": "first owned body",
-                  "state": "skipped",
-                  "errors": []
-                },
-                {
-                  "name": "second owned body",
-                  "state": "skipped",
-                  "errors": []
-                }
-              ],
-              "errors": [
-                {
-                  "message": "1"
-                },
-                {
-                  "message": "undefined"
+                  "start": {},
+                  "end": {}
                 }
               ]
             }
-          ]
-        }
-      ],
-      "coverageFiles": {
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        },
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
           },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            }
+          "s": {
+            "0": 1,
+            "1": 0,
+            "2": 1,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 1]
           }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n"
+        }
       }
     },
     {
@@ -2505,36 +1173,25 @@
       "exitCode": 1,
       "reportOnFailure": true,
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[1,undefined]\nbeforeAll(()=>{choose(false);throw failures})\n",
-          "sha256": "5a38a634dd9597a4c3ef94edc5d088fc6ad37f836e5c438b340fe050ea3b3f4f"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n",
-          "sha256": "0ca876c04d27f6da4f7444b69b9c3ad255ddc436d4a153fe3c359a2f327444b5"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[1,undefined]\nbeforeAll(()=>{choose(false);throw failures})\n",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "snapshots": {},
       "flags": [],
-      "json": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 2,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 2,
-        "numTodoTests": 0,
+      "expected": {
+        "passed": 0,
+        "failed": 0,
+        "pending": 2,
+        "todo": 0,
+        "cases": [
+          ["first owned body", "skipped", []],
+          ["second owned body", "skipped", []]
+        ],
+        "fileErrors": ["1"],
+        "fileStates": ["failed"],
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -2550,42 +1207,116 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
+        }
+      },
+      "rootErrors": [
+        {
+          "message": "1"
         },
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "first owned body",
-                "status": "skipped",
-                "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+        {
+          "message": "undefined"
+        }
+      ],
+      "lifecycle": [
+        ["module-end", "failed"],
+        ["run-end", "failed"]
+      ],
+      "coverageMap": {
+        "<fixture>/subject.mjs": {
+          "path": "<fixture>/subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
               },
-              {
-                "ancestorTitles": [],
-                "fullName": "second owned body",
-                "status": "skipped",
-                "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+              "end": {
+                "line": 2,
+                "column": null
               }
-            ],
-            "status": "failed",
-            "message": "1",
-            "name": "<fixture>/suite.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 13
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 5,
+                "column": 27
+              },
+              "end": {
+                "line": 5,
+                "column": 35
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 30
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              }
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 5,
+                  "column": null
+                }
+              }
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
                 "start": {
                   "line": 2,
                   "column": 2
@@ -2595,88 +1326,9 @@
                   "column": null
                 }
               },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
+              "type": "if",
+              "locations": [
+                {
                   "start": {
                     "line": 2,
                     "column": 2
@@ -2686,298 +1338,27 @@
                     "column": null
                   }
                 },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        }
-      },
-      "moduleTrace": [
-        {
-          "event": "module-end",
-          "state": "failed",
-          "tests": [
-            {
-              "name": "first owned body",
-              "state": "skipped",
-              "errors": []
-            },
-            {
-              "name": "second owned body",
-              "state": "skipped",
-              "errors": []
-            }
-          ],
-          "errors": [
-            {
-              "message": "1"
-            },
-            {
-              "message": "undefined"
-            }
-          ]
-        },
-        {
-          "event": "run-end",
-          "reason": "failed",
-          "errors": [],
-          "modules": [
-            {
-              "state": "failed",
-              "tests": [
                 {
-                  "name": "first owned body",
-                  "state": "skipped",
-                  "errors": []
-                },
-                {
-                  "name": "second owned body",
-                  "state": "skipped",
-                  "errors": []
-                }
-              ],
-              "errors": [
-                {
-                  "message": "1"
-                },
-                {
-                  "message": "undefined"
+                  "start": {},
+                  "end": {}
                 }
               ]
             }
-          ]
-        }
-      ],
-      "coverageFiles": {
-        "coverage-final.json": {
-          "<fixture>/subject.mjs": {
-            "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            }
-          }
-        },
-        "coverage-summary.json": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
           },
-          "<fixture>/subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            }
+          "s": {
+            "0": 1,
+            "1": 0,
+            "2": 1,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 1]
           }
-        },
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n"
+        }
       }
     }
   ]

@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
+import { assertHookRows } from './assertions.mjs'
 const [nextRoot, fixture, output, browser, mode, kind, order, limit] =
     process.argv.slice(2),
   require = createRequire(path.join(nextRoot, 'package.json'))
@@ -66,10 +67,6 @@ try {
   })
 } finally {
   await compiler?.dispose()
-  fs.writeFileSync(
-    path.join(output, 'events.json'),
-    JSON.stringify(events, null, 2) + '\n'
-  )
 }
 const prefix =
     kind === 'user-cancel' ? 'HOOK_CANCEL_ROWS:' : 'HOOK_DEADLINE_ROWS:',
@@ -84,21 +81,48 @@ const prefix =
   cases = events
     .filter((e) => e.type === 'case-end')
     .map((e) => ({ name: e.name, status: e.status, errors: e.errors }))
+assertHookRows({ kind, order, limit: limit === '1' ? 1 : null }, rows)
+assert.equal(events.filter((event) => event.type === 'diagnostic').length, 0)
+assert.equal(cases.length, 1)
+assert.equal(result.moduleExecution?.completion?.kind, 'fulfilled')
+if (kind === 'user-cancel') {
+  assert.equal(ready, 1)
+  assert.equal(user.signal.aborted, true)
+  assert.equal(result.closedUserCancellation, true)
+  assert.equal(result.status, 'passed')
+  assert.equal(cases[0].name, 'actual user cancellation during parallel hooks')
+  assert.equal(cases[0].status, 'passed')
+  assert.deepEqual(cases[0].errors, [])
+} else {
+  assert.equal(ready, 0)
+  assert.equal(user.signal.aborted, false)
+  assert.equal(result.closedUserCancellation, undefined)
+  assert.equal(result.status, 'failed')
+  assert.equal(cases[0].name, 'actual hook deadline and released resource')
+  assert.equal(cases[0].status, 'failed')
+  assert.equal(cases[0].errors.length, 1)
+  const diagnostic = cases[0].errors[0]
+  assert.equal(diagnostic.name, 'Error')
+  assert.match(diagnostic.message, /^Hook timed out in 20ms\./)
+  assert.equal(diagnostic.phase, 'runtime')
+  assert.equal(diagnostic.severity, 'error')
+  assert(
+    diagnostic.frames.some(
+      (frame) =>
+        frame.file === path.join(fixture, 'hooks.test.mjs') &&
+        frame.line === 7 &&
+        frame.original === true
+    )
+  )
+}
 fs.writeFileSync(
   path.join(output, 'actual.json'),
-  JSON.stringify(
-    {
-      result,
-      rows,
-      cases,
-      ready,
-      userAborted: user.signal.aborted,
-      compilerDisposed: true,
-      diagnostics: events
-        .filter((e) => e.type === 'diagnostic')
-        .map((e) => e.diagnostic),
-    },
-    null,
-    2
-  ) + '\n'
+  JSON.stringify({
+    kind,
+    order,
+    cases: cases.length,
+    rows: rows.flat().length,
+    behaviorAssertions: true,
+    compilerDisposed: true,
+  }) + '\n'
 )

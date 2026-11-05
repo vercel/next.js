@@ -1,3 +1,8 @@
-import { test, describe, expect } from 'vitest'
-const row = (...event) => console.log('RETRY_OBJECT_ROW ' + JSON.stringify({ contract: "string", event }))
-let count = 0; const retry = { count: 1, metadata: 'helper' }; test('primitive metadata', { retry }, () => { row('body', ++count); if (count === 1) throw new Error('first'); expect(count).toBe(2) })
+import { test, expect } from 'vitest'
+
+let attempts = 0
+
+test('primitive metadata', { retry: { count: 1, metadata: 'helper' } }, () => {
+  if (++attempts === 1) throw new Error('first')
+  expect(attempts).toBe(2)
+})

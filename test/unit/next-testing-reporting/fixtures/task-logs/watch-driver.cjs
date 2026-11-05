@@ -59,16 +59,13 @@ async function sourceWatchEngine(root, testing, evidence) {
 async function main() {
   const [root, bin, engine, evidence = root] = process.argv.slice(2)
   if (engine === 'source-engine') return sourceWatchEngine(root, bin, evidence)
-  const args =
-    engine === 'genuine'
-      ? [bin, '--watch', '--config', path.join(root, 'vitest.config.mjs')]
-      : [
-          __filename,
-          root,
-          path.resolve(path.dirname(bin), '../experimental/testing'),
-          'source-engine',
-          evidence,
-        ]
+  const args = [
+    __filename,
+    root,
+    path.resolve(path.dirname(bin), '../experimental/testing'),
+    'source-engine',
+    evidence,
+  ]
   const child = spawn(process.execPath, args, {
     cwd: root,
     env: process.env,

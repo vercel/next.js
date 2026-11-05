@@ -3,52 +3,94 @@ const key = Symbol.for('next-test-reset-utility-identity-counter')
 const original = Object.getOwnPropertyDescriptor(globalThis, key)
 const collectionReset = vi.resetModules
 let retainedReset
-const emit = (label, value) => console.log('RESET_UTILITY_ROW ' + JSON.stringify({ label, value }))
-function describe(fn) {
-  let constructible
-  try { Reflect.construct(fn, []); constructible = true } catch { constructible = false }
-  const name = Object.getOwnPropertyDescriptor(fn, 'name')
-  const length = Object.getOwnPropertyDescriptor(fn, 'length')
-  return { name: fn.name, length: fn.length, ownNames: Object.getOwnPropertyNames(fn), hasPrototype: Object.hasOwn(fn, 'prototype'), constructible, nameDescriptor: { value: name.value, writable: name.writable, enumerable: name.enumerable, configurable: name.configurable }, lengthDescriptor: { value: length.value, writable: length.writable, enumerable: length.enumerable, configurable: length.configurable } }
-}
-afterAll(() => { if (original) Object.defineProperty(globalThis, key, original); else Reflect.deleteProperty(globalThis, key) })
-test('resetModules retains one ordinary method identity and its real descriptors', () => {
+afterAll(() => {
+  if (original) Object.defineProperty(globalThis, key, original)
+  else Reflect.deleteProperty(globalThis, key)
+})
+test('resetModules retains its method identity, descriptors and invocation behavior', () => {
   retainedReset = vi.resetModules
-  const value = { repeat: retainedReset === vi.resetModules, collection: retainedReset === collectionReset, namespaceAlias: retainedReset === vitest.resetModules, shape: describe(retainedReset), extractedReturn: retainedReset() === vi, foreignReceiverReturn: retainedReset.call({}) === vi, boundShape: describe(retainedReset.bind({})), boundReturn: retainedReset.bind({})() === vi }
-  emit('identity', value)
-  expect(value.repeat).toBe(true)
-  expect(value.collection).toBe(true)
-  expect(value.namespaceAlias).toBe(true)
-  expect(value.shape.name).toBe('resetModules')
-  expect(value.shape.length).toBe(0)
-  expect(value.shape.hasPrototype).toBe(false)
-  expect(value.shape.constructible).toBe(false)
-  expect(value.extractedReturn).toBe(true)
-  expect(value.foreignReceiverReturn).toBe(true)
-  expect(value.boundReturn).toBe(true)
+  expect(import.meta.env.MODE).toBe(process.env.RESET_EXPECTED_MODE)
+  expect(retainedReset).toBe(collectionReset)
+  expect(retainedReset).toBe(vitest.resetModules)
+  expect(Object.getOwnPropertyNames(retainedReset)).toEqual(['length', 'name'])
+  expect(Object.getOwnPropertyDescriptor(retainedReset, 'name')).toEqual({
+    value: 'resetModules',
+    writable: false,
+    enumerable: false,
+    configurable: true,
+  })
+  expect(Object.getOwnPropertyDescriptor(retainedReset, 'length')).toEqual({
+    value: 0,
+    writable: false,
+    enumerable: false,
+    configurable: true,
+  })
+  expect(Object.hasOwn(retainedReset, 'prototype')).toBe(false)
+  expect(() => Reflect.construct(retainedReset, [])).toThrow(TypeError)
+  expect(retainedReset()).toBe(vi)
+  expect(retainedReset.call({})).toBe(vi)
+  const bound = retainedReset.bind({})
+  expect(bound.name).toBe('bound resetModules')
+  expect(bound.length).toBe(0)
+  expect(Object.hasOwn(bound, 'prototype')).toBe(false)
+  expect(() => Reflect.construct(bound, [])).toThrow(TypeError)
+  expect(bound()).toBe(vi)
 })
 test('direct reset invalidates the actual imported module cache', async () => {
   const first = await import('./counter.mjs')
   const same = await import('./counter.mjs')
   const resetReturn = vi.resetModules() === vi
   const second = await import('./counter.mjs')
-  const value = { first: first.ordinal, same: same === first, second: second.ordinal, fresh: second !== first, resetReturn }
-  emit('direct-cache', value)
-  expect(value).toEqual({ first: 1, same: true, second: 2, fresh: true, resetReturn: true })
+  const value = {
+    first: first.ordinal,
+    same: same === first,
+    second: second.ordinal,
+    fresh: second !== first,
+    resetReturn,
+  }
+  expect(value).toEqual({
+    first: 1,
+    same: true,
+    second: 2,
+    fresh: true,
+    resetReturn: true,
+  })
 })
 test('an alias retained from a completed case resets the current real cache', async () => {
   const before = await import('./counter.mjs')
   const retainedReturn = retainedReset() === vi
   const after = await import('./counter.mjs')
-  const value = { before: before.ordinal, after: after.ordinal, fresh: before !== after, retainedReturn, stillCurrentMethod: retainedReset === vi.resetModules }
-  emit('retained-cache', value)
-  expect(value).toEqual({ before: 2, after: 3, fresh: true, retainedReturn: true, stillCurrentMethod: true })
+  const value = {
+    before: before.ordinal,
+    after: after.ordinal,
+    fresh: before !== after,
+    retainedReturn,
+    stillCurrentMethod: retainedReset === vi.resetModules,
+  }
+  expect(value).toEqual({
+    before: 2,
+    after: 3,
+    fresh: true,
+    retainedReturn: true,
+    stillCurrentMethod: true,
+  })
 })
 test('the collection alias resolves the real active runtime when later invoked', async () => {
   const before = await import('./counter.mjs')
   const collectionReturn = collectionReset() === vi
   const after = await import('./counter.mjs')
-  const value = { before: before.ordinal, after: after.ordinal, fresh: before !== after, collectionReturn, stillCurrentMethod: collectionReset === vi.resetModules }
-  emit('collection-cache', value)
-  expect(value).toEqual({ before: 3, after: 4, fresh: true, collectionReturn: true, stillCurrentMethod: true })
+  const value = {
+    before: before.ordinal,
+    after: after.ordinal,
+    fresh: before !== after,
+    collectionReturn,
+    stillCurrentMethod: collectionReset === vi.resetModules,
+  }
+  expect(value).toEqual({
+    before: 3,
+    after: 4,
+    fresh: true,
+    collectionReturn: true,
+    stillCurrentMethod: true,
+  })
 })

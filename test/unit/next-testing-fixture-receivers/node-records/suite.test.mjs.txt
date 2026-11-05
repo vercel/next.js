@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest'
-const row = (phase, value) => console.log('FIXTURE_RECEIVER_ROW ' + JSON.stringify({ phase, value }))
+const row = (phase) => console.log('FIXTURE_RECEIVER_ROW ' + JSON.stringify({ phase }))
 const contextNames = new Map()
 const lexicalReceiver = this
 function receiver(phase, value, args) {
@@ -27,7 +27,8 @@ const extended = test.extend({
     row('arrow-setup', { sameAsLexicalReceiver: this === lexicalReceiver })
     expect(this).toBe(lexicalReceiver)
     await use('arrow')
-    row('arrow-cleanup', { sameAsLexicalReceiver: this === lexicalReceiver })
+    expect(this).toBe(lexicalReceiver)
+    row('arrow-cleanup', { sameAsLexicalReceiver: true })
   },
 })
 for (const name of ['first', 'second']) {

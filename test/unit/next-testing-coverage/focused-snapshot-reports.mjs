@@ -1,5 +1,8 @@
+import {
+  assertSnapshotReport,
+  assertSnapshotCoverage,
+} from './snapshot-coverage-assertions.mjs'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   readFileSync,
@@ -31,7 +34,7 @@ const row = JSON.parse(
     )
   )
 ).rows.find((r) => r.name === profile)
-assert(row, 'Missing genuine focused selection profile')
+assert(row, 'Unknown focused selection profile')
 const fixture = mkdtempSync(join(consumer, '.next-focused-snapshot-')),
   canonical = (value) => {
     if (typeof value === 'string') return value.replaceAll(fixture, '<fixture>')
@@ -44,26 +47,11 @@ const fixture = mkdtempSync(join(consumer, '.next-focused-snapshot-')),
         ])
       )
     return value
-  },
-  errorProjection = (value) => {
-    if (Array.isArray(value)) return value.map(errorProjection)
-    if (value && typeof value === 'object')
-      return Object.fromEntries(
-        Object.entries(value)
-          .filter(([key]) => key !== 'stack')
-          .map(([key, value]) => [key, errorProjection(value)])
-      )
-    return value
   }
 mkdirSync(output, { recursive: true })
 try {
-  for (const [name, file] of Object.entries(row.sourceFiles)) {
-    assert.equal(
-      createHash('sha256').update(file.source).digest('hex'),
-      file.sha256
-    )
-    writeFileSync(join(fixture, name), file.source)
-  }
+  for (const [name, source] of Object.entries(row.sourceFiles))
+    writeFileSync(join(fixture, name), source)
   writeFileSync(join(fixture, 'package.json'), '{"type":"module"}\n')
   writeFileSync(join(fixture, 'vitest.config.mjs'), row.config)
   writeFileSync(
@@ -73,13 +61,6 @@ try {
   mkdirSync(join(fixture, '__snapshots__'))
   for (const [name, bytes] of Object.entries(row.snapshots))
     writeFileSync(join(fixture, '__snapshots__', name), bytes)
-  const reporter = join(output, 'trace-reporter.mjs')
-  writeFileSync(
-    reporter,
-    `import fs from 'node:fs'
-const rows=[];const error=e=>({name:e.name,message:e.message,stack:e.stack});const tree=t=>({type:t.type,name:t.type==='module'?'suite.test.mjs':t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?(t.result().errors??[]).map(error):t.errors().map(error),...(t.type==='test'?{}:{children:[...t.children].map(tree)})});export default class Reporter{onTestModuleEnd(m){rows.push({event:'module-end',tree:tree(m)})}onTestRunEnd(modules,errors,reason){rows.push({event:'run-end',reason,errors:errors.map(error),modules:modules.map(tree)});fs.writeFileSync(${JSON.stringify(join(output, 'RAW-MODULES.json'))},JSON.stringify(rows,null,2))}}
-`
-  )
   const env = {
     ...process.env,
     CI: '1',
@@ -102,7 +83,6 @@ const rows=[];const error=e=>({name:e.name,message:e.message,stack:e.stack});con
       fixture,
       '--run',
       '--reporter=json',
-      '--reporter=' + reporter,
       '--outputFile=' + join(output, 'cases.json'),
       ...row.flags,
     ],
@@ -135,42 +115,17 @@ const rows=[];const error=e=>({name:e.name,message:e.message,stack:e.stack});con
     raw.next.events.filter((e) => e.type === 'case-start').length,
     row.caseStarts
   )
-  const report = canonical(raw)
-  delete report.next
-  delete report.startTime
-  for (const file of report.testResults) {
-    delete file.startTime
-    delete file.endTime
-    for (const test of file.assertionResults) delete test.duration
-  }
-  assert.deepEqual(report, row.standardReport)
-  const modules = canonical(
-    JSON.parse(readFileSync(join(output, 'RAW-MODULES.json')))
-  )
-  assert.deepEqual(errorProjection(modules), errorProjection(row.moduleTrace))
+  assertSnapshotReport(canonical(raw), row.expected)
   assert.deepEqual(snapshots, row.snapshots)
-  assert.deepEqual(
-    readdirSync(join(output, 'coverage')).sort(),
-    Object.keys(row.coverageFiles).sort()
-  )
-  for (const [name, expected] of Object.entries(row.coverageFiles)) {
-    const bytes = readFileSync(join(output, 'coverage', name), 'utf8')
-    assert.deepEqual(
-      canonical(name.endsWith('.json') ? JSON.parse(bytes) : bytes),
-      expected
-    )
-  }
+  assertSnapshotCoverage(join(output, 'coverage'), fixture, row.coverage)
   writeFileSync(
     join(output, 'CHECKS.json'),
     JSON.stringify(
       {
         profile,
         actualCaseStarts: row.caseStarts,
-        completeStandardReportAndMap: true,
-        wholeModuleTreeModesStatesErrorNamesMessagesOrder: true,
-        rawModuleStacksRetained: true,
-        rawModuleStackParityQualified: false,
-        completeCoverageFiles: true,
+        caseOutcomesAndSnapshotSummary: true,
+        selectedCoverageHitCounts: true,
         snapshotBytesUnchanged: true,
         physicalJoinsHeld: true,
       },

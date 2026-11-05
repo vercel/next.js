@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`property matcher 1`] = `{"number": Any<Number>, "nested": {"z": 2, "a": 1}}`;
+
+exports[`special values 1`] = `{"fn": [Function], "regex": /a\\.b/i, "custom": {"json": true}}`;
+
+exports[`tree 1`] = `
+{"z": [1, 2, 3], "a": {"nested": {"value": "leaf"}}, "text": "line
+quote""}
+`;

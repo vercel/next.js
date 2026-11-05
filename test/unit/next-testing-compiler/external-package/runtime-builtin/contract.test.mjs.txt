@@ -1,16 +1,6 @@
 import { test, expect, vi } from 'vitest'
-import { types as utilTypes } from 'node:util'
 import * as staticOriginal from 'node:os'
-function shape(namespace) {
-  return { nativeBrand: utilTypes.isModuleNamespaceObject(namespace), keys: Reflect.ownKeys(namespace).map((key) => typeof key === 'symbol' ? String(key) : key),
-    prototypeNull: Object.getPrototypeOf(namespace) === null, tag: namespace[Symbol.toStringTag] ?? null,
-    extensible: Object.isExtensible(namespace), sealed: Object.isSealed(namespace), frozen: Object.isFrozen(namespace),
-    descriptors: Reflect.ownKeys(namespace).map((key) => {
-      const d = Object.getOwnPropertyDescriptor(namespace, key)
-      return { key: typeof key === 'symbol' ? String(key) : key, valueType: typeof d.value, get: typeof d.get, set: typeof d.set,
-        writable: d.writable ?? null, enumerable: d.enumerable, configurable: d.configurable }
-    }) }
-}
+
 test('runtime native builtin registration unregistration and reset identity', async () => {
   const before = await import('node:os')
   const beforeAlias = await import('os')
@@ -19,7 +9,11 @@ test('runtime native builtin registration unregistration and reset identity', as
   vi.doMock('node:os', async (importOriginal) => {
     calls++
     const original = await importOriginal()
-    return { value, original: typeof original.platform, sameOriginal: original === before }
+    return {
+      value,
+      original: typeof original.platform,
+      sameOriginal: original === before,
+    }
   })
   const first = await import('os')
   value = 81
@@ -34,18 +28,24 @@ test('runtime native builtin registration unregistration and reset identity', as
   const replacement = await import('node:os')
   vi.doUnmock('node:os')
   const final = await import('os')
-  const row = { before: typeof before.platform, first: first.value, second: second.value,
-    mockIdentity: first === second, original: first.original, sameOriginal: first.sameOriginal,
-    afterMockReset: afterMockReset.value, mockResetIdentity: first === afterMockReset, calls,
-    released: typeof released.platform, releasedIdentity: released === before,
-    originalResetIdentity: afterOriginalReset === before,
-    replacement: replacement.value, replacementIdentity: replacement === first,
-    finalIdentity: final === before, heldOriginal: typeof before.platform, heldMock: first.value, staticBeforeIdentity: staticOriginal === before, staticReleasedIdentity: staticOriginal === released, staticBrand: utilTypes.isModuleNamespaceObject(staticOriginal), staticShape: shape(staticOriginal), beforeAliasIdentity: beforeAlias === before,
-    beforeShape: shape(before), releasedShape: shape(released), afterOriginalResetShape: shape(afterOriginalReset),
-    defaultIdentity: before.default === released.default, memberIdentity: before.platform === released.platform }
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME:' + JSON.stringify(row))
+
+  expect(staticOriginal).toBe(before)
+  expect(beforeAlias).toBe(before)
+  expect(typeof before.platform).toBe('function')
   expect(first.value).toBe(73)
+  expect(first.original).toBe('function')
+  expect(first.sameOriginal).toBe(true)
+  expect(second).toBe(first)
+  expect(afterMockReset).toBe(first)
+  expect(calls).toBe(1)
+  expect(typeof released.platform).toBe('function')
+  expect(released).not.toBe(before)
+  expect(afterOriginalReset).not.toBe(before)
+  expect(final).not.toBe(before)
+  expect(released.default).toBe(before.default)
+  expect(released.platform).toBe(before.platform)
   expect(replacement.value).toBe(91)
+  expect(replacement).not.toBe(first)
 })
 
 test('runtime native builtin registration without reset', async () => {
@@ -53,126 +53,107 @@ test('runtime native builtin registration without reset', async () => {
   let calls = 0
   vi.doMock('node:os', async (importOriginal) => {
     calls++
-    const actual = await importOriginal()
-    return { value: 73, sameOriginal: actual === before }
+    return { value: 73, sameOriginal: (await importOriginal()) === before }
   })
-  const mocked = await import('os')
-  vi.doUnmock('os')
+  const mocked = await import('node:os')
+  vi.doUnmock('node:os')
   const released = await import('node:os')
-  vi.doMock('os', () => ({ value: 91 }))
+  vi.doMock('node:os', () => ({ value: 91 }))
   const replaced = await import('node:os')
   vi.doUnmock('node:os')
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME_WITHOUT_RESET:' + JSON.stringify({
-    value: mocked.value, sameOriginal: mocked.sameOriginal, calls,
-    releasedIdentity: before === released, replaced: replaced.value,
-    replacedIdentity: mocked === replaced, held: mocked.value,
-    finalIdentity: (await import('os')) === before
-  }))
+
   expect(mocked.value).toBe(73)
+  expect(mocked.sameOriginal).toBe(true)
+  expect(calls).toBe(1)
+  expect(released).toBe(before)
   expect(replaced.value).toBe(91)
+  expect(replaced).not.toBe(mocked)
+  expect(await import('os')).toBe(before)
 })
+
 test('runtime native builtin caches a failed factory across reset and can unregister', async () => {
   const original = await import('node:os')
   const failure = new Error('ws2 native runtime factory failure')
   let calls = 0
-  vi.doMock('node:os', () => { calls++; throw failure })
-  const first = await import('os').then(() => null, (error) => error)
-  const second = await import('node:os').then(() => null, (error) => error)
+  vi.doMock('node:os', () => {
+    calls++
+    throw failure
+  })
+  const first = await import('node:os').catch((error) => error)
+  const second = await import('node:os').catch((error) => error)
   vi.resetModules()
-  const third = await import('os').then(() => null, (error) => error)
-  vi.doUnmock('os')
+  const third = await import('node:os').catch((error) => error)
+  vi.doUnmock('node:os')
   const released = await import('node:os')
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME_FAILURE:' + JSON.stringify({
-    calls, firstIsFailure: first === failure, sameSecond: first === second, sameAfterReset: first === third,
-    error: { name: first?.name ?? null, message: first?.message ?? null,
-      causeName: first?.cause?.name ?? null, causeMessage: first?.cause?.message ?? null,
-      causeIsFailure: first?.cause === failure },
-    releasedIdentity: original === released, releasedShape: shape(released)
-  }))
-  expect(first).not.toBe(null)
+
+  expect(calls).toBe(3)
+  for (const error of [first, second, third]) {
+    expect(error).toBeInstanceOf(Error)
+    expect(error.cause).toBe(failure)
+  }
+  expect(first).not.toBe(second)
+  expect(first).not.toBe(third)
+  expect(released).not.toBe(original)
 })
 
 test('runtime native unused registration retains compiler IDs without evaluating originals', () => {
   vi.doMock('ws2-native-runtime-unused', () => {
-    globalThis.ws2UnusedNativeFactories = (globalThis.ws2UnusedNativeFactories ?? 0) + 1
+    globalThis.ws2UnusedNativeFactories =
+      (globalThis.ws2UnusedNativeFactories ?? 0) + 1
     return { value: 1 }
   })
   vi.doUnmock('ws2-native-runtime-unused')
-  const row = { evaluations: globalThis.ws2UnusedNativeEvaluations ?? 0, factories: globalThis.ws2UnusedNativeFactories ?? 0 }
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME_UNUSED:' + JSON.stringify(row))
-  expect(row).toEqual({ evaluations: 0, factories: 0 })
+  expect(globalThis.ws2UnusedNativeEvaluations ?? 0).toBe(0)
+  expect(globalThis.ws2UnusedNativeFactories ?? 0).toBe(0)
 })
 
-test('runtime native builtin pending RESOLVE imports and later cache', async () => {
-  const heldOriginal = await import('node:os')
-  let release
-  const held = new Promise((resolve, reject) => { release = resolve })
-  const failure = new Error('ws2 pending native failure')
-  let calls = 0
-  vi.doMock('node:os', async () => {
-    const index = ++calls
-    await held
-    return { value: 73, index }
-  })
-  const firstPending = import('os').then(value => ({ value }), error => ({ error }))
-  const secondPending = import('node:os').then(value => ({ value }), error => ({ error }))
-  let twoFactoriesEntered = false
-  try { await vi.waitFor(() => expect(calls).toBe(2), { timeout: 1000, interval: 10 }); twoFactoriesEntered = true } catch {}
-  const callsWhileHeld = calls
-  release(undefined)
-  const first = await firstPending
-  const second = await secondPending
-  const later = await import('node:os').then(value => ({ value }), error => ({ error }))
-  vi.resetModules()
-  const afterReset = await import('os').then(value => ({ value }), error => ({ error }))
-  vi.doUnmock('os')
-  const errorShape = value => value ? { name: value.name, message: value.message, cause: value.cause === failure } : null
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME_PENDING_RESOLVE:' + JSON.stringify({
-    twoFactoriesEntered, callsWhileHeld, calls, secondOriginalIdentity: second.value === heldOriginal, secondOriginalBrand: second.value ? utilTypes.isModuleNamespaceObject(second.value) : null, secondOriginalDefault: second.value?.default === heldOriginal.default, secondOriginalShape: second.value ? shape(second.value) : null, firstIndex: first.value?.index ?? null,
-    secondIndex: second.value?.index ?? null, sameValues: first.value === second.value,
-    sameErrors: first.error === second.error, firstError: errorShape(first.error), secondError: errorShape(second.error),
-    laterIndex: later.value?.index ?? null, laterIsFirst: later.value === first.value,
-    laterIsSecond: later.value === second.value, laterError: errorShape(later.error),
-    laterErrorIsFirst: later.error === first.error,
-    resetIndex: afterReset.value?.index ?? null, resetIsLater: afterReset.value === later.value,
-    resetError: errorShape(afterReset.error), resetErrorIsLater: afterReset.error === later.error
-  }))
-  expect(callsWhileHeld).toBeGreaterThanOrEqual(1)
-})
+for (const rejected of [false, true]) {
+  test(`runtime native builtin pending ${rejected ? 'REJECT' : 'RESOLVE'} imports and later cache`, async () => {
+    const heldOriginal = await import('node:os')
+    let release
+    const held = new Promise((resolve, reject) => {
+      release = rejected ? reject : resolve
+    })
+    const failure = new Error('ws2 pending native failure')
+    let calls = 0
+    vi.doMock('node:os', async () => {
+      const index = ++calls
+      await held
+      return { value: 73, index }
+    })
+    const firstPending = import('node:os').catch((error) => error)
+    const secondPending = import('os').catch((error) => error)
+    try {
+      await vi.waitFor(() => expect(calls).toBe(2), {
+        timeout: 1000,
+        interval: 10,
+      })
+    } catch {}
+    const callsWhileHeld = calls
+    release(rejected ? failure : undefined)
+    const first = await firstPending
+    const second = await secondPending
+    const later = await import('node:os').catch((error) => error)
+    vi.resetModules()
+    const afterReset = await import('node:os').catch((error) => error)
+    vi.doUnmock('node:os')
 
-test('runtime native builtin pending REJECT imports and later cache', async () => {
-  const heldOriginal = await import('node:os')
-  let release
-  const held = new Promise((resolve, reject) => { release = reject })
-  const failure = new Error('ws2 pending native failure')
-  let calls = 0
-  vi.doMock('node:os', async () => {
-    const index = ++calls
-    await held
-    return { value: 73, index }
+    expect(callsWhileHeld).toBe(1)
+    expect(second).toBe(heldOriginal)
+    if (rejected) {
+      expect(calls).toBe(3)
+      for (const error of [first, later, afterReset]) {
+        expect(error).toBeInstanceOf(Error)
+        expect(error.cause).toBe(failure)
+      }
+      expect(later).not.toBe(first)
+      expect(afterReset).not.toBe(later)
+    } else {
+      expect(calls).toBe(1)
+      expect(first.value).toBe(73)
+      expect(first.index).toBe(1)
+      expect(later).toBe(first)
+      expect(afterReset).toBe(later)
+    }
   })
-  const firstPending = import('os').then(value => ({ value }), error => ({ error }))
-  const secondPending = import('node:os').then(value => ({ value }), error => ({ error }))
-  let twoFactoriesEntered = false
-  try { await vi.waitFor(() => expect(calls).toBe(2), { timeout: 1000, interval: 10 }); twoFactoriesEntered = true } catch {}
-  const callsWhileHeld = calls
-  release(failure)
-  const first = await firstPending
-  const second = await secondPending
-  const later = await import('node:os').then(value => ({ value }), error => ({ error }))
-  vi.resetModules()
-  const afterReset = await import('os').then(value => ({ value }), error => ({ error }))
-  vi.doUnmock('os')
-  const errorShape = value => value ? { name: value.name, message: value.message, cause: value.cause === failure } : null
-  console.log('WS2_EXTERNAL_NATIVE_RUNTIME_PENDING_REJECT:' + JSON.stringify({
-    twoFactoriesEntered, callsWhileHeld, calls, secondOriginalIdentity: second.value === heldOriginal, secondOriginalBrand: second.value ? utilTypes.isModuleNamespaceObject(second.value) : null, secondOriginalDefault: second.value?.default === heldOriginal.default, secondOriginalShape: second.value ? shape(second.value) : null, firstIndex: first.value?.index ?? null,
-    secondIndex: second.value?.index ?? null, sameValues: first.value === second.value,
-    sameErrors: first.error === second.error, firstError: errorShape(first.error), secondError: errorShape(second.error),
-    laterIndex: later.value?.index ?? null, laterIsFirst: later.value === first.value,
-    laterIsSecond: later.value === second.value, laterError: errorShape(later.error),
-    laterErrorIsFirst: later.error === first.error,
-    resetIndex: afterReset.value?.index ?? null, resetIsLater: afterReset.value === later.value,
-    resetError: errorShape(afterReset.error), resetErrorIsLater: afterReset.error === later.error
-  }))
-  expect(callsWhileHeld).toBeGreaterThanOrEqual(1)
-})
+}

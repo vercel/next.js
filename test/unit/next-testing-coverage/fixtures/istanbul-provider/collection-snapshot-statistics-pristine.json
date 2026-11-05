@@ -1,5 +1,5 @@
 {
-  "reference": "Vitest 5.0.4 genuine unchanged snapshot-statistics85 reference9",
+  "description": "Snapshot accounting, case outcomes, and exact coverage after collection and execution failures.",
   "rows": [
     {
       "name": "afterAll-failure-disabled",
@@ -7,76 +7,22 @@
       "provider": "disabled",
       "authored": {
         "files": {
-          "package.json": {
-            "source": "{\"type\":\"module\"}\n",
-            "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
-          },
-          "contract.test.mjs": {
-            "source": "import {test,expect,beforeEach,afterAll} from 'vitest'\ntest('prior snapshot control',()=>{expect('prior').toMatchSnapshot()})\nafterAll(()=>{throw new Error('actual successful-collection afterAll failure')})\n",
-            "sha256": "8c335e0c0c2d11c8edb6462ae0c511760d86e62e5bd5cc09750ee25c31b5084b"
-          }
+          "package.json": "{\"type\":\"module\"}\n",
+          "contract.test.mjs": "import {test,expect,beforeEach,afterAll} from 'vitest'\ntest('prior snapshot control',()=>{expect('prior').toMatchSnapshot()})\nafterAll(()=>{throw new Error('actual successful-collection afterAll failure')})\n"
         },
         "config": "export default {\"test\":{\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"include\":[\"contract.test.mjs\"],\"coverage\":{\"provider\":\"v8\",\"enabled\":false,\"reporter\":[\"json\"],\"include\":[]}}}\n",
         "snapshots": {
           "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`prior snapshot control 1`] = `\"prior\"`;\n"
         }
       },
-      "report": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 1,
-        "numPassedTests": 1,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 1,
-          "total": 1,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793028171878,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "prior snapshot control",
-                "status": "passed",
-                "title": "prior snapshot control",
-                "duration": 1.5961250000000007,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "startTime": 1793028171961,
-            "endTime": 1793028171962.5962,
-            "status": "failed",
-            "message": "actual successful-collection afterAll failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-KUz4FO/contract.test.mjs"
-          }
-        ]
-      },
-      "observed": {
-        "phase": "reference",
-        "scenario": "afterAll-failure",
-        "provider": "disabled",
+      "expected": {
         "exit": 1,
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -93,22 +39,9 @@
           "updated": 0,
           "didUpdate": false
         },
-        "fileStatus": [
-          {
-            "file": "contract.test.mjs",
-            "status": "failed",
-            "message": "actual successful-collection afterAll failure",
-            "rows": [
-              {
-                "title": "prior snapshot control",
-                "status": "passed"
-              }
-            ]
-          }
-        ],
-        "sourceBytesUnchanged": true,
-        "snapshotBytesUnchanged": true,
-        "allOwnersJoined": true
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [["prior snapshot control", "passed", []]],
+        "fileErrors": ["actual successful-collection afterAll failure"]
       }
     },
     {
@@ -117,83 +50,22 @@
       "provider": "disabled",
       "authored": {
         "files": {
-          "package.json": {
-            "source": "{\"type\":\"module\"}\n",
-            "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
-          },
-          "contract.test.mjs": {
-            "source": "import {test,expect,beforeEach,afterAll} from 'vitest'\nbeforeEach(()=>{throw new Error('actual successful-collection beforeEach failure')})\ntest('prior snapshot control',()=>{expect('prior').toMatchSnapshot()})\n",
-            "sha256": "d9b97ea950cf4f298c20e9f0cc9f10f4cb597d8c230a32459797913d2e712205"
-          }
+          "package.json": "{\"type\":\"module\"}\n",
+          "contract.test.mjs": "import {test,expect,beforeEach,afterAll} from 'vitest'\nbeforeEach(()=>{throw new Error('actual successful-collection beforeEach failure')})\ntest('prior snapshot control',()=>{expect('prior').toMatchSnapshot()})\n"
         },
         "config": "export default {\"test\":{\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"include\":[\"contract.test.mjs\"],\"coverage\":{\"provider\":\"v8\",\"enabled\":false,\"reporter\":[\"json\"],\"include\":[]}}}\n",
         "snapshots": {
           "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`prior snapshot control 1`] = `\"prior\"`;\n"
         }
       },
-      "report": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 1,
-        "numPassedTests": 0,
-        "numFailedTests": 1,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 1,
-          "uncheckedKeysByFile": [
-            {
-              "filePath": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-FwKW0G/contract.test.mjs",
-              "keys": ["prior snapshot control 1"]
-            }
-          ],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793028171029,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "prior snapshot control",
-                "status": "failed",
-                "title": "prior snapshot control",
-                "duration": 1.699040999999994,
-                "failureMessages": [
-                  "Error: actual successful-collection beforeEach failure\n    at /private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-FwKW0G/contract.test.mjs:2:23\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at wrapper (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1988:37)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3599:52\n    at run (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1352:20)\n    at limiterFn (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1362:59)\n    at runHook (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3598:10)"
-                ],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "startTime": 1793028171119,
-            "endTime": 1793028171120.699,
-            "status": "failed",
-            "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 prior snapshot control 1\n",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-FwKW0G/contract.test.mjs"
-          }
-        ]
-      },
-      "observed": {
-        "phase": "reference",
-        "scenario": "beforeEach-failure",
-        "provider": "disabled",
+      "expected": {
         "exit": 1,
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -207,7 +79,7 @@
           "unchecked": 1,
           "uncheckedKeysByFile": [
             {
-              "filePath": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-FwKW0G/contract.test.mjs",
+              "filePath": "contract.test.mjs",
               "keys": ["prior snapshot control 1"]
             }
           ],
@@ -215,22 +87,17 @@
           "updated": 0,
           "didUpdate": false
         },
-        "fileStatus": [
-          {
-            "file": "contract.test.mjs",
-            "status": "failed",
-            "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 prior snapshot control 1\n",
-            "rows": [
-              {
-                "title": "prior snapshot control",
-                "status": "failed"
-              }
-            ]
-          }
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [
+          [
+            "prior snapshot control",
+            "failed",
+            ["Error: actual successful-collection beforeEach failure"]
+          ]
         ],
-        "sourceBytesUnchanged": true,
-        "snapshotBytesUnchanged": true,
-        "allOwnersJoined": true
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ]
       }
     },
     {
@@ -239,83 +106,22 @@
       "provider": "disabled",
       "authored": {
         "files": {
-          "package.json": {
-            "source": "{\"type\":\"module\"}\n",
-            "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
-          },
-          "contract.test.mjs": {
-            "source": "import {test,expect,beforeEach,afterAll} from 'vitest'\ntest('prior snapshot control',()=>{throw new Error('actual successful-collection body failure');expect('prior').toMatchSnapshot()})\n",
-            "sha256": "cc7e006dcd26b6eee865b3f00006dda37619ab8e137bd2dda9a64eea7fad55cc"
-          }
+          "package.json": "{\"type\":\"module\"}\n",
+          "contract.test.mjs": "import {test,expect,beforeEach,afterAll} from 'vitest'\ntest('prior snapshot control',()=>{throw new Error('actual successful-collection body failure');expect('prior').toMatchSnapshot()})\n"
         },
         "config": "export default {\"test\":{\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"include\":[\"contract.test.mjs\"],\"coverage\":{\"provider\":\"v8\",\"enabled\":false,\"reporter\":[\"json\"],\"include\":[]}}}\n",
         "snapshots": {
           "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`prior snapshot control 1`] = `\"prior\"`;\n"
         }
       },
-      "report": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 1,
-        "numPassedTests": 0,
-        "numFailedTests": 1,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 1,
-          "uncheckedKeysByFile": [
-            {
-              "filePath": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-IQufqW/contract.test.mjs",
-              "keys": ["prior snapshot control 1"]
-            }
-          ],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793028172714,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "prior snapshot control",
-                "status": "failed",
-                "title": "prior snapshot control",
-                "duration": 1.908292000000003,
-                "failureMessages": [
-                  "Error: actual successful-collection body failure\n    at /private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-IQufqW/contract.test.mjs:2:42\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64"
-                ],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "startTime": 1793028172799,
-            "endTime": 1793028172800.9082,
-            "status": "failed",
-            "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 prior snapshot control 1\n",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-IQufqW/contract.test.mjs"
-          }
-        ]
-      },
-      "observed": {
-        "phase": "reference",
-        "scenario": "body-failure",
-        "provider": "disabled",
+      "expected": {
         "exit": 1,
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -329,7 +135,7 @@
           "unchecked": 1,
           "uncheckedKeysByFile": [
             {
-              "filePath": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-IQufqW/contract.test.mjs",
+              "filePath": "contract.test.mjs",
               "keys": ["prior snapshot control 1"]
             }
           ],
@@ -337,22 +143,17 @@
           "updated": 0,
           "didUpdate": false
         },
-        "fileStatus": [
-          {
-            "file": "contract.test.mjs",
-            "status": "failed",
-            "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 prior snapshot control 1\n",
-            "rows": [
-              {
-                "title": "prior snapshot control",
-                "status": "failed"
-              }
-            ]
-          }
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [
+          [
+            "prior snapshot control",
+            "failed",
+            ["Error: actual successful-collection body failure"]
+          ]
         ],
-        "sourceBytesUnchanged": true,
-        "snapshotBytesUnchanged": true,
-        "allOwnersJoined": true
+        "fileErrors": [
+          "Obsolete snapshots found when no snapshot update is expected."
+        ]
       }
     },
     {
@@ -361,72 +162,24 @@
       "provider": "disabled",
       "authored": {
         "files": {
-          "contract.test.mjs": {
-            "source": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nawait Promise.resolve()\nthrow new Error('actual async partial spec load failed')\n",
-            "sha256": "8d252c496f6db377151e31385ca8250f7c9232ea12ff6d3c126699e3aa6c0686"
-          },
-          "failed-dependency.mjs": {
-            "source": "throw new Error('actual spec dependency load failed')\n",
-            "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
-          },
-          "subject.mjs": {
-            "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
-            "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
-          },
-          "package.json": {
-            "source": "{\"type\":\"module\"}\n",
-            "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
-          }
+          "contract.test.mjs": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nawait Promise.resolve()\nthrow new Error('actual async partial spec load failed')\n",
+          "failed-dependency.mjs": "throw new Error('actual spec dependency load failed')\n",
+          "subject.mjs": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "package.json": "{\"type\":\"module\"}\n"
         },
         "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":false,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
         "snapshots": {
           "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`declared before failed spec load 1`] = `\"prior\"`;\n"
         }
       },
-      "report": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793028168381,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793028168381,
-            "endTime": 1793028168381,
-            "status": "failed",
-            "message": "actual async partial spec load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-IZTGcL/contract.test.mjs"
-          }
-        ]
-      },
-      "observed": {
-        "phase": "reference",
-        "scenario": "failed-partial-spec",
-        "provider": "disabled",
+      "expected": {
         "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -443,17 +196,9 @@
           "updated": 0,
           "didUpdate": false
         },
-        "fileStatus": [
-          {
-            "file": "contract.test.mjs",
-            "status": "failed",
-            "message": "actual async partial spec load failed",
-            "rows": []
-          }
-        ],
-        "sourceBytesUnchanged": true,
-        "snapshotBytesUnchanged": true,
-        "allOwnersJoined": true
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["actual async partial spec load failed"]
       }
     },
     {
@@ -462,38 +207,24 @@
       "provider": "istanbul",
       "authored": {
         "files": {
-          "contract.test.mjs": {
-            "source": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nawait Promise.resolve()\nthrow new Error('actual async partial spec load failed')\n",
-            "sha256": "8d252c496f6db377151e31385ca8250f7c9232ea12ff6d3c126699e3aa6c0686"
-          },
-          "failed-dependency.mjs": {
-            "source": "throw new Error('actual spec dependency load failed')\n",
-            "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
-          },
-          "subject.mjs": {
-            "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
-            "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
-          },
-          "package.json": {
-            "source": "{\"type\":\"module\"}\n",
-            "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
-          }
+          "contract.test.mjs": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nawait Promise.resolve()\nthrow new Error('actual async partial spec load failed')\n",
+          "failed-dependency.mjs": "throw new Error('actual spec dependency load failed')\n",
+          "subject.mjs": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "package.json": "{\"type\":\"module\"}\n"
         },
         "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
         "snapshots": {
           "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`declared before failed spec load 1`] = `\"prior\"`;\n"
         }
       },
-      "report": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
+      "expected": {
+        "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -510,21 +241,12 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793028170158,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793028170158,
-            "endTime": 1793028170158,
-            "status": "failed",
-            "message": "actual async partial spec load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-ORTMKw/contract.test.mjs"
-          }
-        ],
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["actual async partial spec load failed"],
         "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-ORTMKw/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-ORTMKw/subject.mjs",
+          "subject.mjs": {
+            "path": "subject.mjs",
             "statementMap": {
               "0": {
                 "start": {
@@ -661,39 +383,6 @@
             }
           }
         }
-      },
-      "observed": {
-        "phase": "reference",
-        "scenario": "failed-partial-spec",
-        "provider": "istanbul",
-        "exit": 1,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "fileStatus": [
-          {
-            "file": "contract.test.mjs",
-            "status": "failed",
-            "message": "actual async partial spec load failed",
-            "rows": []
-          }
-        ],
-        "sourceBytesUnchanged": true,
-        "snapshotBytesUnchanged": true,
-        "allOwnersJoined": true
       }
     },
     {
@@ -702,38 +391,24 @@
       "provider": "v8",
       "authored": {
         "files": {
-          "contract.test.mjs": {
-            "source": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nawait Promise.resolve()\nthrow new Error('actual async partial spec load failed')\n",
-            "sha256": "8d252c496f6db377151e31385ca8250f7c9232ea12ff6d3c126699e3aa6c0686"
-          },
-          "failed-dependency.mjs": {
-            "source": "throw new Error('actual spec dependency load failed')\n",
-            "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
-          },
-          "subject.mjs": {
-            "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
-            "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
-          },
-          "package.json": {
-            "source": "{\"type\":\"module\"}\n",
-            "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
-          }
+          "contract.test.mjs": "import {test,expect} from 'vitest'\nimport {appendFileSync} from 'node:fs'\nimport {choose} from './subject.mjs'\nconst record=event=>appendFileSync('authored-trace.jsonl',JSON.stringify({event,pid:process.pid})+'\\n')\nrecord('module-enter')\nchoose(false)\ntest('declared before failed spec load',()=>{record('BODY_MUST_NOT_START');expect(choose(true)).toBe(1)})\nrecord('test-declared')\nawait Promise.resolve()\nthrow new Error('actual async partial spec load failed')\n",
+          "failed-dependency.mjs": "throw new Error('actual spec dependency load failed')\n",
+          "subject.mjs": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+          "package.json": "{\"type\":\"module\"}\n"
         },
         "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"v8\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
         "snapshots": {
           "contract.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`declared before failed spec load 1`] = `\"prior\"`;\n"
         }
       },
-      "report": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
+      "expected": {
+        "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -750,21 +425,12 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793028169254,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793028169254,
-            "endTime": 1793028169254,
-            "status": "failed",
-            "message": "actual async partial spec load failed",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-P5gZ0n/contract.test.mjs"
-          }
-        ],
+        "files": [["contract.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["actual async partial spec load failed"],
         "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-P5gZ0n/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-P5gZ0n/subject.mjs",
+          "subject.mjs": {
+            "path": "subject.mjs",
             "statementMap": {
               "0": {
                 "start": {
@@ -919,39 +585,6 @@
             }
           }
         }
-      },
-      "observed": {
-        "phase": "reference",
-        "scenario": "failed-partial-spec",
-        "provider": "v8",
-        "exit": 1,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "fileStatus": [
-          {
-            "file": "contract.test.mjs",
-            "status": "failed",
-            "message": "actual async partial spec load failed",
-            "rows": []
-          }
-        ],
-        "sourceBytesUnchanged": true,
-        "snapshotBytesUnchanged": true,
-        "allOwnersJoined": true
       }
     },
     {
@@ -960,72 +593,24 @@
       "provider": "disabled",
       "authored": {
         "files": {
-          "subject.mjs": {
-            "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-            "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-          },
-          "setup.mjs": {
-            "source": "import {choose} from './subject.mjs'\nchoose(false)\nthrow new Error('owned settled setup import failure')\n",
-            "sha256": "cabb215b399c819624e5e21169cedbce9222631eae3164bf1e7c01529e5cef0b"
-          },
-          "serializer.mjs": {
-            "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-            "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-          },
-          "suite.test.mjs": {
-            "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
-            "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
-          }
+          "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "setup.mjs": "import {choose} from './subject.mjs'\nchoose(false)\nthrow new Error('owned settled setup import failure')\n",
+          "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n"
         },
         "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":false,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
         "snapshots": {
           "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
         }
       },
-      "report": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "startTime": 1793028165667,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793028165667,
-            "endTime": 1793028165667,
-            "status": "failed",
-            "message": "owned settled setup import failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-VehlVv/suite.test.mjs"
-          }
-        ]
-      },
-      "observed": {
-        "phase": "reference",
-        "scenario": "failed-setup",
-        "provider": "disabled",
+      "expected": {
         "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -1042,17 +627,9 @@
           "updated": 0,
           "didUpdate": false
         },
-        "fileStatus": [
-          {
-            "file": "suite.test.mjs",
-            "status": "failed",
-            "message": "owned settled setup import failure",
-            "rows": []
-          }
-        ],
-        "sourceBytesUnchanged": true,
-        "snapshotBytesUnchanged": true,
-        "allOwnersJoined": true
+        "files": [["suite.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["owned settled setup import failure"]
       }
     },
     {
@@ -1061,38 +638,24 @@
       "provider": "istanbul",
       "authored": {
         "files": {
-          "subject.mjs": {
-            "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-            "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-          },
-          "setup.mjs": {
-            "source": "import {choose} from './subject.mjs'\nchoose(false)\nthrow new Error('owned settled setup import failure')\n",
-            "sha256": "cabb215b399c819624e5e21169cedbce9222631eae3164bf1e7c01529e5cef0b"
-          },
-          "serializer.mjs": {
-            "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-            "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-          },
-          "suite.test.mjs": {
-            "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
-            "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
-          }
+          "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "setup.mjs": "import {choose} from './subject.mjs'\nchoose(false)\nthrow new Error('owned settled setup import failure')\n",
+          "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n"
         },
         "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
         "snapshots": {
           "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
         }
       },
-      "report": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
+      "expected": {
+        "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -1109,21 +672,12 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793028167523,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793028167523,
-            "endTime": 1793028167523,
-            "status": "failed",
-            "message": "owned settled setup import failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-qsbrU5/suite.test.mjs"
-          }
-        ],
+        "files": [["suite.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["owned settled setup import failure"],
         "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-qsbrU5/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-qsbrU5/subject.mjs",
+          "subject.mjs": {
+            "path": "subject.mjs",
             "statementMap": {
               "0": {
                 "start": {
@@ -1260,39 +814,6 @@
             }
           }
         }
-      },
-      "observed": {
-        "phase": "reference",
-        "scenario": "failed-setup",
-        "provider": "istanbul",
-        "exit": 1,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "fileStatus": [
-          {
-            "file": "suite.test.mjs",
-            "status": "failed",
-            "message": "owned settled setup import failure",
-            "rows": []
-          }
-        ],
-        "sourceBytesUnchanged": true,
-        "snapshotBytesUnchanged": true,
-        "allOwnersJoined": true
       }
     },
     {
@@ -1301,38 +822,24 @@
       "provider": "v8",
       "authored": {
         "files": {
-          "subject.mjs": {
-            "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-            "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-          },
-          "setup.mjs": {
-            "source": "import {choose} from './subject.mjs'\nchoose(false)\nthrow new Error('owned settled setup import failure')\n",
-            "sha256": "cabb215b399c819624e5e21169cedbce9222631eae3164bf1e7c01529e5cef0b"
-          },
-          "serializer.mjs": {
-            "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-            "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-          },
-          "suite.test.mjs": {
-            "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
-            "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
-          }
+          "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+          "setup.mjs": "import {choose} from './subject.mjs'\nchoose(false)\nthrow new Error('owned settled setup import failure')\n",
+          "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+          "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n"
         },
         "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
         "snapshots": {
           "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
         }
       },
-      "report": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 0,
-        "numFailedTestSuites": 1,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 0,
-        "numPassedTests": 0,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
+      "expected": {
+        "exit": 1,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "pending": 0,
+        "todo": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -1349,21 +856,12 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793028166571,
-        "success": false,
-        "testResults": [
-          {
-            "assertionResults": [],
-            "startTime": 1793028166571,
-            "endTime": 1793028166571,
-            "status": "failed",
-            "message": "owned settled setup import failure",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-Rqlkks/suite.test.mjs"
-          }
-        ],
+        "files": [["suite.test.mjs", "failed"]],
+        "cases": [],
+        "fileErrors": ["owned settled setup import failure"],
         "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-Rqlkks/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.snapshot-statistics85-Rqlkks/subject.mjs",
+          "subject.mjs": {
+            "path": "subject.mjs",
             "statementMap": {
               "0": {
                 "start": {
@@ -1518,39 +1016,6 @@
             }
           }
         }
-      },
-      "observed": {
-        "phase": "reference",
-        "scenario": "failed-setup",
-        "provider": "v8",
-        "exit": 1,
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "fileStatus": [
-          {
-            "file": "suite.test.mjs",
-            "status": "failed",
-            "message": "owned settled setup import failure",
-            "rows": []
-          }
-        ],
-        "sourceBytesUnchanged": true,
-        "snapshotBytesUnchanged": true,
-        "allOwnersJoined": true
       }
     }
   ]

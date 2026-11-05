@@ -100,8 +100,7 @@ if (!process.argv.includes('--owned-metadata-child')) {
       )
       for (const row of rows)
         for (const [name, file] of Object.entries(row.sourceFiles)) {
-          assert.equal(hash(file.source), file.sha256)
-          fs.writeFileSync(path.join(fixture, name), file.source)
+          fs.writeFileSync(path.join(fixture, name), file)
         }
       fs.writeFileSync(
         path.join(fixture, 'package.json'),
@@ -131,7 +130,7 @@ if (!process.argv.includes('--owned-metadata-child')) {
       assert.deepEqual(plan.sources, [
         {
           file: path.join(fixture, 'subject.mjs'),
-          sha256: rows[0].sourceFiles['subject.mjs'].sha256,
+          sha256: hash(rows[0].sourceFiles['subject.mjs']),
         },
       ])
       service = await openIstanbulInstrumentation({
@@ -236,7 +235,7 @@ if (!process.argv.includes('--owned-metadata-child')) {
       const refused = []
       for (const ext of ['cjs', 'cts', 'jsx', 'tsx']) {
         const file = path.join(fixture, 'unsupported.test.' + ext)
-        fs.writeFileSync(file, rows[0].sourceFiles[rows[0].specFile].source)
+        fs.writeFileSync(file, rows[0].sourceFiles[rows[0].specFile])
         await assert.rejects(
           () =>
             session.compile(
@@ -308,8 +307,7 @@ if (!process.argv.includes('--owned-metadata-child')) {
             allOriginalSpecAndSubjectBytesHeld: rows.every((row) =>
               Object.entries(row.sourceFiles).every(
                 ([name, file]) =>
-                  hash(fs.readFileSync(path.join(fixture, name))) ===
-                  file.sha256
+                  fs.readFileSync(path.join(fixture, name), 'utf8') === file
               )
             ),
           },

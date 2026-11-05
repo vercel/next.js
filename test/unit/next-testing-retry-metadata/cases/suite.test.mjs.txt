@@ -1,3 +1,10 @@
-import { test, describe, expect } from 'vitest'
-const row = (...event) => console.log('RETRY_OBJECT_ROW ' + JSON.stringify({ contract: "suite", event }))
-let count = 0; const retry = { count: 1, metadata: 'suite' }; describe('primitive suite', { retry }, () => { test('inherited primitive', () => { row('body', ++count); if (count === 1) throw new Error('first'); expect(count).toBe(2) }) })
+import { describe, test, expect } from 'vitest'
+
+let attempts = 0
+
+describe('primitive suite', { retry: { count: 1, metadata: 'suite' } }, () => {
+  test('inherited primitive', () => {
+    if (++attempts === 1) throw new Error('first')
+    expect(attempts).toBe(2)
+  })
+})

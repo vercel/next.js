@@ -1,5 +1,4 @@
 {
-  "reference": "Vitest5.0.4 exact new ordinary sync/async Error-Array cases and reportOnFailure policy",
   "rows": [
     {
       "name": "beforeeach-array-async-no-snapshots",
@@ -24,6 +23,12 @@
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "snapshots": {},
       "exitCode": 1,
+      "independentAfterEach": false,
+      "expectedErrorsPerCase": 2,
+      "expectedErrorMessages": [
+        "actual beforeEach Array first",
+        "actual beforeEach Array second"
+      ],
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -34,6 +39,7 @@
         "numFailedTests": 2,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -50,197 +56,51 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793033193620,
-        "success": false,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/suite.test.mjs",
+            "status": "failed",
+            "message": "",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "failed",
                 "title": "first owned body",
-                "duration": 1.9265840000000054,
                 "failureMessages": [
-                  "Error: actual beforeEach Array first\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/setup.mjs:3:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)",
-                  "Error: actual beforeEach Array second\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/setup.mjs:4:14\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)"
-                ],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "failed",
                 "title": "second owned body",
-                "duration": 0.07487499999999159,
                 "failureMessages": [
-                  "Error: actual beforeEach Array first\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/setup.mjs:3:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)",
-                  "Error: actual beforeEach Array second\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/setup.mjs:4:14\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)"
-                ],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "startTime": 1793033193742,
-            "endTime": 1793033193744.075,
-            "status": "failed",
-            "message": "",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/suite.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
                 ]
               }
-            },
-            "s": {
-              "0": 2,
-              "1": 0,
-              "2": 2,
-              "3": 0
-            },
-            "f": {
-              "0": 2,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 2]
-            }
+            ]
           }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [2, 0, 2, 0],
+          "functions": [2, 0],
+          "branches": [[0, 2]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:2,choose\nFNDA:0,unused\nDA:2,2\nDA:3,2\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,2\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-cH8L9C/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":2,\"1\":0,\"2\":2,\"3\":0},\"f\":{\"0\":2,\"1\":0},\"b\":{\"0\":[0,2]}}\n}\n"
-      },
-      "independentAfterEach": false,
-      "expectedErrorsPerCase": 2,
-      "expectedErrorMessages": [
-        "actual beforeEach Array first",
-        "actual beforeEach Array second"
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ],
+      "setupErrorLines": [
+        [3, 4],
+        [3, 4]
       ]
     },
     {
@@ -266,6 +126,12 @@
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
       "snapshots": {},
       "exitCode": 1,
+      "independentAfterEach": false,
+      "expectedErrorsPerCase": 2,
+      "expectedErrorMessages": [
+        "actual beforeEach Array first",
+        "actual beforeEach Array second"
+      ],
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -276,6 +142,7 @@
         "numFailedTests": 2,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -292,193 +159,47 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793033194535,
-        "success": false,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FViCRO/suite.test.mjs",
+            "status": "failed",
+            "message": "",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "failed",
                 "title": "first owned body",
-                "duration": 1.9037079999999946,
                 "failureMessages": [
-                  "Error: actual beforeEach Array first\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FViCRO/setup.mjs:3:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)",
-                  "Error: actual beforeEach Array second\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FViCRO/setup.mjs:4:14\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)"
-                ],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "failed",
                 "title": "second owned body",
-                "duration": 0.07291699999998968,
                 "failureMessages": [
-                  "Error: actual beforeEach Array first\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FViCRO/setup.mjs:3:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)",
-                  "Error: actual beforeEach Array second\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FViCRO/setup.mjs:4:14\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)"
-                ],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "startTime": 1793033194647,
-            "endTime": 1793033194649.073,
-            "status": "failed",
-            "message": "",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FViCRO/suite.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FViCRO/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FViCRO/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
                 ]
               }
-            },
-            "s": {
-              "0": 2,
-              "1": 0,
-              "2": 2,
-              "3": 0
-            },
-            "f": {
-              "0": 2,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 2]
-            }
+            ]
           }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [2, 0, 2, 0],
+          "functions": [2, 0],
+          "branches": [[0, 2]]
         }
       },
-      "reports": {},
-      "independentAfterEach": false,
-      "expectedErrorsPerCase": 2,
-      "expectedErrorMessages": [
-        "actual beforeEach Array first",
-        "actual beforeEach Array second"
+      "reportFiles": [],
+      "setupErrorLines": [
+        [3, 4],
+        [3, 4]
       ]
     },
     {
@@ -504,6 +225,12 @@
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "snapshots": {},
       "exitCode": 1,
+      "independentAfterEach": false,
+      "expectedErrorsPerCase": 2,
+      "expectedErrorMessages": [
+        "actual beforeEach Array first",
+        "actual beforeEach Array second"
+      ],
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -514,6 +241,7 @@
         "numFailedTests": 2,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -530,197 +258,51 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793033191773,
-        "success": false,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/suite.test.mjs",
+            "status": "failed",
+            "message": "",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "failed",
                 "title": "first owned body",
-                "duration": 1.8165419999999983,
                 "failureMessages": [
-                  "Error: actual beforeEach Array first\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/setup.mjs:3:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)",
-                  "Error: actual beforeEach Array second\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/setup.mjs:4:14\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)"
-                ],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "failed",
                 "title": "second owned body",
-                "duration": 0.06754100000000562,
                 "failureMessages": [
-                  "Error: actual beforeEach Array first\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/setup.mjs:3:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)",
-                  "Error: actual beforeEach Array second\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/setup.mjs:4:14\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)"
-                ],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "startTime": 1793033191907,
-            "endTime": 1793033191909.0676,
-            "status": "failed",
-            "message": "",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/suite.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
                 ]
               }
-            },
-            "s": {
-              "0": 2,
-              "1": 0,
-              "2": 2,
-              "3": 0
-            },
-            "f": {
-              "0": 2,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 2]
-            }
+            ]
           }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [2, 0, 2, 0],
+          "functions": [2, 0],
+          "branches": [[0, 2]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:2,choose\nFNDA:0,unused\nDA:2,2\nDA:3,2\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,2\nBRF:2\nBRH:1\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-wXARzF/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":2,\"1\":0,\"2\":2,\"3\":0},\"f\":{\"0\":2,\"1\":0},\"b\":{\"0\":[0,2]}}\n}\n"
-      },
-      "independentAfterEach": false,
-      "expectedErrorsPerCase": 2,
-      "expectedErrorMessages": [
-        "actual beforeEach Array first",
-        "actual beforeEach Array second"
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ],
+      "setupErrorLines": [
+        [3, 4],
+        [3, 4]
       ]
     },
     {
@@ -746,6 +328,12 @@
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
       "snapshots": {},
       "exitCode": 1,
+      "independentAfterEach": false,
+      "expectedErrorsPerCase": 2,
+      "expectedErrorMessages": [
+        "actual beforeEach Array first",
+        "actual beforeEach Array second"
+      ],
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -756,6 +344,7 @@
         "numFailedTests": 2,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -772,193 +361,47 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1793033192701,
-        "success": false,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FphFUn/suite.test.mjs",
+            "status": "failed",
+            "message": "",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "failed",
                 "title": "first owned body",
-                "duration": 1.8926250000000095,
                 "failureMessages": [
-                  "Error: actual beforeEach Array first\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FphFUn/setup.mjs:3:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)",
-                  "Error: actual beforeEach Array second\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FphFUn/setup.mjs:4:14\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)"
-                ],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
+                ]
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "failed",
                 "title": "second owned body",
-                "duration": 0.08066699999999116,
                 "failureMessages": [
-                  "Error: actual beforeEach Array first\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FphFUn/setup.mjs:3:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)",
-                  "Error: actual beforeEach Array second\n    at /private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FphFUn/setup.mjs:4:14\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async VitestModuleEvaluator._runInlinedModule (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/module-evaluator.js:261:4)\n    at async VitestModuleRunner.directRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1288:59)\n    at async VitestModuleRunner.cachedRequest (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1195:73)\n    at async VitestModuleRunner.import (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vite@8.3.4/node_modules/vite/dist/node/module-runner.js:1150:10)\n    at async runSetupFiles (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3426:35)\n    at async file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3455:6\n    at async collectTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3437:3)\n    at async startTests (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:4181:17)"
-                ],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "startTime": 1793033192821,
-            "endTime": 1793033192823.0806,
-            "status": "failed",
-            "message": "",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FphFUn/suite.test.mjs"
-          }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FphFUn/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-FphFUn/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
+                  "Error: actual beforeEach Array first",
+                  "Error: actual beforeEach Array second"
                 ]
               }
-            },
-            "s": {
-              "0": 2,
-              "1": 0,
-              "2": 2,
-              "3": 0
-            },
-            "f": {
-              "0": 2,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 2]
-            }
+            ]
           }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [2, 0, 2, 0],
+          "functions": [2, 0],
+          "branches": [[0, 2]]
         }
       },
-      "reports": {},
-      "independentAfterEach": false,
-      "expectedErrorsPerCase": 2,
-      "expectedErrorMessages": [
-        "actual beforeEach Array first",
-        "actual beforeEach Array second"
+      "reportFiles": [],
+      "setupErrorLines": [
+        [3, 4],
+        [3, 4]
       ]
     }
   ]

@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   readFileSync,
@@ -21,6 +20,7 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+import { assertSnapshotReport } from './snapshot-coverage-assertions.mjs'
 
 const [consumerArg, outputArg, extension] = process.argv.slice(2)
 assert(consumerArg && outputArg)
@@ -40,9 +40,7 @@ const row = JSON.parse(
   )
 ).rows.find((row) => row.name === extension)
 assert(row)
-assert.equal(row.genuine.cancel.status, 130)
-assert.equal(row.genuine.cancel.traceAfterCancel, '')
-assert.equal(row.genuine.recoveryExit, 0)
+assert.equal(row.recovery.exit, 0)
 const fixture = mkdtempSync(join(consumer, '.next-v8-spec-cancel-'))
 mkdirSync(output, { recursive: true })
 const canonical = (map) =>
@@ -52,38 +50,9 @@ const canonical = (map) =>
       { ...data, ...('path' in data ? { path: basename(data.path) } : {}) },
     ])
   )
-const cases = (report) =>
-  report.testResults.map((file) => ({
-    file: basename(file.name),
-    status: file.status,
-    message: file.message,
-    cases: file.assertionResults.map(
-      ({ duration: _duration, ...value }) => value
-    ),
-  }))
-const summary = (report) =>
-  Object.fromEntries(
-    [
-      'numTotalTestSuites',
-      'numPassedTestSuites',
-      'numFailedTestSuites',
-      'numPendingTestSuites',
-      'numTotalTests',
-      'numPassedTests',
-      'numFailedTests',
-      'numPendingTests',
-      'numTodoTests',
-      'success',
-      'snapshot',
-    ].map((key) => [key, report[key]])
-  )
 try {
-  for (const [name, { source: bytes, sha256 }] of Object.entries(
-    row.sourceFiles
-  )) {
-    assert.equal(createHash('sha256').update(bytes).digest('hex'), sha256)
+  for (const [name, bytes] of Object.entries(row.sourceFiles))
     writeFileSync(join(fixture, name), bytes)
-  }
   writeFileSync(join(fixture, 'vitest.config.mjs'), row.config)
   writeFileSync(
     join(fixture, 'next.config.mjs'),
@@ -214,34 +183,48 @@ try {
   writeFileSync(join(output, 'recovery-stdout.log'), recovery.stdout)
   writeFileSync(join(output, 'recovery-stderr.log'), recovery.stderr)
   assertOwnedNodeCompleted(recovery, 'actual spec-load recovery')
-  assert.equal(recovery.status, row.genuine.recoveryExit, recovery.stderr)
+  assert.equal(recovery.status, row.recovery.exit, recovery.stderr)
   const report = JSON.parse(readFileSync(join(output, 'recovery-cases.json')))
-  assert.deepEqual(cases(report), cases(row.genuine.cases))
-  assert.deepEqual(summary(report), summary(row.genuine.cases))
+  assertSnapshotReport(report, row.recovery)
+  assert.equal(report.success, true)
+  assert.equal(report.numTotalTests, row.recovery.cases.length)
   assert.deepEqual(
-    canonical(report.coverageMap),
-    canonical(row.genuine.cases.coverageMap)
+    report.testResults.map((file) => file.status),
+    row.recovery.fileStates
   )
-  for (const [name, expected] of Object.entries(row.genuine.reports)) {
-    const actual = readFileSync(join(fixture, 'coverage', name), 'utf8')
-    if (name.endsWith('.json'))
-      assert.deepEqual(
-        canonical(JSON.parse(actual)),
-        canonical(JSON.parse(expected))
-      )
-    else assert.equal(actual, expected)
+  assert.deepEqual(canonical(report.coverageMap), row.recovery.coverageMap)
+  assert.deepEqual(
+    canonical(
+      JSON.parse(readFileSync(join(fixture, 'coverage/coverage-final.json')))
+    ),
+    row.recovery.coverageMap
+  )
+  assert.deepEqual(
+    canonical(
+      JSON.parse(readFileSync(join(fixture, 'coverage/coverage-summary.json')))
+    ),
+    row.recovery.summary
+  )
+  assert.equal(
+    readFileSync(join(fixture, 'coverage/lcov.info'), 'utf8'),
+    row.recovery.lcov
+  )
+  for (const name of [
+    'coverage-final.json',
+    'coverage-summary.json',
+    'lcov.info',
+  ])
     copyFileSync(join(fixture, 'coverage', name), join(output, name))
-  }
   assert.equal(
     readFileSync(join(fixture, 'trace.jsonl'), 'utf8'),
-    row.genuine.recoveryTrace
+    row.recovery.trace
   )
   assert.equal(readFileSync(snapshotFile, 'utf8'), row.snapshot)
   assert.equal(
     readFileSync(join(fixture, 'vitest.config.mjs'), 'utf8'),
     row.config
   )
-  for (const [name, { source: bytes }] of Object.entries(row.sourceFiles))
+  for (const [name, bytes] of Object.entries(row.sourceFiles))
     assert.equal(readFileSync(join(fixture, name), 'utf8'), bytes)
   assert.equal(
     readFileSync(join(fixture, 'coverage/retained-sentinel.txt'), 'utf8'),
@@ -259,7 +242,7 @@ try {
         priorReportUnchanged: true,
         priorSnapshotUnchanged: true,
         recoveryExit: 0,
-        completeRecoveryCaseProjection: true,
+        recoveryCaseOutcomes: true,
         completeRecoveryMaps: true,
         actualJSONCoverageMap: true,
         exactExistingSnapshot: true,

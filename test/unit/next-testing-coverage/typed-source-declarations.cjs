@@ -85,7 +85,7 @@ async function refusal(name, action, pattern) {
 ;(async () => {
   try {
     for (const [name, file] of Object.entries(row.sourceFiles))
-      fs.writeFileSync(path.join(fixture, name), file.source)
+      fs.writeFileSync(path.join(fixture, name), file)
     fs.writeFileSync(path.join(fixture, 'package.json'), '{"type":"module"}\n')
     fs.writeFileSync(
       path.join(fixture, 'next.config.mjs'),

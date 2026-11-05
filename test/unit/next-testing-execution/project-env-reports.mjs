@@ -1,6 +1,5 @@
 import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   mkdir,
@@ -29,24 +28,19 @@ const corpus = join(
   dirname(fileURLToPath(import.meta.url)),
   'fixtures/node-project-env'
 )
-const expected = JSON.parse(
-  await readFile(
-    resolveFixturePath(
-      join(
-        corpus,
-        mode === 'production' ? 'pristine-production.json' : 'pristine.json'
-      )
-    ),
-    'utf8'
-  )
-)
-const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
+const profiles = ['omitted', 'false', 'true'].map((unstub) => ({ unstub }))
 const templates = new Map()
-for (const [name, pin] of Object.entries(expected.sourceSHA256)) {
-  const bytes = await readFile(resolveFixturePath(join(corpus, name)))
-  assert.equal(sha(bytes), pin)
-  templates.set(name, bytes.toString())
-}
+for (const name of [
+  'package.json.txt',
+  'subject.mjs.txt',
+  'contract.test.mjs.txt',
+  'setup.mjs.txt',
+  'global-setup.mjs.txt',
+])
+  templates.set(
+    name,
+    await readFile(resolveFixturePath(join(corpus, name)), 'utf8')
+  )
 const load = createRequire(join(root, 'package.json'))
 if (!process.argv.includes('--source'))
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
@@ -68,7 +62,7 @@ const prepared = [],
   facts = []
 let readersClosed = true
 await mkdir(output, { recursive: true })
-for (const profile of expected.profiles) {
+for (const profile of profiles) {
   const fixture = await mkdtemp(join(root, '.next-test-node-project-env-')),
     evidence = join(output, profile.unstub)
   await mkdir(evidence)
@@ -98,24 +92,15 @@ for (const profile of expected.profiles) {
     join(fixture, 'next.config.mjs'),
     'export default ' + JSON.stringify({ turbopack: { root } }) + '\n'
   )
-  prepared.push({ profile, fixture, evidence, globalTrace, exitTrace, sources })
+  prepared.push({
+    profile,
+    fixture,
+    evidence,
+    globalTrace,
+    exitTrace,
+    sources,
+  })
 }
-await writeFile(
-  join(output, 'INPUTS.json'),
-  JSON.stringify(
-    {
-      allInputsPreparedBeforeReaders: true,
-      prepared: prepared.map(({ sources, ...record }) => ({
-        ...record,
-        sourceSHA256: Object.fromEntries(
-          [...sources].map(([name, value]) => [name, sha(value)])
-        ),
-      })),
-    },
-    null,
-    2
-  ) + '\n'
-)
 try {
   for (const {
     profile,
@@ -200,7 +185,74 @@ try {
       join(evidence, 'ACTUAL.json'),
       JSON.stringify(actual, null, 2) + '\n'
     )
-    assert.deepEqual(actual, profile)
+    assert.equal(owner.status, 0, owner.stderr)
+    assert.equal(report.success, true)
+    assert.deepEqual(
+      actual.cases.map(({ name, status, failureMessages }) => [
+        name,
+        status,
+        failureMessages,
+      ]),
+      [
+        ['stub project environment', 'passed', []],
+        ['restore project environment', 'passed', []],
+      ]
+    )
+    assert.deepEqual(
+      actual.rows.map(({ phase }) => phase),
+      [
+        'setup',
+        'module',
+        'beforeAll',
+        'body-first',
+        'stubbed',
+        'afterEach',
+        'finished-first',
+        'body-second',
+        'restored',
+        'afterEach',
+        'afterAll',
+        'setup-afterAll',
+        'file-fixture-cleanup',
+        'worker-fixture-cleanup',
+      ]
+    )
+    const assertContext = (row, configured, stubbed = false) => {
+      assert.equal(
+        row.value,
+        stubbed ? 'stubbed' : configured ? 'configured' : 'host'
+      )
+      assert.equal(
+        row.root,
+        stubbed ? null : configured ? 'root-only' : 'host-root'
+      )
+      assert.equal(row.added, stubbed ? 'added' : null)
+      assert.equal(row.nodeLiteral, mode)
+      assert.equal(row.nodeComputed, mode)
+      for (const key of ['publicLiteral', 'publicComputed'])
+        assert.equal(row[key], 'host-public')
+      for (const key of ['appLiteral', 'appComputed'])
+        assert.equal(row[key], 'host-app')
+      assert.equal(
+        row.nodePrefixed,
+        configured ? 'configured-node' : 'host-node'
+      )
+      assert.equal(
+        row.underscorePrefixed,
+        configured ? 'configured-underscore' : 'host-underscore'
+      )
+    }
+    for (const [index, row] of actual.rows.entries())
+      assertContext(
+        row,
+        true,
+        (index >= 4 && index <= 6) || (index === 7 && profile.unstub !== 'true')
+      )
+    assert.deepEqual(
+      actual.globalRows.map(({ phase }) => phase),
+      ['global-setup', 'global-teardown']
+    )
+    for (const row of actual.globalRows) assertContext(row, false)
     const exitRows = (await readFile(exitTrace, 'utf8'))
       .trim()
       .split('\n')
@@ -218,7 +270,9 @@ try {
         2
       ) + '\n'
     )
-    assert.deepEqual(exitRows, [expected.sourceExitGuard])
+    assert.equal(exitRows.length, 1)
+    assert.equal(exitRows[0].phase, 'worker-exit')
+    assertContext(exitRows[0], false)
     for (const [file, source] of sources)
       assert.equal(await readFile(join(fixture, file), 'utf8'), source)
     assert.deepEqual(
@@ -227,7 +281,7 @@ try {
     )
     facts.push({
       unstub: profile.unstub,
-      completeCasesRowsAndGlobalContextMatch: true,
+      environmentLifecycleAndRestoration: true,
       actualWorkerExitRestoredHostValues: true,
       sourceBytesHeld: true,
       ownersClosed: true,
@@ -247,7 +301,7 @@ await writeFile(
   JSON.stringify(
     {
       profiles: facts.length,
-      completeCasesRowsAndGlobalContextMatch: true,
+      environmentLifecycleAndRestoration: true,
       actualWorkerExitRestoredHostValues: true,
       parentEnvironmentUnchanged: true,
       allOwnersJoined: readersClosed,

@@ -1,40 +1,20 @@
 {
-  "reference": "official Vitest5.0.4 inactive early-collected countermeasure; excluded-only final producer remains separate gap",
   "rows": [
     {
       "name": "focused-simple-active",
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "",
-          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true))\n",
-          "sha256": "3646daaa7948d3a7614b1f0f5c366ffbd9e88e44c8cbc1c43a12693ee83f017d"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true))\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":false,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
-      "flags": [],
-      "snapshots": {},
       "exitCode": 0,
-      "standardReport": {
-        "numTotalTestSuites": 1,
-        "numPassedTestSuites": 1,
-        "numFailedTestSuites": 0,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 1,
-        "numPassedTests": 1,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
+      "expected": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "caseNames": ["first owned body"],
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -50,124 +30,24 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
-        },
-        "success": true,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "first owned body",
-                "status": "passed",
-                "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "status": "passed",
-            "message": "",
-            "name": "<fixture>/suite.test.mjs"
-          }
-        ]
-      },
-      "moduleTrace": [
-        {
-          "event": "collected",
-          "tree": {
-            "type": "module",
-            "name": "suite.test.mjs",
-            "state": "pending",
-            "errors": [],
-            "children": [
-              {
-                "type": "test",
-                "name": "first owned body",
-                "state": "pending",
-                "mode": "run",
-                "errors": []
-              }
-            ]
-          }
-        },
-        {
-          "event": "module-end",
-          "tree": {
-            "type": "module",
-            "name": "suite.test.mjs",
-            "state": "passed",
-            "errors": [],
-            "children": [
-              {
-                "type": "test",
-                "name": "first owned body",
-                "state": "passed",
-                "mode": "run",
-                "errors": []
-              }
-            ]
-          }
-        },
-        {
-          "event": "run-end",
-          "reason": "passed",
-          "errors": [],
-          "modules": [
-            {
-              "type": "module",
-              "name": "suite.test.mjs",
-              "state": "passed",
-              "errors": [],
-              "children": [
-                {
-                  "type": "test",
-                  "name": "first owned body",
-                  "state": "passed",
-                  "mode": "run",
-                  "errors": []
-                }
-              ]
-            }
-          ]
         }
-      ],
-      "wholeGraphQualified": true
+      }
     },
     {
       "name": "focused-inactive-excluded-only",
       "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "",
-          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true));describe.skip('outer',()=>test.only('second owned body',()=>choose(false)))\n",
-          "sha256": "304efffd72c2ac687f2c9a5a746977b1a2d6344d2cb72fb332e07b978fca5535"
-        }
+        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "setup.mjs": "",
+        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "suite.test.mjs": "import {test,describe,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.only('first owned body',()=>choose(true));describe.skip('outer',()=>test.only('second owned body',()=>choose(false)))\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":false,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
-      "flags": [],
-      "snapshots": {},
       "exitCode": 0,
-      "standardReport": {
-        "numTotalTestSuites": 2,
-        "numPassedTestSuites": 2,
-        "numFailedTestSuites": 0,
-        "numPendingTestSuites": 0,
-        "numTotalTests": 2,
-        "numPassedTests": 1,
-        "numFailedTests": 0,
-        "numPendingTests": 0,
-        "numTodoTests": 0,
+      "expected": {
+        "total": 2,
+        "passed": 1,
+        "failed": 0,
+        "caseNames": ["first owned body", "outer second owned body"],
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -183,147 +63,8 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
-        },
-        "success": true,
-        "testResults": [
-          {
-            "assertionResults": [
-              {
-                "ancestorTitles": [],
-                "fullName": "first owned body",
-                "status": "passed",
-                "title": "first owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              },
-              {
-                "ancestorTitles": ["outer"],
-                "fullName": "outer second owned body",
-                "status": "pending",
-                "title": "second owned body",
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
-              }
-            ],
-            "status": "passed",
-            "message": "",
-            "name": "<fixture>/suite.test.mjs"
-          }
-        ]
-      },
-      "moduleTrace": [
-        {
-          "event": "collected",
-          "tree": {
-            "type": "module",
-            "name": "suite.test.mjs",
-            "state": "pending",
-            "errors": [],
-            "children": [
-              {
-                "type": "test",
-                "name": "first owned body",
-                "state": "pending",
-                "mode": "run",
-                "errors": []
-              },
-              {
-                "type": "suite",
-                "name": "outer",
-                "state": "skipped",
-                "mode": "skip",
-                "errors": [],
-                "children": [
-                  {
-                    "type": "test",
-                    "name": "second owned body",
-                    "state": "pending",
-                    "mode": "only",
-                    "errors": []
-                  }
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "event": "module-end",
-          "tree": {
-            "type": "module",
-            "name": "suite.test.mjs",
-            "state": "passed",
-            "errors": [],
-            "children": [
-              {
-                "type": "test",
-                "name": "first owned body",
-                "state": "passed",
-                "mode": "run",
-                "errors": []
-              },
-              {
-                "type": "suite",
-                "name": "outer",
-                "state": "skipped",
-                "mode": "skip",
-                "errors": [],
-                "children": [
-                  {
-                    "type": "test",
-                    "name": "second owned body",
-                    "state": "pending",
-                    "mode": "only",
-                    "errors": []
-                  }
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "event": "run-end",
-          "reason": "passed",
-          "errors": [],
-          "modules": [
-            {
-              "type": "module",
-              "name": "suite.test.mjs",
-              "state": "passed",
-              "errors": [],
-              "children": [
-                {
-                  "type": "test",
-                  "name": "first owned body",
-                  "state": "passed",
-                  "mode": "run",
-                  "errors": []
-                },
-                {
-                  "type": "suite",
-                  "name": "outer",
-                  "state": "skipped",
-                  "mode": "skip",
-                  "errors": [],
-                  "children": [
-                    {
-                      "type": "test",
-                      "name": "second owned body",
-                      "state": "pending",
-                      "mode": "only",
-                      "errors": []
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
         }
-      ],
-      "wholeGraphQualified": false
+      }
     }
   ]
 }

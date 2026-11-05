@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   readFileSync,
@@ -14,18 +13,19 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+import { assertSnapshotReport } from './snapshot-coverage-assertions.mjs'
 
 const [rootArg, outputArg, profile] = process.argv.slice(2)
 assert(rootArg && outputArg && profile)
 const root = resolve(rootArg)
 const output = resolve(outputArg)
 const here = dirname(fileURLToPath(import.meta.url))
-const pristine = JSON.parse(
+const expected = JSON.parse(
   readFileSync(
-    join(here, 'fixtures/istanbul-provider/global-teardown-pristine.json')
+    join(here, 'fixtures/istanbul-provider/global-teardown.expected.json')
   )
 )
-const row = pristine.rows.find((row) => row.profile === profile)
+const row = expected.rows.find((row) => row.profile === profile)
 assert(row, 'Unknown global teardown coverage profile')
 const source = process.argv.includes('--source')
 const load = createRequire(join(root, 'package.json'))
@@ -33,26 +33,34 @@ if (!source)
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
     assert.throws(() => load.resolve(name))
 const fixture = mkdtempSync(join(root, '.next-global-coverage-'))
-const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 mkdirSync(output, { recursive: true })
 let joined = false
 try {
+  const readSource = (name) =>
+    readFileSync(
+      join(here, 'fixtures/istanbul-provider/global-teardown', name + '.txt'),
+      'utf8'
+    )
+  const config = readSource('vitest.config.mjs')
+  const setup =
+    row.name === 'normal' || row.name === 'async-error'
+      ? row.name
+      : 'sync-error'
   const files = {
-    ...row.files,
-    'next.test.config.mjs': row.files['vitest.config.mjs'].replace(
+    'package.json': readSource('package.json'),
+    'subject.mjs': readSource('subject.mjs'),
+    'contract.test.mjs': readSource('contract.test.mjs'),
+    'setup.mjs': readSource(setup + '-setup.mjs'),
+    'vitest.config.mjs': config,
+    'next.test.config.mjs': config.replace(
       "name:'global-map214',",
       "name:'global-map214',mode:'" + row.mode + "',"
     ),
     'next.config.mjs':
       'export default ' + JSON.stringify({ turbopack: { root } }) + '\n',
   }
-  const pins = {}
-  for (const [name, bytes] of Object.entries(files)) {
-    if (Object.hasOwn(row.sourceSHA256, name))
-      assert.equal(sha(bytes), row.sourceSHA256[name])
+  for (const [name, bytes] of Object.entries(files))
     writeFileSync(join(fixture, name), bytes)
-    pins[name] = sha(bytes)
-  }
   if (row.name === 'report-and-teardown-error')
     mkdirSync(join(fixture, 'coverage/coverage-final.json'), {
       recursive: true,
@@ -135,34 +143,40 @@ try {
   }
   assert.deepEqual(observations, row.observations)
   if (report) {
-    const standard = structuredClone(report)
-    delete standard.next
-    delete standard.startTime
-    for (const file of standard.testResults) {
-      delete file.startTime
-      delete file.endTime
-      delete file.duration
-      for (const test of file.assertionResults) delete test.duration
-    }
+    assert.equal(report.success, true)
+    assert.equal(report.numTotalTests, 1)
+    assert.equal(report.numFailedTestSuites, 0)
+    assertSnapshotReport(report, expected.report)
+    const coverageMap = structuredClone(report.coverageMap)
+    for (const value of Object.values(coverageMap)) delete value.meta
     assert.deepEqual(
       JSON.parse(
-        JSON.stringify(standard).replaceAll(fixture, '<PROJECT_ROOT>')
+        JSON.stringify(coverageMap).replaceAll(fixture, '<PROJECT_ROOT>')
       ),
-      row.report
+      expected.coverageMap
+    )
+  }
+  if (coverage) {
+    for (const value of Object.values(coverage)) delete value.meta
+    assert.deepEqual(
+      JSON.parse(
+        JSON.stringify(coverage).replaceAll(fixture, '<PROJECT_ROOT>')
+      ),
+      expected.coverageMap
     )
   }
   if (row.name !== 'normal')
     assert(owner.stderr.includes('owned settled global teardown error'))
-  for (const [name, pin] of Object.entries(pins))
-    assert.equal(sha(readFileSync(join(fixture, name))), pin)
+  for (const [name, bytes] of Object.entries(files))
+    assert.equal(readFileSync(join(fixture, name), 'utf8'), bytes)
   writeFileSync(
     join(output, 'CHECKS.json'),
     JSON.stringify(
       {
         profile,
         actualCompiledMode: row.mode,
-        genuineObservationsAndPublicationOrder: true,
-        wholeJSONWithCompleteMap: true,
+        coveragePublishedBeforeGlobalTeardown: true,
+        caseStatesSnapshotsAndExactMap: true,
         actualAuthoredTeardownErrorRetained: row.name !== 'normal',
         authoredBytesHeld: true,
         ownedProcessTreeClosed: true,

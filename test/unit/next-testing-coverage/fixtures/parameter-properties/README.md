@@ -1,17 +1,16 @@
 # Constructor parameter-property coverage
 
-These fixtures retain unchanged authored TypeScript and test bodies, complete
-Vitest 5.0.4 V8 reports, and actual Next compiler JavaScript and map observations.
-The five constructor families execute in development and production. Complete
-reports match independently measured Node 20, 22, 24 and 26 references.
+The five constructor fixtures run in development and production. Tests assert
+successful execution and compare exact statement, function and branch counters
+and authored locations. Case outcomes use direct assertions rather than saved
+Vitest standard reports.
 
-`facts.json` supplies the actual emitted coverage descriptors, selected compiler
-map and a zero-hit authored model for association controls. JSON null columns are
-restored to Infinity by the map helper. No zero-hit model supplies execution
-counts. Negative map, class, constructor, parameter, assignment and descriptor
-controls must refuse atomically; returned descriptors cannot alias input models.
+`facts.json`, `emitted.js.txt` and source maps exercise constructor association
+without providing execution counts. The zero-hit model supplies locations only.
+The mapping tests cover modifiers and literal defaults, and reject ambiguous
+constructor, parameter and assignment associations without changing input data.
 
-This corpus qualifies executed named class declarations with identifier property
+These fixtures cover executed named class declarations with identifier property
 parameters, measured modifiers and literal defaults. Unexecuted typed-source
 coverage, other constructor shapes, decorators, enums and namespaces remain
-separate compatibility work. Existing uncertified-map diagnostics are preserved.
+outside this corpus. Existing uncertified-map diagnostics remain covered.

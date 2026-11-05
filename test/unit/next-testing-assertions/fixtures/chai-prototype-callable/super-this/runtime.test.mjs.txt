@@ -1,26 +1,84 @@
 import { chai, expect, test, afterAll } from 'vitest'
-const emit = row => console.log('POLL_OWNERSHIP_ROW ' + JSON.stringify(row))
-let originalTask, retained, held, trace = []
+import assert from 'node:assert/strict'
+function emit(row) {
+  assert.equal(row.calls.length, 3)
+  assert.equal(row.trace.length, 3)
+  for (const [index, call] of row.calls.entries()) {
+    assert.equal(call.success, true, call.error?.message)
+    assert.equal(call.sameReceiver, true)
+    assert.equal(call.value, index + 1)
+    const observation = row.trace[index]
+    assert.equal(observation.nativeSuperReturnedThis, true)
+    assert.equal(observation.value, index + 1)
+    assert.equal(observation.sameTask, index !== 0)
+    assert.equal(observation.taskName, index ? originalTask.name : null)
+  }
+}
+let originalTask,
+  retained,
+  held,
+  trace = []
 chai.use((c, utils) => {
-  utils.addMethod(c.Assertion.prototype, 'reviewNativeReturnThis', function () { return this })
-  c.Assertion.overwriteMethod('reviewNativeReturnThis', original => function () {
-    const result = original.call(this)
-    const task = utils.flag(result, 'vitest-test')
-    trace.push({ nativeSuperReturnedThis: result === this, value: result._obj, sameTask: task === originalTask, taskName: task?.name ?? null })
-    return result
+  utils.addMethod(c.Assertion.prototype, 'reviewNativeReturnThis', function () {
+    return this
   })
+  c.Assertion.overwriteMethod(
+    'reviewNativeReturnThis',
+    (original) =>
+      function () {
+        const result = original.call(this)
+        const task = utils.flag(result, 'vitest-test')
+        trace.push({
+          nativeSuperReturnedThis: result === this,
+          value: result._obj,
+          sameTask: task === originalTask,
+          taskName: task?.name ?? null,
+        })
+        return result
+      }
+  )
 })
 function call(name, receiver) {
-  try { const output = retained.call(receiver); return { name, success: true, sameReceiver: output === receiver, value: output._obj } }
-  catch(error) { return { name, success: false, error: { name: error?.name, message: error?.message } } }
+  try {
+    const output = retained.call(receiver)
+    return {
+      name,
+      success: true,
+      sameReceiver: output === receiver,
+      value: output._obj,
+    }
+  } catch (error) {
+    return {
+      name,
+      success: false,
+      error: { name: error?.name, message: error?.message },
+    }
+  }
 }
-test('capture actual native this-returning overwrite delegate receivers', ({ expect: local, task }) => {
+test('capture actual native this-returning overwrite delegate receivers', ({
+  expect: local,
+  task,
+}) => {
   originalTask = task
   held = { raw: chai.expect(1), global: expect(2), local: local(3) }
   retained = chai.Assertion.prototype.reviewNativeReturnThis
-  emit({ kind: 'first-super-this', calls: Object.entries(held).map(([name,receiver]) => call(name,receiver)), trace: trace.splice(0) })
+  emit({
+    kind: 'first-super-this',
+    calls: Object.entries(held).map(([name, receiver]) => call(name, receiver)),
+    trace: trace.splice(0),
+  })
 })
 test('retained native this-returning overwrite delegate preserves receiver identity', () => {
-  emit({ kind: 'later-super-this', calls: Object.entries(held).map(([name,receiver]) => call(name,receiver)), trace: trace.splice(0) })
+  emit({
+    kind: 'later-super-this',
+    calls: Object.entries(held).map(([name, receiver]) => call(name, receiver)),
+    trace: trace.splice(0),
+  })
 })
-afterAll(() => emit({ kind: 'afterAll-super-this', calls: Object.entries(held).map(([name,receiver]) => call(name,receiver)), trace: trace.splice(0) }))
+afterAll(() =>
+  emit({
+    kind: 'afterAll-super-this',
+    calls: Object.entries(held).map(([name, receiver]) => call(name, receiver)),
+    trace: trace.splice(0),
+  })
+)

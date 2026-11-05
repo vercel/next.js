@@ -1,21 +1,24 @@
 import { test, expect } from 'vitest'
 import { page, server, locators } from 'vitest/browser'
 
-const emit = value => console.log('BROWSER_NATIVE_FIXTURE:' + JSON.stringify(value))
-const descriptor = (object, key) => {
-  const value = Object.getOwnPropertyDescriptor(object, key)
-  return value ? { enumerable: value.enumerable, configurable: value.configurable, writable: value.writable, isData: 'value' in value, valueType: typeof value.value, hasGet: typeof value.get === 'function', hasSet: typeof value.set === 'function', ...(typeof value.value === 'string' ? { value: value.value } : {}) } : null
+const selector = (attribute, id) => `internal:testid=[${attribute}="${id}"s]`
+function assertTarget(locator, target, expectedSelector) {
+  expect(locator.selector).toBe(expectedSelector)
+  expect(locator.element()).toBe(target)
 }
-const snapshot = (locator, target) => ({ selector: locator.selector, string: locator.toString(), serialized: locator.serialize(), json: locator.toJSON(), elementIsTarget: locator.element() === target })
-
 function withState(callback) {
   const publicDescriptor = Object.getOwnPropertyDescriptor(server, 'config')
-  const initialConfig = server.config, initialLocators = initialConfig.browser.locators
-  const attributeDescriptor = Object.getOwnPropertyDescriptor(initialLocators, 'testIdAttribute')
+  const initialConfig = server.config,
+    initialLocators = initialConfig.browser.locators
+  const attributeDescriptor = Object.getOwnPropertyDescriptor(
+    initialLocators,
+    'testIdAttribute'
+  )
   expect(initialLocators.testIdAttribute).toBe('data-qa')
   const host = document.createElement('section')
   host.setAttribute('data-qa', 'group')
-  host.innerHTML = '<button data-testid="legacy" data-qa="configured" data-next="changed" data-replacement="replaced" data-getter="getter"></button>'
+  host.innerHTML =
+    '<button data-testid="legacy" data-qa="configured" data-next="changed" data-replacement="replaced" data-getter="getter"></button>'
   document.body.append(host)
   const target = host.firstElementChild
   const oldPage = page.getByTestId('configured')
@@ -23,54 +26,216 @@ function withState(callback) {
   const wrapper = locators.createElementLocators(host)
   const oldChild = base.getByTestId('configured')
   const oldWrapperChild = wrapper.getByTestId('configured')
-  try { callback({ initialConfig, initialLocators, host, target, oldPage, base, wrapper, oldChild, oldWrapperChild }) }
-  finally {
-    if (attributeDescriptor) Object.defineProperty(initialLocators, 'testIdAttribute', attributeDescriptor)
+  try {
+    callback({
+      initialConfig,
+      initialLocators,
+      host,
+      target,
+      oldPage,
+      base,
+      wrapper,
+      oldChild,
+      oldWrapperChild,
+    })
+  } finally {
+    if (attributeDescriptor)
+      Object.defineProperty(
+        initialLocators,
+        'testIdAttribute',
+        attributeDescriptor
+      )
     else delete initialLocators.testIdAttribute
     Object.defineProperty(server, 'config', publicDescriptor)
     host.remove()
-    expect(server.config === initialConfig).toBe(true)
-    expect(Object.getOwnPropertyDescriptor(server, 'config')).toEqual(publicDescriptor)
-    expect(Object.getOwnPropertyDescriptor(initialLocators, 'testIdAttribute')).toEqual(attributeDescriptor)
+    expect(server.config).toBe(initialConfig)
+    expect(Object.getOwnPropertyDescriptor(server, 'config')).toEqual(
+      publicDescriptor
+    )
+    expect(
+      Object.getOwnPropertyDescriptor(initialLocators, 'testIdAttribute')
+    ).toEqual(attributeDescriptor)
   }
 }
+const captured = selector('data-qa', 'configured')
+const group = selector('data-qa', 'group')
 
-test('initial custom attribute has public alias and captured selectors', () => withState(({ initialConfig, initialLocators, target, oldPage, base, oldChild, oldWrapperChild }) => {
-  emit({ phase: 'initial', publicConfig: descriptor(server, 'config'), testIdAttribute: descriptor(initialLocators, 'testIdAttribute'), samePublicAlias: server.config === initialConfig, attribute: initialLocators.testIdAttribute, page: snapshot(oldPage, target), child: snapshot(oldChild, target), wrapperChild: snapshot(oldWrapperChild, target), generatedPage: snapshot(page.elementLocator(target), target), generatedBase: snapshot(base.elementLocator(target), target) })
-}))
+test('initial custom attribute has public alias and captured selectors', () =>
+  withState(
+    ({
+      initialConfig,
+      initialLocators,
+      target,
+      oldPage,
+      base,
+      oldChild,
+      oldWrapperChild,
+    }) => {
+      expect(server.config).toBe(initialConfig)
+      expect(initialLocators.testIdAttribute).toBe('data-qa')
+      assertTarget(oldPage, target, captured)
+      assertTarget(oldChild, target, group + ' >> ' + captured)
+      assertTarget(oldWrapperChild, target, group + ' >> ' + captured)
+      assertTarget(page.elementLocator(target), target, captured)
+      assertTarget(base.elementLocator(target), target, captured)
+    }
+  ))
 
-test('nested mutation retargets new calls and retains old selectors and initial engine', () => withState(({ initialConfig, initialLocators, target, oldPage, base, wrapper, oldChild }) => {
-  initialLocators.testIdAttribute = 'data-next'
-  emit({ phase: 'nested-mutation', samePublicAlias: server.config === initialConfig, attribute: server.config.browser.locators.testIdAttribute, oldPage: snapshot(oldPage, target), oldChild: snapshot(oldChild, target), newPage: snapshot(page.getByTestId('changed'), target), newChild: snapshot(base.getByTestId('changed'), target), newWrapperChild: snapshot(wrapper.getByTestId('changed'), target), generatedPage: snapshot(page.elementLocator(target), target), generatedBase: snapshot(base.elementLocator(target), target) })
-}))
+test('nested mutation retargets new calls and retains old selectors and initial engine', () =>
+  withState(
+    ({
+      initialConfig,
+      initialLocators,
+      target,
+      oldPage,
+      base,
+      wrapper,
+      oldChild,
+    }) => {
+      initialLocators.testIdAttribute = 'data-next'
+      expect(server.config).toBe(initialConfig)
+      expect(server.config.browser.locators.testIdAttribute).toBe('data-next')
+      assertTarget(oldPage, target, captured)
+      assertTarget(oldChild, target, group + ' >> ' + captured)
+      const changed = selector('data-next', 'changed')
+      assertTarget(page.getByTestId('changed'), target, changed)
+      assertTarget(
+        base.getByTestId('changed'),
+        target,
+        group + ' >> ' + changed
+      )
+      assertTarget(
+        wrapper.getByTestId('changed'),
+        target,
+        group + ' >> ' + changed
+      )
+      assertTarget(page.elementLocator(target), target, captured)
+      assertTarget(base.elementLocator(target), target, captured)
+    }
+  ))
 
-test('public replacement retargets new calls while original alias and engine remain distinct', () => withState(({ initialConfig, initialLocators, target, oldPage, base, wrapper, oldChild }) => {
-  const replacement = { ...initialConfig, browser: { ...initialConfig.browser, locators: { ...initialLocators, testIdAttribute: 'data-replacement' } } }
-  server.config = replacement
-  initialLocators.testIdAttribute = 'data-next'
-  emit({ phase: 'public-replacement', sameReplacement: server.config === replacement, initialAliasDiffers: server.config !== initialConfig, retainedAliasAttribute: initialLocators.testIdAttribute, replacementAttribute: server.config.browser.locators.testIdAttribute, oldPage: snapshot(oldPage, target), oldChild: snapshot(oldChild, target), newPage: snapshot(page.getByTestId('replaced'), target), newChild: snapshot(base.getByTestId('replaced'), target), newWrapperChild: snapshot(wrapper.getByTestId('replaced'), target), generatedPage: snapshot(page.elementLocator(target), target), generatedBase: snapshot(base.elementLocator(target), target) })
-}))
+test('public replacement retargets new calls while original alias and engine remain distinct', () =>
+  withState(
+    ({
+      initialConfig,
+      initialLocators,
+      target,
+      oldPage,
+      base,
+      wrapper,
+      oldChild,
+    }) => {
+      const replacement = {
+        ...initialConfig,
+        browser: {
+          ...initialConfig.browser,
+          locators: { ...initialLocators, testIdAttribute: 'data-replacement' },
+        },
+      }
+      server.config = replacement
+      initialLocators.testIdAttribute = 'data-next'
+      expect(server.config).toBe(replacement)
+      expect(server.config).not.toBe(initialConfig)
+      expect(initialLocators.testIdAttribute).toBe('data-next')
+      expect(server.config.browser.locators.testIdAttribute).toBe(
+        'data-replacement'
+      )
+      assertTarget(oldPage, target, captured)
+      assertTarget(oldChild, target, group + ' >> ' + captured)
+      const replaced = selector('data-replacement', 'replaced')
+      assertTarget(page.getByTestId('replaced'), target, replaced)
+      assertTarget(
+        base.getByTestId('replaced'),
+        target,
+        group + ' >> ' + replaced
+      )
+      assertTarget(
+        wrapper.getByTestId('replaced'),
+        target,
+        group + ' >> ' + replaced
+      )
+      assertTarget(page.elementLocator(target), target, captured)
+      assertTarget(base.elementLocator(target), target, captured)
+    }
+  ))
 
-test('getter chain is read by new calls and not captured selectors or initial engine', () => withState(({ initialConfig, initialLocators, host, target, oldPage, base, wrapper }) => {
-  const calls = [], expected = ['server.config', 'browser', 'locators', 'testIdAttribute']
-  const watchedLocators = { ...initialLocators }
-  Object.defineProperty(watchedLocators, 'testIdAttribute', { configurable: true, enumerable: true, get() { calls.push('testIdAttribute'); return 'data-getter' } })
-  const watchedBrowser = { ...initialConfig.browser }
-  Object.defineProperty(watchedBrowser, 'locators', { configurable: true, enumerable: true, get() { calls.push('locators'); return watchedLocators } })
-  const watchedConfig = { ...initialConfig }
-  Object.defineProperty(watchedConfig, 'browser', { configurable: true, enumerable: true, get() { calls.push('browser'); return watchedBrowser } })
-  Object.defineProperty(server, 'config', { configurable: true, enumerable: true, get() { calls.push('server.config'); return watchedConfig } })
-  const observe = (label, create, reads) => {
-    calls.length = 0
-    const locator = create(), constructionReads = [...calls], value = snapshot(locator, target), totalReads = [...calls]
-    expect(constructionReads).toEqual(reads)
-    expect(totalReads).toEqual(reads)
-    return { label, constructionReads, totalReads, value }
-  }
-  const observations = [observe('captured-page', () => oldPage, []), observe('new-page', () => page.getByTestId('getter'), expected), observe('existing-base-child', () => base.getByTestId('getter'), expected), observe('existing-wrapper-child', () => wrapper.getByTestId('getter'), expected), observe('generated-page', () => page.elementLocator(target), []), observe('generated-base', () => base.elementLocator(target), [])]
-  calls.length = 0
-  const freshWrapper = locators.createElementLocators(host), wrapperCreationReads = [...calls]
-  expect(wrapperCreationReads).toEqual([])
-  observations.push(observe('fresh-wrapper-child', () => freshWrapper.getByTestId('getter'), expected))
-  emit({ phase: 'getter-reads', expectedReadOrder: expected, wrapperCreationReads, observations })
-}))
+test('getter chain is read by new calls and not captured selectors or initial engine', () =>
+  withState(
+    ({
+      initialConfig,
+      initialLocators,
+      host,
+      target,
+      oldPage,
+      base,
+      wrapper,
+    }) => {
+      const calls = [],
+        expected = ['server.config', 'browser', 'locators', 'testIdAttribute']
+      const watchedLocators = { ...initialLocators }
+      Object.defineProperty(watchedLocators, 'testIdAttribute', {
+        configurable: true,
+        enumerable: true,
+        get() {
+          calls.push('testIdAttribute')
+          return 'data-getter'
+        },
+      })
+      const watchedBrowser = { ...initialConfig.browser }
+      Object.defineProperty(watchedBrowser, 'locators', {
+        configurable: true,
+        enumerable: true,
+        get() {
+          calls.push('locators')
+          return watchedLocators
+        },
+      })
+      const watchedConfig = { ...initialConfig }
+      Object.defineProperty(watchedConfig, 'browser', {
+        configurable: true,
+        enumerable: true,
+        get() {
+          calls.push('browser')
+          return watchedBrowser
+        },
+      })
+      Object.defineProperty(server, 'config', {
+        configurable: true,
+        enumerable: true,
+        get() {
+          calls.push('server.config')
+          return watchedConfig
+        },
+      })
+      const observe = (create, reads, expectedSelector) => {
+        calls.length = 0
+        const locator = create()
+        expect(calls).toEqual(reads)
+        assertTarget(locator, target, expectedSelector)
+        expect(calls).toEqual(reads)
+      }
+      const getter = selector('data-getter', 'getter')
+      observe(() => oldPage, [], captured)
+      observe(() => page.getByTestId('getter'), expected, getter)
+      observe(
+        () => base.getByTestId('getter'),
+        expected,
+        group + ' >> ' + getter
+      )
+      observe(
+        () => wrapper.getByTestId('getter'),
+        expected,
+        group + ' >> ' + getter
+      )
+      observe(() => page.elementLocator(target), [], captured)
+      observe(() => base.elementLocator(target), [], captured)
+      calls.length = 0
+      const freshWrapper = locators.createElementLocators(host)
+      expect(calls).toEqual([])
+      observe(
+        () => freshWrapper.getByTestId('getter'),
+        expected,
+        group + ' >> ' + getter
+      )
+    }
+  ))

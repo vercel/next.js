@@ -1,16 +1,51 @@
-import {test,expect,vi} from 'vitest';
-import {types} from 'node:util';
-const state={calls:0,original:undefined};
-vi.mock('next-test-native-helpers-esm',()=>({value:5,phase:'static'}));
-import * as staticNamespace from 'next-test-native-helpers-esm';
-const shape=value=>({brand:types.isModuleNamespaceObject(value),tag:value[Symbol.toStringTag]??null,keys:Reflect.ownKeys(value).map(String),prototype:Object.getPrototypeOf(value)===null?'null':Object.getPrototypeOf(value)===Object.prototype?'Object.prototype':'other',descriptors:Reflect.ownKeys(value).map(key=>{const d=Object.getOwnPropertyDescriptor(value,key);return{key:String(key),valueType:typeof d.value,get:typeof d.get,set:typeof d.set,writable:d.writable??null,enumerable:d.enumerable,configurable:d.configurable}}),value:value.value,phase:value.phase});
-test('native esm static runtime actual reset and unmock composition',async()=>{
- const before=await import('next-test-native-helpers-esm');
- vi.doMock('next-test-native-helpers-esm',async original=>{state.calls++;state.original=await original();return{value:73,phase:'runtime',actualValue:state.original.value}});
- const runtime=await import('next-test-native-helpers-esm');const actual=await vi.importActual('next-test-native-helpers-esm');
- vi.resetModules();const afterReset=await import('next-test-native-helpers-esm');const actualAfter=await vi.importActual('next-test-native-helpers-esm');
- vi.doUnmock('next-test-native-helpers-esm');const afterUnmock=await import('next-test-native-helpers-esm');
- const values=[staticNamespace,before,runtime,actual,afterReset,actualAfter,afterUnmock];
- console.log('NATIVE300:'+JSON.stringify({kind:'esm',views:values.map(shape),identities:values.map(x=>values.map(y=>x===y)),calls:state.calls,originalIdentity:values.map(x=>x===state.original),evaluations:globalThis['__nativeHelpers300_esm']??null}));
- expect(staticNamespace.value).toBe(5);expect(before.value).toBe(5);expect(runtime.value).toBe(73);expect(actual.value).toBe(20);expect(afterReset.value).toBe(73);expect(actualAfter.value).toBe(20);expect(afterUnmock.value).toBe(20);
-});
+import { test, expect, vi } from 'vitest'
+
+vi.mock('next-test-native-helpers-esm', () => ({ value: 5, phase: 'static' }))
+import * as staticNamespace from 'next-test-native-helpers-esm'
+
+test('native esm static runtime actual reset and unmock composition', async () => {
+  let calls = 0
+  let original
+  const before = await import('next-test-native-helpers-esm')
+  vi.doMock('next-test-native-helpers-esm', async (importOriginal) => {
+    calls++
+    original = await importOriginal()
+    return { value: 73, phase: 'runtime', actualValue: original.value }
+  })
+  const runtime = await import('next-test-native-helpers-esm')
+  const actual = await vi.importActual('next-test-native-helpers-esm')
+  vi.resetModules()
+  const afterReset = await import('next-test-native-helpers-esm')
+  const actualAfter = await vi.importActual('next-test-native-helpers-esm')
+  vi.doUnmock('next-test-native-helpers-esm')
+  const afterUnmock = await import('next-test-native-helpers-esm')
+
+  const values = [
+    staticNamespace,
+    before,
+    runtime,
+    actual,
+    afterReset,
+    actualAfter,
+    afterUnmock,
+  ]
+  expect(values.map((value) => value.value)).toEqual([5, 5, 73, 20, 73, 20, 20])
+  expect(values.map((value) => value.phase)).toEqual([
+    'static',
+    'static',
+    'runtime',
+    'actual',
+    'runtime',
+    'actual',
+    'actual',
+  ])
+  expect(before).toBe(staticNamespace)
+  expect(afterReset).toBe(runtime)
+  expect(original).toBe(actual)
+  expect(afterUnmock).toBe(actualAfter)
+  expect(actualAfter).toBe(actual)
+  expect(new Set(values).size).toBe(3)
+  expect(runtime.actualValue).toBe(20)
+  expect(calls).toBe(1)
+  expect(globalThis.__nativeHelpers300_esm).toBe(1)
+})

@@ -1,3 +1,11 @@
 import { test, expect } from 'vitest'
-const row = (...event) => console.log('RETRY_PUBLICATION_ROW ' + JSON.stringify({ actor: 'worker', contract: "array", event }))
-const metadata = [42, { value: 7 }]; const retry = { count: 0, metadata }; test('array metadata', { retry }, () => { row('body', retry.metadata === metadata, metadata.length); expect(metadata.length).toBe(2); metadata.push(99); row('mutated', metadata.length) }); row('registered')
+
+const metadata = [42, { value: 7 }]
+const retry = { count: 0, metadata }
+
+test('array metadata', { retry }, () => {
+  expect(retry.metadata).toBe(metadata)
+  expect(metadata).toHaveLength(2)
+  metadata.push(99)
+  expect(metadata).toHaveLength(3)
+})

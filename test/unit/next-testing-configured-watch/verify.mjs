@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import {
   existsSync,
   mkdirSync,
@@ -29,15 +29,10 @@ const body = readFileSync(
   new URL('./watch.test.mjs.txt', import.meta.url),
   'utf8'
 )
-const reference = JSON.parse(
-  readFileSync(new URL('./reference.json', import.meta.url), 'utf8')
-)
 const load = createRequire(path.join(consumer, 'package.json'))
 const bin = load.resolve('next/dist/bin/next')
-const sha = (value) => createHash('sha256').update(value).digest('hex')
 const save = (file, value) =>
   writeFileSync(file, JSON.stringify(value, null, 2) + '\n')
-assert.equal(sha(body), reference.bodySHA256)
 const plans = [
   {
     name: 'configured-watch-ci',
@@ -84,17 +79,6 @@ const plans = [
     expectedWatch: true,
   },
 ]
-save(path.join(output, 'INPUTS.json'), {
-  runtime: process.version,
-  executable: realpathSync(process.execPath),
-  next: realpathSync(bin),
-  bodySHA256: sha(body),
-  plans,
-  initialBudgetMs: 60000,
-  ownerBudgetMs: 90000,
-  scope:
-    'Initial root watch selection only. Dynamic watch-mode config edits, project-local watch selection and native event delivery are separate contracts.',
-})
 const reports = []
 for (const plan of plans) {
   const evidence = path.join(output, plan.name)
@@ -151,14 +135,6 @@ for (const plan of plans) {
     '--outputFile',
     'result.json',
   ]
-  save(path.join(evidence, 'INPUTS.json'), {
-    plan,
-    args,
-    authoredSHA256: Object.fromEntries(
-      Object.entries(authored).map(([name, bytes]) => [name, sha(bytes)])
-    ),
-    envNames: Object.keys(env),
-  })
   let done, report, failure
   const running = runOwnedNode(args, {
     cwd: fixture,

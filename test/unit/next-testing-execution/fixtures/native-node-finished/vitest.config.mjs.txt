@@ -1,0 +1,1 @@
+export default {"test":{"include":["body.test.mjs"],"maxWorkers":1,"testTimeout":1000,"hookTimeout":1000,"coverage":{"enabled":__COVERAGE_ENABLED__,"provider":"v8","include":["subject.mjs"],"exclude":[],"reporter":["json","json-summary","lcovonly"],"reportOnFailure":true}}}

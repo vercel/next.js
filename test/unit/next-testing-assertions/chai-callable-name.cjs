@@ -2,7 +2,6 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
-const { createHash } = require('node:crypto')
 const { createRequire } = require('node:module')
 const [project, output, family = 'default'] = process.argv.slice(2)
 assert(
@@ -17,36 +16,28 @@ req(next + '/dist/server/node-environment-baseline')
 const runner = req(next + '/dist/experimental/testing/runner')
 const vitest = req(next + '/dist/experimental/testing/vitest')
 const input = path.join(__dirname, 'fixtures/chai-callable-name', family)
-const model = JSON.parse(fs.readFileSync(path.join(input, 'reference.json')))
-const body = fs.readFileSync(path.join(input, model.source), 'utf8')
-assert.equal(createHash('sha256').update(body).digest('hex'), model.bodySHA256)
-const header = body.slice(0, body.indexOf('\n') + 1)
-assert(header.startsWith('import {') && header.endsWith("from 'vitest'\n"))
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'next-chai-name-component-'))
+const body = fs.readFileSync(path.join(input, 'runtime.test.mjs.txt'), 'utf8')
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'next-chai-name-'))
 const file = runner.initializeTestFile({
   fileId: 'actual-chai-name',
   filePath: path.join(dir, 'actual.test.mjs'),
 })
-const rows = [],
-  cases = []
+const cases = []
 async function main() {
   try {
     let captured
     await file.collect(async () => {
       captured = new Function(
         'vitest',
-        'console',
+        'assert',
         '"use strict";const{expect,test,chai,afterAll}=vitest;\n' +
-          body.slice(header.length) +
+          body.split('\n').slice(2).join('\n') +
+          '\nreturn ' +
           (family.startsWith('proxify')
-            ? '\nreturn { base: () => base, alias: () => alias, accessorReads: () => reads }'
-            : '\nreturn { names, accessor: () => accessor, getter: () => getter, setter: () => setter, inputReads: () => inputNameReads, accessorReads: () => reads }')
-      )(vitest, {
-        log(content) {
-          assert(content.startsWith('POLL_OWNERSHIP_ROW '))
-          rows.push(JSON.parse(content.slice(19)))
-        },
-      })
+            ? '{ base: () => base, alias: () => alias, accessorReads: () => reads }'
+            : '{ names, accessor: () => accessor, getter: () => getter, setter: () => setter, inputReads: () => inputNameReads, accessorReads: () => reads }') +
+          ''
+      )(vitest, assert)
     })
     const result = await file.run({
       runId: 'actual-chai-name-run',
@@ -61,20 +52,22 @@ async function main() {
     })
     assert.equal(result.interrupted, false)
     assert.deepEqual(result.errors, [])
-    await file.dispose()
-    assert.deepEqual(rows, model.rows)
-    assert.deepEqual(
-      cases.map(({ name, state }) => ({ name, state })),
-      model.caseCallbacks ?? model.cases
+    assert.equal(cases.length, family.startsWith('proxify') ? 2 : 3)
+    assert.equal(new Set(cases.map((value) => value.name)).size, cases.length)
+    assert(
+      cases.every(
+        (value) => value.state === 'passed' && value.errors.length === 0
+      )
     )
-    assert(cases.every((v) => v.state === 'passed' && v.errors.length === 0))
+    const before = family.startsWith('proxify') ? undefined : captured.names()
+    await file.dispose()
     if (family.startsWith('proxify')) {
       for (const callable of [captured.base(), captured.alias()]) {
         assert.equal(callable.name, '')
         assert.equal(Object.hasOwn(callable, 'name'), false)
       }
     } else {
-      assert.deepEqual(captured.names(), model.rows.at(-1).names)
+      assert.deepEqual(captured.names(), before)
       const descriptor = Object.getOwnPropertyDescriptor(
         captured.accessor(),
         'name'
@@ -84,28 +77,18 @@ async function main() {
       assert.equal(captured.inputReads(), 0)
     }
     assert.equal(captured.accessorReads(), 2)
+    const facts = {
+      cases: cases.length,
+      behaviorAssertions: true,
+      actualFileDisposalJoined: true,
+      actualNameReadsAfterDispose: true,
+    }
     if (output)
       fs.writeFileSync(
         output,
-        JSON.stringify(
-          {
-            rows,
-            cases,
-            actualFileDisposalJoined: true,
-            actualNameReadsAfterDispose: true,
-          },
-          null,
-          2
-        ) + '\n'
+        JSON.stringify({ cases, ...facts }, null, 2) + '\n'
       )
-    process.stdout.write(
-      JSON.stringify({
-        cases: cases.length,
-        completeGenuineRows: rows.length,
-        actualFileDisposalJoined: true,
-        actualNameReadsAfterDispose: true,
-      }) + '\n'
-    )
+    process.stdout.write(JSON.stringify(facts) + '\n')
   } finally {
     await file.dispose()
     fs.rmSync(dir, { recursive: true, force: true })

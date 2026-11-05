@@ -76,24 +76,41 @@ profiles pass16 cases. Core build, official Root types, style and inventory chec
 pass; Native6d3 and all776 API classifications/counts remain unchanged. This is
 focused verification, not a fresh full acceptance or SDK qualification.
 
-### Focused regression-test maintenance — in progress, November 5, 2026
+### Focused regression-test maintenance — completed, November 5, 2026
 
-The user approved retiring exhaustive saved compatibility captures in favor of
-ordinary Next.js behavioral assertions. The first integrated grammar/default/
-array increment removes eight expanded reference models, retaining 197 source
-forms and 1,182 development/production case executions. Values, errors, iterator
-returns, cache identities and reset/evaluation counts are asserted directly.
-Private Node 20.9 checks pass 816 cases; the integrated grammar suite passes both
-modes / 756 cases. The shared fixture runner also passes retry/skip/todo handling.
-Formatting, lint, official Root types and the generated inventory check pass.
-Framework implementation, Native and compiled outputs are unchanged; a coherent
-final build follows the independent runtime readers' closure. Other compiler,
-coverage, authoring, tooling and Browser conversions continue in parallel.
+The saved compatibility corpus now uses focused Next.js regression assertions.
+Compiler, mocking, authoring, fixture, Browser, watch, CLI, reporter and coverage
+helpers check meaningful outcomes directly. Redundant cross-product qualification
+drivers, raw reports, task/descriptor graphs and unused captures are retired.
+Small exact coverage maps/counters, snapshot bytes, diagnostics and output-format
+goldens remain where those values are the behavior. Six formatting inputs use
+`.snap.txt` so Jest does not register them as orphan snapshots.
 
-Historical whole-report/descriptor/provenance parity measurements are not current
-regression guarantees after their captures are retired. Exact small counter/map,
-snapshot and output-format goldens remain where those values are the behavior.
-No API implementation credit or release-readiness promotion follows this change.
+The grammar/default/array increment retains 197 source forms and 1,182 possible
+development/production case executions. External mocking now has 28 focused
+fixture groups instead of an exhaustive generated combination corpus. Browser
+cleanup preserves the authored interaction and lifecycle scenarios, including
+intentional failure, retry, cancellation and cleanup cases. All 52 maintained profiles in
+the final nine coverage conversions remain. The shared runner requires successful
+case/file outcomes by default; negative and recovered-retry scenarios assert
+explicit outcomes and reject additional diagnostics.
+
+Verification uses Node 20.9.0. Passing private checks include 45 Browser
+profiles / 388 case executions with intended failure probes, 246 coverage checks
+plus 24 publisher checks, and nine final coverage representatives. Integrated
+Root verification passes ten fixture/retry controls, four compiler/type controls
+(including all 28 declaration programs), one Browser hook-order profile and a
+post-build production compiler profile. The core build, official Root types,
+formatting, lint and generated inventory consistency checks pass. The final type
+check ran after declaration generation finished. No Native rebuild was needed.
+
+Historical whole-report/descriptor/provenance parity measurements are no longer
+current regression guarantees after their captures are retired. Existing reporter
+Proxy failures, the shared task-log watch timeout/unrun empty-watch profile, the
+CommonJS nested-imported coverage omission and Browser action promise-matcher
+interoperability gap remain visible; this cleanup does not fix or reclassify them.
+All 776 API classifications and release-readiness flags remain unchanged. This
+is focused regression verification, not a new full acceptance or SDK qualification.
 
 ### Cumulative implementation
 

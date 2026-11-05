@@ -1,97 +1,135 @@
 {
   "sourceFiles": {
-    "package.json": {
-      "source": "{\"type\":\"module\"}\n",
-      "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
-    },
-    "contract.test.mjs": {
-      "source": "import {test,expect} from 'vitest'\nimport {writeFileSync,appendFileSync} from 'node:fs'\nimport {choose} from './subject.jsx'\ntest('pending spec cannot start body',()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'BODY_MUST_NOT_START'})+'\\n');throw new Error('pending spec must not start body')})\ntest('spec recovery',()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'RECOVERY_BODY'})+'\\n');expect(choose(false).props.children).toBe('miss');expect('prior').toMatchSnapshot()})\nif(process.env.NEXT_TEST_SPEC_CANCEL==='1'){writeFileSync('gate.txt','ACTUAL_PENDING_SPEC_LOAD');await new Promise(()=>{})}\n",
-      "sha256": "c948752f7ba306c602af762377b5d328efdf3146c4ab52f17aa0d0f0d33bf0db"
-    },
-    "subject.jsx": {
-      "source": "export function choose(value) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n",
-      "sha256": "7ac5361e0fa167b7aae9acf1fb16c87e1d966e20a394d6e1edade7625105d348"
-    }
+    "package.json": "{\"type\":\"module\"}\n",
+    "contract.test.mjs": "import {test,expect} from 'vitest'\nimport {writeFileSync,appendFileSync} from 'node:fs'\nimport {choose} from './subject.jsx'\ntest('pending spec cannot start body',()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'BODY_MUST_NOT_START'})+'\\n');throw new Error('pending spec must not start body')})\ntest('spec recovery',()=>{appendFileSync('trace.jsonl',JSON.stringify({event:'RECOVERY_BODY'})+'\\n');expect(choose(false).props.children).toBe('miss');expect('prior').toMatchSnapshot()})\nif(process.env.NEXT_TEST_SPEC_CANCEL==='1'){writeFileSync('gate.txt','ACTUAL_PENDING_SPEC_LOAD');await new Promise(()=>{})}\n",
+    "subject.jsx": "export function choose(value) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
   },
   "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":5000,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.jsx\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":false,\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"contract.test.mjs\"]}}]}}\n",
   "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`spec recovery 1`] = `\"prior\"`;\n",
   "sentinel": "prior actual report\n",
-  "genuine": {
-    "cancel": {
-      "status": 130,
-      "signal": null,
-      "signalled": true,
-      "cancelledCoverage": [".tmp", "retained-sentinel.txt"],
-      "sentinelUnchanged": true,
-      "snapshotUnchanged": true,
-      "traceAfterCancel": ""
+  "recovery": {
+    "exit": 0,
+    "passed": 1,
+    "failed": 0,
+    "pending": 1,
+    "cases": [
+      ["pending spec cannot start body", "skipped", []],
+      ["spec recovery", "passed", []]
+    ],
+    "fileErrors": [""],
+    "fileStates": ["passed"],
+    "snapshot": {
+      "added": 0,
+      "failure": false,
+      "filesAdded": 0,
+      "filesRemoved": 0,
+      "filesRemovedList": [],
+      "filesUnmatched": 0,
+      "filesUpdated": 0,
+      "matched": 1,
+      "total": 1,
+      "unchecked": 0,
+      "uncheckedKeysByFile": [],
+      "unmatched": 0,
+      "updated": 0,
+      "didUpdate": false
     },
-    "recoveryExit": 0,
-    "cases": {
-      "numTotalTestSuites": 1,
-      "numPassedTestSuites": 1,
-      "numFailedTestSuites": 0,
-      "numPendingTestSuites": 0,
-      "numTotalTests": 2,
-      "numPassedTests": 1,
-      "numFailedTests": 0,
-      "numPendingTests": 1,
-      "numTodoTests": 0,
-      "snapshot": {
-        "added": 0,
-        "failure": false,
-        "filesAdded": 0,
-        "filesRemoved": 0,
-        "filesRemovedList": [],
-        "filesUnmatched": 0,
-        "filesUpdated": 0,
-        "matched": 1,
-        "total": 1,
-        "unchecked": 0,
-        "uncheckedKeysByFile": [],
-        "unmatched": 0,
-        "updated": 0,
-        "didUpdate": false
-      },
-      "startTime": 1793454018878,
-      "success": true,
-      "testResults": [
-        {
-          "assertionResults": [
-            {
-              "ancestorTitles": [],
-              "fullName": "pending spec cannot start body",
-              "status": "skipped",
-              "title": "pending spec cannot start body",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
+    "coverageMap": {
+      "subject.jsx": {
+        "path": "subject.jsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
             },
-            {
-              "ancestorTitles": [],
-              "fullName": "spec recovery",
-              "status": "passed",
-              "title": "spec recovery",
-              "duration": 1.6071249999999964,
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
+            "end": {
+              "line": 2,
+              "column": null
             }
-          ],
-          "startTime": 1793454018958,
-          "endTime": 1793454018959.6072,
-          "status": "passed",
-          "message": "",
-          "name": "/Users/timneutkens/projects/next-testing-run/work-3/reference/.next-istanbul-spec-cancel-idOwYd/contract.test.mjs"
-        }
-      ],
-      "coverageMap": {
-        "/Users/timneutkens/projects/next-testing-run/work-3/reference/.next-istanbul-spec-cancel-idOwYd/subject.jsx": {
-          "path": "/Users/timneutkens/projects/next-testing-run/work-3/reference/.next-istanbul-spec-cancel-idOwYd/subject.jsx",
-          "statementMap": {
-            "0": {
+          },
+          "1": {
+            "start": {
+              "line": 2,
+              "column": 13
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 5,
+              "column": 27
+            },
+            "end": {
+              "line": 5,
+              "column": 54
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "choose",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 23
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 30
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            }
+          },
+          "1": {
+            "name": "unused",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 25
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 25
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            }
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
               "start": {
                 "line": 2,
                 "column": 2
@@ -101,88 +139,9 @@
                 "column": null
               }
             },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 13
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 5,
-                "column": 27
-              },
-              "end": {
-                "line": 5,
-                "column": 54
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 23
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 25
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 5,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
+            "type": "if",
+            "locations": [
+              {
                 "start": {
                   "line": 2,
                   "column": 2
@@ -192,46 +151,89 @@
                   "column": null
                 }
               },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 0,
-            "2": 1,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 1]
+              {
+                "start": {},
+                "end": {}
+              }
+            ]
           }
+        },
+        "s": {
+          "0": 1,
+          "1": 0,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 1,
+          "1": 0
+        },
+        "b": {
+          "0": [0, 1]
         }
       }
     },
-    "recoveryTrace": "{\"event\":\"RECOVERY_BODY\"}\n",
-    "reports": {
-      "coverage-final.json": "{\"/Users/timneutkens/projects/next-testing-run/work-3/reference/.next-istanbul-spec-cancel-idOwYd/subject.jsx\": {\"path\":\"/Users/timneutkens/projects/next-testing-run/work-3/reference/.next-istanbul-spec-cancel-idOwYd/subject.jsx\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":54}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":23}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":25}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":1,\"1\":0,\"2\":1,\"3\":0},\"f\":{\"0\":1,\"1\":0},\"b\":{\"0\":[0,1]}}\n}\n",
-      "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/Users/timneutkens/projects/next-testing-run/work-3/reference/.next-istanbul-spec-cancel-idOwYd/subject.jsx\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":2,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50}}\n}\n",
-      "lcov.info": "TN:\nSF:subject.jsx\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n"
-    }
+    "summary": {
+      "total": {
+        "lines": {
+          "total": 3,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 66.66
+        },
+        "statements": {
+          "total": 4,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 50
+        },
+        "functions": {
+          "total": 2,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 50
+        },
+        "branches": {
+          "total": 2,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 50
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": "Unknown"
+        }
+      },
+      "subject.jsx": {
+        "lines": {
+          "total": 3,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 66.66
+        },
+        "functions": {
+          "total": 2,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 50
+        },
+        "statements": {
+          "total": 4,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 50
+        },
+        "branches": {
+          "total": 2,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 50
+        }
+      }
+    },
+    "lcov": "TN:\nSF:subject.jsx\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
+    "trace": "{\"event\":\"RECOVERY_BODY\"}\n"
   }
 }

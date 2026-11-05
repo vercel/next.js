@@ -18,15 +18,6 @@ async function main() {
     ['flags', 'attribution'].map(async (group) => ({
       group,
       source: await fs.readFile(path.join(inputs, `${group}.test.mjs.txt`)),
-      expected: JSON.parse(
-        await fs.readFile(
-          path.join(
-            inputs,
-            group === 'flags' ? 'reference.json' : 'attribution-reference.json'
-          ),
-          'utf8'
-        )
-      ),
     }))
   )
   const evidence = await fs.mkdtemp(
@@ -38,7 +29,7 @@ async function main() {
   try {
     // Keep every shared-root input fixed until all real compiler readers join.
     for (const mode of ['development', 'production'])
-      for (const { group, source, expected } of groups) {
+      for (const { group, source } of groups) {
         const fixture = await fs.mkdtemp(
           path.join(repo, '.next-test-global-task-flags-')
         )
@@ -47,7 +38,6 @@ async function main() {
           mode,
           group,
           source,
-          expected,
           fixture,
           out,
           started: false,
@@ -87,7 +77,7 @@ async function main() {
         )
       }
     for (const record of prepared) {
-      const { fixture, out, mode, group, source, expected } = record
+      const { fixture, out, mode, group, source } = record
       const reportPath = path.join(out, 'report.json')
       const env = {
         ...process.env,
@@ -127,32 +117,32 @@ async function main() {
       )
       record.joined = true
       const raw = JSON.parse(await fs.readFile(reportPath, 'utf8'))
-      const actual = {
-        rows: raw.next.events
-          .filter((event) => event.type === 'output')
-          .flatMap((event) =>
-            event.text
-              .split('\n')
-              .filter((line) => line.startsWith('TASK_GLOBAL_FLAGS:'))
-              .map((line) =>
-                JSON.parse(line.slice('TASK_GLOBAL_FLAGS:'.length))
-              )
-          ),
-        cases: raw.testResults
-          .flatMap((file) => file.assertionResults)
-          .map((test) => ({
-            name: test.fullName,
-            status: test.status,
-            failureMessages: test.failureMessages,
-          })),
-        success: raw.success,
-        exit: owner.status,
-      }
-      await fs.writeFile(
-        path.join(out, 'actual.json'),
-        JSON.stringify(actual, null, 2)
+      const cases = raw.testResults.flatMap((file) => file.assertionResults)
+      assert.equal(owner.status, 0)
+      assert.equal(raw.success, true)
+      assert.deepEqual(
+        cases.map((test) => test.fullName),
+        group === 'flags'
+          ? [
+              'ordinary global flags',
+              'custom global flags',
+              'foreign raw payload',
+              'concurrent first',
+              'concurrent second',
+            ]
+          : [
+              'running owner running first',
+              'running owner running second',
+              'closed owner retained first',
+              'closed owner closing second',
+            ]
       )
-      assert.deepEqual(actual, expected)
+      assert(
+        cases.every(
+          (test) =>
+            test.status === 'passed' && test.failureMessages.length === 0
+        )
+      )
       assert.deepEqual(
         await fs.readFile(path.join(fixture, 'flags.test.mjs')),
         source
@@ -160,8 +150,7 @@ async function main() {
       results.push({
         mode,
         group,
-        cases: actual.cases.length,
-        rows: actual.rows.length,
+        cases: cases.length,
       })
     }
     success = true

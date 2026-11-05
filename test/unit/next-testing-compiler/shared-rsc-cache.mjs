@@ -2,35 +2,24 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
-import { createHash } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
+import {
+  fixtureFiles,
+  resolveFixturePath,
+} from '../../lib/next-testing-fixtures.cjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const corpus = path.join(here, 'fixtures/shared-rsc-cache')
-const stored = JSON.parse(
-  fs.readFileSync(resolveFixturePath(path.join(corpus, 'corpus.json')), 'utf8')
-)
-const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
-export function readSharedCacheCorpus() {
-  const sources = Object.fromEntries(
-    Object.entries(stored.sources).map(([file, entry]) => {
-      const bytes = fs.readFileSync(
-        resolveFixturePath(path.join(corpus, entry.stored))
-      )
-      assert.equal(sha(bytes), entry.sha256)
-      return [file, bytes]
-    })
+export function readSharedCacheSources() {
+  const directory = path.join(corpus, 'sources')
+  return Object.fromEntries(
+    fixtureFiles(directory).map((file) => [
+      file.replace(/\.txt$/, ''),
+      fs.readFileSync(resolveFixturePath(path.join(directory, file))),
+    ])
   )
-  const ordinaryBytes = fs.readFileSync(
-    resolveFixturePath(path.join(corpus, stored.ordinaryModel))
-  )
-  assert.equal(sha(ordinaryBytes), stored.ordinaryModelSHA256)
-  const ordinary = JSON.parse(ordinaryBytes)
-  assert.equal(ordinary.rows.length, 3)
-  return { sources, contract: stored, ordinary }
 }
-export async function qualifySharedCache(
+export async function runSharedCache(
   consumer,
   output,
   repository = path.resolve(here, '../../..'),
@@ -42,7 +31,7 @@ export async function qualifySharedCache(
   assert(['source', 'installed'].includes(kind))
   assert(!fs.existsSync(output))
   fs.mkdirSync(output, { recursive: true })
-  const { sources, contract } = readSharedCacheCorpus()
+  const sources = readSharedCacheSources()
   const load = createRequire(path.join(consumer, 'package.json'))
   const { runOwnedNode, assertOwnedNodeCompleted } = await import(
     pathToFileURL(
@@ -124,18 +113,6 @@ export async function qualifySharedCache(
     GIT_OPTIONAL_LOCKS: '0',
     FORCE_COLOR: '0',
   })
-  save('REQUEST.json', {
-    kind,
-    consumer,
-    actualNodeVersion: process.version,
-    execPath: process.execPath,
-    args,
-    sourcePins: contract.sources,
-    authority: contract.authority,
-    rootPackage: load.resolve('next/package.json'),
-    testConfig,
-    nextConfig,
-  })
   let joined = false,
     complete = false
   try {
@@ -165,7 +142,7 @@ export async function qualifySharedCache(
       if (at >= 0)
         after.push(JSON.parse(line.slice(at + 'SHARED_CACHE_AFTER '.length)))
     }
-    save('OBSERVED.json', { cases, rows, after, report })
+    save('OBSERVED.json', { cases, rows, after })
     assertOwnedNodeCompleted(result, 'shared RSC real cache ' + kind)
     joined = true
     assert.equal(result.status, 0)
@@ -227,39 +204,22 @@ export async function qualifySharedCache(
       },
     ])
     save('RESULT.json', {
-      kind,
-      actualNodeVersion: process.version,
-      cases: 2,
-      actualAppPageRows: 6,
-      withinFileActualCacheHits: true,
-      crossFileActualCacheMiss: true,
-      freshActualTags: true,
-      actualAfterAndRevalidationDrained: true,
-      allAuthoredBytesHeld: true,
-      allOwnersJoined: true,
-      ordinaryWholeReferenceEqualityClaimed: false,
-      watchQualified: false,
+      cases: cases.length,
+      renderCounts: rows.flatMap((value) =>
+        value.rows.map((row) => row.subject.count)
+      ),
+      cachedValues: rows.flatMap((value) =>
+        value.rows.map((row) => row.subject.first.value)
+      ),
+      afterValues: after.map((value) => value.value),
     })
     complete = true
   } finally {
-    for (const [file, bytes] of Object.entries(sources))
-      assert.deepEqual(fs.readFileSync(path.join(fixture, file)), bytes)
-    fs.mkdirSync(path.join(output, 'fixture-config'), { recursive: true })
-    for (const file of [
-      'package.json',
-      'next.config.mjs',
-      'next.test.config.json',
-    ])
-      fs.copyFileSync(
-        path.join(fixture, file),
-        path.join(output, 'fixture-config', file)
-      )
     if (joined) fs.rmSync(fixture, { recursive: true, force: true })
     save('CLOSED.json', {
       joined,
       complete,
       fixtureRemoved: !fs.existsSync(fixture),
-      allAuthoredBytesHeld: true,
     })
   }
 }
@@ -267,31 +227,18 @@ if (
   process.argv[1] &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  if (process.argv[2] === '--check-corpus') {
-    const reference = readSharedCacheCorpus()
-    console.log(
-      JSON.stringify({
-        bodies: Object.keys(reference.sources).length,
-        ordinaryHttpRows: reference.ordinary.rows.length,
-        ordinaryStrictOwnerJoined: false,
-        ordinaryAllOwnedPidsPhysicallyGone: true,
-        actualSharedAppPageQualificationClaimed: false,
-        rawModelsAndSourceBytesExact: true,
-      })
-    )
-  } else {
-    await qualifySharedCache(
-      process.argv[2],
-      process.argv[3],
-      process.argv[4],
-      process.argv[5]
-    )
-    console.log(
-      JSON.stringify({
-        actualNodeVersion: process.version,
-        output: process.argv[3],
-        qualified: true,
-      })
-    )
-  }
+  await runSharedCache(
+    process.argv[2],
+    process.argv[3],
+    process.argv[4],
+    process.argv[5]
+  )
+  console.log(
+    fs
+      .readFileSync(
+        path.join(path.resolve(process.argv[3]), 'RESULT.json'),
+        'utf8'
+      )
+      .trim()
+  )
 }

@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   readFileSync,
@@ -14,6 +13,7 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
+import { assertSnapshotReport } from './snapshot-coverage-assertions.mjs'
 
 const [consumerArg, outputArg, name] = process.argv.slice(2)
 assert(consumerArg && outputArg && name)
@@ -32,7 +32,7 @@ const row = JSON.parse(
     )
   )
 ).rows.find((row) => row.name === name)
-assert(row, 'Missing genuine snapshot statistics profile')
+assert(row, 'Missing snapshot statistics scenario')
 const fixture = mkdtempSync(join(consumer, '.next-collection-snapshots-'))
 const canonicalSnapshot = (value) => ({
   ...value,
@@ -49,26 +49,10 @@ const canonicalMap = (map) =>
       { ...value, path: basename(value.path) },
     ])
   )
-const caseFacts = (report) =>
-  report.testResults.map((file) => ({
-    file: basename(file.name),
-    status: file.status,
-    cases: file.assertionResults.map((item) => ({
-      title: item.title,
-      ancestorTitles: item.ancestorTitles,
-      fullName: item.fullName,
-      status: item.status,
-    })),
-  }))
 mkdirSync(output, { recursive: true })
 try {
-  for (const [name, value] of Object.entries(row.authored.files)) {
-    assert.equal(
-      createHash('sha256').update(value.source).digest('hex'),
-      value.sha256
-    )
-    writeFileSync(join(fixture, name), value.source)
-  }
+  for (const [name, bytes] of Object.entries(row.authored.files))
+    writeFileSync(join(fixture, name), bytes)
   writeFileSync(join(fixture, 'vitest.config.mjs'), row.authored.config)
   writeFileSync(
     join(fixture, 'next.config.mjs'),
@@ -112,32 +96,26 @@ try {
   writeFileSync(join(output, 'stdout.log'), owner.stdout)
   writeFileSync(join(output, 'stderr.log'), owner.stderr)
   assertOwnedNodeCompleted(owner, 'collection snapshot statistics ' + name)
-  assert.equal(owner.status, row.observed.exit, owner.stderr)
+  assert.equal(owner.status, row.expected.exit, owner.stderr)
   const report = JSON.parse(readFileSync(join(output, 'cases.json')))
-  assert.deepEqual(
-    canonicalSnapshot(report.snapshot),
-    canonicalSnapshot(row.report.snapshot)
+  assertSnapshotReport(
+    { ...report, snapshot: canonicalSnapshot(report.snapshot) },
+    row.expected
   )
-  assert.deepEqual(caseFacts(report), caseFacts(row.report))
-  for (const key of [
-    'numTotalTests',
-    'numPassedTests',
-    'numFailedTests',
-    'numPendingTests',
-    'numTodoTests',
-    'success',
-  ])
-    assert.deepEqual(report[key], row.report[key], key)
+  assert.equal(report.numTotalTests, row.expected.total)
+  assert.equal(report.numTodoTests, row.expected.todo)
+  assert.equal(report.success, row.expected.success)
   assert.deepEqual(
-    canonicalMap(report.coverageMap),
-    canonicalMap(row.report.coverageMap)
+    report.testResults.map((file) => [basename(file.name), file.status]),
+    row.expected.files
   )
+  assert.deepEqual(canonicalMap(report.coverageMap), row.expected.coverageMap)
   assert.equal(
     Object.hasOwn(report, 'coverageMap'),
-    Object.hasOwn(row.report, 'coverageMap')
+    Object.hasOwn(row.expected, 'coverageMap')
   )
-  for (const [name, value] of Object.entries(row.authored.files))
-    assert.equal(readFileSync(join(fixture, name), 'utf8'), value.source)
+  for (const [name, bytes] of Object.entries(row.authored.files))
+    assert.equal(readFileSync(join(fixture, name), 'utf8'), bytes)
   for (const [name, bytes] of Object.entries(row.authored.snapshots))
     assert.equal(
       readFileSync(join(fixture, '__snapshots__', name), 'utf8'),
@@ -152,9 +130,9 @@ try {
     JSON.stringify(
       {
         name,
-        completeSnapshotStatisticsExact: true,
-        actualCaseAndFileStatusesExact: true,
-        actualCoverageMapExact: true,
+        snapshotCountsAndUncheckedKeysExact: true,
+        selectedCaseAndFileStatesExact: true,
+        coverageMapsAndCountersExact: true,
         failedCollectionNoCaseStarts: row.scenario.startsWith('failed-')
           ? report.testResults.every((file) => !file.assertionResults.length)
           : undefined,

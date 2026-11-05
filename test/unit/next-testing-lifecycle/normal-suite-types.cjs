@@ -8,15 +8,51 @@ const packageDir = path.resolve(
   process.argv[2] ?? path.join(repo, 'packages/next')
 )
 const inputs = path.join(__dirname, 'normal-suite-records/types')
-const expected = JSON.parse(fs.readFileSync(path.join(inputs, 'genuine.json')))
-const modifierExpected = JSON.parse(
-  fs.readFileSync(path.join(inputs, 'genuine-modifiers.json'))
-)
-expected.programs.push(...modifierExpected.programs)
-const names = [
-  ...JSON.parse(fs.readFileSync(path.join(inputs, 'PROGRAMS.json'))),
-  ...JSON.parse(fs.readFileSync(path.join(inputs, 'MODIFIER-PROGRAMS.json'))),
-]
+// Keep only the public type behavior from the reference reports.
+const expected = {
+  programs: [
+    ['returns.ts', true, []],
+    ['options-return.ts', true, []],
+    ['alias-return.ts', true, []],
+    ['generic-context.ts', true, []],
+    ['generic-wrong.ts', false, [[2322, 2]]],
+    ['generic-override.ts', true, []],
+    ['generic-override-wrong.ts', false, [[2344, 2]]],
+    ['primitive-context.ts', true, []],
+    ['unknown-context.ts', true, []],
+    ['predicate.ts', true, []],
+    ['predicate-repeat.ts', false, [[2339, 2]]],
+    ['predicate-on-flag.ts', false, [[2551, 2]]],
+    ['flags.ts', true, []],
+    ['each.ts', true, []],
+    ['each-wrong.ts', false, [[2345, 2]]],
+    ['for.ts', true, []],
+    ['no-factory.ts', true, []],
+    ['options-wrong.ts', false, [[2769, 2]]],
+    ['factory-return.ts', false, [[2769, 2]]],
+    ['name-wrong.ts', false, [[2769, 2]]],
+    ['predicate-any.ts', true, []],
+    ['collector-mode.ts', true, []],
+    ['collector-mode-invalid.ts', false, [[2322, 2]]],
+    ['writable-chain.ts', true, []],
+    [
+      'readonly-collector.ts',
+      false,
+      [
+        [2540, 3],
+        [2540, 4],
+      ],
+    ],
+    ['optional-collector-shape.ts', true, []],
+    ['writable-collector.ts', true, []],
+    ['invalid-chain-value.ts', false, [[2322, 3]]],
+  ].map(([name, accepted, diagnostics]) => ({
+    name,
+    accepted,
+    diagnostics: diagnostics.map(([code, line]) => ({ code, line })),
+  })),
+}
+const names = expected.programs.map(({ name }) => name)
 const temporary = fs.mkdtempSync(
   path.join(os.tmpdir(), 'next-normal-suite-types-')
 )

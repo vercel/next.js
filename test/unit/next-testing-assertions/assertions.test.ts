@@ -438,10 +438,10 @@ it('publishes actual global Tasks across hooks, native and custom assertions, an
   expect(stderr).toBe('')
   expect(JSON.parse(stdout)).toEqual({
     results: [
-      { mode: 'development', group: 'flags', cases: 5, rows: 1 },
-      { mode: 'development', group: 'attribution', cases: 4, rows: 1 },
-      { mode: 'production', group: 'flags', cases: 5, rows: 1 },
-      { mode: 'production', group: 'attribution', cases: 4, rows: 1 },
+      { mode: 'development', group: 'flags', cases: 5 },
+      { mode: 'development', group: 'attribution', cases: 4 },
+      { mode: 'production', group: 'flags', cases: 5 },
+      { mode: 'production', group: 'attribution', cases: 4 },
     ],
   })
 }, 55000)
@@ -465,7 +465,7 @@ it.each(['node', 'browser'] as const)(
   }
 )
 
-it('retains complete genuine native public Promise field rows through actual Node cases', async () => {
+it('checks native public Promise queue identity and cleanup in actual Node cases', async () => {
   const { stdout, stderr } = await promisify(execFile)(
     process.execPath,
     [join(__dirname, 'native-public-promises-public.cjs')],
@@ -474,8 +474,8 @@ it('retains complete genuine native public Promise field rows through actual Nod
   expect(stderr).toBe('')
   expect(JSON.parse(stdout)).toEqual({
     results: [
-      { mode: 'development', group: 'fields', cases: 4, rows: 1 },
-      { mode: 'production', group: 'fields', cases: 4, rows: 1 },
+      { mode: 'development', group: 'fields', cases: 4 },
+      { mode: 'production', group: 'fields', cases: 4 },
     ],
   })
 }, 55000)
@@ -686,7 +686,7 @@ it.each(['development', 'production'])(
         profiles: 4,
         cases: 8,
         observations: 48,
-        exactGenuineStateAndSnapshotCounters: true,
+        lifecycleAndSnapshotCounters: true,
         sourceAndInlineSnapshotsUnchanged: true,
         allOwnersJoined: true,
       })
@@ -1102,6 +1102,15 @@ it.each([
     expect(stderr).toBe('')
     expect(JSON.parse(stdout)).toMatchObject({
       family,
+      cases:
+        family === 'prototype'
+          ? 4
+          : family === 'identity'
+            ? 7
+            : family === 'native-alias'
+              ? 1
+              : 2,
+      behaviorAssertions: true,
       actualFileDisposalJoined: true,
     })
   },
@@ -1128,7 +1137,7 @@ it.each([
   ['development', 'js', 'subject'],
   ['production', 'mjs', 'subject'],
 ])(
-  'matches complete Chai callable %s %s %s rows',
+  'checks Chai callable identity and receiver semantics in %s %s %s',
   async (mode, extension, family) => {
     const { mkdtemp, readFile, rm } = await import('node:fs/promises')
     const { tmpdir } = await import('node:os')
@@ -1161,9 +1170,18 @@ it.each([
       expect(
         JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
       ).toMatchObject({
-        exactGenuineAuthorRows: true,
-        exactCaseStatesAndStandardCounts: true,
-        originalBoundsHeld: true,
+        lane: 'source',
+        mode,
+        extension,
+        cases:
+          family === 'prototype'
+            ? 4
+            : family === 'identity'
+              ? 7
+              : family === 'native-alias'
+                ? 1
+                : 2,
+        behaviorAssertions: true,
         allOwnersJoined: true,
       })
       completed = true
@@ -1189,7 +1207,7 @@ it.each(['default', 'proxy-disabled', 'proxify', 'proxify-disabled'])(
     expect(stderr).toBe('')
     expect(JSON.parse(stdout)).toMatchObject({
       cases: family.startsWith('proxify') ? 2 : 3,
-      completeGenuineRows: 4,
+      behaviorAssertions: true,
       actualFileDisposalJoined: true,
       actualNameReadsAfterDispose: true,
     })
@@ -1207,7 +1225,7 @@ it.each([
   ['development', 'js', 'proxify-disabled'],
   ['production', 'mjs', 'proxify-disabled'],
 ])(
-  'matches genuine callable name metadata in %s %s %s',
+  'checks callable name metadata in %s %s %s',
   async (mode, extension, family) => {
     const { mkdtemp, readFile, rm } = await import('node:fs/promises')
     const { tmpdir } = await import('node:os')
@@ -1231,9 +1249,11 @@ it.each([
       expect(
         JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
       ).toMatchObject({
-        exactGenuineAuthorRows: true,
-        exactCaseStatesAndStandardCounts: true,
-        originalBoundsHeld: true,
+        lane: 'source',
+        mode,
+        extension,
+        cases: family.startsWith('proxify') ? 2 : 3,
+        behaviorAssertions: true,
         allOwnersJoined: true,
       })
       completed = true
@@ -1259,7 +1279,7 @@ it.each(['default', 'disabled'])(
     expect(stderr).toBe('')
     expect(JSON.parse(stdout)).toMatchObject({
       cases: 2,
-      completeGenuineRows: 4,
+      behaviorAssertions: true,
       actualFileDisposalJoined: true,
       actualDescriptorIdentityAfterDispose: true,
       noGetterReads: true,
@@ -1274,7 +1294,7 @@ it.each([
   ['development', 'js', 'disabled'],
   ['production', 'mjs', 'disabled'],
 ])(
-  'matches genuine callable descriptor traversal in %s %s %s',
+  'checks callable descriptor traversal in %s %s %s',
   async (mode, extension, family) => {
     const { mkdtemp, readFile, rm } = await import('node:fs/promises')
     const { tmpdir } = await import('node:os')
@@ -1298,9 +1318,11 @@ it.each([
       expect(
         JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
       ).toMatchObject({
-        exactGenuineAuthorRows: true,
-        exactCaseStatesAndStandardCounts: true,
-        originalBoundsHeld: true,
+        lane: 'source',
+        mode,
+        extension,
+        cases: 2,
+        behaviorAssertions: true,
         allOwnersJoined: true,
       })
       completed = true
@@ -1331,7 +1353,7 @@ it.each(['default', 'disabled'])(
     expect(stderr).toBe('')
     expect(JSON.parse(stdout)).toMatchObject({
       cases: 3,
-      completeGenuineRows: 4,
+      behaviorAssertions: true,
       actualFileDisposalJoined: true,
       retainedIntrinsicAfterDispose: true,
       exactNativeReceiverErrorsAfterDispose: true,
@@ -1347,7 +1369,7 @@ it.each([
   ['development', 'js', 'disabled'],
   ['production', 'mjs', 'disabled'],
 ])(
-  'matches genuine native callable string intrinsic in %s %s %s',
+  'checks native callable string intrinsic in %s %s %s',
   async (mode, extension, family) => {
     const { mkdtemp, readFile, rm } = await import('node:fs/promises')
     const { tmpdir } = await import('node:os')
@@ -1373,9 +1395,11 @@ it.each([
       expect(
         JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
       ).toMatchObject({
-        exactGenuineAuthorRows: true,
-        exactCaseStatesAndStandardCounts: true,
-        originalBoundsHeld: true,
+        lane: 'source',
+        mode,
+        extension,
+        cases: 3,
+        behaviorAssertions: true,
         allOwnersJoined: true,
       })
       completed = true
@@ -1401,7 +1425,7 @@ it.each(['default', 'disabled', 'forwarding', 'forwarding-disabled'])(
     expect(stderr).toBe('')
     expect(JSON.parse(stdout)).toMatchObject({
       cases: family.startsWith('forwarding') ? 3 : 2,
-      completeGenuineRows: family.startsWith('forwarding') ? 5 : 4,
+      behaviorAssertions: true,
       actualFileDisposalJoined: true,
       retainedCallerFunctionsAfterDispose: true,
       publicAliasOwnershipAfterDispose: true,
@@ -1421,7 +1445,7 @@ it.each([
   ['development', 'js', 'forwarding-disabled'],
   ['production', 'mjs', 'forwarding-disabled'],
 ])(
-  'matches genuine own callable data behavior in %s %s %s',
+  'checks own callable data behavior in %s %s %s',
   async (mode, extension, family) => {
     const { mkdtemp, readFile, rm } = await import('node:fs/promises')
     const { tmpdir } = await import('node:os')
@@ -1445,9 +1469,11 @@ it.each([
       expect(
         JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
       ).toMatchObject({
-        exactGenuineAuthorRows: true,
-        exactCaseStatesAndStandardCounts: true,
-        originalBoundsHeld: true,
+        lane: 'source',
+        mode,
+        extension,
+        cases: family.startsWith('forwarding') ? 3 : 2,
+        behaviorAssertions: true,
         allOwnersJoined: true,
       })
       completed = true
@@ -1476,9 +1502,7 @@ it.each(['dispatch', 'classes', 'null'])(
     expect(JSON.parse(stdout)).toEqual({
       family,
       cases: family === 'dispatch' ? 28 : family === 'classes' ? 24 : 16,
-      completeGenuineRows:
-        family === 'dispatch' ? 28 : family === 'classes' ? 24 : 16,
-      exactGenuineRowsAndNativeErrors: true,
+      behaviorAssertions: true,
       actualFileDisposalJoined: true,
     })
   },
@@ -1491,7 +1515,7 @@ it.each(
     ['production', family],
   ])
 )(
-  'matches genuine Chai receiver behavior in %s for %s',
+  'checks Chai receiver values and native errors in %s for %s',
   async (mode, family) => {
     const { execFile } = await import('node:child_process')
     const { promisify } = await import('node:util')
@@ -1519,10 +1543,18 @@ it.each(
       expect(
         JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
       ).toMatchObject({
-        exactGenuineAuthorRows: true,
-        exactCaseStatesAndStandardCounts: true,
-        exactGenuineFailureProjection: true,
-        originalBoundsHeld: true,
+        lane: 'source',
+        mode,
+        extension: 'ts',
+        cases:
+          family === 'dispatch'
+            ? 28
+            : family === 'classes'
+              ? 24
+              : family === 'null'
+                ? 16
+                : 1,
+        behaviorAssertions: true,
         allOwnersJoined: true,
       })
       completed = true

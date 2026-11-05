@@ -1,18 +1,18 @@
 import { test, expect, beforeEach, afterEach, afterAll } from 'vitest'
 
-const rows = []
+const before = [],
+  after = []
 let attempts = 0
 const original = new Error('original synchronous retry')
 original.stack = ''
-beforeEach(({ task }) => rows.push(['before', task.name]))
-afterEach(({ task }) => rows.push(['after', task.name]))
+beforeEach(({ task }) => before.push(task.name))
+afterEach(({ task }) => after.push(task.name))
 
 test('native and subclass Promises in the actual document', async () => {
   expect(await Promise.resolve(7)).toBe(7)
   await expect(Promise.resolve(11)).resolves.toBe(11)
   class Other extends Promise {}
   await expect(new Other((resolve) => resolve(13))).resolves.toBe(13)
-  rows.push(['promises', 7, 11, 13])
 })
 
 test('actual document and native event dispatch', () => {
@@ -25,13 +25,20 @@ test('actual document and native event dispatch', () => {
   expect(button.textContent).toBe('actual WebKit')
   expect(clicks).toBe(1)
   button.remove()
-  rows.push(['document', clicks])
 })
 
 test('original synchronous retry', { retry: 1 }, () => {
-  rows.push(['retry', ++attempts])
-  if (attempts === 1) throw original
+  if (++attempts === 1) throw original
   expect(attempts).toBe(2)
 })
 
-afterAll(() => console.log('WEBKIT_RUNTIME:' + JSON.stringify(rows)))
+afterAll(() => {
+  expect(before).toEqual([
+    'native and subclass Promises in the actual document',
+    'actual document and native event dispatch',
+    'original synchronous retry',
+    'original synchronous retry',
+  ])
+  expect(after).toEqual(before)
+  expect(attempts).toBe(2)
+})

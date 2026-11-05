@@ -36,7 +36,7 @@ it.each([
       expect(verified.profiles).toHaveLength(2)
       expect(verified.actualCases).toBe(4)
       expect(verified.allRuntimeOwnersJoined).toBe(true)
-      expect(verified.originalAuthoredSourcesAndBoundsHeld).toBe(true)
+      expect(verified.behavioralChecks).toBe(true)
       complete = true
     } catch (cause) {
       throw new Error(`AroundAll recovery evidence retained at ${temporary}`, {

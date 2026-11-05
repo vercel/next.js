@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { afterAll, beforeEach, expect, test } from 'vitest'
 const contexts = []
 const trace = []
@@ -9,7 +10,17 @@ beforeEach(function ({}) {
   taskReads.set(context, () => reads)
   Object.defineProperty(context, 'task', { configurable: true, enumerable: descriptor.enumerable, get() { reads++; return descriptor.value } })
 })
-const emit = (phase, value) => { const row = { phase, value }; trace.push(row); console.log('FIXTURE_CONTEXT_ROW ' + JSON.stringify(row)) }
+const emit = (phase, value) => {
+  if (phase === 'primary-setup') assert.deepEqual(value, { hasTask: true, fromPrimary: 'primary' })
+  if (phase === 'derived-setup') assert.deepEqual(value, { sameContext: true, task: true, primary: 'primary' })
+  if (phase === 'before') assert.deepEqual(value, { primary: true, derived: true, task: true, fromPrimary: 'primary', fromDerived: 'derived' })
+  if (phase === 'after') assert.deepEqual(value, { primary: true, derived: true, body: contexts.length === 1 ? 'first' : 'second', before: 'before' })
+  if (phase === 'derived-cleanup') assert.deepEqual(value, { body: contexts.length === 1 ? 'first' : 'second', after: 'after' })
+  if (phase === 'primary-cleanup') assert.deepEqual(value, { body: contexts.length === 1 ? 'first' : 'second', after: 'after', derived: 'derived' })
+  if (phase === 'summary') assert.deepEqual(value.taskReads, [6, 6])
+  trace.push(phase)
+  console.log('FIXTURE_CONTEXT_ROW ' + JSON.stringify({ phase }))
+}
 const owned = test.extend({
   primary: async function ({ task }, use) {
     const context = arguments[0]

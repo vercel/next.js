@@ -1,3 +1,4 @@
+import { assertCoverageReports } from './settled-coverage-assertions.mjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -38,22 +39,13 @@ const pristine = JSON.parse(
 const row = pristine.rows.find((value) => value.name === profile)
 assert(row, 'Missing genuine beforeEach profile')
 const fixture = mkdtempSync(join(consumer, '.next-istanbul-beforeeach-'))
-const canonical = (map) =>
-  Object.fromEntries(
-    Object.entries(map).map(([file, data]) => [
-      file === 'total' ? file : basename(file),
-      { ...data, ...('path' in data ? { path: basename(data.path) } : {}) },
-    ])
-  )
+
 const keys = [
   'ancestorTitles',
   'fullName',
   'status',
   'title',
   'failureMessages',
-  'meta',
-  'tags',
-  'benchmarks',
 ]
 const errorMessage = (value) => value.split(/\n(?: {4}at | ❯ )/u)[0]
 const cases = (report) =>
@@ -142,15 +134,10 @@ try {
       const actualFrame = /setup\.mjs:(\d+):(\d+)/u.exec(
         actual.failureMessages[i]
       )
-      const expectedFrame = /setup\.mjs:(\d+):(\d+)/u.exec(
-        expected.failureMessages[i]
-      )
-      assert(
-        actualFrame && expectedFrame,
-        'actual authored setup frame required'
-      )
-      assert.equal(actualFrame[1], expectedFrame[1])
-      frames.push({ actual: actualFrame[0], genuine: expectedFrame[0] })
+      const expectedLine = row.setupErrorLines[index][i]
+      assert(actualFrame, 'actual authored setup frame required')
+      assert.equal(Number(actualFrame[1]), expectedLine)
+      frames.push({ actual: actualFrame[0], expectedSetupLine: expectedLine })
     }
   }
   writeFileSync(
@@ -171,21 +158,21 @@ try {
       ? readdirSync(join(fixture, 'coverage'))
       : []
     ).sort(),
-    Object.keys(row.reports).sort()
+    row.reportFiles.slice().sort()
   )
   mkdirSync(join(output, 'coverage'))
-  for (const [name, expected] of Object.entries(row.reports)) {
-    const actual = readFileSync(join(fixture, 'coverage', name), 'utf8')
-    if (name.endsWith('.json'))
-      assert.deepEqual(
-        canonical(JSON.parse(actual)),
-        canonical(JSON.parse(expected))
-      )
-    else assert.equal(actual, expected, name)
-    copyFileSync(
-      join(fixture, 'coverage', name),
-      join(output, 'coverage', name)
+  if (row.reportFiles.length) {
+    assertCoverageReports(
+      join(fixture, 'coverage'),
+      fixture,
+      row.coverage,
+      row.reportFiles
     )
+    for (const name of row.reportFiles)
+      copyFileSync(
+        join(fixture, 'coverage', name),
+        join(output, 'coverage', name)
+      )
   }
   const snapshots = existsSync(join(fixture, '__snapshots__'))
     ? Object.fromEntries(
@@ -212,11 +199,11 @@ try {
         profile,
         actualSettledBeforeEachFailure: true,
         reportOnFailure: !profile.endsWith('-report-false'),
-        wholeCaseProjection: true,
-        completeAuthoredMessages: true,
+        caseStatusesAndErrors: true,
+        authoredErrorHeadings: true,
         authoredFileAndLine: true,
         rawFrameEqualityQualified: false,
-        completeMapsSummaryLCOV: true,
+        coverageCountersAndReportFiles: true,
         exactExistingSnapshots: true,
         configUnchanged: true,
         allOwnersJoined: true,

@@ -1,7 +1,0 @@
-[
-  {
-    "name": "only compiler published getters swallow early reads while authored getters and function bodies retain raw errors",
-    "status": "passed",
-    "failureMessages": []
-  }
-]

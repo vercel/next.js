@@ -1,13 +1,48 @@
 import { test, chai, expect } from 'vitest'
-const classes=[['raw',v=>chai.expect(v),'equal'],['expect-equal',v=>expect(v),'equal'],['expect-toBe',v=>expect(v),'toBe'],['constructor',v=>new chai.Assertion(v),'equal']]
-for(const useProxy of[true,false])for(const[kind,make,key]of classes)for(const operation of['detached','self','other'])test((useProxy?'enabled ':'disabled ')+kind+' '+operation,()=>{
- const previous=chai.config.useProxy
- chai.config.useProxy=useProxy
- try{
-  const assertion=make(1),other=make(3),method=assertion[key]
-  let result,error,threw=false
-  try{result=Reflect.apply(method,operation==='self'?assertion:operation==='other'?other:undefined,[operation==='self'?1:3])}catch(caught){threw=true;error=caught}
-  console.log('POLL_OWNERSHIP_ROW '+JSON.stringify({useProxy,kind,operation,threw,returnKind:typeof result,sameOriginal:result===assertion,sameOther:result===other,error:threw?{name:error?.name,message:error?.message}:null,assertionCalls:expect.getState().assertionCalls}))
-  if(threw)throw error
- }finally{chai.config.useProxy=previous}
-})
+import assert from 'node:assert/strict'
+const classes = [
+  ['raw', (v) => chai.expect(v), 'equal'],
+  ['expect-equal', (v) => expect(v), 'equal'],
+  ['expect-toBe', (v) => expect(v), 'toBe'],
+  ['constructor', (v) => new chai.Assertion(v), 'equal'],
+]
+for (const useProxy of [true, false])
+  for (const [kind, make, key] of classes)
+    for (const operation of ['detached', 'self', 'other'])
+      test(
+        (useProxy ? 'enabled ' : 'disabled ') + kind + ' ' + operation,
+        () => {
+          const previous = chai.config.useProxy
+          chai.config.useProxy = useProxy
+          try {
+            const assertion = make(1),
+              other = make(3),
+              method = assertion[key]
+            const receiver =
+              operation === 'self'
+                ? assertion
+                : operation === 'other'
+                  ? other
+                  : undefined
+            const value = operation === 'self' ? 1 : 3
+            if (operation === 'detached')
+              assert.throws(
+                () => Reflect.apply(method, receiver, [value]),
+                (error) =>
+                  error?.name === 'TypeError' && /undefined/.test(error.message)
+              )
+            else {
+              const result = Reflect.apply(method, receiver, [value])
+              assert.notEqual(result, assertion)
+              assert.notEqual(result, other)
+              assert.equal(typeof result, 'object')
+            }
+            assert.equal(
+              expect.getState().assertionCalls,
+              kind.startsWith('expect-') ? 2 : 0
+            )
+          } finally {
+            chai.config.useProxy = previous
+          }
+        }
+      )

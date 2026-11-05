@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   runOwnedNode,
@@ -10,8 +9,17 @@ const [kind, root, output, selectedMode] = process.argv.slice(2)
 assert(['source', 'installed'].includes(kind))
 fs.mkdirSync(output)
 const fixtures = new URL('./fixtures/snapshot-state/', import.meta.url)
-const expected = JSON.parse(
-  fs.readFileSync(new URL('reference.json', fixtures))
+const profiles = ['development', 'production'].flatMap((mode) =>
+  ['success', 'failure', 'retry', 'counters'].map((group) => ({
+    mode,
+    group,
+    body:
+      group === 'retry'
+        ? 'retry.test.mjs.txt'
+        : group === 'counters'
+          ? 'counters.test.mjs.txt'
+          : 'lifecycle.test.mjs.txt',
+  }))
 )
 const load = createRequire(root + '/package.json')
 if (kind === 'installed')
@@ -21,13 +29,12 @@ const next =
   kind === 'source'
     ? root + '/packages/next/dist/bin/next'
     : load.resolve('next/dist/bin/next')
-const digest = (body) => createHash('sha256').update(body).digest('hex')
 const receipts = []
-for (const [label, e] of Object.entries(expected).filter(
-  ([, e]) => !selectedMode || e.mode === selectedMode
+for (const e of profiles.filter(
+  (e) => !selectedMode || e.mode === selectedMode
 )) {
+  const label = e.mode + '-' + e.group
   const body = fs.readFileSync(new URL(e.body, fixtures))
-  assert.equal(digest(body), e.bodySHA256)
   const dir = output + '/' + label
   fs.mkdirSync(dir)
   const fixture = fs.mkdtempSync(root + '/.next-test-snapshot-state-')
@@ -97,24 +104,75 @@ for (const [label, e] of Object.entries(expected).filter(
         .trim()
         .split('\n')
         .map(JSON.parse)
-    const standard = {
-      success: json.success,
-      counts: Object.fromEntries(
-        Object.entries(json).filter(([k]) => k.startsWith('num'))
-      ),
-      snapshot: json.snapshot,
-      files: json.testResults.map((f) => ({
-        status: f.status,
-        message: f.message,
-      })),
-    }
-    assert.equal(owner.status, e.status)
-    assert.deepEqual(rows, e.rows)
-    assert.deepEqual(standard, e.standard)
-    assert.equal(
-      digest(fs.readFileSync(fixture + '/exposure.test.mjs')),
-      e.bodySHA256
+    const failed = e.group === 'failure'
+    assert.equal(owner.status, failed ? 1 : 0)
+    assert.equal(json.success, !failed)
+    assert.equal(json.numTotalTests, 2)
+    assert.equal(json.numPassedTests, failed ? 1 : 2)
+    assert.equal(json.numFailedTests, failed ? 1 : 0)
+    assert.equal(json.snapshot.matched, 2)
+    assert.equal(json.snapshot.total, 2)
+    assert.equal(json.snapshot.unmatched, 0)
+    assert.equal(json.snapshot.added, 0)
+    assert.equal(json.snapshot.updated, 0)
+    assert.equal(json.snapshot.didUpdate, false)
+    const first = [
+      'before-each',
+      'first-body-enter',
+      'first-body-after-snapshot',
+      'after-each',
+    ]
+    assert.deepEqual(
+      rows.map((row) => row.phase),
+      [
+        'collection',
+        'before-all',
+        ...first,
+        ...(e.group === 'retry' ? first : []),
+        'before-each',
+        'second-body-enter',
+        'second-body-after-snapshot',
+        'after-each',
+        'after-all',
+      ]
     )
+    for (const row of rows) {
+      assert.equal(row.sameGlobalState, true)
+      const active = !['collection', 'before-all'].includes(row.phase)
+      assert.equal(row.ownSnapshot, active)
+      assert.equal(row.snapshotPresent, active)
+      if (!active) {
+        assert.equal(row.descriptor, null)
+        assert.equal(row.sameActualSnapshot, null)
+        continue
+      }
+      assert.equal(row.sameActualSnapshot, true)
+      assert.equal(row.constructorName, 'SnapshotState')
+      assert.deepEqual(row.descriptor, {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        valueType: 'object',
+      })
+      assert.deepEqual(
+        row.local,
+        row.phase === 'after-all'
+          ? null
+          : {
+              sameState: false,
+              snapshotPresent: true,
+              sameSnapshot: true,
+            }
+      )
+    }
+    if (e.group === 'counters') {
+      let matched = 0
+      for (const row of rows.slice(2)) {
+        if (row.phase.endsWith('after-snapshot')) matched++
+        assert.deepEqual(row.counters, { added: 0, matched, unmatched: 0 })
+      }
+    }
+    assert.deepEqual(fs.readFileSync(fixture + '/exposure.test.mjs'), body)
     assert.equal(fs.existsSync(fixture + '/__snapshots__'), false)
     const cases = json.testResults
       .flatMap((f) => f.assertionResults)
@@ -129,12 +187,10 @@ for (const [label, e] of Object.entries(expected).filter(
     receipts.push({
       label,
       kind,
-      sourceSHA256: e.bodySHA256,
       status: owner.status,
       cases: 2,
       observations: rows.length,
-      exactGenuineStateRows: true,
-      completeStandardProjection: true,
+      lifecycleAndSnapshotCounters: true,
       actualSnapshotObjectAndDescriptors: true,
       bodyAndInlineSnapshotsUnchanged: true,
       ownersJoined: true,
@@ -157,7 +213,7 @@ console.log(
     profiles: receipts.length,
     cases: receipts.length * 2,
     observations: receipts.reduce((sum, r) => sum + r.observations, 0),
-    exactGenuineStateAndSnapshotCounters: true,
+    lifecycleAndSnapshotCounters: true,
     sourceAndInlineSnapshotsUnchanged: true,
     allOwnersJoined: true,
   })

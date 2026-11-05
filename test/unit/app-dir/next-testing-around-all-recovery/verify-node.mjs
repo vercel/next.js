@@ -1,239 +1,174 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { createHash } from 'node:crypto'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import {
-  runOwnedNode,
-  assertOwnedNodeCompleted,
-} from '../../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
-import { compareObservation, standardReport } from './compare.mjs'
+import { runCompilerCase } from '../../../lib/next-testing-case-runner.mjs'
 
-const [consumerArg, outputArg, phase, variant, modeArg] = process.argv.slice(2)
-assert(
-  consumerArg && outputArg,
-  'Usage: verify-node.mjs <source-or-consumer-root> <new-output-directory> <setup|teardown> <gated|root-gated> [development|production]'
-)
+const [consumer, output, phase, variant, modeArg] = process.argv.slice(2)
+assert(consumer && output)
 assert(['setup', 'teardown'].includes(phase))
 assert(['gated', 'root-gated'].includes(variant))
 assert(!modeArg || ['development', 'production'].includes(modeArg))
-const modes = modeArg ? [modeArg] : ['development', 'production']
-const consumer = fs.realpathSync(consumerArg)
-const output = path.resolve(outputArg)
 fs.mkdirSync(output)
-const base = path.join(
+const source = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
-  'node-records'
-)
-const manifest = JSON.parse(fs.readFileSync(base + '/REFERENCE.json'))
-const load = createRequire(consumer + '/package.json')
-const next = path.dirname(load.resolve('next/package.json'))
-const bin = load.resolve('next/dist/bin/next')
-const sha = (value) => createHash('sha256').update(value).digest('hex')
-const save = (where, name, value) =>
-  fs.writeFileSync(
-    path.join(where, name),
-    JSON.stringify(value, null, 2) + '\n',
-    { flag: 'wx' }
-  )
-const pins = Object.fromEntries(
-  [
-    'package.json',
-    'dist/bin/next',
-    'dist/experimental/testing/runner/lifecycle.js',
-    'dist/experimental/testing/runner/index.js',
-    'dist/experimental/testing/runner/fixtures.js',
-    'dist/experimental/testing/assertions/index.js',
-    'dist/experimental/testing/reporting/task-updates.js',
-    'dist/experimental/testing/execution/worker.js',
-  ].map((name) => [name, sha(fs.readFileSync(next + '/' + name))])
+  'node-records',
+  variant + '.test.mjs.txt'
 )
 const profiles = []
-for (const mode of modes) {
-  const label = `20-${mode}-${phase}-${variant === 'gated' ? 'suite-errors' : variant}`
-  assert(
-    manifest.profiles[label],
-    'A genuine Node 20 baseline model is required'
-  )
-  const out = path.join(output, mode)
-  fs.mkdirSync(out)
-  const bodyName = variant + '.test.mjs.txt'
-  const body = fs.readFileSync(path.join(base, bodyName))
-  assert.equal(sha(body), manifest.bodyPins[bodyName])
-  assert.equal(sha(body), manifest.profiles[label].bodySHA256)
-  const expected = JSON.parse(
-    fs.readFileSync(path.join(base, `${phase}-${variant}-model.json`))
-  )
-  const fixture = fs.mkdtempSync(
-    path.join(consumer, '.next-around-all-recovery-')
-  )
-  fs.symlinkSync(consumer + '/node_modules', fixture + '/node_modules', 'dir')
-  fs.writeFileSync(
-    fixture + '/package.json',
-    '{"type":"module","private":true}\n'
-  )
-  fs.writeFileSync(fixture + '/suite.test.mjs', body)
-  fs.writeFileSync(out + '/AUTHORED-SOURCE.mjs.txt', body)
-  const reporter = `import fs from 'node:fs';const save=value=>fs.appendFileSync(process.env.AROUND_REPORTER,JSON.stringify(value)+'\\n');const error=e=>({name:e?.name,message:e?.message,stack:e?.stack,...e});export default class{onUserConsoleLog(log){save({hook:'console',log})}onTestRunEnd(modules,errors,reason){save({hook:'end',reason,errors:errors.map(error),modules:modules.map(module=>({state:module.state(),errors:module.errors().map(error),suites:[...module.children.allSuites()].map(suite=>({name:suite.fullName,state:suite.state(),errors:suite.errors().map(error)}))}))})}}\n`
-  fs.writeFileSync(fixture + '/reporter.mjs', reporter)
-  fs.writeFileSync(
-    fixture + '/next.config.mjs',
-    'export default ' + JSON.stringify({ turbopack: { root: consumer } }) + '\n'
-  )
-  const test = {
-    include: ['suite.test.mjs'],
-    fileParallelism: false,
-    maxWorkers: 1,
-    testTimeout: 5000,
-    hookTimeout: 5000,
-    includeTaskLocation: false,
-    mode,
-    environment: 'node',
-  }
-  fs.writeFileSync(
-    fixture + '/next.test.config.json',
-    JSON.stringify({ test }) + '\n'
-  )
-  fs.writeFileSync(out + '/trace.jsonl', '')
-  fs.writeFileSync(out + '/reporter.jsonl', '')
-  const args = [
-    bin,
-    'test',
-    fixture,
-    '--run',
-    '--reporter=json',
-    '--reporter=' + fixture + '/reporter.mjs',
-    '--outputFile=' + out + '/report.json',
-  ]
-  const env = {
-    ...process.env,
-    AROUND_PHASE: phase,
-    AROUND_FOLLOWUP: variant,
-    AROUND_TRACE: out + '/trace.jsonl',
-    AROUND_REPORTER: out + '/reporter.jsonl',
-    NODE_ENV: mode,
-    NEXT_TELEMETRY_DISABLED: '1',
-    FORCE_COLOR: '0',
-  }
-  for (const name of [
-    'CI',
-    'NODE_OPTIONS',
-    'NODE_PATH',
-    'NEXT_TEST_NATIVE_DIR',
-    'NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL',
-  ])
-    delete env[name]
-  save(out, 'INPUTS.json', {
-    label,
-    consumer,
-    fixture,
-    mode,
-    phase,
-    variant,
-    actualNode: process.version,
-    actualExecutable: process.execPath,
-    args,
-    test,
-    sourceSHA256: sha(body),
-    reporterSHA256: sha(reporter),
-    pins,
-    bounds: {
-      cli: 120000,
-      test: 5000,
-      hook: 5000,
-      around: 100,
-      settle: variant === 'gated' ? 250 : 1000,
-    },
-  })
-  let owner
-  try {
-    owner = await runOwnedNode(args, {
-      cwd: fixture,
-      env,
-      auditDir: out + '/owners',
-      timeoutMs: 120000,
-    })
-    save(out, 'OWNER.json', owner)
-    fs.writeFileSync(out + '/stdout.log', owner.stdout)
-    fs.writeFileSync(out + '/stderr.log', owner.stderr)
-    assertOwnedNodeCompleted(owner, 'Actual AroundAll recovery ' + label)
-    const parseRows = (name) =>
-      fs
-        .readFileSync(path.join(out, name), 'utf8')
-        .trim()
-        .split('\n')
-        .filter(Boolean)
-        .map((line) => JSON.parse(line))
-    const report = JSON.parse(fs.readFileSync(out + '/report.json'))
-    const observed = {
-      status: owner.status,
-      rows: parseRows('trace.jsonl'),
-      reporterRows: parseRows('reporter.jsonl'),
-      cases: report.testResults.flatMap((file) =>
-        file.assertionResults.map((test) => ({
-          name: test.fullName,
-          state: test.status,
-          failureMessages: test.failureMessages,
-        }))
-      ),
-      summary: Object.fromEntries(
-        Object.entries(report).filter(
-          ([key]) => key.startsWith('num') || key === 'success'
-        )
-      ),
-      allRuntimeOwnersJoined: true,
-    }
-    save(out, 'OBSERVED.json', observed)
-    save(out, 'STANDARD-ACTUAL.json', standardReport(report))
-    save(out, 'STANDARD-GENUINE.json', expected.report)
-    const verification = compareObservation(
-      observed,
-      report,
-      expected,
-      fixture,
-      phase,
-      variant
-    )
-    const result = {
-      label,
+for (const mode of modeArg ? [modeArg] : ['development', 'production']) {
+  const directory = path.join(output, mode)
+  const traceFile = path.join(directory, 'trace.jsonl')
+  profiles.push(
+    await runCompilerCase({
+      repo: consumer,
+      output: directory,
       mode,
-      phase,
-      variant,
-      ...verification,
-      allRuntimeOwnersJoined: true,
-      originalAuthoredSourcesAndBoundsHeld: true,
-      ungatedAbandonmentRemainsSeparateUnqualifiedBoundary: true,
-    }
-    profiles.push(result)
-    save(out, 'VERIFIED.json', result)
-    console.log(JSON.stringify(result))
-  } finally {
-    const joined =
-      !!owner &&
-      !owner.auditMissing &&
-      !owner.missingStartupRecords.length &&
-      !owner.pendingRegistrations.length &&
-      !owner.registrationFailures.length &&
-      !owner.timedOut &&
-      !owner.leakedProcesses.length &&
-      !owner.cleanupFailures.length
-    if (joined) fs.rmSync(fixture, { recursive: true, force: true })
-    save(out, 'CLOSED.json', {
-      allRuntimeOwnersJoined: joined,
-      fixtureRetired: !fs.existsSync(fixture),
-      processExitDoesNotProveAuthoredOperationSettlement: true,
+      files: [{ target: 'suite.test.mjs', bytes: fs.readFileSync(source) }],
+      expectedNames: ['affected body', 'following body'],
+      expectedExit: 1,
+      timeoutMs: 120000,
+      config: {
+        test: {
+          mode,
+          environment: 'node',
+          include: ['suite.test.mjs'],
+          maxWorkers: 1,
+          fileParallelism: false,
+          testTimeout: 5000,
+          hookTimeout: 5000,
+          includeTaskLocation: false,
+        },
+      },
+      env: {
+        AROUND_PHASE: phase,
+        AROUND_FOLLOWUP: variant,
+        AROUND_TRACE: traceFile,
+      },
+      checkOutcomes(report) {
+        assert.equal(report.success, false)
+        assert.deepEqual(
+          report.testResults.map(({ status, message }) => ({
+            status,
+            message,
+          })),
+          [{ status: 'failed', message: '' }]
+        )
+        assert.equal(report.next.summary.errors, 1)
+        assert.equal(report.next.summary.warnings, 0)
+        const cases = report.testResults.flatMap(
+          (file) => file.assertionResults
+        )
+        assert.deepEqual(
+          cases.map((test) => test.status),
+          [phase === 'setup' ? 'skipped' : 'passed', 'passed']
+        )
+        assert(cases.every((test) => test.failureMessages.length === 0))
+        const suiteResults = report.next.events.filter(
+          (event) => event.type === 'suite-end'
+        )
+        assert.deepEqual(
+          suiteResults.map(({ name, status, errors }) => [
+            name,
+            status,
+            errors.length,
+          ]),
+          [
+            ['affected', 'failed', 1],
+            ['following', 'passed', 0],
+            ['', 'failed', 0],
+          ]
+        )
+        assert(
+          report.next.events
+            .filter((event) => event.type === 'case-end')
+            .every((event) => event.errors.length === 0)
+        )
+        const affected = suiteResults.find((suite) => suite.name === 'affected')
+        const following = suiteResults.find(
+          (suite) => suite.name === 'following'
+        )
+        assert.equal(affected.status, 'failed')
+        assert.equal(affected.errors.length, 1)
+        assert.equal(
+          affected.errors[0].name,
+          phase === 'setup' ? 'AroundHookSetupError' : 'AroundHookTeardownError'
+        )
+        assert.equal(
+          affected.errors[0].message,
+          `The ${phase} phase of "aroundAll" hook timed out after 100ms.`
+        )
+        const error = affected.errors[0]
+        assert.equal(error.phase, 'runtime')
+        assert.equal(error.severity, 'error')
+        assert.deepEqual(
+          report.next.events
+            .filter((event) => event.type === 'diagnostic')
+            .map(({ diagnostic }) => ({
+              phase: diagnostic.phase,
+              severity: diagnostic.severity,
+              name: diagnostic.name,
+              message: diagnostic.message,
+            })),
+          [
+            {
+              phase: 'runtime',
+              severity: 'error',
+              name: error.name,
+              message: error.message,
+            },
+          ]
+        )
+        assert.equal(following.status, 'passed')
+        assert.deepEqual(following.errors, [])
+        const rows = fs
+          .readFileSync(traceFile, 'utf8')
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+        const events = rows.map((row) => row.event)
+        const index = (event) => {
+          const i = events.indexOf(event)
+          assert(i >= 0, `${event} must run`)
+          return i
+        }
+        assert(index('following-beforeAll-entry') < index('wrapper-finally'))
+        assert(index('bounded-wait-settled') < index('wrapper-finally'))
+        if (variant === 'root-gated') {
+          assert(index('following-body-after') < index('wrapper-finally'))
+          assert(index('root-afterAll-entry') < index('wrapper-finally'))
+          assert(index('wrapper-finally') < index('root-afterAll-settled'))
+        } else {
+          assert(
+            index('wrapper-finally') < index('following-beforeAll-settled')
+          )
+          assert(index('wrapper-finally') < index('following-body-before'))
+        }
+        if (phase === 'setup') assert(!events.includes('affected-beforeAll'))
+        const count = phase === 'teardown' ? 1 : 0
+        assert.deepEqual(rows.at(-1).counts, {
+          affectedSetup: count,
+          affectedBody: count,
+          affectedCleanup: count,
+          wrapper: 1,
+          followingSetup: 1,
+          followingBody: 1,
+          followingCleanup: 1,
+          ...(variant === 'root-gated' ? { rootCleanup: 1 } : {}),
+        })
+      },
     })
-    for (const [name, pin] of Object.entries(pins))
-      assert.equal(sha(fs.readFileSync(next + '/' + name)), pin)
-  }
+  )
 }
-save(output, 'VERIFIED.json', {
+const result = {
+  allPassed: true,
   profiles,
-  allPassed: profiles.length === modes.length,
-  actualCases: profiles.reduce((total, row) => total + row.actualCases, 0),
-  wholeRows: profiles.reduce((total, row) => total + row.wholeRows, 0),
+  actualCases: profiles.reduce((sum, row) => sum + row.cases, 0),
+  behavioralChecks: true,
   allRuntimeOwnersJoined: true,
-  originalAuthoredSourcesAndBoundsHeld: true,
-  ungatedAbandonmentRemainsSeparateUnqualifiedBoundary: true,
-})
+}
+fs.writeFileSync(
+  path.join(output, 'VERIFIED.json'),
+  JSON.stringify(result, null, 2) + '\n'
+)
+console.log(JSON.stringify(result))

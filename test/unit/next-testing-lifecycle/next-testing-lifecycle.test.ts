@@ -9385,7 +9385,7 @@ it('retains genuine synchronous throw matcher callbacks, counters and borrowed r
   ])
 }, 70000)
 
-it('retains genuine fluent Chai hard callbacks, counters and borrowed receivers in both Node modes', async () => {
+it('preserves fluent Chai hard callbacks, counters and borrowed receivers in both Node modes', async () => {
   const { stdout } = await promisify(execFile)(
     process.execPath,
     [join(__dirname, 'declaration-fn-integration.cjs'), 'chai-fluent'],
@@ -10621,7 +10621,7 @@ describe('normal SuiteAPI failed-load ownership', () => {
 })
 
 it.each(['development', 'production'])(
-  'retains complete genuine load-failure reports and already-owned async collection in %s',
+  'preserves normal collection, load failures and already-owned async work in %s',
   async (mode) => {
     const { mkdtemp, rm } = await import('node:fs/promises')
     const { tmpdir } = await import('node:os')
@@ -10630,7 +10630,12 @@ it.each(['development', 'production'])(
     )
     let completed = false
     try {
-      for (const group of ['load-failure', 'load-owned']) {
+      for (const group of [
+        'positive',
+        'exact-multiple',
+        'load-failure',
+        'load-owned',
+      ]) {
         await promisify(execFile)(
           process.execPath,
           [
@@ -10725,7 +10730,6 @@ describe('empty suite lifecycle completion', () => {
       join(__dirname, 'empty-suite-lifecycle.cjs'),
     ])
     expect(JSON.parse(stdout)).toMatchObject({
-      referenceVersion: '5.0.4',
       scenarios: 16,
       pathCases: 6,
       emptySuitesPreserveDescendants: true,

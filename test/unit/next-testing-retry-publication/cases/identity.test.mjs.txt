@@ -1,13 +1,12 @@
 import { test, expect } from 'vitest'
-const row = (...event) => console.log('RETRY_PUBLICATION_ROW ' + JSON.stringify({ actor: 'worker', contract: 'parent-identity', event }))
+
 const metadata = { nested: { value: 42 } }
 const retry = { count: 0, metadata }
+
 test('reporter retry identity', { retry }, ({ task }) => {
-  row('body', retry.metadata === metadata, metadata.nested.value, retry.fromReporter)
+  expect(retry.metadata).toBe(metadata)
   expect(metadata.nested.value).toBe(42)
   expect(retry.fromReporter).toBeUndefined()
   task.meta.marker = 'worker live'
   metadata.nested.value = 99
-  row('mutated', metadata.nested.value)
 })
-row('registered')

@@ -1,7 +1,0 @@
-[
-  {
-    "name": "combines compiled mock helpers with an ordinary native builtin namespace",
-    "status": "passed",
-    "failureMessages": []
-  }
-]

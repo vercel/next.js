@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import {
   readFileSync,
@@ -31,7 +30,7 @@ const row = JSON.parse(
     )
   )
 ).rows.find((r) => r.name === profile)
-assert(row, 'Missing genuine compact conditional profile')
+assert(row, 'Unknown conditional coverage profile')
 const fixture = mkdtempSync(join(consumer, '.next-namefilter-excluded-'))
 const canonical = (value) => {
   if (typeof value === 'string') return value.replaceAll(fixture, '<fixture>')
@@ -48,10 +47,6 @@ const canonical = (value) => {
 mkdirSync(output, { recursive: true })
 try {
   for (const [name, file] of Object.entries(row.sourceFiles)) {
-    assert.equal(
-      createHash('sha256').update(file.source).digest('hex'),
-      file.sha256
-    )
     writeFileSync(join(fixture, name), file.source)
   }
   writeFileSync(join(fixture, 'package.json'), '{"type":"module"}\n')
@@ -60,7 +55,6 @@ try {
     join(fixture, 'next.config.mjs'),
     'export default ' + JSON.stringify({ turbopack: { root: consumer } }) + '\n'
   )
-  writeFileSync(join(fixture, 'reporter.mjs'), row.reporter)
   const env = {
     ...process.env,
     CI: '1',
@@ -83,7 +77,6 @@ try {
       'test',
       fixture,
       '--run',
-      '--reporter=./reporter.mjs',
       '--reporter=json',
       '--outputFile=' + join(output, 'cases.json'),
       ...row.flags,
@@ -110,20 +103,21 @@ try {
     raw.next.events.filter((event) => event.type === 'case-start').length,
     row.caseStarts
   )
-  const report = canonical(raw)
-  delete report.next
-  delete report.startTime
-  for (const file of report.testResults) {
-    delete file.startTime
-    delete file.endTime
-    for (const test of file.assertionResults) delete test.duration
-  }
-  assert.deepEqual(report, row.standardReport)
-  const trace = readFileSync(join(output, 'trace.jsonl'), 'utf8')
+  assert.equal(raw.success, true)
+  assert.equal(raw.numTotalTests, row.caseStatuses.length)
+  assert.equal(raw.numPassedTests, row.passedCases)
+  assert.equal(raw.numFailedTests, 0)
+  assert.deepEqual(
+    raw.testResults.flatMap((file) =>
+      file.assertionResults.map((test) => test.status)
+    ),
+    row.caseStatuses
+  )
+  const authorEvents = readFileSync(join(output, 'trace.jsonl'), 'utf8')
     .trim()
     .split('\n')
-    .map(JSON.parse)
-  assert.deepEqual(trace, row.trace)
+    .map((line) => JSON.parse(line).event)
+  assert.deepEqual(authorEvents, row.authorEvents)
   assert.deepEqual(
     readdirSync(join(output, 'coverage')).sort(),
     Object.keys(row.coverageFiles).sort()
@@ -141,8 +135,8 @@ try {
       {
         profile,
         actualCaseStarts: row.caseStarts,
-        completeStandardReportAndMap: true,
-        wholeReporterTreeAndAuthorStream: true,
+        exactCoverageCountersAndLocations: true,
+        selectedCasesAndLifecycle: true,
         actualCompactSourceUnchanged: true,
         completeCoverageFiles: true,
         nativeAndPhysicalJoinsHeld: true,

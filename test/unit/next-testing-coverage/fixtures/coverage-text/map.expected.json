@@ -1,0 +1,166 @@
+{
+  "<fixture>/subjects/empty.js": {
+    "path": "<fixture>/subjects/empty.js",
+    "statementMap": {},
+    "fnMap": {},
+    "branchMap": {},
+    "s": {},
+    "f": {},
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 0,
+      "lastStatement": 0,
+      "seen": {},
+      "fnNames": {}
+    }
+  },
+  "<fixture>/subjects/full.js": {
+    "path": "<fixture>/subjects/full.js",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 1,
+          "column": 20
+        },
+        "end": {
+          "line": 1,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {},
+    "branchMap": {},
+    "s": {
+      "0": 1
+    },
+    "f": {},
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 0,
+      "lastStatement": 1,
+      "seen": {
+        "s:1:20:1:Infinity": 0
+      },
+      "fnNames": {}
+    }
+  },
+  "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js": {
+    "path": "<fixture>/subjects/a-directory-name-long-enough-to-exercise-width/partial.js",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 2,
+          "column": 2
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 2,
+          "column": 13
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      },
+      "2": {
+        "start": {
+          "line": 3,
+          "column": 2
+        },
+        "end": {
+          "line": 3,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "choose",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 22
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 30
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        },
+        "line": 1
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 2
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "type": "if",
+        "locations": [
+          {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          {
+            "start": {},
+            "end": {}
+          }
+        ],
+        "line": 2
+      }
+    },
+    "s": {
+      "0": 1,
+      "1": 1,
+      "2": 0
+    },
+    "f": {
+      "0": 1
+    },
+    "b": {
+      "0": [1, 0]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 3,
+      "seen": {
+        "f:1:16:1:22": 0,
+        "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+        "s:2:2:2:Infinity": 0,
+        "s:2:13:2:Infinity": 1,
+        "s:3:2:3:Infinity": 2
+      },
+      "fnNames": {}
+    }
+  }
+}

@@ -1,5 +1,4 @@
 {
-  "reference": "Vitest 5.0.4 / @vitest/coverage-istanbul 5.0.4; existing genuine snapshots; Node26.1.0",
   "rows": [
     {
       "name": "combined",
@@ -31,6 +30,9 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+      },
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 1,
@@ -41,6 +43,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": true,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -57,189 +60,42 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1792938520910,
-        "success": true,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-AkN0Zc/suite.test.mjs",
+            "status": "passed",
+            "message": "",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "passed",
                 "title": "first owned body",
-                "duration": 1.1985829999999993,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "passed",
                 "title": "second owned body",
-                "duration": 0.08758300000000929,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1792938521016,
-            "endTime": 1792938521017.1985,
-            "status": "passed",
-            "message": "",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-AkN0Zc/suite.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-AkN0Zc/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-AkN0Zc/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 5,
-              "1": 1,
-              "2": 4,
-              "3": 0
-            },
-            "f": {
-              "0": 5,
-              "1": 0
-            },
-            "b": {
-              "0": [1, 4]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [5, 1, 4, 0],
+          "functions": [5, 0],
+          "branches": [[1, 4]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-AkN0Zc/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:5,choose\nFNDA:0,unused\nDA:2,5\nDA:3,4\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,1\nBRDA:2,0,1,4\nBRF:2\nBRH:2\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-AkN0Zc/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-AkN0Zc/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":5,\"1\":1,\"2\":4,\"3\":0},\"f\":{\"0\":5,\"1\":0},\"b\":{\"0\":[1,4]}}\n}\n"
-      },
-      "snapshots": {
-        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
-      }
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "combined-case-failure",
@@ -271,6 +127,9 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+      },
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -281,6 +140,7 @@
         "numFailedTests": 1,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": false,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -297,191 +157,44 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1792938521808,
-        "success": false,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-z8qsQN/suite.test.mjs",
+            "status": "failed",
+            "message": "",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "failed",
                 "title": "first owned body",
-                "duration": 3.3901670000000053,
                 "failureMessages": [
-                  "AssertionError: expected 1 to be 99 // Object.is equality\n    at /private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-z8qsQN/suite.test.mjs:8:17\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:1632:35\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:2794:26\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3334:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3329:10)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3314:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3272:10)\n    at file:///private/tmp/next-testing-run/work-3/reference/node_modules/.pnpm/vitest@5.0.4_@vitest+browser-playwright@5.0.4_@vitest+coverage-istanbul@5.0.4_@vitest+c_335acf52871200ce750a54e8a248b606/node_modules/vitest/dist/chunks/run.Cm2sd7-x.js:3895:64"
-                ],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                  "AssertionError: expected 1 to be 99 // Object.is equality"
+                ]
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "passed",
                 "title": "second owned body",
-                "duration": 0.12170799999999815,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1792938521913,
-            "endTime": 1792938521916.3901,
-            "status": "failed",
-            "message": "",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-z8qsQN/suite.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-z8qsQN/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-z8qsQN/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 5,
-              "1": 1,
-              "2": 4,
-              "3": 0
-            },
-            "f": {
-              "0": 5,
-              "1": 0
-            },
-            "b": {
-              "0": [1, 4]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [5, 1, 4, 0],
+          "functions": [5, 0],
+          "branches": [[1, 4]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-z8qsQN/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:5,choose\nFNDA:0,unused\nDA:2,5\nDA:3,4\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,1\nBRDA:2,0,1,4\nBRF:2\nBRH:2\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-z8qsQN/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-z8qsQN/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":5,\"1\":1,\"2\":4,\"3\":0},\"f\":{\"0\":5,\"1\":0},\"b\":{\"0\":[1,4]}}\n}\n"
-      },
-      "snapshots": {
-        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
-      }
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "serializer-explicit",
@@ -513,6 +226,9 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+      },
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 1,
@@ -523,6 +239,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": true,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -539,189 +256,42 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1792938519153,
-        "success": true,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-kvrD52/suite.test.mjs",
+            "status": "passed",
+            "message": "",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "passed",
                 "title": "first owned body",
-                "duration": 1.0557909999999993,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "passed",
                 "title": "second owned body",
-                "duration": 0.12287500000000762,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1792938519259,
-            "endTime": 1792938519260.1228,
-            "status": "passed",
-            "message": "",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-kvrD52/suite.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-kvrD52/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-kvrD52/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 2,
-              "1": 1,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 2,
-              "1": 0
-            },
-            "b": {
-              "0": [1, 1]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-kvrD52/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:2,choose\nFNDA:0,unused\nDA:2,2\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,1\nBRDA:2,0,1,1\nBRF:2\nBRH:2\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-kvrD52/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-kvrD52/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":2,\"1\":1,\"2\":1,\"3\":0},\"f\":{\"0\":2,\"1\":0},\"b\":{\"0\":[1,1]}}\n}\n"
-      },
-      "snapshots": {
-        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
-      }
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "serializer-imported",
@@ -753,6 +323,9 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "snapshots": {
+        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
+      },
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 1,
@@ -763,6 +336,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": true,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -779,272 +353,47 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1792938519998,
-        "success": true,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/suite.test.mjs",
+            "status": "passed",
+            "message": "",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "passed",
                 "title": "first owned body",
-                "duration": 1.1217500000000058,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "passed",
                 "title": "second owned body",
-                "duration": 0.12941699999998946,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1792938520114,
-            "endTime": 1792938520115.1294,
-            "status": "passed",
-            "message": "",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/suite.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/serializer.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/serializer.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 16
-                },
-                "end": {
-                  "line": 2,
-                  "column": 48
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 3,
-                  "column": 21
-                },
-                "end": {
-                  "line": 3,
-                  "column": 58
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "(anonymous_0)",
-                "decl": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": 6
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 14
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": 50
-                  }
-                }
-              },
-              "1": {
-                "name": "(anonymous_1)",
-                "decl": {
-                  "start": {
-                    "line": 3,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 3,
-                    "column": 11
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 3,
-                    "column": 19
-                  },
-                  "end": {
-                    "line": 3,
-                    "column": 60
-                  }
-                }
-              }
-            },
-            "branchMap": {},
-            "s": {
-              "0": 1,
-              "1": 1
-            },
-            "f": {
-              "0": 1,
-              "1": 1
-            },
-            "b": {}
-          },
-          "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 2,
-              "1": 1,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 2,
-              "1": 0
-            },
-            "b": {
-              "0": [1, 1]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "serializer.mjs": {
+          "statements": [1, 1],
+          "functions": [1, 1],
+          "branches": []
+        },
+        "subject.mjs": {
+          "statements": [2, 1, 1, 0],
+          "functions": [2, 0],
+          "branches": [[1, 1]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":5,\"covered\":4,\"skipped\":0,\"pct\":80},\"statements\":{\"total\":6,\"covered\":5,\"skipped\":0,\"pct\":83.33},\"functions\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/serializer.mjs\": {\"lines\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100},\"functions\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100},\"statements\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100},\"branches\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":100}}\n,\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100}}\n}\n",
-        "lcov.info": "TN:\nSF:serializer.mjs\nFN:2,(anonymous_0)\nFN:3,(anonymous_1)\nFNF:2\nFNH:2\nFNDA:1,(anonymous_0)\nFNDA:1,(anonymous_1)\nDA:2,1\nDA:3,1\nLF:2\nLH:2\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:2,choose\nFNDA:0,unused\nDA:2,2\nDA:3,1\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,1\nBRDA:2,0,1,1\nBRF:2\nBRH:2\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/serializer.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/serializer.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":16},\"end\":{\"line\":2,\"column\":48}},\"1\":{\"start\":{\"line\":3,\"column\":21},\"end\":{\"line\":3,\"column\":58}}},\"fnMap\":{\"0\":{\"name\":\"(anonymous_0)\",\"decl\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":6}},\"loc\":{\"start\":{\"line\":2,\"column\":14},\"end\":{\"line\":2,\"column\":50}}},\"1\":{\"name\":\"(anonymous_1)\",\"decl\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":11}},\"loc\":{\"start\":{\"line\":3,\"column\":19},\"end\":{\"line\":3,\"column\":60}}}},\"branchMap\":{},\"s\":{\"0\":1,\"1\":1},\"f\":{\"0\":1,\"1\":1},\"b\":{}}\n,\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-GNWKSe/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":2,\"1\":1,\"2\":1,\"3\":0},\"f\":{\"0\":2,\"1\":0},\"b\":{\"0\":[1,1]}}\n}\n"
-      },
-      "snapshots": {
-        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
-      }
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "setup-explicit",
@@ -1076,6 +425,7 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "snapshots": {},
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 1,
@@ -1086,6 +436,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": true,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -1102,187 +453,42 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1792938517373,
-        "success": true,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-Xrhxrf/suite.test.mjs",
+            "status": "passed",
+            "message": "",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "passed",
                 "title": "first owned body",
-                "duration": 0.7449999999999903,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "passed",
                 "title": "second owned body",
-                "duration": 0.0833329999999961,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1792938517478,
-            "endTime": 1792938517478.745,
-            "status": "passed",
-            "message": "",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-Xrhxrf/suite.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-Xrhxrf/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-Xrhxrf/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 5,
-              "1": 1,
-              "2": 4,
-              "3": 0
-            },
-            "f": {
-              "0": 5,
-              "1": 0
-            },
-            "b": {
-              "0": [1, 4]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [5, 1, 4, 0],
+          "functions": [5, 0],
+          "branches": [[1, 4]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-Xrhxrf/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:5,choose\nFNDA:0,unused\nDA:2,5\nDA:3,4\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,1\nBRDA:2,0,1,4\nBRF:2\nBRH:2\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-Xrhxrf/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-Xrhxrf/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":5,\"1\":1,\"2\":4,\"3\":0},\"f\":{\"0\":5,\"1\":0},\"b\":{\"0\":[1,4]}}\n}\n"
-      },
-      "snapshots": {}
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     },
     {
       "name": "setup-imported",
@@ -1314,6 +520,7 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+      "snapshots": {},
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 1,
@@ -1324,6 +531,7 @@
         "numFailedTests": 0,
         "numPendingTests": 0,
         "numTodoTests": 0,
+        "success": true,
         "snapshot": {
           "added": 0,
           "failure": false,
@@ -1340,187 +548,42 @@
           "updated": 0,
           "didUpdate": false
         },
-        "startTime": 1792938518280,
-        "success": true,
         "testResults": [
           {
+            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-cqZxxJ/suite.test.mjs",
+            "status": "passed",
+            "message": "",
             "assertionResults": [
               {
                 "ancestorTitles": [],
                 "fullName": "first owned body",
                 "status": "passed",
                 "title": "first owned body",
-                "duration": 0.7536249999999995,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               },
               {
                 "ancestorTitles": [],
                 "fullName": "second owned body",
                 "status": "passed",
                 "title": "second owned body",
-                "duration": 0.08304199999999184,
-                "failureMessages": [],
-                "meta": {},
-                "tags": [],
-                "benchmarks": []
+                "failureMessages": []
               }
-            ],
-            "startTime": 1792938518384,
-            "endTime": 1792938518385.083,
-            "status": "passed",
-            "message": "",
-            "name": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-cqZxxJ/suite.test.mjs"
+            ]
           }
-        ],
-        "coverageMap": {
-          "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-cqZxxJ/subject.mjs": {
-            "path": "/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-cqZxxJ/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 13
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 5,
-                  "column": 27
-                },
-                "end": {
-                  "line": 5,
-                  "column": 35
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 30
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": null
-                  }
-                }
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ]
-              }
-            },
-            "s": {
-              "0": 5,
-              "1": 1,
-              "2": 4,
-              "3": 0
-            },
-            "f": {
-              "0": 5,
-              "1": 0
-            },
-            "b": {
-              "0": [1, 4]
-            }
-          }
+        ]
+      },
+      "coverage": {
+        "subject.mjs": {
+          "statements": [5, 1, 4, 0],
+          "functions": [5, 0],
+          "branches": [[1, 4]]
         }
       },
-      "reports": {
-        "coverage-summary.json": "{\"total\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"statements\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100},\"branchesTrue\":{\"total\":0,\"covered\":0,\"skipped\":0,\"pct\":\"Unknown\"}}\n,\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-cqZxxJ/subject.mjs\": {\"lines\":{\"total\":3,\"covered\":2,\"skipped\":0,\"pct\":66.66},\"functions\":{\"total\":2,\"covered\":1,\"skipped\":0,\"pct\":50},\"statements\":{\"total\":4,\"covered\":3,\"skipped\":0,\"pct\":75},\"branches\":{\"total\":2,\"covered\":2,\"skipped\":0,\"pct\":100}}\n}\n",
-        "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:5,choose\nFNDA:0,unused\nDA:2,5\nDA:3,4\nDA:5,0\nLF:3\nLH:2\nBRDA:2,0,0,1\nBRDA:2,0,1,4\nBRF:2\nBRH:2\nend_of_record\n",
-        "coverage-final.json": "{\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-cqZxxJ/subject.mjs\": {\"path\":\"/private/tmp/next-testing-run/work-3/reference/.istanbul-setup72-cqZxxJ/subject.mjs\",\"statementMap\":{\"0\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"1\":{\"start\":{\"line\":2,\"column\":13},\"end\":{\"line\":2,\"column\":null}},\"2\":{\"start\":{\"line\":3,\"column\":2},\"end\":{\"line\":3,\"column\":null}},\"3\":{\"start\":{\"line\":5,\"column\":27},\"end\":{\"line\":5,\"column\":35}}},\"fnMap\":{\"0\":{\"name\":\"choose\",\"decl\":{\"start\":{\"line\":1,\"column\":16},\"end\":{\"line\":1,\"column\":22}},\"loc\":{\"start\":{\"line\":1,\"column\":30},\"end\":{\"line\":4,\"column\":null}}},\"1\":{\"name\":\"unused\",\"decl\":{\"start\":{\"line\":5,\"column\":16},\"end\":{\"line\":5,\"column\":22}},\"loc\":{\"start\":{\"line\":5,\"column\":25},\"end\":{\"line\":5,\"column\":null}}}},\"branchMap\":{\"0\":{\"loc\":{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},\"type\":\"if\",\"locations\":[{\"start\":{\"line\":2,\"column\":2},\"end\":{\"line\":2,\"column\":null}},{\"start\":{},\"end\":{}}]}},\"s\":{\"0\":5,\"1\":1,\"2\":4,\"3\":0},\"f\":{\"0\":5,\"1\":0},\"b\":{\"0\":[1,4]}}\n}\n"
-      },
-      "snapshots": {}
+      "reportFiles": [
+        "coverage-final.json",
+        "coverage-summary.json",
+        "lcov.info"
+      ]
     }
   ],
   "notQualified": [

@@ -1,7 +1,0 @@
-[
-  {
-    "name": "native BUILTIN static and runtime registrations retain authored ordering",
-    "status": "passed",
-    "failureMessages": []
-  }
-]

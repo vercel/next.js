@@ -151,34 +151,6 @@ ledger before selecting another environment or API. The [historical package
 example](GUIDE.md) and [stage-three record](STAGE3_PACKAGING.md) retain their own
 archive versions and proof; they do not describe this consumer's build.
 
-### Run unchanged DOM suites
-
-The [DOM downstream verifier](verify-dom-downstream.mjs) runs all 29 usehooks-ts
-test files from revision `61949134144d3690fe9f521260a16c779a6d3797`. Supply a fresh
-physically installed Next consumer with React and React DOM 18.2.0,
-`@testing-library/react` 14.2.1, `@testing-library/dom` 9.3.4,
-`@testing-library/jest-dom` 6.4.2, jsdom 24.0.0, `lodash.debounce` 4.0.8 and
-`@juggle/resize-observer` 3.4.0. The consumer must have no Vitest or Vite runtime.
-
-```sh
-node test/e2e/app-dir/next-testing-package/verify-dom-downstream.mjs \
-  /tmp/installed-next-dom-consumer \
-  /tmp/next-testing-dom-results \
-  /path/to/usehooks-ts
-```
-
-The verifier explicitly selects development jsdom, globals and the upstream setup
-file. It copies the original test sources and helpers without rewriting them,
-checks all 165 input digests before and after execution, and removes its fixture
-afterward. Its pinned Vitest 5.0.4 reference records require 164 passing cases and
-four skipped cases, every case field except elapsed time, and all snapshot
-fields. Results retain the actual process completion and cleanup records.
-
-This qualifies this development DOM migration on macOS arm64. Production DOM,
-other providers, browser engines, platforms and the full downstream release
-matrix remain separate work. Current Node/RSC and real-browser profiles do not
-select jsdom merely because test imports use `vitest`.
-
 ### Cancel a one-shot editor run
 
 Start `next test --run --api=0` to print a loopback discovery URL with an available

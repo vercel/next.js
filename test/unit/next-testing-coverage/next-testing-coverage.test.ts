@@ -13494,464 +13494,6 @@ describe('native-owned named JSX fragment roles', () => {
   )
 })
 
-describe('native-owned Browser JSX call associations', () => {
-  const profiles =
-    require('./fixtures/browser-production/child-shapes.emission.json').profiles
-  async function fixture(record = profiles[0]) {
-    const { parse: authoredParse } = require('next/dist/compiled/babel/parser')
-    const { parse: emittedParse } = require('next/dist/compiled/acorn')
-    const { associateBrowserJsxCalls } = await import(
-      'next/dist/experimental/testing/coverage/browser-jsx-associations'
-    )
-    const authored = authoredParse(record.source, {
-      sourceType: 'module',
-      plugins: ['estree', 'jsx', 'typescript'],
-    }).program
-    const emitted = emittedParse(record.code, {
-      ecmaVersion: 'latest',
-      locations: true,
-      sourceType: 'module',
-    })
-    function collect(value: any): any[] {
-      if (!value || typeof value !== 'object') return []
-      if (Array.isArray(value)) return value.flatMap(collect)
-      return [
-        ...(value.type ? [value] : []),
-        ...Object.entries(value)
-          .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
-          .flatMap(([, child]) => collect(child)),
-      ]
-    }
-    const options: Parameters<typeof associateBrowserJsxCalls>[0] = {
-      file: record.file,
-      code: record.code,
-      authored,
-      emitted,
-      sourceMap: structuredClone(record.map),
-      ...(record.factory.imports
-        ? { automatic: [structuredClone(record.factory)] }
-        : { classic: [structuredClone(record.factory)] }),
-    }
-    return {
-      record,
-      authored,
-      emitted,
-      options,
-      collect,
-      apply: () => associateBrowserJsxCalls(options),
-    }
-  }
-  it.each(
-    profiles.flatMap((record: any) =>
-      [0, 3].map((count) => [record.name, count, record])
-    )
-  )(
-    'preserves all counter identities for actual emitted %s with count=%s',
-    async (_name, count, record) => {
-      const f = await fixture(record)
-      const inputs = JSON.stringify(f.options)
-      const result = f.apply()!
-      expect(result).toBeDefined()
-      expect(JSON.stringify(f.options)).toBe(inputs)
-      const before = decodeCoverageMap(f.options.sourceMap)
-      const after = decodeCoverageMap(result.sourceMap)
-      expect(after.sources).toEqual(before.sources)
-      for (const mapping of before.mappings)
-        expect(after.mappings).toContainEqual(mapping)
-      expect(result.children.size).toBe(
-        /-(logical|conditional)\.tsx$/.test(record.name) ? 1 : 0
-      )
-      const { convert } = require('next/dist/compiled/next-test-coverage')
-      const ast = structuredClone(f.emitted)
-      ast.body[0].expression.body.body =
-        ast.body[0].expression.body.body.filter(
-          (node: any) =>
-            node.type !== 'VariableDeclaration' ||
-            node.declarations[0].id.name !== record.factory.binding
-        )
-      const convertMap = async (sourceMap: unknown) =>
-        (
-          await convert({
-            code: record.code,
-            ast: structuredClone(ast),
-            sourceMap,
-            coverage: {
-              url: 'file:///browser-children/generated.js',
-              functions: [
-                {
-                  isBlockCoverage: true,
-                  ranges: [
-                    { startOffset: 0, endOffset: record.code.length, count },
-                  ],
-                },
-              ],
-            },
-          })
-        )[record.file]
-      const previous = await convertMap(f.options.sourceMap)
-      const actual = await convertMap(result.sourceMap)
-      expect([actual.s, actual.f, actual.b]).toEqual([
-        previous.s,
-        previous.f,
-        previous.b,
-      ])
-      expect(JSON.parse(JSON.stringify(actual.branchMap))).toEqual(
-        record.expected.branchMap
-      )
-      expect(JSON.parse(JSON.stringify(actual.statementMap['0']))).toEqual(
-        record.expected.statementMap['0']
-      )
-    }
-  )
-  it('does not infer a factory from source syntax or a named pragma descriptor', async () => {
-    const f = await fixture(
-      profiles.find((record: any) => record.name === 'shape-classic-props.tsx')
-    )
-    delete f.options.classic
-    expect(f.apply()).toBeUndefined()
-    f.options.classic = [
-      {
-        ...f.record.factory,
-        namedPragma: {
-          local: 'h',
-          start: { line: 1, column: 0 },
-          end: { line: 1, column: 13 },
-        },
-      },
-    ]
-    expect(f.apply()).toBeUndefined()
-  })
-  it.each([
-    'foreign binding',
-    'wrong module',
-    'shadowed namespace',
-    'different child',
-    'different property',
-    'duplicate property',
-    'different closing tag',
-    'foreign map',
-    'conflicting terminal',
-    'duplicated call',
-    'wrong token',
-  ])('rejects %s atomically', async (kind) => {
-    const f = await fixture(
-      profiles.find((record: any) => record.name === 'shape-classic-props.tsx')
-    )
-    const calls = f
-      .collect(f.emitted)
-      .filter(
-        (node: any) =>
-          node.type === 'CallExpression' && node.arguments[0]?.value === 'p'
-      )
-    const call = calls[0]
-    if (kind === 'foreign binding')
-      f.options.classic![0].binding = 'foreignReact'
-    if (kind === 'wrong module') f.options.classic![0].moduleEnd = call.start
-    if (kind === 'shadowed namespace') {
-      const fn = f
-        .collect(f.emitted)
-        .find((node: any) => node.type === 'FunctionDeclaration')
-      fn.params.push({ type: 'Identifier', name: f.record.factory.binding })
-    }
-    if (kind === 'different child') call.arguments[2].name = 'different'
-    if (kind === 'different property')
-      call.arguments[1].properties[0].key.name = 'different'
-    if (kind === 'duplicate property')
-      call.arguments[1].properties.push(
-        structuredClone(call.arguments[1].properties[0])
-      )
-    if (kind === 'different closing tag') {
-      f
-        .collect(f.authored)
-        .find((node: any) => node.type === 'JSXClosingElement').name.name =
-        'foreign'
-    }
-    if (kind === 'foreign map' || kind === 'conflicting terminal') {
-      const { SourceMapGenerator } = require('next/dist/compiled/source-map')
-      const map = new SourceMapGenerator()
-      const decoded = decodeCoverageMap(f.options.sourceMap)
-      for (const mapping of decoded.mappings) {
-        const generated = {
-          line: mapping.generatedLine,
-          column: mapping.generatedColumn,
-        }
-        if (mapping.source === null) map.addMapping({ generated })
-        else
-          map.addMapping({
-            generated,
-            source: mapping.source,
-            original: {
-              line: mapping.originalLine,
-              column: mapping.originalColumn,
-            },
-          })
-      }
-      for (const [source, content] of decoded.sources)
-        if (content !== null) map.setSourceContent(source, content)
-      map.addMapping({
-        generated:
-          kind === 'foreign map'
-            ? call.arguments[2].loc.start
-            : { line: call.loc.end.line, column: call.loc.end.column - 1 },
-        source: '/foreign.tsx',
-        original: { line: 1, column: 0 },
-      })
-      map.setSourceContent('/foreign.tsx', 'foreign')
-      f.options.sourceMap = JSON.parse(map.toString())
-    }
-    if (kind === 'duplicated call')
-      f.emitted.body.push({ type: 'ExpressionStatement', expression: call })
-    if (kind === 'wrong token')
-      f.options.code =
-        f.options.code.slice(0, call.end - 1) +
-        ']' +
-        f.options.code.slice(call.end)
-    const inputs = JSON.stringify(f.options)
-    expect(f.apply).toThrow(
-      'Browser JSX call association is ambiguous or absent'
-    )
-    expect(JSON.stringify(f.options)).toBe(inputs)
-  })
-})
-
-describe('native-owned named Browser JSX child associations', () => {
-  const profiles =
-    require('./fixtures/browser-production/named-child-shapes.emission.json').profiles
-  async function fixture(record = profiles[0]) {
-    const { parse: parseAuthored } = require('next/dist/compiled/babel/parser')
-    const { parse: parseEmitted } = require('next/dist/compiled/acorn')
-    const { associateBrowserJsxCalls } = await import(
-      'next/dist/experimental/testing/coverage/browser-jsx-associations'
-    )
-    const parsed = parseAuthored(record.source, {
-      sourceType: 'module',
-      plugins: ['estree', 'jsx', 'typescript'],
-    })
-    const authored = Object.assign(parsed.program, {
-      comments: parsed.comments,
-    })
-    const emitted = parseEmitted(record.code, {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      locations: true,
-    })
-    function collect(value: any): any[] {
-      if (!value || typeof value !== 'object') return []
-      if (Array.isArray(value)) return value.flatMap(collect)
-      return [
-        ...(value.type ? [value] : []),
-        ...Object.entries(value)
-          .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
-          .flatMap(([, child]) => collect(child)),
-      ]
-    }
-    const options: Parameters<typeof associateBrowserJsxCalls>[0] = {
-      file: record.file,
-      code: record.code,
-      authored,
-      emitted,
-      sourceMap: structuredClone(record.map),
-      classic: [structuredClone(record.factory)],
-    }
-    return {
-      record,
-      authored,
-      emitted,
-      options,
-      collect,
-      apply: () => associateBrowserJsxCalls(options),
-    }
-  }
-  it.each(
-    profiles.flatMap((record: any) =>
-      [0, 3].map((count) => [record.name, count, record])
-    )
-  )(
-    'preserves actual source/native role and every counter for %s with count=%s',
-    async (_name, count, record) => {
-      const f = await fixture(record),
-        inputs = JSON.stringify(f.options)
-      expect(coverageHash(record.source)).toBe(record.sourceSHA)
-      const result = f.apply()!
-      expect(result).toBeDefined()
-      expect(JSON.stringify(f.options)).toBe(inputs)
-      const before = decodeCoverageMap(f.options.sourceMap),
-        after = decodeCoverageMap(result.sourceMap)
-      expect(after.sources).toEqual(before.sources)
-      const changed = before.mappings.filter(
-        (mapping) =>
-          !after.mappings.some(
-            (actual) => JSON.stringify(actual) === JSON.stringify(mapping)
-          )
-      )
-      const owners = f
-        .collect(f.authored)
-        .filter((node: any) =>
-          ['JSXElement', 'JSXFragment'].includes(node.type)
-        )
-      expect(changed).toHaveLength(
-        owners.length * 2 +
-          owners.filter((node: any) => node.type === 'JSXFragment').length * 2
-      )
-      const directive = record.factory.namedPragma
-      const permitted = [
-        directive.start,
-        directive.end,
-        directive.fragment?.start,
-        directive.fragment?.end,
-      ].filter(Boolean)
-      for (const mapping of changed) {
-        expect(mapping.source).toBe(record.file)
-        expect(
-          permitted.some(
-            (point: any) =>
-              point.line === mapping.originalLine &&
-              point.column === mapping.originalColumn
-          )
-        ).toBe(true)
-        const actual = after.mappings.filter(
-          (point) =>
-            point.generatedLine === mapping.generatedLine &&
-            point.generatedColumn === mapping.generatedColumn
-        )
-        expect(actual).toHaveLength(1)
-        expect(
-          owners.some(
-            (owner: any) =>
-              owner.loc.start.line === actual[0].originalLine &&
-              owner.loc.start.column === actual[0].originalColumn
-          )
-        ).toBe(true)
-        expect((actual[0] as any).name).toBe((mapping as any).name)
-      }
-      const { convert } = require('next/dist/compiled/next-test-coverage'),
-        ast = structuredClone(f.emitted)
-      ast.body[0].expression.body.body =
-        ast.body[0].expression.body.body.filter(
-          (node: any) =>
-            node.type !== 'VariableDeclaration' ||
-            node.declarations[0].id.name !== record.factory.binding
-        )
-      const convertMap = async (sourceMap: unknown) =>
-        (
-          await convert({
-            code: record.code,
-            ast: structuredClone(ast),
-            sourceMap,
-            coverage: {
-              url: 'file:///browser-children/generated.js',
-              functions: [
-                {
-                  isBlockCoverage: true,
-                  ranges: [
-                    { startOffset: 0, endOffset: record.code.length, count },
-                  ],
-                },
-              ],
-            },
-          })
-        )[record.file]
-      const original = await convertMap(f.options.sourceMap),
-        actual = await convertMap(result.sourceMap)
-      expect([actual.s, actual.f, actual.b]).toEqual([
-        original.s,
-        original.f,
-        original.b,
-      ])
-      expect(JSON.parse(JSON.stringify(actual.branchMap))).toEqual(
-        record.expected.branchMap
-      )
-      expect(JSON.parse(JSON.stringify(actual.statementMap['0']))).toEqual(
-        record.expected.statementMap['0']
-      )
-    }
-  )
-  it.each([
-    'missing factory',
-    'wrong directive',
-    'wrong endpoint',
-    'missing fragment owner',
-  ])('never infers a named role from %s', async (kind) => {
-    const f = await fixture(
-      profiles.find((record: any) => record.name === 'shape-named-fragment.tsx')
-    )
-    if (kind === 'missing factory') delete f.options.classic
-    if (kind === 'wrong directive')
-      f.authored.comments[1].value = '* @jsx foreign'
-    if (kind === 'wrong endpoint')
-      f.options.classic![0].namedPragma!.end.column--
-    if (kind === 'missing fragment owner')
-      delete f.options.classic![0].namedPragma!.fragment
-    expect(f.apply()).toBeUndefined()
-  })
-  it.each([
-    'foreign callee',
-    'foreign fragment',
-    'different child',
-    'duplicate call',
-    'foreign scope',
-    'wrong directive map',
-  ])('rejects %s without changing retained inputs', async (kind) => {
-    const f = await fixture(
-      profiles.find((record: any) => record.name === 'shape-named-fragment.tsx')
-    )
-    const calls = f
-      .collect(f.emitted)
-      .filter(
-        (node: any) =>
-          node.type === 'CallExpression' &&
-          node.callee.type === 'SequenceExpression'
-      )
-    if (kind === 'foreign callee')
-      calls[0].callee.expressions[1].property.value = 'foreign'
-    if (kind === 'foreign fragment')
-      calls[0].arguments[0].object.name = 'foreign'
-    if (kind === 'different child') calls[0].arguments[2].name = 'foreign'
-    if (kind === 'duplicate call')
-      f.emitted.body.push({ type: 'ExpressionStatement', expression: calls[0] })
-    if (kind === 'foreign scope')
-      f.collect(f.emitted)
-        .find((node: any) => node.type === 'FunctionDeclaration')
-        .params.push({ type: 'Identifier', name: f.record.factory.binding })
-    if (kind === 'wrong directive map') {
-      const { SourceMapGenerator } = require('next/dist/compiled/source-map'),
-        map = new SourceMapGenerator(),
-        decoded = decodeCoverageMap(f.options.sourceMap)
-      const target = calls[0].callee.expressions[1].loc.start
-      for (const mapping of decoded.mappings) {
-        const generated = {
-          line: mapping.generatedLine,
-          column: mapping.generatedColumn,
-        }
-        if (mapping.source === null) map.addMapping({ generated })
-        else
-          map.addMapping({
-            generated,
-            source: mapping.source,
-            original: {
-              line: mapping.originalLine,
-              column:
-                mapping.originalColumn! +
-                (generated.line === target.line &&
-                generated.column === target.column
-                  ? 1
-                  : 0),
-            },
-            ...((mapping as any).name ? { name: (mapping as any).name } : {}),
-          })
-      }
-      for (const [source, content] of decoded.sources)
-        if (content !== null) map.setSourceContent(source, content)
-      f.options.sourceMap = JSON.parse(map.toString())
-    }
-    const inputs = JSON.stringify(f.options)
-    expect(f.apply).toThrow(
-      'Browser JSX call association is ambiguous or absent'
-    )
-    expect(JSON.stringify(f.options)).toBe(inputs)
-  })
-})
-
 describe('native-retained unused named JSX Fragment imports', () => {
   async function fixture(
     change: string = 'none',
@@ -14360,1334 +13902,6 @@ describe('native-retained unused named JSX Fragment imports', () => {
   )
 })
 
-describe('native-owned Browser self-closing and boolean JSX associations', () => {
-  const profiles =
-    require('./fixtures/browser-production/self-closing-shapes.emission.json').profiles
-  async function fixture(record = profiles[0]) {
-    const { parse: parseAuthored } = require('next/dist/compiled/babel/parser')
-    const { parse: parseEmitted } = require('next/dist/compiled/acorn')
-    const { associateBrowserJsxCalls } = await import(
-      'next/dist/experimental/testing/coverage/browser-jsx-associations'
-    )
-    const parsed = parseAuthored(record.source, {
-      sourceType: 'module',
-      plugins: ['estree', 'jsx', 'typescript'],
-    })
-    const authored = Object.assign(parsed.program, {
-      comments: parsed.comments,
-    })
-    const emitted = parseEmitted(record.code, {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      locations: true,
-    })
-    function collect(value: any): any[] {
-      if (!value || typeof value !== 'object') return []
-      if (Array.isArray(value)) return value.flatMap(collect)
-      return [
-        ...(value.type ? [value] : []),
-        ...Object.entries(value)
-          .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
-          .flatMap(([, child]) => collect(child)),
-      ]
-    }
-    const options: Parameters<typeof associateBrowserJsxCalls>[0] = {
-      file: record.file,
-      code: record.code,
-      authored,
-      emitted,
-      sourceMap: structuredClone(record.map),
-      classic:
-        record.runtime === 'automatic'
-          ? undefined
-          : [structuredClone(record.factory)],
-      automatic:
-        record.runtime === 'automatic'
-          ? [structuredClone(record.factory)]
-          : undefined,
-    }
-    return {
-      record,
-      authored,
-      emitted,
-      options,
-      collect,
-      apply: () => associateBrowserJsxCalls(options),
-    }
-  }
-  it.each(
-    profiles.flatMap((record: any) =>
-      [0, 3].map((count) => [record.name, count, record])
-    )
-  )(
-    'preserves actual source/native role and every counter for %s with count=%s',
-    async (_name, count, record) => {
-      const f = await fixture(record),
-        inputs = JSON.stringify(f.options)
-      expect(coverageHash(record.source)).toBe(record.sourceSHA)
-      const result = f.apply()!
-      expect(result).toBeDefined()
-      expect(JSON.stringify(f.options)).toBe(inputs)
-      const before = decodeCoverageMap(f.options.sourceMap),
-        after = decodeCoverageMap(result.sourceMap)
-      expect(after.sources).toEqual(before.sources)
-      const changed = before.mappings.filter(
-        (mapping) =>
-          !after.mappings.some(
-            (actual) => JSON.stringify(actual) === JSON.stringify(mapping)
-          )
-      )
-      const owners = f
-        .collect(f.authored)
-        .filter((node: any) =>
-          ['JSXElement', 'JSXFragment'].includes(node.type)
-        )
-      expect(changed).toHaveLength(
-        record.runtime === 'named' ? owners.length * 2 : 0
-      )
-      const directive = record.factory.namedPragma
-      const permitted = directive
-        ? [directive.start, directive.end].filter(Boolean)
-        : []
-      for (const mapping of changed) {
-        expect(mapping.source).toBe(record.file)
-        expect(
-          permitted.some(
-            (point: any) =>
-              point.line === mapping.originalLine &&
-              point.column === mapping.originalColumn
-          )
-        ).toBe(true)
-        const actual = after.mappings.filter(
-          (point) =>
-            point.generatedLine === mapping.generatedLine &&
-            point.generatedColumn === mapping.generatedColumn
-        )
-        expect(actual).toHaveLength(1)
-        expect(
-          owners.some(
-            (owner: any) =>
-              owner.loc.start.line === actual[0].originalLine &&
-              owner.loc.start.column === actual[0].originalColumn
-          )
-        ).toBe(true)
-        expect((actual[0] as any).name).toBe((mapping as any).name)
-      }
-      const { convert } = require('next/dist/compiled/next-test-coverage'),
-        ast = structuredClone(f.emitted)
-      ast.body[0].expression.body.body =
-        ast.body[0].expression.body.body.filter(
-          (node: any) =>
-            node.type !== 'VariableDeclaration' ||
-            node.declarations[0].id.name !== record.factory.binding
-        )
-      const convertMap = async (sourceMap: unknown) =>
-        (
-          await convert({
-            code: record.code,
-            ast: structuredClone(ast),
-            sourceMap,
-            coverage: {
-              url: 'file:///browser-children/generated.js',
-              functions: [
-                {
-                  isBlockCoverage: true,
-                  ranges: [
-                    { startOffset: 0, endOffset: record.code.length, count },
-                  ],
-                },
-              ],
-            },
-          })
-        )[record.file]
-      const original = await convertMap(f.options.sourceMap),
-        actual = await convertMap(result.sourceMap)
-      expect([actual.s, actual.f, actual.b]).toEqual([
-        original.s,
-        original.f,
-        original.b,
-      ])
-      expect(JSON.parse(JSON.stringify(actual.branchMap))).toEqual(
-        record.expected.branchMap
-      )
-      expect(JSON.parse(JSON.stringify(actual.statementMap['0']))).toEqual(
-        record.expected.statementMap['0']
-      )
-    }
-  )
-  function mapWith(f: any, change: (mapping: any) => any, extra: any[] = []) {
-    const { SourceMapGenerator } = require('next/dist/compiled/source-map'),
-      map = new SourceMapGenerator(),
-      decoded = decodeCoverageMap(f.options.sourceMap)
-    for (const original of decoded.mappings) {
-      const mapping = change({ ...original })
-      if (!mapping) continue
-      const generated = {
-        line: mapping.generatedLine,
-        column: mapping.generatedColumn,
-      }
-      if (mapping.source === null) map.addMapping({ generated })
-      else
-        map.addMapping({
-          generated,
-          source: mapping.source,
-          original: {
-            line: mapping.originalLine,
-            column: mapping.originalColumn,
-          },
-          ...(mapping.name ? { name: mapping.name } : {}),
-        })
-    }
-    for (const mapping of extra) map.addMapping(mapping)
-    for (const [file, content] of decoded.sources)
-      if (content !== null) map.setSourceContent(file, content)
-    f.options.sourceMap = JSON.parse(map.toString())
-  }
-  it.each([
-    'missing self-closing flag',
-    'wrong opening end',
-    'nonempty children',
-    'extra closing node',
-  ])('does not derive a self-closing terminal for %s', async (kind) => {
-    const f = await fixture(
-      profiles.find((record: any) => record.name === 'shape-named-empty.tsx')
-    )
-    for (const node of f
-      .collect(f.authored)
-      .filter((node: any) => node.type === 'JSXElement')) {
-      if (kind === 'missing self-closing flag')
-        node.openingElement.selfClosing = false
-      if (kind === 'wrong opening end')
-        node.openingElement.loc.end = {
-          ...node.openingElement.loc.end,
-          column: node.openingElement.loc.end.column - 1,
-        }
-      if (kind === 'nonempty children')
-        node.children.push({ type: 'JSXText', value: 'foreign' })
-      if (kind === 'extra closing node')
-        node.closingElement = { type: 'JSXClosingElement' }
-    }
-    const inputs = JSON.stringify(f.options)
-    expect(f.apply()).toBeUndefined()
-    expect(JSON.stringify(f.options)).toBe(inputs)
-  })
-  it.each([
-    'false value',
-    'nonliteral value',
-    'duplicate property',
-    'computed property',
-    'foreign key anchor',
-    'foreign value anchor',
-  ])('rejects ambiguous implicit boolean property %s', async (kind) => {
-    const f = await fixture(
-      profiles.find(
-        (record: any) => record.name === 'shape-classic-boolean.tsx'
-      )
-    )
-    const property = f
-      .collect(f.emitted)
-      .find(
-        (node: any) => node.type === 'Property' && node.key.name === 'disabled'
-      )
-    if (kind === 'false value') property.value.value = false
-    if (kind === 'nonliteral value') property.value.type = 'Identifier'
-    if (kind === 'duplicate property')
-      f.collect(f.emitted)
-        .find(
-          (node: any) =>
-            node.type === 'ObjectExpression' &&
-            node.properties.includes(property)
-        )
-        .properties.push(structuredClone(property))
-    if (kind === 'computed property') property.computed = true
-    if (['foreign key anchor', 'foreign value anchor'].includes(kind)) {
-      const point =
-        kind === 'foreign key anchor'
-          ? property.key.loc.start
-          : property.value.loc.start
-      mapWith(f, (mapping: any) =>
-        mapping.generatedLine === point.line &&
-        mapping.generatedColumn === point.column
-          ? { ...mapping, originalColumn: mapping.originalColumn + 1 }
-          : mapping
-      )
-    }
-    const inputs = JSON.stringify(f.options)
-    expect(f.apply).toThrow(
-      'Browser JSX call association is ambiguous or absent'
-    )
-    expect(JSON.stringify(f.options)).toBe(inputs)
-  })
-  it.each(['missing key end', 'foreign key end', 'conflicting literal anchor'])(
-    'requires the actual automatic boolean mapping boundary: %s',
-    async (kind) => {
-      const f = await fixture(
-        profiles.find(
-          (record: any) => record.name === 'shape-automatic-boolean.tsx'
-        )
-      )
-      const property = f
-          .collect(f.emitted)
-          .find(
-            (node: any) =>
-              node.type === 'Property' && node.key.name === 'disabled'
-          ),
-        point = property.key.loc.end
-      const attribute = f
-        .collect(f.authored)
-        .find(
-          (node: any) =>
-            node.type === 'JSXAttribute' && node.name.name === 'disabled'
-        )
-      mapWith(
-        f,
-        (mapping: any) => {
-          if (
-            mapping.generatedLine !== point.line ||
-            mapping.generatedColumn !== point.column
-          )
-            return mapping
-          if (kind === 'missing key end') return null
-          if (kind === 'foreign key end')
-            return { ...mapping, originalColumn: mapping.originalColumn + 1 }
-          return mapping
-        },
-        kind === 'conflicting literal anchor'
-          ? [
-              {
-                generated: property.value.loc.start,
-                source: f.record.file,
-                original: {
-                  line: attribute.name.loc.start.line,
-                  column: attribute.name.loc.start.column + 1,
-                },
-              },
-            ]
-          : []
-      )
-      const inputs = JSON.stringify(f.options)
-      expect(f.apply).toThrow(
-        'Browser JSX call association is ambiguous or absent'
-      )
-      expect(JSON.stringify(f.options)).toBe(inputs)
-    }
-  )
-  it.each([
-    'wrong tag',
-    'foreign namespace',
-    'duplicate call',
-    'foreign scope',
-    'conflicting terminal',
-  ])('rejects unowned self-closing call %s', async (kind) => {
-    const f = await fixture(
-      profiles.find(
-        (record: any) => record.name === 'shape-named-attributes.tsx'
-      )
-    )
-    const call = f
-      .collect(f.emitted)
-      .find(
-        (node: any) =>
-          node.type === 'CallExpression' &&
-          node.callee.type === 'SequenceExpression'
-      )
-    if (kind === 'wrong tag') call.arguments[0].value = 'foreign'
-    if (kind === 'foreign namespace')
-      call.callee.expressions[1].object.name = 'foreign'
-    if (kind === 'duplicate call')
-      f.emitted.body.push({ type: 'ExpressionStatement', expression: call })
-    if (kind === 'foreign scope')
-      f.collect(f.emitted)
-        .find((node: any) => node.type === 'FunctionDeclaration')
-        .params.push({ type: 'Identifier', name: f.record.factory.binding })
-    if (kind === 'conflicting terminal') {
-      const { SourceMapGenerator } = require('next/dist/compiled/source-map'),
-        decoded = decodeCoverageMap(f.options.sourceMap),
-        map = new SourceMapGenerator()
-      for (const mapping of decoded.mappings) {
-        const generated = {
-          line: mapping.generatedLine,
-          column: mapping.generatedColumn,
-        }
-        if (mapping.source === null) map.addMapping({ generated })
-        else
-          map.addMapping({
-            generated,
-            source: mapping.source,
-            original: {
-              line: mapping.originalLine,
-              column: mapping.originalColumn,
-            },
-            ...((mapping as any).name ? { name: (mapping as any).name } : {}),
-          })
-      }
-      map.addMapping({
-        generated: { line: call.loc.end.line, column: call.loc.end.column - 1 },
-        source: f.record.file,
-        original: { line: 1, column: 0 },
-      })
-      for (const [file, content] of decoded.sources)
-        if (content !== null) map.setSourceContent(file, content)
-      f.options.sourceMap = JSON.parse(map.toString())
-    }
-    const inputs = JSON.stringify(f.options)
-    expect(f.apply).toThrow(
-      'Browser JSX call association is ambiguous or absent'
-    )
-    expect(JSON.stringify(f.options)).toBe(inputs)
-  })
-})
-
-describe('native-owned Browser local component tag associations', () => {
-  const profiles =
-    require('./fixtures/browser-production/component-tags.emission.json').profiles
-  async function fixture(record = profiles[0]) {
-    const { parse: parseAuthored } = require('next/dist/compiled/babel/parser')
-    const { parse: parseEmitted } = require('next/dist/compiled/acorn')
-    const { associateBrowserJsxCalls } = await import(
-      'next/dist/experimental/testing/coverage/browser-jsx-associations'
-    )
-    const parsed = parseAuthored(record.source, {
-      sourceType: 'module',
-      plugins: ['estree', 'jsx', 'typescript'],
-    })
-    const authored = Object.assign(parsed.program, {
-      comments: parsed.comments,
-    })
-    const emitted = parseEmitted(record.code, {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      locations: true,
-    })
-    function collect(value: any): any[] {
-      if (!value || typeof value !== 'object') return []
-      if (Array.isArray(value)) return value.flatMap(collect)
-      return [
-        ...(value.type ? [value] : []),
-        ...Object.entries(value)
-          .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
-          .flatMap(([, child]) => collect(child)),
-      ]
-    }
-    const options: Parameters<typeof associateBrowserJsxCalls>[0] = {
-      file: record.file,
-      code: record.code,
-      authored,
-      emitted,
-      sourceMap: structuredClone(record.map),
-      classic:
-        record.runtime === 'automatic'
-          ? undefined
-          : [structuredClone(record.factory)],
-      automatic:
-        record.runtime === 'automatic'
-          ? [structuredClone(record.factory)]
-          : undefined,
-    }
-    return {
-      record,
-      authored,
-      emitted,
-      options,
-      collect,
-      apply: () => associateBrowserJsxCalls(options),
-    }
-  }
-  it.each(
-    profiles.flatMap((record: any) =>
-      [0, 3].map((count) => [record.name, count, record])
-    )
-  )(
-    'preserves actual source/native role and every counter for %s with count=%s',
-    async (_name, count, record) => {
-      const f = await fixture(record),
-        inputs = JSON.stringify(f.options)
-      expect(coverageHash(record.source)).toBe(record.sourceSHA)
-      const result = f.apply()!
-      expect(result).toBeDefined()
-      expect(JSON.stringify(f.options)).toBe(inputs)
-      const before = decodeCoverageMap(f.options.sourceMap),
-        after = decodeCoverageMap(result.sourceMap)
-      expect(after.sources).toEqual(before.sources)
-      const changed = before.mappings.filter(
-        (mapping) =>
-          !after.mappings.some(
-            (actual) => JSON.stringify(actual) === JSON.stringify(mapping)
-          )
-      )
-      const owners = f
-        .collect(f.authored)
-        .filter((node: any) =>
-          ['JSXElement', 'JSXFragment'].includes(node.type)
-        )
-      expect(changed).toHaveLength(
-        record.runtime === 'named' ? owners.length * 2 : 0
-      )
-      const directive = record.factory.namedPragma
-      const permitted = directive
-        ? [directive.start, directive.end].filter(Boolean)
-        : []
-      for (const mapping of changed) {
-        expect(mapping.source).toBe(record.file)
-        expect(
-          permitted.some(
-            (point: any) =>
-              point.line === mapping.originalLine &&
-              point.column === mapping.originalColumn
-          )
-        ).toBe(true)
-        const actual = after.mappings.filter(
-          (point) =>
-            point.generatedLine === mapping.generatedLine &&
-            point.generatedColumn === mapping.generatedColumn
-        )
-        expect(actual).toHaveLength(1)
-        expect(
-          owners.some(
-            (owner: any) =>
-              owner.loc.start.line === actual[0].originalLine &&
-              owner.loc.start.column === actual[0].originalColumn
-          )
-        ).toBe(true)
-        expect((actual[0] as any).name).toBe((mapping as any).name)
-      }
-      const { convert } = require('next/dist/compiled/next-test-coverage'),
-        ast = structuredClone(f.emitted)
-      ast.body[0].expression.body.body =
-        ast.body[0].expression.body.body.filter(
-          (node: any) =>
-            node.type !== 'VariableDeclaration' ||
-            node.declarations[0].id.name !== record.factory.binding
-        )
-      const convertMap = async (sourceMap: unknown) =>
-        (
-          await convert({
-            code: record.code,
-            ast: structuredClone(ast),
-            sourceMap,
-            coverage: {
-              url: 'file:///browser-children/generated.js',
-              functions: [
-                {
-                  isBlockCoverage: true,
-                  ranges: [
-                    { startOffset: 0, endOffset: record.code.length, count },
-                  ],
-                },
-              ],
-            },
-          })
-        )[record.file]
-      const original = await convertMap(f.options.sourceMap),
-        actual = await convertMap(result.sourceMap)
-      expect([actual.s, actual.f, actual.b]).toEqual([
-        original.s,
-        original.f,
-        original.b,
-      ])
-      expect(JSON.parse(JSON.stringify(actual.branchMap))).toEqual(
-        record.expected.branchMap
-      )
-      const card = f
-          .collect(f.authored)
-          .find(
-            (node: any) =>
-              node.type === 'FunctionDeclaration' && node.id.name === 'Card'
-          ),
-        start = card.body.body[0].loc.start,
-        atReturn = (map: any) =>
-          Object.values(map).filter(
-            (location: any) =>
-              location.start.line === start.line &&
-              location.start.column === start.column
-          ),
-        expectedReturn = atReturn(record.expected.statementMap)
-      expect(expectedReturn).toHaveLength(1)
-      expect(JSON.parse(JSON.stringify(atReturn(actual.statementMap)))).toEqual(
-        expectedReturn
-      )
-    }
-  )
-  function changeMap(f: any, point: any) {
-    const { SourceMapGenerator } = require('next/dist/compiled/source-map'),
-      map = new SourceMapGenerator(),
-      decoded = decodeCoverageMap(f.options.sourceMap)
-    for (const mapping of decoded.mappings) {
-      const generated = {
-        line: mapping.generatedLine,
-        column: mapping.generatedColumn,
-      }
-      if (mapping.source === null) map.addMapping({ generated })
-      else
-        map.addMapping({
-          generated,
-          source: mapping.source,
-          original: {
-            line: mapping.originalLine,
-            column:
-              mapping.originalColumn! +
-              (generated.line === point.line &&
-              generated.column === point.column
-                ? 1
-                : 0),
-          },
-          ...((mapping as any).name ? { name: (mapping as any).name } : {}),
-        })
-    }
-    for (const [file, content] of decoded.sources)
-      if (content !== null) map.setSourceContent(file, content)
-    f.options.sourceMap = JSON.parse(map.toString())
-  }
-  it('ignores same-name bindings from a separate static lexical scope', async () => {
-    const f = await fixture(
-      profiles.find((record: any) => record.name === 'shape-named-single.tsx')
-    )
-    const original = f
-      .collect(f.emitted)
-      .find(
-        (node: any) =>
-          node.type === 'FunctionDeclaration' && node.id.name === 'Badge'
-      )
-    f.emitted.body.push({
-      type: 'ClassDeclaration',
-      start: f.record.factory.moduleStart,
-      end: f.record.factory.moduleEnd,
-      body: {
-        type: 'ClassBody',
-        body: [
-          {
-            type: 'StaticBlock',
-            start: f.record.factory.moduleStart + 1,
-            end: f.record.factory.moduleEnd - 1,
-            body: [
-              {
-                type: 'VariableDeclaration',
-                kind: 'const',
-                start: original.start,
-                end: original.end,
-                declarations: [
-                  {
-                    type: 'VariableDeclarator',
-                    id: structuredClone(original.id),
-                    init: {
-                      type: 'ArrowFunctionExpression',
-                      params: [],
-                      body: { type: 'Literal', value: 0 },
-                    },
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    })
-    const inputs = JSON.stringify(f.options)
-    expect(f.apply()).toBeDefined()
-    expect(JSON.stringify(f.options)).toBe(inputs)
-  })
-  it.each([
-    'missing function',
-    'duplicate function',
-    'wrong function map',
-    'changed function kind',
-    'dynamic object',
-    'computed property',
-    'foreign property value',
-    'wrong object map',
-    'wrong property map',
-  ])('does not infer a local component binding from %s', async (kind) => {
-    const record = profiles.find(
-        (row: any) => row.name === 'shape-named-member.tsx'
-      ),
-      f = await fixture(record),
-      body = f.emitted.body[0].expression.body.body
-    const declaration = body.find(
-        (node: any) =>
-          node.type === 'FunctionDeclaration' && node.id.name === 'Badge'
-      ),
-      object = body.find(
-        (node: any) =>
-          node.type === 'VariableDeclaration' &&
-          node.declarations[0].id.name === 'parts'
-      )
-    if (kind === 'missing function') body.splice(body.indexOf(declaration), 1)
-    if (kind === 'duplicate function') body.push(structuredClone(declaration))
-    if (kind === 'wrong function map') changeMap(f, declaration.id.loc.start)
-    if (kind === 'changed function kind') declaration.async = true
-    if (kind === 'dynamic object')
-      object.declarations[0].init.type = 'CallExpression'
-    if (kind === 'computed property')
-      object.declarations[0].init.properties[0].computed = true
-    if (kind === 'foreign property value') {
-      const property = object.declarations[0].init.properties[0]
-      property.value = { ...property.value, name: 'foreign' }
-    }
-    if (kind === 'wrong object map')
-      changeMap(f, object.declarations[0].id.loc.start)
-    if (kind === 'wrong property map')
-      changeMap(f, object.declarations[0].init.properties[0].key.loc.start)
-    const inputs = JSON.stringify(f.options)
-    expect(f.apply()).toBeUndefined()
-    expect(JSON.stringify(f.options)).toBe(inputs)
-  })
-  it.each([
-    'wrong identifier',
-    'foreign tag map',
-    'wrong member property',
-    'foreign property map',
-    'computed member',
-    'optional member',
-    'wrong closing identifier',
-    'wrong closing member',
-    'foreign emitted scope',
-    'foreign original scope',
-    'duplicate component call',
-  ])('rejects unowned actual component tag %s', async (kind) => {
-    const member = [
-        'wrong member property',
-        'foreign property map',
-        'computed member',
-        'optional member',
-        'wrong closing member',
-      ].includes(kind),
-      record = profiles.find(
-        (row: any) =>
-          row.name === 'shape-named-' + (member ? 'member' : 'paired') + '.tsx'
-      ),
-      f = await fixture(record)
-    const call = f
-      .collect(f.emitted)
-      .find(
-        (node: any) =>
-          node.type === 'CallExpression' &&
-          node.callee.type === 'SequenceExpression' &&
-          (node.arguments[0]?.type === 'Identifier' ||
-            node.arguments[0]?.type === 'MemberExpression')
-      )
-    if (kind === 'wrong identifier') call.arguments[0].name = 'foreign'
-    if (kind === 'foreign tag map') changeMap(f, call.arguments[0].loc.start)
-    if (kind === 'wrong member property')
-      call.arguments[0].property.name = 'foreign'
-    if (kind === 'foreign property map')
-      changeMap(f, call.arguments[0].property.loc.start)
-    if (kind === 'computed member') call.arguments[0].computed = true
-    if (kind === 'optional member') call.arguments[0].optional = true
-    if (kind === 'wrong closing identifier')
-      f
-        .collect(f.authored)
-        .find(
-          (node: any) =>
-            node.type === 'JSXClosingElement' && node.name.name === 'Badge'
-        ).name.name = 'foreign'
-    if (kind === 'wrong closing member') {
-      const owner = f
-        .collect(f.authored)
-        .find(
-          (node: any) =>
-            node.type === 'JSXElement' &&
-            node.openingElement.name.type === 'JSXMemberExpression'
-        )
-      owner.openingElement.selfClosing = false
-      owner.closingElement = {
-        type: 'JSXClosingElement',
-        name: {
-          type: 'JSXMemberExpression',
-          object: { type: 'JSXIdentifier', name: 'parts' },
-          property: { type: 'JSXIdentifier', name: 'foreign' },
-        },
-        loc: { end: owner.loc.end },
-      }
-    }
-    if (kind === 'foreign emitted scope')
-      f.collect(f.emitted)
-        .find(
-          (node: any) =>
-            node.type === 'FunctionDeclaration' && node.id.name === 'Card'
-        )
-        .params.push({ type: 'Identifier', name: member ? 'parts' : 'Badge' })
-    if (kind === 'foreign original scope')
-      f.collect(f.authored)
-        .find(
-          (node: any) =>
-            node.type === 'FunctionDeclaration' && node.id.name === 'Card'
-        )
-        .params.push({ type: 'Identifier', name: 'Badge' })
-    if (kind === 'duplicate component call')
-      f.emitted.body.push({ type: 'ExpressionStatement', expression: call })
-    const inputs = JSON.stringify(f.options)
-    expect(f.apply).toThrow(
-      'Browser JSX call association is ambiguous or absent'
-    )
-    expect(JSON.stringify(f.options)).toBe(inputs)
-  })
-})
-
-describe('native-owned Browser creator coverage geometry', () => {
-  const acorn = require('next/dist/compiled/acorn')
-  const {
-    normalizeBrowserCreatorScopes,
-  } = require('next/dist/experimental/testing/coverage/browser-creator-scope')
-  const emitted = require('./fixtures/browser-production/creator-scopes.emission.json')
-  function nodes(value: any): any[] {
-    if (!value || typeof value !== 'object') return []
-    if (Array.isArray(value)) return value.flatMap(nodes)
-    return [
-      ...(typeof value.type === 'string' ? [value] : []),
-      ...Object.entries(value)
-        .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
-        .flatMap(([, child]) => nodes(child)),
-    ]
-  }
-  function state(profile = emitted.profiles[0]) {
-    const ast = acorn.parse(profile.code, {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      locations: true,
-    })
-    for (const block of nodes(ast).filter(
-      (node) => node.type === 'BlockStatement'
-    ))
-      block.body = block.body.filter(
-        (node: any) => !profile.removeNativeDeclarations.includes(node.start)
-      )
-    const all = nodes(ast)
-    const property = (node: any, name: string) =>
-      node?.type === 'CallExpression' &&
-      node.callee?.type === 'SequenceExpression' &&
-      node.callee.expressions[1]?.property?.value === name
-    const capture = all.find(
-      (node) =>
-        node.type === 'VariableDeclaration' &&
-        property(node.declarations[0]?.init, 'captureCreatorScope')
-    )
-    const entry = all.find(
-      (node) =>
-        node.type === 'VariableDeclaration' &&
-        property(node.declarations[0]?.init, 'enterCreatorScope')
-    )
-    const body = all.find(
-      (node) => node.type === 'BlockStatement' && node.body.includes(entry)
-    )
-    const transaction = body.body.at(-1)
-    return {
-      ast,
-      scope: structuredClone(profile.scope),
-      capture,
-      entry,
-      body,
-      transaction,
-    }
-  }
-  for (const profile of emitted.profiles) {
-    it(`preserves actual native ${profile.name} methods and authored return nodes`, () => {
-      const input = state(profile),
-        before = JSON.stringify(input.ast)
-      const scoped = (value: any) =>
-        nodes(value).filter(
-          (node) =>
-            node.start >= input.scope.moduleStart &&
-            node.end <= input.scope.moduleEnd
-        )
-      const returns = scoped(input.ast).filter(
-        (node) => node.type === 'ReturnStatement'
-      )
-      const functions = scoped(input.ast)
-        .filter((node) => /^(Function|ArrowFunction)/.test(node.type))
-        .map((node) => [node.type, node.start, node.end])
-      const actual = normalizeBrowserCreatorScopes(input.ast, [input.scope]).ast
-      expect(JSON.stringify(input.ast)).toBe(before)
-      expect(
-        JSON.stringify(
-          scoped(actual).filter((node) => node.type === 'ReturnStatement')
-        )
-      ).toBe(JSON.stringify(returns))
-      expect(
-        scoped(actual)
-          .filter((node) => /^(Function|ArrowFunction)/.test(node.type))
-          .map((node) => [node.type, node.start, node.end])
-      ).toEqual(functions)
-      expect(
-        scoped(actual).some(
-          (node) =>
-            node.type === 'Identifier' && node.name === input.scope.binding
-        )
-      ).toBe(false)
-      expect(
-        scoped(actual).some(
-          (node) =>
-            node.type === 'Identifier' &&
-            [
-              input.capture.declarations[0].id.name,
-              input.entry.declarations[0].id.name,
-            ].includes(node.name)
-        )
-      ).toBe(false)
-      expect(
-        scoped(actual).filter((node) => node.type === 'TryStatement')
-      ).toHaveLength(0)
-    })
-  }
-  const changes: [string, (input: ReturnType<typeof state>) => void][] = [
-    [
-      'wrong native namespace',
-      (input) => {
-        input.scope.binding += '_foreign'
-      },
-    ],
-    [
-      'wrong native module start',
-      (input) => {
-        input.scope.moduleStart = input.entry.start
-      },
-    ],
-    [
-      'wrong native module end',
-      (input) => {
-        input.scope.moduleEnd = input.capture.end
-      },
-    ],
-    [
-      'mutable capture',
-      (input) => {
-        input.capture.kind = 'let'
-      },
-    ],
-    [
-      'capture argument',
-      (input) => {
-        input.capture.declarations[0].init.arguments.push({
-          type: 'Literal',
-          value: 1,
-        })
-      },
-    ],
-    [
-      'wrong capture helper',
-      (input) => {
-        input.capture.declarations[0].init.callee.expressions[1].property.value =
-          'other'
-      },
-    ],
-    [
-      'optional capture',
-      (input) => {
-        input.capture.declarations[0].init.optional = true
-      },
-    ],
-    [
-      'nonzero sequence receiver',
-      (input) => {
-        input.capture.declarations[0].init.callee.expressions[0].value = 1
-      },
-    ],
-    [
-      'mutable entry',
-      (input) => {
-        input.entry.kind = 'let'
-      },
-    ],
-    [
-      'wrong entry cell',
-      (input) => {
-        input.entry.declarations[0].init.arguments[0].name += '_foreign'
-      },
-    ],
-    [
-      'extra entry argument',
-      (input) => {
-        input.entry.declarations[0].init.arguments.push({
-          type: 'Literal',
-          value: 1,
-        })
-      },
-    ],
-    [
-      'missing entry',
-      (input) => {
-        input.body.body.shift()
-      },
-    ],
-    [
-      'authored statement before entry',
-      (input) => {
-        input.body.body.unshift({ type: 'EmptyStatement' })
-      },
-    ],
-    [
-      'extra statement after transaction',
-      (input) => {
-        input.body.body.push({ type: 'EmptyStatement' })
-      },
-    ],
-    [
-      'catch handler',
-      (input) => {
-        input.transaction.handler = { type: 'CatchClause' }
-      },
-    ],
-    [
-      'missing finalizer',
-      (input) => {
-        input.transaction.finalizer = null
-      },
-    ],
-    [
-      'extra finalizer effect',
-      (input) => {
-        input.transaction.finalizer.body.push({ type: 'EmptyStatement' })
-      },
-    ],
-    [
-      'wrong leave binding',
-      (input) => {
-        input.transaction.finalizer.body[0].expression.callee.name += '_foreign'
-      },
-    ],
-    [
-      'leave argument',
-      (input) => {
-        input.transaction.finalizer.body[0].expression.arguments.push({
-          type: 'Literal',
-          value: 1,
-        })
-      },
-    ],
-    [
-      'optional leave',
-      (input) => {
-        input.transaction.finalizer.body[0].expression.optional = true
-      },
-    ],
-    [
-      'escaped capture cell',
-      (input) => {
-        input.transaction.block.body.push({
-          type: 'ExpressionStatement',
-          expression: { ...input.entry.declarations[0].init.arguments[0] },
-        })
-      },
-    ],
-    [
-      'escaped leave binding',
-      (input) => {
-        input.transaction.block.body.push({
-          type: 'ExpressionStatement',
-          expression: { ...input.entry.declarations[0].id },
-        })
-      },
-    ],
-  ]
-  for (const [name, change] of changes) {
-    it(`refuses ${name}`, () => {
-      const input = state()
-      change(input)
-      expect(() =>
-        normalizeBrowserCreatorScopes(input.ast, [input.scope])
-      ).toThrow(/native Browser creator coverage/)
-    })
-  }
-  it('keeps the exact original AST when no issued creator scope exists', () => {
-    const input = state()
-    expect(normalizeBrowserCreatorScopes(input.ast, []).ast).toBe(input.ast)
-  })
-  it('refuses duplicate native creator scopes', () => {
-    const input = state()
-    expect(() =>
-      normalizeBrowserCreatorScopes(input.ast, [input.scope, input.scope])
-    ).toThrow(/native Browser creator coverage/)
-  })
-})
-
-describe('native-owned Browser creator method endpoints', () => {
-  const acorn = require('next/dist/compiled/acorn')
-  const babel = require('next/dist/compiled/babel/parser')
-  const { SourceMapGenerator } = require('next/dist/compiled/source-map')
-  const { convert } = require('next/dist/compiled/next-test-coverage')
-  const {
-    normalizeBrowserCreatorScopes,
-    bindBrowserCreatorMethodEnds,
-  } = require('next/dist/experimental/testing/coverage/browser-creator-scope')
-  const emitted = require('./fixtures/browser-production/creator-scopes.emission.json')
-  const profiles = emitted.profiles.filter((value: any) => value.map)
-  function visit(value: any, fn: (node: any) => void) {
-    if (!value || typeof value !== 'object') return
-    if (Array.isArray(value)) {
-      value.forEach((child) => visit(child, fn))
-      return
-    }
-    if (value.type) fn(value)
-    for (const [key, child] of Object.entries(value))
-      if (!['loc', 'comments', 'tokens'].includes(key)) visit(child, fn)
-  }
-  async function state(profile = profiles[0]) {
-    const ast = acorn.parse(profile.code, {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      locations: true,
-    })
-    visit(ast, (node) => {
-      if (node.type === 'BlockStatement')
-        node.body = node.body.filter(
-          (value: any) =>
-            !profile.removeNativeDeclarations.includes(value.start)
-        )
-    })
-    const actual = normalizeBrowserCreatorScopes(ast, [
-      structuredClone(profile.scope),
-    ])
-    const authored = babel.parse(profile.source, {
-      sourceType: 'module',
-      plugins: ['estree', 'jsx', 'typescript'],
-    }).program
-    const identity = new SourceMapGenerator()
-    for (const [index, line] of profile.source.split('\n').entries()) {
-      let column = 0
-      for (const token of line.matchAll(/\w+|\s|[^\w\s]/g)) {
-        const point = { line: index + 1, column }
-        identity.addMapping({
-          generated: point,
-          source: profile.file,
-          original: point,
-        })
-        column += token[0].length
-      }
-    }
-    identity.setSourceContent(profile.file, profile.source)
-    const capture = (code: string) => ({
-      url: pathToFileURL(profile.file).href,
-      functions: [
-        {
-          isBlockCoverage: true,
-          ranges: [{ startOffset: 0, endOffset: code.length, count: 0 }],
-        },
-      ],
-    })
-    const model = (
-      await convert({
-        code: profile.source,
-        ast: authored,
-        sourceMap: JSON.parse(identity.toString()),
-        coverage: capture(profile.source),
-      })
-    )[profile.file]
-    const observed = (
-      await convert({
-        code: profile.code,
-        ast: actual.ast,
-        sourceMap: profile.map,
-        coverage: {
-          ...capture(profile.code),
-          url: pathToFileURL(profile.file + '.generated.js').href,
-        },
-      })
-    )[profile.file]
-    return {
-      profile,
-      authored,
-      model,
-      observed,
-      methods: structuredClone(actual.methods),
-      map: structuredClone(profile.map),
-    }
-  }
-  function unchanged(value: any) {
-    const serialized = JSON.stringify(value),
-      names = value.meta.fnNames,
-      entries = [...names]
-    return () => {
-      expect(JSON.stringify(value)).toBe(serialized)
-      expect(value.meta.fnNames).toBe(names)
-      expect(names.size).toBe(entries.length)
-      for (const [key, name] of entries) expect(names.get(key)).toBe(name)
-    }
-  }
-  function apply(input: Awaited<ReturnType<typeof state>>) {
-    bindBrowserCreatorMethodEnds(
-      input.profile.file,
-      input.model,
-      input.observed,
-      input.authored,
-      input.methods,
-      input.map
-    )
-  }
-  for (const profile of profiles) {
-    it(`retains actual native endpoints and counters for ${profile.name}`, async () => {
-      const input = await state(profile),
-        observed = unchanged(input.observed),
-        counts = structuredClone([input.model.s, input.model.f, input.model.b])
-      apply(input)
-      observed()
-      expect([input.model.s, input.model.f, input.model.b]).toEqual(counts)
-      for (const method of input.methods) {
-        const candidates = Object.values(input.model.fnMap).filter(
-          (fn: any) => fn.name === method.method.key.name
-        )
-        const expected = Object.values(profile.expectedCoverage.fnMap).filter(
-          (fn: any) => fn.name === method.method.key.name
-        )
-        expect(candidates).toHaveLength(1)
-        expect(expected).toHaveLength(1)
-        expect(
-          JSON.parse(JSON.stringify((candidates[0] as any).loc.end))
-        ).toEqual((expected[0] as any).loc.end)
-      }
-    })
-  }
-  const changes: [
-    string,
-    (input: Awaited<ReturnType<typeof state>>) => void,
-  ][] = [
-    [
-      'foreign source identity',
-      (input) => {
-        input.map.sources[0] += '.foreign'
-      },
-    ],
-    [
-      'foreign class scope',
-      (input) => {
-        input.methods[0].scope.moduleStart = input.methods[0].owner.start + 1
-      },
-    ],
-    [
-      'wrong actual class kind',
-      (input) => {
-        input.methods[0].owner.type = 'ClassDeclaration'
-      },
-    ],
-    [
-      'computed actual method',
-      (input) => {
-        input.methods[0].method.computed = true
-      },
-    ],
-    [
-      'wrong actual method kind',
-      (input) => {
-        input.methods[0].method.kind = 'get'
-      },
-    ],
-    [
-      'detached actual method',
-      (input) => {
-        input.methods[0].owner.body.body =
-          input.methods[0].owner.body.body.filter(
-            (method: any) => method !== input.methods[0].method
-          )
-      },
-    ],
-    [
-      'wrong actual method staticness',
-      (input) => {
-        input.methods[0].method.static = !input.methods[0].method.static
-      },
-    ],
-    [
-      'wrong actual key name',
-      (input) => {
-        input.methods[0].method.key.name += '_foreign'
-      },
-    ],
-    [
-      'foreign body start',
-      (input) => {
-        input.methods[0].method.value.body.loc.start.column++
-      },
-    ],
-    [
-      'foreign body close',
-      (input) => {
-        input.methods[0].method.value.body.loc.end.column++
-      },
-    ],
-    [
-      'foreign class close',
-      (input) => {
-        input.methods[0].owner.body.loc.end.column++
-      },
-    ],
-    [
-      'duplicate method receipt',
-      (input) => {
-        input.methods.push(structuredClone(input.methods[0]))
-      },
-    ],
-    [
-      'duplicate original descriptor',
-      (input) => {
-        input.model.fnMap.foreign = structuredClone(
-          Object.values(input.model.fnMap)[0]
-        )
-      },
-    ],
-    [
-      'duplicate observed descriptor',
-      (input) => {
-        input.observed.fnMap.foreign = structuredClone(
-          Object.values(input.observed.fnMap)[0]
-        )
-      },
-    ],
-    [
-      'wrong original start',
-      (input) => {
-        ;(Object.values(input.model.fnMap)[0] as any).loc.start.column++
-      },
-    ],
-    [
-      'wrong observed start',
-      (input) => {
-        ;(Object.values(input.observed.fnMap)[0] as any).loc.start.column++
-      },
-    ],
-    [
-      'wrong observed name',
-      (input) => {
-        ;(Object.values(input.observed.fnMap)[0] as any).name += '_foreign'
-      },
-    ],
-    [
-      'observed endpoint before real body',
-      (input) => {
-        ;(Object.values(input.observed.fnMap)[0] as any).loc.end.column = 0
-      },
-    ],
-    [
-      'observed endpoint outside real class',
-      (input) => {
-        ;(Object.values(input.observed.fnMap)[0] as any).loc.end.column += 1000
-      },
-    ],
-    [
-      'unbounded observed endpoint',
-      (input) => {
-        ;(Object.values(input.observed.fnMap)[0] as any).loc.end.column =
-          Infinity
-      },
-    ],
-  ]
-  for (const [name, change] of changes) {
-    it(`refuses ${name} before changing the model`, async () => {
-      const input = await state(),
-        before = structuredClone([input.model.s, input.model.f, input.model.b])
-      change(input)
-      const changed = unchanged(input.model)
-      expect(() => apply(input)).toThrow(/native Browser creator coverage/)
-      changed()
-      expect([input.model.s, input.model.f, input.model.b]).toEqual(before)
-    })
-  }
-  it('does not borrow method endpoint authority without actual creator facts', async () => {
-    const input = await state(),
-      before = unchanged(input.model)
-    input.methods = []
-    apply(input)
-    before()
-  })
-})
-
 describe('production Browser standard coverage profile boundaries', () => {
   const project = {
     profile: {
@@ -15737,299 +13951,6 @@ describe('production Browser standard coverage profile boundaries', () => {
     expect(isProductionBrowserCoverageProject({ ...project, ...patch })).toBe(
       false
     )
-  })
-})
-
-describe('native-owned Browser local creator component bindings', () => {
-  const profiles =
-    require('./fixtures/browser-production/component-creators.emission.json').profiles
-  async function fixture(record = profiles[0]) {
-    const { parse: parseAuthored } = require('next/dist/compiled/babel/parser')
-    const { parse: parseEmitted } = require('next/dist/compiled/acorn')
-    const { normalizeBrowserCreatorScopes } = await import(
-      'next/dist/experimental/testing/coverage/browser-creator-scope'
-    )
-    const { associateBrowserJsxCalls } = await import(
-      'next/dist/experimental/testing/coverage/browser-jsx-associations'
-    )
-    const parsed = parseAuthored(record.source, {
-        sourceType: 'module',
-        plugins: ['estree', 'jsx', 'typescript'],
-      }),
-      authored = Object.assign(parsed.program, { comments: parsed.comments })
-    const native = parseEmitted(record.code, {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      locations: true,
-    })
-    native.body[0].expression.body.body =
-      native.body[0].expression.body.body.filter(
-        (node: any) =>
-          node.type !== 'VariableDeclaration' ||
-          !record.nativeDeclarations.includes(node.declarations[0].id.name)
-      )
-    expect(record.bridgeRole.request).toBe('private-next-test-creator-scope')
-    expect(record.bridgeRole.imports[0].origin).toBe('generated')
-    const emitted = normalizeBrowserCreatorScopes(native, [record.creatorScope])
-      .ast as any
-    function collect(value: any): any[] {
-      if (!value || typeof value !== 'object') return []
-      if (Array.isArray(value)) return value.flatMap(collect)
-      return [
-        ...(value.type ? [value] : []),
-        ...Object.entries(value)
-          .filter(([key]) => !['loc', 'comments', 'tokens'].includes(key))
-          .flatMap(([, child]) => collect(child)),
-      ]
-    }
-    const options: Parameters<typeof associateBrowserJsxCalls>[0] = {
-      file: record.file,
-      code: record.code,
-      authored,
-      emitted,
-      sourceMap: structuredClone(record.map),
-      ...(record.runtime === 'automatic'
-        ? { automatic: [structuredClone(record.factory)] }
-        : { classic: [structuredClone(record.factory)] }),
-    }
-    const convertMap = async (sourceMap: unknown, count = 0) => {
-      const { convert } = require('next/dist/compiled/next-test-coverage')
-      return (
-        await convert({
-          code: record.code,
-          ast: structuredClone(emitted),
-          sourceMap,
-          coverage: {
-            url: 'file:///browser-children/creator-generated.js',
-            functions: [
-              {
-                isBlockCoverage: true,
-                ranges: [
-                  { startOffset: 0, endOffset: record.code.length, count },
-                ],
-              },
-            ],
-          },
-        })
-      )[record.file]
-    }
-    return {
-      record,
-      options,
-      authored,
-      emitted,
-      collect,
-      convertMap,
-      apply: () => associateBrowserJsxCalls(options),
-    }
-  }
-  it.each(
-    profiles.flatMap((profile: any) =>
-      [0, 3].map((count) => [profile.name, count, profile])
-    )
-  )(
-    'associates actual creator component %s while retaining every counter at count=%s',
-    async (_name, count, record) => {
-      const f = await fixture(record),
-        before = JSON.stringify(f.options)
-      expect(coverageHash(record.source)).toBe(record.sourceSHA)
-      const result = f.apply()!
-      expect(result).toBeDefined()
-      expect(JSON.stringify(f.options)).toBe(before)
-      const original = await f.convertMap(f.options.sourceMap, count),
-        actual = await f.convertMap(result.sourceMap, count)
-      expect([actual.s, actual.f, actual.b]).toEqual([
-        original.s,
-        original.f,
-        original.b,
-      ])
-      expect(JSON.parse(JSON.stringify(actual.branchMap))).toEqual(
-        record.expected.branchMap
-      )
-    }
-  )
-  function changeMap(f: any, at: any) {
-    const { SourceMapGenerator } = require('next/dist/compiled/source-map'),
-      map = new SourceMapGenerator(),
-      decoded = decodeCoverageMap(f.options.sourceMap)
-    for (const item of decoded.mappings) {
-      const generated = {
-        line: item.generatedLine,
-        column: item.generatedColumn,
-      }
-      if (item.source === null) map.addMapping({ generated })
-      else
-        map.addMapping({
-          generated,
-          source: item.source,
-          original: {
-            line: item.originalLine,
-            column:
-              item.originalColumn +
-              (generated.line === at.line && generated.column === at.column
-                ? 1
-                : 0),
-          },
-          ...((item as any).name ? { name: (item as any).name } : {}),
-        })
-    }
-    for (const [file, content] of decoded.sources)
-      if (content !== null) map.setSourceContent(file, content)
-    f.options.sourceMap = JSON.parse(map.toString())
-  }
-  const faults = [
-    'missing declaration',
-    'duplicate declaration',
-    'foreign outer name',
-    'foreign inner name',
-    'foreign outer map',
-    'foreign inner map',
-    'foreign value start',
-    'different declaration kind',
-    'foreign method name',
-    'foreign method map',
-    'foreign method body',
-    'computed method',
-    'getter method',
-    'static method mismatch',
-    'foreign class member',
-  ]
-  it.each(faults)(
-    'does not derive a component branch from %s',
-    async (kind) => {
-      const f = await fixture(
-          profiles.find(
-            (row: any) => row.name === 'creator-classic-classexpression.tsx'
-          )
-        ),
-        body = f.emitted.body[0].expression.body.body
-      const declaration = body.find(
-          (node: any) =>
-            node.type === 'VariableDeclaration' &&
-            node.declarations[0].id.name === 'Badge'
-        ),
-        binding = declaration.declarations[0],
-        value = binding.init,
-        method = value.body.body[0]
-      if (kind === 'missing declaration')
-        body.splice(body.indexOf(declaration), 1)
-      if (kind === 'duplicate declaration')
-        body.push(structuredClone(declaration))
-      if (kind === 'foreign outer name') binding.id.name = 'Foreign'
-      if (kind === 'foreign inner name') value.id.name = 'ForeignInner'
-      if (kind === 'foreign outer map') changeMap(f, binding.id.loc.start)
-      if (kind === 'foreign inner map') changeMap(f, value.id.loc.start)
-      if (kind === 'foreign value start') changeMap(f, value.loc.start)
-      if (kind === 'different declaration kind')
-        value.type = 'FunctionExpression'
-      if (kind === 'foreign method name') method.key.name = 'foreign'
-      if (kind === 'foreign method map') changeMap(f, method.key.loc.start)
-      if (kind === 'foreign method body')
-        changeMap(f, method.value.body.loc.start)
-      if (kind === 'computed method') method.computed = true
-      if (kind === 'getter method') method.kind = 'get'
-      if (kind === 'static method mismatch') method.static = !method.static
-      if (kind === 'foreign class member')
-        value.body.body.push({ type: 'StaticBlock', body: [] })
-      const before = JSON.stringify(f.options),
-        result = f.apply()
-      expect(JSON.stringify(f.options)).toBe(before)
-      const actual = await f.convertMap(
-        result?.sourceMap ?? f.options.sourceMap
-      )
-      expect(JSON.parse(JSON.stringify(actual.branchMap))).not.toEqual(
-        f.record.expected.branchMap
-      )
-    }
-  )
-  it.each(['foreign inner name', 'foreign keyword map', 'async', 'generator'])(
-    'refuses an unowned function expression component: %s',
-    async (kind) => {
-      const f = await fixture(
-          profiles.find(
-            (row: any) => row.name === 'creator-classic-expression.tsx'
-          )
-        ),
-        body = f.emitted.body[0].expression.body.body,
-        value = body.find(
-          (node: any) =>
-            node.type === 'VariableDeclaration' &&
-            node.declarations[0].id.name === 'Badge'
-        ).declarations[0].init
-      if (kind === 'foreign inner name') value.id.name = 'Foreign'
-      if (kind === 'foreign keyword map') changeMap(f, value.loc.start)
-      if (kind === 'async') value.async = true
-      if (kind === 'generator') value.generator = true
-      const before = JSON.stringify(f.options),
-        result = f.apply()
-      expect(JSON.stringify(f.options)).toBe(before)
-      const actual = await f.convertMap(
-        result?.sourceMap ?? f.options.sourceMap
-      )
-      expect(JSON.parse(JSON.stringify(actual.branchMap))).not.toEqual(
-        f.record.expected.branchMap
-      )
-    }
-  )
-  it.each([
-    'foreign leaf property',
-    'foreign leaf map',
-    'foreign inner property',
-    'foreign inner map',
-    'foreign this map',
-    'foreign member endpoint',
-    'foreign authored endpoint',
-    'foreign base kind',
-    'optional member',
-    'computed member',
-    'call expression',
-  ])('refuses an unowned named JSX static child: %s', async (kind) => {
-    const f = await fixture(
-      profiles.find(
-        (row: any) => row.name === 'creator-named-classexpression.tsx'
-      )
-    )
-    const leaf = f
-        .collect(f.emitted)
-        .find(
-          (node: any) =>
-            node.type === 'MemberExpression' &&
-            !node.computed &&
-            node.property?.name === 'label'
-        ),
-      inner = leaf.object,
-      base = inner.object
-    expect(base.type).toBe('ThisExpression')
-    if (kind === 'foreign leaf property') leaf.property.name = 'foreign'
-    if (kind === 'foreign leaf map') changeMap(f, leaf.property.loc.start)
-    if (kind === 'foreign inner property') inner.property.name = 'foreign'
-    if (kind === 'foreign inner map') changeMap(f, inner.property.loc.start)
-    if (kind === 'foreign this map') changeMap(f, base.loc.start)
-    if (kind === 'foreign member endpoint') changeMap(f, leaf.loc.end)
-    if (kind === 'foreign authored endpoint') {
-      const original = f
-        .collect(f.authored)
-        .find(
-          (node: any) =>
-            node.type === 'MemberExpression' && node.property?.name === 'label'
-        )
-      original.loc.end.column++
-    }
-    if (kind === 'foreign base kind')
-      Object.assign(base, { type: 'Identifier', name: 'foreign' })
-    if (kind === 'optional member') inner.optional = true
-    if (kind === 'computed member') inner.computed = true
-    if (kind === 'call expression')
-      Object.assign(inner, {
-        type: 'CallExpression',
-        callee: base,
-        arguments: [],
-      })
-    const before = JSON.stringify(f.options)
-    expect(() => f.apply()).toThrow(
-      'Standard coverage Browser JSX call association is ambiguous or absent'
-    )
-    expect(JSON.stringify(f.options)).toBe(before)
   })
 })
 
@@ -16458,7 +14379,7 @@ it('routes configured development Browser JSX coverage through the actual CLI', 
 }, 600000)
 
 describe('configured coverage threshold autoUpdate', () => {
-  const pristine = require('./fixtures/threshold-autoupdate/pristine.json')
+  const pristine = require('./fixtures/threshold-autoupdate/expectations.json')
   const rows = [...pristine.rows, ...pristine.sharedCliRows] as any[]
   const global = rows.find((row) => row.name === 'global')
   const metrics = ['lines', 'functions', 'statements', 'branches']
@@ -16491,7 +14412,7 @@ describe('configured coverage threshold autoUpdate', () => {
     ].includes(row.name)
   )
 
-  it('matches complete genuine one-shot development CLI config edits and coverage reports', async () => {
+  it('updates configured coverage thresholds and report publication through the development CLI', async () => {
     const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(
       join(tmpdir(), 'next-coverage-autoupdate-cli-')
@@ -16517,9 +14438,6 @@ describe('configured coverage threshold autoUpdate', () => {
         mode: 'development',
         profiles: 34,
       })
-      expect(result.unqualifiedPrerequisites).toEqual([
-        pristine.originalNonSharedCliBoundary,
-      ])
     } catch (error) {
       const evidence = process.env.NEXT_TESTING_AUTOUPDATE_EVIDENCE
       if (evidence) {
@@ -16537,7 +14455,7 @@ describe('configured coverage threshold autoUpdate', () => {
   }, 610000)
 
   it.each(candidates)(
-    'derives improvements from the complete genuine file model: $name',
+    'derives threshold improvements from explicit execution counters: $name',
     async (row) => {
       const {
         parseProjectStandardCoverage,
@@ -16552,30 +14470,34 @@ describe('configured coverage threshold autoUpdate', () => {
       )
       const f = await standardReportFixture()
       try {
+        const counters = structuredClone(pristine.counters)
+        if (!row.fullTestRan)
+          counters['fully.mjs'] = { s: { 0: 0 }, f: { 0: 0 }, b: {} }
         const files = []
-        for (const [name, reference] of Object.entries(row.coverage) as [
+        for (const [name, expected] of Object.entries(counters) as [
           string,
           any,
         ][]) {
-          const source = pristine.sourceFiles[name]
-          const file = join(f.root, name)
-          expect(coverageHash(source.source)).toBe(source.sha256)
-          await writeFile(file, source.source)
-          const data = await createUncoveredJavaScript(file, source.source)
-          // Complete saved provider counters are publisher-only inputs. The
-          // real CLI qualification separately proves their execution origin.
-          for (const field of ['s', 'f', 'b'] as const)
-            data[field] = structuredClone(reference[field])
-          expect(JSON.parse(JSON.stringify({ ...data, path: name }))).toEqual(
-            reference
+          const source = await readFile(
+            join(
+              __dirname,
+              'fixtures/threshold-autoupdate/sources',
+              name + '.txt'
+            ),
+            'utf8'
           )
-          files.push({ file, sha256: source.sha256, data })
+          const file = join(f.root, name)
+          await writeFile(file, source)
+          const data = await createUncoveredJavaScript(file, source)
+          for (const field of ['s', 'f', 'b'] as const)
+            data[field] = structuredClone(expected[field])
+          files.push({ file, sha256: coverageHash(source), data })
         }
         const configured = parseProjectStandardCoverage({
           enabled: true,
           provider: 'v8',
           reporter: ['json', 'json-summary', 'lcovonly'],
-          include: Object.keys(row.coverage),
+          include: Object.keys(counters),
           thresholds: row.profile.thresholds,
         })!
         const flags = Object.fromEntries(
@@ -16609,10 +14531,10 @@ describe('configured coverage threshold autoUpdate', () => {
           Object.fromEntries(
             Object.entries(actual).map(([file, data]: [string, any]) => [
               basename(file),
-              { ...data, path: basename(file) },
+              { s: data.s, f: data.f, b: data.b },
             ])
           )
-        ).toEqual(row.coverage)
+        ).toEqual(counters)
       } finally {
         await rm(f.root, { recursive: true, force: true })
       }
@@ -16623,27 +14545,30 @@ describe('configured coverage threshold autoUpdate', () => {
     rows.filter(
       (row) => row.configChanged && row.name !== 'body-failure-report-enabled'
     )
-  )('matches the entire genuine configuration edit: $name', async (row) => {
-    const { updateCoverageThresholds } = await import(
-      'next/dist/experimental/testing/coverage/threshold-update'
-    )
-    const directory = await mkdtemp(
-      join(tmpdir(), 'next-coverage-threshold-update-')
-    )
-    const file = join(directory, 'vitest.config.mjs')
-    try {
-      await writeFile(file, row.before)
-      expect(
-        await updateCoverageThresholds({
-          configFile: file,
-          updates: row.measuredUpdates,
-        })
-      ).toBe(true)
-      expect(await readFile(file, 'utf8')).toBe(row.after)
-    } finally {
-      await rm(directory, { recursive: true, force: true })
+  )(
+    'preserves configuration bytes around threshold edits: $name',
+    async (row) => {
+      const { updateCoverageThresholds } = await import(
+        'next/dist/experimental/testing/coverage/threshold-update'
+      )
+      const directory = await mkdtemp(
+        join(tmpdir(), 'next-coverage-threshold-update-')
+      )
+      const file = join(directory, 'vitest.config.mjs')
+      try {
+        await writeFile(file, row.before)
+        expect(
+          await updateCoverageThresholds({
+            configFile: file,
+            updates: row.measuredUpdates,
+          })
+        ).toBe(true)
+        expect(await readFile(file, 'utf8')).toBe(row.after)
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
     }
-  })
+  )
 
   it('reads actual edits made after config evaluation and retains their comments', async () => {
     const { updateCoverageThresholds } = await import(
@@ -16686,7 +14611,7 @@ describe('configured coverage threshold autoUpdate', () => {
       const file = join(directory, 'vitest.config.mjs')
       try {
         if (row.before !== null) await writeFile(file, row.before)
-        const message = row.diagnostics.match(/Error: ([^\n]+)/)?.[1]
+        const message = row.error
         expect(message).toBeDefined()
         await expect(
           updateCoverageThresholds({
@@ -16778,7 +14703,7 @@ describe('explicit V8 provider and formatter CLI routes', () => {
     ).toMatchObject({ provider: 'istanbul', formatterReports: true })
   })
 
-  it('matches actual pristine V8 provider/text/default/HTML/Clover CLI reports and disabled omission', async () => {
+  it('selects V8 reporters and omits disabled coverage outputs', async () => {
     const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(join(tmpdir(), 'next-provider-text-cli-'))
     try {
@@ -17150,7 +15075,7 @@ describe('retained coverage threshold formatter closures', () => {
     }
   })
 
-  it('matches pristine complete reports, current configuration bytes and callback/setup/teardown order', async () => {
+  it('updates threshold configuration with exact formatter and setup/teardown ordering', async () => {
     const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(
       join(tmpdir(), 'next-threshold-formatter-cli-')
@@ -17392,7 +15317,7 @@ describe('explicit CLI V8 configured provider overrides', () => {
     }
   )
 
-  it('matches thirteen actual pristine configured/custom/missing-module and no-config CLI provider profiles', async () => {
+  it('applies CLI provider overrides without loading ignored providers', async () => {
     const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(join(tmpdir(), 'next-provider-override-cli-'))
     try {
@@ -17431,7 +15356,7 @@ describe('explicit CLI V8 configured provider overrides', () => {
 })
 
 describe('production retained coverage threshold formatter closures', () => {
-  it('matches all eight genuine complete production reports, configuration bytes and lifecycle rows', async () => {
+  it('updates all eight production threshold formatter configurations and lifecycle traces', async () => {
     const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(
       join(tmpdir(), 'next-production-threshold-formatter-cli-')
@@ -17519,7 +15444,7 @@ describe('dotted standard coverage flags configure collection without activating
       ).toEqual({ enabled: false, configured: true })
     }
   )
-  it('matches eleven actual genuine activation/report/include/threshold and explicit enable/disable profiles', async () => {
+  it('enables coverage only through configuration or explicit CLI flags', async () => {
     const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(join(tmpdir(), 'next-coverage-enable-cli-'))
     try {
@@ -17558,15 +15483,14 @@ describe('dotted standard coverage flags configure collection without activating
 })
 
 describe('formatter current AST preparation before caller-owned commit', () => {
-  const rows = require('./fixtures/formatter-ast/pristine.json').rows as {
+  const rows = require('./fixtures/formatter-ast/cases.json').rows as {
     name: string
     before: string
     profile: { edit?: string; glob?: boolean }
     calls: number[][]
-    diagnostics: string
   }[]
   it.each(rows)(
-    'retains genuine calls and error ordering for $name in the actual configuration realm',
+    'retains formatter calls and error ordering for $name in the actual configuration realm',
     async (row) => {
       const { openTestConfigModule } = await import(
         'next/dist/experimental/testing/config-modules'
@@ -17762,7 +15686,7 @@ describe('remaining built-in standard coverage reporters', () => {
     }
   )
 
-  it('matches all thirty-four genuine report, stdout, cleanup, disable, failure and no-file update profiles', async () => {
+  it('checks reporter output, cleanup, disable, failure and config-update behavior', async () => {
     const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(join(tmpdir(), 'next-standard-reporters-'))
     try {
@@ -18868,7 +16792,7 @@ describe('public Istanbul CommonJS sources', () => {
       (row) => !Object.hasOwn(pristine.unqualifiedProfiles, row.name)
     )
   )(
-    'matches actual complete CommonJS reports for $name',
+    'checks CommonJS case outcomes, counters and reports for $name',
     async (row) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-istanbul-cjs-'))
@@ -18892,8 +16816,8 @@ describe('public Istanbul CommonJS sources', () => {
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           actualPublicCLI: true,
-          wholeCaseProjection: true,
-          completeMapsSummaryLCOV: true,
+          caseStatusesAndErrors: true,
+          coverageCountersAndReportFiles: true,
           allOwnersJoined: true,
         })
         expect(
@@ -18922,7 +16846,7 @@ describe('public Istanbul JavaScript coverage', () => {
       .filter((row) => !Object.hasOwn(pristine.unqualifiedProfiles, row.name))
       .map((row) => row.name)
   )(
-    'matches the complete genuine reports and cases for %s',
+    'checks case outcomes, coverage hits and report formats for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-public-istanbul-'))
@@ -18947,8 +16871,8 @@ describe('public Istanbul JavaScript coverage', () => {
         ).toMatchObject({
           profile,
           actualPublicCLI: true,
-          completeCaseProjection: true,
-          wholeMapsSummaryLCOVAndReportAssets: true,
+          caseOutcomes: true,
+          coverageHitsSummariesAndAssetFormats: true,
           actualThresholdsAndConfigBytes: true,
           ownedProcessTreeClosed: true,
         })
@@ -19400,7 +17324,7 @@ describe('prepared JSON coverage maps', () => {
         ).toMatchObject({
           profile,
           actualPublicCLI: true,
-          completePreparedMapMatchesGenuine: true,
+          exactPreparedCoverageMap: true,
           preservedCaseAndCoverageAssetChecks: true,
           originalOwnedProcessChecksPassed: true,
         })
@@ -19421,9 +17345,9 @@ describe('prepared JSON coverage maps', () => {
 })
 
 describe('coverage publication before authored global teardown', () => {
-  const pristine = require('./fixtures/istanbul-provider/global-teardown-pristine.json')
-  it.each(pristine.rows.map((row: { profile: string }) => row.profile))(
-    'matches complete genuine coverage and teardown outcomes for %s',
+  const expected = require('./fixtures/istanbul-provider/global-teardown.expected.json')
+  it.each(expected.rows.map((row: { profile: string }) => row.profile))(
+    'publishes exact coverage before global teardown for %s',
     async (profile: string) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -19445,8 +17369,8 @@ describe('coverage publication before authored global teardown', () => {
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           profile,
-          genuineObservationsAndPublicationOrder: true,
-          wholeJSONWithCompleteMap: true,
+          coveragePublishedBeforeGlobalTeardown: true,
+          caseStatesSnapshotsAndExactMap: true,
           authoredBytesHeld: true,
           ownedProcessTreeClosed: true,
         })
@@ -20048,7 +17972,7 @@ describe('public Istanbul setup and snapshot serializers', () => {
     'setup-explicit',
     'setup-imported',
   ])(
-    'matches unchanged genuine complete reports, cases and snapshots for %s',
+    'checks coverage counters, case outcomes and snapshots for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -20167,48 +18091,7 @@ describe('settled Istanbul beforeAll callback completion', () => {
     'beforeall-sync-report-false',
     'beforeall-async-report-false',
   ])(
-    'retains actual suite slots, unstarted descendants and genuine maps for %s',
-    async (profile) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-istanbul-beforeall-private-')
-      )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-beforeall-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            profile,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          actualBeforeAllSuiteSlot: true,
-          noInventedCaseStarts: true,
-          actualMapIndependentOfReportFilePolicy: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-
-  it.each([
-    'beforeall-sync',
-    'beforeall-async',
-    'beforeall-sync-report-false',
-    'beforeall-async-report-false',
-  ])(
-    'matches unchanged genuine cases, file message and report policy for %s',
+    'checks cases, file messages and report policy for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -20234,8 +18117,8 @@ describe('settled Istanbul beforeAll callback completion', () => {
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           actualSettledBeforeAllFailure: true,
-          wholeCaseProjection: true,
-          completeMapsSummaryLCOV: true,
+          caseStatusesAndErrors: true,
+          coverageCountersAndReportFiles: true,
         })
       } finally {
         await rm(output, { recursive: true, force: true })
@@ -20244,36 +18127,6 @@ describe('settled Istanbul beforeAll callback completion', () => {
     130000
   )
 })
-
-it('vetoes Istanbul beforeAll capture when independent actual mock disposal reuses the authored Error', async () => {
-  const { execFileSync } = await import('node:child_process')
-  const output = await mkdtemp(join(tmpdir(), 'next-istanbul-beforeall-stage-'))
-  try {
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'istanbul-beforeall-private.mjs'),
-        join(__dirname, '../../..'),
-        output,
-        'beforeall-mixed-stage',
-      ],
-      {
-        env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-        stdio: 'pipe',
-        timeout: 125000,
-      }
-    )
-    expect(
-      JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-    ).toMatchObject({
-      independentActualDisposalVeto: true,
-      sharedOriginalErrorAuthoredAndRestore: true,
-      noInventedCaseStarts: true,
-    })
-  } finally {
-    await rm(output, { recursive: true, force: true })
-  }
-}, 130000)
 
 describe('settled Istanbul beforeEach callback completion', () => {
   async function observeCallback(mode: string) {
@@ -20460,46 +18313,8 @@ describe('settled Istanbul beforeEach callback completion', () => {
     'beforeeach-async-no-snapshots',
     'beforeeach-sync-no-snapshots-report-false',
     'beforeeach-async-no-snapshots-report-false',
-    'beforeeach-mixed-stage-no-snapshots',
   ])(
-    'retains actual attempt and physical completion facts for %s',
-    async (name) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-istanbul-beforeeach-private-')
-      )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-beforeeach-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({ actualCaseStartsAndEnds: true })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-
-  it.each([
-    'beforeeach-sync-no-snapshots',
-    'beforeeach-async-no-snapshots',
-    'beforeeach-sync-no-snapshots-report-false',
-    'beforeeach-async-no-snapshots-report-false',
-  ])(
-    'matches genuine complete messages and report policy for %s',
+    'checks authored error headings, setup frames and report policy for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -20525,7 +18340,7 @@ describe('settled Istanbul beforeEach callback completion', () => {
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           actualSettledBeforeEachFailure: true,
-          completeAuthoredMessages: true,
+          authoredErrorHeadings: true,
           authoredFileAndLine: true,
           rawFrameEqualityQualified: false,
         })
@@ -20646,45 +18461,7 @@ describe('settled Istanbul collection load completion', () => {
     ).toThrow()
     expect(late.complete).toBe(false)
   })
-  it.each([
-    'import-sync',
-    'import-async',
-    'import-undefined',
-    'import-sync-report-false',
-    'import-async-report-false',
-    'import-mixed-disposal',
-    'import-mixed-settle',
-  ])(
-    'retains actual loader, stage, no-case and physical join facts for %s',
-    async (name) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-istanbul-collection-private-')
-      )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-collection-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({ noInventedCaseEvents: true })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
+
   it.each([
     'import-sync',
     'import-async',
@@ -20692,7 +18469,7 @@ describe('settled Istanbul collection load completion', () => {
     'import-sync-report-false',
     'import-async-report-false',
   ])(
-    'matches genuine no-case result, file message and complete report policy for %s',
+    'checks no-case results, file messages and report policy for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -20719,58 +18496,7 @@ describe('settled Istanbul collection load completion', () => {
         ).toMatchObject({
           actualSettledCollectionFailure: true,
           noCaseStartsInvented: true,
-          completeMapsSummaryLCOV: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-  it.each([
-    'missing-getter',
-    'foreign-getter',
-    'missing-slot',
-    'duplicate-event',
-    'mismatched-slot',
-    'duplicate-slot',
-    'missing-own-error',
-    'array-carrier',
-    'function-carrier',
-    'inherited-error',
-    'accessor-error',
-    'post-file-cleanup',
-  ])(
-    'preserves the original collection diagnostic and rejects %s',
-    async (fault) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-istanbul-collection-fault-')
-      )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-collection-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            fault.endsWith('-error') || fault.endsWith('-carrier')
-              ? 'import-undefined'
-              : 'import-sync',
-            '--fault=' + fault,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          fault,
-          originalCollectionFailureRetained: true,
-          strictIncompleteCapture: true,
+          coverageCountersAndReportFiles: true,
         })
       } finally {
         await rm(output, { recursive: true, force: true })
@@ -20780,40 +18506,7 @@ describe('settled Istanbul collection load completion', () => {
   )
 })
 
-it('keeps actual unfinished Istanbul collection behind its process deadline and snapshot veto', async () => {
-  const { execFileSync } = await import('node:child_process')
-  const output = await mkdtemp(
-    join(tmpdir(), 'next-istanbul-collection-deadline-')
-  )
-  try {
-    execFileSync(
-      process.execPath,
-      [
-        join(__dirname, 'istanbul-collection-private.mjs'),
-        join(__dirname, '../../..'),
-        output,
-        'import-pending-control',
-      ],
-      {
-        env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-        stdio: 'pipe',
-        timeout: 125000,
-      }
-    )
-    expect(
-      JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-    ).toMatchObject({
-      actualPendingLoadGate: true,
-      actualProcessDeadline: true,
-      strictIncompleteCapture: true,
-      priorSnapshotsUnchanged: true,
-    })
-  } finally {
-    await rm(output, { recursive: true, force: true })
-  }
-}, 130000)
-
-it('retains unchanged pure Node V8 modules in actual emitted, loaded and complete genuine reports', async () => {
+it('reports original-source V8 coverage after a failed asynchronous assertion', async () => {
   const { execFile } = await import('node:child_process')
   const { promisify } = await import('node:util')
   const output = await mkdtemp(join(tmpdir(), 'next-pure-node-v8-'))
@@ -20829,11 +18522,11 @@ it('retains unchanged pure Node V8 modules in actual emitted, loaded and complet
       { timeout: 250000, maxBuffer: 8 * 1024 * 1024 }
     )
     expect(JSON.parse(stdout)).toEqual({
-      actualCompilerDeclaration: true,
-      actualLoadedScript: true,
-      completePrivateCounterMap: true,
-      publicCompleteReports: 3,
-      sourceUnchanged: true,
+      failedAsyncAssertionReported: true,
+      followingCasePassed: true,
+      exactOriginalSourceCoverage: true,
+      sourceFrameLine: 4,
+      reports: 3,
       ownersJoined: true,
     })
   } finally {
@@ -20852,55 +18545,9 @@ describe('settled Istanbul spec-module collection completion', () => {
     'js-partial-sync',
     'js-partial-sync-report-false',
   ]
+
   it.each(profiles)(
-    'joins the actual spec loader and exact collection carrier for %s',
-    async (name) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-istanbul-spec-private-')
-      )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-spec-collection-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(
-            await readFile(join(output, 'ACTUAL-COLLECTION-FACTS.json'), 'utf8')
-          )
-        ).toMatchObject({
-          specCalls: 1,
-          fileRunCalled: false,
-          operationObservationAbsent: true,
-          nativeBodyObservationAbsent: true,
-          actualSoleLoadCarrier: true,
-          actualErrorOwnFieldsUnchanged: true,
-        })
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          actualSoleLoadCarrier: true,
-          noInventedCaseEvents: true,
-          actualMapIndependentOfReportFilePolicy: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-  it.each(profiles)(
-    'matches complete genuine no-case spec reports and failure policy for %s',
+    'checks no-case spec outcomes, counters and failure policy for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-istanbul-spec-public-'))
@@ -20925,7 +18572,7 @@ describe('settled Istanbul spec-module collection completion', () => {
         ).toMatchObject({
           actualSettledCollectionFailure: true,
           noCaseStartsInvented: true,
-          completeMapsSummaryLCOV: true,
+          coverageCountersAndReportFiles: true,
           exactExistingSnapshots: true,
           configUnchanged: true,
         })
@@ -20935,81 +18582,10 @@ describe('settled Istanbul spec-module collection completion', () => {
     },
     130000
   )
-  it.each([
-    'missing-getter',
-    'duplicate-slot',
-    'mismatched-slot',
-    'post-file-cleanup',
-  ])(
-    'keeps the actual spec failure and strict physical veto for %s',
-    async (fault) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-spec-fault-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-spec-collection-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            'mjs-partial-async',
-            '--fault=' + fault,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          fault,
-          originalCollectionFailureRetained: true,
-          strictIncompleteCapture: true,
-          noInventedCaseEvents: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-  it('withholds unfinished spec loading at its real process deadline and preserves prior snapshots', async () => {
-    const { execFileSync } = await import('node:child_process')
-    const output = await mkdtemp(join(tmpdir(), 'next-istanbul-spec-deadline-'))
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'istanbul-spec-collection-private.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          'pending-spec-control',
-        ],
-        {
-          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-          stdio: 'pipe',
-          timeout: 125000,
-        }
-      )
-      expect(
-        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-      ).toMatchObject({
-        actualPendingLoadGate: true,
-        actualProcessDeadline: true,
-        strictIncompleteCapture: true,
-        priorSnapshotsUnchanged: true,
-        genuineCompatibilityQualified: false,
-      })
-    } finally {
-      await rm(output, { recursive: true, force: true })
-    }
-  }, 130000)
 })
 
 describe('Istanbul spec-load cancellation and recovery', () => {
-  it('preserves prior reports and snapshots while the actual spec loader is pending, then matches complete genuine recovery', async () => {
+  it('preserves reports and snapshots during cancellation, then checks recovery outcomes and counters', async () => {
     const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(join(tmpdir(), 'next-istanbul-spec-cancel-'))
     try {
@@ -21038,7 +18614,7 @@ describe('Istanbul spec-load cancellation and recovery', () => {
         priorReportUnchanged: true,
         priorSnapshotUnchanged: true,
         recoveryExit: 0,
-        completeRecoveryMaps: true,
+        recoveryCoverageCountersAndReports: true,
         exactExistingSnapshot: true,
         allOwnersClosed: true,
       })
@@ -21056,7 +18632,7 @@ describe('actual Node V8 setup and serializer source roles', () => {
     'setup-explicit',
     'setup-imported',
   ])(
-    'matches genuine V8 complete reports and snapshots for %s',
+    'checks V8 coverage counters, reports and snapshots for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-v8-harness-public-'))
@@ -21080,8 +18656,8 @@ describe('actual Node V8 setup and serializer source roles', () => {
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           actualPublicCLI: true,
-          actualJSONCoverageMap: true,
-          completeMapsSummaryLCOV: true,
+          actualJSONCoverageCounters: true,
+          coverageCountersAndReportFiles: true,
           exactExistingSnapshots: true,
         })
       } finally {
@@ -21090,42 +18666,6 @@ describe('actual Node V8 setup and serializer source roles', () => {
     },
     130000
   )
-  it('joins the actual V8 worker and rejects changed Native roles, sources, requests and maps', async () => {
-    const { execFileSync } = await import('node:child_process')
-    const output = await mkdtemp(join(tmpdir(), 'next-v8-harness-actual-'))
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'v8-harness-private.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          'combined',
-          '--mutations',
-        ],
-        {
-          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-          stdio: 'pipe',
-          timeout: 125000,
-        }
-      )
-      expect(
-        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-      ).toMatchObject({
-        actualV8Capture: true,
-        actualNativeHarness: true,
-        completeReportsExact: true,
-        snapshotBytesExact: true,
-        mutationChecks: expect.any(Array),
-      })
-      expect(
-        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-          .mutationChecks
-      ).toHaveLength(9)
-    } finally {
-      await rm(output, { recursive: true, force: true })
-    }
-  }, 130000)
 })
 
 describe('actual V8 default-object initializer association', () => {
@@ -21161,7 +18701,7 @@ describe('actual V8 default-object initializer association', () => {
       await rm(output, { recursive: true, force: true })
     }
   }, 35000)
-  it('matches genuine V8 complete reports for the unchanged imported serializer with its lowered default object', async () => {
+  it('checks V8 counters with the imported serializer and its lowered default object', async () => {
     const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(
       join(tmpdir(), 'next-v8-default-object-public-')
@@ -21185,8 +18725,8 @@ describe('actual V8 default-object initializer association', () => {
       expect(
         JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
       ).toMatchObject({
-        actualJSONCoverageMap: true,
-        completeMapsSummaryLCOV: true,
+        actualJSONCoverageCounters: true,
+        coverageCountersAndReportFiles: true,
         exactExistingSnapshots: true,
       })
     } finally {
@@ -21393,159 +18933,9 @@ describe('settled V8 collection-only completion', () => {
         ).toMatchObject({
           actualSettledCollectionFailure: true,
           noCaseStartsInvented: true,
-          completeMapsSummaryLCOV: true,
+          coverageCountersAndReportFiles: true,
           exactExistingSnapshots: true,
           configUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-  it.each(profiles)(
-    'joins actual V8 loader and original Error identity without body/attempt facts for %s',
-    async (name) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-v8-load-private-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-collection-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(
-            await readFile(join(output, 'ACTUAL-COLLECTION-FACTS.json'), 'utf8')
-          )
-        ).toMatchObject({
-          fileRunCalled: false,
-          operationObservationAbsent: true,
-          nativeBodyObservationAbsent: true,
-          actualSoleLoadCarrier: true,
-          actualErrorOwnFieldsUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-  it.each(['setup-import-mixed-disposal'])(
-    'keeps independent same-Error stages unmarked and records the remaining publication gap for %s',
-    async (name) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-v8-load-mixed-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-collection-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(
-            await readFile(join(output, 'ACTUAL-COLLECTION-FACTS.json'), 'utf8')
-          )
-        ).toMatchObject({
-          sameErrorIndependentStagesProven: true,
-          actualSoleLoadCarrier: false,
-          actualErrorOwnFieldsUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-  it.each([
-    ['setup-import-sync', 'missing-getter'],
-    ['setup-import-sync', 'foreign-getter'],
-    ['spec-mjs-partial-async', 'duplicate-slot'],
-    ['spec-js-partial-sync', 'mismatched-slot'],
-    ['setup-import-undefined', 'missing-own-error'],
-    ['setup-import-undefined', 'accessor-error'],
-    ['spec-mjs-no-case-sync', 'duplicate-event'],
-    ['spec-mjs-no-case-sync', 'post-file-cleanup'],
-  ])(
-    'withholds incomplete %s capture for the actual %s fault',
-    async (name, fault) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-v8-load-fault-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-collection-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--fault=' + fault,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          fault,
-          strictIncompleteCapture: true,
-          originalCollectionFailureRetained: true,
-          noInventedCaseEvents: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-  it.each(['setup-import-pending-control', 'spec-pending-spec-control'])(
-    'keeps actual pending loader deadline and snapshot bytes for %s',
-    async (name) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-v8-load-deadline-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-collection-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          actualPendingLoadGate: true,
-          actualProcessDeadline: true,
-          strictIncompleteCapture: true,
-          priorSnapshotsUnchanged: true,
         })
       } finally {
         await rm(output, { recursive: true, force: true })
@@ -21567,7 +18957,7 @@ describe('actual failed-collection snapshot statistics', () => {
     'body-failure-disabled',
     'afterAll-failure-disabled',
   ])(
-    'matches complete genuine statistics for %s',
+    'preserves snapshot accounting and failed case selection for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -21592,9 +18982,9 @@ describe('actual failed-collection snapshot statistics', () => {
         expect(
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
-          completeSnapshotStatisticsExact: true,
-          actualCaseAndFileStatusesExact: true,
-          actualCoverageMapExact: true,
+          snapshotCountsAndUncheckedKeysExact: true,
+          selectedCaseAndFileStatesExact: true,
+          coverageMapsAndCountersExact: true,
           originalSourceConfigSnapshotBytesExact: true,
           allOwnersJoined: true,
         })
@@ -21649,7 +19039,7 @@ describe('actual failed-collection snapshot statistics', () => {
 
 describe('owned development Node V8 SIGINT exit', () => {
   it.each(['mjs', 'js'])(
-    'matches genuine pending %s cancellation and complete recovery',
+    'preserves pending %s cancellation and recovery outcomes',
     async (extension) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-v8-signal-public-'))
@@ -21731,7 +19121,7 @@ describe('settled beforeEach Array carrier coverage', () => {
     'beforeeach-array-async-no-snapshots-report-false',
   ]
   it.each(profiles)(
-    'matches genuine full reports and failure policy for %s',
+    'checks coverage counters and failure report policy for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -21751,48 +19141,14 @@ describe('settled beforeEach Array carrier coverage', () => {
         )
         expect(
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({ completeMapsSummaryLCOV: true })
+        ).toMatchObject({ coverageCountersAndReportFiles: true })
       } finally {
         await rm(output, { recursive: true, force: true })
       }
     },
     130000
   )
-  it.each(profiles)(
-    'joins actual compiled no-body and operation facts for %s',
-    async (name) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-beforeeach-array-private-')
-      )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-beforeeach-array-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          { env: process.env, stdio: 'pipe', timeout: 125000 }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          privateCompilerWorker: true,
-          actualBeforeEachAttemptCarriers: true,
-        })
-        expect(
-          JSON.parse(
-            await readFile(join(output, 'ACTUAL-RUNNER-FACTS.json'), 'utf8')
-          ).bodyInvocations
-        ).toEqual([])
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
+
   it.each([
     'sync',
     'async',
@@ -21893,7 +19249,7 @@ describe('actual settled V8 declaration collection occurrences', () => {
     'setup-import-mixed-settle',
     'setup-import-mixed-settle-report-false',
   ])(
-    'publishes genuine complete maps/report policy for %s',
+    'publishes settled coverage counters with the report policy for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -21919,9 +19275,9 @@ describe('actual settled V8 declaration collection occurrences', () => {
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           actualSettledDeclarationFailure: true,
-          actualJSONCoverageMap: true,
+          actualJSONCoverageCounters: true,
           noCaseStartsInvented: true,
-          completeMapsSummaryLCOV: true,
+          coverageCountersAndReportFiles: true,
           exactExistingSnapshots: true,
           allOwnersJoined: true,
         })
@@ -21931,124 +19287,6 @@ describe('actual settled V8 declaration collection occurrences', () => {
     },
     130000
   )
-  it.each([
-    'setup-import-mixed-settle',
-    'setup-import-mixed-settle-report-false',
-  ])(
-    'joins actual compiler/worker and exact original load/declaration carriers for %s',
-    async (name) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-v8-declaration-private-')
-      )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-declaration-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(
-            await readFile(join(output, 'ACTUAL-COLLECTION-FACTS.json'), 'utf8')
-          )
-        ).toMatchObject({
-          setupCalls: 1,
-          specCalls: 0,
-          fileRunCalled: false,
-          operationObservationAbsent: true,
-          nativeBodyObservationAbsent: true,
-          actualJoinedLoadAndDeclarationCarrier: true,
-          actualErrorOwnFieldsUnchanged: true,
-          sameErrorIndependentStagesProven: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-  it.each([
-    'missing-getter',
-    'foreign-getter',
-    'duplicate-slot',
-    'mismatched-slot',
-    'duplicate-event',
-    'post-file-cleanup',
-  ])(
-    'keeps the actual mixed-stage %s fault incomplete',
-    async (fault) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-v8-declaration-fault-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-declaration-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            'setup-import-mixed-settle',
-            '--fault=' + fault,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          fault,
-          strictIncompleteCapture: true,
-          originalCollectionFailureRetained: true,
-          noInventedCaseEvents: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-  it('withholds publication while the actual declaration factory remains pending', async () => {
-    const { execFileSync } = await import('node:child_process')
-    const output = await mkdtemp(join(tmpdir(), 'next-v8-declaration-pending-'))
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'v8-declaration-private.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          'setup-import-pending-declaration-control',
-        ],
-        {
-          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-          stdio: 'pipe',
-          timeout: 125000,
-        }
-      )
-      expect(
-        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-      ).toMatchObject({
-        actualPendingLoadGate: true,
-        actualProcessDeadline: true,
-        strictIncompleteCapture: true,
-        priorSnapshotsUnchanged: true,
-        genuineCompatibilityQualified: false,
-      })
-    } finally {
-      await rm(output, { recursive: true, force: true })
-    }
-  }, 130000)
 })
 
 describe('actual private mock restoration primitive', () => {
@@ -22220,7 +19458,7 @@ describe('actual one-shot V8 load and restoration publication', () => {
     'setup-import-mixed-disposal',
     'setup-import-mixed-disposal-report-false',
   ])(
-    'matches the unchanged genuine complete maps and no-case projection: %s',
+    'checks settled counters and no-case outcomes: %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -22248,70 +19486,12 @@ describe('actual one-shot V8 load and restoration publication', () => {
           actualPublicCLI: true,
           actualSettledCollectionFailure: true,
           actualSettledRestorationFailure: true,
-          actualJSONCoverageMap: true,
+          actualJSONCoverageCounters: true,
           noCaseStartsInvented: true,
-          completeMapsSummaryLCOV: true,
+          coverageCountersAndReportFiles: true,
           exactExistingSnapshots: true,
           allOwnersJoined: true,
         })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-})
-
-describe('actual compiled V8 restoration continuation', () => {
-  it.each([
-    'plain',
-    'unrequested',
-    'missing-getter',
-    'mismatched-pair',
-    'duplicate-slot',
-    'mismatched-slot',
-    'post-file-cleanup',
-    'pending-load',
-    'parent-abort',
-  ])(
-    'retains exact stage and physical ownership: %s',
-    async (mode) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-v8-restoration-private-')
-      )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-restoration-private.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            ...(mode === 'plain' ? [] : ['--fault=' + mode]),
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject(
-          mode === 'plain'
-            ? {
-                actualCompiledRestorationPair: true,
-                originalDisposeThrows: true,
-                originalTwoDiagnosticSlots: true,
-                allOwnersJoined: true,
-              }
-            : {
-                fault: mode,
-                actualOriginalFailuresRetained: mode !== 'pending-load',
-                strictIncompleteCapture: true,
-                allOwnersJoined: true,
-              }
-        )
       } finally {
         await rm(output, { recursive: true, force: true })
       }
@@ -22408,7 +19588,7 @@ describe('actual readonly snapshot completion after settled beforeEach', () => {
     }
   }, 40000)
 
-  it('matches the unchanged genuine obsolete-snapshot message and complete Istanbul reports', async () => {
+  it('checks the obsolete-snapshot message and Istanbul coverage counters', async () => {
     const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(
       join(tmpdir(), 'next-readonly-snapshot-public-')
@@ -22433,7 +19613,7 @@ describe('actual readonly snapshot completion after settled beforeEach', () => {
         JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
       ).toMatchObject({
         actualSettledBeforeEachFailure: true,
-        completeAuthoredMessages: true,
+        authoredErrorHeadings: true,
         authoredFileAndLine: true,
         rawFrameEqualityQualified: false,
       })
@@ -22570,11 +19750,9 @@ describe('actual readonly snapshot completion after settled afterAll', () => {
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           actualSettledAfterAll: true,
-          actualOrderedModuleErrors: true,
-          completeCaseReportAndMap: true,
-          completeCoverageFiles: true,
+          caseOutcomesAndSnapshotSummary: true,
+          selectedCoverageHitCounts: true,
           snapshotBytesUnchanged: true,
-          rawFrameEqualityQualified: false,
         })
       } finally {
         await rm(output, { recursive: true, force: true })
@@ -22648,7 +19826,7 @@ describe('actual readonly snapshot completion for passed files', () => {
     'istanbul-passing-skip-first-removed-formatted-report-true',
     'istanbul-passing-no-obsolete-report-true',
   ])(
-    'matches genuine standard reports and actual root errors for %s',
+    'checks snapshot accounting, root errors and coverage hit counts for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -22674,12 +19852,10 @@ describe('actual readonly snapshot completion for passed files', () => {
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           actualOrdinaryPassedCase: true,
-          actualOrderedModuleErrors: true,
           actualOrderedRootErrors: true,
-          completeCaseReportAndMap: true,
-          completeCoverageFiles: true,
+          caseOutcomesAndSnapshotSummary: true,
+          selectedCoverageHitCounts: true,
           snapshotBytesUnchanged: true,
-          rawFrameEqualityQualified: false,
         })
       } finally {
         await rm(output, { recursive: true, force: true })
@@ -22756,7 +19932,7 @@ describe('actual one-shot V8 readonly snapshot completion for passed files', () 
     'v8-passing-skip-first-removed-formatted-report-true',
     'v8-passing-no-obsolete-report-true',
   ])(
-    'matches genuine standard reports and actual root errors for %s',
+    'checks snapshot accounting, root errors and coverage hit counts for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -22782,12 +19958,10 @@ describe('actual one-shot V8 readonly snapshot completion for passed files', () 
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           actualOrdinaryPassedCase: true,
-          actualOrderedModuleErrors: true,
           actualOrderedRootErrors: true,
-          completeCaseReportAndMap: true,
-          completeCoverageFiles: true,
+          caseOutcomesAndSnapshotSummary: true,
+          selectedCoverageHitCounts: true,
           snapshotBytesUnchanged: true,
-          rawFrameEqualityQualified: false,
         })
       } finally {
         await rm(output, { recursive: true, force: true })
@@ -23071,12 +20245,10 @@ describe('actual readonly snapshot completion for literal public empty files', (
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           actualZeroCases: true,
-          actualOrderedModuleErrors: true,
           actualOrderedRootErrors: true,
-          completeCaseReportAndMap: true,
-          completeCoverageFiles: true,
+          caseOutcomesAndSnapshotSummary: true,
+          selectedCoverageHitCounts: true,
           snapshotBytesUnchanged: true,
-          rawFrameEqualityQualified: false,
         })
       } finally {
         await rm(output, { recursive: true, force: true })
@@ -23156,7 +20328,7 @@ describe('actual serial beforeAll Array coverage carriers', () => {
     'istanbul-beforeall-primitive-async-report-true',
     'istanbul-beforeall-primitive-sync-report-true',
   ])(
-    'matches actual failed suite/descendant states and complete reports for %s',
+    'checks beforeAll errors, skipped cases and exact coverage maps for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -23186,12 +20358,11 @@ describe('actual serial beforeAll Array coverage carriers', () => {
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
           actualBeforeAllArray: true,
-          actualOrderedModuleErrors: true,
           actualOrderedRootErrors: true,
-          completeCaseReportAndMap: true,
-          completeCoverageFiles: true,
+          caseOutcomesAndSnapshotSummary: true,
+          exactCoverageMaps: true,
           snapshotBytesUnchanged: true,
-          rawFrameEqualityQualified: false,
+          lifecycleOrder: true,
         })
       } finally {
         await rm(output, { recursive: true, force: true })
@@ -23396,7 +20567,7 @@ describe('actual name-filter untouched excluded descendants', () => {
       ].map((mode) => `${provider}-${mode}`)
     )
   )(
-    'preserves the whole genuine nested reporter tree and maps for %s',
+    'checks excluded descendant states and coverage hit counts for %s',
     async (profile) => {
       const { execFile } = require('node:child_process')
       const { promisify } = require('node:util')
@@ -23433,7 +20604,7 @@ describe('actual compact conditional operand mapping', () => {
     'v8-choose-false',
     'v8-choose-both',
   ])(
-    'matches the unchanged compact source full report and counters for %s',
+    'executes selected compact-source cases with exact counters for %s',
     async (profile) => {
       const { execFile } = require('node:child_process')
       const { promisify } = require('node:util')
@@ -23486,7 +20657,7 @@ describe('actual readonly focused task selection', () => {
       ({ name }: { name: string }) => name
     )
   )(
-    'matches complete genuine focused trees snapshots and reports for %s',
+    'checks focused selection, snapshot accounting and coverage hit counts for %s',
     async (profile) => {
       const { execFile } = require('node:child_process')
       const { promisify } = require('node:util')
@@ -23615,7 +20786,7 @@ describe('actual excluded only declaration options', () => {
     }
   }, 50000)
   it.each(['focused-simple-active', 'focused-inactive-excluded-only'])(
-    'preserves measured inactive early declarations without claiming final pending production for %s',
+    'preserves inactive focused declarations, outcomes and snapshot counts for %s',
     async (profile) => {
       const { execFile } = require('node:child_process')
       const { promisify } = require('node:util')
@@ -23647,7 +20818,7 @@ describe('actual inactive focused task selection', () => {
       ({ name }: { name: string }) => name
     )
   )(
-    'matches complete genuine inactive focused trees and reports for %s',
+    'checks inactive focus modes, task states and case outcomes for %s',
     async (profile) => {
       const { execFile } = require('node:child_process')
       const { promisify } = require('node:util')
@@ -23682,7 +20853,7 @@ describe('actual Istanbul typed test entries with JavaScript source coverage', (
       ({ name }: { name: string }) => name
     )
   )(
-    'matches the complete genuine reports and completion trees for %s',
+    'runs typed entries with the selected JavaScript coverage hits for %s',
     async (profile) => {
       const { execFile } = require('node:child_process')
       const { promisify } = require('node:util')
@@ -23842,7 +21013,7 @@ describe('Istanbul typed subject compiler lowering', () => {
     )
   )
   it.each(profiles)(
-    'matches complete genuine reports and exact compiler maps for %s',
+    'collects the selected typed subject and branch hits for %s',
     async (profile) => {
       const { execFile } = require('node:child_process')
       const { promisify } = require('node:util')
@@ -23923,7 +21094,7 @@ describe('Istanbul actual JSX and TSX source lowering', () => {
       ({ name }: { name: string }) => name
     )
   )(
-    'matches complete genuine cases, module lifetimes and reports for %s',
+    'collects the selected JSX subject and branch hits for %s',
     async (profile) => {
       const { execFile } = require('node:child_process')
       const { promisify } = require('node:util')
@@ -24139,10 +21310,10 @@ describe('production ordinary JS/MJS Istanbul admission', () => {
   )
 })
 
-describe('production ordinary JS/MJS Istanbul complete public reports', () => {
+describe('production ordinary JS/MJS Istanbul source coverage', () => {
   const models = require('./fixtures/istanbul-provider/production-js-pristine.json')
   it.each(models.rows.map((row: { name: string }) => row.name))(
-    'matches complete genuine cases, maps, reports and lifecycle for %s',
+    'runs production cases and collects only selected source hits for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -24182,7 +21353,7 @@ describe('production ordinary Istanbul no-evaluation and cancellation', () => {
     ],
     ['actual SIGINT and recovery', 'production-istanbul-cancel-recovery.mjs'],
   ])(
-    'preserves complete reports and ownership for %s',
+    'preserves coverage publication and process cleanup for %s',
     async (_name, helper, ...args) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -25428,10 +22599,10 @@ describe('native-qualified Browser Promise executor arrow coverage', () => {
   })
 })
 
-describe('production intrinsic JSX/TSX Istanbul complete public reports', () => {
+describe('production intrinsic JSX/TSX Istanbul source coverage', () => {
   const models = require('./fixtures/istanbul-provider/production-jsx-pristine.json')
   it.each(models.rows.map((row: { name: string }) => row.name))(
-    'matches complete genuine cases, maps, reports and lifecycle for %s',
+    'runs production cases and collects only selected source hits for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -25486,10 +22657,10 @@ describe('production intrinsic JSX/TSX Istanbul complete public reports', () => 
   }, 250000)
 })
 
-describe('production ordinary TypeScript/MTS Istanbul complete public reports', () => {
+describe('production ordinary TypeScript/MTS Istanbul source coverage', () => {
   const models = require('./fixtures/istanbul-provider/production-typescript-pristine.json')
   it.each(models.rows.map((row: { name: string }) => row.name))(
-    'matches complete genuine cases, maps, reports and lifecycle for %s',
+    'runs production cases and collects only selected source hits for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -25614,9 +22785,9 @@ describe('configured coverage text skipEmpty and maxCols', () => {
         })
       ).toThrow('Unsupported V8 coverage reporter option')
   })
-  const models = require('./fixtures/coverage-text-options-pristine.json')
+  const models = require('./fixtures/coverage-text-options.expected.json')
   it.each(models.rows.map((row: { name: string }) => row.name))(
-    'matches complete genuine coverage text, cases, maps and reports for %s',
+    'renders exact coverage text and counter totals for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -25766,9 +22937,9 @@ describe('root coverage formatter inherited by multiple inline projects', () => 
     }
     expect(retainCoverageThresholdFormatter(config).value).toBe(config)
   })
-  const models = require('./fixtures/threshold-formatter-multiproject-pristine.json')
+  const models = require('./fixtures/threshold-formatter-multiproject-cases.json')
   it.each(models.rows.map((row: { name: string }) => row.name))(
-    'matches complete genuine cases, maps, reports, callback trace and final config for %s',
+    'merges project coverage counts with exact root formatter callbacks and final config for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
@@ -26201,9 +23372,9 @@ describe('formatter same-stack configuration publication', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
-  const models = require('./fixtures/threshold-user-edits-pristine.json')
+  const models = require('./fixtures/threshold-user-edits/expected.json')
   it.each(models.rows.map((row: { variant: string }) => row.variant))(
-    'matches complete genuine reports, actual edit snapshots and final config for %s',
+    'preserves coverage, formatter order and concurrent config edits for %s',
     async (variant) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-formatter-user-edits-'))
@@ -26300,7 +23471,7 @@ describe('configured coverage watermarks', () => {
     const { writeReports } = await import(
       'next/dist/compiled/next-test-coverage'
     )
-    const models = require('./fixtures/coverage-watermarks-pristine.json')
+    const models = require('./fixtures/coverage-watermarks.expected.json')
     const row = models.rows.find(
       (row: { name: string }) => row.name === 'v8-development-partial'
     )
@@ -26326,7 +23497,7 @@ describe('configured coverage watermarks', () => {
     process.env.FORCE_COLOR = '1'
     try {
       const text = await writeReports(
-        relocate(row.coverageFiles['coverage-final.json']),
+        relocate(require('./fixtures/coverage-text/map.expected.json')),
         root,
         ['text', 'text-summary'],
         { text: { maxCols: 90, skipFull: true } },
@@ -26340,9 +23511,9 @@ describe('configured coverage watermarks', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
-  const models = require('./fixtures/coverage-watermarks-pristine.json')
+  const models = require('./fixtures/coverage-watermarks.expected.json')
   it.each(models.rows.map((row: { name: string }) => row.name))(
-    'matches genuine complete maps, reports and exact ANSI output for %s',
+    'renders exact ANSI coverage watermarks and counter totals for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-coverage-watermarks-'))
@@ -26379,9 +23550,9 @@ describe('configured coverage watermarks', () => {
 })
 
 describe('actual custom provider generated JSON results', () => {
-  const models = require('./fixtures/custom-generated-pristine.json')
-  it.each(models.rows.map((row: { name: string }) => row.name))(
-    'preserves whole genuine JSON, provider identity and callback traces for %s',
+  const { generatedScenarios } = require('./custom-provider-scenarios.cjs')
+  it.each(generatedScenarios)(
+    'preserves generated values, provider identity and callback ordering for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-custom-generated-'))
@@ -26418,9 +23589,9 @@ describe('actual custom provider generated JSON results', () => {
 })
 
 describe('actual failed custom coverage hook publication', () => {
-  const models = require('./fixtures/custom-failure-hooks-pristine.json')
-  it.each(models.rows.map((row: { name: string }) => row.name))(
-    'retains genuine custom maps, hook order and report identity for %s',
+  const { failureScenarios } = require('./custom-provider-scenarios.cjs')
+  it.each(failureScenarios)(
+    'retains custom maps, hook order and report identity for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-failed-custom-hooks-'))
@@ -26457,9 +23628,9 @@ describe('actual failed custom coverage hook publication', () => {
 })
 
 describe('actual production custom coverage', () => {
-  const models = require('./fixtures/custom-production-pristine.json')
-  it.each(models.rows.map((row: { name: string }) => row.name))(
-    'retains genuine cases, custom maps, lifecycle and report identity for %s',
+  const { productionScenarios } = require('./custom-provider-scenarios.cjs')
+  it.each(productionScenarios)(
+    'retains production outcomes, custom maps and provider lifecycle for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-production-custom-'))

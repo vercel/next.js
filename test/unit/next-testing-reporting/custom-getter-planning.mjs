@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,41 +7,55 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from '../../e2e/app-dir/next-testing-package/process-supervisor.mjs'
-const [consumerArg, outputArg, name] = process.argv.slice(2),
-  consumer = resolve(consumerArg),
-  output = resolve(outputArg),
-  load = createRequire(join(consumer, 'package.json'))
+
+const [consumerArg, outputArg, name] = process.argv.slice(2)
 assert(consumerArg && outputArg && name)
+const consumer = resolve(consumerArg)
+const output = resolve(outputArg)
+const load = createRequire(join(consumer, 'package.json'))
+const fixtures = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 if (!process.argv.includes('--source'))
   for (const module of ['vitest', 'vite', '@vitest/mocker'])
     assert.throws(() => load.resolve(module))
-const row = JSON.parse(
-  fs.readFileSync(
-    join(
-      dirname(fileURLToPath(import.meta.url)),
-      'fixtures/custom-getter-planning-pristine.json'
-    )
-  )
-).rows.find((row) => row.name === name)
-assert(row, 'Missing getter planning model')
+const names = [
+  'function',
+  'undefined',
+  'null',
+  'inherited-function',
+  'shadow-undefined',
+  'proxy-instance',
+  'proxy-prototype',
+  'throw-before',
+]
+assert(names.includes(name), 'Unknown getter planning scenario')
+const reporterFiles = new Map([['observer.mjs', name + '.mjs']])
 fs.mkdirSync(output, { recursive: true })
-const fixture = fs.mkdtempSync(join(consumer, '.next-custom-getter118-')),
-  sha = (value) => createHash('sha256').update(value).digest('hex')
+const fixture = fs.mkdtempSync(join(consumer, '.next-custom-getter118-'))
 let joined = false
 try {
-  for (const [file, value] of Object.entries(row.sourceFiles)) {
-    assert.equal(sha(value.source), value.sha256)
-    fs.writeFileSync(join(fixture, file), value.source)
-  }
+  const sourceFiles = new Map()
+  for (const file of [
+    'coverage-provider.mjs',
+    'contract.case.mjs',
+    'vitest.config.mjs',
+  ])
+    sourceFiles.set(
+      file,
+      fs.readFileSync(join(fixtures, 'custom-reporter-completion', file))
+    )
+  for (const [file, source] of reporterFiles)
+    sourceFiles.set(
+      file,
+      fs.readFileSync(join(fixtures, 'custom-getter-planning', source))
+    )
+  for (const [file, bytes] of sourceFiles)
+    fs.writeFileSync(join(fixture, file), bytes)
   fs.writeFileSync(join(fixture, 'package.json'), '{}\n')
-  fs.writeFileSync(join(fixture, 'vitest.config.mjs'), row.config)
   fs.writeFileSync(
     join(fixture, 'next.config.mjs'),
     'export default ' + JSON.stringify({ turbopack: { root: consumer } }) + '\n'
   )
   fs.mkdirSync(join(fixture, '__snapshots__'))
-  if (row.priorJSONBytes !== null)
-    fs.writeFileSync(join(fixture, 'cases.json'), row.priorJSONBytes)
   const env = {
     ...process.env,
     CI: '1',
@@ -64,7 +77,7 @@ try {
       'test',
       fixture,
       '--run',
-      ...row.reporters.map(
+      ...[...reporterFiles.keys(), 'json'].map(
         (value) =>
           '--reporter=' +
           (value.endsWith('.mjs') ? join(fixture, value) : value)
@@ -79,7 +92,7 @@ try {
   )
   fs.writeFileSync(join(output, 'stdout.log'), owner.stdout)
   fs.writeFileSync(join(output, 'stderr.log'), owner.stderr)
-  assertOwnedNodeCompleted(owner, 'actual getter planning118 ' + name)
+  assertOwnedNodeCompleted(owner, 'custom reporter ' + name)
   joined = true
   for (const file of [
     'provider-trace.jsonl',
@@ -88,72 +101,136 @@ try {
   ])
     if (fs.existsSync(join(fixture, file)))
       fs.copyFileSync(join(fixture, file), join(output, file))
-  const hasJSON = fs.existsSync(join(output, 'cases.json')),
-    bytes = hasJSON
-      ? fs.readFileSync(join(output, 'cases.json'), 'utf8')
-      : null,
-    publication =
-      row.priorJSONBytes !== null && bytes === row.priorJSONBytes
-        ? 'preserved'
-        : hasJSON
-          ? 'written'
-          : 'none'
-  const actual = {
-    name,
-    exit: owner.status,
-    trace: fs.existsSync(join(output, 'provider-trace.jsonl'))
-      ? fs
-          .readFileSync(join(output, 'provider-trace.jsonl'), 'utf8')
-          .trim()
-          .split('\n')
-          .map((value) => JSON.parse(value))
-      : [],
-    hasJSON,
-    hasProviderReport: fs.existsSync(join(output, 'custom-coverage.json')),
-    publication,
-  }
-  if (publication === 'written') {
-    const report = JSON.parse(bytes)
-    assert.equal(report.next.version, 1)
-    actual.caseCounts = {
-      passed: report.numPassedTests,
-      failed: report.numFailedTests,
+  const trace = fs.existsSync(join(fixture, 'provider-trace.jsonl'))
+    ? fs
+        .readFileSync(join(fixture, 'provider-trace.jsonl'), 'utf8')
+        .trim()
+        .split('\n')
+        .map(JSON.parse)
+    : []
+  assert.equal(owner.status, 1)
+  const providerPhases = [
+    'get-provider',
+    'initialize',
+    'resolve',
+    'clean',
+    'run-start',
+    'start',
+    'take',
+    'suite',
+    'stop',
+    'generate',
+  ]
+  assert.deepEqual(
+    trace.slice(0, providerPhases.length).map((event) => event.name),
+    providerPhases
+  )
+  assert.deepEqual(trace[7], {
+    name: 'suite',
+    coverage: { releasePayload: 42 },
+    testFiles: ['contract.case.mjs'],
+  })
+  assert.deepEqual(trace[9], { name: 'generate', jsonExists: false })
+  const invokes = [
+    'function',
+    'inherited-function',
+    'proxy-instance',
+    'proxy-prototype',
+  ].includes(name)
+  const publishes = name !== 'throw-before'
+  const callbackPhases = [
+    ...(name.startsWith('proxy-') ? ['proxy-get-end'] : []),
+    ...(name !== 'shadow-undefined' ? ['modern-getter'] : []),
+    ...(invokes ? ['modern-enter'] : []),
+    ...(publishes ? ['failure-enter', 'failure-leave', 'report'] : []),
+  ]
+  assert.deepEqual(
+    trace.slice(providerPhases.length).map((event) => event.name),
+    callbackPhases
+  )
+  for (const event of trace.slice(providerPhases.length)) {
+    if (event.name === 'proxy-get-end') assert.equal(event.jsonExists, false)
+    if (event.name === 'modern-getter') {
+      assert.equal(event.jsonExists, false)
+      if (name !== 'throw-before') assert.equal(event.reads, 1)
     }
-    actual.actualJSONCoverageMap = report.coverageMap
+    if (event.name === 'modern-enter')
+      assert.deepEqual(event, {
+        name: 'modern-enter',
+        jsonExists: false,
+        reads: 1,
+        selected: 1,
+        receiver: 42,
+        sameSelected: true,
+      })
   }
-  fs.writeFileSync(
-    join(output, 'ACTUAL-SCOPED-MODEL.json'),
-    JSON.stringify(actual, null, 2) + '\n'
-  )
-  if (actual.hasProviderReport)
-    actual.actualProviderReport = JSON.parse(
-      fs.readFileSync(join(output, 'custom-coverage.json'), 'utf8')
+  assert.equal(fs.existsSync(join(fixture, 'cases.json')), publishes)
+  assert.equal(fs.existsSync(join(fixture, 'custom-coverage.json')), publishes)
+  if (publishes) {
+    const generated = { stage: 'generated', payloads: [{ releasePayload: 42 }] }
+    const mutated = { ...generated, stage: 'mutated' }
+    const report = JSON.parse(
+      fs.readFileSync(join(fixture, 'cases.json'), 'utf8')
     )
-  assert.deepEqual(actual, row.expected)
-  for (const [file, value] of Object.entries(row.sourceFiles))
-    assert.equal(sha(fs.readFileSync(join(fixture, file))), value.sha256)
-  assert.equal(
-    fs.readFileSync(join(fixture, 'vitest.config.mjs'), 'utf8'),
-    row.config
-  )
+    assert.equal(report.next.version, 1)
+    assert.equal(report.success, false)
+    assert.equal(report.numTotalTests, 2)
+    assert.equal(report.numPassedTests, 1)
+    assert.equal(report.numFailedTests, 1)
+    assert.equal(report.testResults.length, 1)
+    assert.deepEqual(
+      report.testResults[0].assertionResults.map((test) => [
+        test.fullName,
+        test.status,
+      ]),
+      [
+        ['custom provider owns coverage collection', 'passed'],
+        ['actual failed body113', 'failed'],
+      ]
+    )
+    assert.deepEqual(
+      report.testResults[0].assertionResults[0].failureMessages,
+      []
+    )
+    assert.match(
+      report.testResults[0].assertionResults[1].failureMessages.join('\n'),
+      /expected 1 to be 2/
+    )
+    assert.deepEqual(report.coverageMap, generated)
+    assert.deepEqual(
+      trace.find((event) => event.name === 'failure-enter'),
+      { name: 'failure-enter', jsonExists: true, mapSnapshot: generated }
+    )
+    assert.deepEqual(
+      trace.find((event) => event.name === 'failure-leave'),
+      {
+        name: 'failure-leave',
+        mapSnapshot: generated,
+        generatedStage: 'mutated',
+      }
+    )
+    const providerReport = JSON.parse(
+      fs.readFileSync(join(fixture, 'custom-coverage.json'), 'utf8')
+    )
+    assert.deepEqual(providerReport, {
+      same: true,
+      coverage: mutated,
+      mapSnapshot: generated,
+    })
+    assert.deepEqual(trace.at(-1), { name: 'report', ...providerReport })
+  }
+
+  for (const [file, bytes] of sourceFiles)
+    assert.deepEqual(fs.readFileSync(join(fixture, file)), bytes)
   assert.deepEqual(fs.readdirSync(join(fixture, '__snapshots__')), [])
   fs.writeFileSync(
     join(output, 'CHECKS.json'),
-    JSON.stringify(
-      {
-        name,
-        node: process.version,
-        ordinaryGetterPlanningDefersActualRead: true,
-        combinedPublicErrorPresentationStillRequired:
-          row.publicCombinedErrorPresentationMismatchRequired,
-        completeProviderTraceAndCustomMap: true,
-        authoredErrorsRawUnmodified: true,
-        fullAuthoredErrorStackParityQualified: false,
-        allActualProcessesJoined: true,
-      },
-      null,
-      2
-    ) + '\n'
+    JSON.stringify({
+      name,
+      completionOrderChecked: true,
+      publicationChecked: true,
+      allActualProcessesJoined: true,
+    }) + '\n'
   )
 } finally {
   if (joined) fs.rmSync(fixture, { recursive: true, force: true })

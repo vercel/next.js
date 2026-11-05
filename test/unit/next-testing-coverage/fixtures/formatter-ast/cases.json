@@ -1,0 +1,44 @@
+{
+  "rows": [
+    {
+      "name": "complex-export",
+      "profile": {
+        "name": "complex-export",
+        "shape": "complex"
+      },
+      "before": "import {appendFileSync}from'node:fs'\nexport default Object.assign({}, {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": function(next,previous){appendFileSync(\"<TRACE_DIR>/complex-export/trace.jsonl\",JSON.stringify([next,previous])+'\\n');return next},\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n})\n",
+      "calls": []
+    },
+    {
+      "name": "current-complex",
+      "profile": {
+        "name": "current-complex",
+        "edit": "export default Object.assign({}, {test:{coverage:{thresholds:{lines:90}}}})\n"
+      },
+      "before": "import {appendFileSync}from'node:fs'\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"edit.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": function(next,previous){appendFileSync(\"<TRACE_DIR>/current-complex/trace.jsonl\",JSON.stringify([next,previous])+'\\n');return next},\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n}\n",
+      "calls": []
+    },
+    {
+      "name": "current-thresholds-null",
+      "profile": {
+        "name": "current-thresholds-null",
+        "edit": "export default {test:{coverage:{thresholds:null}}}\n"
+      },
+      "before": "import {appendFileSync}from'node:fs'\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"edit.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": function(next,previous){appendFileSync(\"<TRACE_DIR>/current-thresholds-null/trace.jsonl\",JSON.stringify([next,previous])+'\\n');return next},\n        \"lines\": 0,\n        \"functions\": 0,\n        \"statements\": 0,\n        \"branches\": 0\n      }\n    }\n  }\n}\n",
+      "calls": []
+    },
+    {
+      "name": "current-glob-missing",
+      "profile": {
+        "name": "current-glob-missing",
+        "glob": true,
+        "edit": "export default {test:{coverage:{thresholds:{lines:90}}}}\n"
+      },
+      "before": "import {appendFileSync}from'node:fs'\nexport default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"edit.test.mjs\"\n    ],\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"unimported.mjs\",\n        \"fully.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"text\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"autoUpdate\": function(next,previous){appendFileSync(\"<TRACE_DIR>/current-glob-missing/trace.jsonl\",JSON.stringify([next,previous])+'\\n');return next},\n        \"lines\": 0,\n        \"fully.mjs\": {\n          \"lines\": 0,\n          \"functions\": 0,\n          \"statements\": 0,\n          \"branches\": 0\n        }\n      }\n    }\n  }\n}\n",
+      "calls": [
+        [28.57, 0],
+        [100, 0]
+      ]
+    }
+  ]
+}
