@@ -1,6 +1,6 @@
 import { depEvaluatedAt, manifestVersion } from './manifest-dep'
 
-let _hmrTrigger = 0
+const hmrTrigger = 0
 const manifestEvaluatedAt = Date.now()
 
 export default function manifest() {
@@ -11,5 +11,6 @@ export default function manifest() {
     display: 'standalone',
     depEvaluatedAt,
     manifestEvaluatedAt,
+    hmrTrigger,
   }
 }
