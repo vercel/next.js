@@ -797,38 +797,6 @@ impl EcmascriptModuleAsset {
     }
 }
 
-/// TODO un-turbotask-ify?
-#[turbo_tasks::function]
-async fn compute_ecmascript_module_side_effects(
-    module: ResolvedVc<EcmascriptModuleAsset>,
-) -> Result<Vc<ModuleSideEffects>> {
-    let options = module.options().await?;
-    let parsed = module.failsafe_parse().await?;
-    let ParseResult::Ok {
-        program,
-        eval_context,
-        ..
-    } = &*parsed
-    else {
-        return Ok(ModuleSideEffects::SideEffectful.cell());
-    };
-
-    let directives = parse_module_turbopack_directives(program);
-    let side_effects = if directives.no_side_effects {
-        ModuleSideEffects::SideEffectFree
-    } else if directives.constants_module && options.cross_module_constants {
-        // If the module is marked as a constants module, it must be side effect free, otherwise
-        // constant folding would not be safe.
-        ModuleSideEffects::SideEffectFree
-    } else if options.infer_module_side_effects {
-        eval_context.module_side_effects
-    } else {
-        ModuleSideEffects::SideEffectful
-    };
-
-    Ok(side_effects.cell())
-}
-
 impl EcmascriptModuleAsset {
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
         analyze_ecmascript_module(self, None)
@@ -931,7 +899,32 @@ impl Module for EcmascriptModuleAsset {
         {
             SideEffectsDeclaration::SideEffectful => ModuleSideEffects::SideEffectful,
             SideEffectsDeclaration::SideEffectFree => ModuleSideEffects::SideEffectFree,
-            SideEffectsDeclaration::None => *compute_ecmascript_module_side_effects(self).await?,
+            SideEffectsDeclaration::None => {
+                let options = self.options().await?;
+                let parsed = self.failsafe_parse().await?;
+                if let ParseResult::Ok {
+                    program,
+                    eval_context,
+                    ..
+                } = &*parsed
+                {
+                    let directives = parse_module_turbopack_directives(program);
+                    if directives.no_side_effects {
+                        ModuleSideEffects::SideEffectFree
+                    } else if directives.constants_module && options.cross_module_constants {
+                        // If the module is marked as a constants module, it must be side effect
+                        // free, otherwise constant folding would not be
+                        // safe.
+                        ModuleSideEffects::SideEffectFree
+                    } else if options.infer_module_side_effects {
+                        eval_context.module_side_effects
+                    } else {
+                        ModuleSideEffects::SideEffectful
+                    }
+                } else {
+                    ModuleSideEffects::SideEffectful
+                }
+            }
         })
         .cell())
     }
