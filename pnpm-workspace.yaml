@@ -61,6 +61,7 @@ minimumReleaseAgeExclude:
   - satori@0.33.5
   - scheduler
   - turbo
+  - '@swc/helpers@0.5.24'
 
 # Caution: `file://./scripts/sync-react.js` updates the React entries in place using a regex as part
 # of a GH Action. If you update this section, make sure you also update that script.
