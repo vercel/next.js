@@ -1,13 +1,19 @@
-import {
-  type captureLocalSpanContext,
-  createLocalSpanId,
-} from './local-span-recorder'
+import { createLocalSpanId } from './local-span-recorder'
 import type { SpanStoreRecord } from './span-store'
 import type { ReactTimingRecord } from '../../../shared/lib/react-debug-timing'
 
 export function createReactTimingSpanRecords(
   timings: readonly ReactTimingRecord[],
-  context: ReturnType<typeof captureLocalSpanContext>,
+  context: Pick<
+    SpanStoreRecord,
+    | 'requestId'
+    | 'requestInsightKind'
+    | 'requestInsightSource'
+    | 'requestInsightProxyStatus'
+    | 'htmlRequestId'
+    | 'route'
+    | 'url'
+  > & { traceId: string; parentSpanId: string },
   renderId: string
 ): SpanStoreRecord[] {
   return timings.map((timing) => ({
