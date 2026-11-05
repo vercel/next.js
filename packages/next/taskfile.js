@@ -3123,6 +3123,42 @@ export async function next_bundle_devtools(task, opts) {
   })
 }
 
+export async function next_bundle_external_runtime(task, opts) {
+  const browsers = require('./src/shared/lib/modern-browserslist-target')
+  for (const experimental of [false, true]) {
+    const reactChannel = experimental ? '-experimental' : ''
+    await task.source('dist').webpack({
+      watch: opts.dev,
+      config: {
+        entry: join(__dirname, 'dist/client/external-browser-runtime.js'),
+        target: `browserslist:${browsers.join(', ')}`,
+        resolve: {
+          alias: {
+            // React only ships its browser runtime on the experimental channel.
+            // Use an empty module until the runtime is available on stable React.
+            'react-dom/unstable_server-external-runtime$': experimental
+              ? `next/dist/compiled/react-dom${reactChannel}/unstable_server-external-runtime`
+              : false,
+          },
+        },
+        mode: 'production',
+        devtool: false,
+        output: {
+          path: join(__dirname, 'dist/compiled'),
+          filename: `next-external-runtime${reactChannel}.js`,
+          iife: true,
+        },
+        optimization: {
+          minimize: true,
+          runtimeChunk: false,
+          splitChunks: false,
+        },
+      },
+      name: `next-bundle-external-runtime${reactChannel}`,
+    })
+  }
+}
+
 export async function next_bundle(task, opts) {
   await task.parallel(
     [
@@ -3150,6 +3186,7 @@ export async function next_bundle(task, opts) {
       'next_bundle_app_worker_dev_turbo_experimental',
       // devtools
       'next_bundle_devtools',
+      'next_bundle_external_runtime',
     ],
     opts
   )

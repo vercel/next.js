@@ -43,21 +43,19 @@ describe('app-dir - metadata-icons', () => {
       const iconsInBody = await browser.elementsByCss('body link[rel="icon"]')
       const iconsInHead = await browser.elementsByCss('head link[rel="icon"]')
 
-      if (strictCsp) {
-        // FIXME: streamed icons should move from the body into the head under CSP.
-        expect([iconsInBody.length, iconsInHead.length]).toEqual([2, 0])
-      } else {
-        // moved to head
-        expect(iconsInBody.length).toBe(0)
-        // re-inserted favicon.ico + /heart.png
-        expect(iconsInHead.length).toBe(2)
-      }
+      expect(iconsInBody.length).toBe(0)
+      expect(iconsInHead.length).toBe(2)
     })
   })
 
-  it('should not contain icon insertion script when metadata is rendered in head', async () => {
+  it('should emit an icon relocation instruction for streamed metadata', async () => {
     const suspendedHtml = await next.render('/custom-icon')
-    expect(suspendedHtml).toContain(iconInsertionScript)
+    if (await gate((c) => c.externalBrowserRuntime)) {
+      expect(suspendedHtml).toContain('<template data-next-icon></template>')
+      expect(suspendedHtml).not.toContain(iconInsertionScript)
+    } else {
+      expect(suspendedHtml).toContain(iconInsertionScript)
+    }
   })
 
   it('should not contain icon replacement mark in html or after hydration', async () => {
@@ -126,7 +124,7 @@ describe('app-dir - metadata-icons', () => {
     const $ = await next.render$('/custom-icon/delay-icons')
     expect($('meta[name="«nxt-icon»"]').length).toBe(0)
 
-    // body will contain the icons and the script to insert them into head
+    // The relocation instruction follows the icons in the body.
     const body = $('body')
     const icons = body.find('link[rel="icon"]')
     expect(icons.length).toBe(2)
@@ -135,7 +133,12 @@ describe('app-dir - metadata-icons', () => {
     )
 
     const bodyHtml = body.html()
-    expect(bodyHtml).toContain(iconInsertionScript)
+    if (await gate((c) => c.externalBrowserRuntime)) {
+      expect(bodyHtml).toContain('<template data-next-icon></template>')
+      expect(bodyHtml).not.toContain(iconInsertionScript)
+    } else {
+      expect(bodyHtml).toContain(iconInsertionScript)
+    }
 
     const strictCsp = await gate((c) => c.externalBrowserRuntime && !c.dev)
     const { browser, response } = await next.browserWithResponse(
@@ -145,28 +148,16 @@ describe('app-dir - metadata-icons', () => {
       strictCsp ? "script-src 'self' https://vercel.live" : undefined
     )
     await retry(async () => {
-      if (strictCsp) {
-        const iconsInBody = await browser.elementsByCss('body link[rel="icon"]')
-        const iconUrls = await Promise.all(
-          iconsInBody.map(
-            async (el) => (await el.getAttribute('href')).split('?')[0]
-          )
+      expect(await browser.elementsByCss('body link[rel="icon"]')).toHaveLength(
+        0
+      )
+      const iconsInHead = await browser.elementsByCss('head link[rel="icon"]')
+      const iconUrls = await Promise.all(
+        iconsInHead.map(
+          async (el) => (await el.getAttribute('href')).split('?')[0]
         )
-        // FIXME: these streamed icons should be in the head even under CSP.
-        expect(iconUrls).toEqual(['/favicon.ico', '/heart.png'])
-        // FIXME: CSP should not prevent inserting icons into the head.
-        expect(
-          await browser.elementsByCss('head link[rel="icon"]')
-        ).toHaveLength(0)
-      } else {
-        const iconsInHead = await browser.elementsByCss('head link[rel="icon"]')
-        const iconUrls = await Promise.all(
-          iconsInHead.map(
-            async (el) => (await el.getAttribute('href')).split('?')[0]
-          )
-        )
-        expect(iconUrls).toEqual(['/favicon.ico', '/heart.png'])
-      }
+      )
+      expect(iconUrls).toEqual(['/favicon.ico', '/heart.png'])
     })
   })
 })
