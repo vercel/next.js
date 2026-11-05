@@ -7,8 +7,10 @@
   },
   "dependencies": {
     "@mux/mux-node": "^8",
-    "@mux/mux-player-react": "^2",
     "@mux/mux-uploader-react": "^1.0.0-beta.15",
+    "@videojs/mux-data": "^10.3.0",
+    "@videojs/mux-video": "^10.3.0",
+    "@videojs/react": "^10.3.0",
     "next": "latest",
     "react": "^18",
     "react-dom": "^18",

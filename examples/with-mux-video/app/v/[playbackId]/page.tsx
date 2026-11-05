@@ -1,5 +1,5 @@
 import Link from "@/app/_components/Link";
-import MuxPlayer from "./MuxPlayer";
+import VideoPlayer from "./VideoPlayer";
 import { MUX_HOME_PAGE_URL } from "@/app/constants";
 import Script from "next/script";
 
@@ -55,12 +55,7 @@ export default async function Page(props: { params: Promise<Params> }) {
         This video is ready for playback
       </div>
       <div className="bg-black aspect-video mb-8 -mx-4 flex">
-        <MuxPlayer
-          className="w-full"
-          playbackId={playbackId}
-          metadata={{ player_name: "with-mux-video" }}
-          accentColor="rgb(220 38 38)"
-        />
+        <VideoPlayer playbackId={playbackId} />
       </div>
       <p>
         Go <Link href="/">back home</Link> to upload another video.
