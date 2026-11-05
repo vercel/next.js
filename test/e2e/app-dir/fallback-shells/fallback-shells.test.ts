@@ -30,14 +30,9 @@ describe('fallback-shells', () => {
       expect(response.headers()['content-security-policy']).toBe(
         strictCsp ? "script-src 'self' https://vercel.live" : undefined
       )
-      if (strictCsp) {
-        // FIXME: the page should hydrate under CSP without unsafe-inline.
-        expect(await browser.elementById('hydrated').text()).toBe('false')
-      } else {
-        await retry(async () => {
-          expect(await browser.elementById('hydrated').text()).toBe('true')
-        })
-      }
+      await retry(async () => {
+        expect(await browser.elementById('hydrated').text()).toBe('true')
+      })
     })
 
     // Coverage for the head (metadata) surviving hydration of a fallback

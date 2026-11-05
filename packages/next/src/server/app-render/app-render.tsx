@@ -8963,6 +8963,7 @@ async function continueStaticPrerenderWithInlinedData(
       getServerInsertedHTML,
       getServerInsertedMetadata,
       deploymentId,
+      externalBrowserRuntime,
     })
   }
 
