@@ -521,6 +521,7 @@ scripts/check-unused-turbo-tasks.mjs
 turbopack/crates/turbopack-ecmascript-runtime/**
 turbopack/crates/turbopack-ecmascript-hmr-protocol/**
 turbopack/crates/turbopack-dev-server/**
+crates/next-core/src/hmr_entry.rs
 crates/next-api/src/aggregate_hmr.rs
 packages/next/src/client/dev/hot-reloader/turbopack-hot-reloader-common.ts
 packages/next/src/client/dev/noop-turbopack-hmr.ts

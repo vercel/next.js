@@ -9,6 +9,7 @@ mod bootstrap;
 mod browser_variant_modules;
 mod embed_js;
 mod emit;
+pub mod hmr_entry;
 pub mod instrumentation;
 pub mod middleware;
 pub mod mode;
