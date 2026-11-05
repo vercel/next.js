@@ -906,7 +906,8 @@ export interface ExperimentalConfig {
    * Minify each module separately instead of each finished chunk, so minification runs in
    * parallel and is cached per module. The trade-off is slightly worse compression.
    * Chunking then sizes modules by their minified code, see `turbopackChunking`.
-   * Defaults to false. Only applies to production builds.
+   * Defaults to true on canary releases and false on stable releases. Only applies to
+   * production builds.
    */
   turbopackMinifyBeforeChunking?: boolean
 
