@@ -101,7 +101,7 @@ impl WorkerLoaderModule {
                     .into_vc();
                 chunking_context.evaluated_chunk_group_assets(
                     ident,
-                    ChunkGroupKey::Isolated(ResolvedVc::upcast(this.inner)),
+                    ChunkGroupKey::Worker(ResolvedVc::upcast(this.inner)),
                     module_graph,
                     OutputAssets::empty(),
                     this.availability_info,
@@ -124,7 +124,7 @@ impl WorkerLoaderModule {
                 let entry_result = chunking_context
                     .root_entry_chunk_group(
                         worker_path,
-                        ChunkGroupKey::Isolated(ResolvedVc::upcast(evaluatable)),
+                        ChunkGroupKey::Worker(ResolvedVc::upcast(evaluatable)),
                         module_graph,
                         OutputAssets::empty(),
                         OutputAssets::empty(),

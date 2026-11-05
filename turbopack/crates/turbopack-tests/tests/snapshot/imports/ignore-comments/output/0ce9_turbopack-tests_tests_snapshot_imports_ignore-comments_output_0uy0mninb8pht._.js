@@ -21,12 +21,13 @@ if (!paramsString) abort("Missing worker bootstrap config");
 
 var params = JSON.parse(paramsString);
 var param = (n) => typeof params[n] === 'string' ? params[n] : '';
-var chunkUrls = Array.isArray(params[0]) ? params[0] : [];
 // Chunks already loaded in the runtime that created this worker. They
 // carry module factories this worker's own chunk group omitted (because
 // the creating runtime already had them), so they must be registered
-// before the worker's evaluate chunk instantiates the entry module.
-var preloadUrls = Array.isArray(params[3]) ? params[3] : [];
+// before the worker's evaluate chunk instantiates the entry module —
+// which is why they come first in the params.
+var preloadUrls = Array.isArray(params[0]) ? params[0] : [];
+var chunkUrls = Array.isArray(params[1]) ? params[1] : [];
 
 // Chunks are relative to the origin; only allow loading same-origin scripts.
 function sameOriginUrl(chunk) {
@@ -42,8 +43,8 @@ var nextChunkUrls = loadOrder.slice().reverse();
 
 Object.assign(self, {
     TURBOPACK_NEXT_CHUNK_URLS: nextChunkUrls,
-    TURBOPACK_ASSET_SUFFIX: param(1),
-    TURBOPACK_CHUNK_BASE_PATH: param(2)
+    TURBOPACK_ASSET_SUFFIX: param(2),
+    TURBOPACK_CHUNK_BASE_PATH: param(3)
 });
 
 if (loadOrder.length > 0) {

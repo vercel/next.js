@@ -21,7 +21,7 @@ use crate::BrowserChunkingContext;
 /// A pre-compiled worker entrypoint that bootstraps workers by reading config from URL params.
 ///
 /// The worker receives a JSON array via URL params of the following structure:
-/// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, PRELOAD_CHUNK_URLS,
+/// `[PRELOAD_CHUNK_URLS, TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH,
 /// ...forwarded_global_values]`
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
@@ -149,7 +149,7 @@ impl GenerateSourceMap for EcmascriptBrowserWorkerEntrypoint {
 /// Generates the worker bootstrap code as inline JavaScript.
 ///
 /// The worker receives a JSON array via URL params of the following structure:
-/// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, PRELOAD_CHUNK_URLS,
+/// `[PRELOAD_CHUNK_URLS, TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH,
 /// ...forwarded_global_values]`
 fn generate_worker_bootstrap_code(
     forwarded_globals: &[RcStr],
@@ -158,13 +158,13 @@ fn generate_worker_bootstrap_code(
     let mut code: CodeBuilder = CodeBuilder::default();
 
     // Generate the Object.assign properties for forwarded globals
-    // params[0] = chunk URLs, params[1] = ASSET_SUFFIX,
-    // params[2] = WORKER_CHUNK_BASE_PATH, params[3] = preload chunk URLs,
+    // params[0] = preload chunk URLs, params[1] = chunk URLs,
+    // params[2] = ASSET_SUFFIX, params[3] = WORKER_CHUNK_BASE_PATH,
     // params[4+] = forwarded globals
     let mut global_assignments = vec![
         "TURBOPACK_NEXT_CHUNK_URLS: nextChunkUrls".to_string(),
-        "TURBOPACK_ASSET_SUFFIX: param(1)".to_string(),
-        "TURBOPACK_CHUNK_BASE_PATH: param(2)".to_string(),
+        "TURBOPACK_ASSET_SUFFIX: param(2)".to_string(),
+        "TURBOPACK_CHUNK_BASE_PATH: param(3)".to_string(),
     ];
     for (i, name) in forwarded_globals.iter().enumerate() {
         // Forwarded globals start at params[4]
@@ -212,12 +212,13 @@ fn generate_worker_bootstrap_code(
 
         var params = JSON.parse(paramsString);
         var param = (n) => typeof params[n] === 'string' ? params[n] : '';
-        var chunkUrls = Array.isArray(params[0]) ? params[0] : [];
         // Chunks already loaded in the runtime that created this worker. They
         // carry module factories this worker's own chunk group omitted (because
         // the creating runtime already had them), so they must be registered
-        // before the worker's evaluate chunk instantiates the entry module.
-        var preloadUrls = Array.isArray(params[3]) ? params[3] : [];
+        // before the worker's evaluate chunk instantiates the entry module —
+        // which is why they come first in the params.
+        var preloadUrls = Array.isArray(params[0]) ? params[0] : [];
+        var chunkUrls = Array.isArray(params[1]) ? params[1] : [];
 
         // Chunks are relative to the origin; only allow loading same-origin scripts.
         function sameOriginUrl(chunk) {{
