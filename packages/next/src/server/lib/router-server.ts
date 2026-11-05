@@ -18,6 +18,7 @@ import {
   isUnhandledRejectionListenerRegistered,
   registerUnhandledRejectionListener,
 } from '../node-environment-extensions/process-error-handlers'
+import { preventGracefulFsGlobalPatch } from '../node-environment-extensions/graceful-fs'
 import { DecodeError } from '../../shared/lib/utils'
 import { deobfuscateText } from '../../shared/lib/magic-identifier'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -151,6 +152,13 @@ export async function initialize(opts: {
   startServerSpan?: Span
   quiet?: boolean
 }): Promise<ServerInitResult> {
+  if (opts.dev) {
+    // Dev renders run in this process, so graceful-fs's `fs.close` wrappers
+    // would count as sync IO. Do this before anything here loads graceful-fs:
+    // watchpack, webpack, or a dependency of next.config.js.
+    preventGracefulFsGlobalPatch()
+  }
+
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
