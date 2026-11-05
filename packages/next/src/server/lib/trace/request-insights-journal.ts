@@ -406,7 +406,9 @@ class RequestInsightsJournal {
   }
 }
 
-export class StaleRequestInsightsHistoryCursorError extends Error {}
+export class StaleRequestInsightsHistoryCursorError extends Error {
+  name = 'StaleRequestInsightsHistoryCursorError'
+}
 
 type JournalRegistry = {
   configured?: RequestInsightsJournal
