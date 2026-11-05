@@ -911,6 +911,19 @@ pub(crate) async fn graph_native_external_context(
         .await
 }
 
+fn production_leaf_source(source: &str, filename: &str) -> Result<bool> {
+    let dependencies = crate::testing_dependency_source::literal_dependencies(source, filename);
+    if !dependencies.complete || !dependencies.requests.is_empty() {
+        return Ok(false);
+    }
+    let Some(exports) =
+        crate::testing_mock_source::runtime_namespace_exports_candidate(source, filename)?
+    else {
+        return Ok(false);
+    };
+    Ok(!exports.iter().any(|name| name == "then"))
+}
+
 pub(crate) async fn manifest(
     project: ResolvedVc<Project>,
     context: ResolvedVc<ModuleAssetContext>,
@@ -921,10 +934,23 @@ pub(crate) async fn manifest(
     static_pairs: &[crate::testing_static_runtime::StaticMockPair],
     original_initials: &[crate::testing_static_runtime::NativeOriginalInitial],
     commonjs: Option<&crate::testing_cjs_reset::CommonJsResetPreparation>,
+    production_compiled: bool,
     paired_actual_helper: Option<ResolvedVc<Box<dyn Module>>>,
 ) -> Result<DynamicMockManifest> {
     let root = project.project_path().owned().await?;
     let next_package = next_core::get_next_package(root.clone()).await?;
+    if production_compiled {
+        anyhow::ensure!(
+            project.next_mode().await?.is_production()
+                && context.await?.compile_time_info
+                    == project.node_test_context().await?.compile_time_info
+                && native_certificates.is_empty()
+                && static_pairs.is_empty()
+                && original_initials.is_empty()
+                && paired_actual_helper.is_none(),
+            "Production compiled runtime manifests require the actual clean production context"
+        );
+    }
     let origin = runtime_resolve_origin(root_module, path).await?;
     let mut targets: Vec<DynamicTarget> = Vec::new();
     let mut native_resettable: Vec<NativeExternalCertificate> = Vec::new();
@@ -947,9 +973,19 @@ pub(crate) async fn manifest(
                 "Runtime module mocks cannot replace framework or native targets",
             ));
         }
+        let parsed = Request::parse(RcStr::from(request.clone()).into())
+            .to_resolved()
+            .await?;
+        if production_compiled {
+            anyhow::ensure!(
+                matches!(&*parsed.await?, Request::Relative { query, fragment, .. }
+                    if query.is_empty() && fragment.is_empty()),
+                "Production compiled runtime mocks require actual queryless relative requests"
+            );
+        }
         let resolved = esm_resolve(
             *origin,
-            Request::parse(RcStr::from(request.clone()).into()),
+            *parsed,
             EcmaScriptModulesReferenceSubType::DynamicImport,
             ResolveErrorMode::Error,
             None,
@@ -1103,7 +1139,15 @@ pub(crate) async fn manifest(
             &source,
             target_path.file_name(),
         );
-        if syntax.complete
+        if production_compiled && !production_leaf_source(&source, target_path.file_name())? {
+            return Err(test_input_error(
+                target_path.clone(),
+                "Production runtime ESM targets require complete static leaf exports without \
+                 imports",
+            ));
+        }
+        if !production_compiled
+            && syntax.complete
             && syntax
                 .requests
                 .iter()
@@ -1216,6 +1260,15 @@ pub(crate) async fn manifest(
                          operations",
                     ));
                 }
+                if production_compiled
+                    && !production_leaf_source(&transformed, target_path.file_name())?
+                {
+                    return Err(test_input_error(
+                        target_path.clone(),
+                        "Production runtime ESM transformed targets must retain the same static \
+                         leaf contract",
+                    ));
+                }
                 inspectable = true;
             }
             let Some(placeable) =
@@ -1261,6 +1314,20 @@ pub(crate) async fn manifest(
             static_mock: None,
             native_original_initial: false,
         });
+    }
+    if production_compiled {
+        anyhow::ensure!(
+            targets.len() == 1
+                && targets[0].native_original.is_none()
+                && targets[0].static_mock.is_none()
+                && !targets[0].native_original_initial
+                && !targets[0].parts.is_empty()
+                && native_resettable.is_empty()
+                && graph_ownership.is_empty()
+                && candidate_static_edges.is_empty()
+                && candidate_demands.is_empty(),
+            "Production runtime mocks require one actual resolved compiled leaf target"
+        );
     }
     // Static-only targets in an independent group still own actual native
     // providers. Retain their compiler IDs without evaluating lazy factories.
@@ -1477,7 +1544,12 @@ pub(crate) async fn manifest(
         }
     } else {
         for (module, parts) in ordinary_namespace_roots {
-            if let Some(certificate) = optional_namespace_certificate(module).await? {
+            let certificate = if production_compiled {
+                Some(namespace_certificate(module).await?)
+            } else {
+                optional_namespace_certificate(module).await?
+            };
+            if let Some(certificate) = certificate {
                 if !parts.contains(&module) || parts.iter().any(|part| !authorized.contains(part)) {
                     return Err(test_input_error(
                         path.clone(),
@@ -1732,6 +1804,32 @@ mod tests {
         testing_external_modules::NativeOriginalKind,
         testing_mock_source::extract_test_mocks,
     };
+
+    #[test]
+    fn production_leaf_source_requires_static_exports_and_no_imports() {
+        use crate::testing_dynamic_mock::production_leaf_source;
+        for source in [
+            "export const value = 'actual'; export default {actual:true}",
+            "const value = 1; export {value}",
+        ] {
+            assert!(
+                production_leaf_source(source, "subject.mjs").unwrap(),
+                "{source}"
+            );
+        }
+        for source in [
+            "import {readFileSync} from 'node:fs'; export const value = readFileSync",
+            "export {value} from './other.mjs'",
+            "const value = require('./other.cjs'); export {value}",
+            "export const value = import('./other.mjs')",
+            "export const then = 1",
+        ] {
+            assert!(
+                !production_leaf_source(source, "subject.mjs").unwrap_or(false),
+                "{source}"
+            );
+        }
+    }
 
     #[test]
     fn optional_graph_inspection_propagates_actual_operational_errors() {

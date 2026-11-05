@@ -7996,3 +7996,185 @@ describe('isolated Node record RPC ownership and completion', () => {
     }
   )
 })
+
+describe('production compiled runtime mock activation in the real file worker', () => {
+  it.each([
+    'valid',
+    'zero',
+    'boolean',
+    'version',
+    'development',
+    'mixed-static',
+    'mixed-original-initial',
+    'missing-cache',
+    'extra-cache',
+    'extra-dynamic',
+    'module-mocking',
+    'artifact-coverage',
+    'native-tsconfig-inputs',
+    'unmarked',
+  ] as const)(
+    'validates the compiled runtime role before entry evaluation: %s',
+    async (mode) => {
+      const rootDir = mkdtempSync(
+        path.join(tmpdir(), 'next-production-compiled-runtime-role-')
+      )
+      try {
+        copyFileSync(
+          path.join(__dirname, 'production-compiled-runtime-marker-entry.cjs'),
+          path.join(rootDir, 'entry.cjs')
+        )
+        const trace = path.join(rootDir, 'trace.txt')
+        writeFileSync(
+          path.join(rootDir, 'runtime-paths.json'),
+          JSON.stringify({
+            runner: require.resolve('next/dist/experimental/testing/runner'),
+            dynamic: require.resolve(
+              'next/dist/experimental/testing/mocking/dynamic'
+            ),
+            moduleCache: require.resolve(
+              'next/dist/experimental/testing/mocking/module-cache'
+            ),
+            vitest: require.resolve('next/dist/experimental/testing/vitest'),
+            imports: require.resolve(
+              'next/dist/experimental/testing/runner/imports'
+            ),
+            trace,
+          })
+        )
+        const profile = {
+          id: 'production-compiled-runtime',
+          environment: 'node' as const,
+          mode:
+            mode === 'development'
+              ? ('development' as const)
+              : ('production' as const),
+          runtime: 'nodejs' as const,
+          bundler: 'turbopack' as const,
+        }
+        const entry = {
+          id: 'production-compiled-runtime:role',
+          file: path.join(rootDir, 'spec.ts'),
+          profile,
+        }
+        const artifact: any = {
+          version: 2,
+          kind: 'node',
+          entryId: entry.id,
+          profile,
+          revision: 'role-protocol',
+          rootDir,
+          entryPath: 'entry.cjs',
+          files: ['entry.cjs', 'runtime-paths.json'],
+          diagnostics: [],
+          setupFiles: [],
+          snapshotSerializers: [],
+          moduleCache: {
+            version: 1,
+            ...(mode === 'extra-cache' ? { extra: 1 } : {}),
+          },
+          dynamicModuleMocking: {
+            version: 1,
+            productionCompiled:
+              mode === 'zero'
+                ? 0
+                : mode === 'boolean'
+                  ? true
+                  : mode === 'version'
+                    ? 2
+                    : 1,
+            ...(mode === 'mixed-static' ? { staticMocks: 1 } : {}),
+            ...(mode === 'mixed-original-initial'
+              ? { nativeOriginalInitial: 1 }
+              : {}),
+            ...(mode === 'extra-dynamic' ? { extra: 1 } : {}),
+          },
+          ...(mode === 'module-mocking'
+            ? { moduleMocking: { version: 1 } }
+            : {}),
+          ...(mode === 'artifact-coverage' ? { coverage: null } : {}),
+          ...(mode === 'native-tsconfig-inputs'
+            ? { nativeTsConfigInputs: null }
+            : {}),
+        }
+        if (mode === 'missing-cache') delete artifact.moduleCache
+        if (mode === 'unmarked')
+          delete artifact.dynamicModuleMocking.productionCompiled
+        const input: WorkerInput = {
+          artifact,
+          options: {
+            runId: 'production-compiled-runtime-role',
+            projectDir: rootDir,
+            entry,
+            setupFiles: [],
+            snapshotSerializers: [],
+            testTimeout: 1000,
+            hookTimeout: 1000,
+            fileTimeout: 5000,
+          },
+          cacheScope: { type: 'file', directory: path.join(rootDir, 'cache') },
+        }
+        const messages: WorkerMessage[] = []
+        const exit = await runTestProcess(
+          require.resolve('next/dist/experimental/testing/execution/worker'),
+          {
+            ...options,
+            cwd: rootDir,
+            env: { ...process.env, NODE_ENV: profile.mode },
+            input,
+            onMessage(message) {
+              messages.push(message as WorkerMessage)
+            },
+          }
+        )
+        expect(exit.code).toBe(0)
+        expect(messages.find((message) => message.type === 'complete')).toEqual(
+          {
+            type: 'complete',
+            result: expect.objectContaining({
+              status: mode === 'valid' ? 'passed' : 'failed',
+            }),
+          }
+        )
+        const phases = existsSync(trace)
+          ? readFileSync(trace, 'utf8').trim().split('\n')
+          : []
+        if (mode === 'valid') {
+          expect(phases).toEqual([
+            'bootstrap',
+            'cache-initialize',
+            'dynamic-initialize',
+            'collect',
+            'mock-case',
+            'reset-case',
+            'dynamic-dispose',
+            'cache-dispose',
+            'imports-dispose',
+          ])
+          const cases = messages.filter(
+            (message) =>
+              message.type === 'event' && message.event.type === 'case-end'
+          )
+          expect(cases).toHaveLength(2)
+          expect(
+            cases.every(
+              (message) =>
+                message.type === 'event' &&
+                message.event.type === 'case-end' &&
+                message.event.status === 'passed'
+            )
+          ).toBe(true)
+        } else {
+          expect(phases).toEqual([])
+          expect(JSON.stringify(messages)).toContain(
+            mode === 'unmarked'
+              ? 'Unsupported compiled module cache reset profile'
+              : 'Unsupported production compiled runtime mock activation'
+          )
+        }
+      } finally {
+        rmSync(rootDir, { recursive: true, force: true })
+      }
+    }
+  )
+})

@@ -380,6 +380,8 @@ export interface CompiledNodeTestArtifact
     version: 1
     staticMocks?: 1
     nativeOriginalInitial?: 1
+    /** Native-validated single local runtime target in ordinary production Node. */
+    productionCompiled?: 1
   }
   /** Present only for a compiler-created shared Node worker cohort. */
   cohort?: CompiledTestCohortIdentity

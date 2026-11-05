@@ -6,9 +6,11 @@ import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const [consumerArg, outputArg, kindArg = '--source'] = process.argv.slice(2)
+const [consumerArg, outputArg, kindArg = '--source', mode = 'development'] =
+  process.argv.slice(2)
 assert(consumerArg && outputArg)
 assert(['--source', '--installed'].includes(kindArg))
+assert(['development', 'production'].includes(mode))
 const consumer = fs.realpathSync(consumerArg)
 const output = path.resolve(outputArg)
 assert(!fs.existsSync(output), 'Requires an unused output directory')
@@ -94,7 +96,7 @@ try {
     projects: [
       {
         name: 'runtime-factory-namespace',
-        mode: 'development',
+        mode,
         environment: 'node',
         isolate: true,
         include: ['admitted.case.mjs', 'alias.case.mjs'],
@@ -125,7 +127,7 @@ try {
   ]
   const env = {
     ...process.env,
-    NODE_ENV: 'development',
+    NODE_ENV: mode,
     NEXT_TELEMETRY_DISABLED: '1',
     TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
     FORCE_COLOR: '0',
@@ -151,6 +153,7 @@ try {
     fixture,
     args,
     config,
+    mode,
     bounds: reference.bounds,
     actualNode: process.version,
     actualExecutable: process.execPath,
@@ -197,6 +200,7 @@ try {
   assert.deepEqual(after, before)
   const result = {
     passed: true,
+    mode,
     cases: report.numTotalTests,
     rows: rows.length,
     completeStandardReportExact: true,

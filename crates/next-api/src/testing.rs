@@ -546,6 +546,7 @@ pub(crate) async fn test_endpoint(
                     || production_reset_plan(&production_plan)
                     || production_paired_native_actual_plan(&production_plan)
                     || production_native_runtime_plan(&production_plan)
+                    || production_compiled_runtime_plan(&production_plan)
                     || production_original_require_reset_plan(&production_plan)
             }))
     {
@@ -735,6 +736,22 @@ fn production_native_runtime_plan(plan: &StaticMockPlan) -> bool {
                 && declaration.has_object_return
                 && !declaration.has_spread
                 && native_request(&declaration.request)
+        })
+}
+
+// Syntax admission only. Actual production context, local leaf and final
+// cache/dynamic harness owners are mandatory before the role can be emitted.
+fn production_compiled_runtime_plan(plan: &StaticMockPlan) -> bool {
+    !plan.runtime_requests.is_empty()
+        && plan.declarations.is_empty()
+        && plan.hoisted.is_empty()
+        && plan.actual_imports.is_empty()
+        && plan.mock_imports.is_empty()
+        && plan.unmocks.is_empty()
+        && plan.throw_only_runtime_requests.is_empty()
+        && plan.runtime_requests.iter().all(|request| {
+            (request.starts_with("./") || request.starts_with("../"))
+                && !request.contains(['?', '#', '\\'])
         })
 }
 
@@ -4031,6 +4048,7 @@ struct PreparedNodeTestEntry {
     demand_graph: Option<ResolvedVc<RuntimeImportDemandGraph>>,
     harness_coverage: Option<RcStr>,
     original_require_registration: Option<ResolvedVc<Box<dyn Module>>>,
+    production_compiled_runtime: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -4100,6 +4118,7 @@ impl NodeTestEndpoint {
                 demand_graph: None,
                 harness_coverage: None,
                 original_require_registration: None,
+                production_compiled_runtime: false,
             }
             .cell());
         }
@@ -4121,6 +4140,7 @@ impl NodeTestEndpoint {
                 demand_graph: None,
                 harness_coverage: None,
                 original_require_registration: None,
+                production_compiled_runtime: false,
             }
             .cell());
         }
@@ -4157,7 +4177,33 @@ impl NodeTestEndpoint {
         } else {
             false
         };
-        let commonjs_runtime = if prepared.module_reset
+        let production_compiled_runtime = isolated_node_runtime
+            && self.project.next_mode().await?.is_production()
+            && !self.runtime_env
+            && self.setup_paths.is_empty()
+            && self.snapshot_serializers.is_empty()
+            && self.cohort_paths.is_empty()
+            && !self.source_coverage
+            && !self.dependency_plan
+            && prepared.registration.is_none()
+            && production_compiled_runtime_plan(&plan);
+        if production_compiled_runtime {
+            anyhow::ensure!(
+                prepared.context.await?.compile_time_info
+                    == self.project.node_test_context().await?.compile_time_info,
+                "Production runtime mocks must retain the actual build context"
+            );
+        }
+        let commonjs_runtime = if production_compiled_runtime {
+            crate::testing_cjs_reset::prepare_production_runtime(
+                self.project,
+                prepared.context,
+                prepared.source,
+                &prepared.runtime_requests,
+                &self.id,
+            )
+            .await?
+        } else if prepared.module_reset
             && !prepared.runtime_requests.is_empty()
             && prepared.registration.is_none()
             && plan.declarations.is_empty()
@@ -4185,7 +4231,8 @@ impl NodeTestEndpoint {
         } else {
             None
         };
-        let native_runtime = if commonjs_runtime.is_none()
+        let native_runtime = if !production_compiled_runtime
+            && commonjs_runtime.is_none()
             && !prepared.runtime_requests.is_empty()
             && (self.project.next_mode().await?.is_development()
                 || prepared.paired_native_actuals
@@ -4385,6 +4432,7 @@ impl NodeTestEndpoint {
                     static_pairs,
                     original_initials,
                     commonjs_reset.as_ref(),
+                    production_compiled_runtime,
                     if prepared.paired_native_actuals {
                         prepared.registration
                     } else {
@@ -4399,6 +4447,8 @@ impl NodeTestEndpoint {
         let native_resettable = dynamic_manifest
             .as_ref()
             .map_or(&[][..], |manifest| manifest.native_resettable.as_slice());
+        let dynamic_manifest_owner = dynamic_manifest.as_ref().map(|manifest| manifest.module);
+        let mut module_cache_owner = None;
         let mut leaf_promise_namespaces = Vec::new();
         let module_runtime = if prepared.module_reset {
             let publish_leaf_promises = isolated_node_runtime
@@ -4431,6 +4481,7 @@ impl NodeTestEndpoint {
             )
             .await?;
             leaf_promise_namespaces = namespaces;
+            module_cache_owner = Some(manifest);
             internal_assets.insert(rcstr!("INNER_TEST_MODULE_CACHE"), manifest);
             "export const moduleTesting = \
              require('next/dist/experimental/testing/mocking/module-cache');\nexport function \
@@ -4623,6 +4674,36 @@ impl NodeTestEndpoint {
                 .validate_harness_owners(module, authored_entry)
                 .await?;
         }
+        if production_compiled_runtime {
+            let dynamic_owner = dynamic_manifest_owner
+                .context("Production runtime mocks need their actual dynamic manifest")?;
+            let cache_owner = module_cache_owner
+                .context("Production runtime mocks need their actual module cache manifest")?;
+            anyhow::ensure!(
+                context.await?.compile_time_info
+                    == self.project.node_test_context().await?.compile_time_info
+                    && crate::testing_cjs_reset::actual_shared_harness_owner(
+                        module,
+                        "INNER_TEST_MODULE",
+                        authored_entry,
+                    )
+                    .await?
+                    && crate::testing_cjs_reset::actual_shared_harness_owner(
+                        module,
+                        "INNER_TEST_DYNAMIC_MOCKS",
+                        dynamic_owner,
+                    )
+                    .await?
+                    && crate::testing_cjs_reset::actual_shared_harness_owner(
+                        module,
+                        "INNER_TEST_MODULE_CACHE",
+                        cache_owner,
+                    )
+                    .await?,
+                "Production runtime mocks must retain the actual authored, dynamic and cache \
+                 shared harness owners"
+            );
+        }
         let harness_coverage = if harness_sources.is_empty() {
             None
         } else {
@@ -4644,6 +4725,7 @@ impl NodeTestEndpoint {
             original_require_registration: commonjs_reset
                 .as_ref()
                 .and_then(|commonjs| commonjs.original_require_registration()),
+            production_compiled_runtime,
         }
         .cell())
     }
@@ -4837,8 +4919,11 @@ impl NodeTestEndpoint {
                             crate::testing_mock_inputs::metadata(this.project, &this.path, &this.id, &this.setup_paths, this.runtime_env).await?
                         } else if !plan.runtime_requests.is_empty() {
                             if plan.declarations.is_empty() {
-                                "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\"\
-                                 :1}}".to_string()
+                                if prepared.production_compiled_runtime {
+                                    "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\":1,\"productionCompiled\":1}}".to_string()
+                                } else {
+                                    "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\":1}}".to_string()
+                                }
                             } else {
                                 let prepared = prepare_node_test(
                                     this.project,
@@ -6529,7 +6614,10 @@ mod native_multi_target_assembly_tests {
 
 #[cfg(test)]
 mod native_hoisted_runtime_composition_tests {
-    use crate::{testing::production_native_runtime_plan, testing_mock_source::extract_test_mocks};
+    use crate::{
+        testing::{production_compiled_runtime_plan, production_native_runtime_plan},
+        testing_mock_source::extract_test_mocks,
+    };
 
     #[test]
     fn retains_measured_independent_native_factories_hoisting_and_reset() {
@@ -6597,6 +6685,54 @@ test('module reset retains the actual required builtin object', async () => {
         assert_eq!(plan.hoisted[0].bindings, ["value"]);
         assert_eq!(plan.runtime_requests, ["node:os"]);
         assert!(production_native_runtime_plan(&plan));
+    }
+
+    #[test]
+    fn production_compiled_runtime_is_a_separate_local_syntax_candidate() {
+        for source in [
+            "import {vi} from 'vitest'; vi.doMock('./subject.cjs', () => ({value:1})); \
+             vi.resetModules()",
+            "import {vi} from 'vitest'; vi.doMock('././subject.mjs', () => ({value:1})); \
+             import('./subject.mjs')",
+        ] {
+            let plan = extract_test_mocks(source, "entry.mjs").unwrap();
+            assert!(production_compiled_runtime_plan(&plan));
+            assert!(!production_native_runtime_plan(&plan));
+        }
+        for (source, parser_error) in [
+            (
+                "import {vi} from 'vitest'; vi.doMock('package', () => ({value:1}))",
+                None,
+            ),
+            (
+                "import {vi} from 'vitest'; vi.doMock('./subject.mjs?raw', () => ({value:1}))",
+                Some("Runtime module mock query and fragment targets are unsupported (entry.mjs)."),
+            ),
+            (
+                "import {vi} from 'vitest'; vi.doMock('./subject.mjs#part', () => ({value:1}))",
+                Some("Runtime module mock query and fragment targets are unsupported (entry.mjs)."),
+            ),
+            (
+                "import {vi} from 'vitest'; vi.mock('./subject.mjs', () => ({value:1})); \
+                 vi.doMock('./subject.mjs', () => ({value:2}))",
+                Some("Runtime module mocks cannot combine with hoisted mock helpers (entry.mjs)."),
+            ),
+            (
+                "import {vi} from 'vitest'; vi.doMock('./subject.mjs', () => {throw \
+                 Error('factory')})",
+                None,
+            ),
+        ] {
+            match extract_test_mocks(source, "entry.mjs") {
+                Ok(plan) => {
+                    assert!(parser_error.is_none(), "{source}");
+                    assert!(!production_compiled_runtime_plan(&plan), "{source}");
+                }
+                Err(error) => {
+                    assert_eq!(Some(error.to_string().as_str()), parser_error, "{source}")
+                }
+            }
+        }
     }
 
     #[test]

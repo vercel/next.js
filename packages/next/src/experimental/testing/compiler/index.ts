@@ -1902,7 +1902,12 @@ export async function createTestCompilerSession(
       let moduleMocking: CompiledTestArtifact['moduleMocking']
       let moduleCache: { version: 1 } | undefined
       let dynamicModuleMocking:
-        | { version: 1; staticMocks?: 1; nativeOriginalInitial?: 1 }
+        | {
+            version: 1
+            staticMocks?: 1
+            nativeOriginalInitial?: 1
+            productionCompiled?: 1
+          }
         | undefined
       if (files.includes(mockMetadataPath)) {
         const nativeMockBytes = await readFile(
@@ -1914,6 +1919,47 @@ export async function createTestCompilerSession(
         const originalInitialMocks =
           metadata.dynamicModuleMocking?.nativeOriginalInitial === 1
         const nativeRuntimeMocks = staticRuntimeMocks || originalInitialMocks
+        const productionCompiledRuntimeMocks =
+          typeof metadata.dynamicModuleMocking === 'object' &&
+          metadata.dynamicModuleMocking?.productionCompiled === 1
+        if (
+          metadata.dynamicModuleMocking &&
+          typeof metadata.dynamicModuleMocking === 'object' &&
+          'productionCompiled' in metadata.dynamicModuleMocking &&
+          (!productionCompiledRuntimeMocks ||
+            metadata.dynamicModuleMocking.version !== 1 ||
+            Array.isArray(metadata.dynamicModuleMocking) ||
+            Object.keys(metadata.dynamicModuleMocking).length !== 2 ||
+            Object.keys(metadata.dynamicModuleMocking).some(
+              (key) => key !== 'version' && key !== 'productionCompiled'
+            ) ||
+            metadata.moduleCache?.version !== 1 ||
+            Array.isArray(metadata.moduleCache) ||
+            Object.keys(metadata.moduleCache).length !== 1 ||
+            Object.keys(metadata.moduleCache)[0] !== 'version' ||
+            metadata.moduleMocking !== undefined ||
+            Object.keys(metadata).length !== 2 ||
+            Object.keys(metadata).some(
+              (key) => key !== 'moduleCache' && key !== 'dynamicModuleMocking'
+            ) ||
+            profile.environment !== 'node' ||
+            profile.mode !== 'production' ||
+            profile.runtime !== 'nodejs' ||
+            profile.bundler !== 'turbopack' ||
+            profile.route !== undefined ||
+            profile.browserClient ||
+            cohortInputs ||
+            setupFiles.length ||
+            snapshotSerializers.length ||
+            coverage ||
+            nativeImportCoverageRoles ||
+            dependencyPlan ||
+            usesInSource ||
+            entry.executionEnvironment)
+        )
+          throw new Error(
+            'Production compiled runtime mocks require isolated ordinary Node metadata'
+          )
         const originalCommonJsRequireReset =
           metadata.moduleMocking?.originalCommonJsRequireReset === 1
         if (
@@ -1970,6 +2016,9 @@ export async function createTestCompilerSession(
             ...(originalInitialMocks
               ? { nativeOriginalInitial: 1 as const }
               : {}),
+            ...(productionCompiledRuntimeMocks
+              ? { productionCompiled: 1 as const }
+              : {}),
           }
         }
         if (metadata.moduleCache !== undefined) {
@@ -1978,7 +2027,8 @@ export async function createTestCompilerSession(
             profile.route === undefined &&
             ((!metadata.moduleMocking && !metadata.dynamicModuleMocking) ||
               nativeRuntimeMocks ||
-              productionOriginalCommonJsRequireReset)
+              productionOriginalCommonJsRequireReset ||
+              productionCompiledRuntimeMocks)
           if (
             metadata.moduleCache?.version !== 1 ||
             profile.environment !== 'node' ||

@@ -643,6 +643,48 @@ async function run({
       artifact.kind === 'node' &&
       artifact.dynamicModuleMocking?.nativeOriginalInitial === 1
     const nativeRuntimeMocks = staticRuntimeMocks || originalInitialMocks
+    const productionCompiledRuntimeMocks =
+      artifact.kind === 'node' &&
+      typeof artifact.dynamicModuleMocking === 'object' &&
+      artifact.dynamicModuleMocking?.productionCompiled === 1
+    if (
+      'dynamicModuleMocking' in artifact &&
+      artifact.dynamicModuleMocking &&
+      typeof artifact.dynamicModuleMocking === 'object' &&
+      'productionCompiled' in artifact.dynamicModuleMocking &&
+      (!productionCompiledRuntimeMocks ||
+        artifact.kind !== 'node' ||
+        artifact.profile.environment !== 'node' ||
+        artifact.profile.mode !== 'production' ||
+        artifact.profile.runtime !== 'nodejs' ||
+        artifact.profile.bundler !== 'turbopack' ||
+        artifact.profile.route !== undefined ||
+        artifact.profile.browserClient ||
+        artifact.dynamicModuleMocking.version !== 1 ||
+        Array.isArray(artifact.dynamicModuleMocking) ||
+        Object.keys(artifact.dynamicModuleMocking).length !== 2 ||
+        Object.keys(artifact.dynamicModuleMocking).some(
+          (key) => key !== 'version' && key !== 'productionCompiled'
+        ) ||
+        artifact.moduleCache?.version !== 1 ||
+        Array.isArray(artifact.moduleCache) ||
+        Object.keys(artifact.moduleCache).length !== 1 ||
+        Object.keys(artifact.moduleCache)[0] !== 'version' ||
+        artifact.moduleMocking !== undefined ||
+        artifact.cohort ||
+        artifact.coverage !== undefined ||
+        artifact.nativeTsConfigInputs !== undefined ||
+        options.coverage ||
+        options.customCoverage ||
+        options.collectOnly ||
+        options.inspect ||
+        options.inspectBrk ||
+        options.setupFiles.length ||
+        options.snapshotSerializers?.length ||
+        options.entry.inSource ||
+        options.entry.executionEnvironment)
+    )
+      throw new Error('Unsupported production compiled runtime mock activation')
     const originalCommonJsRequireReset =
       artifact.moduleMocking?.originalCommonJsRequireReset === 1
     if (
@@ -888,7 +930,8 @@ async function run({
             artifact.profile.route === undefined &&
             ((!artifact.moduleMocking && !artifact.dynamicModuleMocking) ||
               productionStaticRuntimeMocks ||
-              productionOriginalCommonJsRequireReset)
+              productionOriginalCommonJsRequireReset ||
+              productionCompiledRuntimeMocks)
           )) ||
         (artifact.moduleMocking &&
           !nativeRuntimeMocks &&

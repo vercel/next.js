@@ -750,6 +750,57 @@ pub(crate) async fn prepare_runtime(
     .await
 }
 
+/// The production lane retains the real build context and one certified CJS leaf.
+/// Alias spellings may share that same resolved owner; require graphs stay separate.
+pub(crate) async fn prepare_production_runtime(
+    project: ResolvedVc<Project>,
+    context: ResolvedVc<ModuleAssetContext>,
+    source: TestSource,
+    requests: &[String],
+    id: &RcStr,
+) -> Result<Option<CommonJsResetPreparation>> {
+    let production_info = project.node_test_context().await?.compile_time_info;
+    anyhow::ensure!(
+        project.next_mode().await?.is_production()
+            && context.await?.compile_time_info == production_info,
+        "Production runtime mocks require the actual ordinary production context"
+    );
+    let Some(prepared) = prepare_runtime(project, context, source, requests, id).await? else {
+        // ESM is certified by the actual dynamic manifest, not by this decline.
+        return Ok(None);
+    };
+    let [target] = prepared.roots.as_slice() else {
+        anyhow::bail!("Production runtime mocks require one actual CommonJS leaf");
+    };
+    let owner = full_owner(target.original).await?;
+    let certificate = commonjs_reset_export_certificate(*owner).await?;
+    let (modules, edges) =
+        require_closure(&project.project_path().owned().await?, &[target.original]).await?;
+    anyhow::ensure!(
+        certificate.module == owner
+            && certificate.shape == CommonJsResetExportShape::ObjectLiteral
+            && production_runtime_leaf(target.original, &modules, &edges)
+            && !prepared.runtime_targets.is_empty()
+            && prepared.runtime_targets.iter().all(|runtime| {
+                runtime.original == target.original
+                    && runtime.compiled == target.compiled
+                    && runtime.namespace == target.namespace
+            })
+            && prepared.context.await?.compile_time_info == production_info,
+        "Production runtime mocks require one actual object-export CommonJS leaf without require \
+         edges"
+    );
+    Ok(Some(prepared))
+}
+
+fn production_runtime_leaf(
+    target: TestModule,
+    modules: &[TestModule],
+    edges: &[CommonJsRequireEdge],
+) -> bool {
+    modules == [target] && edges.is_empty()
+}
+
 async fn provider_original_reference(
     namespace: TestModule,
     compiled: TestModule,
@@ -1376,7 +1427,7 @@ async fn prepare_commonjs(
 }
 
 /// Require the actual final harness's shared CommonJS edge, never a supplied graph root.
-async fn actual_shared_harness_owner(
+pub(crate) async fn actual_shared_harness_owner(
     harness: TestModule,
     request: &str,
     expected: TestModule,
@@ -1990,6 +2041,23 @@ mod tests {
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].owner, modules["acyclic.cjs"]);
         assert_eq!(edges[0].target, modules["dependency.cjs"]);
+        let leaf = modules["dependency.cjs"];
+        let (leaf_modules, leaf_edges) = require_closure(&directory, &[leaf]).await?;
+        assert!(crate::testing_cjs_reset::production_runtime_leaf(
+            leaf,
+            &leaf_modules,
+            &leaf_edges
+        ));
+        assert!(!crate::testing_cjs_reset::production_runtime_leaf(
+            modules["acyclic.cjs"],
+            &acyclic,
+            &edges
+        ));
+        assert!(!crate::testing_cjs_reset::production_runtime_leaf(
+            modules["a.cjs"],
+            &leaf_modules,
+            &leaf_edges
+        ));
         let captured = modules["dependency.cjs"];
         for (request, builtin) in [
             ("node:fs", true),
