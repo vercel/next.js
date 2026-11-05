@@ -232,6 +232,17 @@ type BufferedResponse = {
   headers: Headers
   status: number
   statusText: string
+  url: string
+}
+
+/**
+ * Rebuilt responses must keep the upstream url: it's how a Route Handler
+ * recognizes a response from fetch(), whose headers still describe the encoded
+ * body after it was transparently decoded.
+ */
+function withResponseUrl(response: Response, url: string): Response {
+  Object.defineProperty(response, 'url', { value: url })
+  return response
 }
 
 /**
@@ -246,6 +257,7 @@ async function bufferResponse(response: Response): Promise<BufferedResponse> {
     headers: response.headers,
     status: response.status,
     statusText: response.statusText,
+    url: response.url,
   }
 }
 
@@ -283,11 +295,14 @@ async function createCachedPrerenderResponse(
   await handleUnlock()
 
   // We return a new Response to the caller.
-  return new Response(bodyBuffer, {
-    headers: res.headers,
-    status: res.status,
-    statusText: res.statusText,
-  })
+  return withResponseUrl(
+    new Response(bodyBuffer, {
+      headers: res.headers,
+      status: res.status,
+      statusText: res.statusText,
+    }),
+    res.url
+  )
 }
 
 async function createCachedDynamicResponse(
@@ -1316,11 +1331,14 @@ export function createPatchedFetcher(
 
           if (pendingRevalidate) {
             const revalidatedResult: BufferedResponse = await pendingRevalidate
-            return new Response(revalidatedResult.body, {
-              headers: revalidatedResult.headers,
-              status: revalidatedResult.status,
-              statusText: revalidatedResult.statusText,
-            })
+            return withResponseUrl(
+              new Response(revalidatedResult.body, {
+                headers: revalidatedResult.headers,
+                status: revalidatedResult.status,
+                statusText: revalidatedResult.statusText,
+              }),
+              revalidatedResult.url
+            )
           }
 
           // We used to just resolve the Response and clone it however for

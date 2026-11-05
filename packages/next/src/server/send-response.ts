@@ -86,6 +86,13 @@ export async function sendResponse(
     // `new Response(upstream.body, upstream)`.
     originalResponse.strictContentLength = true
 
+    // Node.js versions that store the header value as given compare the bytes
+    // written against it with `!==`, so a string always counts as a mismatch.
+    const contentLength = res.getHeader('content-length')
+    if (contentLength && /^\d+$/.test(contentLength)) {
+      originalResponse.setHeader('content-length', Number(contentLength))
+    }
+
     // A response body must not be sent for HEAD requests. See https://httpwg.org/specs/rfc9110.html#HEAD
     if (response.body && req.method !== 'HEAD') {
       await pipeToNodeResponse(response.body, originalResponse, waitUntil)

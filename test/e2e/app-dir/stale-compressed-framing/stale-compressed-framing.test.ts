@@ -121,7 +121,7 @@ describe('stale-compressed-framing', () => {
       }
       const socket = net.connect(Number(next.appPort), '127.0.0.1', () => {
         socket.write(
-          `GET ${path} HTTP/1.1\r\n` +
+          `${method} ${path} HTTP/1.1\r\n` +
             `Host: 127.0.0.1:${next.appPort}\r\n` +
             `Connection: close\r\n\r\n`
         )

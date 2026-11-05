@@ -442,4 +442,119 @@ describe('createPatchedFetcher', () => {
       })
     )
   })
+
+  function createUpstreamResponse() {
+    const response = new Response('decoded body')
+    Object.defineProperty(response, 'url', {
+      value: 'https://example.com/',
+    })
+    return response
+  }
+
+  it('keeps the url of a response deduped during a foreground revalidate', async () => {
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
+    mockFetch.mockImplementation(async () => createUpstreamResponse())
+
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+
+    const incrementalCache = {
+      get: jest.fn(async () => ({
+        isStale: true,
+        value: {
+          kind: 'FETCH',
+          data: { body: '', headers: {}, status: 200, url: '' },
+          revalidate: 1,
+        },
+      })),
+      set: jest.fn(),
+      generateCacheKey: jest.fn(() => 'test-cache-key'),
+      lock: jest.fn(() => () => {}),
+    } as unknown as IncrementalCache
+
+    const workStore: Partial<WorkStore> = {
+      page: '/',
+      route: '/',
+      incrementalCache,
+    }
+
+    const workUnitStore = {
+      type: 'prerender-legacy',
+      phase: 'render',
+      rootParams: {},
+      implicitTags: { tags: [], expirationsByCacheKind: new Map() },
+      revalidate: 1,
+      expire: Infinity,
+      stale: Infinity,
+      tags: [],
+    } as unknown as WorkUnitStore
+
+    await workAsyncStorage.run(workStore as WorkStore, () =>
+      workUnitAsyncStorage.run(workUnitStore, async () => {
+        const responses = await Promise.all([
+          patchedFetch('https://example.com', { cache: 'force-cache' }),
+          patchedFetch('https://example.com', { cache: 'force-cache' }),
+        ])
+
+        expect(mockFetch).toHaveBeenCalledTimes(1)
+        for (const response of responses) {
+          expect(response.url).toBe('https://example.com/')
+          expect(await response.text()).toBe('decoded body')
+        }
+      })
+    )
+  })
+
+  it('keeps the url of a response buffered for a prerender', async () => {
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
+    mockFetch.mockImplementation(async () => createUpstreamResponse())
+
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+
+    const incrementalCache = {
+      get: jest.fn(async () => null),
+      set: jest.fn(),
+      generateCacheKey: jest.fn(() => 'test-cache-key'),
+      lock: jest.fn(() => () => {}),
+    } as unknown as IncrementalCache
+
+    const workStore: Partial<WorkStore> = {
+      page: '/',
+      route: '/',
+      incrementalCache,
+    }
+
+    const workUnitStore = {
+      type: 'prerender',
+      phase: 'render',
+      rootParams: {},
+      implicitTags: { tags: [], expirationsByCacheKind: new Map() },
+      renderSignal: new AbortController().signal,
+      cacheSignal: null,
+      revalidate: 1,
+      expire: Infinity,
+      stale: Infinity,
+      tags: [],
+    } as unknown as WorkUnitStore
+
+    await workAsyncStorage.run(workStore as WorkStore, () =>
+      workUnitAsyncStorage.run(workUnitStore, async () => {
+        const response = await patchedFetch('https://example.com', {
+          cache: 'force-cache',
+        })
+
+        expect(response.url).toBe('https://example.com/')
+        expect(await response.text()).toBe('decoded body')
+      })
+    )
+  })
 })
