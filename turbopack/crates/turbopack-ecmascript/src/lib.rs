@@ -443,15 +443,26 @@ pub trait EcmascriptParsable {
 #[turbo_tasks::value(shared)]
 #[derive(Default, Debug)]
 pub struct EnvVarInfo {
+    /// Source the offsets in `runtime` refer to. `None` for `EnvVarInfo::empty()`.
+    source: Option<ResolvedVc<Box<dyn Source>>>,
     /// List of environment variables accessed at runtime (not inlined) in the module.
     #[bincode(with = "turbo_bincode::indexmap")]
     pub runtime: FxIndexMap<RcStr, EnvVarAccess>,
 }
 
+impl EnvVarInfo {
+    pub fn issue_source(&self, access: &EnvVarAccess) -> Option<IssueSource> {
+        self.source
+            .map(|source| IssueSource::from_swc_offsets(source, access.lo, access.hi))
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct EnvVarAccess {
     pub mode: EnvVarAccessMode,
-    pub source: IssueSource,
+    /// Raw SWC `BytePos` values, as passed to `IssueSource::from_swc_offsets`.
+    lo: u32,
+    hi: u32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]

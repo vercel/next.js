@@ -1,4 +1,4 @@
-if (process.env.FOO1 === 'x') {
+/* 😀 café */ if (process.env.FOO1 === 'x') {
   return false
 }
 if (process.env.INLINED1 === 'x') {
