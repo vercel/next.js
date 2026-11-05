@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use either::Either;
-use itertools::Itertools;
 use swc_core::{
     self,
     testing::{NormalizedOutput, fixture},
@@ -127,14 +125,45 @@ async fn fixture_op(input: RcStr, analyze_mode: AnalyzeMode) -> anyhow::Result<(
 
     let env_var_info = analysis.env_var_info.await?;
 
-    let (runtime_read, runtime_existence): (Vec<_>, Vec<_>) =
-        env_var_info.runtime.iter().partition_map(|(name, mode)| {
-            if *mode == EnvVarAccessMode::Read {
-                Either::Left(name)
-            } else {
-                Either::Right(name)
-            }
-        });
+    let source = module.await?.source;
+    let text = std::fs::read_to_string(&input)?;
+    let lines: Vec<_> = text.lines().collect();
+    let mut runtime_read = Vec::new();
+    let mut runtime_existence = Vec::new();
+    for (name, access) in &env_var_info.runtime {
+        assert_eq!(access.source.source(), source, "source of {name}");
+        let position = access
+            .source
+            .start_pos()
+            .await?
+            .unwrap_or_else(|| panic!("missing source location for {name}"));
+        let at_position = &lines[position.line as usize][position.column as usize..];
+        if at_position.starts_with("process.env[NAME]") {
+            // This fixture uses a constant computed key rather than spelling out the env var.
+            assert!(text.contains(&format!("const NAME = '{name}'")));
+        } else {
+            // Read the property or destructured key directly from the reported location.
+            let key = at_position
+                .trim_start_matches(['[', '\'', '"'])
+                .split(|c: char| !c.is_ascii_alphanumeric() && !matches!(c, '_' | '$' | '.'))
+                .next()
+                .unwrap()
+                .rsplit('.')
+                .next()
+                .unwrap();
+            assert_eq!(
+                key,
+                name.as_str(),
+                "source text at {}:{}",
+                position.line + 1,
+                position.column + 1
+            );
+        }
+        match access.mode {
+            EnvVarAccessMode::Read => runtime_read.push(name),
+            EnvVarAccessMode::Existence => runtime_existence.push(name),
+        }
+    }
 
     let mut value = format!("runtime: {runtime_read:#?}");
     if !runtime_existence.is_empty() {
