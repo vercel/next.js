@@ -115,7 +115,8 @@ pub async fn node_evaluate_asset_context(
                 ignore_dynamic_requests,
                 source_map_generation_options: SourceMapGenerationOptions::from_emitted(
                     *execution_context
-                        .chunking_context()
+                        .await?
+                        .chunking_context
                         .emitted_source_map_type()
                         .await?,
                 ),
