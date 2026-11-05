@@ -165,9 +165,9 @@ impl EcmascriptModulePartAsset {
             }
 
             part @ (ModulePart::Export(_) | ModulePart::PartialExport { .. }) => {
-                let (export, namespace_member) = match part {
+                let (export, namespace_members) = match part {
                     ModulePart::Export(export) => (export, None),
-                    ModulePart::PartialExport { export, member } => (export, Some(member)),
+                    ModulePart::PartialExport { export, members } => (export, Some(members)),
                     _ => unreachable!(),
                 };
                 if entrypoints.contains_key(&Key::Export(export.clone())) {
@@ -205,9 +205,9 @@ impl EcmascriptModulePartAsset {
                     ResolvedVc::upcast(
                         EcmascriptModuleRenameModule::new(
                             **final_module,
-                            match namespace_member {
-                                Some(member) => {
-                                    ModulePart::renamed_partial_namespace(export.clone(), member)
+                            match namespace_members {
+                                Some(members) => {
+                                    ModulePart::renamed_partial_namespace(export.clone(), members)
                                 }
                                 None => ModulePart::renamed_namespace(export.clone()),
                             },
