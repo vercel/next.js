@@ -51,6 +51,8 @@ module.exports = nextConfig
 
 If you opt out while using TypeScript 7, `next build` exits because the TypeScript JavaScript compiler API is unavailable.
 
+To select another TypeScript-compatible compiler package, configure [`typescript.compilerPackage`](/docs/app/api-reference/config/next-config-js/typescript#compilerpackage) and leave the CLI checker enabled.
+
 ## Behavior
 
 - Next.js continues to generate `next-env.d.ts` and route types and to apply its recommended `tsconfig` settings before running the checker.
