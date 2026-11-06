@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/max_chunk_size_remainder/input/page.js"],"sourcesContent":["import { a1 } from './a/a1.js'\nimport { a2 } from './a/a2.js'\nimport { a3 } from './a/a3.js'\nimport { b1 } from './b/b1.js'\nimport { b2 } from './b/b2.js'\nimport { b3 } from './b/b3.js'\n\nexport const page = [a1, a2, a3, b1, b2, b3]\n"],"names":["page"],"mappings":";;;;AAAA;AACA;AACA;AACA;AACA;AACA;;;;;;;AAEO,MAAMA,OAAO;IAAC,uNAAE;IAAE,uNAAE;IAAE,uNAAE;IAAE,uNAAE;IAAE,uNAAE;IAAE,uNAAE;CAAC"}}]
-}
