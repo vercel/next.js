@@ -1,3 +1,4 @@
+import { unstable_cacheDurable } from 'next/cache'
 import { readEnv } from '../dependencies/read'
 import { hasEnv } from '../dependencies/existence'
 import { stable, unrelatedUnstable } from '../dependencies/mixed-exports'
@@ -21,7 +22,8 @@ async function nestedRemote() {
 }
 
 async function durable() {
-  'use cache: remote, durable'
+  'use cache: remote'
+  unstable_cacheDurable()
   return [
     process.env.STABLE_DURABLE_TEST,
     process.env.STABLE_DURABLE_TEST ? 'present' : 'absent',

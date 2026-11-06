@@ -31,7 +31,7 @@ pub async fn get_server_actions_transform_rule(
     encryption_key: ResolvedVc<RcStr>,
     enable_mdx_rs: bool,
     use_cache_enabled: bool,
-    allow_use_cache_durable: bool,
+    allow_cache_durable: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
 ) -> Result<ModuleRule> {
     let transformer = next_server_actions_transform_plugin(
@@ -39,7 +39,7 @@ pub async fn get_server_actions_transform_rule(
         transform,
         *encryption_key,
         use_cache_enabled,
-        allow_use_cache_durable,
+        allow_cache_durable,
         *cache_kinds,
     )
     .to_resolved()
@@ -57,7 +57,7 @@ async fn next_server_actions_transform_plugin(
     transform: ActionsTransform,
     encryption_key: ResolvedVc<RcStr>,
     use_cache_enabled: bool,
-    allow_use_cache_durable: bool,
+    allow_cache_durable: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
 ) -> Result<Vc<TransformPlugin>> {
     Ok(Vc::cell(Box::new(NextServerActions {
@@ -65,7 +65,7 @@ async fn next_server_actions_transform_plugin(
         is_react_server_layer: matches!(transform, ActionsTransform::Server),
         encryption_key,
         use_cache_enabled,
-        allow_use_cache_durable,
+        allow_cache_durable,
         cache_kinds,
     }) as Box<dyn CustomTransformer + Send + Sync>))
 }
@@ -88,7 +88,7 @@ struct NextServerActions {
     is_react_server_layer: bool,
     encryption_key: ResolvedVc<RcStr>,
     use_cache_enabled: bool,
-    allow_use_cache_durable: bool,
+    allow_cache_durable: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
     mode: NextMode,
 }
@@ -109,7 +109,7 @@ impl CustomTransformer for NextServerActions {
                 is_react_server_layer: self.is_react_server_layer,
                 is_development: self.mode.is_development(),
                 use_cache_enabled: self.use_cache_enabled,
-                durable_use_cache_entries_enabled: self.allow_use_cache_durable,
+                durable_use_cache_entries_enabled: self.allow_cache_durable,
                 hash_salt: LazyValue::lazy(Arc::new(LazyRead(encryption_key))),
                 cache_kinds: LazyValue::lazy(Arc::new(LazyRead(cache_kinds))),
             },

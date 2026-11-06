@@ -1,1 +1,4 @@
-export async function cached() {}
+import 'next/cache';
+export async function cached() {
+    void 0;
+}

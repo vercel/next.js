@@ -19,17 +19,17 @@ describe('use-cache-durable-env-validation', () => {
     const output = getTurbopackBuildErrors(cliOutput)
     expect(output).toMatchInlineSnapshot(`
      "Error: Turbopack build failed with 8 errors:
-     ./cases/direct-existence.ts:3:7
+     ./cases/direct-existence.ts:6:7
      Error: Durable cache references an unstable environment variable
-       1 | export async function getValue() {
-       2 |   'use cache: remote, durable'
-     > 3 |   if (process.env.UNSTABLE_DURABLE_TEST) {
+       4 |   'use cache: remote'
+       5 |   unstable_cacheDurable()
+     > 6 |   if (process.env.UNSTABLE_DURABLE_TEST) {
          |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-       4 |     return true
-       5 |   }
-       6 |   return false
+       7 |     return true
+       8 |   }
+       9 |   return false
 
-     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+     Use-cache functions marked with unstable_cacheDurable() must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
 
      Durable cache function:
      ./cases/direct-existence.ts
@@ -41,16 +41,16 @@ describe('use-cache-durable-env-validation', () => {
          ./app/page.tsx
 
 
-     ./cases/direct-read.ts:3:10
+     ./cases/direct-read.ts:6:10
      Error: Durable cache references an unstable environment variable
-       1 | export async function getValue() {
-       2 |   'use cache: remote, durable'
-     > 3 |   return process.env.UNSTABLE_DURABLE_TEST
+       4 |   'use cache: remote'
+       5 |   unstable_cacheDurable()
+     > 6 |   return process.env.UNSTABLE_DURABLE_TEST
          |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-       4 | }
-       5 |
+       7 | }
+       8 |
 
-     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+     Use-cache functions marked with unstable_cacheDurable() must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
 
      Durable cache function:
      ./cases/direct-read.ts
@@ -62,16 +62,16 @@ describe('use-cache-durable-env-validation', () => {
          ./app/page.tsx
 
 
-     ./cases/module-level.ts:4:10
+     ./cases/module-level.ts:7:10
      Error: Durable cache references an unstable environment variable
-       2 |
-       3 | export async function getValue() {
-     > 4 |   return process.env.UNSTABLE_DURABLE_TEST
+       5 | export async function getValue() {
+       6 |   unstable_cacheDurable()
+     > 7 |   return process.env.UNSTABLE_DURABLE_TEST
          |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-       5 | }
-       6 |
+       8 | }
+       9 |
 
-     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+     Use-cache functions marked with unstable_cacheDurable() must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
 
      Durable cache function:
      ./cases/module-level.ts
@@ -92,7 +92,7 @@ describe('use-cache-durable-env-validation', () => {
        5 | }
        6 |
 
-     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+     Use-cache functions marked with unstable_cacheDurable() must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
 
      Durable cache function:
      ./cases/dependency-cycle.ts
@@ -115,7 +115,7 @@ describe('use-cache-durable-env-validation', () => {
        4 |   }
        5 |   return false
 
-     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+     Use-cache functions marked with unstable_cacheDurable() must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
 
      Durable cache function:
      ./cases/nested-cache-existence.ts
@@ -137,7 +137,7 @@ describe('use-cache-durable-env-validation', () => {
        4 |   }
        5 |   return false
 
-     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+     Use-cache functions marked with unstable_cacheDurable() must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
 
      Durable cache function:
      ./cases/transitive-existence.ts
@@ -158,7 +158,7 @@ describe('use-cache-durable-env-validation', () => {
        3 | }
        4 |
 
-     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+     Use-cache functions marked with unstable_cacheDurable() must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
 
      Durable cache function:
      ./cases/nested-cache-read.ts
@@ -179,7 +179,7 @@ describe('use-cache-durable-env-validation', () => {
        3 | }
        4 |
 
-     Use-cache functions marked with the "durable" cache modifier must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
+     Use-cache functions marked with unstable_cacheDurable() must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
 
      Durable cache function:
      ./cases/transitive-read.ts
@@ -215,7 +215,7 @@ describe('use-cache-durable-env-validation with durableUseCacheEntries disabled'
     env: { TEST_DURABLE_USE_CACHE_ENTRIES: 'false' },
   })
 
-  it('rejects the durable modifier', async () => {
+  it('rejects unstable_cacheDurable() when disabled', async () => {
     const { exitCode, cliOutput } = await next.build()
     expect(exitCode).toBe(1)
     const output = isTurbopack
@@ -224,15 +224,15 @@ describe('use-cache-durable-env-validation with durableUseCacheEntries disabled'
     if (isTurbopack) {
       expect(output).toMatchInlineSnapshot(`
        "Error: Turbopack build failed with 8 errors:
-       ./cases/dependency-cycle.ts:4:3
-       Error: The "durable" cache modifier requires experimental.durableUseCacheEntries to be enabled.
-         2 |
-         3 | export async function getValue() {
-       > 4 |   'use cache: remote, durable'
-           |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         5 |   return readCycleA(2)
-         6 | }
-         7 |
+       ./cases/dependency-cycle.ts:6:3
+       Error: unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+         4 | export async function getValue() {
+         5 |   'use cache: remote'
+       > 6 |   unstable_cacheDurable()
+           |   ^^^^^^^^^^^^^^^^^^^^^^^
+         7 |   return readCycleA(2)
+         8 | }
+         9 |
 
        Ecmascript file had an error
 
@@ -243,14 +243,15 @@ describe('use-cache-durable-env-validation with durableUseCacheEntries disabled'
            ./app/page.tsx
 
 
-       ./cases/direct-existence.ts:2:3
-       Error: The "durable" cache modifier requires experimental.durableUseCacheEntries to be enabled.
-         1 | export async function getValue() {
-       > 2 |   'use cache: remote, durable'
-           |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         3 |   if (process.env.UNSTABLE_DURABLE_TEST) {
-         4 |     return true
-         5 |   }
+       ./cases/direct-existence.ts:5:3
+       Error: unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+         3 | export async function getValue() {
+         4 |   'use cache: remote'
+       > 5 |   unstable_cacheDurable()
+           |   ^^^^^^^^^^^^^^^^^^^^^^^
+         6 |   if (process.env.UNSTABLE_DURABLE_TEST) {
+         7 |     return true
+         8 |   }
 
        Ecmascript file had an error
 
@@ -261,14 +262,15 @@ describe('use-cache-durable-env-validation with durableUseCacheEntries disabled'
            ./app/page.tsx
 
 
-       ./cases/direct-read.ts:2:3
-       Error: The "durable" cache modifier requires experimental.durableUseCacheEntries to be enabled.
-         1 | export async function getValue() {
-       > 2 |   'use cache: remote, durable'
-           |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         3 |   return process.env.UNSTABLE_DURABLE_TEST
-         4 | }
-         5 |
+       ./cases/direct-read.ts:5:3
+       Error: unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+         3 | export async function getValue() {
+         4 |   'use cache: remote'
+       > 5 |   unstable_cacheDurable()
+           |   ^^^^^^^^^^^^^^^^^^^^^^^
+         6 |   return process.env.UNSTABLE_DURABLE_TEST
+         7 | }
+         8 |
 
        Ecmascript file had an error
 
@@ -279,13 +281,15 @@ describe('use-cache-durable-env-validation with durableUseCacheEntries disabled'
            ./app/page.tsx
 
 
-       ./cases/module-level.ts:1:1
-       Error: The "durable" cache modifier requires experimental.durableUseCacheEntries to be enabled.
-       > 1 | 'use cache: remote, durable'
-           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         2 |
-         3 | export async function getValue() {
-         4 |   return process.env.UNSTABLE_DURABLE_TEST
+       ./cases/module-level.ts:6:3
+       Error: unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+         4 |
+         5 | export async function getValue() {
+       > 6 |   unstable_cacheDurable()
+           |   ^^^^^^^^^^^^^^^^^^^^^^^
+         7 |   return process.env.UNSTABLE_DURABLE_TEST
+         8 | }
+         9 |
 
        Ecmascript file had an error
 
@@ -296,15 +300,15 @@ describe('use-cache-durable-env-validation with durableUseCacheEntries disabled'
            ./app/page.tsx
 
 
-       ./cases/nested-cache-existence.ts:9:3
-       Error: The "durable" cache modifier requires experimental.durableUseCacheEntries to be enabled.
-          7 |
-          8 | export async function getValue() {
-       >  9 |   'use cache: remote, durable'
-            |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         10 |   return inner()
-         11 | }
-         12 |
+       ./cases/nested-cache-existence.ts:11:3
+       Error: unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+          9 | export async function getValue() {
+         10 |   'use cache: remote'
+       > 11 |   unstable_cacheDurable()
+            |   ^^^^^^^^^^^^^^^^^^^^^^^
+         12 |   return inner()
+         13 | }
+         14 |
 
        Ecmascript file had an error
 
@@ -315,15 +319,15 @@ describe('use-cache-durable-env-validation with durableUseCacheEntries disabled'
            ./app/page.tsx
 
 
-       ./cases/nested-cache-read.ts:9:3
-       Error: The "durable" cache modifier requires experimental.durableUseCacheEntries to be enabled.
-          7 |
-          8 | export async function getValue() {
-       >  9 |   'use cache: remote, durable'
-            |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         10 |   return inner()
-         11 | }
-         12 |
+       ./cases/nested-cache-read.ts:11:3
+       Error: unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+          9 | export async function getValue() {
+         10 |   'use cache: remote'
+       > 11 |   unstable_cacheDurable()
+            |   ^^^^^^^^^^^^^^^^^^^^^^^
+         12 |   return inner()
+         13 | }
+         14 |
 
        Ecmascript file had an error
 
@@ -334,15 +338,15 @@ describe('use-cache-durable-env-validation with durableUseCacheEntries disabled'
            ./app/page.tsx
 
 
-       ./cases/transitive-existence.ts:4:3
-       Error: The "durable" cache modifier requires experimental.durableUseCacheEntries to be enabled.
-         2 |
-         3 | export async function getValue() {
-       > 4 |   'use cache: remote, durable'
-           |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         5 |   return hasEnv()
-         6 | }
-         7 |
+       ./cases/transitive-existence.ts:6:3
+       Error: unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+         4 | export async function getValue() {
+         5 |   'use cache: remote'
+       > 6 |   unstable_cacheDurable()
+           |   ^^^^^^^^^^^^^^^^^^^^^^^
+         7 |   return hasEnv()
+         8 | }
+         9 |
 
        Ecmascript file had an error
 
@@ -353,15 +357,15 @@ describe('use-cache-durable-env-validation with durableUseCacheEntries disabled'
            ./app/page.tsx
 
 
-       ./cases/transitive-read.ts:4:3
-       Error: The "durable" cache modifier requires experimental.durableUseCacheEntries to be enabled.
-         2 |
-         3 | export async function getValue() {
-       > 4 |   'use cache: remote, durable'
-           |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         5 |   return readEnv()
-         6 | }
-         7 |
+       ./cases/transitive-read.ts:6:3
+       Error: unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+         4 | export async function getValue() {
+         5 |   'use cache: remote'
+       > 6 |   unstable_cacheDurable()
+           |   ^^^^^^^^^^^^^^^^^^^^^^^
+         7 |   return readEnv()
+         8 | }
+         9 |
 
        Ecmascript file had an error
 
@@ -373,11 +377,11 @@ describe('use-cache-durable-env-validation with durableUseCacheEntries disabled'
       `)
     } else {
       expect(output).toContain(
-        'The "durable" cache modifier requires experimental.durableUseCacheEntries to be enabled.'
+        'unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.'
       )
       expect(output).not.toContain(issueTitle)
     }
-    // Cover both inline and module-level durable directives.
+    // Cover durable calls in both inline and module-level cache functions.
     expect(output).toContain('cases/direct-read.ts')
     expect(output).toContain('cases/module-level.ts')
   })

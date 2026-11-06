@@ -1,0 +1,7 @@
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+   ,-[input.js:6:1]
+ 5 | async function helper() {
+ 6 |   unstable_cacheDurable()
+   :   ^^^^^^^^^^^^^^^^^^^^^^^
+ 7 |   return 'helper'
+   `----

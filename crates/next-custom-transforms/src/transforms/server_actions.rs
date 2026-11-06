@@ -34,7 +34,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 
-use crate::FxIndexMap;
+use crate::{FxIndexMap, transforms::import_analyzer::ImportMap};
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub enum ServerActionsMode {
@@ -120,7 +120,7 @@ impl<T> std::fmt::Debug for LazyValue<T> {
 #[derive(Clone, Debug)]
 enum Directive {
     UseServer,
-    UseCache { cache_kind: RcStr, durable: bool },
+    UseCache { cache_kind: RcStr },
 }
 
 #[derive(Clone, Debug)]
@@ -145,20 +145,10 @@ struct ServerReferenceExport {
 
 /// Export info for serialization
 #[derive(Clone, Debug, serde::Serialize)]
-#[serde(untagged)]
-enum ServerReferenceExportInfo {
-    Name { name: Atom },
-    Durable { name: Atom, durable: bool },
-}
-
-impl ServerReferenceExportInfo {
-    fn new(name: Atom, durable: bool) -> Self {
-        if durable {
-            Self::Durable { name, durable }
-        } else {
-            Self::Name { name }
-        }
-    }
+struct ServerReferenceExportInfo {
+    name: Atom,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    durable: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -211,9 +201,11 @@ enum ServerActionsErrorKind {
         span: Span,
         cache_kind: RcStr,
     },
-    UnknownCacheModifier {
+    DurableOutsideServerFunction {
         span: Span,
-        modifier: String,
+    },
+    DurableWithArguments {
+        span: Span,
     },
     DurableCacheWithoutDurableUseCacheEntries {
         span: Span,
@@ -275,6 +267,8 @@ pub fn server_actions<C: Comments>(
         hoisted_extra_items: Default::default(),
         reference_ids_by_export_name: Default::default(),
         durable_reference_ids: Default::default(),
+        imports: Default::default(),
+        function_is_durable: None,
         server_reference_exports: Default::default(),
 
         private_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
@@ -349,8 +343,11 @@ struct ServerActions<C: Comments> {
     /// A map of all server references (inline + exported): export_name -> reference_id
     reference_ids_by_export_name: FxIndexMap<ModuleExportName, Atom>,
 
-    /// Cache references whose magic-comment metadata must retain the durable modifier.
+    /// Server references whose magic-comment metadata must retain durability.
     durable_reference_ids: FxHashSet<Atom>,
+    imports: ImportMap,
+    /// None outside a server/cache function; otherwise, whether it contains a durable marker.
+    function_is_durable: Option<bool>,
 
     /// A list of server references for originally exported server functions only.
     server_reference_exports: Vec<ServerReferenceExport>,
@@ -463,6 +460,11 @@ impl<C: Comments> ServerActions<C> {
         Atom::from(hex_encode(result))
     }
 
+    fn is_durable_callee(&self, callee: &Expr) -> bool {
+        self.imports
+            .is_import(callee, "next/cache", "unstable_cacheDurable")
+    }
+
     fn is_default_export(&self) -> bool {
         matches!(
             self.current_export_name,
@@ -570,6 +572,7 @@ impl<C: Comments> ServerActions<C> {
         &mut self,
         ids_from_closure: Vec<Name>,
         arrow: &mut ArrowExpr,
+        durable: bool,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
 
@@ -597,6 +600,9 @@ impl<C: Comments> ServerActions<C> {
             Some(&new_params),
         );
 
+        if durable {
+            self.durable_reference_ids.insert(action_id.clone());
+        }
         self.has_action = true;
         self.reference_ids_by_export_name.insert(
             ModuleExportName::Ident(action_ident.clone()),
@@ -729,6 +735,7 @@ impl<C: Comments> ServerActions<C> {
         ids_from_closure: Vec<Name>,
         function: &mut Function,
         fn_name: Option<Ident>,
+        durable: bool,
     ) -> Box<Expr> {
         let mut new_params: Vec<Param> = vec![];
 
@@ -758,6 +765,9 @@ impl<C: Comments> ServerActions<C> {
             Some(&new_params),
         );
 
+        if durable {
+            self.durable_reference_ids.insert(action_id.clone());
+        }
         self.has_action = true;
         self.reference_ids_by_export_name.insert(
             ModuleExportName::Ident(action_ident.clone()),
@@ -1086,10 +1096,14 @@ impl<C: Comments> ServerActions<C> {
         fn_name: Option<&Ident>,
         params: Option<&Vec<Param>>,
         span: Span,
+        durable: bool,
         take_fn_or_arrow_expr: &mut dyn FnMut() -> Box<Expr>,
     ) {
         if let Some(fn_name) = fn_name {
             let reference_id = self.generate_server_reference_id(export_name, false, params);
+            if durable {
+                self.durable_reference_ids.insert(reference_id.clone());
+            }
 
             self.has_action = true;
             self.reference_ids_by_export_name
@@ -1104,6 +1118,9 @@ impl<C: Comments> ServerActions<C> {
         } else if self.is_default_export() {
             let action_ident = Ident::new(self.gen_action_ident(), span, self.private_ctxt);
             let reference_id = self.generate_server_reference_id(export_name, false, params);
+            if durable {
+                self.durable_reference_ids.insert(reference_id.clone());
+            }
 
             self.has_action = true;
             self.reference_ids_by_export_name
@@ -1281,6 +1298,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_function(&mut self, f: &mut Function) {
         let directive = self.get_directive_for_function(f.body.as_mut());
+        let old_durable = replace(
+            &mut self.function_is_durable,
+            directive.as_ref().map(|_| false),
+        );
         let declared_idents_until = self.declared_idents.len();
         let old_names = take(&mut self.names);
 
@@ -1305,6 +1326,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.fn_decl_ident = old_fn_decl_ident;
             self.fn_expr_ident = old_fn_expr_ident;
         }
+
+        let durable = replace(&mut self.function_is_durable, old_durable).unwrap_or(false);
 
         let mut child_names = take(&mut self.names);
 
@@ -1359,6 +1382,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     export_ident.as_ref(),
                     Some(&params),
                     span,
+                    durable,
                     &mut || {
                         Box::new(Expr::Fn(FnExpr {
                             ident: fn_name.clone(),
@@ -1372,7 +1396,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             // For the client layer, register cache exports without hoisting.
             if !self.config.is_react_server_layer {
-                if let Directive::UseCache { durable, .. } = directive
+                if let Directive::UseCache { .. } = directive
                     && let Some(export_name) = self.current_export_name.clone()
                 {
                     self.register_cache_export_on_client(
@@ -1387,11 +1411,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 return;
             }
 
-            if let Directive::UseCache {
-                cache_kind,
-                durable,
-            } = directive
-            {
+            if let Directive::UseCache { cache_kind } = directive {
                 // Collect all the identifiers defined inside the closure and used
                 // in the cache function. With deduplication.
                 retain_names_from_declared_idents(
@@ -1441,6 +1461,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     child_names,
                     f,
                     fn_name,
+                    durable,
                 );
 
                 if self.is_default_export() {
@@ -1506,6 +1527,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 None
             },
         );
+        let old_durable = replace(
+            &mut self.function_is_durable,
+            directive.as_ref().map(|_| false),
+        );
 
         if let Some(directive) = &directive {
             self.this_status = ThisStatus::Forbidden {
@@ -1532,6 +1557,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.should_track_names = old_should_track_names;
             self.current_export_name = old_current_export_name;
         }
+
+        let durable = replace(&mut self.function_is_durable, old_durable).unwrap_or(false);
 
         let mut child_names = take(&mut self.names);
 
@@ -1574,6 +1601,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     arrow_ident.as_ref(),
                     Some(&params),
                     a.span,
+                    durable,
                     &mut || Box::new(Expr::Arrow(a.take())),
                 );
 
@@ -1582,7 +1610,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             // For the client layer, register cache exports without hoisting.
             if !self.config.is_react_server_layer {
-                if let Directive::UseCache { durable, .. } = directive
+                if let Directive::UseCache { .. } = directive
                     && let Some(export_name) = self.current_export_name.clone()
                 {
                     let params: Vec<Param> =
@@ -1607,11 +1635,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 &self.declared_idents[..declared_idents_until],
             );
 
-            if let Directive::UseCache {
-                cache_kind,
-                durable,
-            } = directive
-            {
+            if let Directive::UseCache { cache_kind } = directive {
                 self.rewrite_expr_to_proxy_expr =
                     Some(self.maybe_hoist_and_create_proxy_for_cache_arrow_expr(
                         child_names,
@@ -1621,7 +1645,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ));
             } else {
                 self.rewrite_expr_to_proxy_expr = Some(
-                    self.maybe_hoist_and_create_proxy_for_server_action_arrow_expr(child_names, a),
+                    self.maybe_hoist_and_create_proxy_for_server_action_arrow_expr(
+                        child_names,
+                        a,
+                        durable,
+                    ),
                 );
             }
         }
@@ -1629,6 +1657,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_module(&mut self, m: &mut Module) {
         self.start_pos = m.span.lo;
+        self.imports = ImportMap::analyze(m);
         m.visit_mut_children_with(self);
     }
 
@@ -1711,8 +1740,22 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_class(&mut self, n: &mut Class) {
         let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
+        let old_durable = self.function_is_durable.take();
         n.visit_mut_children_with(self);
+        self.function_is_durable = old_durable;
         self.this_status = old_this_status;
+    }
+
+    fn visit_mut_getter_prop(&mut self, n: &mut GetterProp) {
+        let old_durable = self.function_is_durable.take();
+        n.visit_mut_children_with(self);
+        self.function_is_durable = old_durable;
+    }
+
+    fn visit_mut_setter_prop(&mut self, n: &mut SetterProp) {
+        let old_durable = self.function_is_durable.take();
+        n.visit_mut_children_with(self);
+        self.function_is_durable = old_durable;
     }
 
     fn visit_mut_class_member(&mut self, n: &mut ClassMember) {
@@ -1804,6 +1847,40 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_expr(&mut self, n: &mut Expr) {
+        let durable_call = match n {
+            Expr::Call(call) if matches!(&call.callee, Callee::Expr(callee) if self.is_durable_callee(callee)) => {
+                Some((call.span, !call.args.is_empty()))
+            }
+            Expr::OptChain(chain) => match &*chain.base {
+                OptChainBase::Call(call) if self.is_durable_callee(&call.callee) => {
+                    Some((call.span, !call.args.is_empty()))
+                }
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some((span, has_arguments)) = durable_call {
+            match &mut self.function_is_durable {
+                Some(durable) => {
+                    *durable = true;
+                    if !self.config.durable_use_cache_entries_enabled {
+                        emit_error(
+                            ServerActionsErrorKind::DurableCacheWithoutDurableUseCacheEntries {
+                                span,
+                            },
+                        );
+                    }
+                }
+                None => emit_error(ServerActionsErrorKind::DurableOutsideServerFunction { span }),
+            }
+            if has_arguments {
+                emit_error(ServerActionsErrorKind::DurableWithArguments { span });
+            }
+            // This is a compile-time marker. No runtime implementation or import is needed.
+            *n = *Expr::undefined(span);
+            return;
+        }
+
         if !self.in_module_level
             && self.should_track_names
             && let Ok(mut name) = Name::try_from(&*n)
@@ -1832,6 +1909,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
         self.file_directive = self.get_directive_for_module(stmts);
+
+        // Marker calls are erased, so their named imports do not need a runtime export.
+        for item in stmts.iter_mut() {
+            if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item {
+                import.specifiers.retain(|specifier| {
+                    !matches!(specifier, ImportSpecifier::Named(named)
+                        if self.is_durable_callee(&Expr::Ident(named.local.clone())))
+                });
+            }
+        }
 
         let in_cache_file = matches!(self.file_directive, Some(Directive::UseCache { .. }));
         let in_action_file = matches!(self.file_directive, Some(Directive::UseServer));
@@ -2262,12 +2349,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                 let reference_id =
                     self.generate_server_reference_id(export_name, in_cache_file, None);
-                if matches!(
-                    self.file_directive,
-                    Some(Directive::UseCache { durable: true, .. })
-                ) {
-                    self.durable_reference_ids.insert(reference_id.clone());
-                }
                 self.server_reference_exports.push(ServerReferenceExport {
                     ident: Ident::from(id.clone()),
                     export_name: export_name.clone(),
@@ -2787,10 +2868,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     let name_atom = export_name.atom().into_owned();
                     (
                         reference_id,
-                        ServerReferenceExportInfo::new(
-                            name_atom,
-                            self.durable_reference_ids.contains(reference_id),
-                        ),
+                        ServerReferenceExportInfo {
+                            name: name_atom,
+                            durable: self.durable_reference_ids.contains(reference_id),
+                        },
                     )
                 })
                 .collect::<BTreeMap<_, _>>();
@@ -2863,10 +2944,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             let stripped_export_name = strip_export_name_span(&export_name);
 
                             let name_atom = export_name.atom().into_owned();
-                            let export_info = ServerReferenceExportInfo::new(
-                                name_atom,
-                                self.durable_reference_ids.contains(&ref_id),
-                            );
+                            let export_info = ServerReferenceExportInfo {
+                                name: name_atom,
+                                durable: self.durable_reference_ids.contains(&ref_id),
+                            };
 
                             new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
                                 NamedExport {
@@ -3606,7 +3687,6 @@ impl DirectiveVisitor<'_> {
                         if rest.is_empty() {
                             self.directive = Some(Directive::UseCache {
                                 cache_kind: rcstr!("default"),
-                                durable: false,
                             });
 
                             self.increment_cache_usage_counter("default");
@@ -3615,41 +3695,14 @@ impl DirectiveVisitor<'_> {
                         }
 
                         if let Some(prefix) = rest.strip_prefix(": ") {
-                            // Modifiers are metadata, not part of the cache handler's kind.
-                            let mut parts = prefix.split(',');
-                            let cache_kind = RcStr::from(parts.next().unwrap().trim());
-                            let mut durable = false;
-                            for modifier in parts {
-                                let modifier = modifier.trim();
-                                if modifier != "durable" || durable {
-                                    emit_error(ServerActionsErrorKind::UnknownCacheModifier {
-                                        span: *span,
-                                        modifier: modifier.to_string(),
-                                    });
-                                    return true;
-                                }
-                                durable = true;
-                            }
-
+                            let cache_kind = RcStr::from(prefix);
                             if cache_kind.is_empty() {
                                 emit_error(ServerActionsErrorKind::MisspelledDirective {
                                     span: *span,
                                     directive: value.to_string_lossy().into_owned(),
-                                    expected_directive: if durable {
-                                        "use cache: <cache-kind>, durable".to_string()
-                                    } else {
-                                        "use cache: <cache-kind>".to_string()
-                                    },
+                                    expected_directive: "use cache: <cache-kind>".to_string(),
                                 });
                                 return true;
-                            }
-
-                            if durable && !self.config.durable_use_cache_entries_enabled {
-                                emit_error(
-                                    ServerActionsErrorKind::DurableCacheWithoutDurableUseCacheEntries {
-                                        span: *span,
-                                    },
-                                );
                             }
 
                             if !self.config.cache_kinds.get().contains(&cache_kind) {
@@ -3660,10 +3713,7 @@ impl DirectiveVisitor<'_> {
                             }
 
                             self.increment_cache_usage_counter(&cache_kind);
-                            self.directive = Some(Directive::UseCache {
-                                cache_kind,
-                                durable,
-                            });
+                            self.directive = Some(Directive::UseCache { cache_kind });
 
                             return true;
                         }
@@ -4073,17 +4123,19 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
                 }
             },
         ),
-        ServerActionsErrorKind::UnknownCacheModifier { span, modifier } => (
+        ServerActionsErrorKind::DurableWithArguments { span } => (
             span,
-            format!(
-                "Unknown cache modifier \"{modifier}\". Only the \"durable\" modifier is \
-                 supported, and it may only be specified once."
-            ),
+            "unstable_cacheDurable() does not accept arguments.".to_string(),
+        ),
+        ServerActionsErrorKind::DurableOutsideServerFunction { span } => (
+            span,
+            "unstable_cacheDurable() can only be called directly inside a \"use server\" or \"use \
+             cache\" function."
+                .to_string(),
         ),
         ServerActionsErrorKind::DurableCacheWithoutDurableUseCacheEntries { span } => (
             span,
-            "The \"durable\" cache modifier requires experimental.durableUseCacheEntries to be \
-             enabled."
+            "unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled."
                 .to_string(),
         ),
         ServerActionsErrorKind::UnknownCacheKind { span, cache_kind } => (
