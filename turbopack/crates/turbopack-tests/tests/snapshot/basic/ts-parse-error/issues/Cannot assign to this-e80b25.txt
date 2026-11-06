@@ -1,4 +1,4 @@
-error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/basic/ts-parse-error/input/other.ts:2:4  Cannot assign to this
+error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/basic/ts-parse-error/input/other.ts:2:5  Cannot assign to this
        1 | function x() {
          +     v
        2 +   ;[1, 2] = [1, 2]

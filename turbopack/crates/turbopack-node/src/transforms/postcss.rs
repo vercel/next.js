@@ -20,7 +20,7 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapType},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -263,20 +263,16 @@ async fn extra_configs_changed(
 }
 
 #[turbo_tasks::value]
-pub struct JsonSource {
-    pub path: FileSystemPath,
-    pub key: ResolvedVc<Option<RcStr>>,
-    pub allow_json5: bool,
+struct JsonSource {
+    path: FileSystemPath,
+    key: ResolvedVc<Option<RcStr>>,
+    allow_json5: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl JsonSource {
     #[turbo_tasks::function]
-    pub fn new(
-        path: FileSystemPath,
-        key: ResolvedVc<Option<RcStr>>,
-        allow_json5: bool,
-    ) -> Vc<Self> {
+    fn new(path: FileSystemPath, key: ResolvedVc<Option<RcStr>>, allow_json5: bool) -> Vc<Self> {
         JsonSource {
             path,
             key,
@@ -339,7 +335,7 @@ impl Asset for JsonSource {
 }
 
 #[turbo_tasks::function]
-pub(crate) async fn config_loader_source(
+async fn config_loader_source(
     project_path: FileSystemPath,
     postcss_config_path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {
@@ -458,10 +454,10 @@ async fn find_config_in_location(
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for PostCssTransformedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
+    async fn generate_source_map(&self, ty: SourceMapType) -> Result<Vc<FileContent>> {
         let source = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.source);
         match source {
-            Some(source) => Ok(source.generate_source_map()),
+            Some(source) => Ok(source.generate_source_map(ty)),
             None => Ok(FileContent::NotFound.cell()),
         }
     }

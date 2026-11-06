@@ -50,8 +50,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
-    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystem, FileSystemPath,
-    VirtualFileSystem, invalidation,
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystem,
+    FileSystemPath, VirtualFileSystem, invalidation,
 };
 use turbo_unix_path::join_path;
 use turbopack::{
@@ -60,6 +60,7 @@ use turbopack::{
 };
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
+    asset::AssetContent,
     changed::content_changed,
     chunk::{
         ChunkingContext, EvaluatableAssets, UnusedReferences,
@@ -89,9 +90,12 @@ use turbopack_core::{
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
+    source::{OptionSource, Source},
+    source_map::{SourceMapGenerationOptions, SourceMapType},
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
+    virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::async_chunk::proxy::{
     activation_key_from_chunk_path, lazy_compilation_state,
@@ -366,6 +370,10 @@ pub struct ProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with `--no-server-fast-refresh`).
     pub server_hmr: bool,
+
+    /// Retains shallow source maps (e.g. for `next analyze`) without changing the emitted source
+    /// map variant.
+    pub ensure_shallow_source_maps: bool,
 }
 
 /// The subset of [`ProjectOptions`] that may change without restarting the process. Used by
@@ -429,6 +437,7 @@ struct ProjectFileSystemState {
 #[turbo_tasks::value(evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
+    go_sessions: ResolvedVc<turbopack_go::GoSessionPool>,
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
@@ -442,8 +451,10 @@ pub struct ProjectContainer {
 impl ProjectContainer {
     #[turbo_tasks::function(operation, root)]
     pub fn new_operation(name: RcStr, dev: bool) -> Result<Vc<Self>> {
+        let go_sessions = turbopack_go::GoSessionPool::new();
         Ok(ProjectContainer {
             name,
+            go_sessions,
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
@@ -457,6 +468,22 @@ impl ProjectContainer {
             fs_map_init_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
+    }
+}
+
+impl ProjectContainer {
+    /// Attach process-local cleanup after resolving the container. Shutdown hooks must not be
+    /// task inputs: making the container transient also prevents its project graph from persisting.
+    pub fn register_shutdown_hooks(&self, shutdown: &crate::shutdown::ShutdownHooks) {
+        shutdown.on_shutdown(self.go_sessions, |sessions| {
+            Box::pin(async move {
+                sessions
+                    .await?
+                    .shutdown()
+                    .await
+                    .context("shutting down Go compiler sessions")
+            })
+        });
     }
 }
 
@@ -927,6 +954,7 @@ impl ProjectContainer {
         let deferred_entries;
         let is_persistent_caching_enabled;
         let server_hmr;
+        let ensure_shallow_source_maps;
         let project_file_system;
         let output_file_system;
         let additional_roots;
@@ -962,6 +990,7 @@ impl ProjectContainer {
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
             server_hmr = options.server_hmr;
+            ensure_shallow_source_maps = options.ensure_shallow_source_maps;
             project_file_system = file_systems.project_file_system;
             output_file_system = file_systems.output_file_system;
             additional_roots = self.additional_roots_state.get().iter().cloned().collect();
@@ -971,6 +1000,11 @@ impl ProjectContainer {
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
+            go_sessions: if *next_config.go_routes().await? {
+                Some(self.go_sessions)
+            } else {
+                None
+            },
             root_path,
             project_path,
             watch,
@@ -986,8 +1020,8 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
-            build_id,
-            encryption_key,
+            build_id: ResolvedVc::cell(build_id),
+            encryption_key: ResolvedVc::cell(encryption_key),
             preview_props: ResolvedVc::cell(preview_props),
             no_mangling,
             write_routes_hashes_manifest,
@@ -996,6 +1030,7 @@ impl ProjectContainer {
             deferred_entries,
             is_persistent_caching_enabled,
             server_hmr,
+            ensure_shallow_source_maps,
             project_file_system,
             output_file_system,
             additional_roots,
@@ -1018,15 +1053,24 @@ impl ProjectContainer {
     /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
     /// return [`FileContent::NotFound`].
     #[turbo_tasks::function]
-    pub fn get_source_map(
-        &self,
+    pub async fn get_source_map(
+        self: Vc<Self>,
         file_path: FileSystemPath,
         section: Option<RcStr>,
-    ) -> Vc<FileContent> {
-        if let Some(map) = self.versioned_content_map {
-            map.get_source_map(file_path, section)
+    ) -> Result<Vc<FileContent>> {
+        if let Some(map) = self.await?.versioned_content_map {
+            let project = self.project();
+            // Error tracing must use shallow maps when input source maps are disabled.
+            let ty = if project.client_source_map_generation_options().await?.full
+                || project.server_source_map_generation_options().await?.full
+            {
+                SourceMapType::Full
+            } else {
+                SourceMapType::Shallow
+            };
+            Ok(map.get_source_map(file_path, section, ty))
         } else {
-            FileContent::NotFound.cell()
+            Ok(FileContent::NotFound.cell())
         }
     }
 }
@@ -1034,6 +1078,7 @@ impl ProjectContainer {
 #[derive(Clone)]
 #[turbo_tasks::value]
 pub struct Project {
+    pub(crate) go_sessions: Option<ResolvedVc<turbopack_go::GoSessionPool>>,
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
@@ -1074,9 +1119,14 @@ pub struct Project {
 
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
 
-    build_id: RcStr,
+    /// Stored in a separate cell, as it can change between builds. Keeping it out of the
+    /// [`Project`] value avoids invalidating every task that reads the [`Project`].
+    build_id: ResolvedVc<RcStr>,
 
-    encryption_key: RcStr,
+    /// Stored in a separate cell, as it can change between builds (e.g. key rotation or a
+    /// per-build `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`). Keeping it out of the [`Project`] value
+    /// avoids invalidating every task that reads the [`Project`].
+    encryption_key: ResolvedVc<RcStr>,
 
     preview_props: ResolvedVc<DraftModeOptionsValue>,
 
@@ -1102,6 +1152,8 @@ pub struct Project {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
+    /// Retains shallow source maps for `analyze` without changing the emitted source map variant.
+    ensure_shallow_source_maps: bool,
 
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
@@ -1352,6 +1404,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn watch_poll_interval_ms(&self) -> Vc<Option<u64>> {
+        Vc::cell(
+            self.watch
+                .poll_interval
+                .map(|interval| interval.as_millis().try_into().unwrap_or(u64::MAX)),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn should_write_routes_hashes_manifest(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.write_routes_hashes_manifest))
     }
@@ -1376,12 +1437,39 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn encryption_key(&self) -> Vc<RcStr> {
-        Vc::cell(self.encryption_key.clone())
+        *self.encryption_key
     }
 
     #[turbo_tasks::function]
     pub(super) fn no_mangling(&self) -> Vc<bool> {
         Vc::cell(self.no_mangling)
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn client_source_map_generation_options(
+        &self,
+    ) -> Result<Vc<SourceMapGenerationOptions>> {
+        let mut generation = SourceMapGenerationOptions::from_emitted(
+            *self.next_config.client_source_maps(*self.mode).await?,
+        );
+        if self.ensure_shallow_source_maps {
+            generation.shallow = true;
+            generation.shallow_sources_content = !*self.next_config.input_source_maps().await?;
+        }
+        Ok(generation.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn server_source_map_generation_options(
+        &self,
+    ) -> Result<Vc<SourceMapGenerationOptions>> {
+        let mut generation =
+            SourceMapGenerationOptions::from_emitted(*self.next_config.server_source_maps().await?);
+        if self.ensure_shallow_source_maps {
+            generation.shallow = true;
+            generation.shallow_sources_content = !*self.next_config.input_source_maps().await?;
+        }
+        Ok(generation.cell())
     }
 
     #[turbo_tasks::function]
@@ -1410,7 +1498,7 @@ impl Project {
                 node_build_environment().to_resolved().await?,
                 next_mode.runtime_type(),
             )
-            .source_maps(*self.next_config().server_source_maps().await?)
+            .emitted_source_map_type(*self.next_config().server_source_maps().await?)
             // This context is shared by every node-side transform that needs to evaluate JS at
             // build time (postcss configs, webpack loaders, next/font/google, ...). Each of those
             // builds its own module graph but they all emit the same `[turbopack]_runtime.js`, so
@@ -1529,7 +1617,8 @@ impl Project {
                         },
                     ));
                 }
-                Route::AppRoute {
+                Route::AppGoRoute { endpoint, .. }
+                | Route::AppRoute {
                     original_name: _,
                     endpoint,
                     ..
@@ -1733,8 +1822,8 @@ impl Project {
     pub(super) async fn edge_env(&self) -> Result<Vc<EnvMap>> {
         let preview_props = self.preview_props.await?;
         let edge_env = fxindexmap! {
-            rcstr!("__NEXT_BUILD_ID") => self.build_id.clone(),
-            rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.clone(),
+            rcstr!("__NEXT_BUILD_ID") => self.build_id.owned().await?,
+            rcstr!("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY") => self.encryption_key.owned().await?,
             rcstr!("__NEXT_PREVIEW_MODE_ID") => preview_props.preview_mode_id.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => preview_props.preview_mode_encryption_key.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => preview_props.preview_mode_signing_key.clone(),
@@ -1765,7 +1854,8 @@ impl Project {
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
             minify: self.next_config().turbo_client_minify(self.next_mode()),
-            source_maps: self.next_config().client_source_maps(self.next_mode()),
+            emitted_source_map_type: self.next_config().client_source_maps(self.next_mode()),
+            source_map_generation_options: self.client_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
@@ -1808,7 +1898,8 @@ impl Project {
                 output_root_to_root_path: self.node_root_to_root_path().owned().await?,
                 environment: self.client_compile_time_info().environment(),
                 minify: self.next_config().turbo_client_minify(self.next_mode()),
-                source_maps: self.next_config().client_source_maps(self.next_mode()),
+                emitted_source_map_type: self.next_config().client_source_maps(self.next_mode()),
+                source_map_generation_options: self.client_source_map_generation_options(),
                 no_mangling: self.no_mangling(),
                 hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             },
@@ -1830,6 +1921,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.encryption_key(),
+                self.client_source_map_generation_options(),
             ),
             get_client_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1862,7 +1954,8 @@ impl Project {
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
             minify: self.next_config().turbo_server_minify(self.next_mode()),
-            source_maps: self.next_config().server_source_maps(),
+            emitted_source_map_type: self.next_config().server_source_maps(),
+            source_map_generation_options: self.server_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
@@ -1912,7 +2005,8 @@ impl Project {
             export_usage: self.export_usage(),
             unused_references: self.unused_references(),
             turbo_minify: self.next_config().turbo_edge_minify(self.next_mode()),
-            turbo_source_maps: self.next_config().server_source_maps(),
+            emitted_source_map_type: self.next_config().server_source_maps(),
+            source_map_generation_options: self.server_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
@@ -2248,8 +2342,7 @@ impl Project {
             None
         };
 
-        let instrumentation = self.find_instrumentation();
-        let instrumentation = if let FindContextFileResult::Found(..) = *instrumentation.await? {
+        let instrumentation = if self.instrumentation_source().await?.is_some() {
             Some(Instrumentation {
                 node_js: self.instrumentation_endpoint(false).to_resolved().await?,
                 edge: self.instrumentation_endpoint(true).to_resolved().await?,
@@ -2314,6 +2407,7 @@ impl Project {
                 self.client_compile_time_info().environment(),
                 // There is no NFT on edge
                 false,
+                self.server_source_map_generation_options(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2378,6 +2472,7 @@ impl Project {
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
                 *self.should_write_nft_manifests().await?,
+                self.server_source_map_generation_options(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2494,6 +2589,7 @@ impl Project {
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
                 *self.should_write_nft_manifests().await?,
+                self.server_source_map_generation_options(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2559,6 +2655,7 @@ impl Project {
                 self.client_compile_time_info().environment(),
                 // There is no NFT on edge
                 false,
+                self.server_source_map_generation_options(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2588,16 +2685,68 @@ impl Project {
         ))
     }
 
+    /// The source compiled into the instrumentation slot. Without `instrumentationInject`, that is
+    /// the project's instrumentation file, including one in a parent directory. Otherwise a
+    /// virtual module at the project root requires every `instrumentationInject` entry, so the
+    /// bundler resolves them there, then the project's file, and runs all of their hooks.
+    /// `entrypoints` and `instrumentation_endpoint` both read this.
+    #[turbo_tasks::function]
+    async fn instrumentation_source(self: Vc<Self>) -> Result<Vc<OptionSource>> {
+        let project_file = match &*self.find_instrumentation().await? {
+            FindContextFileResult::Found(fs_path, _) => Some(fs_path.clone()),
+            _ => None,
+        };
+        let inject = self.next_config().instrumentation_inject().await?;
+        if inject.is_empty() {
+            let Some(fs_path) = project_file else {
+                return Ok(Vc::cell(None));
+            };
+            let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(fs_path));
+            return Ok(Vc::cell(Some(source.to_resolved().await?)));
+        }
+        let project_path = self.project_path().owned().await?;
+        let mut specifiers: Vec<RcStr> = inject.iter().cloned().collect();
+        if let Some(fs_path) = &project_file {
+            let request = project_path
+                .get_relative_request_to(fs_path)
+                .context("project instrumentation file is outside the project filesystem")?;
+            specifiers.push(request);
+        }
+        // Keep in sync with
+        // packages/next/src/build/webpack/loaders/next-instrumentation-inject-loader.ts.
+        let requires = specifiers
+            .iter()
+            .map(|spec| {
+                Ok(format!(
+                    "require({})",
+                    serde_json::to_string(spec.as_str())?
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?
+            .join(", ");
+        let source_text = format!(
+            "const {{ combineInstrumentation }} = \
+             require('next/dist/lib/combine-instrumentation');\nmodule.exports = \
+             combineInstrumentation([{requires}]);\n"
+        );
+        // CommonJS so a `type: module` package.json can't change how it parses. Not a convention
+        // file name, so discovery never treats it as a project file.
+        let path = project_path.join("instrumentation.inject.cjs")?;
+        let source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
+            path,
+            AssetContent::file(FileContent::Content(File::from(source_text)).cell()),
+        ));
+        Ok(Vc::cell(Some(source.to_resolved().await?)))
+    }
+
     #[turbo_tasks::function]
     async fn instrumentation_endpoint(
         self: Vc<Self>,
         is_edge: bool,
     ) -> Result<Vc<Box<dyn Endpoint>>> {
-        let instrumentation = self.find_instrumentation();
-        let FindContextFileResult::Found(fs_path, _) = &*instrumentation.await? else {
+        let Some(source) = *self.instrumentation_source().await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
-        let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
             .await?;
@@ -2614,7 +2763,7 @@ impl Project {
         Ok(Vc::upcast(InstrumentationEndpoint::new(
             self,
             instrumentation_asset_context,
-            source,
+            *source,
             is_edge,
             app_dir.clone(),
             ecmascript_client_reference_transition_name,
@@ -2883,15 +3032,6 @@ impl Project {
         } else {
             Ok(Vc::cell(Default::default()))
         }
-    }
-
-    #[turbo_tasks::function]
-    pub async fn with_next_config(&self, next_config: Vc<NextConfig>) -> Result<Vc<Self>> {
-        Ok(Self {
-            next_config: next_config.to_resolved().await?,
-            ..(*self).clone()
-        }
-        .cell())
     }
 
     /// Returns any modules specified as `nextConfig.cacheHandler` and/or `nextConfig.cacheHandlers`

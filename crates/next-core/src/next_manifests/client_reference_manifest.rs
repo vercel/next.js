@@ -193,12 +193,17 @@ async fn build_manifest(
         let mut entry_manifest: SerializedClientReferenceManifest = Default::default();
         let mut references = FxIndexSet::default();
         let prefix_path = next_config.computed_asset_prefix().owned().await?;
-        let asset_suffix_path = next_config.asset_suffix_path().owned().await?;
         let add_deployment_id_at_runtime = *next_config
             .should_append_server_deployment_id_at_runtime()
             .await?;
+        // Only read the suffix (e.g. `?dpl=<id>`) when it's used, so the manifest doesn't depend
+        // on the deployment id when it's added at runtime.
         let suffix_path = if !add_deployment_id_at_runtime {
-            asset_suffix_path.unwrap_or_default()
+            next_config
+                .asset_suffix_path()
+                .owned()
+                .await?
+                .unwrap_or_default()
         } else {
             rcstr!("")
         };

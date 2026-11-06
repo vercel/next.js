@@ -193,6 +193,7 @@ turbopack-bench = { path = "turbopack/crates/turbopack-bench" }
 turbopack-nodejs = { path = "turbopack/crates/turbopack-nodejs" }
 turbopack-cli-utils = { path = "turbopack/crates/turbopack-cli-utils" }
 turbopack-core = { path = "turbopack/crates/turbopack-core" }
+turbopack-go = { path = "turbopack/crates/turbopack-go" }
 turbopack-create-test-app = { path = "turbopack/crates/turbopack-create-test-app" }
 turbopack-css = { path = "turbopack/crates/turbopack-css" }
 turbopack-analyze = { path = "turbopack/crates/turbopack-analyze" }
@@ -215,30 +216,30 @@ turbopack-trace-server = { path = "turbopack/crates/turbopack-trace-server" }
 turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
-swc_ecma_react_compiler = "26.0.1"
+swc_ecma_react_compiler = "27.0.0"
 react_compiler = "0.1.0"
 
 # SWC crates
-swc_core = { version = "82.2.0", default-features = false, features = [
+swc_core = { version = "84.0.1", default-features = false, features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
 
-swc_plugin_backend_wasmtime = "17.0.0"
-testing = "27.0.0"
+swc_plugin_backend_wasmtime = "18.0.1"
+testing = "28.0.1"
 
 # Keep consistent with preset_env_base through swc_core
-browserslist-rs = "0.21.0"
+browserslist-rs = "0.22.0"
 mdxjs = "1.0.4"
-modularize_imports = "22.0.0"
-styled_components = "22.0.0"
-styled_jsx = "22.0.0"
-swc_emotion = "22.0.0"
-swc_relay = "22.0.0"
-react_remove_properties = "22.0.0"
-remove_console = "22.0.0"
-preset_env_base = "10.0.0"
+modularize_imports = "25.0.0"
+styled_components = "25.0.0"
+styled_jsx = "25.0.0"
+swc_emotion = "25.0.0"
+swc_relay = "25.0.0"
+react_remove_properties = "25.0.0"
+remove_console = "25.0.0"
+preset_env_base = "11.0.0"
 
 
 # General Deps
@@ -291,6 +292,7 @@ imagesize = { version = "0.15.0", default-features = false }
 indexmap = "2.14.0"
 indoc = "2.0.0"
 itertools = "0.10.5"
+libc = "0.2.186"
 lightningcss = { version = "1.0.0-alpha.72", features = [
   "serde",
   "visitor",
@@ -337,6 +339,7 @@ reqwest = { version = "0.13.2", default-features = false }
 ringmap = "0.2.5"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
+same-file = "1.0.6"
 scattered-collect = "0.10.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.151"
@@ -352,7 +355,7 @@ smallvec = { version = "1.15.1", features = [
 ] }
 shrink-to-fit = "0.2.10"
 strsim = "0.11.1"
-swc_sourcemap = "10.0.2"
+swc_sourcemap = "10.0.3"
 syn = "2.0.100"
 tempfile = "3.20.0"
 terminal_size = "0.3.0"

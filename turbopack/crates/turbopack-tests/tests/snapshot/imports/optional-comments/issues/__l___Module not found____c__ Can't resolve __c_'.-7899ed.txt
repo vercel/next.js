@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/index.js:19:0  Module not found: Can't resolve './missing-should-error-optional-false.mjs'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/index.js:19:1  Module not found: Can't resolve './missing-should-error-optional-false.mjs'
   
       15 | // webpackOptional is NOT supported, so this should NOT suppress the error
       16 | import(/* webpackOptional: true */ './missing-should-error-webpack.mjs')

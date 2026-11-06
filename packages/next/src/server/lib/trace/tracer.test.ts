@@ -19,7 +19,12 @@ import {
   trace,
 } from '@opentelemetry/api'
 
-import { setSpanRecorderForTest, type SpanStoreRecord } from './span-store'
+import {
+  isLocalSpanRecordingEnabled,
+  runWithLocalSpanSink,
+  setSpanRecorderForTest,
+  type SpanStoreRecord,
+} from './span-store'
 import {
   registerLocalSpanRecorder,
   traceLocalSpan,
@@ -320,6 +325,44 @@ describe('local span recording', () => {
 
     expect(result).toBe('result')
     expect(getSpanRecords()).toEqual([])
+  })
+
+  it('records a local-only trace only while a worker sink is active', async () => {
+    setSpanRecorderForTest(undefined)
+    const workerRecords: SpanStoreRecord[] = []
+    registerLocalSpanRecorder({ sinkOnly: true })
+
+    getTracer().trace(NodeSpan.runHandler, () => undefined)
+    expect(workerRecords).toEqual([])
+
+    await runWithLocalSpanSink(
+      (span) => workerRecords.push(span),
+      () => {
+        expect(isLocalSpanRecordingEnabled()).toBe(true)
+        return getTracer().trace(
+          LoadComponentsSpan.loadRouteModule,
+          { spanName: 'load route module' },
+          () => getTracer().trace(NodeSpan.runHandler, () => Promise.resolve())
+        )
+      }
+    )
+
+    const loadSpan = workerRecords.find(
+      (span) => span.name === 'load route module'
+    )!
+    const handlerSpan = workerRecords.find(
+      (span) => span.name === NodeSpan.runHandler
+    )!
+    expect(loadSpan.parentSpanId).toBeUndefined()
+    expect(handlerSpan).toEqual(
+      expect.objectContaining({
+        traceId: loadSpan.traceId,
+        parentSpanId: loadSpan.spanId,
+      })
+    )
+    getTracer().trace(NodeSpan.runHandler, () => undefined)
+    expect(workerRecords).toHaveLength(2)
+    registerLocalSpanRecorder()
   })
 
   it('records non-vanilla trace and wrapped spans for request insights', () => {
@@ -631,6 +674,162 @@ describe('local span recording', () => {
         parentSpanId: childRecord.spanId,
       })
     )
+  })
+
+  it('keeps local-only spans out of the public OTel context', () => {
+    context.setGlobalContextManager(new TestContextManager())
+    const publicParent = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+
+    context.with(trace.setSpan(ROOT_CONTEXT, publicParent), () => {
+      getTracer().trace(AppRenderSpan.renderToReadableStream, (localParent) => {
+        expect(getTracer().getActiveScopeSpan()).toBe(localParent)
+        expect(trace.getSpan(context.active())).toBe(publicParent)
+        getTracer().trace(AppRenderSpan.fetch, () => {
+          expect(trace.getSpan(context.active())).toBe(publicParent)
+        })
+      })
+    })
+
+    const parent = getSpanRecords({
+      name: AppRenderSpan.renderToReadableStream,
+    })[0]
+    const child = getSpanRecords({ name: AppRenderSpan.fetch })[0]
+    expect(child.parentSpanId).toBe(parent.spanId)
+    expect(parent.parentSpanId).toBe(publicParent.spanContext().spanId)
+  })
+
+  it('uses a newer public span as the parent inside a local scope', () => {
+    context.setGlobalContextManager(new TestContextManager())
+    const publicParent = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+    const publicChild = trace.wrapSpanContext({
+      traceId: publicParent.spanContext().traceId,
+      spanId: '1123456789abcdef',
+      traceFlags: 1,
+    })
+
+    context.with(trace.setSpan(ROOT_CONTEXT, publicParent), () => {
+      getTracer().trace(AppRenderSpan.renderToReadableStream, (localParent) => {
+        context.with(trace.setSpan(context.active(), publicChild), () => {
+          expect(getTracer().getActiveScopeSpan()).toBe(publicChild)
+          getTracer().trace(AppRenderSpan.fetch, () => {
+            expect(trace.getSpan(context.active())).toBe(publicChild)
+          })
+        })
+        expect(getTracer().getActiveScopeSpan()).toBe(localParent)
+      })
+    })
+
+    expect(getSpanRecords({ name: AppRenderSpan.fetch })[0].parentSpanId).toBe(
+      publicChild.spanContext().spanId
+    )
+  })
+
+  it('uses the real public ancestor for an explicit local parent and withSpan', () => {
+    context.setGlobalContextManager(new TestContextManager())
+    const publicParent = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+
+    context.with(trace.setSpan(ROOT_CONTEXT, publicParent), () => {
+      getTracer().trace(AppRenderSpan.renderToReadableStream, (localParent) => {
+        getTracer().withSpan(localParent!, () => {
+          expect(trace.getSpan(context.active())).toBe(publicParent)
+        })
+        getTracer().trace(
+          AppRenderSpan.fetch,
+          { parentSpan: localParent },
+          () => {
+            expect(trace.getSpan(context.active())).toBe(publicParent)
+          }
+        )
+      })
+    })
+
+    const parent = getSpanRecords({
+      name: AppRenderSpan.renderToReadableStream,
+    })[0]
+    expect(getSpanRecords({ name: AppRenderSpan.fetch })[0].parentSpanId).toBe(
+      parent.spanId
+    )
+  })
+
+  it('does not borrow an unrelated public span for an explicit local root', () => {
+    context.setGlobalContextManager(new TestContextManager())
+    const localRoot = getTracer().startSpan(
+      AppRenderSpan.renderToReadableStream
+    )
+    const unrelated = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+
+    context.with(trace.setSpan(ROOT_CONTEXT, unrelated), () => {
+      getTracer().withSpan(localRoot, () => {
+        expect(trace.getSpan(context.active())).toBeUndefined()
+        expect(getTracer().getActiveScopeSpan()).toBe(localRoot)
+      })
+      getTracer().trace(AppRenderSpan.fetch, { parentSpan: localRoot }, () => {
+        expect(trace.getSpan(context.active())).toBeUndefined()
+      })
+      expect(trace.getSpan(context.active())).toBe(unrelated)
+    })
+    localRoot.end()
+  })
+
+  it('keeps a local helper under its local scope inside a newer public span', async () => {
+    context.setGlobalContextManager(new TestContextManager())
+    const publicChild = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+
+    await getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
+      context.with(trace.setSpan(context.active(), publicChild), () =>
+        traceLocalSpan({ name: 'local helper' }, async () => undefined)
+      )
+    )
+
+    const parent = getSpanRecords({
+      name: AppRenderSpan.renderToReadableStream,
+    })[0]
+    expect(getSpanRecords({ name: 'local helper' })[0]).toEqual(
+      expect.objectContaining({
+        traceId: parent.traceId,
+        parentSpanId: parent.spanId,
+      })
+    )
+  })
+
+  it('updates the local scope attributes inside a newer public span', () => {
+    context.setGlobalContextManager(new TestContextManager())
+    const publicChild = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+
+    getTracer().trace(AppRenderSpan.renderToReadableStream, () => {
+      context.with(trace.setSpan(context.active(), publicChild), () => {
+        getTracer().setRootSpanAttribute('next.route', '/dashboard')
+      })
+    })
+
+    expect(
+      getSpanRecords({ name: AppRenderSpan.renderToReadableStream })[0]
+        .attributes
+    ).toEqual(expect.objectContaining({ 'next.route': '/dashboard' }))
   })
 
   it('mirrors span mutations made through the OTel span API', () => {

@@ -10,7 +10,13 @@ import type { Page } from 'playwright'
 describe('resume-data-cache', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
+    env: {
+      NEXT_PRIVATE_DEBUG_CACHE: '1',
+      NEXT_TEST_CACHE_TAG_PREFIX:
+        process.env.__NEXT_PARTIAL_PREFETCHING === 'true'
+          ? 'resume-data-cache:partial-prefetching'
+          : 'resume-data-cache:default',
+    },
   })
 
   describe('should have consistent data between static and dynamic renders', () => {
@@ -321,8 +327,8 @@ describe('resume-data-cache', () => {
     const actionResponse = await pendingActionResponse
     expect(actionResponse.status()).toBe(200)
 
-    // Reading the complete response waits for the embedded runtime prefetch.
-    await actionResponse.text()
+    // Wait for the response to finish before checking the embedded prefetch.
+    await actionResponse.finished()
     await retry(async () => {
       expect(await browser.elementById('handoff-value').text()).toBe(
         warmedValue
