@@ -6,7 +6,10 @@ const myFont1 = localFont({
   weight: '100',
   fallback: ['system-ui'],
   adjustFontFallback: 'Times New Roman',
-  declarations: [{ prop: 'ascent-override', value: '90%' }],
+  declarations: [
+    { prop: 'ascent-override', value: '90%' },
+    { prop: 'font-variation-settings', value: '"wdth" 75, "slnt" 0' },
+  ],
 })
 const myFont2 = localFont({
   src: '../fonts/my-other-font.woff2',

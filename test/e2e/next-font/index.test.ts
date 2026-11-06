@@ -656,6 +656,9 @@ describe('next/font', () => {
       expect(stylesheets).toContainEqual(
         expect.stringContaining('ascent-override: 90%;')
       )
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('font-variation-settings: "wdth" 75, "slnt" 0;')
+      )
 
       // Check that the custom declaration is included in the CSS and overrides the default family
       expect(stylesheets).toContainEqual(
