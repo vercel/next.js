@@ -27,6 +27,7 @@ use crate::{
         OutputAssetsWithReferenced, expand_output_assets,
     },
     reference::ModuleReference,
+    source_map::{OptionSourceMapType, SourceMapGenerationOptions},
 };
 
 #[turbo_tasks::task_input]
@@ -54,18 +55,6 @@ impl Default for MinifyType {
             mangle: Some(MangleType::OptimalSize),
         }
     }
-}
-
-#[turbo_tasks::value(shared, task_input)]
-#[derive(Debug, Default, Clone, Copy, Hash, DeterministicHash)]
-pub enum SourceMapsType {
-    /// Extracts source maps from input files and writes source maps for output files.
-    #[default]
-    Full,
-    /// Ignores existing input source maps, but writes source maps for output files.
-    Partial,
-    /// Ignores the existence of source maps and does not write source maps for output files.
-    None,
 }
 
 /// Suffix to append to asset URLs.
@@ -331,6 +320,14 @@ pub struct WorkerConfigurationOptions {
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
     #[turbo_tasks::function]
+    async fn source_map_generation_options(
+        self: Vc<Self>,
+    ) -> Result<Vc<SourceMapGenerationOptions>> {
+        Ok(SourceMapGenerationOptions::from_emitted(*self.emitted_source_map_type().await?).cell())
+    }
+    #[turbo_tasks::function]
+    fn emitted_source_map_type(self: Vc<Self>) -> Vc<OptionSourceMapType>;
+    #[turbo_tasks::function]
     fn name(self: Vc<Self>) -> Vc<RcStr>;
     #[turbo_tasks::function]
     fn source_map_source_type(self: Vc<Self>) -> Vc<SourceMapSourceType>;
@@ -376,10 +373,6 @@ pub trait ChunkingContext {
     /// Reference Source Map Assets for chunks
     #[turbo_tasks::function]
     fn reference_chunk_source_maps(self: Vc<Self>, chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool>;
-
-    /// Include Source Maps for modules
-    #[turbo_tasks::function]
-    fn reference_module_source_maps(self: Vc<Self>, module: Vc<Box<dyn Module>>) -> Vc<bool>;
 
     /// Returns a URL (relative or absolute, depending on the asset prefix) to
     /// the static asset based on its `ident`.
