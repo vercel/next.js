@@ -14,20 +14,12 @@ There are two ways to set Open Graph and Twitter images:
 
 ## Precedence with metadata exports
 
-An `images` property explicitly defined by a page's [`metadata` object or `generateMetadata` function](/docs/app/api-reference/functions/generate-metadata) takes precedence over the corresponding file-based images in the same segment or inherited from parent segments.
+These rules apply to both static image files and generated images, following [metadata ordering](/docs/app/api-reference/functions/generate-metadata#ordering):
 
-| Metadata property  | Overrides               |
-| ------------------ | ----------------------- |
-| `openGraph.images` | `opengraph-image` files |
-| `twitter.images`   | `twitter-image` files   |
+- **Page metadata**: A page's explicit `openGraph.images` or `twitter.images` from its [`metadata` object or `generateMetadata` function](/docs/app/api-reference/functions/generate-metadata) overrides the corresponding `opengraph-image` or `twitter-image` file. This includes files in the same segment and images inherited from parent segments.
+- **Layout metadata**: A page's colocated image file can replace images configured by a layout in the same or a parent segment. This applies when the page omits the corresponding `images` property.
 
-Metadata is resolved [from the root layout toward the page](/docs/app/api-reference/functions/generate-metadata#ordering). A file in a child segment can replace images configured in a parent segment. For example, `app/blog/opengraph-image.png` replaces `openGraph.images` from `app/layout.tsx` when the blog page doesn't define its own `openGraph.images` property.
-
-This also applies to an image file colocated with a layout and page: the file can replace the layout's image config when the page doesn't define the corresponding `images` property.
-
-If `app/blog/page.tsx` sets `openGraph.images` to `['/custom-og.png']`, the page uses `/custom-og.png` even when `app/blog/opengraph-image.png` exists. This applies to both static image files and images generated with code.
-
-To use a page's colocated `opengraph-image` or `twitter-image` file, omit the corresponding `images` property from the page's metadata. Setting `images` to `[]`, `null`, or `undefined` still overrides the file-based image.
+For example, if `app/blog/page.tsx` sets `openGraph.images` to `['/custom-og.png']`, the page uses `/custom-og.png` even when `app/blog/opengraph-image.png` exists.
 
 ## Image files (.jpg, .png, .gif)
 
@@ -548,7 +540,9 @@ If a page uses a different image from its colocated `opengraph-image` or `twitte
 2. Check the page's `metadata` object or `generateMetadata` return value for `openGraph.images` or `twitter.images`. Include properties copied from shared objects with object spread.
 3. Omit the corresponding `images` property entirely to use the colocated file. Setting `images` to `[]`, `null`, or `undefined` still overrides the file-based image.
 
-With `twitter.images: null` or `undefined`, Next.js can still fill `twitter:image` from the resolved Open Graph images. Use `twitter.images: []` to suppress that fallback.
+> **Good to know**: With `twitter.images: null` or `undefined`, Next.js can still fill `twitter:image` from the resolved Open Graph images. Use `twitter.images: []` to suppress that fallback.
+
+### An inherited image disappears
 
 If an inherited image disappears after adding a child `openGraph` or `twitter` object, check [metadata merging](/docs/app/api-reference/functions/generate-metadata#merging). A child object replaces the corresponding inherited object, so a child object without `images` can remove an inherited image when there is no colocated file to supply it.
 
