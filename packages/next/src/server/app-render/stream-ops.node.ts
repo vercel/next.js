@@ -4,8 +4,8 @@
  *
  * AnyStream = AnyStreamType so the exported type surface matches stream-ops.web.ts,
  * allowing the switcher to assign either module without casts.
- * Rendering uses pipeable APIs; continue functions wrap the existing web
- * transforms via Readable.fromWeb() on their output.
+ * Rendering uses pipeable APIs and Node transforms. Prerender continuations
+ * bridge the shared web transforms with Readable.fromWeb().
  */
 
 import type { PostponedState, PrerenderOptions } from 'react-dom/static'
@@ -14,7 +14,7 @@ import {
   resumeToPipeableStream,
 } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
-import { PassThrough, Readable, Transform } from 'node:stream'
+import { PassThrough, Readable, Transform, pipeline } from 'node:stream'
 import { isUtf8 } from 'node:buffer'
 
 import {
@@ -129,6 +129,18 @@ function webToReadable(
   return Readable.fromWeb(stream as WebReadableStream)
 }
 
+function pipelineTransforms(
+  source: Readable,
+  transforms: Transform[]
+): Readable {
+  // Own the entire graph: pipe() alone neither forwards source errors nor
+  // cancels upstream work when the consumer destroys the final transform.
+  // The returned stream carries errors to consumers, including consumers that
+  // attach after the pipeline has already failed (via readable.errored).
+  pipeline([source, ...transforms], () => {})
+  return transforms[transforms.length - 1]
+}
+
 // ---------------------------------------------------------------------------
 // Flight data injection – Node.js Transform that passes HTML chunks through
 // while pulling from a separate data stream and interleaving its chunks.
@@ -158,7 +170,7 @@ function createFlightDataInjectionTransform(
 
     try {
       const iterator = dataStream[Symbol.asyncIterator]()
-      while (true) {
+      while (!target.destroyed) {
         const { done, value } = await iterator.next()
         if (done) {
           donePulling = true
@@ -170,7 +182,9 @@ function createFlightDataInjectionTransform(
         if (!delayDataUntilFirstHtmlChunk && !htmlStreamFinished) {
           await atLeastOneTask()
         }
-        target.push(value)
+        if (!target.destroyed) {
+          target.push(value)
+        }
       }
     } catch (err) {
       target.destroy(err as Error)
@@ -196,7 +210,22 @@ function createFlightDataInjectionTransform(
         (err) => callback(err as Error)
       )
     },
+    destroy(err, callback) {
+      // Flight is read independently of the HTML pipeline. Tear it down even
+      // when cancellation happens before the first HTML chunk starts the pull.
+      dataStream.destroy(err ?? undefined)
+      callback(err)
+    },
   })
+
+  // Delaying the pull must not delay error handling. The side stream can fail
+  // before any HTML arrives, or while an awaited iterator read is pending.
+  const onDataError = (err: Error) => nodeTransform.destroy(err)
+  dataStream.on('error', onDataError)
+  dataStream.once('close', () => dataStream.off('error', onDataError))
+  if (dataStream.errored) {
+    nodeTransform.destroy(dataStream.errored)
+  }
 
   if (!delayDataUntilFirstHtmlChunk) {
     startOrContinuePulling(nodeTransform)
@@ -602,6 +631,24 @@ export function renderToNodeFlightStream(
 
 export { renderToWebFizzStream } from './stream-ops.web'
 
+function trackFizzStream(
+  destination: PassThrough,
+  fail: (error: Error) => void,
+  abort: (reason?: unknown) => void
+) {
+  // Fizz can fail before the continuation or HTTP consumer has attached. Keep
+  // the error on the destination and settle readiness rather than relying on a
+  // later listener (or a process-level uncaughtException handler).
+  destination.on('error', fail)
+  destination.once('close', () => {
+    if (!destination.writableFinished) {
+      const error = destination.errored ?? new ResponseAborted()
+      fail(error)
+      abort(error)
+    }
+  })
+}
+
 export async function renderToNodeFizzStream(
   element: React.ReactElement,
   streamOptions: any,
@@ -611,6 +658,9 @@ export async function renderToNodeFizzStream(
   const shellReady = createPromiseWithResolvers<void>()
   const allReady = createPromiseWithResolvers<void>()
   const deferPipe = options?.waitForAllReady === true
+  // Callers do not always await allReady. It still needs to reject for those
+  // that do, without becoming an unhandled rejection for streaming consumers.
+  allReady.promise.catch(() => {})
 
   const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
     renderToPipeableStream(element, {
@@ -623,6 +673,7 @@ export async function renderToNodeFizzStream(
       onShellError(error: unknown) {
         streamOptions?.onShellError?.(error)
         shellReady.reject(error)
+        allReady.reject(error)
       },
       onAllReady() {
         streamOptions?.onAllReady?.()
@@ -633,6 +684,15 @@ export async function renderToNodeFizzStream(
       },
       onError: streamOptions?.onError,
     })
+  )
+
+  trackFizzStream(
+    pt,
+    (error) => {
+      shellReady.reject(error)
+      allReady.reject(error)
+    },
+    (reason) => pipeable.abort(reason)
   )
 
   await getTracer().trace(
@@ -663,6 +723,9 @@ export async function resumeToFizzStream(
   const pt = new PassThrough()
   const shellReady = createPromiseWithResolvers<void>()
   const allReady = createPromiseWithResolvers<void>()
+  // runInContext may yield before we can await the shell promise.
+  shellReady.promise.catch(() => {})
+  allReady.promise.catch(() => {})
 
   const pipeable = await run(() =>
     resumeToPipeableStream(element, postponedState, {
@@ -674,6 +737,7 @@ export async function resumeToFizzStream(
       onShellError(error: unknown) {
         streamOptions?.onShellError?.(error)
         shellReady.reject(error)
+        allReady.reject(error)
       },
       onAllReady() {
         streamOptions?.onAllReady?.()
@@ -682,6 +746,14 @@ export async function resumeToFizzStream(
     })
   )
 
+  trackFizzStream(
+    pt,
+    (error) => {
+      shellReady.reject(error)
+      allReady.reject(error)
+    },
+    (reason) => pipeable.abort(reason)
+  )
   pipeable.pipe(pt)
   await shellReady.promise
 
@@ -709,8 +781,7 @@ export async function resumeAndAbort(
 }
 
 // ---------------------------------------------------------------------------
-// Continue function wrappers
-// Bridge Node Readable → web, apply existing web transforms, Readable.fromWeb()
+// Continue functions: Node HTML pipelines and adapters for web prerender transforms
 // ---------------------------------------------------------------------------
 
 export async function continueFizzStream(
@@ -743,56 +814,38 @@ export async function continueFizzStream(
   // 1. Buffer – coalesces chunks written in the same microtask into one Uint8Array
   // 2. Flight data injection – interleaves RSC data chunks with the HTML stream
   // 3. Head insertion – inserts server-generated HTML before </head>
-  const buffered = createNodeBufferedTransformStream()
-  webToReadable(renderStream).pipe(buffered)
-
-  let source: Readable = buffered
+  const transforms: Transform[] = [createNodeBufferedTransformStream()]
 
   if (deploymentId) {
-    const dplId = createHtmlDataDplIdTransform(deploymentId)
-    source.pipe(dplId)
-    source = dplId
+    transforms.push(createHtmlDataDplIdTransform(deploymentId))
   }
 
   // Metadata (icon mark replacement)
-  const metadata = createMetadataTransform(getServerInsertedMetadata)
-  source.pipe(metadata)
-  source = metadata
+  transforms.push(createMetadataTransform(getServerInsertedMetadata))
 
   // Insert suffix content
   if (suffixUnclosed != null && suffixUnclosed.length > 0) {
-    const deferredSuffix = createDeferredSuffixTransform(suffixUnclosed)
-    source.pipe(deferredSuffix)
-    source = deferredSuffix
+    transforms.push(createDeferredSuffixTransform(suffixUnclosed))
   }
 
   // Flight data injection – interleaves RSC data chunks with the HTML stream
   if (inlinedDataStream) {
-    const flightInjection = createFlightDataInjectionTransform(
-      webToReadable(inlinedDataStream),
-      true
+    transforms.push(
+      createFlightDataInjectionTransform(webToReadable(inlinedDataStream), true)
     )
-    source.pipe(flightInjection)
-    source = flightInjection
   }
 
   if (validateRootLayout) {
-    const rootLayoutValidator = createRootLayoutValidatorTransform()
-    source.pipe(rootLayoutValidator)
-    source = rootLayoutValidator
+    transforms.push(createRootLayoutValidatorTransform())
   }
 
   // Close tags should always be deferred to the end
-  const moveSuffix = createMoveSuffixTransform()
-  source.pipe(moveSuffix)
-  source = moveSuffix
+  transforms.push(createMoveSuffixTransform())
 
   // Head insertion – inserts server-generated HTML before </head>
-  const headInsertion = createHeadInsertionTransform(getServerInsertedHTML)
-  source.pipe(headInsertion)
-  source = headInsertion
+  transforms.push(createHeadInsertionTransform(getServerInsertedHTML))
 
-  return source
+  return pipelineTransforms(webToReadable(renderStream), transforms)
 }
 
 export async function continueStaticPrerender(
@@ -854,37 +907,23 @@ export async function continueDynamicHTMLResumeNode(
 ): Promise<AnyStream> {
   await waitAtLeastOneReactRenderTask()
 
-  const buffered = createNodeBufferedTransformStream()
-  webToReadable(renderStream).pipe(buffered)
-
-  let source: Readable = buffered
+  const transforms: Transform[] = [createNodeBufferedTransformStream()]
 
   if (deploymentId) {
-    const dplId = createHtmlDataDplIdTransform(deploymentId)
-    source.pipe(dplId)
-    source = dplId
+    transforms.push(createHtmlDataDplIdTransform(deploymentId))
   }
 
-  const headInsertion = createHeadInsertionTransform(getServerInsertedHTML)
-  source.pipe(headInsertion)
-  source = headInsertion
-
-  const metadata = createMetadataTransform(getServerInsertedMetadata)
-  source.pipe(metadata)
-  source = metadata
-
-  const flightInjection = createFlightDataInjectionTransform(
-    webToReadable(inlinedDataStream),
-    delayDataUntilFirstHtmlChunk
+  transforms.push(createHeadInsertionTransform(getServerInsertedHTML))
+  transforms.push(createMetadataTransform(getServerInsertedMetadata))
+  transforms.push(
+    createFlightDataInjectionTransform(
+      webToReadable(inlinedDataStream),
+      delayDataUntilFirstHtmlChunk
+    )
   )
-  source.pipe(flightInjection)
-  source = flightInjection
+  transforms.push(createMoveSuffixTransform())
 
-  const moveSuffix = createMoveSuffixTransform()
-  source.pipe(moveSuffix)
-  source = moveSuffix
-
-  return source
+  return pipelineTransforms(webToReadable(renderStream), transforms)
 }
 
 export async function continueDynamicHTMLResumeWeb(
