@@ -21,7 +21,11 @@ const getNextDynamicBailoutReason = createReactBrowserBailoutReason.bind(
 export function BailoutToCSRForNextDynamic({
   children,
 }: BailoutToCSRForNextDynamicProps) {
-  if (process.env.__NEXT_EXPERIMENTAL_REACT_BROWSER_BAILOUT) {
+  // `react-dom` may be an older React without `browser` when shared at runtime.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_REACT_BROWSER_BAILOUT &&
+    typeof browser === 'function'
+  ) {
     // @ts-expect-error TODO: Update @types/react-dom to include the reason argument.
     use(browser(getNextDynamicBailoutReason))
     return children
