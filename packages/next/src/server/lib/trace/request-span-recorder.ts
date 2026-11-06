@@ -1,4 +1,4 @@
-import type { AttributeValue } from '@opentelemetry/api'
+import type { AttributeValue, Span } from '@opentelemetry/api'
 import {
   createLocalSpan,
   getActiveLocalSpan,
@@ -11,13 +11,93 @@ import {
   withLocalSpan,
   type LocalSpanOptions,
   type LocalRecordingSpan,
+  type LocalSpanDelivery,
 } from './local-span-recorder'
 import {
   captureLocalSpanRecorder,
   isLocalSpanRecordingEnabled,
   isLocalSpanSinkActive,
+  isRequestInsightsEnabled,
   type SpanStoreRecord,
 } from './span-store'
+
+type RequestSpanIdentity = ReturnType<typeof getCurrentRequestIdentity>
+type ToolingInsight = {
+  identity: RequestSpanIdentity
+  rootSpanId: string | undefined
+  started: boolean
+}
+const toolingInsights = new WeakMap<Span, ToolingInsight>()
+
+function captureRequestSpanRecorder(
+  identity: RequestSpanIdentity
+): LocalSpanDelivery {
+  const deliver = captureLocalSpanRecorder()
+  return (spans) => {
+    for (const span of spans) {
+      span.requestId = identity.requestId
+      span.requestInsightKind = identity.requestInsightKind
+      span.requestInsightSource = identity.requestInsightSource
+      span.requestInsightProxyStatus = identity.requestInsightProxyStatus
+      span.htmlRequestId = identity.htmlRequestId
+      span.route ??= identity.route
+      span.url ??= identity.url
+    }
+    deliver(spans)
+  }
+}
+
+export function captureToolingSpanRecorder(
+  span: Span,
+  parent: Span | undefined,
+  name: string,
+  type: string
+): LocalSpanDelivery {
+  const identity = getCurrentRequestIdentity()
+  let insight = parent?.isRecording() ? toolingInsights.get(parent) : undefined
+  if (identity.requestId) {
+    insight = { identity, rootSpanId: undefined, started: true }
+  } else if (!insight) {
+    const requestId = span.spanContext().spanId
+    insight = {
+      identity: {
+        requestId,
+        requestInsightKind: 'tooling',
+        requestInsightSource: 'tooling',
+        htmlRequestId: requestId,
+        route: name,
+      },
+      rootSpanId: span.spanContext().spanId,
+      started: false,
+    }
+  }
+  toolingInsights.set(span, insight)
+  const scoped = isLocalSpanSinkActive()
+  const deliver = captureRequestSpanRecorder(insight.identity)
+  return (spans) => {
+    if (!scoped && !insight.started && isRequestInsightsEnabled()) {
+      const { startRequestInsight } =
+        require('./request-insights') as typeof import('./request-insights')
+      startRequestInsight({
+        requestId: insight.identity.requestId,
+        kind: 'tooling',
+        source: 'tooling',
+        route: insight.identity.route,
+      })
+      insight.started = true
+    }
+    for (const record of spans) {
+      record.requestInsightRoot = record.spanId === insight.rootSpanId
+      record.attributes = {
+        ...record.attributes,
+        'next.span_category': 'tooling',
+        'next.span_type': type,
+        'next.span_name': name,
+      }
+    }
+    deliver(spans)
+  }
+}
 
 type RequestSpanOptions = Omit<
   LocalSpanOptions,
@@ -30,24 +110,9 @@ type RequestSpanOptions = Omit<
 export function createRequestSpan(
   options: RequestSpanOptions
 ): LocalRecordingSpan {
-  const identity = getCurrentRequestIdentity()
-  const deliver = captureLocalSpanRecorder()
   return createLocalSpan(
     { ...options, isolateOpenTelemetry: options.isolateOpenTelemetry ?? false },
-    (spans) => {
-      // The recorder creates these records for this delivery callback alone.
-      // Enrich before publishing, without another array or record allocation.
-      for (const span of spans) {
-        span.requestId = identity.requestId
-        span.requestInsightKind = identity.requestInsightKind
-        span.requestInsightSource = identity.requestInsightSource
-        span.requestInsightProxyStatus = identity.requestInsightProxyStatus
-        span.htmlRequestId = identity.htmlRequestId
-        span.route ??= identity.route
-        span.url ??= identity.url
-      }
-      deliver(spans)
-    }
+    captureRequestSpanRecorder(getCurrentRequestIdentity())
   )
 }
 

@@ -23,6 +23,7 @@ import {
   isLocalSpanRecordingEnabled,
   runWithLocalSpanSink,
   setSpanRecorderForTest,
+  setLocalSpanExporter,
   type SpanStoreRecord,
 } from './span-store'
 import {
@@ -38,7 +39,15 @@ import {
   NextNodeServerSpan,
   NodeSpan,
   RouteModuleSpan,
+  ToolingSpan,
 } from './constants'
+import {
+  clearRequestInsightsForTest,
+  getRequestInsightsSnapshot,
+  registerRequestInsightsExporter,
+  startRequestInsight,
+} from './request-insights'
+import { runWithRequestInsightsIdentity } from './request-insights-identity'
 import {
   BubbledError,
   recordSpanError,
@@ -1139,6 +1148,162 @@ describe('local span recording', () => {
         }
       }
     })
+  })
+})
+
+describe('tooling request insights', () => {
+  beforeEach(() => {
+    process.env.__NEXT_DEV_SERVER = '1'
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    registerLocalSpanRecorder()
+    registerRequestInsightsExporter()
+    clearRequestInsightsForTest()
+  })
+
+  afterEach(() => {
+    if (originalRequestInsights === undefined)
+      delete process.env.__NEXT_REQUEST_INSIGHTS
+    else process.env.__NEXT_REQUEST_INSIGHTS = originalRequestInsights
+    if (originalDevServer === undefined) delete process.env.__NEXT_DEV_SERVER
+    else process.env.__NEXT_DEV_SERVER = originalDevServer
+    clearRequestInsightsForTest()
+    setLocalSpanExporter(undefined)
+  })
+
+  it('groups startup spans and completes the activity once', () => {
+    let root: Span | undefined
+    getTracer().trace(
+      ToolingSpan.startDevServer,
+      { spanName: 'Dev startup' },
+      (span) => {
+        root = span
+        getTracer().trace(ToolingSpan.setupDevBundler, () => undefined)
+      }
+    )
+    root!.end()
+    const { requests } = getRequestInsightsSnapshot()
+    expect(requests).toHaveLength(1)
+    expect(requests[0]).toMatchObject({
+      kind: 'tooling',
+      source: 'tooling',
+      route: 'Dev startup',
+      completedAt: expect.any(Number),
+      status: 'ok',
+    })
+    expect(requests[0].spans.map((span) => span.name)).toEqual([
+      'setup-dev-bundler',
+      'Dev startup',
+    ])
+    expect(requests[0].spans[0].parentSpanId).toBe(requests[0].spans[1].spanId)
+    expect(requests[0].spans[0].traceId).toBe(requests[0].spans[1].traceId)
+  })
+
+  it('keeps concurrent compilation and late completion on the originating request', async () => {
+    const identities = ['first', 'second'].map((requestId) => ({
+      requestId,
+      htmlRequestId: requestId,
+      url: `/${requestId}`,
+    }))
+    for (const identity of identities) startRequestInsight(identity)
+    const spans = await Promise.all(
+      identities.map((identity) =>
+        runWithRequestInsightsIdentity(identity, async () => {
+          await Promise.resolve()
+          return getTracer().startSpan(ToolingSpan.compilePath, {
+            spanName: identity.url,
+          })
+        })
+      )
+    )
+    runWithRequestInsightsIdentity(identities[1], () => spans[0].end())
+    runWithRequestInsightsIdentity(identities[0], () => spans[1].end())
+    const { requests } = getRequestInsightsSnapshot()
+    expect(requests).toHaveLength(2)
+    for (const identity of identities) {
+      const request = requests.find(
+        (entry) => entry.requestId === identity.requestId
+      )!
+      expect(request.kind).toBe('request')
+      expect(request.spans).toHaveLength(1)
+      expect(request.spans[0].name).toBe(identity.url)
+    }
+  })
+
+  it('preserves request parentage for both tooling creation APIs', () => {
+    const identity = {
+      requestId: 'request',
+      htmlRequestId: 'request',
+      url: '/',
+    }
+    startRequestInsight(identity)
+    runWithRequestInsightsIdentity(identity, () =>
+      traceRequestSpan({ name: 'request', synchronous: true }, (parent) => {
+        getTracer().startSpan(ToolingSpan.compilePath).end()
+        getTracer().trace(ToolingSpan.webpackCompilation, () => undefined)
+        const { requests } = getRequestInsightsSnapshot()
+        expect(requests).toHaveLength(1)
+        expect(requests[0].spans).toHaveLength(2)
+        for (const span of requests[0].spans) {
+          expect(span.parentSpanId).toBe(parent.spanContext().spanId)
+          expect(span.traceId).toBe(parent.spanContext().traceId)
+        }
+      })
+    )
+  })
+
+  it('gives unrelated background compilations separate activities', () => {
+    getTracer().trace(
+      ToolingSpan.compilePath,
+      { spanName: 'first compilation' },
+      () => undefined
+    )
+    getTracer().trace(
+      ToolingSpan.compilePath,
+      { spanName: 'second compilation' },
+      () => undefined
+    )
+    const { requests } = getRequestInsightsSnapshot()
+    expect(requests).toHaveLength(2)
+    expect(new Set(requests.map((request) => request.requestId)).size).toBe(2)
+    expect(requests.every((request) => request.completedAt !== undefined)).toBe(
+      true
+    )
+  })
+
+  it('keeps background HMR separate from its completed startup parent', () => {
+    const startup = getTracer().startSpan(ToolingSpan.startDevServer)
+    startup.end()
+    getTracer().trace(
+      ToolingSpan.webpackCompilation,
+      { parent: startup },
+      () => undefined
+    )
+    const { requests } = getRequestInsightsSnapshot()
+    expect(requests.map((request) => request.route)).toEqual([
+      'start-dev-server',
+      'webpack-compilation',
+    ])
+    expect(requests.every((request) => request.completedAt !== undefined)).toBe(
+      true
+    )
+  })
+
+  it('retains creation-time worker sink ownership', () => {
+    const records: SpanStoreRecord[] = []
+    const span = runWithLocalSpanSink(
+      (record) => records.push(record),
+      () => getTracer().startSpan(ToolingSpan.compilePath)
+    )
+    span.end()
+    expect(records).toHaveLength(1)
+    expect(records[0].attributes?.['next.span_type']).toBe('compile-path')
+    expect(getRequestInsightsSnapshot().requests).toEqual([])
+  })
+
+  it('keeps request insights disabled when its flag is off', () => {
+    delete process.env.__NEXT_REQUEST_INSIGHTS
+    getTracer().trace(ToolingSpan.compilePath, () => undefined)
+    expect(getRequestInsightsSnapshot().requests).toEqual([])
   })
 })
 

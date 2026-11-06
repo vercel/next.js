@@ -99,6 +99,34 @@ describe('span recording', () => {
     })
   })
 
+  it('records completed browser HMR with its original duration', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    registerRequestInsightsExporter()
+    const endTime = BigInt(Date.now()) * BigInt(1_000_000)
+    recordSpans(
+      [
+        {
+          name: 'client-hmr-latency',
+          startTime: endTime - BigInt(15_000_000),
+          endTime,
+          attributes: { page: '/' },
+        },
+      ],
+      'tooling',
+      undefined
+    )
+    const { requests } = getRequestInsightsSnapshot()
+    expect(requests).toHaveLength(1)
+    expect(requests[0]).toMatchObject({
+      kind: 'tooling',
+      completedAt: expect.any(Number),
+      durationMs: 15,
+      spans: [
+        expect.objectContaining({ name: 'client-hmr-latency', durationMs: 15 }),
+      ],
+    })
+  })
+
   it('scopes forwarded span recording without retaining it locally', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     const records: SpanStoreRecord[] = []
