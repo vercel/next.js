@@ -613,6 +613,21 @@ function getRevalidationWaitUntil(
   return revalidatesPromise === false ? undefined : revalidatesPromise
 }
 
+type AppPageActionHandlerInput = {
+  ComponentMod: AppPageModule
+  generateFlight: GenerateFlight
+  workStore: WorkStore
+  requestStore: RequestStore
+  serverActions?: ServerActionsConfig
+  ctx: AppRenderContext
+  metadata: AppPageRenderResultMetadata
+}
+
+/** Action execution bound to its HTTP transport by the route adapter. */
+export type AppPageActionHandler = (
+  input: AppPageActionHandlerInput
+) => Promise<HandleActionResult>
+
 export async function handleAction({
   req,
   serverActionRequestMetadata,
@@ -624,17 +639,10 @@ export async function handleAction({
   serverActions,
   ctx,
   metadata,
-}: {
+}: AppPageActionHandlerInput & {
   req: BaseNextRequest
   serverActionRequestMetadata: ServerActionRequestMetadata
   res: BaseNextResponse
-  ComponentMod: AppPageModule
-  generateFlight: GenerateFlight
-  workStore: WorkStore
-  requestStore: RequestStore
-  serverActions?: ServerActionsConfig
-  ctx: AppRenderContext
-  metadata: AppPageRenderResultMetadata
 }): Promise<HandleActionResult> {
   const contentType = req.headers['content-type']
   const { page } = ctx.renderOpts
