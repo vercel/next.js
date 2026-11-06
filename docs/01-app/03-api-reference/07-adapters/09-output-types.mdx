@@ -174,7 +174,7 @@ ISR-enabled routes and static prerenders:
 
 ### Prerender classification
 
-`routeType`, `response`, and `compute` are emitted together on the primary response in a prerender group. Related RSC, data, and segment outputs omit these fields. Pages Router templates with `fallback: false` also omit them because those templates are never served for unmatched URLs.
+`routeType`, `response`, and `compute` are emitted together on the primary response in a prerender group and on full-route App Router RSC outputs. HTML and RSC outputs have independent classifications. Pages Router data outputs and static segment-prefetch outputs omit these fields. Prerender outputs for dynamic route patterns with `fallback: false` also omit classification because they do not serve paths that were not prerendered at build time.
 
 `routeType` identifies the kind of canonical response:
 
@@ -202,7 +202,13 @@ An empty PPR shell uses `response: 'empty'` and `compute: 'dynamic'` when the se
 
 An explicit blocking parameter-matching policy uses `response: 'empty'` and `compute: 'blocking'` for the matcher that handles paths not generated at build time. That policy also applies when an on-demand prerender expires or is evicted, even if the cached result was partial. A stale prerender that is still usable follows the existing stale-while-revalidate behavior. Concrete paths generated at build time use the classification of their own prerendered output.
 
-Routes with `ensureStatic = 'navigation'` use `response: 'empty'` and `compute: 'static'` for HTML outputs that cover paths not generated at build time, such as `/products/[slug]`. These outputs have no fallback response. The platform must wait for Next.js to prerender a new path before serving its response. The generated output needs no per-request server rendering. If the path requires dynamic server work, prerendering fails validation instead. Concrete built paths also use `compute: 'static'`. Their `response` can be `complete`, or `initial` when UI finishes in the browser.
+Classified full-route RSC outputs use `response: 'complete'` and `compute: 'static'` when they contain a complete reusable RSC payload. Outputs that require request-time RSC rendering normally use `response: 'empty'` and `compute: 'dynamic'`. The render can stream before it finishes. Cached postponed state can provide data for that render, but it is not an initial RSC response and does not make the output `resuming`.
+
+Routes with `ensureStatic = 'navigation'` use `response: 'empty'` and `compute: 'static'` for both HTML and full-route RSC outputs that cover paths not generated at build time, such as `/products/[slug]` and `/products/[slug].rsc`. These outputs have no fallback response. The platform must wait for Next.js to prerender a new path before serving its response. The generated output needs no per-request server rendering. If the path requires dynamic server work, prerendering fails validation instead. Concrete built paths also use `compute: 'static'`, with a `complete` full-route RSC response. Their HTML response can be `complete`, or `initial` when UI finishes in the browser.
+
+Full-route RSC outputs for an explicitly blocking parameter matcher use `response: 'empty'` and `compute: 'blocking'`. The platform must produce a usable prerender before serving the response, including when an on-demand result expires or is evicted. The generated result can still need request-time RSC rendering. Concrete built paths use their own classification instead of inheriting the unknown-parameter policy.
+
+An HTML response can be `initial` while its RSC output is `complete`, for example when a Client Component resolves a Suspense boundary in the browser. A complete generic HTML shell can also have an `empty` RSC output when its Flight router tree still requires concrete route parameters.
 
 `htmlSize` is only included on the primary App Router HTML output. A value of `0` means that the HTML shell is empty. Pages Router prerenders, Route Handlers, and related RSC, data, and segment outputs omit it.
 
