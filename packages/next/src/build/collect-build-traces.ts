@@ -23,6 +23,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
 import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
+import { getCrossLibcIgnores } from './cross-libc-ignores'
 
 const debug = debugOriginal('next:build:build-traces')
 
@@ -268,6 +269,8 @@ export async function collectBuildTraces({
           : []),
 
         ...(isStandalone ? [] : TRACE_IGNORES),
+        // native packages built for a libc this output cannot load
+        ...getCrossLibcIgnores(),
         ...additionalIgnores,
       ]
 
