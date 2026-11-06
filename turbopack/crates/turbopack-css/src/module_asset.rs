@@ -1,18 +1,18 @@
 use std::{fmt::Write, sync::Arc};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, turbofmt};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    reference::{ModuleReference, ModuleReferences},
+    reference::ModuleReferences,
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::{OptionSource, Source},
@@ -24,11 +24,12 @@ use turbopack_ecmascript::{
         EcmascriptExports, ecmascript_chunk_item,
     },
     parse::generate_js_source_map,
-    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
 use crate::{
+    module_composes::css_modules_composes,
     process::{CssWithPlaceholderResult, ProcessCss},
     references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
 };
@@ -131,7 +132,7 @@ impl Module for EcmascriptCssModule {
 /// See [`ModuleCssClasses`] for more information.
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
-enum ModuleCssClass {
+pub(crate) enum ModuleCssClass {
     Local {
         name: String,
     },
@@ -166,9 +167,14 @@ enum ModuleCssClass {
 /// 1. class1: [Global("exported_class1")]
 /// 2. class2: [Local("exported_class2")]
 /// 3. class3: [Local("exported_class3), Import("class4", "./other.module.css")]
+///
+/// The first entry of every export is its own class name, the following entries are the classes it
+/// composes directly. They are expanded transitively by [`css_modules_composes`].
+///
+/// [`css_modules_composes`]: crate::module_composes::css_modules_composes
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-struct ModuleCssClasses(
+pub(crate) struct ModuleCssClasses(
     #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, Vec<ModuleCssClass>>,
 );
 
@@ -180,7 +186,7 @@ impl EcmascriptCssModule {
     }
 
     #[turbo_tasks::function]
-    async fn classes(self: Vc<Self>) -> Result<Vc<ModuleCssClasses>> {
+    pub(crate) async fn classes(self: Vc<Self>) -> Result<Vc<ModuleCssClasses>> {
         let inner = self
             .inner(ReferenceType::Css(CssReferenceSubType::Analyze))
             .module();
@@ -275,61 +281,27 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
     async fn chunk_item_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let classes = self.classes().await?;
+        // `composes` are flattened across the whole module graph, so the exports are plain
+        // strings and don't need to import other CSS modules at runtime.
+        let module = self.to_resolved().await?;
+        let Some(classes) = css_modules_composes(module_graph).get(&module).await? else {
+            bail!(
+                "CSS module {} is missing from the module graph",
+                turbofmt!("{}", self.ident()).await?
+            );
+        };
 
         let mut code = format!("{TURBOPACK_EXPORT_VALUE}({{\n");
-        for (export_name, class_names) in &*classes {
-            let mut exported_class_names = Vec::with_capacity(class_names.len());
-
-            for class_name in class_names {
-                match class_name {
-                    ModuleCssClass::Import {
-                        original: original_name,
-                        from,
-                    } => {
-                        let resolved_module =
-                            from.resolve_reference().await?.first_module().await?;
-
-                        let Some(resolved_module) = resolved_module else {
-                            // Issue already emitted by CssModuleComposeReference::resolve_reference
-                            continue;
-                        };
-
-                        let Some(css_module) =
-                            ResolvedVc::try_downcast_type::<EcmascriptCssModule>(resolved_module)
-                        else {
-                            // Issue already emitted by CssModuleComposeReference::resolve_reference
-                            continue;
-                        };
-
-                        // TODO(alexkirsz) We should also warn if `original_name` can't be found in
-                        // the target module.
-
-                        let placeable: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>> =
-                            ResolvedVc::upcast(css_module);
-
-                        let module_id = placeable.chunk_item_id(chunking_context).await?;
-                        let module_id = StringifyJs(&module_id);
-                        let original_name = StringifyJs(&original_name);
-                        exported_class_names
-                            .push(format!("{TURBOPACK_IMPORT}({module_id})[{original_name}]"));
-                    }
-                    ModuleCssClass::Local { name: class_name }
-                    | ModuleCssClass::Global { name: class_name } => {
-                        exported_class_names.push(StringifyJs(&class_name).to_string());
-                    }
-                }
-            }
-
+        for (export_name, class_names) in &classes.0 {
             writeln!(
                 code,
                 "  {}: {},",
                 StringifyJs(export_name),
-                exported_class_names.join(" + \" \" + ")
+                StringifyJs(&class_names.join(" "))
             )?;
         }
         code += "});\n";

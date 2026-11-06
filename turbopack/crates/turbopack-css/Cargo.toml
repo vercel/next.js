@@ -20,6 +20,7 @@ indoc = { workspace = true }
 lightningcss = { workspace = true }
 parcel_selectors = { workspace = true }
 parcel_sourcemap = "2.1.1"
+petgraph = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 smallvec = { workspace = true }

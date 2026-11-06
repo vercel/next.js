@@ -1,0 +1,13 @@
+.a {
+  text-decoration: underline;
+}
+
+.b {
+  composes: a;
+  font-style: italic;
+}
+
+.c {
+  composes: b;
+  font-weight: bold;
+}
