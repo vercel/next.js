@@ -469,8 +469,62 @@ describe('adapter-prerender-metadata', () => {
     expect(omittedTemplate).not.toHaveProperty('htmlSize')
   })
 
-  it('keeps classification on canonical outputs only', async () => {
+  it.each([
+    {
+      pathname: '/static',
+      routeType: 'page',
+      response: 'complete',
+      compute: 'static',
+    },
+    {
+      pathname: '/client-hole',
+      routeType: 'page',
+      response: 'complete',
+      compute: 'static',
+    },
+    {
+      pathname: '/empty-shell',
+      routeType: 'page',
+      response: 'empty',
+      compute: 'blocking',
+    },
+    {
+      pathname: '/blog/first',
+      routeType: 'page',
+      response: 'empty',
+      compute: 'blocking',
+    },
+    {
+      pathname: '/blog/[slug]',
+      routeType: 'fallback',
+      response: 'empty',
+      compute: 'blocking',
+    },
+    {
+      pathname: '/combinations/shell-complete-static/[slug]',
+      routeType: 'shell',
+      response: 'empty',
+      compute: 'blocking',
+    },
+  ])(
+    'classifies the full-route RSC output for $pathname',
+    async ({ pathname, ...classification }) => {
+      const prerenders = await getPrerenders()
+      const output = prerenders.find(
+        (prerender) => prerender.pathname === pathname + '.rsc'
+      )
+      expect(output).toBeDefined()
+      expect(output).toMatchObject(classification)
+      expect(output).not.toHaveProperty('htmlSize')
+      expect(output.fallback?.filePath !== undefined).toBe(
+        classification.response === 'complete'
+      )
+    }
+  )
+
+  it('keeps unclassified templates and segment prefetches unclassified', async () => {
     const prerenders = await getPrerenders()
+    const manifest = await getPrerenderManifest()
 
     const expectUnclassified = (output: any) => {
       expect(output).not.toHaveProperty('routeType')
@@ -479,19 +533,33 @@ describe('adapter-prerender-metadata', () => {
       expect(output).not.toHaveProperty('htmlSize')
     }
 
-    const staticRsc = prerenders.find(
-      (output) => output.pathname === '/static.rsc'
+    const omittedData = prerenders.find(
+      (output) =>
+        output.pathname === manifest.dynamicRoutes['/omitted/[id]'].dataRoute
     )
-    expect(staticRsc).toBeDefined()
-    expect(staticRsc.route).toBe('/static')
-    expectUnclassified(staticRsc)
+    expect(omittedData).toBeDefined()
+    expectUnclassified(omittedData)
 
-    const templateRsc = prerenders.find(
-      (output) => output.pathname === '/blog/[slug].rsc'
-    )
-    expect(templateRsc).toBeDefined()
-    expect(templateRsc.route).toBe('/blog/[slug]')
-    expectUnclassified(templateRsc)
+    for (const { pathname, flag } of [
+      { pathname: '/ensure-static', flag: '_isEnsureStaticPage' },
+      { pathname: '/blocking-param', flag: 'isExplicitlyBlocking' },
+    ]) {
+      const template = prerenders.find(
+        (output) => output.pathname === pathname + '/[slug].rsc'
+      )
+      expect(template).toBeDefined()
+      expect(manifest.dynamicRoutes[pathname + '/[slug]'][flag]).toBe(true)
+      expectUnclassified(template)
+
+      const built = prerenders.find(
+        (output) => output.pathname === pathname + '/known.rsc'
+      )
+      expect(built).toMatchObject({
+        routeType: 'page',
+        response: 'complete',
+        compute: 'static',
+      })
+    }
 
     const segments = prerenders.filter((output) =>
       output.pathname.startsWith('/blog/[slug].segments/')
