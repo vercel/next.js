@@ -1,6 +1,7 @@
-// This module is part of the `next/image-optimizer-transform` dependency graph,
-// which runs in a child process. Please keep it lightweight with very few
-// imports. Only `getSharp` is public (re-exported from `./transform`).
+// This module is part of the `next/experimental/image-optimizer-transform`
+// dependency graph, which runs in a child process. Please keep it lightweight
+// with very few imports. Only `getSharp` is public (re-exported from
+// `./transform`).
 import isError from '../../lib/is-error'
 import { AVIF, JPEG, PNG, WEBP } from './image-type'
 
