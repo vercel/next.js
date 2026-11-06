@@ -313,6 +313,13 @@ if (
   debugChannel = createDebugChannel(undefined)
 }
 
+let debugPerformanceId: string | undefined
+if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS) {
+  const { createReactDebugPerformanceId } =
+    require('./dev/react-render-timing') as typeof import('./dev/react-render-timing')
+  debugPerformanceId = createReactDebugPerformanceId(self.__next_r)
+}
+
 let initialServerResponse: Promise<InitialRSCPayload>
 if (instantTestStaticFetch) {
   // Instant Navigation Testing API: hydrate from the static RSC payload
@@ -323,6 +330,7 @@ if (instantTestStaticFetch) {
       callServer,
       findSourceMapURL,
       debugChannel,
+      debugPerformanceId,
       // The static fetch response is a partial stream (static-only Flight
       // data with no dynamic content). Allow it to close without error so
       // React treats dynamic holes as still-suspended rather than
@@ -347,6 +355,7 @@ if (instantTestStaticFetch) {
       callServer,
       findSourceMapURL,
       debugChannel,
+      debugPerformanceId,
     })
   ).then(async (fallbackInitialRSCPayload) =>
     createInitialRSCPayloadFromFallbackPrerender(
@@ -361,6 +370,7 @@ if (instantTestStaticFetch) {
       callServer,
       findSourceMapURL,
       debugChannel,
+      debugPerformanceId,
       startTime: 0,
     }
   )
