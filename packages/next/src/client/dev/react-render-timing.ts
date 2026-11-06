@@ -1,22 +1,17 @@
-import { NEXT_REQUEST_ID_HEADER } from '../components/app-router-headers'
 import { HMR_MESSAGE_SENT_TO_SERVER } from '../../server/dev/hot-reloader-types'
 import type { ReactTimingRecord } from '../../shared/lib/react-debug-timing'
 import {
-  copyBrowserReactTimingRecord,
   isBrowserReactTimingRecord,
   MAX_BROWSER_REACT_TIMING_BATCH,
   MAX_BROWSER_REACT_TIMING_MESSAGE_LENGTH,
   MAX_BROWSER_REACT_TIMING_QUEUE,
 } from '../../shared/lib/react-debug-timing-transport'
-import {
-  bindReactDecoderPromise,
-  bindReactDecoderStream,
-  runWithReactDecoderScope,
-  type ReactDecoderScope,
-} from './react-decoder-host'
 
 let sendMessage: ((message: string) => boolean | void) | undefined
 let nextDecoderId = 0
+let nextRecordId = 0
+let observer: PerformanceObserver | undefined
+const DEBUG_PERFORMANCE_ID_PREFIX = 'next-request-insights:'
 // Only primitive records waiting for the initial HMR connection, never decoded
 // roots or responses. Bound the number of pending decoders as well as records.
 const pending = new Set<() => void>()
@@ -37,13 +32,87 @@ export function setReactTimingSender(
   }
 }
 
-export function createBrowserReactTiming(
-  requestHeaders: Record<string, string>
-) {
-  const requestId = requestHeaders[NEXT_REQUEST_ID_HEADER]
-  const decoderId = String(nextDecoderId++)
-  let nextRecordId = 0
-  let timer: ReturnType<typeof setTimeout> | undefined
+export function createReactDebugPerformanceId(
+  requestId: string | undefined
+): string | undefined {
+  if (!requestId || typeof PerformanceObserver === 'undefined') return
+  if (!observer) {
+    try {
+      observer = new PerformanceObserver((list) => {
+        const queues = new Map<string, ReturnType<typeof createTimingQueue>>()
+        for (const entry of list.getEntries()) {
+          try {
+            if (entry.entryType !== 'measure') continue
+            const metadata = (entry as PerformanceMeasure).detail?.react
+            if (
+              metadata?.version !== 1 ||
+              typeof metadata.debugPerformanceId !== 'string' ||
+              !metadata.debugPerformanceId.startsWith(
+                DEBUG_PERFORMANCE_ID_PREFIX
+              ) ||
+              (metadata.kind !== 'component' && metadata.kind !== 'await') ||
+              (metadata.outcome !== 'completed' &&
+                metadata.outcome !== 'errored' &&
+                metadata.outcome !== 'aborted') ||
+              typeof metadata.environment !== 'string'
+            )
+              continue
+            let queue = queues.get(metadata.debugPerformanceId)
+            if (!queue) {
+              const context: unknown = JSON.parse(
+                metadata.debugPerformanceId.slice(
+                  DEBUG_PERFORMANCE_ID_PREFIX.length
+                )
+              )
+              if (
+                !Array.isArray(context) ||
+                context.length !== 2 ||
+                typeof context[0] !== 'string' ||
+                typeof context[1] !== 'string'
+              )
+                continue
+              if (queues.size >= MAX_BROWSER_REACT_TIMING_BATCH) {
+                for (const queued of queues.values()) queued.flush()
+                queues.clear()
+              }
+              queue = createTimingQueue(context[0], context[1])
+              queues.set(metadata.debugPerformanceId, queue)
+            }
+            const componentName = entry.name.replace(/^\u200b/, '')
+            queue.record({
+              kind: metadata.kind,
+              name:
+                metadata.kind === 'await'
+                  ? 'async work'
+                  : componentName
+                      .replace(/ \[(?!deduped\])[^\]]+\]$/, '')
+                      .slice(0, 256),
+              environment: metadata.environment.slice(0, 64),
+              outcome: metadata.outcome,
+              startTime: performance.timeOrigin + entry.startTime,
+              durationMs: entry.duration,
+            })
+          } catch {
+            // User measures can contain arbitrary detail; inspect each independently.
+          }
+        }
+        for (const queue of queues.values()) queue.flush()
+      })
+      observer.observe({ type: 'measure' })
+    } catch {
+      observer?.disconnect()
+      observer = undefined
+      return
+    }
+  }
+  // Encode primitive context so delayed entries do not require retaining decoders.
+  return (
+    DEBUG_PERFORMANCE_ID_PREFIX +
+    JSON.stringify([requestId, String(nextDecoderId++)])
+  )
+}
+
+function createTimingQueue(requestId: string, decoderId: string) {
   let partial = false
   let partialReported = false
   const records: ReactTimingRecord[] = []
@@ -97,48 +166,18 @@ export function createBrowserReactTiming(
     }
   }
 
-  const scope: ReactDecoderScope = {
-    record(timing) {
+  return {
+    flush,
+    record(timing: Omit<ReactTimingRecord, 'id'>) {
       const record = { ...timing, id: `decoded:${nextRecordId++}` }
       if (
         records.length < MAX_BROWSER_REACT_TIMING_QUEUE &&
         isBrowserReactTimingRecord(record)
       ) {
-        records.push(copyBrowserReactTimingRecord(record))
+        records.push(record)
       } else {
         partial = true
       }
-      if (timer === undefined) {
-        timer = setTimeout(() => {
-          timer = undefined
-          flush()
-        }, 0)
-      }
-    },
-  }
-
-  return {
-    run<T>(callback: () => T): T {
-      return runWithReactDecoderScope(scope, callback)
-    },
-    wrapStream<T>(stream: ReadableStream<T>): ReadableStream<T> {
-      return bindReactDecoderStream(stream, scope)
-    },
-    wrapResponse(promise: Promise<Response>): Promise<Response> {
-      return bindReactDecoderPromise(
-        promise.then((response) => {
-          if (!response.body) return response
-          const body = bindReactDecoderStream(response.body, scope)
-          return new Proxy(response, {
-            get(target, key) {
-              if (key === 'body') return body
-              const value = Reflect.get(target, key, target)
-              return typeof value === 'function' ? value.bind(target) : value
-            },
-          })
-        }),
-        scope
-      )
     },
   }
 }

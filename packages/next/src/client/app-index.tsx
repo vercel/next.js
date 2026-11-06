@@ -1,5 +1,4 @@
 import './app-globals'
-import { NEXT_REQUEST_ID_HEADER } from './components/app-router-headers'
 import ReactDOMClient from 'react-dom/client'
 import React from 'react'
 // TODO: Explicitly import from client.browser
@@ -33,9 +32,9 @@ import { initializeRouterTransitionModules } from './components/router-transitio
 
 /// <reference types="react-dom/experimental" />
 
-let createFromReadableStream =
+const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
-let createFromFetch =
+const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
 const appElement: HTMLElement | Document = document
@@ -314,23 +313,11 @@ if (
   debugChannel = createDebugChannel(undefined)
 }
 
+let debugPerformanceId: string | undefined
 if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS) {
-  const { createBrowserReactTiming } =
+  const { createReactDebugPerformanceId } =
     require('./dev/react-render-timing') as typeof import('./dev/react-render-timing')
-  if (self.__next_r) {
-    const timing = createBrowserReactTiming({
-      [NEXT_REQUEST_ID_HEADER]: self.__next_r,
-    })
-    const decodeStream = createFromReadableStream
-    const decodeFetch = createFromFetch
-    if (debugChannel?.readable) {
-      debugChannel.readable = timing.wrapStream(debugChannel.readable)
-    }
-    createFromReadableStream = (stream, options) =>
-      timing.run(() => decodeStream(timing.wrapStream(stream), options))
-    createFromFetch = (response, options) =>
-      timing.run(() => decodeFetch(timing.wrapResponse(response), options))
-  }
+  debugPerformanceId = createReactDebugPerformanceId(self.__next_r)
 }
 
 let initialServerResponse: Promise<InitialRSCPayload>
@@ -343,6 +330,7 @@ if (instantTestStaticFetch) {
       callServer,
       findSourceMapURL,
       debugChannel,
+      debugPerformanceId,
       // The static fetch response is a partial stream (static-only Flight
       // data with no dynamic content). Allow it to close without error so
       // React treats dynamic holes as still-suspended rather than
@@ -367,6 +355,7 @@ if (instantTestStaticFetch) {
       callServer,
       findSourceMapURL,
       debugChannel,
+      debugPerformanceId,
     })
   ).then(async (fallbackInitialRSCPayload) =>
     createInitialRSCPayloadFromFallbackPrerender(
@@ -381,6 +370,7 @@ if (instantTestStaticFetch) {
       callServer,
       findSourceMapURL,
       debugChannel,
+      debugPerformanceId,
       startTime: 0,
     }
   )

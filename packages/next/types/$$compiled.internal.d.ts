@@ -110,6 +110,7 @@ declare module 'react-server-dom-webpack/client.browser' {
   export interface Options {
     callServer?: CallServerCallback
     environmentName?: string
+    debugPerformanceId?: string
     // It's optional but we want to avoid accidentally omitting it.
     findSourceMapURL: FindSourceMapURLCallback | undefined
     replayConsoleLogs?: boolean
