@@ -94,6 +94,19 @@ async function getCodeHashes(
         expect($('p').text()).toBe('node-worker-v1')
       })
 
+      it('tracks both branches when an env var condition is only known at runtime', async () => {
+        const hashes = await getCodeHashes(next, ['app/env-conditional/page'])
+        expect(hashes).toHaveLength(1)
+        expect(hashes[0].codeHash).toEqual(expect.any(String))
+        expect(hashes[0].runtimeEnvVarsRead).toEqual(
+          expect.arrayContaining([
+            'TEST_CONDITIONAL',
+            'TEST_OTHER_VALUE',
+            'TEST_VALUE',
+          ])
+        )
+      })
+
       it('lists non-inlined runtime env vars', async () => {
         const data = await getCodeHashes(next)
         expect(
@@ -110,6 +123,18 @@ async function getCodeHashes(
           )
         ).toMatchInlineSnapshot(`
          {
+           "app/env-conditional/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "TEST_CONDITIONAL",
+             "TEST_OTHER_VALUE",
+             "TEST_VALUE",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
            "app/env-dynamic/page": [
              "NEXT_OTEL_PERFORMANCE_PREFIX",
              "NEXT_OTEL_VERBOSE",
@@ -281,6 +306,42 @@ export function generateStaticParams() {
         files: __dirname,
         skipStart: true,
       })
+
+      it.each(['disabled', 'enabled'])(
+        'only tracks reachable env var accesses when TEST_CONDITIONAL is inlined as %s',
+        async (conditional) => {
+          await next.patchFile(
+            'next.config.js',
+            (config) =>
+              config.replace(
+                'cacheComponents: true,',
+                `cacheComponents: true, env: { TEST_CONDITIONAL: '${conditional}' },`
+              ),
+            async () => {
+              expect((await next.build()).exitCode).toBe(0)
+              const hashes = await getCodeHashes(next, [
+                'app/env-conditional/page',
+              ])
+              expect(hashes).toHaveLength(1)
+              expect(hashes[0].codeHash).toEqual(expect.any(String))
+              expect(hashes[0].runtimeEnvVarsRead).not.toContain(
+                'TEST_CONDITIONAL'
+              )
+              if (conditional === 'enabled') {
+                expect(hashes[0].runtimeEnvVarsRead).toContain('TEST_VALUE')
+                expect(hashes[0].runtimeEnvVarsRead).not.toContain(
+                  'TEST_OTHER_VALUE'
+                )
+              } else {
+                expect(hashes[0].runtimeEnvVarsRead).toContain(
+                  'TEST_OTHER_VALUE'
+                )
+                expect(hashes[0].runtimeEnvVarsRead).not.toContain('TEST_VALUE')
+              }
+            }
+          )
+        }
+      )
 
       it('codeHash stays stable across identical rebuilds', async () => {
         await next.build()
