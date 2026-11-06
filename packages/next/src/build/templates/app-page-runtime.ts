@@ -1320,10 +1320,11 @@ export function createAppPageEntrypoint({
             pageIsDynamic &&
             (isProduction || !isPrerendered)
           ) {
-            // Serve the fallback for document and prefetch requests. A static
-            // navigation is never resumed, so it blocks on a concrete prerender
-            // instead. Dynamic RSC requests render separately and can reuse the
-            // RDC from cached postponed state.
+            // Serve fallback shells for document and prefetch requests.
+            // Static RSC navigations require complete Flight data. They block on a
+            // prerender of the concrete path when its cache entry is missing.
+            // Dynamic RSC requests render fresh Flight data and can reuse the RDC from
+            // cached postponed state.
             if (isRoutePPREnabled && (!isRSCRequest || isPrefetchRSCRequest)) {
               const cacheKey =
                 isProduction && typeof prerenderInfo?.fallback === 'string'
@@ -2278,13 +2279,13 @@ export function createAppPageEntrypoint({
         // generate both HTML and payloads in the same request so continue to just
         // return the generated payload
         if (isRSCRequest && !isDraftMode) {
-          const isUnresumableStaticRSC =
+          const shouldFallbackToDocumentNavigation =
             !isMinimalMode &&
             !isPrefetchRSCRequest &&
             staticPrefetchDataRoute &&
             didPostpone
 
-          if (isUnresumableStaticRSC) {
+          if (shouldFallbackToDocumentNavigation) {
             res.statusCode = 404
             return sendRenderResult({
               req,
