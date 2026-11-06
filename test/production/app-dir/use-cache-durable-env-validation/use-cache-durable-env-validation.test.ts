@@ -18,29 +18,7 @@ describe('use-cache-durable-env-validation', () => {
     expect(exitCode).toBe(1)
     const output = getTurbopackBuildErrors(cliOutput)
     expect(output).toMatchInlineSnapshot(`
-     "Error: Turbopack build failed with 8 errors:
-     ./cases/direct-existence.ts:6:7
-     Error: Durable cache references an unstable environment variable
-       4 |   'use cache: remote'
-       5 |   unstable_cacheDurable()
-     > 6 |   if (process.env.UNSTABLE_DURABLE_TEST) {
-         |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-       7 |     return true
-       8 |   }
-       9 |   return false
-
-     Use-cache functions marked with unstable_cacheDurable() must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
-
-     Durable cache function:
-     ./cases/direct-existence.ts
-
-     Import trace:
-       Server Component:
-         ./cases/direct-existence.ts
-         ./cases/rejected.ts
-         ./app/page.tsx
-
-
+     "Error: Turbopack build failed with 5 errors:
      ./cases/direct-read.ts:6:10
      Error: Durable cache references an unstable environment variable
        4 |   'use cache: remote'
@@ -106,50 +84,6 @@ describe('use-cache-durable-env-validation', () => {
          ./app/page.tsx
 
 
-     ./dependencies/existence.ts:2:7
-     Error: Durable cache references an unstable environment variable
-       1 | export function hasEnv() {
-     > 2 |   if (process.env.UNSTABLE_DURABLE_TEST) {
-         |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-       3 |     return true
-       4 |   }
-       5 |   return false
-
-     Use-cache functions marked with unstable_cacheDurable() must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
-
-     Durable cache function:
-     ./cases/nested-cache-existence.ts
-
-     Import trace:
-       Server Component:
-         ./dependencies/existence.ts
-         ./cases/nested-cache-existence.ts
-         ./cases/rejected.ts
-         ./app/page.tsx
-
-
-     ./dependencies/existence.ts:2:7
-     Error: Durable cache references an unstable environment variable
-       1 | export function hasEnv() {
-     > 2 |   if (process.env.UNSTABLE_DURABLE_TEST) {
-         |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-       3 |     return true
-       4 |   }
-       5 |   return false
-
-     Use-cache functions marked with unstable_cacheDurable() must not reference unstable environment variables (in this case UNSTABLE_DURABLE_TEST). Restructure your code to not reference them.
-
-     Durable cache function:
-     ./cases/transitive-existence.ts
-
-     Import trace:
-       Server Component:
-         ./dependencies/existence.ts
-         ./cases/nested-cache-existence.ts
-         ./cases/rejected.ts
-         ./app/page.tsx
-
-
      ./dependencies/read.ts:2:10
      Error: Durable cache references an unstable environment variable
        1 | export function readEnv() {
@@ -193,13 +127,11 @@ describe('use-cache-durable-env-validation', () => {
     `)
 
     expect(output).toContain('UNSTABLE_DURABLE_TEST')
+    expect(output).not.toContain('UNSTABLE_DURABLE_TEST_EXISTENCE')
     for (const name of [
       'direct-read',
-      'direct-existence',
       'transitive-read',
-      'transitive-existence',
       'nested-cache-read',
-      'nested-cache-existence',
       'module-level',
       'dependency-cycle',
     ]) {
@@ -249,7 +181,7 @@ describe('use-cache-durable-env-validation with durableUseCacheEntries disabled'
          4 |   'use cache: remote'
        > 5 |   unstable_cacheDurable()
            |   ^^^^^^^^^^^^^^^^^^^^^^^
-         6 |   if (process.env.UNSTABLE_DURABLE_TEST) {
+         6 |   if (process.env.UNSTABLE_DURABLE_TEST_EXISTENCE) {
          7 |     return true
          8 |   }
 
