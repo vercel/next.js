@@ -273,6 +273,9 @@ importers:
       '@next/font':
         specifier: workspace:*
         version: link:packages/font
+      '@next/mcp':
+        specifier: workspace:*
+        version: link:packages/next-mcp
       '@next/mdx':
         specifier: workspace:*
         version: link:packages/next-mdx
@@ -2038,6 +2041,22 @@ importers:
       dotenv-expand:
         specifier: 10.0.0
         version: 10.0.0
+
+  packages/next-mcp:
+    dependencies:
+      '@modelcontextprotocol/server':
+        specifier: 2.4.0
+        version: 2.4.0
+      '@standard-schema/spec':
+        specifier: 1.1.0
+        version: 1.1.0
+    devDependencies:
+      next:
+        specifier: workspace:*
+        version: link:../next
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
 
   packages/next-mdx:
     dependencies:
@@ -4736,9 +4755,17 @@ packages:
       '@types/react': 19.2.18
       react: '>=16'
 
+  '@modelcontextprotocol/core@2.4.0':
+    resolution: {integrity: sha512-z8QBKqdfXLPzkLQuG4xp8hrVEMm1PZ1IgxMN2sMbJiFiAKOWXnAzogXn2W4aqIBlP1ea6U5yiqVquvUNM1Cj6Q==}
+    engines: {node: '>=20'}
+
   '@modelcontextprotocol/sdk@1.18.1':
     resolution: {integrity: sha512-d//GE8/Yh7aC3e7p+kZG8JqqEAwwDUmAfvH1quogtbk+ksS6E0RR6toKKESPYYZVre0meqkJb27zb+dhqE9Sgw==}
     engines: {node: '>=18'}
+
+  '@modelcontextprotocol/server@2.4.0':
+    resolution: {integrity: sha512-rgR9yxSaAJ+bcsi/XroT/S2AfPiIWloXAnrdfYSCms9ivVju0ishu/wW0J21Ho6+ZOR1r7RyeRbjiRuF87ix5Q==}
+    engines: {node: '>=20'}
 
   '@module-federation/error-codes@0.21.6':
     resolution: {integrity: sha512-MLJUCQ05KnoVl8xd6xs9a5g2/8U+eWmVxg7xiBMeR0+7OjdWUbHwcwgVFatRIwSZvFgKHfWEiI7wsU1q1XbTRQ==}
@@ -6634,6 +6661,9 @@ packages:
 
   '@standard-schema/spec@1.0.0':
     resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
+
+  '@standard-schema/spec@1.1.0':
+    resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
   '@storybook/addon-a11y@8.6.0':
     resolution: {integrity: sha512-iIHO3GWt/PkO8BbYgzI/LYEK5JYvG31bCRka0XBk71PfZ5nrMGapVrUNH3PchO8G48HEb4ZpFiEOlV3WjCFYuw==}
@@ -18582,6 +18612,9 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
+
   zwitch@1.0.5:
     resolution: {integrity: sha512-V50KMwwzqJV0NpZIZFwfOD5/lyny3WlSzRiXgA0G7VUnRlqttta1L6UQIHzd6EuBY/cHGfwTIck7w1yH6Q5zUw==}
 
@@ -21634,6 +21667,10 @@ snapshots:
       '@types/react': 19.2.18
       react: 19.3.0-canary-e84e1492-20261031
 
+  '@modelcontextprotocol/core@2.4.0':
+    dependencies:
+      zod: 4.6.7
+
   '@modelcontextprotocol/sdk@1.18.1(patch_hash=680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12)(supports-color@9.4.0)':
     dependencies:
       ajv: 6.12.6
@@ -21650,6 +21687,11 @@ snapshots:
       zod-to-json-schema: 3.24.6(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
+
+  '@modelcontextprotocol/server@2.4.0':
+    dependencies:
+      '@modelcontextprotocol/core': 2.4.0
+      zod: 4.6.7
 
   '@module-federation/error-codes@0.21.6': {}
 
@@ -23347,6 +23389,8 @@ snapshots:
       - debug
 
   '@standard-schema/spec@1.0.0': {}
+
+  '@standard-schema/spec@1.1.0': {}
 
   '@storybook/addon-a11y@8.6.0(storybook@8.6.0(prettier@3.6.2)(supports-color@9.4.0))':
     dependencies:
@@ -38658,6 +38702,8 @@ snapshots:
   zod@3.24.4: {}
 
   zod@3.25.76: {}
+
+  zod@4.6.7: {}
 
   zwitch@1.0.5: {}
 
