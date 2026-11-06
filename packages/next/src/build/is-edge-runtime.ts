@@ -1,5 +1,5 @@
 import type { ServerRuntime } from '../types'
-import { SERVER_RUNTIME } from './constants'
+import { SERVER_RUNTIME } from '../lib/constants'
 
 export function isEdgeRuntime(value?: string): value is ServerRuntime {
   return (

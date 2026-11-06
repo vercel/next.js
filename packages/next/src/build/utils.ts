@@ -49,7 +49,7 @@ import {
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
-import { isEdgeRuntime } from '../lib/is-edge-runtime'
+import { isEdgeRuntime } from './is-edge-runtime'
 import * as Log from './output/log'
 import type { LoadComponentsReturnType } from '../server/load-components'
 import { trace } from '../trace'

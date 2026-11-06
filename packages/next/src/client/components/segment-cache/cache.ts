@@ -113,7 +113,7 @@ import {
   readFulfilledStaleTimeSeconds,
 } from './decode-server-response'
 import { getNavigationBuildId } from '../../navigation-build-id'
-import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../shared/lib/constants-browser'
 
 /**
  * Ensures a minimum stale time of 30s to avoid issues where the server sends a too

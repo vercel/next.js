@@ -18,7 +18,7 @@ import {
   INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
-import { isEdgeRuntime } from '../lib/is-edge-runtime'
+import { isEdgeRuntime } from './is-edge-runtime'
 import { APP_CLIENT_INTERNALS } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
