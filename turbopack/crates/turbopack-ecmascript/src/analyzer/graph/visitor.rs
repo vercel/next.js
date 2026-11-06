@@ -91,10 +91,6 @@ pub(super) struct Analyzer<'arena, 'eval> {
     /// Interns the AST paths used by `code_gens`; handed to the [`VarGraph`] at the end.
     pub(super) ast_paths: AstPathTrieBuilder,
 
-    /// Whether we may codegen `let` and `const` or if we should fallback to var (at the cost of
-    /// slightly less correct circular import errors) for EsmModuleItem
-    pub(super) supports_block_scoping: bool,
-
     pub(super) eval_context: &'eval EvalContext,
 }
 
@@ -1452,8 +1448,7 @@ impl<'a> Analyzer<'a, '_> {
     fn add_esm_module_item(&mut self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) {
         if self.analyze_mode.is_codegen {
             let path = self.ast_paths.intern(ast_path.kinds().iter().copied());
-            self.code_gens
-                .push(EsmModuleItem::new(path, self.supports_block_scoping).into());
+            self.code_gens.push(EsmModuleItem::new(path).into());
         }
     }
 
