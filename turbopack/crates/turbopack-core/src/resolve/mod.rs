@@ -32,7 +32,7 @@ use crate::{
         resolve::ResolvingIssue,
     },
     module::Module,
-    package_json::{PackageJsonIssue, read_package_json},
+    package_json::{PackageJsonFieldValue, PackageJsonIssue, package_json_field},
     raw_module::RawModule,
     reference_type::ReferenceType,
     resolve::{
@@ -1239,13 +1239,10 @@ enum ExportsFieldResult {
 async fn exports_field(
     package_json_path: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Vc<ExportsFieldResult>> {
-    let read = read_package_json(*package_json_path).await?;
-    let package_json = match &*read {
-        Some(json) => json,
-        None => return Ok(ExportsFieldResult::None.cell()),
-    };
-
-    let Some(exports) = package_json.get("exports") else {
+    let exports = package_json_field(package_json_path, "exports")
+        .await?
+        .await?;
+    let Some(exports) = &exports.0 else {
         return Ok(ExportsFieldResult::None.cell());
     };
     match exports.try_into() {
@@ -1286,13 +1283,8 @@ async fn imports_field(lookup_path: FileSystemPath) -> Result<Vc<ImportsFieldRes
         .to_resolved()
         .await?;
 
-    let read = read_package_json(*source).await?;
-    let package_json = match &*read {
-        Some(json) => json,
-        None => return Ok(ImportsFieldResult::None.cell()),
-    };
-
-    let Some(imports) = package_json.get("imports") else {
+    let imports = package_json_field(source, "imports").await?.await?;
+    let Some(imports) = &imports.0 else {
         return Ok(ImportsFieldResult::None.cell());
     };
     match imports.try_into() {
@@ -1313,6 +1305,20 @@ async fn imports_field(lookup_path: FileSystemPath) -> Result<Vc<ImportsFieldRes
 #[turbo_tasks::function]
 pub fn package_json() -> Vc<Vec<RcStr>> {
     Vc::cell(vec![rcstr!("package.json")])
+}
+
+/// Reads a single top-level field of the `package.json` at `package_json_path`, depending only on
+/// that field (see [package_json_field]).
+async fn package_json_field_at(
+    package_json_path: &FileSystemPath,
+    field: &str,
+) -> Result<ReadRef<PackageJsonFieldValue>> {
+    let source = ResolvedVc::upcast(
+        FileSource::new(package_json_path.clone())
+            .to_resolved()
+            .await?,
+    );
+    package_json_field(source, field).await?.await
 }
 
 #[turbo_tasks::value(shared)]
@@ -1380,9 +1386,10 @@ pub async fn find_context_file_or_package_key(
 ) -> Result<Vc<FindContextFileResult>> {
     let package_json_path = lookup_path.join("package.json")?;
     if let Some(package_json_path) = exists(&package_json_path, None).await?
-        && let Some(json) =
-            &*read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?
-        && json.get(&*package_key).is_some()
+        && package_json_field_at(&package_json_path, &package_key)
+            .await?
+            .0
+            .is_some()
     {
         return Ok(FindContextFileResult::Found(package_json_path, Vec::new()).cell());
     }
@@ -2314,10 +2321,11 @@ async fn resolve_into_folder(
         for resolve_into_package in options_value.into_package.iter() {
             match resolve_into_package {
                 ResolveIntoPackage::MainField { field: name } => {
-                    if let Some(package_json) =
-                        &*read_package_json(Vc::upcast(FileSource::new(package_json_path.clone())))
-                            .await?
-                        && let Some(field_value) = package_json[name.as_str()].as_str()
+                    if let Some(field_value) = package_json_field_at(&package_json_path, name)
+                        .await?
+                        .0
+                        .as_ref()
+                        .and_then(|value| value.as_str())
                     {
                         let normalized_request = RcStr::from(normalize_request(field_value));
                         if normalized_request.is_empty()
@@ -2723,13 +2731,8 @@ async fn apply_in_package(
             continue;
         };
 
-        let read =
-            read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?;
-        let Some(package_json) = &*read else {
-            continue;
-        };
-
-        let Some(field_value) = package_json[field.as_str()].as_object() else {
+        let field_value = package_json_field_at(package_json_path, field).await?;
+        let Some(field_value) = field_value.0.as_ref().and_then(|value| value.as_object()) else {
             continue;
         };
 
@@ -2819,19 +2822,22 @@ async fn find_self_reference(
 ) -> Result<Vc<FindSelfReferencePackageResult>> {
     let package_json_context =
         find_context_file(lookup_path, *package_json().to_resolved().await?, false).await?;
-    if let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context {
-        let read =
-            read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?;
-        if let Some(json) = &*read
-            && json.get("exports").is_some()
-            && let Some(name) = json["name"].as_str()
-        {
-            return Ok(FindSelfReferencePackageResult::Found {
-                name: name.to_string(),
-                package_path: package_json_path.parent(),
-            }
-            .cell());
+    if let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context
+        && package_json_field_at(package_json_path, "exports")
+            .await?
+            .0
+            .is_some()
+        && let Some(name) = package_json_field_at(package_json_path, "name")
+            .await?
+            .0
+            .as_ref()
+            .and_then(|name| name.as_str())
+    {
+        return Ok(FindSelfReferencePackageResult::Found {
+            name: name.to_string(),
+            package_path: package_json_path.parent(),
         }
+        .cell());
     }
     Ok(FindSelfReferencePackageResult::NotFound.cell())
 }
@@ -4422,5 +4428,206 @@ mod tests {
         })
         .await
         .unwrap();
+    }
+
+    /// Resolving through a package.json alias field (`browser`) must only depend on that field:
+    /// editing unrelated metadata must not re-execute the resolve, while editing the mapping must.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn alias_field_resolve_only_depends_on_alias_field() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static RESOLVE_EXECUTIONS: AtomicUsize = AtomicUsize::new(0);
+
+        let scratch = tempfile::tempdir().unwrap();
+        let write_package_json = |version: &str, target: &str| {
+            std::fs::write(
+                scratch.path().join("package.json"),
+                format!(
+                    r#"{{"name":"pkg","version":"{version}","scripts":{{"build":"x{version}"}},"browser":{{"./a.js":"{target}"}}}}"#
+                ),
+            )
+            .unwrap();
+        };
+        write_package_json("1.0.0", "./b.js");
+        for name in ["a.js", "b.js", "c.js"] {
+            std::fs::write(scratch.path().join(name), "").unwrap();
+        }
+        let path = RcStr::from(scratch.path().to_str().unwrap());
+
+        #[turbo_tasks::function]
+        async fn browser_resolve_options() -> Result<Vc<ResolveOptions>> {
+            let mut options = node_cjs_resolve_options().owned().await?;
+            options
+                .in_package
+                .push(ResolveInPackage::AliasField(rcstr!("browser")));
+            Ok(options.cell())
+        }
+
+        /// Counts executions of the resolver implementation itself (the code that owns the
+        /// package.json dependencies), not of a task awaiting its output.
+        #[turbo_tasks::function]
+        async fn counted_resolve(lookup_path: FileSystemPath) -> Result<Vc<ResolveResult>> {
+            RESOLVE_EXECUTIONS.fetch_add(1, Ordering::SeqCst);
+            resolve_internal_inline(
+                lookup_path,
+                Request::parse(Pattern::Constant(rcstr!("./a.js"))),
+                browser_resolve_options(),
+            )
+            .await
+        }
+
+        #[turbo_tasks::value]
+        struct AliasResolveOutput {
+            counted: Vec<String>,
+            public: Vec<String>,
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn resolve_operation(path: RcStr) -> Result<Vc<AliasResolveOutput>> {
+            let root = invalidation_test_fs(path).root().owned().await?;
+            let counted = source_paths(&*counted_resolve(root.clone()).await?).await?;
+            let public = resolve(
+                root,
+                ReferenceType::CommonJs(Default::default()),
+                Request::parse(Pattern::Constant(rcstr!("./a.js"))),
+                browser_resolve_options(),
+            )
+            .await?;
+            let public = source_paths(&public).await?;
+            Ok(AliasResolveOutput { counted, public }.cell())
+        }
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let run = |path: RcStr, invalidate: bool| {
+            tt.run_once(async move {
+                if invalidate {
+                    invalidate_test_fs(path.clone()).await?;
+                }
+                let output = resolve_operation(path).read_strongly_consistent().await?;
+                assert_eq!(output.counted, output.public);
+                anyhow::Ok((
+                    output.public.clone(),
+                    RESOLVE_EXECUTIONS.load(Ordering::SeqCst),
+                ))
+            })
+        };
+
+        let (paths, executions) = run(path.clone(), false).await.unwrap();
+        assert_eq!(paths, vec!["b.js"]);
+        assert_eq!(executions, 1);
+
+        // Unrelated metadata changes: the resolve must not re-execute.
+        write_package_json("2.0.0", "./b.js");
+        let (paths, executions) = run(path.clone(), true).await.unwrap();
+        assert_eq!(paths, vec!["b.js"]);
+        assert_eq!(
+            executions, 1,
+            "an unrelated package.json edit re-ran the resolve"
+        );
+
+        // The alias mapping changes: the resolve must re-execute with the new target.
+        write_package_json("2.0.0", "./c.js");
+        let (paths, executions) = run(path, true).await.unwrap();
+        assert_eq!(paths, vec!["c.js"]);
+        assert_eq!(executions, 2);
+    }
+
+    /// A filesystem shared by a test's resolves and [invalidate_test_fs], so invalidation reaches
+    /// the same instance.
+    #[turbo_tasks::function]
+    fn invalidation_test_fs(path: RcStr) -> Vc<DiskFileSystem> {
+        DiskFileSystem::new(rcstr!("temp"), Vc::cell(path))
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    fn invalidation_test_fs_operation(path: RcStr) -> Vc<DiskFileSystem> {
+        invalidation_test_fs(path)
+    }
+
+    /// Re-reads all files of [invalidation_test_fs] (to be called from a top-level task after
+    /// changing files on disk).
+    async fn invalidate_test_fs(path: RcStr) -> Result<()> {
+        invalidation_test_fs_operation(path)
+            .read_strongly_consistent()
+            .await?
+            .invalidate();
+        Ok(())
+    }
+
+    async fn source_paths(result: &ResolveResult) -> Result<Vec<String>> {
+        let mut paths = Vec::new();
+        for (_, item) in result.primary.iter() {
+            let ResolveResultItem::Source(source) = item else {
+                panic!("expected a source, got {item:?}");
+            };
+            paths.push(source.ident().await?.path.path.to_string());
+        }
+        Ok(paths)
+    }
+
+    /// Key order of conditional `exports` is semantic: reordering the conditions must change the
+    /// resolution, even when combined with an unrelated `package.json` edit.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn exports_condition_reorder_changes_resolution() {
+        let scratch = tempfile::tempdir().unwrap();
+        let package_path = scratch.path().join("node_modules/pkg");
+        create_dir_all(&package_path).unwrap();
+        let write_package_json = |version: &str, conditions: &str| {
+            std::fs::write(
+                package_path.join("package.json"),
+                format!(
+                    r#"{{"name":"pkg","version":"{version}","exports":{{".":{{{conditions}}}}}}}"#
+                ),
+            )
+            .unwrap();
+        };
+        write_package_json("1.0.0", r#""default":"./a.js","require":"./b.js""#);
+        for name in ["a.js", "b.js"] {
+            std::fs::write(package_path.join(name), "").unwrap();
+        }
+        let path = RcStr::from(scratch.path().to_str().unwrap());
+
+        #[turbo_tasks::value(transparent)]
+        struct ResolvedPaths(Vec<String>);
+
+        #[turbo_tasks::function(operation, root)]
+        async fn resolve_operation(path: RcStr) -> Result<Vc<ResolvedPaths>> {
+            let root = invalidation_test_fs(path).root().owned().await?;
+            let result = resolve(
+                root,
+                ReferenceType::CommonJs(Default::default()),
+                Request::parse(Pattern::Constant(rcstr!("pkg"))),
+                node_cjs_resolve_options(),
+            )
+            .await?;
+            Ok(Vc::cell(source_paths(&result).await?))
+        }
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let run = |path: RcStr, invalidate: bool| {
+            tt.run_once(async move {
+                if invalidate {
+                    invalidate_test_fs(path.clone()).await?;
+                }
+                let paths = resolve_operation(path).read_strongly_consistent().await?;
+                anyhow::Ok(paths.iter().cloned().collect::<Vec<_>>())
+            })
+        };
+
+        assert_eq!(
+            run(path.clone(), false).await.unwrap(),
+            vec!["node_modules/pkg/a.js"]
+        );
+        write_package_json("2.0.0", r#""require":"./b.js","default":"./a.js""#);
+        assert_eq!(
+            run(path, true).await.unwrap(),
+            vec!["node_modules/pkg/b.js"]
+        );
     }
 }
