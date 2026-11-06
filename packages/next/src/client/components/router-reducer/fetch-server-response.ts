@@ -769,32 +769,24 @@ export function createFromNextReadableStream<T>(
   options?: { allowPartialStream?: boolean; observeTiming?: boolean }
 ): Promise<T> {
   const debugChannel = createDebugChannel && createDebugChannel(requestHeaders)
+  let debugPerformanceId: string | undefined
   if (
     process.env.__NEXT_DEV_SERVER &&
     process.env.__NEXT_REQUEST_INSIGHTS &&
     options?.observeTiming &&
     requestHeaders
   ) {
-    const { createBrowserReactTiming } =
+    const { createReactDebugPerformanceId } =
       require('../../dev/react-render-timing') as typeof import('../../dev/react-render-timing')
-    const timing = createBrowserReactTiming(requestHeaders)
-    if (debugChannel?.readable) {
-      debugChannel.readable = timing.wrapStream(debugChannel.readable)
-    }
-    return timing.run(() =>
-      createFromReadableStream<T>(timing.wrapStream(flightStream), {
-        callServer,
-        findSourceMapURL,
-        debugChannel,
-        unstable_allowPartialStream: options.allowPartialStream,
-      })
+    debugPerformanceId = createReactDebugPerformanceId(
+      requestHeaders[NEXT_REQUEST_ID_HEADER]
     )
-  } else {
-    return createFromReadableStream(flightStream, {
-      callServer,
-      findSourceMapURL,
-      debugChannel,
-      unstable_allowPartialStream: options?.allowPartialStream,
-    })
   }
+  return createFromReadableStream<T>(flightStream, {
+    callServer,
+    findSourceMapURL,
+    debugChannel,
+    unstable_allowPartialStream: options?.allowPartialStream,
+    debugPerformanceId,
+  })
 }

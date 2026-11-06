@@ -248,21 +248,19 @@ async function fetchServerAction(
   let couldBeIntercepted: boolean = false
 
   if (isRscResponse) {
-    const timing =
+    const debugPerformanceId =
       process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS
         ? (
             require('../../../dev/react-render-timing') as typeof import('../../../dev/react-render-timing')
-          ).createBrowserReactTiming(headers)
+          ).createReactDebugPerformanceId(headers[NEXT_REQUEST_ID_HEADER])
         : undefined
     const debugChannel = createDebugChannel && createDebugChannel(headers)
-    if (timing && debugChannel?.readable) {
-      debugChannel.readable = timing.wrapStream(debugChannel.readable)
-    }
     const flightOptions = {
       callServer,
       findSourceMapURL,
       temporaryReferences,
       debugChannel,
+      debugPerformanceId,
     }
     let response: ActionFlightResponse
     if (process.env.__NEXT_CACHE_COMPONENTS && redirectLocation) {
@@ -275,20 +273,15 @@ async function fetchServerAction(
         )
       }
       const { stream } = await stripIsPartialByte(res.body)
-      const decode = () =>
-        createFromReadableStream<ActionFlightResponse>(
-          timing ? timing.wrapStream(stream) : stream,
-          flightOptions
-        )
-      response = await (timing ? timing.run(decode) : decode())
+      response = await createFromReadableStream<ActionFlightResponse>(
+        stream,
+        flightOptions
+      )
     } else {
-      const responsePromise = Promise.resolve(res)
-      const decode = () =>
-        createFromFetch<ActionFlightResponse>(
-          timing ? timing.wrapResponse(responsePromise) : responsePromise,
-          flightOptions
-        )
-      response = await (timing ? timing.run(decode) : decode())
+      response = await createFromFetch<ActionFlightResponse>(
+        Promise.resolve(res),
+        flightOptions
+      )
     }
 
     // An internal redirect can send an RSC response, but does not have a useful `actionResult`.

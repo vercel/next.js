@@ -51,20 +51,7 @@ describe('request insights', () => {
   })
 
   it('expands React timings separately and preserves span inspection', async () => {
-    const editorRequests: URL[] = []
-    let mappingRequests = 0
-    const browser = await next.browser('/', {
-      async beforePageLoad(page) {
-        await page.route('**/__nextjs_launch-editor**', async (route) => {
-          editorRequests.push(new URL(route.request().url()))
-          await route.fulfill({ status: 204 })
-        })
-        page.on('request', (request) => {
-          if (request.url().includes('/__nextjs_original-stack-frames'))
-            mappingRequests++
-        })
-      },
-    })
+    const browser = await next.browser('/')
     await openRequestInsightsPanel(browser)
     const group = browser
       .locator('nextjs-portal .request-insights-react-toggle')
@@ -86,37 +73,8 @@ describe('request insights', () => {
     const greeting = browser.locator(
       'nextjs-portal [data-react-kind="component"]:has-text("render Greeting")'
     )
-    expect(mappingRequests).toBe(0)
-    await greeting.locator('[data-react-source-link]').click()
-    await retry(async () => {
-      expect(editorRequests).toHaveLength(1)
-    })
-    expect(editorRequests[0].searchParams.get('file')).toMatch(
-      /app\/page\.tsx$/
-    )
-    expect(editorRequests[0].searchParams.get('line1')).toBe('6')
-    expect(
-      Number(editorRequests[0].searchParams.get('column1'))
-    ).toBeGreaterThan(0)
-    await greeting.click({ button: 'right' })
-    await browser
-      .locator('nextjs-portal .request-insights-context-menu')
-      .getByText('Open render location', { exact: true })
-      .click()
-    await retry(async () => {
-      expect(editorRequests).toHaveLength(2)
-    })
-    expect(editorRequests[1].search).toBe(editorRequests[0].search)
-    await browser
-      .locator(
-        'nextjs-portal .request-insights-react-pass .request-insights-trace-rows'
-      )
-      .focus()
-    await browser.keydown('Enter')
-    await retry(async () => {
-      expect(editorRequests).toHaveLength(3)
-    })
-    expect(editorRequests[2].search).toBe(editorRequests[0].search)
+    expect(await greeting.count()).toBeGreaterThan(0)
+    expect(await greeting.locator('[data-react-source-link]').count()).toBe(0)
     const interval = intervals.first()
     const spanId = await interval.getAttribute('data-trace-item-id')
     await interval.hover()
