@@ -33,6 +33,7 @@ import { createEntrypoints } from '../entries'
 import loadConfig from '../../server/config'
 import {
   getTraceEvents,
+  exportTraceState,
   initializeTraceState,
   setGlobal,
   type TraceEvent,
@@ -441,6 +442,7 @@ export async function workerMain(workerData: {
 }): Promise<
   Awaited<ReturnType<typeof webpackBuildImpl>> & {
     debugTraceEvents: TraceEvent[]
+    debugTraceSelections: TraceState['toolingSpanSelections']
   }
 > {
   // Clone the telemetry for worker
@@ -498,5 +500,6 @@ export async function workerMain(workerData: {
   return {
     ...result,
     debugTraceEvents: getTraceEvents(),
+    debugTraceSelections: exportTraceState().toolingSpanSelections,
   }
 }

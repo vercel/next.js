@@ -1,9 +1,25 @@
 import { reporter } from './report'
-import type { SpanId, TraceEvent, TraceState } from './types'
+import type {
+  SpanId,
+  TraceEvent,
+  TraceState,
+  ToolingSpanSelection,
+} from './types'
+import type { ReportingRecord } from './otel-reporting'
 import type {
   AttributeValue,
   Span as OpenTelemetrySpan,
 } from '@opentelemetry/api'
+
+let otel: typeof import('./otel') | undefined
+if (
+  process.env.NEXT_RUNTIME !== 'edge' &&
+  process.env.NEXT_EXPERIMENTAL_OTEL_TOOLING === '1'
+) {
+  otel = require('./otel') as typeof import('./otel')
+} else {
+  otel = undefined
+}
 
 const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000')
 const NUM_OF_SEC_IN_NANOSEC = BigInt('1000000000')
@@ -17,6 +33,7 @@ const getId = () => {
 let defaultParentSpanId: SpanId | undefined
 let shouldSaveTraceEvents: boolean | undefined
 let savedTraceEvents: TraceEvent[] = []
+let savedToolingSpanSelections: ToolingSpanSelection[] = []
 
 const RECORD_SPAN_THRESHOLD_MS = parseInt(
   process.env.NEXT_TRACE_SPAN_THRESHOLD_MS ?? '-1'
@@ -76,12 +93,17 @@ export type LocalSpanTiming = {
   wallStartTimeMs?: number
 }
 
-// Source identity and clocks only; the local recorder owns payload and end state.
+// Source identity and clocks only: the local recorder owns the mutable payload
+// and end-once state. The reporting adapter releases its descriptor's heavy data.
 export type ToolingSpanSource = {
   id: SpanId
   parentId?: SpanId
   startTime: bigint
   wallStartTimeMs: number
+  reporting?: ReportingRecord
+  // Nearest selected ancestor; unselected fine spans create no descriptor.
+  reportingParent?: ReportingRecord
+  reportingParentId?: SpanId
   recordSpans?: import('../server/lib/trace/local-span-recorder').LocalSpanDelivery
 }
 
@@ -117,7 +139,20 @@ export function captureToolingSpanSource(
         : (options.parent ?? parent?.id ?? defaultParentSpanId),
     startTime: monotonicStartTime,
     wallStartTimeMs: options.wallStartTimeMs ?? epochMs ?? Date.now(),
+    reportingParent: parent?.reporting ?? parent?.reportingParent,
+    reportingParentId: parent?.reportingParentId,
   }
+}
+
+/** Called only by finite coarse Next tracer operations, never by local helpers. */
+export function selectToolingSpanSource(source: ToolingSpanSource): void {
+  if (shouldSaveTraceEvents) {
+    savedToolingSpanSelections.push({
+      id: source.id,
+      parentId: source.reportingParentId ?? source.parentId,
+    })
+  }
+  source.reportingParentId = source.id
 }
 
 /** Existing end() accepts this lossless monotonic representation. */
@@ -172,9 +207,25 @@ export function completeToolingSpan(
     startTime: source.wallStartTimeMs,
     tags: attributes,
   }
-  if (duration > RECORD_SPAN_THRESHOLD_MS * 1000) {
-    reportToolingSpans([event])
-    if (shouldSaveTraceEvents) savedTraceEvents.push(event)
+  try {
+    if (duration > RECORD_SPAN_THRESHOLD_MS * 1000) {
+      reportToolingSpans([event])
+      if (shouldSaveTraceEvents) savedTraceEvents.push(event)
+    }
+  } finally {
+    if (source.reporting) {
+      otel?.stopSpan(source.reporting, end, attributes)
+    } else if (name === 'client-hmr-latency') {
+      // One selected completed browser observation, not promotion of all fine
+      // local spans. Local delivery above keeps its original fields and timing.
+      otel?.replayCompletedSpan(
+        event,
+        source.startTime,
+        end,
+        source.reportingParent,
+        source.reportingParentId ?? source.parentId
+      )
+    }
   }
   return event
 }
@@ -194,18 +245,37 @@ export const exportTraceState = (): TraceState => ({
   defaultParentSpanId,
   lastId: count,
   shouldSaveTraceEvents,
+  ...(shouldSaveTraceEvents
+    ? { toolingSpanSelections: savedToolingSpanSelections.slice() }
+    : {}),
+  ...(otel
+    ? {
+        otelClockOffset: otel.getClockOffset(),
+      }
+    : {}),
 })
 export const initializeTraceState = (state: TraceState) => {
   count = state.lastId
   defaultParentSpanId = state.defaultParentSpanId
   shouldSaveTraceEvents = state.shouldSaveTraceEvents
+  savedToolingSpanSelections = []
+  if (otel) {
+    otel.configureState(
+      defaultParentSpanId,
+      !!shouldSaveTraceEvents,
+      state.otelClockOffset
+    )
+  }
 }
 
 export function getTraceEvents(): TraceEvent[] {
   return savedTraceEvents
 }
 
-export function recordTraceEvents(events: TraceEvent[]) {
+export function recordTraceEvents(
+  events: TraceEvent[],
+  selections?: readonly ToolingSpanSelection[]
+) {
   for (const traceEvent of events) {
     traceEvent.tags = normalizeToolingAttributes(traceEvent.tags)
     reportToolingSpans([traceEvent])
@@ -216,9 +286,13 @@ export function recordTraceEvents(events: TraceEvent[]) {
   if (shouldSaveTraceEvents) {
     savedTraceEvents.push(...events)
   }
+  // Imported observations are local-only unless the coarse Next tracer
+  // explicitly supplies reporting selection/parent metadata.
+  if (selections?.length) otel?.replayWorkerEvents(events, selections)
 }
 
 export const clearTraceEvents = () => {
+  savedToolingSpanSelections = []
   return (savedTraceEvents = [])
 }
 

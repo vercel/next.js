@@ -80,7 +80,10 @@ async function webpackBuildWithWorker(
       },
     })
     if (nextBuildSpan && curResult.debugTraceEvents) {
-      recordTraceEvents(curResult.debugTraceEvents)
+      recordTraceEvents(
+        curResult.debugTraceEvents,
+        curResult.debugTraceSelections
+      )
     }
     // destroy worker so it's not sticking around using memory
     await worker.end()
