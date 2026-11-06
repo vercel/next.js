@@ -946,7 +946,12 @@ impl Pattern {
                         } else {
                             MatchResult::None
                         }
-                    } else if offset >= value.len() {
+                    } else if offset >= value.len()
+                        // The wildcard may stop before a slash that belongs to the static subpath.
+                        // Keep other forbidden prefixes (e.g. ".") excluded rather than accepting
+                        // every partial constant beyond the wildcard's allowed offset.
+                        || (value[offset..].starts_with('/') && c.starts_with(&value[offset..]))
+                    {
                         MatchResult::Partial
                     } else {
                         MatchResult::None
@@ -1048,7 +1053,12 @@ impl Pattern {
                         } else {
                             MatchResult::None
                         }
-                    } else if offset >= value.len() {
+                    } else if offset >= value.len()
+                        // The wildcard may stop before a slash that belongs to the static subpath.
+                        // Keep other forbidden prefixes (e.g. ".") excluded rather than accepting
+                        // every partial constant beyond the wildcard's allowed offset.
+                        || (value[offset..].starts_with('/') && c.starts_with(&value[offset..]))
+                    {
                         MatchResult::Partial
                     } else {
                         MatchResult::None
@@ -1946,7 +1956,7 @@ fn split_last_segment(path: &str) -> (&str, &str) {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::{collections::VecDeque, path::Path};
 
     use rstest::*;
     use turbo_rcstr::{RcStr, rcstr};
@@ -1955,8 +1965,8 @@ mod tests {
     use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
     use super::{
-        Pattern, PatternMatch, longest_common_prefix, longest_common_suffix, read_matches,
-        split_last_segment,
+        InNodeModules, Pattern, PatternMatch, longest_common_prefix, longest_common_suffix,
+        read_matches, split_last_segment,
     };
 
     #[test]
@@ -2440,6 +2450,76 @@ mod tests {
         assert!(!pat.is_match("dir/file.d.ts.map"));
         assert!(!pat.is_match("dir/inner/file.d.ts.map"));
         assert!(pat.could_match("dir/inner/file.d.ts.map"));
+    }
+
+    #[rstest]
+    #[case::dynamic(Pattern::Dynamic)]
+    #[case::dynamic_no_slash(Pattern::DynamicNoSlash)]
+    fn dynamic_static_subpath(#[case] dynamic: Pattern) {
+        // Package subpaths and their relative filesystem patterns both start with an empty
+        // wildcard.
+        for prefix in ["", "."] {
+            let pat = Pattern::Concatenation(vec![
+                Pattern::Constant(prefix.into()),
+                dynamic.clone(),
+                Pattern::Constant(rcstr!("/package.json")),
+            ]);
+            for partial in ["/", "/package", "/package.", "nested/", "nested/package"] {
+                let value = format!("{prefix}{partial}");
+                assert!(pat.could_match(&value), "{pat:?}: {value}");
+                assert!(pat.could_match_others(&value), "{pat:?}: {value}");
+                assert!(!pat.is_match(&value), "{pat:?}: {value}");
+                let result = pat.match_collect_internal(
+                    &value,
+                    None,
+                    InNodeModules::False,
+                    &mut VecDeque::new(),
+                );
+                assert!(result.could_match_others(), "{pat:?}: {value}");
+                assert!(!result.is_match(), "{pat:?}: {value}");
+            }
+            for (path, captures) in [
+                ("/package.json", VecDeque::new()),
+                ("nested/package.json", VecDeque::from(["nested"])),
+            ] {
+                let value = format!("{prefix}{path}");
+                assert!(pat.is_match(&value), "{pat:?}: {value}");
+                let mut dynamics = VecDeque::new();
+                assert!(
+                    pat.match_collect_internal(&value, None, InNodeModules::False, &mut dynamics)
+                        .is_match(),
+                    "{pat:?}: {value}"
+                );
+                assert_eq!(dynamics, captures);
+            }
+            for forbidden in [
+                ".",
+                "..",
+                "./",
+                "../",
+                "/.",
+                "/..",
+                "//",
+                "/ROOT/",
+                "node_modules/",
+                "nested/node_modules/",
+                "nested/.hidden/",
+                "nested//",
+            ] {
+                let value = format!("{prefix}{forbidden}");
+                assert!(!pat.could_match(&value), "{pat:?}: {value}");
+                assert!(
+                    !pat.match_collect_internal(
+                        &value,
+                        None,
+                        InNodeModules::False,
+                        &mut VecDeque::new(),
+                    )
+                    .could_match(),
+                    "{pat:?}: {value}"
+                );
+            }
+        }
     }
 
     #[rstest]
