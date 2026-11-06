@@ -1045,7 +1045,7 @@ pub struct ServerChunkingContextOptions {
     pub chunking_min_chunk_size: Option<usize>,
     /// Override for the production JS `max_merge_chunk_size` (default `100_000`).
     pub chunking_max_merge_chunk_size: Option<usize>,
-    /// Best-effort maximum JS chunk size, `0` disables splitting.
+    /// Best-effort maximum JS chunk size, `0` disables the limit.
     pub chunking_max_chunk_size: usize,
 }
 

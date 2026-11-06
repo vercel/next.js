@@ -197,7 +197,7 @@ pub struct EdgeChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
-    /// Best-effort maximum JS chunk size, `0` disables splitting.
+    /// Best-effort maximum JS chunk size, `0` disables the limit.
     pub chunking_max_chunk_size: usize,
 }
 

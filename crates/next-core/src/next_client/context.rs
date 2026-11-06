@@ -518,7 +518,7 @@ pub struct ClientChunkingContextOptions {
     pub chunking_min_chunk_size: Option<usize>,
     pub chunking_max_chunk_count_per_group: Option<usize>,
     pub chunking_max_merge_chunk_size: Option<usize>,
-    /// Best-effort maximum JS chunk size, `0` disables splitting.
+    /// Best-effort maximum JS chunk size, `0` disables the limit.
     pub chunking_max_chunk_size: usize,
     pub chunking_min_component_chunk_size: Option<usize>,
     pub generate_component_chunks: Vc<bool>,
