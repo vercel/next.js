@@ -145,9 +145,13 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
   }
 
   appendHeader(name: string, value: string): this {
-    const currentValues = this.getHeaderValues(name) ?? []
-
-    if (!currentValues.includes(value)) {
+    const currentValues = this.getHeaderValues(name)
+    if (currentValues === undefined || currentValues.length === 0) {
+      // Keep a single value as a plain string. Consumers such as the
+      // compression middleware expect string header values and skip
+      // headers stored as single-element arrays.
+      this._res.setHeader(name, value)
+    } else if (!currentValues.includes(value)) {
       this._res.setHeader(name, [...currentValues, value])
     }
 
