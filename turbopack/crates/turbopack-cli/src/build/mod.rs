@@ -379,7 +379,7 @@ async fn build_assets(
             .map(|request_vc| {
                 let origin_path = origin_path.clone();
                 async move {
-                    let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
+                    let ty = ReferenceType::Entry(EntryReferenceSubType::default());
                     let request = request_vc.await?;
                     asset_context
                         .resolve_asset(origin_path, request_vc, resolve_options, ty)
