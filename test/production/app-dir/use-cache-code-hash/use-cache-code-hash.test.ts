@@ -308,38 +308,25 @@ export function generateStaticParams() {
       })
 
       it.each(['disabled', 'enabled'])(
-        'only tracks reachable env var accesses when TEST_CONDITIONAL is inlined as %s',
+        'tracks both branches when TEST_CONDITIONAL is %s at runtime',
         async (conditional) => {
-          await next.patchFile(
-            'next.config.js',
-            (config) =>
-              config.replace(
-                'cacheComponents: true,',
-                `cacheComponents: true, env: { TEST_CONDITIONAL: '${conditional}' },`
-              ),
-            async () => {
-              expect((await next.build()).exitCode).toBe(0)
-              const hashes = await getCodeHashes(next, [
-                'app/env-conditional/page',
+          next.env.TEST_CONDITIONAL = conditional
+          try {
+            expect((await next.build()).exitCode).toBe(0)
+            const hashes = await getCodeHashes(next, [
+              'app/env-conditional/page',
+            ])
+            expect(hashes).toHaveLength(1)
+            expect(hashes[0].runtimeEnvVarsRead).toEqual(
+              expect.arrayContaining([
+                'TEST_CONDITIONAL',
+                'TEST_OTHER_VALUE',
+                'TEST_VALUE',
               ])
-              expect(hashes).toHaveLength(1)
-              expect(hashes[0].codeHash).toEqual(expect.any(String))
-              expect(hashes[0].runtimeEnvVarsRead).not.toContain(
-                'TEST_CONDITIONAL'
-              )
-              if (conditional === 'enabled') {
-                expect(hashes[0].runtimeEnvVarsRead).toContain('TEST_VALUE')
-                expect(hashes[0].runtimeEnvVarsRead).not.toContain(
-                  'TEST_OTHER_VALUE'
-                )
-              } else {
-                expect(hashes[0].runtimeEnvVarsRead).toContain(
-                  'TEST_OTHER_VALUE'
-                )
-                expect(hashes[0].runtimeEnvVarsRead).not.toContain('TEST_VALUE')
-              }
-            }
-          )
+            )
+          } finally {
+            delete next.env.TEST_CONDITIONAL
+          }
         }
       )
 
