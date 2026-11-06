@@ -162,7 +162,28 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         )
 
         if (process.env.IS_TURBOPACK_TEST) {
-          expect(source).toMatchInlineSnapshot(`
+          if (process.env.__NEXT_ENABLE_REACT_COMPILER === 'true') {
+            expect(source).toMatchInlineSnapshot(`
+                  "./pages/hmr/about2.js (7:1)
+                  Error: Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+                    5 |     div
+                    6 |   )
+                  > 7 | }
+                      | ^
+                    8 |
+
+                  Parsing ecmascript source code failed
+
+                  Generated code of loaders [next/dist/build/babel/loader] transform of file content of pages/hmr/about2.js:
+                  ./pages/hmr/about2.js:7:1
+                    5 |     div
+                    6 |   )
+                  > 7 | }
+                      | ^
+                    8 |"
+                `)
+          } else {
+            expect(source).toMatchInlineSnapshot(`
                   "./pages/hmr/about2.js (7:1)
                   Error: Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
                     5 |     div
@@ -173,6 +194,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
                   Parsing ecmascript source code failed"
                 `)
+          }
         } else if (process.env.NEXT_RSPACK) {
           expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
            "./pages/hmr/about2.js

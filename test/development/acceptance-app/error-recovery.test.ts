@@ -217,7 +217,21 @@ describe('Error recovery app', () => {
         `
     )
 
-    if (isTurbopack) {
+    if (isTurbopack && process.env.__NEXT_ENABLE_REACT_COMPILER === 'true') {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "Error evaluating Node.js code",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/client/page.js
+       Error: Error evaluating Node.js code
+       SyntaxError: <FIXME-project-root>/app/client/page.js: Unexpected token (2:27)
+       > 2 |   return <p>Hello world</p>
+           |                            ^",
+         "stack": [],
+       }
+      `)
+    } else if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
          "description": "Expected '}', got '<eof>'",
