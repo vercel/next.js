@@ -623,6 +623,11 @@
       suspendedThenable = null;
       return thenable;
     }
+    function switchHooksRequest(request) {
+      var previousRequest = currentRequest$1;
+      currentRequest$1 = request;
+      return previousRequest;
+    }
     function getThenableStateAfterSuspending() {
       var state = thenableState || [];
       state._componentDebugInfo = currentComponentDebugInfo;
@@ -1268,6 +1273,20 @@
       var store = requestStorage.getStore();
       return store ? store : null;
     }
+    function runWithRequest(request, callback, argument) {
+      var previousDispatcher = ReactSharedInternalsServer.H,
+        previousRequest = currentRequest,
+        previousHooksRequest = switchHooksRequest(request);
+      ReactSharedInternalsServer.H = HooksDispatcher;
+      currentRequest = request;
+      try {
+        return callback(request, argument);
+      } finally {
+        (ReactSharedInternalsServer.H = previousDispatcher),
+          (currentRequest = previousRequest),
+          switchHooksRequest(previousHooksRequest);
+      }
+    }
     function serializeDebugThenable(request, counter, thenable) {
       request.pendingDebugChunks++;
       var id = request.nextChunkId++,
@@ -1506,7 +1525,11 @@
                       streamTask.model,
                       !1
                     )
-                  : tryStreamTask(request, streamTask),
+                  : runWithRequest(
+                      request,
+                      tryStreamTaskWithRequest,
+                      streamTask
+                    ),
                 enqueueFlush(request),
                 reader.read().then(progress, error);
             } catch (x$6) {
@@ -1596,7 +1619,7 @@
             try {
               (streamTask.model = entry.value),
                 request.pendingChunks++,
-                tryStreamTask(request, streamTask),
+                runWithRequest(request, tryStreamTaskWithRequest, streamTask),
                 enqueueFlush(request),
                 callIteratorInDEV(iterator, progress, error);
             } catch (x$7) {
@@ -4332,78 +4355,80 @@
       callOnAllReadyIfReady(request);
     }
     function retryTask(request, task) {
-      if (task.status === PENDING$1) {
-        var prevCanEmitDebugInfo = canEmitDebugInfo;
-        task.status = RENDERING;
-        var parentSerializedSize = serializedSize;
-        try {
-          modelRoot = task.model;
-          canEmitDebugInfo = !0;
-          var resolvedModel = renderModelDestructive(
-            request,
-            task,
-            emptyRoot,
-            "",
-            task.model
-          );
-          canEmitDebugInfo = !1;
-          modelRoot = resolvedModel;
-          task.keyPath = null;
-          task.implicitSlot = !1;
-          var currentEnv = (0, request.environmentName)();
-          currentEnv !== task.environmentName &&
-            (request.pendingChunks++,
-            emitDebugChunk(request, task.id, { env: currentEnv }));
-          task.timed && markOperationEndTime(request, task, performance.now());
-          if ("object" === typeof resolvedModel && null !== resolvedModel)
-            request.writtenObjects.set(
-              resolvedModel,
-              serializeByValueID(task.id)
-            ),
-              emitChunk(request, task, resolvedModel);
-          else {
-            var json = stringify(resolvedModel);
-            emitModelChunk(request, task.id, json);
-          }
-          task.status = COMPLETED;
-          request.abortableTasks.delete(task);
-          callOnAllReadyIfReady(request);
-        } catch (thrownValue) {
-          if (request.status === ABORTING)
-            if (
-              (request.abortableTasks.delete(task),
-              (task.status = PENDING$1),
-              request.type === PRERENDER)
-            )
-              haltTask(task), finishHaltedTask(task, request);
-            else {
-              var errorId = request.fatalError;
-              abortTask(task);
-              finishAbortedTask(task, request, errorId);
-            }
-          else {
-            var x =
-              thrownValue === SuspenseException
-                ? getSuspendedThenable()
-                : thrownValue;
-            if (
-              "object" === typeof x &&
-              null !== x &&
-              "function" === typeof x.then
-            ) {
-              task.status = PENDING$1;
-              task.thenableState = getThenableStateAfterSuspending();
-              var ping = task.ping;
-              x.then(ping, ping);
-            } else erroredTask(request, task, x);
-          }
-        } finally {
-          (canEmitDebugInfo = prevCanEmitDebugInfo),
-            (serializedSize = parentSerializedSize);
+      task.status === PENDING$1 &&
+        runWithRequest(request, retryTaskWithRequest, task);
+    }
+    function retryTaskWithRequest(request, task) {
+      var prevCanEmitDebugInfo = canEmitDebugInfo;
+      task.status = RENDERING;
+      var parentSerializedSize = serializedSize;
+      try {
+        modelRoot = task.model;
+        canEmitDebugInfo = !0;
+        var resolvedModel = renderModelDestructive(
+          request,
+          task,
+          emptyRoot,
+          "",
+          task.model
+        );
+        canEmitDebugInfo = !1;
+        modelRoot = resolvedModel;
+        task.keyPath = null;
+        task.implicitSlot = !1;
+        var currentEnv = (0, request.environmentName)();
+        currentEnv !== task.environmentName &&
+          (request.pendingChunks++,
+          emitDebugChunk(request, task.id, { env: currentEnv }));
+        task.timed && markOperationEndTime(request, task, performance.now());
+        if ("object" === typeof resolvedModel && null !== resolvedModel)
+          request.writtenObjects.set(
+            resolvedModel,
+            serializeByValueID(task.id)
+          ),
+            emitChunk(request, task, resolvedModel);
+        else {
+          var json = stringify(resolvedModel);
+          emitModelChunk(request, task.id, json);
         }
+        task.status = COMPLETED;
+        request.abortableTasks.delete(task);
+        callOnAllReadyIfReady(request);
+      } catch (thrownValue) {
+        if (request.status === ABORTING)
+          if (
+            (request.abortableTasks.delete(task),
+            (task.status = PENDING$1),
+            request.type === PRERENDER)
+          )
+            haltTask(task), finishHaltedTask(task, request);
+          else {
+            var errorId = request.fatalError;
+            abortTask(task);
+            finishAbortedTask(task, request, errorId);
+          }
+        else {
+          var x =
+            thrownValue === SuspenseException
+              ? getSuspendedThenable()
+              : thrownValue;
+          if (
+            "object" === typeof x &&
+            null !== x &&
+            "function" === typeof x.then
+          ) {
+            task.status = PENDING$1;
+            task.thenableState = getThenableStateAfterSuspending();
+            var ping = task.ping;
+            x.then(ping, ping);
+          } else erroredTask(request, task, x);
+        }
+      } finally {
+        (canEmitDebugInfo = prevCanEmitDebugInfo),
+          (serializedSize = parentSerializedSize);
       }
     }
-    function tryStreamTask(request, task) {
+    function tryStreamTaskWithRequest(request, task) {
       var prevCanEmitDebugInfo = canEmitDebugInfo;
       canEmitDebugInfo = !1;
       var parentSerializedSize = serializedSize;
@@ -4416,10 +4441,9 @@
     }
     function performWork(request) {
       pendingOperations.delete(async_hooks.executionAsyncId());
-      var prevDispatcher = ReactSharedInternalsServer.H;
-      ReactSharedInternalsServer.H = HooksDispatcher;
-      var prevRequest = currentRequest;
-      currentRequest$1 = currentRequest = request;
+      runWithRequest(request, performWorkWithRequest, void 0);
+    }
+    function performWorkWithRequest(request) {
       try {
         var pingedTasks = request.pingedTasks;
         request.pingedTasks = [];
@@ -4428,10 +4452,6 @@
         flushCompletedChunks(request);
       } catch (error) {
         logRecoverableError(request, error, null), fatalError(request, error);
-      } finally {
-        (ReactSharedInternalsServer.H = prevDispatcher),
-          (currentRequest$1 = null),
-          (currentRequest = prevRequest);
       }
     }
     function abortTask(task) {
