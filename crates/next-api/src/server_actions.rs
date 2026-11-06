@@ -587,10 +587,10 @@ impl Issue for UnstableDurableCacheEnvIssue {
 
     async fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Line(vec![
-            StyledString::Text(rcstr!("Use-cache functions marked with the ")),
-            StyledString::Code(rcstr!("\"durable\"")),
+            StyledString::Text(rcstr!("Use-cache functions marked with ")),
+            StyledString::Code(rcstr!("unstable_cacheDurable()")),
             StyledString::Text(rcstr!(
-                " cache modifier must not reference unstable environment variables (in this case "
+                " must not reference unstable environment variables (in this case "
             )),
             StyledString::Code(self.env_var.clone()),
             StyledString::Text(rcstr!("). Restructure your code to not reference them.")),

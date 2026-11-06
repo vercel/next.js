@@ -1,3 +1,4 @@
+import { unstable_cacheDurable } from 'next/cache'
 import { readEnv } from '../dependencies/read'
 
 async function inner() {
@@ -6,6 +7,7 @@ async function inner() {
 }
 
 export async function getValue() {
-  'use cache: remote, durable'
+  'use cache: remote'
+  unstable_cacheDurable()
   return inner()
 }

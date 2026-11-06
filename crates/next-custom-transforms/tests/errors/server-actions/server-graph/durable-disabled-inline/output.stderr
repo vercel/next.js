@@ -1,7 +1,21 @@
-  x The "durable" cache modifier requires experimental.durableUseCacheEntries to be enabled.
-   ,-[input.js:2:1]
- 1 | export async function cached() {
- 2 |   'use cache: remote, durable'
-   :   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- 3 | }
+  x unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+   ,-[input.js:5:1]
+ 4 |   'use cache: remote'
+ 5 |   unstable_cacheDurable()
+   :   ^^^^^^^^^^^^^^^^^^^^^^^
+ 6 | }
    `----
+  x unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+    ,-[input.js:10:1]
+  9 |   'use cache'
+ 10 |   unstable_cacheDurable()
+    :   ^^^^^^^^^^^^^^^^^^^^^^^
+ 11 | }
+    `----
+  x unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+    ,-[input.js:15:1]
+ 14 |   'use server'
+ 15 |   unstable_cacheDurable()
+    :   ^^^^^^^^^^^^^^^^^^^^^^^
+ 16 | }
+    `----

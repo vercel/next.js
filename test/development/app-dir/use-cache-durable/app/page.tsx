@@ -1,9 +1,11 @@
+import { unstable_cacheDurable } from 'next/cache'
 import { getModuleValue } from './cached'
 import Client from './client'
 
 export default async function Page() {
   async function getInlineValue() {
-    'use cache: remote, durable'
+    'use cache: remote'
+    unstable_cacheDurable()
     return 'inline durable value'
   }
 

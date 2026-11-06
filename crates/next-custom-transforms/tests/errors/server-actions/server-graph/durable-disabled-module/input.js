@@ -1,3 +1,7 @@
-'use cache: remote, durable'
+'use cache: remote'
 
-export async function cached() {}
+import { unstable_cacheDurable } from 'next/cache'
+
+export async function cached() {
+  unstable_cacheDurable()
+}
