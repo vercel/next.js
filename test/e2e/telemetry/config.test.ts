@@ -586,7 +586,9 @@ describe('config telemetry', () => {
           .exec(cliOutput)
           .pop()
 
-        expect(event).toMatch(/"reactCompiler": false/)
+        expect(event).toContain(
+          `"reactCompiler": ${process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'}`
+        )
         expect(event).toMatch(/"reactCompilerCompilationMode": null/)
         expect(event).toMatch(/"reactCompilerPanicThreshold": null/)
       } catch (err) {
