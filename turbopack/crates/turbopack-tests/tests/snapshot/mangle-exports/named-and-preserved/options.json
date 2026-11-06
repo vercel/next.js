@@ -4,9 +4,5 @@
   "removeUnusedExports": true,
   "removeUnusedImports": true,
   "followReexports": true,
-  "minifyType": {
-    "Minify": {
-      "mangle": "optimal-size"
-    }
-  }
+  "minifyMode": "OptimalSize"
 }

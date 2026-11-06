@@ -12,8 +12,9 @@ use turbopack_core::{
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkItemOrBatchWithAsyncModuleInfo,
         ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs,
-        ChunkingContext, ContentHashing, EntryChunkGroupResult, EvaluatableAsset, MinifyType,
-        SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
+        ChunkingContext, ContentHashing, EmitOption, EmitOptions, EntryChunkGroupResult,
+        EvaluatableAsset, SourceMapSourceType, UnusedReferences, UrlBehavior,
+        WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -77,8 +78,16 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
-        self.chunking_context.minify_type = minify_type;
+    pub fn emit_option(mut self, opt: ResolvedVc<Box<dyn EmitOption>>) -> Self {
+        self.chunking_context.emit_options.push(opt);
+        self
+    }
+
+    pub fn emit_options(
+        mut self,
+        opts: impl IntoIterator<Item = ResolvedVc<Box<dyn EmitOption>>>,
+    ) -> Self {
+        self.chunking_context.emit_options.extend(opts);
         self
     }
 
@@ -243,8 +252,8 @@ pub struct NodeJsChunkingContext {
     enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
     enable_dynamic_chunk_content_loading: bool,
-    /// Whether to minify resulting chunks
-    minify_type: MinifyType,
+    /// Crate-specific emit options (e.g. JS/CSS minification settings).
+    emit_options: Vec<ResolvedVc<Box<dyn EmitOption>>>,
     /// EXPERIMENTAL: minify each chunk item before the chunk is assembled, rather than minifying
     /// the finished chunk. See [`ChunkingContext::minify_before_chunking`].
     minify_before_chunking: bool,
@@ -307,7 +316,7 @@ impl NodeJsChunkingContext {
                 enable_dynamic_chunk_content_loading: false,
                 environment,
                 runtime_type,
-                minify_type: MinifyType::NoMinify,
+                emit_options: vec![],
                 minify_before_chunking: false,
                 emitted_source_map_type: Some(SourceMapType::Full),
                 source_map_generation_options: None,
@@ -336,12 +345,6 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn runtime_type(&self) -> Vc<RuntimeType> {
         self.runtime_type.cell()
-    }
-
-    /// Returns the minify type.
-    #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
     }
 
     #[turbo_tasks::function]
@@ -469,8 +472,8 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
+    fn emit_options(&self) -> Vc<EmitOptions> {
+        Vc::cell(self.emit_options.clone())
     }
 
     #[turbo_tasks::function]

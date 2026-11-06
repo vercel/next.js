@@ -1,7 +1,3 @@
 {
-  "minifyType": {
-    "Minify": {
-      "mangle": "optimal-size"
-    }
-  }
+  "minifyMode": "OptimalSize"
 }
