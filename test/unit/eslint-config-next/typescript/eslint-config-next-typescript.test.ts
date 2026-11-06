@@ -2,17 +2,21 @@ import { join } from 'path'
 import { execSync } from 'child_process'
 import { getEslintConfigSnapshot } from '../utils'
 
+function printConfig(file: string) {
+  return execSync(
+    // Pass explicit absolute path to not get affected by the root eslint config.
+    `pnpm eslint --config ${join(__dirname, 'eslint.config.mjs')} --print-config ${join(__dirname, file)}`,
+    {
+      cwd: __dirname,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'inherit'],
+    }
+  )
+}
+
 describe('eslint-config-next/typescript', () => {
   it('should match expected resolved configuration', () => {
-    const eslintConfigAfterSetupJSON = execSync(
-      // Pass explicit absolute path to not get affected by the root eslint config.
-      `pnpm eslint --config ${join(__dirname, 'eslint.config.mjs')} --print-config ${join(__dirname, 'test.tsx')}`,
-      {
-        cwd: __dirname,
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'inherit'],
-      }
-    )
+    const eslintConfigAfterSetupJSON = printConfig('test.tsx')
 
     const { languageOptions, ...eslintConfigAfterSetup } = JSON.parse(
       eslintConfigAfterSetupJSON
@@ -120,5 +124,16 @@ describe('eslint-config-next/typescript', () => {
        },
      }
     `)
+  })
+
+  it('should use the TypeScript parser for .mts and .cts files', () => {
+    for (const file of ['test.mts', 'test.cts']) {
+      const { languageOptions } = JSON.parse(printConfig(file))
+      expect({
+        parser: languageOptions.parser,
+      }).toEqual({
+        parser: expect.stringContaining('typescript-eslint'),
+      })
+    }
   })
 })
