@@ -3,6 +3,7 @@
     "lint": "next lint --fix --dir src --dir pages",
     "lint:strict": "next lint --strict",
     "lint:ci": "next lint --quiet --output-file lint-results.json",
+    "lint:fix": "next lint --fix .",
     "precommit": "next lint --fix && npm test",
     "test": "jest && next lint",
     "complex": "npm run build && next lint --dir . --ext .js,.jsx,.ts,.tsx 2>/dev/null",
