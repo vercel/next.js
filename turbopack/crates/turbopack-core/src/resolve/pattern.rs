@@ -37,6 +37,13 @@ impl TaskInput for Pattern {
     }
 }
 
+/// Files that a dynamic part of a pattern never matches: TypeScript declaration files
+/// (`.d.ts`, `.d.cts`, `.d.mts`) and source maps. They can't be loaded at runtime, so a
+/// runtime-computed request (e.g. a dynamic `require()` or `new Worker()` path) must not turn
+/// them into module references when it is expanded into the files it could match.
+static FORBIDDEN_MATCH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\.d\.[cm]?ts$|\.map$").unwrap());
+
 fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
     if let Pattern::Constant(ref s) = pat
         && let Some(Pattern::Constant(last)) = list.last_mut()
@@ -967,8 +974,6 @@ impl Pattern {
                 static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
                     Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
                 });
-                static FORBIDDEN_MATCH: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if in_node_modules == InNodeModules::FolderSlashMatched
                     || (in_node_modules == InNodeModules::FolderMatched && value.starts_with('/'))
                 {
@@ -1069,8 +1074,6 @@ impl Pattern {
                 static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
                     Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
                 });
-                static FORBIDDEN_MATCH: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if in_node_modules == InNodeModules::FolderSlashMatched
                     || (in_node_modules == InNodeModules::FolderMatched && value.starts_with('/'))
                 {
@@ -1197,8 +1200,6 @@ impl Pattern {
                 static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
                     Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap()
                 });
-                static FORBIDDEN_MATCH: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
                 if let Some(m) = FORBIDDEN.find(value) {
                     NextConstantUntilResult::Consumed(value, Some(m.start()))
                 } else if FORBIDDEN_MATCH.find(value).is_some() {
@@ -2435,6 +2436,10 @@ mod tests {
         assert!(!pat.is_match("file.map"));
         assert!(pat.is_match("file.map/file.js"));
         assert!(!pat.is_match("file.d.ts"));
+        assert!(!pat.is_match("file.d.cts"));
+        assert!(!pat.is_match("file.d.mts"));
+        assert!(!pat.is_match("dir/file.d.cts"));
+        assert!(!pat.is_match("dir/file.d.mts"));
         assert!(!pat.is_match("file.d.ts.map"));
         assert!(!pat.is_match("file.d.ts.map"));
         assert!(!pat.is_match("dir/file.d.ts.map"));
@@ -2499,6 +2504,10 @@ mod tests {
         assert!(!pat.is_match("dir/file.map"));
         assert!(pat.is_match("file.map/file.js"));
         assert!(!pat.is_match("dir/file.d.ts"));
+        assert!(!pat.is_match("dir/file.d.cts"));
+        assert!(!pat.is_match("dir/file.d.mts"));
+        assert!(pat.is_match("dir/file.cts"));
+        assert!(pat.is_match("dir/file.mts"));
         assert!(!pat.is_match("dir/file.d.ts.map"));
         assert!(!pat.is_match("dir/file.d.ts.map"));
         assert!(!pat.is_match("dir/file.d.ts.map"));
@@ -2939,7 +2948,8 @@ mod tests {
                 ]
             );
 
-            // basic dynamic file suffix
+            // basic dynamic file suffix, skipping source maps and declaration files
+            // (`sub/foo-a.js.map`, `sub/foo-a.d.ts`, `sub/foo-a.d.cts`, `sub/foo-a.d.mts`)
             assert_eq!(
                 matches.dynamic_file_suffix,
                 &["sub/foo-a.js", "sub/foo-b.js"]
