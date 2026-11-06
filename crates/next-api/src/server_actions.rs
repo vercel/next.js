@@ -741,6 +741,7 @@ async fn compute_subtree_content_hash(
                     }
 
                     if declared_durable
+                        && access.mode == EnvVarAccessMode::Read
                         && durable_use_cache_entries_config
                             .unstable_env_vars
                             .contains(name)
