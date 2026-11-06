@@ -4,7 +4,7 @@
         export: Some(
             "calledA1",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
@@ -176,7 +176,7 @@
         export: Some(
             "unreachableA3",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
@@ -299,7 +299,7 @@
         export: Some(
             "unreachableB1",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
@@ -499,7 +499,7 @@
         export: Some(
             "calledB1",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
@@ -622,7 +622,7 @@
         export: Some(
             "calledC1",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
@@ -822,7 +822,7 @@
         export: Some(
             "calledC2",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
