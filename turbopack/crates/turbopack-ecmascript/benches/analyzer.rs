@@ -39,6 +39,8 @@ use turbopack_ecmascript::{
 static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
 pub fn benchmark(c: &mut Criterion) {
+    benchmark_eval_context(c);
+
     let tests_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/analyzer/graph");
     let results = fs::read_dir(tests_dir).unwrap();
 
@@ -102,6 +104,65 @@ pub fn benchmark(c: &mut Criterion) {
                     bench_create_graph,
                 );
                 group.bench_with_input(BenchmarkId::new("link", &name), &input, bench_link);
+            });
+        }
+    }
+}
+
+// Graph/link benchmarks below intentionally reuse an EvalContext. Time its construction
+// separately so module-side-effect and import/declaration liveness analysis are covered too.
+fn benchmark_eval_context(c: &mut Criterion) {
+    let mut group = c.benchmark_group("eval_context");
+    group.warm_up_time(Duration::from_secs(1));
+    group.measurement_time(Duration::from_secs(3));
+    group.sample_size(10);
+
+    for len in [1_000, 4_000, 8_000] {
+        for (name, imports) in [("declarations", false), ("imports", true)] {
+            let mut source = if imports {
+                String::from("function binding0() { return 0; }\n")
+            } else {
+                String::from("const binding0 = 0;\n")
+            };
+            for i in 1..len {
+                if imports {
+                    source.push_str(&format!(
+                        "import {{ value as imported{i} }} from 'dep{i}';\nfunction binding{i}() \
+                         {{ return binding{}() + imported{i}; }}\n",
+                        i - 1,
+                    ));
+                } else {
+                    source.push_str(&format!("const binding{i} = binding{} + 1;\n", i - 1));
+                }
+            }
+            source.push_str(&format!("export {{ binding{} as value }};\n", len - 1));
+            let cm = SourceMap::new(FilePathMapping::empty());
+            let fm = cm.new_source_file(swc_core::common::FileName::Anon.into(), source);
+            GLOBALS.set(&swc_core::common::Globals::new(), || {
+                let mut program = parse_file_as_program(
+                    &fm,
+                    Default::default(),
+                    EsVersion::latest(),
+                    None,
+                    &mut vec![],
+                )
+                .unwrap();
+                let unresolved_mark = Mark::new();
+                let top_level_mark = Mark::new();
+                program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
+                group.bench_function(BenchmarkId::new(name, len), |b| {
+                    b.iter(|| {
+                        criterion::black_box(EvalContext::new(
+                            Some(&program),
+                            unresolved_mark,
+                            top_level_mark,
+                            Default::default(),
+                            None,
+                            // Isolate the pre-existing import path from pure-declaration analysis.
+                            !imports,
+                        ));
+                    });
+                });
             });
         }
     }
