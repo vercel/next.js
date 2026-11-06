@@ -20,11 +20,11 @@ const packages = {
   'next-swc': realPathIfAny(`${PROJECT_DIR}/node_modules/@next/swc`),
   'next-mdx': realPathIfAny(`${PROJECT_DIR}/node_modules/@next/mdx`),
   'next-bundle-analyzer': realPathIfAny(
-    `${PROJECT_DIR}/node_modules/@next/bundle-anlyzer`
+    `${PROJECT_DIR}/node_modules/@next/bundle-analyzer`
   ),
 }
 
 for (const [key, path] of Object.entries(packages)) {
   if (!path) continue
-  exec(`Unpack ${key}`, `tar -xf '${TARBALLS}/${key}.tar' -C '${path}'`)
+  exec(`Unpack ${key}`, ['tar', '-xf', `${TARBALLS}/${key}.tar`, '-C', path])
 }
