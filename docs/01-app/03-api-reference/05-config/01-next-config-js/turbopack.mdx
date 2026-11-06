@@ -73,7 +73,7 @@ For loaders that interpolate names, `_compilation.outputOptions` provides the sa
 
 For browser loaders in development, `hot` is `true` so loaders can generate HMR handlers. Other loader environments leave `hot` unset.
 
-This compatibility subset leaves `_compiler`, `_compilation.hooks`, and `_compilation.options` unavailable. It does not provide module or chunk graphs or an implicit compilation hash. Function templates and data URI filenames are not supported by `getPath`.
+The `_compilation` compatibility object and its hash settings are read-only. Reading unsupported members, including `_compilation.hooks` or unimplemented output options, throws an error naming the unsupported API. The exception is `_compilation.options`, which returns `undefined` so loaders can probe for optional webpack features. `_compiler`, module and chunk graphs, and implicit compilation hashes remain unavailable. Function templates and data URI filenames are not supported by `getPath`.
 
 #### Missing Webpack loader features
 

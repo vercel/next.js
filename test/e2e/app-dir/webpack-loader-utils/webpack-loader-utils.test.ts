@@ -18,6 +18,10 @@ describe('webpack-loader-utils', () => {
       webpack: !process.env.IS_TURBOPACK_TEST,
       compiler: !process.env.IS_TURBOPACK_TEST,
       compilationHooks: !process.env.IS_TURBOPACK_TEST,
+      compilationHooksRead: process.env.IS_TURBOPACK_TEST
+        ? 'Turbopack does not support _compilation.hooks in webpack loaders'
+        : 'object',
+      compilationOptionsProbe: !!process.env.IS_TURBOPACK_TEST,
       hashOptions: {
         hashFunction: 'xxhash64',
         hashDigest: 'hex',

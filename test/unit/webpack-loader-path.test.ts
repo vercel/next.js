@@ -1,5 +1,6 @@
 import {
   getPath,
+  createCompilationFacade,
   type LoaderPathData,
 } from '../../turbopack/crates/turbopack-node/js/src/transforms/webpack-loaders-utils'
 
@@ -74,5 +75,57 @@ describe('webpack loader string path templates', () => {
     expect(() => compilation.getPath('[id]', context)).toThrow(
       'Path variable [id] not implemented in this context'
     )
+  })
+})
+
+describe('loader compilation compatibility boundary', () => {
+  const facade = createCompilationFacade({
+    hashFunction: 'xxhash64',
+    hashDigest: 'hex',
+    hashDigestLength: 16,
+  })
+
+  it('exposes only the supported members, including an unset hash salt', () => {
+    expect(Object.keys(facade)).toEqual(['outputOptions', 'getPath'])
+    expect(facade.outputOptions.hashFunction).toBe('xxhash64')
+    expect(facade.outputOptions.hashSalt).toBeUndefined()
+    expect(
+      facade.getPath('[name][ext]', { filename: 'styles/panel.css' })
+    ).toBe('panel.css')
+  })
+
+  it('preserves the css-loader optional-options feature probe', () => {
+    expect(Reflect.get(facade, 'options')).toBeUndefined()
+    expect('options' in facade).toBe(false)
+  })
+
+  it.each(['hooks', 'compiler', 'modules', 'assets', 'getLogger', 'emitAsset'])(
+    'throws explicitly when a loader reads %s',
+    (property) => {
+      expect(() => Reflect.get(facade, property)).toThrow(
+        `Turbopack does not support _compilation.${property} in webpack loaders`
+      )
+    }
+  )
+
+  it.each(['path', 'publicPath', 'assetModuleFilename'])(
+    'does not silently expose an unsupported output option: %s',
+    (property) => {
+      expect(() => Reflect.get(facade.outputOptions, property)).toThrow(
+        `Turbopack does not support _compilation.outputOptions.${property} in webpack loaders`
+      )
+    }
+  )
+
+  it('does not allow callers to extend or mutate the compatibility surface', () => {
+    expect(() => Reflect.set(facade, 'hooks', {})).toThrow(
+      '_compilation.hooks is read-only in Turbopack'
+    )
+    expect(() =>
+      Reflect.set(facade.outputOptions, 'hashSalt', 'changed')
+    ).toThrow('_compilation.outputOptions.hashSalt is read-only in Turbopack')
+    expect(() =>
+      Object.defineProperty(facade, 'assets', { value: {} })
+    ).toThrow()
   })
 })
