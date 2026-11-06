@@ -30,6 +30,69 @@
         ),
     ),
     (
+        "condition#28",
+        Argument(
+            825,
+            0,
+        ),
+    ),
+    (
+        "condition#29",
+        Argument(
+            941,
+            0,
+        ),
+    ),
+    (
+        "condition#32",
+        Argument(
+            1164,
+            0,
+        ),
+    ),
+    (
+        "condition#33",
+        Argument(
+            1378,
+            0,
+        ),
+    ),
+    (
+        "condition#34",
+        Argument(
+            1469,
+            0,
+        ),
+    ),
+    (
+        "condition#35",
+        Argument(
+            1570,
+            0,
+        ),
+    ),
+    (
+        "condition#37",
+        Argument(
+            1793,
+            0,
+        ),
+    ),
+    (
+        "conditionalThrow",
+        Function(
+            2,
+            1164,
+            Constant(
+                Str(
+                    Atom(
+                        "value",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
         "d",
         Function(
             2,
@@ -50,10 +113,40 @@
         ),
     ),
     (
+        "emptyReturn",
+        Function(
+            2,
+            1469,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "explicitUndefined",
+        Function(
+            2,
+            1570,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
         "f",
         Function(
             2,
             365,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "fallthrough",
+        Function(
+            2,
+            1378,
             Constant(
                 Undefined,
             ),
@@ -107,6 +200,20 @@
         ),
     ),
     (
+        "inner",
+        Function(
+            2,
+            1793,
+            Constant(
+                Str(
+                    Atom(
+                        "inner",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
         "j#2",
         Function(
             6,
@@ -145,6 +252,44 @@
         Argument(
             673,
             0,
+        ),
+    ),
+    (
+        "nestedThrow",
+        Function(
+            2,
+            1766,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "returnOrThrow",
+        Function(
+            2,
+            825,
+            Constant(
+                Str(
+                    Atom(
+                        "value",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "throwOrReturn",
+        Function(
+            2,
+            941,
+            Constant(
+                Str(
+                    Atom(
+                        "value",
+                    ),
+                ),
+            ),
         ),
     ),
 ]

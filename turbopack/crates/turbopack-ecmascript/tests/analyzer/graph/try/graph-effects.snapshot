@@ -3,12 +3,15 @@
         var: "require",
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     1,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Try,
@@ -65,12 +68,15 @@
         ],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     1,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Try,
@@ -107,12 +113,15 @@
         var: "require",
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     1,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Try,
@@ -172,12 +181,15 @@
         ],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     1,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Try,
@@ -230,12 +242,15 @@
         base_effects: [],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     2,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Expr,
@@ -276,12 +291,15 @@
         args: [],
         ast_path: [
             Program(
-                Script,
+                Module,
             ),
-            Script(
+            Module(
                 Body(
                     2,
                 ),
+            ),
+            ModuleItem(
+                Stmt,
             ),
             Stmt(
                 Expr,
@@ -296,5 +314,1584 @@
         span: 108..116,
         in_try: false,
         new: false,
+    },
+    Conditional {
+        condition: Variable(
+            (
+                "condition",
+                #5,
+            ),
+        ),
+        kind: IfElse {
+            then: EffectsBlock {
+                effects: [
+                    Unreachable {
+                        start_ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    3,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                If,
+                            ),
+                            IfStmt(
+                                Cons,
+                            ),
+                            Stmt(
+                                Return,
+                            ),
+                        ],
+                    },
+                ],
+                range: Exact(
+                    AstPathId(
+                        14,
+                    ),
+                ),
+            },
+            else: EffectsBlock {
+                effects: [
+                    FreeVar {
+                        var: "makeError",
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    3,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Throw,
+                            ),
+                            ThrowStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Callee,
+                            ),
+                            Callee(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 289..298,
+                    },
+                    Call {
+                        func: FreeVar(
+                            "makeError",
+                        ),
+                        args: [],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    3,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Throw,
+                            ),
+                            ThrowStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                        ],
+                        span: 289..300,
+                        in_try: true,
+                        new: false,
+                    },
+                    Unreachable {
+                        start_ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    3,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Throw,
+                            ),
+                        ],
+                    },
+                ],
+                range: StartAfter(
+                    AstPathId(
+                        13,
+                    ),
+                ),
+            },
+        },
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            FunctionBody(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                If,
+            ),
+            IfStmt(
+                Test,
+            ),
+        ],
+        span: 250..278,
+    },
+    FreeVar {
+        var: "inCatch",
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            FunctionBody(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Handler,
+            ),
+            CatchClause(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 336..343,
+    },
+    Call {
+        func: FreeVar(
+            "inCatch",
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            FunctionBody(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Handler,
+            ),
+            CatchClause(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 336..345,
+        in_try: false,
+        new: false,
+    },
+    FreeVar {
+        var: "afterTry",
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            FunctionBody(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 353..361,
+    },
+    Call {
+        func: FreeVar(
+            "afterTry",
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    3,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            FunctionBody(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 353..363,
+        in_try: false,
+        new: false,
+    },
+    Conditional {
+        condition: Variable(
+            (
+                "condition",
+                #8,
+            ),
+        ),
+        kind: IfElse {
+            then: EffectsBlock {
+                effects: [
+                    Unreachable {
+                        start_ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    4,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                If,
+                            ),
+                            IfStmt(
+                                Cons,
+                            ),
+                            Stmt(
+                                Return,
+                            ),
+                        ],
+                    },
+                ],
+                range: Exact(
+                    AstPathId(
+                        27,
+                    ),
+                ),
+            },
+            else: EffectsBlock {
+                effects: [
+                    FreeVar {
+                        var: "makeFinallyError",
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    4,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Throw,
+                            ),
+                            ThrowStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Callee,
+                            ),
+                            Callee(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 529..545,
+                    },
+                    Call {
+                        func: FreeVar(
+                            "makeFinallyError",
+                        ),
+                        args: [],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    4,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Throw,
+                            ),
+                            ThrowStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                        ],
+                        span: 529..547,
+                        in_try: true,
+                        new: false,
+                    },
+                    Unreachable {
+                        start_ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    4,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Throw,
+                            ),
+                        ],
+                    },
+                ],
+                range: StartAfter(
+                    AstPathId(
+                        26,
+                    ),
+                ),
+            },
+        },
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    4,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            FunctionBody(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                If,
+            ),
+            IfStmt(
+                Test,
+            ),
+        ],
+        span: 490..518,
+    },
+    FreeVar {
+        var: "inFinally",
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    4,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            FunctionBody(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Finalizer,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 567..576,
+    },
+    Call {
+        func: FreeVar(
+            "inFinally",
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    4,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            FunctionBody(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Finalizer,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 567..578,
+        in_try: false,
+        new: false,
+    },
+    Conditional {
+        condition: Variable(
+            (
+                "condition",
+                #11,
+            ),
+        ),
+        kind: IfElse {
+            then: EffectsBlock {
+                effects: [
+                    Unreachable {
+                        start_ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    5,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                If,
+                            ),
+                            IfStmt(
+                                Cons,
+                            ),
+                            Stmt(
+                                Return,
+                            ),
+                        ],
+                    },
+                ],
+                range: Exact(
+                    AstPathId(
+                        37,
+                    ),
+                ),
+            },
+            else: EffectsBlock {
+                effects: [
+                    FreeVar {
+                        var: "inTry",
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    5,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Callee,
+                            ),
+                            Callee(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 756..761,
+                    },
+                    Call {
+                        func: FreeVar(
+                            "inTry",
+                        ),
+                        args: [],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    5,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                        ],
+                        span: 756..763,
+                        in_try: true,
+                        new: false,
+                    },
+                    FreeVar {
+                        var: "inHandler",
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    5,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Handler,
+                            ),
+                            CatchClause(
+                                Body,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Callee,
+                            ),
+                            Callee(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 781..790,
+                    },
+                    Call {
+                        func: FreeVar(
+                            "inHandler",
+                        ),
+                        args: [],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    5,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Handler,
+                            ),
+                            CatchClause(
+                                Body,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                        ],
+                        span: 781..792,
+                        in_try: false,
+                        new: false,
+                    },
+                    FreeVar {
+                        var: "makeFinalizerError",
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    5,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Finalizer,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Throw,
+                            ),
+                            ThrowStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Callee,
+                            ),
+                            Callee(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 818..836,
+                    },
+                    Call {
+                        func: FreeVar(
+                            "makeFinalizerError",
+                        ),
+                        args: [],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    5,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Finalizer,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Throw,
+                            ),
+                            ThrowStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                        ],
+                        span: 818..838,
+                        in_try: false,
+                        new: false,
+                    },
+                    Unreachable {
+                        start_ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    5,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                            TryStmt(
+                                Finalizer,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Throw,
+                            ),
+                        ],
+                    },
+                    Unreachable {
+                        start_ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    5,
+                                ),
+                            ),
+                            ModuleItem(
+                                ModuleDecl,
+                            ),
+                            ModuleDecl(
+                                ExportDecl,
+                            ),
+                            ExportDecl(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Try,
+                            ),
+                        ],
+                    },
+                ],
+                range: StartAfter(
+                    AstPathId(
+                        36,
+                    ),
+                ),
+            },
+        },
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    5,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            FunctionBody(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                If,
+            ),
+            IfStmt(
+                Test,
+            ),
+        ],
+        span: 713..743,
     },
 ]

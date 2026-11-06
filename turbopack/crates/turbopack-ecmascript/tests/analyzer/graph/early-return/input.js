@@ -79,3 +79,51 @@ export function j(j) {
   }
   return i2();
 }
+
+// A terminal throw must not add an implicit undefined return alternative.
+export function returnOrThrow(condition) {
+  if (condition) return "value";
+  throw makeError();
+  afterThrow();
+}
+
+export function throwOrReturn(condition) {
+  if (condition) {
+    throw makeBranchError();
+  } else {
+    return "value";
+  }
+  afterBranches();
+}
+
+// A conditional throw does not make the rest of the function unreachable.
+export function conditionalThrow(condition) {
+  if (condition) throw makeConditionalError();
+  afterConditionalThrow();
+  return "value";
+}
+
+// Fallthrough and explicit undefined returns must still be represented.
+export function fallthrough(condition) {
+  if (condition) throw makeFallthroughError();
+}
+
+export function emptyReturn(condition) {
+  if (condition) return;
+  throw makeEmptyReturnError();
+}
+
+export function explicitUndefined(condition) {
+  if (condition) return undefined;
+  throw makeUndefinedError();
+}
+
+// Exiting an inner function must not suppress the outer function's fallthrough.
+export function nestedThrow() {
+  function inner(condition) {
+    if (condition) return "inner";
+    throw makeNestedError();
+  }
+  useInner(inner);
+  afterInner();
+}
