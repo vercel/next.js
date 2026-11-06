@@ -17,17 +17,31 @@ import { retry, waitForRedbox, getRedboxSource } from 'next-test-utils'
       const browser = await next.browser('/')
       await waitForRedbox(browser)
       if (process.platform !== 'win32') {
-        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "pages/index.js (5:11) @ Index.useEffect
+        if (process.env.__NEXT_ENABLE_REACT_COMPILER === 'true') {
+          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+            "pages/index.js (5:11) @ _IndexUseEffect
 
-            3 | export default function Index(props) {
-            4 |   useEffect(() => {
-          > 5 |     throw new Error('this should render')
-              |           ^
-            6 |   }, [])
-            7 |   return <div>Index Page</div>
-            8 | }"
-        `)
+              3 | export default function Index(props) {
+              4 |   useEffect(() => {
+            > 5 |     throw new Error('this should render')
+                |           ^
+              6 |   }, [])
+              7 |   return <div>Index Page</div>
+              8 | }"
+          `)
+        } else {
+          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+            "pages/index.js (5:11) @ Index.useEffect
+
+              3 | export default function Index(props) {
+              4 |   useEffect(() => {
+            > 5 |     throw new Error('this should render')
+                |           ^
+              6 |   }, [])
+              7 |   return <div>Index Page</div>
+              8 | }"
+          `)
+        }
       }
       await browser.close()
     })

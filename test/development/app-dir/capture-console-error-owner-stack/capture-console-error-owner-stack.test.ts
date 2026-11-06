@@ -9,17 +9,21 @@ describe('app-dir - capture-console-error-owner-stack', () => {
   it('should capture browser console error and format the error message', async () => {
     const browser = await next.browser('/browser/event')
     await browser.elementByCss('button').click()
+    const onClickName =
+      process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
+        ? '_PageButtonOnClick'
+        : 'onClick'
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "description": "trigger an console <error>",
        "environmentLabel": null,
        "label": "Console Error",
-       "source": "app/browser/event/page.js (7:17) @ onClick
+       "source": "app/browser/event/page.js (7:17) @ ${onClickName}
      >  7 |         console.error('trigger an console <%s>', 'error')
           |                 ^",
        "stack": [
-         "onClick app/browser/event/page.js (7:17)",
+         "${onClickName} app/browser/event/page.js (7:17)",
          "button <anonymous>",
          "Page app/browser/event/page.js (5:5)",
        ],

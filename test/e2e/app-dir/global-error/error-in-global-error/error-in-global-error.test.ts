@@ -6,6 +6,11 @@ describe('app dir - global-error - error-in-global-error', () => {
     files: __dirname,
   })
 
+  const pageEffectName =
+    process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
+      ? '_PageUseEffect'
+      : 'Page.useEffect'
+
   it('should be able to use nextjs navigation hook in global-error', async () => {
     const browser = await next.browser('/')
     const text = await browser.elementByCss('h1').text()
@@ -18,11 +23,11 @@ describe('app dir - global-error - error-in-global-error', () => {
          "description": "error in page",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "app/page.js (7:11) @ Page.useEffect
+         "source": "app/page.js (7:11) @ ${pageEffectName}
        >  7 |     throw new Error('error in page')
             |           ^",
          "stack": [
-           "Page.useEffect app/page.js (7:11)",
+           "${pageEffectName} app/page.js (7:11)",
          ],
        }
       `)
@@ -56,11 +61,11 @@ describe('app dir - global-error - error-in-global-error', () => {
            "description": "error in page",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "app/page.js (7:11) @ Page.useEffect
+           "source": "app/page.js (7:11) @ ${pageEffectName}
        >  7 |     throw new Error('error in page')
             |           ^",
            "stack": [
-             "Page.useEffect app/page.js (7:11)",
+             "${pageEffectName} app/page.js (7:11)",
            ],
          },
        ]

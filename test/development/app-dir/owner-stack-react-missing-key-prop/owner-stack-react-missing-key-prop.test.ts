@@ -66,7 +66,27 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
 
     const stackFramesContent = await getRedboxCallStack(browser)
     const source = await getRedboxSource(browser)
-    if (isTurbopack) {
+    if (process.env.__NEXT_ENABLE_REACT_COMPILER === 'true') {
+      expect(stackFramesContent).toMatchInlineSnapshot(`
+       [
+         "p <anonymous>",
+         "_PageListMap app/ssr/page.tsx (9:9)",
+         "Array.map <anonymous>",
+         "Page app/ssr/page.tsx (8:13)",
+       ]
+      `)
+      expect(source).toMatchInlineSnapshot(`
+          "app/ssr/page.tsx (9:9) @ _PageListMap
+
+             7 |     <div>
+             8 |       {list.map((item, index) => (
+          >  9 |         <p>{item}</p>
+               |         ^
+            10 |       ))}
+            11 |     </div>
+            12 |   )"
+        `)
+    } else if (isTurbopack) {
       expect(stackFramesContent).toMatchInlineSnapshot(`
        [
          "p <anonymous>",
