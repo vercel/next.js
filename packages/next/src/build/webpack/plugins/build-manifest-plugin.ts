@@ -16,7 +16,10 @@ import {
 import type { BuildManifest } from '../../../server/get-page-files'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { Span } from '../../../trace'
+import {
+  createLocalSpan,
+  traceLocalSpan,
+} from '../../../server/lib/trace/local-span-recorder'
 import { getCompilationSpan } from '../utils'
 import {
   createEdgeRuntimeManifest,
@@ -44,46 +47,54 @@ export function generateClientManifest(
   compiler?: any,
   compilation?: any
 ): string | undefined {
-  const compilationSpan = compilation
-    ? getCompilationSpan(compilation)
-    : compiler
-      ? getCompilationSpan(compiler)
-      : new Span({ name: 'client-manifest' })
+  let compilationSpan
+  if (compilation) {
+    compilationSpan = getCompilationSpan(compilation)
+  } else if (compiler) {
+    compilationSpan = getCompilationSpan(compiler)
+  } else {
+    compilationSpan = createLocalSpan({ name: 'client-manifest' })
+  }
 
-  const genClientManifestSpan = compilationSpan?.traceChild(
-    'NextJsBuildManifest-generateClientManifest'
-  )
+  if (!compilationSpan) return undefined
 
-  return genClientManifestSpan?.traceFn(() => {
-    const clientManifest: ClientBuildManifest = {
-      __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
-      __routerFilterStatic: clientRouterFilters?.staticFilter as any,
-      __routerFilterDynamic: clientRouterFilters?.dynamicFilter as any,
-    }
-    const appDependencies = new Set(assetMap.pages['/_app'])
-    const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))
-
-    sortedPageKeys.forEach((page) => {
-      const dependencies = assetMap.pages[page]
-
-      if (page === '/_app') return
-      // Filter out dependencies in the _app entry, because those will have already
-      // been loaded by the client prior to a navigation event
-      const filteredDeps = dependencies.filter(
-        (dep) => !appDependencies.has(dep)
-      )
-
-      // The manifest can omit the page if it has no requirements
-      if (filteredDeps.length) {
-        clientManifest[page] = filteredDeps
+  return traceLocalSpan(
+    {
+      name: 'NextJsBuildManifest-generateClientManifest',
+      parent: compilationSpan,
+      synchronous: true,
+    },
+    () => {
+      const clientManifest: ClientBuildManifest = {
+        __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
+        __routerFilterStatic: clientRouterFilters?.staticFilter as any,
+        __routerFilterDynamic: clientRouterFilters?.dynamicFilter as any,
       }
-    })
-    // provide the sorted pages as an array so we don't rely on the object's keys
-    // being in order and we don't slow down look-up time for page assets
-    clientManifest.sortedPages = sortedPageKeys
+      const appDependencies = new Set(assetMap.pages['/_app'])
+      const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))
 
-    return devalue(clientManifest)
-  })
+      sortedPageKeys.forEach((page) => {
+        const dependencies = assetMap.pages[page]
+
+        if (page === '/_app') return
+        // Filter out dependencies in the _app entry, because those will have already
+        // been loaded by the client prior to a navigation event
+        const filteredDeps = dependencies.filter(
+          (dep) => !appDependencies.has(dep)
+        )
+
+        // The manifest can omit the page if it has no requirements
+        if (filteredDeps.length) {
+          clientManifest[page] = filteredDeps
+        }
+      })
+      // provide the sorted pages as an array so we don't rely on the object's keys
+      // being in order and we don't slow down look-up time for page assets
+      clientManifest.sortedPages = sortedPageKeys
+
+      return devalue(clientManifest)
+    }
+  )
 }
 
 export function getEntrypointFiles(entrypoint: any): string[] {
@@ -135,11 +146,7 @@ export default class BuildManifestPlugin {
       throw new Error('No span found for compilation')
     }
 
-    const createAssetsSpan = compilationSpan.traceChild(
-      'NextJsBuildManifest-createassets'
-    )
-
-    return createAssetsSpan.traceFn(() => {
+    const emitAssets = () => {
       const entrypoints: Map<string, any> = compilation.entrypoints
       const assetMap: DeepMutable<BuildManifest> = {
         polyfillFiles: [],
@@ -270,7 +277,15 @@ export default class BuildManifestPlugin {
           )
         )
       }
-    })
+    }
+    return traceLocalSpan(
+      {
+        name: 'NextJsBuildManifest-createassets',
+        parent: compilationSpan,
+        synchronous: true,
+      },
+      emitAssets
+    )
   }
 
   apply(compiler: webpack.Compiler) {

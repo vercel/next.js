@@ -4,7 +4,7 @@ import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { IncrementalCache } from './incremental-cache'
 import { CachedRouteKind } from '../response-cache'
 import { createPatchedFetcher } from './patch-fetch'
-import { registerLocalSpanRecorder } from './trace/local-span-recorder'
+import { registerLocalSpanRecorder } from './trace/request-span-recorder'
 import {
   setSpanRecorderForTest,
   type SpanStoreRecord,

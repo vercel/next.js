@@ -27,8 +27,8 @@ import {
 } from './span-store'
 import {
   registerLocalSpanRecorder,
-  traceLocalSpan,
-} from './local-span-recorder'
+  traceRequestSpan,
+} from './request-span-recorder'
 import {
   AppRouteRouteModuleSpan,
   AppRenderSpan,
@@ -613,28 +613,25 @@ describe('local span recording', () => {
     let activeSpanDuringDirectWithSpan
 
     await context.with(foregroundContext, () =>
-      traceLocalSpan(
-        { name: 'Instant Insights', parentSpan: null },
-        async () => {
-          activeSpanDuringLocalWork = trace.getSpan(context.active())
-          await traceLocalSpan(
-            { name: 'Prepare validation inputs' },
-            async () => {
-              activeSpanDuringNestedLocalWork = trace.getSpan(context.active())
-              getTracer().trace(NextNodeServerSpan.createComponentTree, () => {
-                activeSpanDuringNextTrace = trace.getSpan(context.active())
-              })
-              const directSpan = getTracer().startSpan(
-                NextNodeServerSpan.getLayoutOrPageModule
-              )
-              getTracer().withSpan(directSpan, () => {
-                activeSpanDuringDirectWithSpan = trace.getSpan(context.active())
-              })
-              directSpan.end()
-            }
-          )
-        }
-      )
+      traceRequestSpan({ name: 'Instant Insights', parent: null }, async () => {
+        activeSpanDuringLocalWork = trace.getSpan(context.active())
+        await traceRequestSpan(
+          { name: 'Prepare validation inputs' },
+          async () => {
+            activeSpanDuringNestedLocalWork = trace.getSpan(context.active())
+            getTracer().trace(NextNodeServerSpan.createComponentTree, () => {
+              activeSpanDuringNextTrace = trace.getSpan(context.active())
+            })
+            const directSpan = getTracer().startSpan(
+              NextNodeServerSpan.getLayoutOrPageModule
+            )
+            getTracer().withSpan(directSpan, () => {
+              activeSpanDuringDirectWithSpan = trace.getSpan(context.active())
+            })
+            directSpan.end()
+          }
+        )
+      })
     )
 
     expect(activeSpanDuringLocalWork).toBe(foregroundSpan)
@@ -797,7 +794,7 @@ describe('local span recording', () => {
 
     await getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
       context.with(trace.setSpan(context.active(), publicChild), () =>
-        traceLocalSpan({ name: 'local helper' }, async () => undefined)
+        traceRequestSpan({ name: 'local helper' }, async () => undefined)
       )
     )
 
@@ -1064,7 +1061,7 @@ describe('local span recording', () => {
           require('./span-store') as typeof import('./span-store'))
         setIsolatedSpanRecorderForTest((span) => spanRecords.push(span))
         const { registerLocalSpanRecorder: registerIsolatedLocalSpanRecorder } =
-          require('./local-span-recorder') as typeof import('./local-span-recorder')
+          require('./request-span-recorder') as typeof import('./request-span-recorder')
         registerIsolatedLocalSpanRecorder()
         const { getTracer: getIsolatedTracer } =
           require('./tracer') as typeof import('./tracer')

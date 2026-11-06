@@ -2,6 +2,7 @@
   MIT License http://www.opensource.org/licenses/mit-license.php
   Author Tobias Koppers @sokra
 */
+import { traceLocalSpan } from '../../../../../server/lib/trace/local-span-recorder'
 import CssSyntaxError from './CssSyntaxError'
 import Warning from '../../postcss-loader/src/Warning'
 import { stringifyRequest } from '../../../stringify-request'
@@ -141,10 +142,9 @@ export default async function loader(
   const plugins: any[] = []
   const callback = this.async()
 
-  const loaderSpan = this.currentTraceSpan.traceChild('css-loader')
-
-  loaderSpan
-    .traceAsyncFn(async () => {
+  traceLocalSpan(
+    { name: 'css-loader', parent: this.currentTraceSpan },
+    async (loaderSpan) => {
       let options: any
 
       try {
@@ -323,13 +323,13 @@ export default async function loader(
       const exportCode = getExportCode(exports, replacements, options)
 
       return `${importCode}${moduleCode}${exportCode}`
-    })
-    .then(
-      (code: string) => {
-        callback(null, code)
-      },
-      (err: Error) => {
-        callback(err)
-      }
-    )
+    }
+  ).then(
+    (code: string) => {
+      callback(null, code)
+    },
+    (err: Error) => {
+      callback(err)
+    }
+  )
 }

@@ -4,7 +4,10 @@ import { readFileSync } from 'fs'
 import { createServer } from 'http'
 import { spawn } from 'child_process'
 import { retry } from 'next-test-utils'
-import { parseTraceFile } from '../../../lib/parse-trace-file'
+import {
+  expectTraceEventContract,
+  parseTraceFile,
+} from '../../../lib/parse-trace-file'
 
 describe('enabled features in trace', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -57,7 +60,8 @@ describe('enabled features in trace', () => {
   })
 
   it('should record enabled features on root span', async () => {
-    const { eventsByName } = parseTraceFile(tracePath)
+    const { events, eventsByName } = parseTraceFile(tracePath)
+    expectTraceEventContract(events)
 
     // Verify start-dev-server span has feature tags
     const [startDevServerEvent] = eventsByName.get('start-dev-server') ?? []

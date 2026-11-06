@@ -3,7 +3,7 @@ import type { DevBundlerService } from './dev-bundler-service'
 import type { PropagateToWorkersField } from './router-utils/types'
 
 import next from '../next'
-import type { Span } from '../../trace'
+import type { Span } from '@opentelemetry/api'
 import type { ServerResponse } from 'http'
 import type { OnCacheEntryHandler } from '../request-meta'
 import { interopDefault } from '../../lib/interop-default'

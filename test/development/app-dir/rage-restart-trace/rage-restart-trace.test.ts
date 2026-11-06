@@ -3,7 +3,10 @@ import { join, dirname } from 'node:path'
 import { execSync } from 'node:child_process'
 import { getCacheDirectory } from 'next/dist/lib/helpers/get-cache-directory'
 import { nextTestSetup } from 'e2e-utils'
-import { parseTraceFile } from '../../../lib/parse-trace-file'
+import {
+  expectTraceEventContract,
+  parseTraceFile,
+} from '../../../lib/parse-trace-file'
 
 describe('rage restart trace attributes', () => {
   // Use a fake upload URL so traceUploadUrl is set and detection runs.
@@ -14,6 +17,7 @@ describe('rage restart trace attributes', () => {
     files: __dirname,
     skipStart: true,
     startArgs: ['--experimental-upload-trace', fakeUploadUrl],
+    env: { NEXT_EXIT_TIMEOUT_MS: '30000' },
   })
 
   if (!isNextDev) {
@@ -34,10 +38,11 @@ describe('rage restart trace attributes', () => {
 
   const getStartDevServerSpan = () => {
     const traceStructure = parseTraceFile(getTracePath())
+    expectTraceEventContract(traceStructure.events)
     const spans = traceStructure.eventsByName.get('start-dev-server')
     expect(spans).toBeDefined()
     expect(spans?.length).toBeGreaterThan(0)
-    // Trace file is appended across restarts; take the most recent span.
+    // Select the most recent startup event in the current trace file.
     return spans?.[spans.length - 1]
   }
 
@@ -56,12 +61,23 @@ describe('rage restart trace attributes', () => {
     await next.start()
     await next.render$('/')
     await next.stop('SIGTERM')
+    const firstSession = parseTraceFile(getTracePath()).events
+    const firstSessionId = firstSession[0].traceId
 
     // Second session: restart immediately — should be detected as a rage restart.
     await next.start()
     await next.render$('/')
     await next.stop('SIGTERM')
 
+    const restarted = parseTraceFile(getTracePath()).events
+    // The writer uses append mode, but normal dev startup cleans the old trace.
+    // Preserve this observable behavior in both tracing implementations.
+    expect(
+      restarted.filter((event) => event.traceId === firstSessionId)
+    ).toHaveLength(0)
+    expect(restarted.some((event) => event.traceId !== firstSessionId)).toBe(
+      true
+    )
     const span = getStartDevServerSpan()
     expect(span?.tags?.['rage-restart']).toBe(true)
     expect(span?.tags?.['missing-next-dir']).toBe(false)

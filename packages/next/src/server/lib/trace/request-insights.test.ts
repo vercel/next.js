@@ -29,7 +29,7 @@ import {
 import { recordSpan } from './span-store'
 import { createBrowserReactTimingReceiver } from './browser-react-timings'
 import { HMR_MESSAGE_SENT_TO_SERVER } from '../../dev/hot-reloader-types'
-import { registerLocalSpanRecorder } from './local-span-recorder'
+import { registerLocalSpanRecorder } from './request-span-recorder'
 import { AppRenderSpan } from './constants'
 import { getTracer } from './tracer'
 import {

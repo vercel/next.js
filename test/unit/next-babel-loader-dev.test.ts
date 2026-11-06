@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import os from 'os'
 import path from 'path'
-import { Span } from 'next/dist/trace'
+import { createLocalSpan } from 'next/dist/server/lib/trace/local-span-recorder'
 import loader from 'next/dist/build/babel/loader'
 
 const dir = path.resolve(os.tmpdir())
@@ -44,7 +44,7 @@ const babel = async (code: string, queryOpts = {} as any) => {
       getOptions: function () {
         return options
       },
-      currentTraceSpan: new Span({ name: 'test' }),
+      currentTraceSpan: createLocalSpan({ name: 'test' }),
     })(code, null)
 
     if (!isAsync) {
