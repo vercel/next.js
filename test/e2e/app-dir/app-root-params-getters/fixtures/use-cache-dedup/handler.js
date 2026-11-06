@@ -23,13 +23,15 @@ module.exports = {
     if (!cacheControl.handlesKey(cacheKey)) {
       return defaultCacheHandler.get(cacheKey, softTags)
     }
-    // Capture the lookup result before the control waits. A concurrent write
-    // must not change the result returned by this lookup.
-    const entry =
-      cacheControl.options.backend === 'retain-stale'
-        ? retainedCache.get(cacheKey)
-        : await defaultCacheHandler.get(cacheKey, softTags)
-    return cacheControl.run({ type: 'get-response', cacheKey }, () => entry)
+    return cacheControl.run({ type: 'get', cacheKey }, async () => {
+      // Capture the backend result before a response control waits. A later
+      // write must not change the result returned by this lookup.
+      const entry =
+        cacheControl.options.backend === 'retain-stale'
+          ? retainedCache.get(cacheKey)
+          : await defaultCacheHandler.get(cacheKey, softTags)
+      return cacheControl.run({ type: 'get-response', cacheKey }, () => entry)
+    })
   },
   async set(cacheKey, pendingEntry) {
     const { tags } = await pendingEntry

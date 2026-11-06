@@ -7,6 +7,8 @@ import type {
   CacheOperationRecord,
   CacheGenerationMatcher,
   CacheGenerationOperation,
+  CacheGetMatcher,
+  CacheGetOperation,
   CacheGetResponseMatcher,
   CacheGetResponseOperation,
   CacheOperation,
@@ -73,7 +75,7 @@ export async function createCacheControl(
           operation.type === 'generate' ? [operation.language] : []
         ),
         lookupKeys: operations.flatMap(({ operation }) =>
-          operation.type === 'get-response' ? [operation.cacheKey] : []
+          operation.type === 'get' ? [operation.cacheKey] : []
         ),
       }
     },
@@ -82,6 +84,9 @@ export async function createCacheControl(
         { type: 'generate', ...match },
         'hold'
       )
+    },
+    holdNextGet(match: Omit<CacheGetMatcher, 'type'>) {
+      return register<CacheGetOperation>({ type: 'get', ...match }, 'hold')
     },
     async holdNextGetResponse(match: Omit<CacheGetResponseMatcher, 'type'>) {
       const control = await register<CacheGetResponseOperation>(

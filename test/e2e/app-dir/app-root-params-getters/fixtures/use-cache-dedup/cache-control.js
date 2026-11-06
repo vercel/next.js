@@ -22,9 +22,10 @@
  */
 function matches(operation, match) {
   switch (match.type) {
+    case 'get':
     case 'get-response':
       return (
-        operation.type === 'get-response' &&
+        operation.type === match.type &&
         (match.cacheKey === undefined || operation.cacheKey === match.cacheKey)
       )
     case 'set':

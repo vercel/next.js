@@ -1,6 +1,11 @@
 export type CacheEntryKind = 'redirect' | 'value'
 export type OperationStatus = 'started' | 'completed' | 'rejected'
 
+export interface CacheGetOperation {
+  type: 'get'
+  cacheKey: string
+}
+
 export interface CacheGetResponseOperation {
   type: 'get-response'
   cacheKey: string
@@ -19,9 +24,15 @@ export interface CacheGenerationOperation {
 }
 
 export type CacheOperation =
+  | CacheGetOperation
   | CacheGetResponseOperation
   | CacheSetOperation
   | CacheGenerationOperation
+
+export interface CacheGetMatcher {
+  type: 'get'
+  cacheKey?: string
+}
 
 export interface CacheGetResponseMatcher {
   type: 'get-response'
@@ -40,6 +51,7 @@ export interface CacheGenerationMatcher {
 }
 
 export type CacheOperationMatcher =
+  | CacheGetMatcher
   | CacheGetResponseMatcher
   | CacheSetMatcher
   | CacheGenerationMatcher
