@@ -8,13 +8,16 @@
 //!
 //! `composes: ... from ...` references are edges of the module graph, so the graph's traversals
 //! are reused: modules are flattened in post-order of a depth-first traversal that only follows
-//! these edges, and cycles are found with [`ModuleGraphSnapshot::traverse_cycles`].
+//! these edges, and cycles are found with [`ModuleGraphSnapshot::traverse_cycles`]. Modules
+//! outside of any cycle reuse the flattened classes of the modules they compose from. The modules
+//! of a cycle are flattened together, following classes across the whole cycle, so the result
+//! doesn't depend on which of them the traversal reaches first.
 //!
 //! [`ModuleGraphSnapshot::traverse_cycles`]: turbopack_core::module_graph::ModuleGraphSnapshot::traverse_cycles
 
 use anyhow::Result;
 use async_trait::async_trait;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc,
@@ -22,7 +25,6 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
-    module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, RefData},
 };
 
@@ -57,10 +59,9 @@ fn is_composes_edge(edge: &RefData) -> bool {
 
 /// Flattens the `composes` of all CSS modules in `module_graph`.
 ///
-/// Emits a warning for every cycle of CSS modules that compose from each other. Within a module
-/// cycle, a class composed from a module that is still being flattened only contributes its own
-/// class name, and class-level cycles within a module are broken by skipping the class that is
-/// already being expanded.
+/// Emits a warning for every cycle of CSS modules that compose from each other. The modules of
+/// such a cycle are flattened together, so their class names are complete. Only class-level cycles
+/// are broken, by skipping the class that is already being expanded.
 #[turbo_tasks::function(root)]
 pub(crate) async fn css_modules_composes(
     module_graph: ResolvedVc<ModuleGraph>,
@@ -79,9 +80,10 @@ pub(crate) async fn css_modules_composes(
         .into_iter()
         .collect();
 
-    report_cycles(&graph, &modules).await?;
+    let cycles = find_cycles(&graph, &modules)?;
+    report_cycles(&graph, &cycles).await?;
 
-    let mut flattener = Flattener::new(&modules);
+    let mut flattener = Flattener::new(&modules, &cycles);
     graph.traverse_edges_dfs(
         modules.keys().map(|module| ResolvedVc::upcast(*module)),
         &mut flattener,
@@ -99,8 +101,7 @@ pub(crate) async fn css_modules_composes(
                 };
                 flattener.targets.insert(reference, module);
             }
-            // Expand every module once. A module that is still being expanded is the target of a
-            // back edge of a cycle, so its classes are not (fully) available yet.
+            // Visit every module once, so each module is reached in post-order exactly once.
             Ok(if flattener.seen.insert(module) {
                 GraphTraversalAction::Continue
             } else {
@@ -109,7 +110,7 @@ pub(crate) async fn css_modules_composes(
         },
         |_, module, flattener| {
             if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptCssModule>(module) {
-                flattener.flatten_module(module);
+                flattener.module_finished(module);
             }
             Ok(())
         },
@@ -137,28 +138,38 @@ pub(crate) async fn css_modules_composes(
     Ok(Vc::cell(result))
 }
 
-/// Emits a warning for every cycle of CSS modules that are connected by `composes: ... from ...`
-/// references.
-async fn report_cycles(graph: &ModuleGraph, modules: &ModuleClasses) -> Result<()> {
+type Cycles = Vec<Vec<ResolvedVc<EcmascriptCssModule>>>;
+
+/// Finds the cycles (strongly connected components) of CSS modules that are connected by
+/// `composes: ... from ...` references. Every module is part of at most one cycle.
+fn find_cycles(graph: &ModuleGraph, modules: &ModuleClasses) -> Result<Cycles> {
     let mut cycles = Vec::new();
+    let mut in_cycle = FxHashSet::default();
     graph.traverse_cycles(is_composes_edge, |cycle| {
         let cycle: Vec<_> = cycle
             .iter()
             .filter_map(|module| ResolvedVc::try_downcast_type::<EcmascriptCssModule>(**module))
-            .filter(|module| modules.contains_key(module))
-            .map(ResolvedVc::upcast::<Box<dyn Module>>)
+            .filter(|module| modules.contains_key(module) && in_cycle.insert(*module))
             .collect();
         if !cycle.is_empty() {
             cycles.push(cycle);
         }
         Ok(())
     })?;
+    Ok(cycles)
+}
 
+/// Emits a warning for every cycle of CSS modules.
+async fn report_cycles(graph: &ModuleGraph, cycles: &Cycles) -> Result<()> {
     for cycle in cycles {
         let mut paths = cycle
-            .into_iter()
+            .iter()
             .map(async |module| {
-                let path = graph.module_ident(module)?.await?.path.clone();
+                let path = graph
+                    .module_ident(ResolvedVc::upcast(*module))?
+                    .await?
+                    .path
+                    .clone();
                 let display = path.to_string_ref().await?;
                 Ok((display, path))
             })
@@ -185,6 +196,11 @@ type FlattenedExports<'a> = FxIndexMap<&'a str, Vec<&'a str>>;
 /// The state of the depth-first traversal over `composes: ... from ...` edges.
 struct Flattener<'a> {
     modules: &'a ModuleClasses,
+    cycles: &'a Cycles,
+    /// The index into `cycles` of every module that is part of a cycle.
+    cycle_of: FxHashMap<ResolvedVc<EcmascriptCssModule>, usize>,
+    /// How many modules of each cycle have not been reached in post-order yet.
+    pending: Vec<usize>,
     /// The modules that were reached by the traversal, including those still being flattened.
     seen: FxIndexSet<ResolvedVc<EcmascriptCssModule>>,
     /// The CSS module each `composes: ... from ...` reference points to, from the module graph.
@@ -194,106 +210,132 @@ struct Flattener<'a> {
 }
 
 impl<'a> Flattener<'a> {
-    fn new(modules: &'a ModuleClasses) -> Self {
+    fn new(modules: &'a ModuleClasses, cycles: &'a Cycles) -> Self {
+        let cycle_of = cycles
+            .iter()
+            .enumerate()
+            .flat_map(|(i, cycle)| cycle.iter().map(move |module| (*module, i)))
+            .collect();
         Self {
             modules,
+            cycles,
+            cycle_of,
+            pending: cycles.iter().map(Vec::len).collect(),
             seen: FxIndexSet::default(),
             targets: FxHashMap::default(),
             flattened: FxHashMap::default(),
         }
     }
 
-    /// Flattens all exports of `module`. Called in post-order, so the modules it composes from are
-    /// already flattened, unless they are part of the same cycle.
-    fn flatten_module(&mut self, module: ResolvedVc<EcmascriptCssModule>) {
-        if self.flattened.contains_key(&module) {
-            return;
+    /// Called when `module` is reached in post-order.
+    ///
+    /// A module outside of any cycle is flattened right away: everything it composes from is
+    /// already flattened. The modules of a cycle are flattened together once the last of them is
+    /// reached. In post-order, that is the module the traversal entered the cycle through, so by
+    /// then every edge leaving the cycle has been traversed and all modules the cycle composes from
+    /// are flattened.
+    fn module_finished(&mut self, module: ResolvedVc<EcmascriptCssModule>) {
+        let cycles = self.cycles;
+        match self.cycle_of.get(&module) {
+            Some(&cycle) => {
+                self.pending[cycle] -= 1;
+                if self.pending[cycle] == 0 {
+                    self.flatten(&cycles[cycle]);
+                }
+            }
+            None => self.flatten(&[module]),
         }
-        let Some(classes) = self.modules.get(&module) else {
-            return;
-        };
-        let classes: &'a ExportClasses = classes;
-        let mut expander = ModuleExpander::new(self, classes);
-        let exports = classes
-            .keys()
-            .map(|export| {
-                let (names, _) = expander.visit(export);
-                (export.as_str(), names)
+    }
+
+    /// Flattens all exports of `group`, which is either a single module outside of any cycle or
+    /// all modules of a cycle.
+    fn flatten(&mut self, group: &[ResolvedVc<EcmascriptCssModule>]) {
+        let mut expander = Expander::new(self, group);
+        let flattened: Vec<_> = group
+            .iter()
+            .filter_map(|module| {
+                let classes: &'a ExportClasses = self.modules.get(module)?;
+                let exports = classes
+                    .keys()
+                    .map(|export| {
+                        let (names, _) = expander.visit(*module, export);
+                        (export.as_str(), names)
+                    })
+                    .collect();
+                Some((*module, exports))
             })
             .collect();
-        self.flattened.insert(module, exports);
-    }
-
-    /// The class names that composing `export` from `target` contributes.
-    fn imported(&self, target: ResolvedVc<EcmascriptCssModule>, export: &str) -> Vec<&'a str> {
-        if let Some(names) = self
-            .flattened
-            .get(&target)
-            .and_then(|exports| exports.get(export))
-        {
-            return names.clone();
-        }
-        // `target` is still being flattened, i.e. this is a back edge of a module cycle (which is
-        // reported as a warning), so only its own class name is used.
-        let own = self
-            .modules
-            .get(&target)
-            .and_then(|classes| classes.get(export))
-            .and_then(|classes| classes.first());
-        match own {
-            Some(ModuleCssClass::Local { name } | ModuleCssClass::Global { name }) => {
-                vec![name.as_str()]
-            }
-            Some(ModuleCssClass::Import { .. }) | None => Vec::new(),
-        }
+        self.flattened.extend(flattened);
     }
 }
 
-/// Expands the exports of a single module depth-first, following local `composes` within the
-/// module and using the already flattened classes of other modules for `composes: ... from ...`.
-struct ModuleExpander<'f, 'a> {
+type ClassKey<'a> = (ResolvedVc<EcmascriptCssModule>, &'a str);
+
+/// Expands exports depth-first within a group of modules, following local `composes` and
+/// `composes: ... from ...` between modules of the group, and using the already flattened classes
+/// of modules outside of it.
+struct Expander<'f, 'a> {
     flattener: &'f Flattener<'a>,
-    classes: &'a ExportClasses,
-    /// Maps each export's own (generated) class name back to the export name, so that local
-    /// `composes` references can be expanded.
-    local_exports: FxHashMap<&'a str, &'a str>,
+    group: FxHashSet<ResolvedVc<EcmascriptCssModule>>,
+    /// Maps each export's own (generated) class name back to the export name, per module, so that
+    /// local `composes` references can be expanded.
+    local_exports: FxHashMap<ResolvedVc<EcmascriptCssModule>, FxHashMap<&'a str, &'a str>>,
     /// Expansions that did not encounter a cycle.
-    memo: FxHashMap<&'a str, Vec<&'a str>>,
-    stack: FxIndexSet<&'a str>,
+    memo: FxHashMap<ClassKey<'a>, Vec<&'a str>>,
+    stack: FxIndexSet<ClassKey<'a>>,
 }
 
-impl<'f, 'a> ModuleExpander<'f, 'a> {
-    fn new(flattener: &'f Flattener<'a>, classes: &'a ExportClasses) -> Self {
-        let local_exports = classes
+impl<'f, 'a> Expander<'f, 'a> {
+    fn new(flattener: &'f Flattener<'a>, group: &[ResolvedVc<EcmascriptCssModule>]) -> Self {
+        let local_exports = group
             .iter()
-            .filter_map(|(export, classes)| match classes.first() {
-                Some(ModuleCssClass::Local { name }) => Some((name.as_str(), export.as_str())),
-                _ => None,
+            .filter_map(|module| {
+                let classes: &'a ExportClasses = flattener.modules.get(module)?;
+                let names = classes
+                    .iter()
+                    .filter_map(|(export, classes)| match classes.first() {
+                        Some(ModuleCssClass::Local { name }) => {
+                            Some((name.as_str(), export.as_str()))
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                Some((*module, names))
             })
             .collect();
         Self {
             flattener,
-            classes,
+            group: group.iter().copied().collect(),
             local_exports,
             memo: FxHashMap::default(),
             stack: FxIndexSet::default(),
         }
     }
 
-    /// Returns the expanded class names of `export`, and the lowest stack depth of a class that
-    /// was skipped because it is currently being expanded (a cycle), or `usize::MAX`.
-    fn visit(&mut self, export: &'a str) -> (Vec<&'a str>, usize) {
-        if let Some(names) = self.memo.get(export) {
+    /// Returns the expanded class names of `export` in `module`, and the lowest stack depth of a
+    /// class that was skipped because it is currently being expanded (a cycle), or `usize::MAX`.
+    fn visit(
+        &mut self,
+        module: ResolvedVc<EcmascriptCssModule>,
+        export: &'a str,
+    ) -> (Vec<&'a str>, usize) {
+        let key = (module, export);
+        if let Some(names) = self.memo.get(&key) {
             return (names.clone(), usize::MAX);
         }
-        if let Some(depth) = self.stack.get_index_of(export) {
+        if let Some(depth) = self.stack.get_index_of(&key) {
             return (Vec::new(), depth);
         }
-        let Some(classes) = self.classes.get(export) else {
+        let flattener = self.flattener;
+        let Some(classes) = flattener
+            .modules
+            .get(&module)
+            .and_then(|classes| classes.get(export))
+        else {
             return (Vec::new(), usize::MAX);
         };
 
-        self.stack.insert(export);
+        self.stack.insert(key);
         let mut names = FxIndexSet::default();
         let mut lowest = usize::MAX;
         for (i, class) in classes.iter().enumerate() {
@@ -301,10 +343,15 @@ impl<'f, 'a> ModuleExpander<'f, 'a> {
                 ModuleCssClass::Local { name } => {
                     // The first entry is the export's own class name.
                     let composed_export = (i > 0)
-                        .then(|| self.local_exports.get(name.as_str()).copied())
+                        .then(|| {
+                            self.local_exports
+                                .get(&module)
+                                .and_then(|exports| exports.get(name.as_str()))
+                                .copied()
+                        })
                         .flatten();
                     if let Some(composed_export) = composed_export {
-                        let (composed, low) = self.visit(composed_export);
+                        let (composed, low) = self.visit(module, composed_export);
                         lowest = lowest.min(low);
                         names.extend(composed);
                     } else {
@@ -317,8 +364,20 @@ impl<'f, 'a> ModuleExpander<'f, 'a> {
                 ModuleCssClass::Import { original, from } => {
                     // Unresolvable references have no edge in the module graph and are reported by
                     // `CssModuleComposeReference::resolve_reference`.
-                    if let Some(target) = self.flattener.targets.get(from) {
-                        names.extend(self.flattener.imported(*target, original));
+                    let Some(&target) = flattener.targets.get(from) else {
+                        continue;
+                    };
+                    if self.group.contains(&target) {
+                        let (composed, low) = self.visit(target, original);
+                        lowest = lowest.min(low);
+                        names.extend(composed);
+                    } else if let Some(composed) = flattener
+                        .flattened
+                        .get(&target)
+                        .and_then(|exports| exports.get(original.as_str()))
+                    {
+                        // Modules outside of the group are flattened before it.
+                        names.extend(composed.iter().copied());
                     }
                 }
             }
@@ -329,7 +388,7 @@ impl<'f, 'a> ModuleExpander<'f, 'a> {
         // A cycle-broken expansion depends on which export started the traversal, so it can't be
         // reused for another root without changing that root's pre-order.
         if lowest == usize::MAX {
-            self.memo.insert(export, names.clone());
+            self.memo.insert(key, names.clone());
         }
         (names, lowest)
     }

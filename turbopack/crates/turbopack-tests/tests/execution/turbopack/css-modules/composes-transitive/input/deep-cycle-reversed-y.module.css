@@ -1,0 +1,4 @@
+.b {
+  composes: c from './deep-cycle-reversed-x.module.css';
+  color: yellow;
+}
