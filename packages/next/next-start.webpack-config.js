@@ -8,6 +8,7 @@ const externalModules = [
   'build/next-config-ts',
   'build/swc',
   'cli',
+  'lib/upgrade',
   'next-devtools',
   'server/dev',
   'server/image-optimizer',
