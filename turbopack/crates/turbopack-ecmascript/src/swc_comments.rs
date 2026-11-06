@@ -213,28 +213,7 @@ impl Comments for ImmutableComments {
     }
 
     fn has_flag(&self, pos: BytePos, flag: &str) -> bool {
-        self.with_leading(pos, |cmts| {
-            for c in cmts {
-                if c.kind == CommentKind::Block {
-                    for line in c.text.lines() {
-                        // jsdoc
-                        let line = line.trim_start_matches(['*', ' ']);
-                        let line = line.trim();
-
-                        //
-                        if line.len() == (flag.len() + 5)
-                            && (line.starts_with("#__") || line.starts_with("@__"))
-                            && line.ends_with("__")
-                            && flag == &line[3..line.len() - 2]
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            false
-        })
+        self.with_leading(pos, |cmts| comments_have_flag(cmts, flag))
     }
 
     fn with_leading<F, Ret>(&self, pos: BytePos, f: F) -> Ret
@@ -263,6 +242,127 @@ impl Comments for ImmutableComments {
         } else {
             f(&[])
         }
+    }
+}
+
+/// Checks whether `comments` contain a `@__FLAG__` / `#__FLAG__` block comment, using the same
+/// matching rules as SWC's default [Comments::has_flag], but without mutating anything.
+fn comments_have_flag(comments: &[Comment], flag: &str) -> bool {
+    for c in comments {
+        if c.kind == CommentKind::Block {
+            for line in c.text.lines() {
+                // jsdoc
+                let line = line.trim_start_matches(['*', ' ']);
+                let line = line.trim();
+
+                //
+                if line.len() == (flag.len() + 5)
+                    && (line.starts_with("#__") || line.starts_with("@__"))
+                    && line.ends_with("__")
+                    && flag == &line[3..line.len() - 2]
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
+/// A read-only [Comments] view over several comment stores.
+///
+/// Some SWC transforms (e.g. the fixer) need to *read* comments to make correct decisions: the
+/// fixer keeps the parentheses around a `/* @__PURE__ */`-annotated callee, which would otherwise
+/// move the annotation onto the outer call. The comment stores at that point must not be changed
+/// ([ImmutableComments] can't be), so this adapter:
+///
+/// - answers `has_*` / `get_*` / `has_flag` by looking at every store and concatenating the results
+///   (`has_flag` is overridden because SWC's default implementation uses `take_leading` followed by
+///   `add_trailing_comments`),
+/// - ignores `move_*`: the fixer calls them for every pair of parentheses it removes, to move the
+///   comments from the paren span to the inner expression. Ignoring them keeps the comments at
+///   their original positions, which is what happened before the fixer saw any comments,
+/// - panics on every other mutation (`add_*`, `take_*`, `add_pure_comment`) to make sure it is
+///   never used where comments actually need to be changed.
+pub struct ReadOnlyComments<'a> {
+    stores: &'a [&'a dyn Comments],
+}
+
+impl<'a> ReadOnlyComments<'a> {
+    pub fn new(stores: &'a [&'a dyn Comments]) -> Self {
+        Self { stores }
+    }
+
+    fn collect(&self, f: impl Fn(&dyn Comments) -> Option<Vec<Comment>>) -> Option<Vec<Comment>> {
+        let mut result: Option<Vec<Comment>> = None;
+        for store in self.stores {
+            if let Some(c) = f(*store) {
+                result.get_or_insert_with(Vec::new).extend(c);
+            }
+        }
+        result
+    }
+}
+
+impl Comments for ReadOnlyComments<'_> {
+    fn add_leading(&self, _pos: BytePos, _cmt: Comment) {
+        panic!("ReadOnlyComments can't be mutated")
+    }
+
+    fn add_leading_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {
+        panic!("ReadOnlyComments can't be mutated")
+    }
+
+    fn has_leading(&self, pos: BytePos) -> bool {
+        self.stores.iter().any(|s| s.has_leading(pos))
+    }
+
+    fn move_leading(&self, _from: BytePos, _to: BytePos) {
+        // Intentionally ignored, see the type's documentation.
+    }
+
+    fn take_leading(&self, _pos: BytePos) -> Option<Vec<Comment>> {
+        panic!("ReadOnlyComments can't be mutated")
+    }
+
+    fn get_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        self.collect(|s| s.get_leading(pos))
+    }
+
+    fn add_trailing(&self, _pos: BytePos, _cmt: Comment) {
+        panic!("ReadOnlyComments can't be mutated")
+    }
+
+    fn add_trailing_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {
+        panic!("ReadOnlyComments can't be mutated")
+    }
+
+    fn has_trailing(&self, pos: BytePos) -> bool {
+        self.stores.iter().any(|s| s.has_trailing(pos))
+    }
+
+    fn move_trailing(&self, _from: BytePos, _to: BytePos) {
+        // Intentionally ignored, see the type's documentation.
+    }
+
+    fn take_trailing(&self, _pos: BytePos) -> Option<Vec<Comment>> {
+        panic!("ReadOnlyComments can't be mutated")
+    }
+
+    fn get_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
+        self.collect(|s| s.get_trailing(pos))
+    }
+
+    fn add_pure_comment(&self, _pos: BytePos) {
+        panic!("ReadOnlyComments can't be mutated")
+    }
+
+    fn has_flag(&self, pos: BytePos, flag: &str) -> bool {
+        self.stores.iter().any(|s| {
+            s.get_leading(pos)
+                .is_some_and(|cmts| comments_have_flag(&cmts, flag))
+        })
     }
 }
 

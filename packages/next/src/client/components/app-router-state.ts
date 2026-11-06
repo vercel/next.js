@@ -519,6 +519,58 @@ async function navigateToUnknownRoute(
       break
   }
 
+  if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    preparation !== null &&
+    freshnessPolicy === FreshnessPolicy.CommitPrepared
+  ) {
+    // This is a prepared navigation, but we didn't find a matching route in
+    // the route cache. This can sometimes happen if the previous route was
+    // evicted since the preparation began, but there's only one place where
+    // it happens in practice: the InliningHintsStale case, which the server
+    // sends to indicate that the prefetching hints cannot be trusted. A
+    // proper fix would allow the route to be marked invalid for a prefetch
+    // without marking it invalid for a regular navigation.
+    //
+    // For now, we allow whichever route was fetched during prepare to be
+    // passed straight through to the rest of the navigation algorithm. This
+    // is essentially what would happen during a regular navigation anyway; in
+    // this case it's just been decomposed into two separate stages.
+    //
+    // TODO: Remove this whole branch once we get rid of the InliningHintsStale
+    // mechanism. Refer to that code for more background.
+    const completed = preparation.completedNavigation
+    preparation.completedNavigation = null
+    if (
+      completed !== null &&
+      // Same conditions as taking over an in-flight request: the response was
+      // made against the current tree, and the BFCache wasn't invalidated.
+      completed.requestTree === dynamicRequestTree &&
+      preparation.bfcacheVersion === getBFCacheVersion()
+    ) {
+      return navigateToKnownRoute(
+        now,
+        state,
+        url,
+        completed.canonicalUrl,
+        completed.navigationSeed,
+        currentUrl,
+        currentRenderedSearch,
+        currentRoot,
+        freshnessPolicy,
+        nextUrl,
+        scrollBehavior,
+        navigateType,
+        navigationLock,
+        map,
+        completed.debugInfo,
+        null,
+        undefined,
+        preparation
+      )
+    }
+  }
+
   let result: FetchServerResponseResult
   if (!process.env.__NEXT_PREPARE_NAVIGATION || preparation === null) {
     result = await fetchServerResponse(url, {
@@ -669,6 +721,20 @@ async function navigateToUnknownRoute(
     // before the write. The result of the prepare phase is discarded, so it
     // doesn't matter what state is returned.
     return state
+  }
+
+  if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    preparation !== null &&
+    freshnessPolicy === FreshnessPolicy.Prepare
+  ) {
+    // Save the processed response for the commit. See completedNavigation.
+    preparation.completedNavigation = {
+      navigationSeed,
+      canonicalUrl: createHrefFromUrl(canonicalUrl),
+      debugInfo,
+      requestTree: dynamicRequestTree,
+    }
   }
 
   return navigateToKnownRoute(

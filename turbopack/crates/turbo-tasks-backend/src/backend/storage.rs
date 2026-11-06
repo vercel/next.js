@@ -723,26 +723,6 @@ impl Storage {
             // avoid a lock cycle with get_or_create_persistent_task, which takes task_cache
             // before map. Allocated lazily on first conflict.
             let mut deferred_task_cache_removals: Vec<CachedTaskTypeArc> = Vec::new();
-            // Remove a task type from `task_cache`, deferring on contention. Shared by the
-            // GC-deleted path below and the ordinary key eviction.
-            let remove_from_task_cache =
-                |evicted: &mut EvictionCounts,
-                 deferred: &mut Vec<CachedTaskTypeArc>,
-                 task_type: &CachedTaskTypeArc| {
-                    match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
-                        TryLockAndRemove::Removed => {
-                            evicted.key_evictions += 1;
-                        }
-                        TryLockAndRemove::NotFound => {
-                            // Generally this should be rare, it more or less implies something
-                            // else is concurrently holding the Arc
-                        }
-                        TryLockAndRemove::WouldBlock => {
-                            // Contention, to avoid a deadlock just defer
-                            deferred.push(task_type.clone());
-                        }
-                    }
-                };
             shard.retain(|(task_id, task)| {
                 // Transient tasks can not be evicted at all, unless they are fully
                 // delete by the GC.
@@ -760,14 +740,10 @@ impl Storage {
                             [UnevictableReason::MarkedForDeletion.index()] += 1;
                         return true;
                     }
-                    // Tombstoned, or never persisted: nothing on disk to protect.
-                    if let Some(task_type) = task.get_persistent_task_type() {
-                        remove_from_task_cache(
-                            &mut evicted,
-                            &mut deferred_task_cache_removals,
-                            task_type,
-                        );
-                    }
+                    // Tombstoned, or never persisted: nothing on disk to protect. GC already
+                    // removed it from `task_cache`, so nothing can hand out its
+                    // id, and `task_by_type` finds nothing once the tombstone
+                    // is committed.
                     evicted.full += 1;
                     return false;
                 }
@@ -782,11 +758,19 @@ impl Storage {
                         // Because `get_or_create_task` acquires 'task_cache' then `storage.map` and
                         // we do the opposite we need to be defensive here.  Attempting here is just
                         // an optimization to avoid pushing into `deferred_task_cache_removals`
-                        remove_from_task_cache(
-                            &mut evicted,
-                            &mut deferred_task_cache_removals,
-                            task_type,
-                        );
+                        match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
+                            TryLockAndRemove::Removed => {
+                                evicted.key_evictions += 1;
+                            }
+                            TryLockAndRemove::NotFound => {
+                                // Generally this should be rare, it more or less implies something
+                                // else is concurrently holding the Arc
+                            }
+                            TryLockAndRemove::WouldBlock => {
+                                // Contention, to avoid a deadlock just defer
+                                deferred_task_cache_removals.push(task_type.clone());
+                            }
+                        }
                     }
                     KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
                 }

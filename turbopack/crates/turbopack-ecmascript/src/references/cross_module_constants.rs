@@ -217,11 +217,6 @@ pub async fn get_constants(
     let arena = ThreadLocal::new();
 
     let var_graph = {
-        let supports_block_scoping = *compile_time_info
-            .environment()
-            .runtime_versions()
-            .supports_block_scoping()
-            .await?;
         let _span = tracing::trace_span!("analyze variable values").entered();
         GLOBALS.set(globals, || {
             create_graph(
@@ -229,7 +224,6 @@ pub async fn get_constants(
                 program,
                 eval_context,
                 AnalyzeMode::tracing(),
-                supports_block_scoping,
                 // This is currently ignored with cjs_tree_shaking:false
                 SpecifiedModuleType::Automatic,
                 // TODO enable CJS tree shaking here

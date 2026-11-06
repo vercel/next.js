@@ -118,6 +118,7 @@ One line per rule, with its signs. Open a rule's file before you raise a finding
 - [flags-wired-end-to-end](review/rules/flags-wired-end-to-end.md) **strong when broken**: a flag has its config type, zod schema, and define-env or runtime env. Wiring it correctly costs nothing. Signs: a new `experimental.*` key with no schema entry; a flag read in client code with no define-env entry.
 - [dce-safe-requires](review/rules/dce-safe-requires.md) **medium**: a Node-only `require('./file')` sits in the dead branch of an `if/else` on a compile-time env. Signs: the `require()` follows an early `return` or `throw`; a bare `if` around a file `require()`.
 - [page-weight](review/rules/page-weight.md) **medium**: bytes added to every page's HTML, the shared client runtime, or every RSC payload are quantified and justified. Signs: a new inline `<script>`, bootstrap code, or always-sent field; a "Rendered Page Sizes" or "Client Bundles (main)" increase in the stats comment that the description doesn't mention.
+- [no-nextjs-in-turbopack](review/rules/no-nextjs-in-turbopack.md) **strong**, even when the author owns the area: code under `turbopack/` stays general-purpose. Next.js picks behavior through generic Turbopack options set from `crates/`. Signs: a new Next.js-specific variant, field, file convention, check, or config option in a `turbopack/` crate. Benchmark and trace tooling that reads Next.js output doesn't count.
 
 **Scope and description**
 
