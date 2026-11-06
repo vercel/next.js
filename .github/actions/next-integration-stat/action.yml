@@ -16,5 +16,5 @@ inputs:
     description: 'Whether to include the full test failure message in the report. This is currently disabled as we have too many failed test cases, which would lead to massive comments.'
 
 runs:
-  using: node20
+  using: node24
   main: dist/index.js

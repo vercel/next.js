@@ -20,7 +20,7 @@ describe('next.config evaluation error', () => {
         'next.config.js',
         `
         module.exports = () => {
-          return { foo: new Uint8Array(5_000_000_000) }
+          return { foo: new Uint8Array(-1) }
         }
       `
       )
@@ -36,7 +36,7 @@ describe('next.config evaluation error', () => {
       await next.patchFile(
         'next.config.js',
         `
-        const buf = new Uint8Array(5_000_000_000)
+        const buf = new Uint8Array(-1)
         module.exports = { foo: buf }
       `
       )

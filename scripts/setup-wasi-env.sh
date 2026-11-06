@@ -80,8 +80,7 @@ setup_wasi_env() {
     printf '{\n  "name": "emnapi-scratch",\n  "private": true\n}\n' > "$emnapi_dir/package.json" || return 1
     # pnpm is invoked from the repository root with --dir rather than by cd'ing into the scratch
     # directory: corepack resolves the pnpm version from the nearest package.json, and outside the
-    # repo there is none, so it would pick the latest pnpm (11.x), which cannot run on the pinned
-    # Node 20 (ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING).
+    # repo there is none, so it would pick the latest pnpm instead of the pinned one.
     (cd "$repo_root" && pnpm --dir "$emnapi_dir" add "emnapi@${emnapi_version}") || return 1
   fi
   export EMNAPI_LINK_DIR="$emnapi_dir/node_modules/emnapi/lib/wasm32-wasip1-threads"
