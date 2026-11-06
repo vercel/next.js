@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/max_chunk_size_remainder/input/other/b1.js"],"sourcesContent":["import { b1 } from '../b/b1.js'\n\nexport const other = b1\n"],"names":["other"],"mappings":";;;;AAAA;;AAEO,MAAMA,QAAQ,uNAAE"}}]
+}

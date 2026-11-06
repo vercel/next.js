@@ -328,13 +328,17 @@ pub async fn make_chunks(
         let ty_name = ty.to_string().await?;
         let span = tracing::trace_span!("make chunks for type", name = display(&ty_name));
         async {
+            let chunking_config = chunking_configs.get(&ty);
             let mut split_context = SplitContext {
                 ty,
                 chunking_context,
                 chunks: &mut chunks,
+                min_component_chunk_size: chunking_config
+                    .filter(|config| config.generate_component_chunks)
+                    .map(|config| config.min_component_chunk_size),
             };
 
-            if let Some(chunking_config) = chunking_configs.get(&ty) {
+            if let Some(chunking_config) = chunking_config {
                 // Production chunking
                 if *ty.is_style().await? {
                     make_style_production_chunks(
@@ -401,6 +405,9 @@ struct SplitContext<'a> {
     // resolution of `chunks` is deferred so it can be done with `try_join` at the end, letting as
     // much work happen in parallel as possible.
     chunks: &'a mut Vec<Vc<Box<dyn Chunk>>>,
+    /// When set, merged chunks also emit their constituent component chunks (see
+    /// [`make_chunk`]), with this minimum size for a component chunk to be emitted on its own.
+    min_component_chunk_size: Option<usize>,
 }
 
 fn build_chunk(
@@ -433,15 +440,74 @@ type ComponentChunkItems<'l> = (
     Vec<ResolvedVc<ChunkItemBatchGroup>>,
 );
 
+/// One original (pre-merge) chunk that is part of a (merged) chunk. A merged chunk can also expose
+/// them as individual component chunks for cache-aware loading at runtime.
+struct ChunkComponent<'l> {
+    size: usize,
+    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+    batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
+}
+
+/// Groups the `components` of a merged chunk into component chunks. Components smaller than
+/// `min_component_chunk_size` are folded into a single remainder component chunk. Returns `None`
+/// when there would be less than two component chunks, since that has no benefit.
+fn split_into_component_chunks<'l>(
+    components: Vec<ChunkComponent<'l>>,
+    min_component_chunk_size: usize,
+) -> Option<Vec<ComponentChunkItems<'l>>> {
+    // A single original part can't benefit from splitting.
+    if components.len() <= 1 {
+        return None;
+    }
+    let mut component_chunks: Vec<ComponentChunkItems<'l>> = Vec::new();
+    let mut remainder_items: Vec<&'l ChunkItemOrBatchWithInfo> = Vec::new();
+    let mut remainder_batch_groups = FxIndexSet::default();
+    for part in components {
+        if part.size >= min_component_chunk_size {
+            component_chunks.push((part.chunk_items, part.batch_groups.into_vec()));
+        } else {
+            // we create a "remainder" chunk with smaller component chunks so that
+            // an entire chunk can be loaded by loading all of its component chunks
+            remainder_items.extend(part.chunk_items);
+            remainder_batch_groups.extend(part.batch_groups);
+        }
+    }
+
+    // TODO (@sampoder): handle the case where there are many the component chunks
+    // that are only slightly smaller than the min_component_chunk_size. this may
+    // mean that there is no benefit to component chunking.
+    if !remainder_items.is_empty() {
+        component_chunks.push((
+            remainder_items,
+            remainder_batch_groups.into_iter().collect(),
+        ));
+    }
+    // A split is only worthwhile if it yields more than one component chunk.
+    if component_chunks.len() <= 1 {
+        None
+    } else {
+        Some(component_chunks)
+    }
+}
+
 /// Creates a chunk with the given `chunk_items. `key` should be unique.
+///
+/// `components` are the original chunks a merged chunk was created from. When component chunks are
+/// enabled in the `split_context`, they are also emitted as component chunks of the chunk.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(key = display(key)))]
 async fn make_chunk(
     chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
-    components: Vec<ComponentChunkItems<'_>>,
+    components: Vec<ChunkComponent<'_>>,
     key: &mut String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
+    let components = split_context
+        .min_component_chunk_size
+        .and_then(|min_component_chunk_size| {
+            split_into_component_chunks(components, min_component_chunk_size)
+        })
+        .unwrap_or_default();
     let mut component_chunks = Vec::with_capacity(components.len());
     for (component_items, component_batch_groups) in components {
         component_chunks.push(
