@@ -82,6 +82,7 @@ export type ToolingSpanSource = {
   parentId?: SpanId
   startTime: bigint
   wallStartTimeMs: number
+  recordSpans?: import('../server/lib/trace/local-span-recorder').LocalSpanDelivery
 }
 
 export function captureToolingSpanSource(

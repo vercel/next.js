@@ -490,18 +490,18 @@ class NextTracerImpl implements NextTracer {
     const spanName = options.spanName ?? type
 
     const toolingRecorder = tooling ? getToolingSpanRecorder() : undefined
-    const candidateParent = tooling
-      ? options.parent === undefined
-        ? toolingRecorder?.getActiveLocalSpan()
-        : options.parent
-      : (options.parentSpan ?? this.getRequestScopeSpan())
-    const parentSpan = tooling
-      ? candidateParent &&
-        typeof candidateParent === 'object' &&
-        toolingRecorder?.getToolingSpanSource(candidateParent)
-        ? candidateParent
-        : undefined
-      : (candidateParent as Span | undefined)
+    let parentSpan: Span | undefined
+    if (tooling) {
+      const candidateParent =
+        options.parent === undefined
+          ? toolingRecorder?.getActiveLocalSpan()
+          : options.parent
+      if (candidateParent && typeof candidateParent === 'object') {
+        parentSpan = candidateParent
+      }
+    } else {
+      parentSpan = options.parentSpan ?? this.getRequestScopeSpan()
+    }
     const isolatedParentSpan =
       parentSpan && localSpanRecorder?.isOpenTelemetryIsolatedSpan(parentSpan)
         ? parentSpan
@@ -519,11 +519,14 @@ class NextTracerImpl implements NextTracer {
     }
 
     // Local-only parentage must not change the public SDK context.
-    const spanContext = tooling
-      ? ROOT_CONTEXT
-      : !isolatedParentSpan && options.parentSpan
-        ? this.getSpanContext(options.parentSpan)
-        : context.active()
+    let spanContext: Context
+    if (tooling) {
+      spanContext = ROOT_CONTEXT
+    } else if (!isolatedParentSpan && options.parentSpan) {
+      spanContext = this.getSpanContext(options.parentSpan)
+    } else {
+      spanContext = context.active()
+    }
 
     // Check if there's already a root span in the store for this trace
     // We are intentionally not checking whether there is an active context
@@ -735,6 +738,17 @@ class NextTracerImpl implements NextTracer {
           monotonicStartTime: options.monotonicStartTime,
           wallStartTimeMs: options.wallStartTimeMs,
         })
+        const source = recorder.getToolingSpanSource(span)!
+        if (process.env.__NEXT_DEV_SERVER) {
+          const { captureToolingSpanRecorder } =
+            require('./request-span-recorder') as typeof import('./request-span-recorder')
+          source.recordSpans = captureToolingSpanRecorder(
+            span,
+            parentSpan,
+            name,
+            type
+          )
+        }
 
         return span
       } else {
@@ -842,9 +856,7 @@ class NextTracerImpl implements NextTracer {
           ? recorder.getActiveLocalSpan()
           : options.parent
       const parentSpan =
-        candidateParent &&
-        typeof candidateParent === 'object' &&
-        recorder.getToolingSpanSource(candidateParent)
+        candidateParent && typeof candidateParent === 'object'
           ? candidateParent
           : undefined
       return this.createLocalRecordingSpan(

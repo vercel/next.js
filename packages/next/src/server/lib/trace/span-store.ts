@@ -54,6 +54,7 @@ export type SpanStoreRecord = {
   requestInsightKind?: RequestInsightKind
   requestInsightSource?: RequestInsightSource
   requestInsightProxyStatus?: RequestInsightProxyStatus
+  requestInsightRoot?: boolean
   htmlRequestId?: string
   route?: string
   url?: string
@@ -144,6 +145,39 @@ export function recordSpans(
         // start and map both endpoints to the local monotonic clock together.
         const correction =
           process.hrtime.bigint() - BigInt(Date.now()) * nsPerMs
+        if (observation.name === 'client-hmr-latency') {
+          const span = toolingRecorder.createLocalSpan({
+            name: observation.name,
+            startTime: observation.startTime
+              ? Number(observation.startTime / nsPerMs)
+              : undefined,
+            attributes: observation.attributes,
+            parent: args[2],
+            monotonicStartTime: observation.startTime
+              ? observation.startTime + correction
+              : undefined,
+            wallStartTimeMs: observation.startTime
+              ? Number(observation.startTime / nsPerMs)
+              : undefined,
+          })
+          if (process.env.__NEXT_DEV_SERVER) {
+            const { captureToolingSpanRecorder } =
+              require('./request-span-recorder') as typeof import('./request-span-recorder')
+            getToolingSpanSource(span)!.recordSpans =
+              captureToolingSpanRecorder(
+                span,
+                undefined,
+                observation.name,
+                observation.name
+              )
+          }
+          span.end(
+            observation.endTime
+              ? toolingSpanTime(observation.endTime + correction)
+              : undefined
+          )
+          continue
+        }
         const source = captureToolingSpanSource(
           {
             monotonicStartTime: observation.startTime

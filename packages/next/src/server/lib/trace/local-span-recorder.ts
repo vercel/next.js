@@ -482,12 +482,23 @@ export class LocalRecordingSpan implements Span {
   }
 
   private record(endTime: Parameters<Span['end']>[0]): void {
+    let completedAt = getTimestamp(endTime)
+    let startTime = this.startTime
     const source = toolingSources.get(this)
     if (source && process.env.NEXT_RUNTIME !== 'edge') {
       const { completeToolingSpan } = (toolingTracing ??=
         require('../../../trace/trace') as typeof import('../../../trace/trace'))
-      completeToolingSpan(source, this.name, this.attributes, endTime)
-      return
+      const event = completeToolingSpan(
+        source,
+        this.name,
+        this.attributes,
+        endTime
+      )
+      startTime = source.wallStartTimeMs
+      completedAt = startTime + event.duration / 1000
+      this.recordSpans = source.recordSpans
+      source.recordSpans = undefined
+      if (!this.recordSpans) return
     }
     const recordAttributes =
       Object.keys(this.attributes).length > 0 ? this.attributes : undefined
@@ -496,8 +507,8 @@ export class LocalRecordingSpan implements Span {
       {
         timestamp: getTimestamp(),
         name: this.name,
-        startTime: this.startTime,
-        durationMs: Math.max(0, getTimestamp(endTime) - this.startTime),
+        startTime,
+        durationMs: Math.max(0, completedAt - startTime),
         status: this.statusCode === SPAN_STATUS_ERROR ? 'error' : 'ok',
         traceId: this.spanContextValue.traceId,
         spanId: this.spanContextValue.spanId,
