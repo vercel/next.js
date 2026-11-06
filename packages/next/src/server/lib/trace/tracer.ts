@@ -1,12 +1,14 @@
 import type { FetchEventResult } from '../../web/types'
 import type { TextMapSetter } from '@opentelemetry/api'
-import type { SpanTypes, ToolingSpan } from './constants'
+import { api, getTracerInstance } from './otel-api'
+import type { SpanTypes } from './constants'
 import type { LocalSpanRecorder } from './request-span-recorder'
 import type { LocalSpanTiming } from '../../../trace/trace'
 import type { SpanId } from '../../../trace/types'
 import {
   LogSpanAllowList,
   NextVanillaSpanAllowlist,
+  ToolingSpan,
   ToolingSpanTypes,
 } from './constants'
 
@@ -49,26 +51,6 @@ function getToolingSpanRecorder() {
   } else {
     return undefined
   }
-}
-
-let api: typeof import('@opentelemetry/api')
-
-// Prefer the application's API version so its SDK and propagators remain in
-// control. Edge bundles provide that dependency; Node retains the bundled
-// fallback used by the Next tracer.
-if (process.env.NEXT_RUNTIME === 'edge') {
-  api = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
-} else {
-  try {
-    api = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
-  } catch {
-    api =
-      require('next/dist/compiled/@opentelemetry/api') as typeof import('next/dist/compiled/@opentelemetry/api') as unknown as typeof import('@opentelemetry/api')
-  }
-}
-
-function getTracerInstance() {
-  return api.trace.getTracer('next.js', process.env.__NEXT_VERSION)
 }
 
 const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
@@ -749,7 +731,23 @@ class NextTracerImpl implements NextTracer {
             type
           )
         }
-
+        if (process.env.NEXT_EXPERIMENTAL_OTEL_TOOLING === '1') {
+          const { selectToolingSpanSource } =
+            require('../../../trace/trace') as typeof import('../../../trace/trace')
+          selectToolingSpanSource(source)
+          source.reporting = (
+            require('../../../trace/otel') as typeof import('../../../trace/otel')
+          ).startSpan({
+            name,
+            id: source.id,
+            parentId: source.parentId,
+            startTime: source.startTime,
+            reportingParent: source.reportingParent,
+            reportingRoot:
+              type === ToolingSpan.nextBuild ||
+              type === ToolingSpan.startDevServer,
+          })
+        }
         return span
       } else {
         throw new Error('Tooling spans are not available in the Edge runtime')

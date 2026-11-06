@@ -2399,6 +2399,16 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
+      if (process.env.NEXT_EXPERIMENTAL_OTEL_TOOLING === '1') {
+        const { registerToolingBuildInstrumentation } =
+          require('../server/lib/router-utils/instrumentation-globals.external') as typeof import('../server/lib/router-utils/instrumentation-globals.external')
+        await registerToolingBuildInstrumentation(
+          dir,
+          distDir,
+          hasInstrumentationHook
+        )
+      }
+
       staticWorker = createStaticWorker(config, {
         numberOfWorkers,
         debuggerPortOffset: getNextBuildDebuggerPortOffset({
@@ -5068,7 +5078,11 @@ export default async function build(
 
     // Ensure all buffered spans are on disk before `uploadTrace` reads the file.
     flushAllTraces()
-
+    if (process.env.NEXT_EXPERIMENTAL_OTEL_TOOLING === '1') {
+      const { flushReporting } =
+        require('../trace/otel') as typeof import('../trace/otel')
+      await flushReporting()
+    }
     teardownTraceSubscriber()
 
     if (traceUploadUrl && loadedConfig) {
