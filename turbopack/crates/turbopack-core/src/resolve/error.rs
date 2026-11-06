@@ -11,8 +11,8 @@ use crate::{
     },
     reference_type::ReferenceType,
     resolve::{
-        ModuleResolveResult, ResolveErrorMode, ResolveResult, options::ResolveOptions,
-        parse::Request,
+        ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode, ResolveResult,
+        options::ResolveOptions, parse::Request,
     },
 };
 
@@ -39,6 +39,40 @@ pub async fn handle_resolve_error(
                 )
                 .await?;
             }
+
+            // A file that no module type applies to has no module in the module graph, so
+            // no import trace leads to it. Keep the location of the import with it, so that
+            // it is reported there if it turns out to be needed as a module.
+            let result = if let Some(source) = source
+                && result_ref.primary.iter().any(|(_, item)| {
+                    matches!(item, ModuleResolveResultItem::Unknown { import: None, .. })
+                }) {
+                ModuleResolveResult {
+                    primary: result_ref
+                        .primary
+                        .iter()
+                        .map(|(key, item)| {
+                            (
+                                key.clone(),
+                                match item {
+                                    ModuleResolveResultItem::Unknown {
+                                        source: file,
+                                        import: None,
+                                    } => ModuleResolveResultItem::Unknown {
+                                        source: *file,
+                                        import: Some(source),
+                                    },
+                                    item => item.clone(),
+                                },
+                            )
+                        })
+                        .collect(),
+                    affecting_sources: result_ref.affecting_sources.clone(),
+                }
+                .cell()
+            } else {
+                result
+            };
 
             handle_item_issues(result_ref.errors(), &origin_path, source).await?;
 

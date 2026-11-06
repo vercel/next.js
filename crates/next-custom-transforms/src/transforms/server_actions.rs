@@ -48,8 +48,71 @@ pub struct Config {
     pub is_react_server_layer: bool,
     pub is_development: bool,
     pub use_cache_enabled: bool,
-    pub hash_salt: String,
-    pub cache_kinds: FxHashSet<RcStr>,
+    /// The salt mixed into every generated server reference ID. Only read when the transform
+    /// generates a server reference ID, i.e. for modules with `"use server"` or `"use cache"`
+    /// functions.
+    pub hash_salt: LazyValue<RcStr>,
+    /// The known custom cache kinds. Only read for `"use cache: <kind>"` directives.
+    pub cache_kinds: LazyValue<FxHashSet<RcStr>>,
+}
+
+/// Provides a [lazy](LazyValue::lazy) config value. `get` is only called when the transform needs
+/// the value, so an implementation can track whether the value was used (e.g. Turbopack's
+/// `LazyReadRef`).
+pub trait LazyGet<T>: Send + Sync {
+    fn get(&self) -> &T;
+}
+
+/// A config value that is either given directly or only accessed when needed.
+///
+/// A [lazy](LazyValue::lazy) value allows callers to avoid depending on values the transform only
+/// needs for some modules. It deserializes transparently from the plain value.
+pub enum LazyValue<T> {
+    Value(Arc<T>),
+    Lazy(Arc<dyn LazyGet<T>>),
+}
+
+impl<T> LazyValue<T> {
+    /// A value that is provided by `get` when the transform needs it.
+    pub fn lazy(get: Arc<dyn LazyGet<T>>) -> Self {
+        Self::Lazy(get)
+    }
+
+    /// Returns the value. For a lazy value, this marks it as used.
+    pub fn get(&self) -> &T {
+        match self {
+            Self::Value(value) => value,
+            Self::Lazy(get) => get.get(),
+        }
+    }
+}
+
+impl<T> Clone for LazyValue<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Value(value) => Self::Value(value.clone()),
+            Self::Lazy(get) => Self::Lazy(get.clone()),
+        }
+    }
+}
+
+impl<T> From<T> for LazyValue<T> {
+    fn from(value: T) -> Self {
+        Self::Value(Arc::new(value))
+    }
+}
+
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for LazyValue<T> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        T::deserialize(deserializer).map(Self::from)
+    }
+}
+
+impl<T> std::fmt::Debug for LazyValue<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Don't print the value: it can be a secret (e.g. the server actions encryption key).
+        f.write_str("LazyValue(..)")
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -296,7 +359,7 @@ impl<C: Comments> ServerActions<C> {
         // Currently encoded as hex.
 
         let mut hasher = Sha1::new();
-        hasher.update(self.config.hash_salt.as_bytes());
+        hasher.update(self.config.hash_salt.get().as_bytes());
         hasher.update(self.file_name.as_bytes());
         hasher.update(b":");
 
@@ -3485,7 +3548,7 @@ impl DirectiveVisitor<'_> {
                             let cache_kind = RcStr::from(rest.split_at(": ".len()).1.to_string());
 
                             if !cache_kind.is_empty() {
-                                if !self.config.cache_kinds.contains(&cache_kind) {
+                                if !self.config.cache_kinds.get().contains(&cache_kind) {
                                     emit_error(ServerActionsErrorKind::UnknownCacheKind {
                                         span: *span,
                                         cache_kind: cache_kind.clone(),

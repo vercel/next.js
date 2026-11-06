@@ -383,6 +383,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
+            self.project().client_source_map_generation_options(),
         ))
     }
 
@@ -471,6 +472,7 @@ impl PagesProject {
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
             *self.project().should_write_nft_manifests().await?,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -490,6 +492,7 @@ impl PagesProject {
             self.project().client_compile_time_info().environment(),
             // There is no NFT on edge,
             false,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -508,6 +511,7 @@ impl PagesProject {
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
             *self.project().should_write_nft_manifests().await?,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -527,6 +531,7 @@ impl PagesProject {
             self.project().client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -1443,6 +1448,8 @@ impl PageEndpoint {
             client_relative_path,
             pages,
             polyfill_files: Default::default(),
+            // App Router only for now; the Pages Router still inlines React's instructions.
+            external_browser_runtime_file: None,
             root_main_files: Default::default(),
             root_main_files_per_page: Default::default(),
             pages_chunk_group_bootstrap_params,

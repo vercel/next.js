@@ -503,6 +503,23 @@ impl DiskFileSystem {
         Ok(())
     }
 
+    /// Track a file consumed by an external reader (for example a compiler subprocess).
+    /// Unlike depending on `read()`, this invalidates the calling task for every file event,
+    /// including an edit that restores identical bytes. Call before accessing the OS path.
+    pub async fn track_file(&self, path: &FileSystemPath) -> Result<()> {
+        self.inner
+            .register_read_invalidator(&Arc::new(self.to_sys_path_raw(path)))
+            .await
+    }
+
+    /// Track directory membership consumed by an external reader. Missing directories are
+    /// watched through their nearest existing parent, just like ordinary filesystem reads.
+    pub async fn track_directory(&self, path: &FileSystemPath) -> Result<()> {
+        self.inner
+            .register_dir_invalidator(&Arc::new(self.to_sys_path_raw(path)))
+            .await
+    }
+
     pub fn invalidate(&self) {
         self.inner.invalidate();
     }
@@ -1354,25 +1371,46 @@ impl FileSystem for DiskFileSystem {
                     PersistedFileContent::Content(..) => {
                         let content = content.clone();
 
+                        fn write_file(path: &Path, file: &File) -> io::Result<()> {
+                            let write = |output: &mut std::fs::File| {
+                                std::io::copy(&mut file.read(), output)?;
+                                #[cfg(unix)]
+                                output.set_permissions(file.meta.permissions.into())?;
+                                output.flush()
+                            };
+
+                            #[cfg(any(unix, windows))]
+                            if file.meta.permissions == crate::Permissions::Executable {
+                                // Replace the executable instead of truncating it, so a running
+                                // Unix binary can keep using the previous file.
+                                let mut temporary = tempfile::NamedTempFile::new_in(
+                                    path.parent().ok_or(ErrorKind::InvalidInput)?,
+                                )?;
+                                write(temporary.as_file_mut())?;
+                                return temporary
+                                    .into_temp_path()
+                                    .persist(path)
+                                    .map_err(|error| error.error);
+                            }
+
+                            write(&mut std::fs::File::create(path)?)
+                        }
+
                         let mut missing_parent_dir = false;
                         let do_write = || {
                             if missing_parent_dir && let Some(parent) = full_path.parent() {
                                 std::fs::create_dir_all(parent)?;
                                 missing_parent_dir = false;
                             }
-                            let mut f = std::fs::File::create(&**full_path).inspect_err(|err| {
+                            let PersistedFileContent::Content(file) = &*content else {
+                                unreachable!()
+                            };
+                            write_file(full_path, file).inspect_err(|err| {
                                 if err.kind() == ErrorKind::NotFound {
                                     // create the parent dirs in the next attempt
                                     missing_parent_dir = true;
                                 }
                             })?;
-                            let PersistedFileContent::Content(file) = &*content else {
-                                unreachable!()
-                            };
-                            std::io::copy(&mut file.read(), &mut f)?;
-                            #[cfg(unix)]
-                            f.set_permissions(file.meta.permissions.into())?;
-                            f.flush()?;
 
                             static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
                                 std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
@@ -1389,11 +1427,7 @@ impl FileSystem for DiskFileSystem {
                                 }
                                 full_path.set_extension(ext);
                                 validate_path_length(&full_path)?;
-                                let mut f = std::fs::File::create(&*full_path)?;
-                                std::io::copy(&mut file.read(), &mut f)?;
-                                #[cfg(unix)]
-                                f.set_permissions(file.meta.permissions.into())?;
-                                f.flush()?;
+                                write_file(&full_path, file)?;
                             }
                             Ok::<(), io::Error>(())
                         };
@@ -1764,6 +1798,70 @@ mod tests {
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
         let _ = op.resolve().strongly_consistent().await?;
         Ok(take_effects(op).await?.cell())
+    }
+
+    #[cfg(not(miri))]
+    #[turbo_tasks::function(operation, root)]
+    fn external_tracking_filesystem(root: RcStr) -> Vc<DiskFileSystem> {
+        DiskFileSystem::new_with_options(
+            rcstr!("external-tracking"),
+            Vc::cell(root),
+            Vec::new(),
+            DiskWatcherConfig {
+                // Registration must walk back to the canonical root on Windows too.
+                recursive_mode: Some(crate::DiskWatcherRecursiveMode::NonRecursive),
+                ..Default::default()
+            },
+            DiskFileSystemMap::empty(),
+        )
+    }
+
+    #[cfg(not(miri))] // Native filesystem watchers are unavailable under Miri.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn external_tracking_uses_internal_paths() -> Result<()> {
+        let scratch = tempfile::tempdir()?;
+        let root = std::fs::canonicalize(scratch.path())?;
+        std::fs::create_dir(root.join("nested"))?;
+        std::fs::write(root.join("nested/input.txt"), "input")?;
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = external_tracking_filesystem(RcStr::from(root.to_str().unwrap()))
+                .resolve()
+                .strongly_consistent()
+                .await?;
+            let root_path = FileSystemPath {
+                fs: ResolvedVc::upcast(fs),
+                path: rcstr!(""),
+            };
+            let fs = fs.await?;
+            fs.start_watching().await?;
+            let file = root_path.join("nested/input.txt")?;
+            let directory = root_path.join("nested")?;
+            assert!(turbo_tasks::get_invalidator().is_some());
+            fs.track_file(&file).await?;
+            fs.track_directory(&directory).await?;
+            // Watcher events and writes use these same raw paths as invalidation keys.
+            assert!(
+                fs.inner
+                    .invalidator_map
+                    .lock()
+                    .unwrap()
+                    .contains_key(fs.to_sys_path_raw(&file).as_path())
+            );
+            assert!(
+                fs.inner
+                    .dir_invalidator_map
+                    .lock()
+                    .unwrap()
+                    .contains_key(fs.to_sys_path_raw(&directory).as_path())
+            );
+            fs.stop_watching().await;
+            anyhow::Ok(())
+        })
+        .await
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

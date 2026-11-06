@@ -39,34 +39,6 @@ fn is_isolated_merged_group_for_parent(
     )
 }
 
-/// The chunk groups a client reference's merged group may hang off.
-///
-/// A client reference is reached from its source module, which can sit in several chunk groups
-/// when the reference is shared between routes. When the reference belongs to a server component,
-/// the relevant groups are the ones that contain that server component too.
-///
-/// An empty intersection is not an error: in a development module graph the source module and the
-/// server component do not necessarily share a chunk group, and framework-level references have no
-/// server component at all. Falling back to the source module's own groups is the conservative
-/// choice -- the reference is still chunked, just not narrowed to the component's groups.
-fn relevant_parent_indices(
-    source_indices: FxIndexSet<u32>,
-    server_component_indices: Option<&FxIndexSet<u32>>,
-) -> FxIndexSet<u32> {
-    let Some(server_component_indices) = server_component_indices else {
-        return source_indices;
-    };
-    let intersection = source_indices
-        .intersection(server_component_indices)
-        .copied()
-        .collect::<FxIndexSet<_>>();
-    if intersection.is_empty() {
-        source_indices
-    } else {
-        intersection
-    }
-}
-
 /// A client reference, the module it is reached from, and the server component that owns it (if
 /// any).
 #[derive(Clone, Copy)]
@@ -98,21 +70,54 @@ async fn derived_isolated_merged_groups(
         let source_groups = chunk_group_info
             .get_chunk_groups_for_module(*source_module)
             .await?;
-        let server_component_indices = if let Some(server_component) = server_component {
-            Some(
-                chunk_group_info
-                    .get_chunk_groups_for_module(*server_component)
-                    .await?
-                    .iter()
-                    .map(|group| group.index)
-                    .collect::<FxIndexSet<_>>(),
-            )
+        let source_indices = source_groups
+            .iter()
+            .map(|group| group.index)
+            .collect::<FxIndexSet<_>>();
+        let parent_indices = if let Some(server_component) = server_component {
+            let groups = chunk_group_info
+                .get_chunk_groups_for_module(*server_component)
+                .await?;
+            let [group] = groups.as_slice() else {
+                bail!(
+                    "expected exactly one chunk group for server component {}, found {}",
+                    server_component.ident().to_string().await?,
+                    groups.len(),
+                );
+            };
+            let server_component_index = group.index;
+            let mut indices = FxIndexSet::default();
+            if source_indices.contains(&server_component_index) {
+                indices.insert(server_component_index);
+            }
+            // A reference may be imported both directly and through async chunks inside its server
+            // component.
+            // Follow async importer ancestry, not every group containing the shared proxy:
+            // unrelated pages' merged groups can also contain other client entries.
+            for group in source_groups.iter() {
+                if let ChunkGroup::Async(module) = &group.chunk_group
+                    && chunk_group_info
+                        .get_async_loader_ancestor_chunk_groups(**module)
+                        .await?
+                        .iter()
+                        .any(|ancestor| ancestor.index == server_component_index)
+                {
+                    indices.insert(group.index);
+                }
+            }
+            indices
         } else {
-            None
+            // These are the framework-level references, fall back to the source module's groups.
+            source_indices
         };
-        let source_indices = source_groups.iter().map(|group| group.index).collect();
-        let parent_indices =
-            relevant_parent_indices(source_indices, server_component_indices.as_ref());
+        if parent_indices.is_empty() {
+            let error = anyhow::anyhow!("source chunk groups have no eligible parent");
+            // ast-grep-ignore: no-context-format
+            return Err(error.context(format!(
+                "could not select graph-derived isolated merged groups for {}",
+                entry_module.ident().to_string().await?,
+            )));
+        }
 
         let mut found = false;
         for group in chunk_group_info
@@ -537,26 +542,9 @@ mod tests {
     use turbopack_core::module_graph::chunk_group_info::ChunkGroup;
 
     use crate::{
-        next_app::app_client_references_chunks::{
-            is_isolated_merged_group_for_parent, relevant_parent_indices,
-        },
+        next_app::app_client_references_chunks::is_isolated_merged_group_for_parent,
         next_client_reference::{CLIENT_MERGE_TAG, SSR_MERGE_TAG},
     };
-
-    #[test]
-    fn parent_indices_prefer_a_non_empty_output_intersection() {
-        let source = FxIndexSet::from_iter([1, 2]);
-
-        assert_eq!(
-            relevant_parent_indices(source.clone(), Some(&FxIndexSet::from_iter([2, 3]))),
-            FxIndexSet::from_iter([2]),
-        );
-        assert_eq!(
-            relevant_parent_indices(source.clone(), Some(&FxIndexSet::from_iter([3]))),
-            source,
-        );
-        assert_eq!(relevant_parent_indices(source.clone(), None), source,);
-    }
 
     #[test]
     fn isolated_merged_groups_must_match_parent_and_tag() {

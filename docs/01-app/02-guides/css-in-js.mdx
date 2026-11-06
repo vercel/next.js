@@ -37,7 +37,7 @@ The following are currently working on support:
 Configuring CSS-in-JS is a three-step opt-in process that involves:
 
 1. A **style registry** to collect all CSS rules in a render.
-2. The new `useServerInsertedHTML` hook to inject rules before any content that might use them.
+2. The [`useServerInsertedHTML`](/docs/app/api-reference/functions/use-server-inserted-html) hook to inject rules before any content that might use them.
 3. A Client Component that wraps your app with the style registry during initial server-side rendering.
 
 ### `styled-jsx`

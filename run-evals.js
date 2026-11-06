@@ -36,7 +36,7 @@ const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
 const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
 
-/** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean, publish?: boolean, browserJs?: boolean }} EvalConfig */
+/** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean, publish?: boolean, browserJs?: boolean, metrics?: string }} EvalConfig */
 /** @type {Record<string, EvalConfig>} */
 const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
 
@@ -61,7 +61,13 @@ function pack() {
 }
 
 /** @param {string[] | null} selectedEvals  null means all evals */
-function writeExperiments(selectedEvals, variants, timeout, runs) {
+function writeExperiments(
+  selectedEvals,
+  variants,
+  timeout,
+  runs,
+  options = {}
+) {
   fs.rmSync(EXPERIMENTS_DIR, { recursive: true, force: true })
   fs.mkdirSync(EXPERIMENTS_DIR, { recursive: true })
 
@@ -93,13 +99,14 @@ function writeExperiments(selectedEvals, variants, timeout, runs) {
     }
     const body = `import type { ExperimentConfig } from '@vercel/agent-eval'
 ${v.imports}
+${options.metrics ? `import { recordAgentTime } from '../lib/metrics.js'` : ''}
 ${measuresBrowserJs ? `import { createBrowserJsHooks } from '../lib/bundle-optimizer/hooks.js'\n\nconst browserJs = createBrowserJsHooks(${JSON.stringify(browserJsFixtures)}, ${JSON.stringify(v.skills ?? [])})\n` : ''}
 
 const config: ExperimentConfig = {
   // Via the Vercel AI Gateway, so the OIDC token from \`vc env pull\` is the only
   // credential needed (it auths the sandbox, the codegen model, and the judge).
-  agent: 'vercel-ai-gateway/claude-code',
-  model: 'claude-opus-4-8',${evalsField}
+  agent: ${JSON.stringify(options.agent ?? 'vercel-ai-gateway/claude-code')},
+  model: ${JSON.stringify(options.model ?? 'claude-opus-4-8')},${evalsField}
   // Cheap fixed grader for the agentic judge clauses in EVAL.ts files — every
   // run is graded by the same model regardless of the model under test.
   judge: { model: 'claude-haiku-4-5' },
@@ -108,9 +115,11 @@ const config: ExperimentConfig = {
   earlyExit: ${runs === 1},
   timeout: ${timeout},
   sandbox: 'auto',
+  ${options.metrics ? `copyFiles: 'all',` : ''}
   ${onRunComplete ? `onRunComplete: ${onRunComplete},` : ''}
   setup: async (sandbox) => {
     ${v.setup}
+    ${options.metrics ? 'recordAgentTime(sandbox)' : ''}
     ${measuresBrowserJs ? 'return browserJs.setup(sandbox)' : ''}
   },
 }
@@ -294,6 +303,18 @@ function main() {
     .describe('suite', 'Run every eval in a named suite')
     .boolean('dry')
     .describe('dry', 'Preview without executing')
+    .boolean('metrics')
+    .describe(
+      'metrics',
+      'Save the app and collect configured page and effort metrics'
+    )
+    .string('agent')
+    .describe('agent', 'Override the coding agent for every selected variant')
+    .string('model')
+    .describe('model', 'Override the coding model for every selected variant')
+    .string('pricing')
+    .describe('pricing', 'Gateway model pricing JSON for estimated model cost')
+    .implies('pricing', 'metrics')
     .number('runs')
     .default('runs', 1)
     .describe('runs', 'Run each selected eval this many times')
@@ -334,8 +355,33 @@ function main() {
     : argv.all
       ? null
       : [/** @type {string} */ (evalName)]
+  if (
+    argv.metrics &&
+    (!selectedEvals ||
+      selectedEvals.length !== 1 ||
+      !/^[a-z0-9-]+$/.test(EVAL_CONFIG[selectedEvals[0]]?.metrics ?? '') ||
+      !fs.existsSync(
+        path.join(
+          EVALS_DIR,
+          'metrics',
+          `${EVAL_CONFIG[selectedEvals[0]].metrics}.mjs`
+        )
+      ))
+  ) {
+    throw new Error(
+      '--metrics requires one eval with a configured metrics collector'
+    )
+  }
   const { variants: availableVariants, timeout } =
     getExperimentSettings(selectedEvals)
+  if (argv.pricing) {
+    const pricing = JSON.parse(fs.readFileSync(argv.pricing, 'utf8'))
+    if (!pricing.pricing || typeof pricing.pricing !== 'object') {
+      throw new Error(
+        "--pricing must contain the model's Gateway pricing object"
+      )
+    }
+  }
   const requestedVariants = argv.variant ?? []
   const unknownVariants = requestedVariants.filter(
     (name) => !availableVariants.some((variant) => variant.suffix === name)
@@ -359,27 +405,37 @@ function main() {
     ? ['status']
     : ['run', ...variants.map((v) => v.suffix), '--force']
 
-  if (!fs.existsSync(path.join(ROOT, 'packages/next/dist'))) {
-    console.error(
-      'packages/next/dist not found. Run `pnpm --filter=next build` first.'
+  // Fixtures that install their own pinned app (such as Pokédex) do not use
+  // the local package. Match installNextJs's root-package check before packing.
+  const needsLocalNext = (selectedEvals ?? listEvals()).some((name) => {
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(FIXTURES_DIR, name, 'package.json'), 'utf8')
     )
-    process.exit(1)
-  }
+    return Boolean(pkg.dependencies?.next ?? pkg.devDependencies?.next)
+  })
+  if (needsLocalNext) {
+    if (!fs.existsSync(path.join(ROOT, 'packages/next/dist'))) {
+      console.error(
+        'packages/next/dist not found. Run `pnpm --filter=next build` first.'
+      )
+      process.exit(1)
+    }
 
-  if (process.env.NEXT_SKIP_PACK && fs.existsSync(TARBALL)) {
-    console.log('> Reusing existing tarball (NEXT_SKIP_PACK=1)')
-  } else {
-    console.log('> Packing next...')
-    pack()
-    const mb = (fs.statSync(TARBALL).size / 1024 / 1024).toFixed(1)
-    console.log(`  ${TARBALL} (${mb} MB)`)
+    if (process.env.NEXT_SKIP_PACK && fs.existsSync(TARBALL)) {
+      console.log('> Reusing existing tarball (NEXT_SKIP_PACK=1)')
+    } else {
+      console.log('> Packing next...')
+      pack()
+      const mb = (fs.statSync(TARBALL).size / 1024 / 1024).toFixed(1)
+      console.log(`  ${TARBALL} (${mb} MB)`)
+    }
   }
 
   // agent-eval loads .env / .env.local from its own cwd (evals/). `vc env pull`
   // writes to the repo root, so symlink them into evals/ for agent-eval to find.
   linkEnvironment(ROOT, EVALS_DIR)
 
-  writeExperiments(selectedEvals, variants, timeout, argv.runs)
+  writeExperiments(selectedEvals, variants, timeout, argv.runs, argv)
   console.log(
     evalName
       ? `> Running ${evalName} (${variants.map((v) => v.suffix).join(' + ')})`
@@ -390,6 +446,15 @@ function main() {
   // the bin directly rather than via `pnpm exec` because pnpm resets cwd to
   // the workspace root, but agent-eval resolves experiments/ from process.cwd().
   const bin = path.join(ROOT, 'node_modules/.bin/agent-eval')
+  const previousResults = new Map(
+    variants.map((variant) => {
+      const directory = path.join(EVALS_DIR, 'results', variant.suffix)
+      return [
+        variant.suffix,
+        new Set(fs.existsSync(directory) ? fs.readdirSync(directory) : []),
+      ]
+    })
+  )
   const result = spawnSync(bin, agentEvalArgs, {
     cwd: EVALS_DIR,
     stdio: 'inherit',
@@ -404,7 +469,40 @@ function main() {
     }
     process.exit(1)
   }
-  process.exit(result.status ?? 1)
+  let metricsFailed = false
+  if (argv.metrics && !argv.dry) {
+    for (const variant of variants) {
+      const directory = path.join(EVALS_DIR, 'results', variant.suffix)
+      if (!fs.existsSync(directory)) continue
+      for (const timestamp of fs.readdirSync(directory)) {
+        if (previousResults.get(variant.suffix).has(timestamp)) continue
+        const evalDirectory = path.join(directory, timestamp, selectedEvals[0])
+        if (!fs.existsSync(evalDirectory)) continue
+        for (const run of fs
+          .readdirSync(evalDirectory)
+          .filter((name) => /^run-\d+$/.test(name))) {
+          const measured = spawnSync(
+            process.execPath,
+            [
+              '--import=tsx',
+              path.join(EVALS_DIR, 'metrics/report.mjs'),
+              'collect',
+              path.join(evalDirectory, run),
+              EVAL_CONFIG[selectedEvals[0]].metrics,
+              ...(argv.pricing ? [path.resolve(argv.pricing)] : []),
+            ],
+            { cwd: ROOT, stdio: 'inherit', env: process.env }
+          )
+          if (measured.error || measured.status !== 0) metricsFailed = true
+        }
+      }
+    }
+  }
+  if (metricsFailed)
+    console.error(
+      'Page measurement failed. Eval scores are unchanged; retry the collector on the saved run.'
+    )
+  process.exit((result.status ?? 1) || (metricsFailed ? 1 : 0))
 }
 
 main()

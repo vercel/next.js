@@ -106,6 +106,12 @@ Browser-dependent fixtures declare `@playwright/test` in `dependencies` or
 `devDependencies` in their `package.json`. The runner detects that dependency
 and installs Chromium and its system libraries before the agent starts.
 
+The [Pokédex Skill eval](evals/agent-062-pokedex-dev-loop/README.md) uses browser
+behavior checks and keeps token, time, cost, and page-performance measurements
+alongside its pass/fail result with `--metrics`
+([instructions](metrics/README.md)). It is excluded from publication with
+`publish: false`.
+
 Fixtures opt into before/after JavaScript measurements with `"browserJs": true`
 in `eval.config.json`. The runner adds measurement hooks only to experiments
 containing those fixtures.

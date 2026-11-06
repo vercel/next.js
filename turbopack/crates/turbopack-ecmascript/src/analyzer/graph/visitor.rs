@@ -91,10 +91,6 @@ pub(super) struct Analyzer<'arena, 'eval> {
     /// Interns the AST paths used by `code_gens`; handed to the [`VarGraph`] at the end.
     pub(super) ast_paths: AstPathTrieBuilder,
 
-    /// Whether we may codegen `let` and `const` or if we should fallback to var (at the cost of
-    /// slightly less correct circular import errors) for EsmModuleItem
-    pub(super) supports_block_scoping: bool,
-
     pub(super) eval_context: &'eval EvalContext,
 }
 
@@ -1035,6 +1031,12 @@ impl<'a> Analyzer<'a, '_> {
         self.effects.push(self.arena, effect);
     }
 
+    fn collect_effects(&mut self, visit: impl FnOnce(&mut Self)) -> BumpBox<'a, [Effect<'a>]> {
+        let prev_effects = take(&mut self.effects);
+        visit(self);
+        replace(&mut self.effects, prev_effects).into_boxed_slice()
+    }
+
     fn check_iife<'ast: 'r, 'r>(
         &mut self,
         n: &'ast CallExpr,
@@ -1446,8 +1448,7 @@ impl<'a> Analyzer<'a, '_> {
     fn add_esm_module_item(&mut self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) {
         if self.analyze_mode.is_codegen {
             let path = self.ast_paths.intern(ast_path.kinds().iter().copied());
-            self.code_gens
-                .push(EsmModuleItem::new(path, self.supports_block_scoping).into());
+            self.code_gens.push(EsmModuleItem::new(path).into());
         }
     }
 
@@ -1838,9 +1839,13 @@ impl VisitAstPath for Analyzer<'_, '_> {
             )),
         };
         if let Some(prop_value) = prop_value {
+            let base_effects = self.collect_effects(|this| {
+                member_expr.visit_children_with_ast_path(this, ast_path);
+            });
             self.add_effect(Effect::Member {
                 obj: obj_value,
                 prop: prop_value,
+                base_effects,
                 ast_path: as_parent_path_in(self.arena, ast_path),
                 span: member_expr.span(),
                 in_truthiness_context: is_in_boolean_context(
@@ -1848,9 +1853,9 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     self.eval_context.unresolved_mark,
                 ),
             });
+        } else {
+            member_expr.visit_children_with_ast_path(self, ast_path);
         }
-
-        member_expr.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_bin_expr<'ast: 'r, 'r>(
@@ -1867,15 +1872,19 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 self.eval_context.eval(self.arena, &bin_expr.right),
                 self.arena,
             );
+            let effects = self.collect_effects(|this| {
+                bin_expr.visit_children_with_ast_path(this, ast_path);
+            });
             self.add_effect(Effect::In {
                 left: left_value,
                 right: right_value,
+                effects,
                 ast_path: as_parent_path_in(self.arena, ast_path),
                 span: bin_expr.span(),
             });
+        } else {
+            bin_expr.visit_children_with_ast_path(self, ast_path);
         }
-
-        bin_expr.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_expr<'ast: 'r, 'r>(
@@ -2824,15 +2833,19 @@ impl VisitAstPath for Analyzer<'_, '_> {
     ) {
         if n.op == UnaryOp::TypeOf && self.analyze_mode.is_codegen {
             let arg_value = BumpBox::new_in(self.eval_context.eval(self.arena, &n.arg), self.arena);
+            let effects = self.collect_effects(|this| {
+                n.visit_children_with_ast_path(this, ast_path);
+            });
 
             self.add_effect(Effect::TypeOf {
                 arg: arg_value,
+                effects,
                 ast_path: as_parent_path_in(self.arena, ast_path),
                 span: n.span(),
             });
+        } else {
+            n.visit_children_with_ast_path(self, ast_path);
         }
-
-        n.visit_children_with_ast_path(self, ast_path);
     }
 
     fn visit_labeled_stmt<'ast: 'r, 'r>(

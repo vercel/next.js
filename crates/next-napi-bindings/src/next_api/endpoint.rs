@@ -13,6 +13,7 @@ use next_api::{
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
         endpoint_server_changed_operation, endpoint_write_to_disk_operation,
+        read_with_validated_endpoint,
     },
 };
 use tracing::Instrument;
@@ -61,6 +62,13 @@ pub struct NapiWrittenEndpoint {
 impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
     fn from(written_endpoint: Option<EndpointOutputPaths>) -> Self {
         match written_endpoint {
+            Some(EndpointOutputPaths::Native {
+                executable_path, ..
+            }) => Self {
+                r#type: "native".to_string(),
+                entry_path: Some(executable_path.into_owned()),
+                ..Default::default()
+            },
             Some(EndpointOutputPaths::NodeJs {
                 server_entry_path,
                 server_hmr_entry_paths,
@@ -84,6 +92,10 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
                 r#type: "edge".to_string(),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
+                ..Default::default()
+            },
+            Some(EndpointOutputPaths::NativeFailed { .. }) => Self {
+                r#type: "native".to_string(),
                 ..Default::default()
             },
             Some(EndpointOutputPaths::NotFound) | None => Self {
@@ -166,15 +178,19 @@ pub async fn endpoint_write_to_disk(
         .run(async move {
             let written_entrypoint_with_issues_op =
                 get_written_endpoint_with_issues_operation(endpoint_op);
-            let read = read_strongly_consistent_and_apply_effects(
-                written_entrypoint_with_issues_op,
-                |v| &v.effects,
+            let read = read_with_validated_endpoint(
+                || {
+                    read_strongly_consistent_and_apply_effects(
+                        written_entrypoint_with_issues_op,
+                        |v| &v.effects,
+                    )
+                },
+                |value| value.written.as_deref(),
             )
             .await?;
             let WrittenEndpointWithIssues {
                 written, issues, ..
             } = &*read;
-
             Ok((written.clone(), issues.clone()))
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
