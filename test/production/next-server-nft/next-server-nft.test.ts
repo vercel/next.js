@@ -189,6 +189,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/compiled/is-docker/index.js",
            "/node_modules/next/dist/compiled/is-wsl/index.js",
            "/node_modules/next/dist/compiled/nanoid/index.cjs",
+           "/node_modules/next/dist/compiled/next-start/start-server.js",
            "/node_modules/next/dist/compiled/p-limit/index.js",
            "/node_modules/next/dist/compiled/p-queue/index.js",
            "/node_modules/next/dist/compiled/path-browserify/index.js",
