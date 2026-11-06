@@ -822,12 +822,14 @@ export function createAppPageEntrypoint({
         context: AppPageRouteHandlerContext,
         renderOperation: AppPageRenderOperation
       ) => {
-        const nextRes = new NodeNextResponse(res)
-
         const result =
           renderOperation === 'prerender'
-            ? routeModule.prerender(nextRes, context)
-            : routeModule.render(new NodeNextRequest(req), nextRes, context)
+            ? routeModule.prerender(context)
+            : routeModule.render(
+                new NodeNextRequest(req),
+                new NodeNextResponse(res),
+                context
+              )
 
         return result.finally(() => {
           if (!span) return
@@ -2209,6 +2211,29 @@ export function createAppPageEntrypoint({
           })
         }
 
+        // Apply the selected entry's status before a platform callback can
+        // deliver it. PPR Flight responses keep their request status.
+        if (cachedData.status && (!isRSCRequest || !isRoutePPREnabled)) {
+          res.statusCode = cachedData.status
+        }
+
+        // RSC payloads encode redirects. The non-minimal server sends them with
+        // a 200 status.
+        if (
+          !isMinimalMode &&
+          cachedData.status &&
+          RedirectStatusCode[cachedData.status] &&
+          isRSCRequest
+        ) {
+          res.statusCode = 200
+        }
+
+        span?.setAttribute('http.status_code', res.statusCode)
+        if (res.statusCode >= 500) {
+          span?.setStatus({ code: SpanStatusCode.ERROR })
+          span?.setAttribute('error.type', res.statusCode.toString())
+        }
+
         // `onCacheEntry` lets the platform capture a freshly prerendered result
         // so the proxy can write it to the ISR cache; on deploy it returns true
         // and the function returns below. In debug-shell mode the render was
@@ -2248,23 +2273,6 @@ export function createAppPageEntrypoint({
         const tags = cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
         if (isMinimalMode && isSSG && tags && typeof tags === 'string') {
           res.setHeader(NEXT_CACHE_TAGS_HEADER, tags)
-        }
-
-        // If the request is a data request, then we shouldn't set the status code
-        // from the response because it should always be 200. This should be gated
-        // behind the experimental PPR flag.
-        if (cachedData.status && (!isRSCRequest || !isRoutePPREnabled)) {
-          res.statusCode = cachedData.status
-        }
-
-        // Redirect information is encoded in RSC payload, so we don't need to use redirect status codes
-        if (
-          !isMinimalMode &&
-          cachedData.status &&
-          RedirectStatusCode[cachedData.status] &&
-          isRSCRequest
-        ) {
-          res.statusCode = 200
         }
 
         // Mark that the request did postpone.
