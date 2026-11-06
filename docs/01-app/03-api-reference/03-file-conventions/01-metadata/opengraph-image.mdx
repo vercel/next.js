@@ -21,7 +21,9 @@ An `images` property explicitly defined by a page's [`metadata` object or `gener
 | `openGraph.images` | `opengraph-image` files |
 | `twitter.images`   | `twitter-image` files   |
 
-For example, if `app/blog/page.tsx` sets `openGraph.images` to `['/custom-og.png']`, the page uses `/custom-og.png` even when `app/blog/opengraph-image.png` exists. This applies to both static image files and images generated with code.
+Metadata is resolved [from the root layout toward the page](/docs/app/api-reference/functions/generate-metadata#ordering). A file in a child segment can replace images configured in a parent segment. For example, `app/blog/opengraph-image.png` replaces `openGraph.images` from `app/layout.tsx` when the blog page doesn't define its own `openGraph.images` property.
+
+If `app/blog/page.tsx` sets `openGraph.images` to `['/custom-og.png']`, the page uses `/custom-og.png` even when `app/blog/opengraph-image.png` exists. This applies to both static image files and images generated with code.
 
 To use a page's colocated `opengraph-image` or `twitter-image` file, omit the corresponding `images` property from the page's metadata. Setting `images` to `[]`, `null`, or `undefined` still overrides the file-based image.
 
@@ -533,6 +535,18 @@ export default async function Image() {
   )
 }
 ```
+
+## Troubleshooting
+
+### A file-based image isn't used
+
+If a page uses a different image from its colocated `opengraph-image` or `twitter-image` file:
+
+1. Inspect the page's rendered `og:image` or `twitter:image` meta tag to find the selected image URL. A file-based image route can still serve an image even when the page's metadata points elsewhere.
+2. Check the page's `metadata` object or `generateMetadata` return value for `openGraph.images` or `twitter.images`. Include properties copied from shared objects with object spread.
+3. Omit the corresponding `images` property entirely to use the colocated file. Setting `images` to `[]`, `null`, or `undefined` still overrides the file-based image.
+
+If an inherited image disappears after adding a child `openGraph` or `twitter` object, check [metadata merging](/docs/app/api-reference/functions/generate-metadata#merging). A child object replaces the corresponding inherited object, so a child object without `images` can remove an inherited image when there is no colocated file to supply it.
 
 ## Version History
 
