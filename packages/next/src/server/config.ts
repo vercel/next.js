@@ -574,6 +574,22 @@ function assignDefaultsAndValidate(
     }
   }
 
+  // Prevent deployment-specific env vars from allowing cache reuse across deployments.
+  result.experimental.durableUseCacheEntriesConfig ??= {}
+  const unstableEnvVars =
+    (result.experimental.durableUseCacheEntriesConfig.unstableEnvVars ??= [])
+  for (const name of [
+    'NEXT_DEPLOYMENT_ID',
+    // TODO this hardcodes some Vercel env vars into Next.js. But you don't run the adapter locally
+    // so wouldn't see errors on local builds otherwise.
+    'VERCEL_DEPLOYMENT_ID',
+    'VERCEL_URL',
+  ]) {
+    if (!unstableEnvVars.includes(name)) {
+      unstableEnvVars.push(name)
+    }
+  }
+
   if (
     result.experimental?.allowDevelopmentBuild &&
     process.env.NODE_ENV !== 'development'

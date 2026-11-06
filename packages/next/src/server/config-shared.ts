@@ -1560,6 +1560,16 @@ export interface ExperimentalConfig {
    */
   durableUseCacheEntries?: boolean
 
+  durableUseCacheEntriesConfig?: {
+    // Env vars that are constantly changing (e.g. the deployment ID). If a cache entry depends on one of these, it will not be reused across deployments at all.
+    // NEXT_DEPLOYMENT_ID, VERCEL_DEPLOYMENT_ID, and VERCEL_URL are automatically added to this list, so they do not need to be specified.
+    unstableEnvVars?: string[]
+    // Env vars that do not change the cache entry, but might change often (e.g. passwords, LRU
+    // cache stale time, OIDC tokens). Note that a token include also a database name, in which
+    // case it should not be in this list.
+    ignoredEnvVars?: string[]
+  }
+
   /**
    * Collects root param dependencies for `'use cache'` in Turbopack production
    * builds. Defaults to `false`. When disabled, the server-reference manifest
@@ -2656,6 +2666,7 @@ export interface NextConfigRuntime {
     | 'reactBrowserBailout'
     | 'useCacheTimeout'
     | 'durableUseCacheEntries'
+    | 'durableUseCacheEntriesConfig'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
     | 'allowedRevalidateHeaderKeys'
@@ -2729,6 +2740,7 @@ export function getNextConfigRuntime(
     reactBrowserBailout: ex.reactBrowserBailout,
     useCacheTimeout: ex.useCacheTimeout,
     durableUseCacheEntries: ex.durableUseCacheEntries,
+    durableUseCacheEntriesConfig: ex.durableUseCacheEntriesConfig,
     clientTraceMetadata: ex.clientTraceMetadata,
     clientParamParsingOrigins: ex.clientParamParsingOrigins,
     allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
