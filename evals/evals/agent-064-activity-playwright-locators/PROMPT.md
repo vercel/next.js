@@ -1,0 +1,1 @@
+The existing Playwright regression passes with Cache Components off but fails with it enabled. Repair the test while preserving its Billing-to-Profile navigation, form interaction and status assertions. Do not change the application behavior or disable Cache Components, and run the repaired regression.

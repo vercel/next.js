@@ -1,0 +1,1 @@
+Keep unfinished contact-form drafts when navigating away and back. After a successful send, leaving Contact should clear the message and confirmation, including when using another link or the browser Back button. Returning should show a fresh form. Fix this without losing other page state or disabling Cache Components.
