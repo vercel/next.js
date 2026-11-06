@@ -5,7 +5,11 @@ import { connection } from 'next/server'
 type Props = { params: Promise<{ slug: string }> }
 
 export function generateStaticParams() {
-  return [{ slug: 'static' }, { slug: 'becomes-partial' }]
+  return [
+    { slug: 'static' },
+    { slug: 'becomes-partial' },
+    { slug: 'concurrent' },
+  ]
 }
 
 async function Content({ params }: Props) {

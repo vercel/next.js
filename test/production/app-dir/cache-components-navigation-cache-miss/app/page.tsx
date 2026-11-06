@@ -9,6 +9,9 @@ export default function Page() {
       <Link id="becomes-partial" href="/items/becomes-partial" prefetch={false}>
         Becomes partial
       </Link>
+      <Link id="concurrent" href="/items/concurrent" prefetch={false}>
+        Concurrent
+      </Link>
     </>
   )
 }
