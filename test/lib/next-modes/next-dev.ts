@@ -1,5 +1,5 @@
 import spawn from 'cross-spawn'
-import { Span } from 'next/dist/trace'
+import type { Span } from '@opentelemetry/api'
 import { NextInstance } from './base'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { retry, waitFor } from 'next-test-utils'

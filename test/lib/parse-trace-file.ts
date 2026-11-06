@@ -24,6 +24,54 @@ export function parseTraceEvents(tracePath: string): TraceEvent[] {
 }
 
 /**
+ * The on-disk tooling trace contract, shared by legacy and OTel-backed e2e tests.
+ * Compare within each session: development appends sessions whose numeric IDs
+ * can start over, and intentionally filtered/unfinished parents may be absent.
+ */
+export function expectTraceEventContract(events: TraceEvent[]): void {
+  expect(events.length).toBeGreaterThan(0)
+  const sessions = new Map<string, TraceEvent[]>()
+
+  for (const event of events) {
+    expect(typeof event.name).toBe('string')
+    expect(event.name.length).toBeGreaterThan(0)
+    expect(Number.isSafeInteger(event.id)).toBe(true)
+    expect(event.id).toBeGreaterThan(0)
+    if (event.parentId !== undefined) {
+      expect(Number.isSafeInteger(event.parentId)).toBe(true)
+      expect(event.parentId).toBeGreaterThan(0)
+      expect(event.parentId).not.toBe(event.id)
+    }
+    expect(Number.isSafeInteger(event.timestamp)).toBe(true)
+    expect(event.timestamp).toBeGreaterThanOrEqual(0)
+    expect(Number.isSafeInteger(event.duration)).toBe(true)
+    expect(event.duration).toBeGreaterThanOrEqual(0)
+    expect(Number.isSafeInteger(event.startTime)).toBe(true)
+    expect(event.startTime).toBeGreaterThan(1_000_000_000_000)
+    // `timestamp` is monotonic microseconds, not epoch microseconds.
+    expect(event.timestamp).toBeLessThan(event.startTime! * 1000)
+    expect(event.tags).toEqual(expect.any(Object))
+    expect(typeof event.traceId).toBe('string')
+    expect(event.traceId!.length).toBeGreaterThan(0)
+    const session = sessions.get(event.traceId!) ?? []
+    session.push(event)
+    sessions.set(event.traceId!, session)
+  }
+
+  for (const session of sessions.values()) {
+    expect(new Set(session.map((event) => event.id)).size).toBe(session.length)
+    const reference = session[0]
+    for (const event of session) {
+      // The independent wall clock is only millisecond precision. This also
+      // catches accidentally reporting a timestamp in ms instead of µs.
+      const wallDeltaUs = (event.startTime! - reference.startTime!) * 1000
+      const monotonicDeltaUs = event.timestamp - reference.timestamp
+      expect(Math.abs(wallDeltaUs - monotonicDeltaUs)).toBeLessThan(10_000)
+    }
+  }
+}
+
+/**
  * Parses a Next.js trace file and returns a structured representation
  * with events indexed by name and id, plus root/orphaned classification.
  */

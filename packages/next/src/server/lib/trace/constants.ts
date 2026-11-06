@@ -142,7 +142,32 @@ enum NextSpan {
   request = 'Next.request',
 }
 
+// Tooling producers select these coarse operations explicitly. Fine-grained
+// transforms and imported observations use the local recorder, not this lane.
+enum ToolingSpan {
+  nextBuild = 'next-build',
+  runWebpack = 'run-webpack',
+  runWebpackCompiler = 'run-webpack-compiler',
+  workerMain = 'worker-main',
+  runTurbopack = 'run-turbopack',
+  runTypeScript = 'run-typescript',
+  staticCheck = 'static-check',
+  staticGeneration = 'static-generation',
+  collectBuildTraces = 'collect-build-traces',
+  startDevServer = 'start-dev-server',
+  setupDevBundler = 'setup-dev-bundler',
+  hotReloader = 'hot-reloader',
+  webpackCompilation = 'webpack-compilation',
+  webpackInvalidated = 'webpack-invalidated',
+  compilePath = 'compile-path',
+}
+
+export const ToolingSpanTypes: ReadonlySet<string> = new Set(
+  Object.values(ToolingSpan)
+)
+
 type SpanTypes =
+  | `${ToolingSpan}`
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
   | `${InstrumentationSpan}`
@@ -213,6 +238,7 @@ export {
   ResolveMetadataSpan,
   MiddlewareSpan,
   NextSpan,
+  ToolingSpan,
 }
 
 export type { SpanTypes }

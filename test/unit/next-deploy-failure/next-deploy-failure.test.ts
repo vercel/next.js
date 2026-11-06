@@ -1,5 +1,5 @@
 import execa from 'execa'
-import { trace } from 'next/dist/trace'
+import { createLocalSpan } from 'next/dist/server/lib/trace/local-span-recorder'
 
 jest.mock('execa', () => jest.fn())
 
@@ -183,7 +183,7 @@ describe('deployment lifecycle', () => {
 
   async function instance() {
     const next = new NextDeployInstance({ files: __dirname })
-    await next.setup(trace('test'))
+    await next.setup(createLocalSpan({ name: 'test' }))
     return next
   }
 

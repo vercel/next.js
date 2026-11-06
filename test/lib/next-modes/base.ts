@@ -21,7 +21,8 @@ import {
   getCommitFromPreviewBuildUrl,
   previewTarballUrl,
 } from '../../../scripts/wait-for-preview-tarball.mjs'
-import { Span } from 'next/dist/trace'
+import type { Span } from '@opentelemetry/api'
+import { traceLocalSpan } from 'next/dist/server/lib/trace/local-span-recorder'
 import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
 import {
   getRouteCacheKey,
@@ -271,13 +272,19 @@ export class NextInstance {
   }
 
   protected async beforeInstall(parentSpan: Span) {
-    await parentSpan.traceChild('writeInitialFiles').traceAsyncFn(async () => {
-      await this.writeInitialFiles()
-    })
+    await traceLocalSpan(
+      { name: 'writeInitialFiles', parent: parentSpan },
+      async () => {
+        await this.writeInitialFiles()
+      }
+    )
 
-    await parentSpan.traceChild('writeOverrideFiles').traceAsyncFn(async () => {
-      await this.writeOverrideFiles()
-    })
+    await traceLocalSpan(
+      { name: 'writeOverrideFiles', parent: parentSpan },
+      async () => {
+        await this.writeOverrideFiles()
+      }
+    )
   }
 
   protected async createTestDir({
@@ -291,9 +298,9 @@ export class NextInstance {
       throw new Error('next instance already destroyed')
     }
 
-    await parentSpan
-      .traceChild('createTestDir')
-      .traceAsyncFn(async (rootSpan) => {
+    await traceLocalSpan(
+      { name: 'createTestDir', parent: parentSpan },
+      async (rootSpan) => {
         const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
         if (!skipIsolatedNext) {
           require('console').log(
@@ -614,7 +621,8 @@ export class NextInstance {
             )
           }
         }
-      })
+      }
+    )
   }
 
   /**

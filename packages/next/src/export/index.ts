@@ -57,7 +57,12 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { loadEnvConfig } from '@next/env'
 import { isAPIRoute } from '../lib/is-api-route'
 import { getPagePath } from '../server/require'
-import type { Span } from '../trace'
+import type { Span } from '@opentelemetry/api'
+import {
+  createLocalSpan,
+  traceLocalSpan,
+  getToolingSpanSource,
+} from '../server/lib/trace/local-span-recorder'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
@@ -201,13 +206,15 @@ async function exportAppImpl(
   dir = resolve(dir)
 
   // attempt to load global env values so they are available in next.config.js
-  span.traceChild('load-dotenv').traceFn(() => loadEnvConfig(dir, false, Log))
+  traceLocalSpan({ name: 'load-dotenv', parent: span, synchronous: true }, () =>
+    loadEnvConfig(dir, false, Log)
+  )
 
   const { enabledDirectories } = options
 
   const nextConfig =
     options.nextConfig ||
-    (await span.traceChild('load-next-config').traceAsyncFn(() =>
+    (await traceLocalSpan({ name: 'load-next-config', parent: span }, () =>
       loadConfig(PHASE_EXPORT, dir, {
         debugPrerender: options.debugPrerender,
       })
@@ -373,11 +380,9 @@ async function exportAppImpl(
     if (!options.silent) {
       Log.info('Copying "static" directory')
     }
-    await span
-      .traceChild('copy-static-directory')
-      .traceAsyncFn(() =>
-        recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
-      )
+    await traceLocalSpan({ name: 'copy-static-directory', parent: span }, () =>
+      recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
+    )
   }
 
   // Copy .next/static directory
@@ -388,14 +393,14 @@ async function exportAppImpl(
     if (!options.silent) {
       Log.info('Copying "static build" directory')
     }
-    await span
-      .traceChild('copy-next-static-directory')
-      .traceAsyncFn(() =>
+    await traceLocalSpan(
+      { name: 'copy-next-static-directory', parent: span },
+      () =>
         recursiveCopy(
           join(distDir, CLIENT_STATIC_FILES_PATH),
           join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
         )
-      )
+    )
   }
 
   const {
@@ -410,14 +415,14 @@ async function exportAppImpl(
   }
 
   if (!options.buildExport) {
-    const { isNextImageImported } = await span
-      .traceChild('is-next-image-imported')
-      .traceAsyncFn(() =>
+    const { isNextImageImported } = await traceLocalSpan(
+      { name: 'is-next-image-imported', parent: span },
+      () =>
         fs
           .readFile(join(distDir, EXPORT_MARKER), 'utf8')
           .then((text) => JSON.parse(text))
           .catch(() => ({}))
-      )
+    )
 
     if (
       isNextImageImported &&
@@ -543,9 +548,9 @@ async function exportAppImpl(
     nextExport: true,
   }
 
-  const exportPathMap = await span
-    .traceChild('run-export-path-map')
-    .traceAsyncFn(async () => {
+  const exportPathMap = await traceLocalSpan(
+    { name: 'run-export-path-map', parent: span },
+    async () => {
       if (typeof nextConfig.exportPathMap !== 'function') {
         return defaultPathMap
       }
@@ -558,7 +563,8 @@ async function exportAppImpl(
         buildId,
       })
       return exportMap
-    })
+    }
+  )
 
   // During static export, remove export 404/500 of pages router
   // when only app router presents
@@ -681,7 +687,7 @@ async function exportAppImpl(
     if (!options.silent) {
       Log.info('Copying "public" directory')
     }
-    await span.traceChild('copy-public-directory').traceAsyncFn(() =>
+    await traceLocalSpan({ name: 'copy-public-directory', parent: span }, () =>
       recursiveCopy(publicDir, outDir, {
         filter(path) {
           // Exclude paths used by pages
@@ -747,7 +753,7 @@ async function exportAppImpl(
               ? ''
               : nextConfig.deploymentId,
             exportPaths: batch,
-            parentSpanId: span.getId(),
+            parentSpanId: getToolingSpanSource(span)!.id,
             pagesDataDir,
             renderOpts,
             options,
@@ -1141,9 +1147,12 @@ export default async function exportApp(
   span: Span,
   staticWorker?: StaticWorker
 ): Promise<ExportAppResult | null> {
-  const nextExportSpan = span.traceChild('next-export')
+  const nextExportSpan = createLocalSpan({
+    name: 'next-export',
+    parent: span,
+  })
 
-  return nextExportSpan.traceAsyncFn(async () => {
+  return traceLocalSpan({ span: nextExportSpan }, async () => {
     return await exportAppImpl(dir, options, nextExportSpan, staticWorker)
   })
 }

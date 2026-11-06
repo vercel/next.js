@@ -40,8 +40,6 @@ import {
 import type { AgentFilesResult } from './generate-agent-files'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
-  type Span,
-  trace,
   flushAllTraces,
   exportTraceState,
   initializeTraceState,
@@ -51,6 +49,13 @@ import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
 import { isCI } from '../ci-info'
+import type { Span } from '@opentelemetry/api'
+import { getTracer } from './trace/tracer'
+import { ToolingSpan } from './trace/constants'
+import {
+  createLocalSpan,
+  getToolingSpanSource,
+} from './trace/local-span-recorder'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -268,10 +273,13 @@ export async function startServer(
         Log.warn(
           `Server is approaching the used memory threshold, restarting...`
         )
-        trace('server-restart-close-to-memory-threshold', undefined, {
-          'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
-          'memory.heapUsed': String(memoryRestartStats.used_heap_size),
-        }).stop()
+        createLocalSpan({
+          name: 'server-restart-close-to-memory-threshold',
+          attributes: {
+            'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
+            'memory.heapUsed': String(memoryRestartStats.used_heap_size),
+          },
+        }).end()
         flushAllTraces()
         process.exit(RESTART_EXIT_CODE)
       }
@@ -683,31 +691,37 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         )
       }
 
-      startServerSpan = trace('start-dev-server', undefined, {
-        cpus: String(os.availableParallelism()),
-        platform: os.platform(),
-        'memory.freeMem': String(os.freemem()),
-        'memory.totalMem': String(os.totalmem()),
-        'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
-        ...enabledFeaturesFromParent,
-        ...rageRestartAttrsFromParent,
-      })
-
-      initializeTraceState({
-        ...exportTraceState(),
-        defaultParentSpanId: startServerSpan.getId(),
-      })
-
-      const result = await startServerSpan.traceAsyncFn(() =>
-        startServer(msg.nextWorkerOptions)
+      const result = await getTracer().trace(
+        ToolingSpan.startDevServer,
+        {
+          attributes: {
+            cpus: String(os.availableParallelism()),
+            platform: os.platform(),
+            'memory.freeMem': String(os.freemem()),
+            'memory.totalMem': String(os.totalmem()),
+            'memory.heapSizeLimit': String(
+              v8.getHeapStatistics().heap_size_limit
+            ),
+            ...enabledFeaturesFromParent,
+            ...rageRestartAttrsFromParent,
+          },
+        },
+        (span) => {
+          startServerSpan = span!
+          initializeTraceState({
+            ...exportTraceState(),
+            defaultParentSpanId: getToolingSpanSource(startServerSpan)!.id,
+          })
+          return startServer(msg.nextWorkerOptions)
+        }
       )
       const memoryUsage = process.memoryUsage()
-      startServerSpan.setAttribute('memory.rss', String(memoryUsage.rss))
-      startServerSpan.setAttribute(
+      startServerSpan!.setAttribute('memory.rss', String(memoryUsage.rss))
+      startServerSpan!.setAttribute(
         'memory.heapTotal',
         String(memoryUsage.heapTotal)
       )
-      startServerSpan.setAttribute(
+      startServerSpan!.setAttribute(
         'memory.heapUsed',
         String(memoryUsage.heapUsed)
       )

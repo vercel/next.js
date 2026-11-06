@@ -5,12 +5,7 @@ import { join } from 'path'
 
 const getImage = (filepath) => readFile(join(__dirname, filepath))
 
-const tracing = () => ({
-  traceFn: (fn, ...args) => fn(...args),
-  traceAsyncFn: (fn, ...args) => fn(...args),
-})
-
-const context = { basePath: '', outputPath: '', isDev: false, tracing }
+const context = { basePath: '', outputPath: '', isDev: false }
 
 describe('getBlurImage', () => {
   it('should return image for jpg', async () => {

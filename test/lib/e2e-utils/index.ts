@@ -1,7 +1,8 @@
 import { getDeploymentTestEnvAssignments } from './deployment-test-env'
 import path from 'path'
 import assert from 'assert'
-import { flushAllTraces, setGlobal, trace } from 'next/dist/trace'
+import { flushAllTraces, setGlobal } from 'next/dist/trace'
+import { traceLocalSpan } from 'next/dist/server/lib/trace/local-span-recorder'
 import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
@@ -289,34 +290,38 @@ async function createNext(
     }
 
     setupTracing()
-    return await trace('createNext').traceAsyncFn(async (rootSpan) => {
+    return await traceLocalSpan({ name: 'createNext' }, async (rootSpan) => {
       const useTurbo = isNextTestWasm
         ? false
         : (opts?.turbo ?? shouldUseTurbopack())
 
-      if (testMode === 'dev') {
-        // next dev
-        rootSpan.traceChild('init next dev instance').traceFn(() => {
-          nextInstance = new NextDevInstance({
-            ...opts,
-            turbo: useTurbo,
-          })
-        })
-      } else if (testMode === 'deploy') {
-        // Vercel
-        rootSpan.traceChild('init next deploy instance').traceFn(() => {
-          nextInstance = new NextDeployInstance({
-            ...opts,
-          })
-        })
-      } else {
-        // next build + next start
-        rootSpan.traceChild('init next start instance').traceFn(() => {
-          nextInstance = new NextStartInstance({
-            ...opts,
-          })
-        })
+      let mode: 'dev' | 'deploy' | 'start'
+      switch (testMode) {
+        case 'dev':
+          mode = 'dev'
+          break
+        case 'deploy':
+          mode = 'deploy'
+          break
+        default:
+          mode = 'start'
       }
+      traceLocalSpan(
+        {
+          name: `init next ${mode} instance`,
+          parent: rootSpan,
+          synchronous: true,
+        },
+        () => {
+          if (mode === 'dev') {
+            nextInstance = new NextDevInstance({ ...opts, turbo: useTurbo })
+          } else if (mode === 'deploy') {
+            nextInstance = new NextDeployInstance({ ...opts })
+          } else {
+            nextInstance = new NextStartInstance({ ...opts })
+          }
+        }
+      )
 
       nextInstance = nextInstance!
 
@@ -334,11 +339,12 @@ async function createNext(
       registerFixture(nextInstance)
 
       if (!opts.skipStart) {
-        await rootSpan
-          .traceChild('start next instance')
-          .traceAsyncFn(async () => {
+        await traceLocalSpan(
+          { name: 'start next instance', parent: rootSpan },
+          async () => {
             await nextInstance!.start()
-          })
+          }
+        )
       }
 
       return nextInstance!
