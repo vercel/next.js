@@ -1,3 +1,4 @@
+mod aggregation_edge;
 mod aggregation_update;
 mod cleanup_old_edges;
 mod connect_child;
@@ -24,6 +25,8 @@ use turbo_tasks::{
     macro_helpers::NativeFunction,
 };
 
+#[cfg(any(test, feature = "verify_aggregation_graph"))]
+pub use self::aggregation_edge::{TaskAggregationEdges, verify_aggregation_edges};
 pub use self::aggregation_update::{AggregationUpdateQueue, ComputeDirtyAndCleanUpdate};
 use crate::{
     backend::{
@@ -157,6 +160,20 @@ impl<'e> ExecuteContext<'e> {
             _shutdown_guard: Some(shutdown_guard),
             task_lock_counter: TaskLockCounter::new(),
             current_task_priority: None,
+        }
+    }
+
+    /// Like [`ExecuteContext::new`], but reports tasks that may have become collectible to
+    /// `gc_collectible`, like the context of the garbage collector does.
+    #[cfg(test)]
+    pub(super) fn new_with_gc_collectible_for_testing(
+        backend: &'e TurboTasksBackend,
+        turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
+        gc_collectible: &'e dyn Fn(TaskId),
+    ) -> Self {
+        Self {
+            gc_collectible: Some(gc_collectible),
+            ..Self::new(backend, turbo_tasks)
         }
     }
 
