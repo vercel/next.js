@@ -297,6 +297,7 @@ pub async fn get_app_client_references_chunks(
                 references: ResolvedVc::cell(vec![]),
                 availability_info: client_availability_info,
                 chunk_group_bootstrap_params: None,
+                async_loader_availability: vec![],
             }
             .resolved_cell();
             let mut current_ssr_chunk_group = ChunkGroupResult::empty_resolved();

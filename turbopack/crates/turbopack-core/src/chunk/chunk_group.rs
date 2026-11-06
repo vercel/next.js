@@ -6,7 +6,9 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexSet, JoinIterExt, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, JoinIterExt, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+};
 
 use super::{
     ChunkItemWithAsyncModuleInfo, ChunkingContext, availability_info::AvailabilityInfo,
@@ -14,7 +16,8 @@ use super::{
 };
 use crate::{
     chunk::{
-        ChunkGroupContent, ChunkGroupContentInner, ChunkableModule, ChunkingType, Chunks,
+        AsyncLoaderAvailabilityMap, ChunkGroupContent, ChunkGroupContentInner, ChunkableModule,
+        ChunkingType, Chunks,
         chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
     },
     emit_collect::CollectingModule,
@@ -36,6 +39,8 @@ pub struct MakeChunkGroupResult {
     pub chunks: ResolvedVc<Chunks>,
     pub references: Vec<ResolvedVc<Box<dyn OutputAssetsReference>>>,
     pub availability_info: AvailabilityInfo,
+    /// The availability the async loaders of this chunk group were created with.
+    pub async_loader_availability: ResolvedVc<AsyncLoaderAvailabilityMap>,
 }
 
 /// Creates one chunk group from `chunk_groups`, chunking all of them together.
@@ -145,7 +150,7 @@ pub async fn make_chunk_group(
         } else {
             availability_info
         };
-    let async_loaders = async_modules
+    let async_loaders_with_availability = async_modules
         .iter()
         .copied()
         .map(async |module| {
@@ -154,13 +159,24 @@ pub async fn make_chunk_group(
             let availability_info = async_availability_info
                 .canonicalize_for_async_loader(module_graph, ResolvedVc::upcast(module))
                 .await?;
-            chunking_context
+            let async_loader = chunking_context
                 .async_loader_chunk_item(*module, *module_graph, availability_info)
                 .to_resolved()
-                .await
+                .await?;
+            Ok((module, availability_info, async_loader))
         })
         .try_join()
         .await?;
+    let async_loader_availability = ResolvedVc::<AsyncLoaderAvailabilityMap>::cell(
+        async_loaders_with_availability
+            .iter()
+            .map(|&(module, availability_info, _)| (module, availability_info))
+            .collect::<FxIndexMap<_, _>>(),
+    );
+    let async_loaders = async_loaders_with_availability
+        .into_iter()
+        .map(|(_, _, async_loader)| async_loader)
+        .collect::<Vec<_>>();
     let async_loader_chunk_items = async_loaders
         .iter()
         .map(async |&chunk_item| {
@@ -199,6 +215,7 @@ pub async fn make_chunk_group(
         chunks,
         references: ResolvedVc::upcast_vec(async_loaders),
         availability_info: new_availability_info,
+        async_loader_availability,
     })
 }
 
