@@ -696,12 +696,12 @@ async fn page_next_dynamic_chunks(
         .await?;
     let app_dynamic_entries = app_next_dynamic_imports
         .iter()
-        .map(|(dynamic_entry, _)| *dynamic_entry)
+        .map(|import| import.dynamic_entry)
         .collect::<FxHashSet<_>>();
     let page_next_dynamic_imports = Vc::<DynamicImportEntriesWithImporter>::cell(
         next_dynamic_imports
             .iter()
-            .filter(|(dynamic_entry, _)| !app_dynamic_entries.contains(dynamic_entry))
+            .filter(|import| !app_dynamic_entries.contains(&import.dynamic_entry))
             .cloned()
             .collect(),
     )

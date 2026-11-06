@@ -163,31 +163,28 @@ impl ChunkGroupResult {
 
     /// The availability the async loader of `module` was created with by this result's chunk
     /// groups, so that a loader for `module` with exactly the chunks they load at runtime can be
-    /// created elsewhere (e.g. for a manifest).
+    /// created elsewhere (e.g. for a manifest). `None` when none of them created one: the loader
+    /// was then created by another chunk group (e.g. an available one, or the async chunk group of
+    /// a module they load), or the caller's module graph and this result are momentarily out of
+    /// sync during recomputation.
     ///
     /// The first chunk group that created an async loader for `module` wins: later chunk groups
     /// see it as available and don't create their own.
-    ///
-    /// Errors when none of the chunk groups created a loader for `module`. The availability can't
-    /// be inferred then: the loader was created by a chunk group outside of this result, or the
-    /// caller's module graph and this result are momentarily out of sync during recomputation.
-    pub async fn async_loader_availability_info(
+    pub async fn find_async_loader_availability_info(
         &self,
         module: ResolvedVc<Box<dyn ChunkableModule>>,
-    ) -> Result<AvailabilityInfo> {
+    ) -> Result<Option<AvailabilityInfo>> {
         for chunk_group in &self.async_loader_availability {
             if let Some(availability_info) = chunk_group.get(&module).await? {
-                return Ok(*availability_info);
+                return Ok(Some(*availability_info));
             }
         }
-        turbobail!(
-            "No async loader for {} was created by the {} chunk group(s) of this chunk group \
-             result",
-            module.ident(),
-            self.async_loader_availability.len()
-        )
+        Ok(None)
     }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionChunkGroupResult(Option<ResolvedVc<ChunkGroupResult>>);
 
 #[turbo_tasks::value_impl]
 impl ChunkGroupResult {
