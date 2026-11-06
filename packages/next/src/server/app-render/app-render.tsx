@@ -116,8 +116,16 @@ import {
   runWithRequestInsightsIdentity,
 } from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
-import { traceLocalSpan } from '../lib/trace/local-span-recorder'
-import { isRequestInsightsEnabled } from '../lib/trace/request-insights'
+import {
+  getActiveLocalSpan,
+  isLocalSpanRecordingEnabled,
+  traceLocalSpan,
+} from '../lib/trace/local-span-recorder'
+import {
+  importRequestInsightSpans,
+  isRequestInsightsEnabled,
+  startRequestInsight,
+} from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
 import {
   createReactServerErrorHandler,
@@ -152,6 +160,7 @@ import {
 } from './walk-tree-with-flight-router-state'
 import { createFullComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
+import { getExternalBrowserRuntimeSrc } from './get-external-browser-runtime-src'
 import {
   getClientReferenceManifest,
   getServerModuleMap,
@@ -2612,7 +2621,9 @@ async function prepareAppPageRender(
 
   const { flightRouterState, isPrefetchRequest, nonce } = parsedRequestHeaders
 
-  if (parsedRequestHeaders.requestId) {
+  if (requestInsightsIdentity?.debugRequestId) {
+    requestId = requestInsightsIdentity.debugRequestId
+  } else if (parsedRequestHeaders.requestId) {
     // If the client has provided a request ID (in development mode), we use it.
     requestId = parsedRequestHeaders.requestId
   } else if (requestInsightsIdentity) {
@@ -3596,6 +3607,16 @@ async function renderToStream(
         nonce,
       }))
 
+  const { externalBrowserRuntime } = experimental
+  const externalRuntimeSrc = getExternalBrowserRuntimeSrc(
+    ctx,
+    buildManifest,
+    externalBrowserRuntime,
+    assetPrefix,
+    crossOrigin,
+    subresourceIntegrityManifest
+  )
+
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
     buildManifest,
     // Why is assetPrefix optional on renderOpts?
@@ -4117,7 +4138,8 @@ async function renderToStream(
               createNodeInlinedDataStream(
                 reactServerResult.tee(),
                 nonce,
-                formState
+                formState,
+                externalBrowserRuntime
               ),
               turbopackBootstrapScriptContent,
               nonce
@@ -4173,7 +4195,8 @@ async function renderToStream(
                 createNodeInlinedDataStream(
                   reactServerResult.consume(),
                   nonce,
-                  formState
+                  formState,
+                  externalBrowserRuntime
                 ),
                 turbopackBootstrapScriptContent,
                 nonce
@@ -4219,6 +4242,7 @@ async function renderToStream(
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
 
@@ -4238,7 +4262,8 @@ async function renderToStream(
           inlinedDataStream: createNodeInlinedDataStream(
             reactServerResult.consume(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady,
           allReady,
@@ -4260,7 +4285,8 @@ async function renderToStream(
               createWebInlinedDataStream(
                 reactServerResult.tee(),
                 nonce,
-                formState
+                formState,
+                externalBrowserRuntime
               ),
               turbopackBootstrapScriptContent,
               nonce
@@ -4316,7 +4342,8 @@ async function renderToStream(
                 createWebInlinedDataStream(
                   reactServerResult.consume(),
                   nonce,
-                  formState
+                  formState,
+                  externalBrowserRuntime
                 ),
                 turbopackBootstrapScriptContent,
                 nonce
@@ -4360,6 +4387,7 @@ async function renderToStream(
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
 
@@ -4377,7 +4405,8 @@ async function renderToStream(
           inlinedDataStream: createWebInlinedDataStream(
             reactServerResult.consume(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady,
           allReady,
@@ -4524,6 +4553,7 @@ async function renderToStream(
               nonce,
               bootstrapScriptContent: errorBootstrapScriptContent,
               bootstrapScripts: [errorBootstrapScript],
+              unstable_externalRuntimeSrc: externalRuntimeSrc,
               formState,
               onAllReady: finishHtmlRender,
             },
@@ -4537,7 +4567,8 @@ async function renderToStream(
               // render
               reactServerResult.consume(),
               nonce,
-              formState
+              formState,
+              externalBrowserRuntime
             ),
             waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -4617,6 +4648,7 @@ async function renderToStream(
                 nonce,
                 bootstrapScriptContent: errorBootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
               }
             )
@@ -4631,7 +4663,8 @@ async function renderToStream(
               // render
               reactServerResult.consume(),
               nonce,
-              formState
+              formState,
+              externalBrowserRuntime
             ),
             waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -4880,6 +4913,9 @@ function runDevValidationInBackground(
             const devValidationWorker = getDevValidationWorker()
 
             if (devValidationWorker) {
+              const runValidationSpan = getActiveLocalSpan()
+              const runValidationSpanContext = runValidationSpan?.spanContext()
+              const requestInsightsIdentity = getRequestInsightsIdentity()
               const snapshot = await buildDevValidationSnapshot(
                 ctx,
                 instantInputs,
@@ -4889,15 +4925,42 @@ function runDevValidationInBackground(
                 devRenderDidError
               )
 
-              const chunks = await devValidationWorker(
+              const workerResult = await devValidationWorker(
                 snapshot,
-                validationAbortSignal
+                validationAbortSignal,
+                {
+                  captureLocalSpans: Boolean(
+                    runValidationSpanContext && requestInsightsIdentity
+                  ),
+                }
               )
 
               // A newer navigation may have superseded this validation while
               // the worker ran; don't surface stale insights for a page the user
               // left.
-              if (chunks && !validationAbortSignal.aborted) {
+              if (!validationAbortSignal.aborted) {
+                if (
+                  workerResult.localSpans &&
+                  runValidationSpanContext &&
+                  requestInsightsIdentity
+                ) {
+                  importRequestInsightSpans(
+                    requestInsightsIdentity,
+                    runValidationSpanContext,
+                    workerResult.localSpans
+                  )
+                  if (workerResult.localSpans.droppedSpanCount > 0) {
+                    runValidationSpan?.setAttribute(
+                      'next.request_insights.omitted_spans',
+                      workerResult.localSpans.droppedSpanCount
+                    )
+                  }
+                }
+
+                const chunks = workerResult.chunks
+                if (!chunks) {
+                  return
+                }
                 const { sendErrorsToBrowser } = ctx.renderOpts
                 if (!sendErrorsToBrowser) {
                   throw new InvariantError(
@@ -5004,27 +5067,27 @@ async function runInstantInsightsWithTracing<T>(
     return fn(runWithoutInstantInsightsSpan)
   }
 
-  return runWithRequestInsightsIdentity(
-    {
-      requestId: ctx.requestId,
-      kind: 'instant-insights',
-      htmlRequestId: ctx.htmlRequestId,
-      url: ctx.url.href,
-    },
-    () =>
-      traceLocalSpan(
-        {
-          name: 'Instant Insights',
-          parentSpan: null,
-          attributes: {
-            'next.span_category': 'nextjs',
-            'next.span_name': 'Instant Insights',
-            'next.span_type': AppRenderSpan.instantInsights,
-            'next.route': ctx.pagePath,
-          },
+  const identity = {
+    requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
+    kind: 'instant-insights' as const,
+    htmlRequestId: ctx.htmlRequestId,
+    url: ctx.url.href,
+  }
+  startRequestInsight(identity)
+  return runWithRequestInsightsIdentity(identity, () =>
+    traceLocalSpan(
+      {
+        name: 'Instant Insights',
+        parentSpan: null,
+        attributes: {
+          'next.span_category': 'nextjs',
+          'next.span_name': 'Instant Insights',
+          'next.span_type': AppRenderSpan.instantInsights,
+          'next.route': ctx.pagePath,
         },
-        () => fn(runInstantInsightsSpan)
-      )
+      },
+      () => fn(runInstantInsightsSpan)
+    )
   )
 }
 
@@ -6916,6 +6979,9 @@ async function runValidationInDev(
   devRenderDidError: boolean,
   validationAbortSignal: AbortSignal
 ): Promise<Array<unknown> | undefined> {
+  const runSpan = isLocalSpanRecordingEnabled()
+    ? runInstantInsightsSpan
+    : runWithoutInstantInsightsSpan
   const { componentMod: ComponentMod, getDynamicParamFromSegment } = ctx
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
   const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
@@ -6938,21 +7004,26 @@ async function runValidationInDev(
     // First we warmup SSR with the runtime chunks. This ensures that when we do
     // the full prerender pass with dynamic tracking module loading won't
     // interrupt the prerender and can properly observe the entire content
-    await warmupClientModulesForStagedValidation(
-      // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
-      // otherwise, for static shell validation, we only need to warm up to the PrefetchRuntime stage.
-      // we also need to use a different store type, because instant validation allows more APIs to resolve.
-      needsInstantValidation ? 'validation-client' : 'prerender-client',
-      needsInstantValidation
-        ? accumulatedChunks[RenderStage.Dynamic]
-        : accumulatedChunks[RenderStage.PrefetchRuntime],
-      accumulatedChunks[RenderStage.Dynamic],
-      rootParams,
-      fallbackRouteParams,
-      ctx,
-      validationSamples,
-      validationSampleTracking,
-      validationAbortSignal
+    await runSpan(
+      AppRenderSpan.instantInsightsWarmup,
+      'Warm up validation modules',
+      () =>
+        warmupClientModulesForStagedValidation(
+          // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
+          // otherwise, for static shell validation, we only need to warm up to the PrefetchRuntime stage.
+          // we also need to use a different store type, because instant validation allows more APIs to resolve.
+          needsInstantValidation ? 'validation-client' : 'prerender-client',
+          needsInstantValidation
+            ? accumulatedChunks[RenderStage.Dynamic]
+            : accumulatedChunks[RenderStage.PrefetchRuntime],
+          accumulatedChunks[RenderStage.Dynamic],
+          rootParams,
+          fallbackRouteParams,
+          ctx,
+          validationSamples,
+          validationSampleTracking,
+          validationAbortSignal
+        )
     )
   }
 
@@ -6995,14 +7066,19 @@ async function runValidationInDev(
       : null
     const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
 
-    const result = await validateStaticShell(
-      inputs,
-      ctx,
-      rootParams,
-      fallbackRouteParams,
-      debugChunks,
-      hmrRefreshHash,
-      validationAbortSignal
+    const result = await runSpan(
+      AppRenderSpan.instantInsightsStaticShell,
+      'Validate static shell',
+      () =>
+        validateStaticShell(
+          inputs,
+          ctx,
+          rootParams,
+          fallbackRouteParams,
+          debugChunks,
+          hmrRefreshHash,
+          validationAbortSignal
+        )
     )
     // A newer render superseded this validation while its render ran, so its
     // result is stale. Don't surface errors for a page the user left.
@@ -7032,19 +7108,24 @@ async function runValidationInDev(
       : null
     const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
 
-    const result = await validateInstantConfigs(
-      prefetchMode,
-      inputs.accumulatedChunks,
-      debugChunks,
-      inputs.startTime,
-      inputs.stageEndTimes,
-      rootParams,
-      fallbackRouteParams,
-      ctx,
-      hmrRefreshHash,
-      validationSamples,
-      devRenderDidError,
-      validationAbortSignal
+    const result = await runSpan(
+      AppRenderSpan.instantInsightsValidate,
+      'Validate instant navigation',
+      () =>
+        validateInstantConfigs(
+          prefetchMode,
+          inputs.accumulatedChunks,
+          debugChunks,
+          inputs.startTime,
+          inputs.stageEndTimes,
+          rootParams,
+          fallbackRouteParams,
+          ctx,
+          hmrRefreshHash,
+          validationSamples,
+          devRenderDidError,
+          validationAbortSignal
+        )
     )
 
     // A newer render superseded this work. Don't surface stale validation
@@ -8817,6 +8898,7 @@ async function continueStaticPrerenderWithInlinedData(
   reactServerResult: ReactServerPrerenderResult,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   createInlinedDataStream: typeof createWebInlinedDataStream,
+  externalBrowserRuntime: boolean,
   formState: unknown | null,
   nonce: string | undefined,
   getServerInsertedHTML: () => Promise<string>,
@@ -8859,7 +8941,8 @@ async function continueStaticPrerenderWithInlinedData(
       createInlinedDataStream(
         emptyReactServerResult.consumeAsStream(),
         nonce,
-        formState
+        formState,
+        externalBrowserRuntime
       ),
       turbopackBootstrapScriptContent,
       nonce
@@ -8876,7 +8959,8 @@ async function continueStaticPrerenderWithInlinedData(
     createInlinedDataStream(
       reactServerResult.consumeAsStream(),
       nonce,
-      formState
+      formState,
+      externalBrowserRuntime
     ),
     turbopackBootstrapScriptContent,
     nonce
@@ -8995,6 +9079,16 @@ async function prerenderToStream(
         nonce,
       }))
 
+  const { externalBrowserRuntime } = experimental
+  const externalRuntimeSrc = getExternalBrowserRuntimeSrc(
+    ctx,
+    buildManifest,
+    externalBrowserRuntime,
+    assetPrefix,
+    crossOrigin,
+    subresourceIntegrityManifest
+  )
+
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
     buildManifest,
     // Why is assetPrefix optional on renderOpts?
@@ -9047,6 +9141,11 @@ async function prerenderToStream(
   }
 
   const { reactServerErrorsByDigest } = workStore
+  // Collect errors reported by the page's RSC renderer to detect prerender
+  // failures. The work store's `reactServerErrorsByDigest` map also records
+  // errors from cached functions for logging, even when the page catches them.
+  // Those caught errors must not fail prerendering.
+  const renderErrorsByDigest = new Map<string, DigestedError>()
   // We don't report errors during prerendering through our instrumentation hooks
   const reportErrors = !experimental.isRoutePPREnabled
   function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
@@ -9062,7 +9161,9 @@ async function prerenderToStream(
     process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     reactServerErrorsByDigest,
-    onHTMLRenderRSCError
+    onHTMLRenderRSCError,
+    undefined,
+    renderErrorsByDigest
   )
 
   function onHTMLRenderSSRError(err: DigestedError) {
@@ -9518,6 +9619,7 @@ async function prerenderToStream(
             },
             bootstrapScriptContent,
             bootstrapScripts: [bootstrapScript],
+            unstable_externalRuntimeSrc: externalRuntimeSrc,
           }
         )
 
@@ -10001,6 +10103,7 @@ async function prerenderToStream(
                 maxHeadersLength: reactMaxHeadersLength,
                 bootstrapScriptContent,
                 bootstrapScripts: [bootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
               }
             )
 
@@ -10133,7 +10236,7 @@ async function prerenderToStream(
         reactServerResult.consume()
         return {
           error: undefined,
-          digestErrorsMap: reactServerErrorsByDigest,
+          digestErrorsMap: renderErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(htmlStream, {
             getServerInsertedHTML,
@@ -10192,6 +10295,7 @@ async function prerenderToStream(
         reactServerResult,
         fallbackRouteParams,
         createInlinedDataStream,
+        externalBrowserRuntime,
         formState,
         nonce,
         getServerInsertedHTML,
@@ -10207,7 +10311,7 @@ async function prerenderToStream(
 
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream,
         dynamicAccess: consumeDynamicAccess(
@@ -10281,6 +10385,7 @@ async function prerenderToStream(
               : turbopackBootstrapScriptContent
             : bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
         },
         { waitForAllReady: true }
       )
@@ -10305,13 +10410,14 @@ async function prerenderToStream(
       })
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
           inlinedDataStream: createInlinedDataStream(
             reactServerResult.consumeAsStream(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady: true,
           getServerInsertedHTML,
@@ -10608,6 +10714,7 @@ async function prerenderToStream(
                 // Like the regular prerender, the Turbopack bootstrap is left
                 // out of the shell; see `withTurbopackBootstrapScript`.
                 bootstrapScripts: [errorBootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
                 signal: errorClientReactController.signal,
                 onError: (clientError: unknown, errorInfo: ErrorInfo) => {
@@ -10697,7 +10804,7 @@ async function prerenderToStream(
           errorServerResult.consume()
           return {
             error: errorType !== undefined ? undefined : { thrownValue: err },
-            digestErrorsMap: reactServerErrorsByDigest,
+            digestErrorsMap: renderErrorsByDigest,
             ssrErrors: allCapturedErrors,
             stream: await continueDynamicPrerender(errorHtmlStream, {
               getServerInsertedHTML,
@@ -10755,6 +10862,7 @@ async function prerenderToStream(
           originalFlightPrerenderResult,
           fallbackRouteParams,
           createInlinedDataStream,
+          externalBrowserRuntime,
           formState,
           nonce,
           getServerInsertedHTML,
@@ -10771,7 +10879,7 @@ async function prerenderToStream(
         errorServerResult.consume()
         return {
           error: errorType !== undefined ? undefined : { thrownValue: err },
-          digestErrorsMap: reactServerErrorsByDigest,
+          digestErrorsMap: renderErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream,
           dynamicAccess: consumeDynamicAccess(
@@ -10858,6 +10966,7 @@ async function prerenderToStream(
           nonce,
           bootstrapScriptContent: errorBootstrapScriptContent,
           bootstrapScripts: [errorBootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         },
         { waitForAllReady: true }
@@ -10878,13 +10987,14 @@ async function prerenderToStream(
 
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(errorHtmlStream, {
           inlinedDataStream: createInlinedDataStream(
             reactServerPrerenderResult.consumeAsStream(),
             nonce,
-            formState
+            formState,
+            externalBrowserRuntime
           ),
           waitForAllReady: true,
           getServerInsertedHTML: makeGetServerInsertedHTML({

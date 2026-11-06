@@ -13,6 +13,7 @@ import {
   getRelativeURL,
 } from '../../shared/lib/router/utils/relativize-url'
 import { NextURL } from './next-url'
+import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import {
@@ -296,6 +297,7 @@ export async function adapter(
   })
   let response
   let cookiesFromResponse
+  const isMiddleware = isMiddlewarePage(params.page)
   // The trace context of the span the middleware span and the downstream
   // request share as their parent, to forward to the downstream request (see
   // `forwardTraceContextToRequest`), and the request headers as the
@@ -305,8 +307,6 @@ export async function adapter(
 
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
-    const isMiddleware = isMiddlewarePage(params.page)
-
     if (isMiddleware) {
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
       // so we have to inject it via DefinePlugin.
@@ -463,6 +463,15 @@ export async function adapter(
     throw new TypeError('Expected an instance of Response to be returned')
   }
 
+  if (
+    response &&
+    !isMiddleware &&
+    response.headers.has('x-middleware-set-cookie')
+  ) {
+    response = new Response(response.body, response)
+    response.headers.delete('x-middleware-set-cookie')
+  }
+
   if (response && cookiesFromResponse) {
     response.headers.set('set-cookie', cookiesFromResponse)
   }
@@ -474,6 +483,7 @@ export async function adapter(
    * a data URL if the request was a data request.
    */
   const rewrite = response?.headers.get('x-middleware-rewrite')
+  let rewriteLocaleWasInferred = false
   if (response && rewrite && (isRSCRequest || !isEdgeRendering)) {
     const destination = new NextURL(rewrite, {
       forceLocale: true,
@@ -484,6 +494,15 @@ export async function adapter(
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE && !isEdgeRendering) {
       if (destination.host === request.nextUrl.host) {
         destination.buildId = buildId || destination.buildId
+        // App routes must distinguish an adapter-added locale from an
+        // explicit locale in the Proxy's rewrite destination.
+        rewriteLocaleWasInferred = Boolean(
+          destination.locale &&
+            !getNextPathnameInfo(new URL(rewrite).pathname, {
+              nextConfig: params.request.nextConfig,
+              parseData: true,
+            }).locale
+        )
         response.headers.set('x-middleware-rewrite', String(destination))
       }
     }
@@ -553,6 +572,7 @@ export async function adapter(
     if (!rewriteURL.searchParams.has(NEXT_RSC_UNION_QUERY)) {
       rewriteURL.searchParams.set(NEXT_RSC_UNION_QUERY, rscHash)
       response.headers.set('x-middleware-rewrite', rewriteURL.toString())
+      rewriteLocaleWasInferred = false
     }
   }
 
@@ -637,5 +657,6 @@ export async function adapter(
     response: finalResponse,
     waitUntil: getWaitUntilPromiseFromEvent(event) ?? Promise.resolve(),
     fetchMetrics: request.fetchMetrics,
+    rewriteLocaleWasInferred,
   }
 }

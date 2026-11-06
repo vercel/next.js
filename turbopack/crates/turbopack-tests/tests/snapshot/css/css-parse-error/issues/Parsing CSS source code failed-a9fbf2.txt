@@ -1,4 +1,4 @@
-error - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css:7:0  Parsing CSS source code failed
+error - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css:7:1  Parsing CSS source code failed
        3 | }
        4 | 
        5 | .invalid {

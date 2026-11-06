@@ -529,7 +529,7 @@
 - *11* updated with update expression
   ⚠️  This value might have side effects
 
-41 -> 46 free var = FreeVar(JSON)
+45 -> 46 free var = FreeVar(JSON)
 
 41 -> 47 member call = ???*0*["stringify"]((???*1* | ???*2* | ???*4* | 0 | ???*7*))
 - *0* FreeVar(JSON)
@@ -889,7 +889,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 76 free var = FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
+75 -> 76 free var = FreeVar(__REACT_DEVTOOLS_GLOBAL_HOOK__)
 
 0 -> 77 conditional = ("undefined" !== ???*0*)
 - *0* typeof(???*1*)
@@ -954,13 +954,13 @@
 - *5* unknown mutation
   ⚠️  This value might have side effects
 
-0 -> 85 free var = FreeVar(exports)
+84 -> 85 free var = FreeVar(exports)
 
-0 -> 87 free var = FreeVar(exports)
+86 -> 87 free var = FreeVar(exports)
 
-0 -> 89 free var = FreeVar(arguments)
+88 -> 89 free var = FreeVar(arguments)
 
-0 -> 91 free var = FreeVar(arguments)
+90 -> 91 free var = FreeVar(arguments)
 
 0 -> 92 conditional = (???*0* | (undefined !== ???*1*))
 - *0* unsupported expression
@@ -972,7 +972,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-92 -> 94 free var = FreeVar(arguments)
+93 -> 94 free var = FreeVar(arguments)
 
 0 -> 95 call = (...) => !((
  || !(a)
@@ -1034,7 +1034,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 103 free var = FreeVar(exports)
+102 -> 103 free var = FreeVar(exports)
 
 0 -> 104 call = (...) => !((
  || !(a)
@@ -1193,7 +1193,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 124 free var = FreeVar(exports)
+123 -> 124 free var = FreeVar(exports)
 
 0 -> 125 conditional = (null == ???*0*)
 - *0* max number of linking steps reached
@@ -1247,9 +1247,9 @@
 - *1* `https://reactjs.org/docs/error-decoder.html?invariant=${188}`
   ⚠️  nested operation
 
-131 -> 140 free var = FreeVar(Object)
+139 -> 140 free var = FreeVar(Object)
 
-131 -> 141 member call = Object*0*["keys"](???*1*)
+138 -> 141 member call = Object*0*["keys"](???*1*)
 - *0* Object: The global Object variable
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1292,7 +1292,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 151 free var = FreeVar(exports)
+150 -> 151 free var = FreeVar(exports)
 
 0 -> 152 call = (...) => (a() | undefined)(???*0*)
 - *0* arguments[0]
@@ -1302,7 +1302,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 155 free var = FreeVar(exports)
+154 -> 155 free var = FreeVar(exports)
 
 0 -> 156 call = (...) => !((
  || !(a)
@@ -1352,7 +1352,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 164 free var = FreeVar(exports)
+163 -> 164 free var = FreeVar(exports)
 
 0 -> 165 call = (...) => !((
  || !(a)
@@ -1760,7 +1760,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 196 free var = FreeVar(exports)
+195 -> 196 free var = FreeVar(exports)
 
 0 -> 197 call = (...) => !((
  || !(a)
@@ -1810,7 +1810,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 205 free var = FreeVar(exports)
+204 -> 205 free var = FreeVar(exports)
 
 0 -> 206 call = (...) => !((
  || !(a)
@@ -1864,9 +1864,9 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 219 free var = FreeVar(exports)
+218 -> 219 free var = FreeVar(exports)
 
-0 -> 221 free var = FreeVar(exports)
+220 -> 221 free var = FreeVar(exports)
 
 0 -> 222 call = (...) => !((
  || !(a)
@@ -1939,7 +1939,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 235 free var = FreeVar(exports)
+234 -> 235 free var = FreeVar(exports)
 
 0 -> 236 free var = FreeVar(require)
 
@@ -1951,11 +1951,11 @@
 0 -> 239 call = require*0*("scheduler")
 - *0* require: The require method from CommonJS
 
-0 -> 241 free var = FreeVar(arguments)
+240 -> 241 free var = FreeVar(arguments)
 
 0 -> 242 free var = FreeVar(encodeURIComponent)
 
-0 -> 244 free var = FreeVar(arguments)
+243 -> 244 free var = FreeVar(arguments)
 
 0 -> 245 call = ???*0*(???*1*)
 - *0* FreeVar(encodeURIComponent)
@@ -2005,7 +2005,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 257 free var = FreeVar(window)
+256 -> 257 free var = FreeVar(window)
 
 0 -> 258 typeof = typeof(???*0*)
 - *0* ???*1*["document"]
@@ -2015,7 +2015,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 260 free var = FreeVar(window)
+259 -> 260 free var = FreeVar(window)
 
 0 -> 261 typeof = typeof(???*0*)
 - *0* ???*1*["createElement"]
@@ -2028,9 +2028,9 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 264 free var = FreeVar(window)
+263 -> 264 free var = FreeVar(window)
 
-0 -> 267 free var = FreeVar(Object)
+266 -> 267 free var = FreeVar(Object)
 
 0 -> 269 member call = ???*0*["call"]({}, ???*3*)
 - *0* ???*1*["hasOwnProperty"]
@@ -2138,7 +2138,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-290 -> 295 member call = (???*0* | ???*1*)["toLowerCase"]()
+293 -> 295 member call = (???*0* | ???*1*)["toLowerCase"]()
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*(0, 5)
@@ -2279,7 +2279,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 326 member call = "children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style"["split"](" ")
+324 -> 326 member call = "children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style"["split"](" ")
 
 0 -> 327 member call = "children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style"["split"](" ")["forEach"]((...) => undefined)
 
@@ -2328,7 +2328,7 @@
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 348 member call = "allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope"["split"](" ")
+346 -> 348 member call = "allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope"["split"](" ")
 
 0 -> 349 member call = "allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope"["split"](" ")["forEach"]((...) => undefined)
 
@@ -2392,7 +2392,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 378 member call = "accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode xmlns:xlink x-height"["split"](" ")
+376 -> 378 member call = "accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode xmlns:xlink x-height"["split"](" ")
 
 0 -> 379 member call = "accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode xmlns:xlink x-height"["split"](" ")["forEach"]((...) => undefined)
 
@@ -2408,7 +2408,7 @@
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 386 member call = "xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type"["split"](" ")
+384 -> 386 member call = "xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type"["split"](" ")
 
 0 -> 387 member call = "xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type"["split"](" ")["forEach"]((...) => undefined)
 
@@ -3239,133 +3239,133 @@
 - *22* c
   ⚠️  circular variable reference
 
-0 -> 453 free var = FreeVar(Symbol)
+452 -> 453 free var = FreeVar(Symbol)
 
 0 -> 454 member call = ???*0*["for"]("react.element")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 456 free var = FreeVar(Symbol)
+455 -> 456 free var = FreeVar(Symbol)
 
 0 -> 457 member call = ???*0*["for"]("react.portal")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 459 free var = FreeVar(Symbol)
+458 -> 459 free var = FreeVar(Symbol)
 
 0 -> 460 member call = ???*0*["for"]("react.fragment")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 462 free var = FreeVar(Symbol)
+461 -> 462 free var = FreeVar(Symbol)
 
 0 -> 463 member call = ???*0*["for"]("react.strict_mode")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 465 free var = FreeVar(Symbol)
+464 -> 465 free var = FreeVar(Symbol)
 
 0 -> 466 member call = ???*0*["for"]("react.profiler")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 468 free var = FreeVar(Symbol)
+467 -> 468 free var = FreeVar(Symbol)
 
 0 -> 469 member call = ???*0*["for"]("react.provider")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 471 free var = FreeVar(Symbol)
+470 -> 471 free var = FreeVar(Symbol)
 
 0 -> 472 member call = ???*0*["for"]("react.context")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 474 free var = FreeVar(Symbol)
+473 -> 474 free var = FreeVar(Symbol)
 
 0 -> 475 member call = ???*0*["for"]("react.forward_ref")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 477 free var = FreeVar(Symbol)
+476 -> 477 free var = FreeVar(Symbol)
 
 0 -> 478 member call = ???*0*["for"]("react.suspense")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 480 free var = FreeVar(Symbol)
+479 -> 480 free var = FreeVar(Symbol)
 
 0 -> 481 member call = ???*0*["for"]("react.suspense_list")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 483 free var = FreeVar(Symbol)
+482 -> 483 free var = FreeVar(Symbol)
 
 0 -> 484 member call = ???*0*["for"]("react.memo")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 486 free var = FreeVar(Symbol)
+485 -> 486 free var = FreeVar(Symbol)
 
 0 -> 487 member call = ???*0*["for"]("react.lazy")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 489 free var = FreeVar(Symbol)
+488 -> 489 free var = FreeVar(Symbol)
 
 0 -> 490 member call = ???*0*["for"]("react.scope")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 492 free var = FreeVar(Symbol)
+491 -> 492 free var = FreeVar(Symbol)
 
 0 -> 493 member call = ???*0*["for"]("react.debug_trace_mode")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 495 free var = FreeVar(Symbol)
+494 -> 495 free var = FreeVar(Symbol)
 
 0 -> 496 member call = ???*0*["for"]("react.offscreen")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 498 free var = FreeVar(Symbol)
+497 -> 498 free var = FreeVar(Symbol)
 
 0 -> 499 member call = ???*0*["for"]("react.legacy_hidden")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 501 free var = FreeVar(Symbol)
+500 -> 501 free var = FreeVar(Symbol)
 
 0 -> 502 member call = ???*0*["for"]("react.cache")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 504 free var = FreeVar(Symbol)
+503 -> 504 free var = FreeVar(Symbol)
 
 0 -> 505 member call = ???*0*["for"]("react.tracing_marker")
 - *0* FreeVar(Symbol)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 507 free var = FreeVar(Symbol)
+506 -> 507 free var = FreeVar(Symbol)
 
 0 -> 508 typeof = typeof((???*0* | ???*1* | ???*3*))
 - *0* arguments[0]
@@ -3447,7 +3447,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 517 free var = FreeVar(Object)
+516 -> 517 free var = FreeVar(Object)
 
 0 -> 518 conditional = (undefined === (???*0* | ???*1* | undefined | ???*6* | undefined[1] | ""))
 - *0* La
@@ -3480,7 +3480,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-518 -> 524 member call = ???*0*["trim"]()
+521 -> 524 member call = ???*0*["trim"]()
 - *0* ???*1*["stack"]
   ⚠️  unknown object
 - *1* c
@@ -3514,9 +3514,9 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-528 -> 531 free var = FreeVar(Error)
+530 -> 531 free var = FreeVar(Error)
 
-528 -> 533 free var = FreeVar(Error)
+532 -> 533 free var = FreeVar(Error)
 
 528 -> 534 conditional = (???*0* | (...) => undefined)
 - *0* arguments[1]
@@ -3529,7 +3529,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-534 -> 538 free var = FreeVar(Object)
+537 -> 538 free var = FreeVar(Object)
 
 534 -> 540 free var = FreeVar(Error)
 
@@ -3550,11 +3550,11 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-534 -> 544 free var = FreeVar(Reflect)
+543 -> 544 free var = FreeVar(Reflect)
 
-534 -> 546 free var = FreeVar(Reflect)
+545 -> 546 free var = FreeVar(Reflect)
 
-534 -> 548 free var = FreeVar(Reflect)
+547 -> 548 free var = FreeVar(Reflect)
 
 534 -> 549 member call = ???*0*["construct"]((???*1* | (...) => undefined), [])
 - *0* FreeVar(Reflect)
@@ -3563,7 +3563,7 @@
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-534 -> 551 free var = FreeVar(Reflect)
+550 -> 551 free var = FreeVar(Reflect)
 
 534 -> 552 member call = ???*0*["construct"]((???*1* | (???*2* ? ???*3* : "")), [], (???*5* | (...) => undefined))
 - *0* FreeVar(Reflect)
@@ -3787,7 +3787,7 @@ ${(???*0* | ???*7*)}`
 - *0* unreachable
   ⚠️  This value might have side effects
 
-528 -> 591 free var = FreeVar(Error)
+590 -> 591 free var = FreeVar(Error)
 
 528 -> 592 conditional = (???*0* | (???*1* ? ???*2* : ""))
 - *0* arguments[0]
@@ -5092,7 +5092,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *7* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 710 free var = FreeVar(Object)
+709 -> 710 free var = FreeVar(Object)
 
 0 -> 713 member call = Object*0*["getOwnPropertyDescriptor"](???*1*, ((???*4* | ???*5*) ? "checked" : "value"))
 - *0* Object: The global Object variable
@@ -5255,7 +5255,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *22* ???()
   ⚠️  nested operation
 
-722 -> 726 free var = FreeVar(Object)
+725 -> 726 free var = FreeVar(Object)
 
 722 -> 728 member call = (???*0* | undefined)["call"](???*11*)
 - *0* ???*1*["get"]
@@ -5340,7 +5340,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
-722 -> 734 free var = FreeVar(Object)
+733 -> 734 free var = FreeVar(Object)
 
 722 -> 736 member call = Object*0*["defineProperty"](???*1*, ((???*2* | ???*3*) ? "checked" : "value"), {"enumerable": ???*7*})
 - *0* Object: The global Object variable
@@ -5644,7 +5644,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 761 free var = FreeVar(document)
+760 -> 761 free var = FreeVar(document)
 
 0 -> 762 conditional = ("undefined" !== ???*0*)
 - *0* typeof(???*1*)
@@ -5969,7 +5969,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* arguments[2]
   ⚠️  function calls are not analyzed yet
 
-0 -> 859 free var = FreeVar(Array)
+858 -> 859 free var = FreeVar(Array)
 
 0 -> 861 conditional = (???*0* | {} | null | ???*1*)
 - *0* arguments[1]
@@ -6264,9 +6264,9 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 939 free var = FreeVar(MSApp)
+938 -> 939 free var = FreeVar(MSApp)
 
-0 -> 941 free var = FreeVar(MSApp)
+940 -> 941 free var = FreeVar(MSApp)
 
 0 -> 942 conditional = (("undefined" !== ???*0*) | ???*2*)
 - *0* typeof(???*1*)
@@ -6281,7 +6281,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-942 -> 944 free var = FreeVar(MSApp)
+943 -> 944 free var = FreeVar(MSApp)
 
 942 -> 945 member call = ???*0*["execUnsafeLocalFunction"]((...) => a(b, c, d, e))
 - *0* FreeVar(MSApp)
@@ -6314,14 +6314,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-951 -> 954 free var = FreeVar(document)
+953 -> 954 free var = FreeVar(document)
 
 951 -> 955 member call = ???*0*["createElement"]("div")
 - *0* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-951 -> 959 member call = (???*0* | ???*1* | ???*3*)["valueOf"]()
+957 -> 959 member call = (???*0* | ???*1* | ???*3*)["valueOf"]()
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*["firstChild"]
@@ -6412,9 +6412,9 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 980 free var = FreeVar(Object)
+979 -> 980 free var = FreeVar(Object)
 
-0 -> 981 member call = Object*0*["keys"](
+978 -> 981 member call = Object*0*["keys"](
     {
         "animationIterationCount": true,
         "aspectRatio": true,
@@ -6520,7 +6520,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 
 982 -> 984 member call = ["Webkit", "ms", "Moz", "O"]["forEach"]((...) => undefined)
 
-984 -> 987 member call = ???*0*["charAt"](0)
+985 -> 987 member call = ???*0*["charAt"](0)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -7441,26 +7441,26 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-1112 -> 1114 free var = FreeVar(Object)
+1113 -> 1114 free var = FreeVar(Object)
 
 1112 -> 1115 member call = Object*0*["defineProperty"](({} | undefined), "passive", {"get": (...) => undefined})
 - *0* Object: The global Object variable
 
-1112 -> 1117 free var = FreeVar(window)
+1116 -> 1117 free var = FreeVar(window)
 
 1112 -> 1118 member call = ???*0*["addEventListener"]("test", ({} | undefined), ({} | undefined))
 - *0* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-1112 -> 1120 free var = FreeVar(window)
+1119 -> 1120 free var = FreeVar(window)
 
 1112 -> 1121 member call = ???*0*["removeEventListener"]("test", ({} | undefined), ({} | undefined))
 - *0* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 1125 free var = FreeVar(Array)
+1124 -> 1125 free var = FreeVar(Array)
 
 0 -> 1126 free var = FreeVar(arguments)
 
@@ -8338,7 +8338,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *3* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 1253 free var = FreeVar(Math)
+1252 -> 1253 free var = FreeVar(Math)
 
 0 -> 1254 conditional = ???*0*
 - *0* ???*1*["clz32"]
@@ -8348,11 +8348,11 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-1254 -> 1256 free var = FreeVar(Math)
+1255 -> 1256 free var = FreeVar(Math)
 
-0 -> 1258 free var = FreeVar(Math)
+1257 -> 1258 free var = FreeVar(Math)
 
-0 -> 1260 free var = FreeVar(Math)
+1259 -> 1260 free var = FreeVar(Math)
 
 0 -> 1261 conditional = (0 === (???*0* | ???*1*))
 - *0* arguments[0]
@@ -11387,7 +11387,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 1610 free var = FreeVar(Date)
+1609 -> 1610 free var = FreeVar(Date)
 
 0 -> 1611 member call = ???*0*["now"]()
 - *0* FreeVar(Date)
@@ -11672,7 +11672,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-1649 -> 1652 free var = FreeVar(window)
+1651 -> 1652 free var = FreeVar(window)
 
 0 -> 1653 unreachable = ???*0*
 - *0* unreachable
@@ -11875,7 +11875,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *9* a
   ⚠️  circular variable reference
 
-1677 -> 1679 free var = FreeVar(String)
+1678 -> 1679 free var = FreeVar(String)
 
 1677 -> 1680 member call = ???*0*["fromCharCode"](
     (???*1* | ((???*2* | ???*3*) ? (???*7* | ???*8* | 13) : 0))
@@ -12207,15 +12207,15 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* node limit reached
   ⚠️  This value might have side effects
 
-0 -> 1732 free var = FreeVar(window)
+1731 -> 1732 free var = FreeVar(window)
 
-0 -> 1734 free var = FreeVar(document)
+1733 -> 1734 free var = FreeVar(document)
 
-0 -> 1736 free var = FreeVar(document)
+1735 -> 1736 free var = FreeVar(document)
 
-0 -> 1738 free var = FreeVar(window)
+1737 -> 1738 free var = FreeVar(window)
 
-0 -> 1740 free var = FreeVar(String)
+1739 -> 1740 free var = FreeVar(String)
 
 0 -> 1741 member call = ???*0*["fromCharCode"](32)
 - *0* FreeVar(String)
@@ -12459,7 +12459,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-1785 -> 1787 free var = FreeVar(String)
+1786 -> 1787 free var = FreeVar(String)
 
 1785 -> 1789 member call = ???*0*["fromCharCode"](???*1*)
 - *0* FreeVar(String)
@@ -12688,7 +12688,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-1820 -> 1822 free var = FreeVar(document)
+1821 -> 1822 free var = FreeVar(document)
 
 1820 -> 1823 conditional = !((???*0* | undefined))
 - *0* "oninput" in ???*1*
@@ -12697,7 +12697,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-1823 -> 1825 free var = FreeVar(document)
+1824 -> 1825 free var = FreeVar(document)
 
 1823 -> 1826 member call = ???*0*["createElement"]("div")
 - *0* FreeVar(document)
@@ -12723,9 +12723,9 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-1819 -> 1832 free var = FreeVar(document)
+1831 -> 1832 free var = FreeVar(document)
 
-1819 -> 1834 free var = FreeVar(document)
+1833 -> 1834 free var = FreeVar(document)
 
 0 -> 1836 member call = (null | ???*0*)["detachEvent"]("onpropertychange", (...) => undefined)
 - *0* arguments[1]
@@ -12863,7 +12863,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 - *1* Object: The global Object variable
 
-0 -> 1860 free var = FreeVar(Object)
+1859 -> 1860 free var = FreeVar(Object)
 
 0 -> 1861 conditional = ("function" === ???*0*)
 - *0* typeof(???*1*)
@@ -12873,7 +12873,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 - *2* Object: The global Object variable
 
-1861 -> 1863 free var = FreeVar(Object)
+1862 -> 1863 free var = FreeVar(Object)
 
 0 -> 1864 call = (???*0* ? ???*4* : (...) => ???*6*)(???*9*, ???*10*)
 - *0* ("function" === ???*1*)
@@ -12951,14 +12951,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-1869 -> 1872 free var = FreeVar(Object)
+1871 -> 1872 free var = FreeVar(Object)
 
 1869 -> 1873 member call = Object*0*["keys"](???*1*)
 - *0* Object: The global Object variable
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-1869 -> 1875 free var = FreeVar(Object)
+1874 -> 1875 free var = FreeVar(Object)
 
 1869 -> 1876 member call = Object*0*["keys"](???*1*)
 - *0* Object: The global Object variable
@@ -13686,7 +13686,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *32* max number of linking steps reached
   ⚠️  This value might have side effects
 
-1956 -> 1963 free var = FreeVar(Math)
+1962 -> 1963 free var = FreeVar(Math)
 
 1956 -> 1966 member call = ???*0*["min"](???*1*, ???*2*)
 - *0* FreeVar(Math)
@@ -13711,7 +13711,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-1956 -> 1977 free var = FreeVar(Math)
+1976 -> 1977 free var = FreeVar(Math)
 
 1956 -> 1979 member call = ???*0*["min"](???*1*, ???*3*)
 - *0* FreeVar(Math)
@@ -13732,7 +13732,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-1981 -> 1983 free var = FreeVar(Math)
+1982 -> 1983 free var = FreeVar(Math)
 
 1981 -> 1985 member call = ???*0*["min"](???*1*, ???*3*)
 - *0* FreeVar(Math)
@@ -13851,9 +13851,9 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 2037 free var = FreeVar(document)
+2036 -> 2037 free var = FreeVar(document)
 
-0 -> 2039 free var = FreeVar(document)
+2038 -> 2039 free var = FreeVar(document)
 
 0 -> 2041 conditional = (???*0* === ???*2*)
 - *0* ???*1*["window"]
@@ -13989,7 +13989,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *32* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2049 -> 2056 free var = FreeVar(window)
+2052 -> 2056 free var = FreeVar(window)
 
 2049 -> 2057 member call = (???*0* | ???*2*)["getSelection"]()
 - *0* ???*1*["ownerDocument"]
@@ -14072,7 +14072,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *5* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 2071 member call = ???*0*["toLowerCase"]()
+2069 -> 2071 member call = ???*0*["toLowerCase"]()
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -14092,16 +14092,16 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 
 0 -> 2080 call = (...) => c("Transition", "TransitionEnd")
 
-0 -> 2083 free var = FreeVar(document)
+2082 -> 2083 free var = FreeVar(document)
 
-0 -> 2084 member call = ???*0*["createElement"]("div")
+2081 -> 2084 member call = ???*0*["createElement"]("div")
 - *0* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 2086 free var = FreeVar(window)
+2085 -> 2086 free var = FreeVar(window)
 
-0 -> 2094 free var = FreeVar(window)
+2093 -> 2094 free var = FreeVar(window)
 
 0 -> 2098 conditional = ???*0*
 - *0* {}[???*1*]
@@ -14364,7 +14364,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 
 0 -> 2163 free var = FreeVar(Set)
 
-0 -> 2166 member call = "cancel close invalid load scroll toggle"["split"](" ")
+2164 -> 2166 member call = "cancel close invalid load scroll toggle"["split"](" ")
 
 0 -> 2167 member call = "cancel close invalid load scroll toggle"["split"](" ")["concat"](
     "abort canplay canplaythrough durationchange emptied encrypted ended error loadeddata loadedmetadata loadstart pause play playing progress ratechange resize seeked seeking stalled suspend timeupdate volumechange waiting"["split"](" ")
@@ -14746,14 +14746,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *3* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-0 -> 2208 free var = FreeVar(Math)
+2207 -> 2208 free var = FreeVar(Math)
 
-0 -> 2209 member call = ???*0*["random"]()
+2206 -> 2209 member call = ???*0*["random"]()
 - *0* FreeVar(Math)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 2210 member call = ???*0*()["toString"](36)
+2205 -> 2210 member call = ???*0*()["toString"](36)
 - *0* ???*1*["random"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
@@ -17336,17 +17336,17 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-0 -> 2434 typeof = typeof(???*0*)
+2433 -> 2434 typeof = typeof(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 2435 conditional = ("string" === ???*0*)
+2433 -> 2435 conditional = ("string" === ???*0*)
 - *0* typeof(???*1*)
   ⚠️  nested operation
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 2436 member call = (???*0* ? ???*3* : ???*4*)["replace"](/\r\n?/g, "\n")
+2432 -> 2436 member call = (???*0* ? ???*3* : ???*4*)["replace"](/\r\n?/g, "\n")
 - *0* ("string" === ???*1*)
   ⚠️  nested operation
 - *1* typeof(???*2*)
@@ -17474,7 +17474,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 2456 free var = FreeVar(setTimeout)
+2455 -> 2456 free var = FreeVar(setTimeout)
 
 0 -> 2457 conditional = ("function" === ???*0*)
 - *0* typeof(???*1*)
@@ -17490,7 +17490,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 2460 free var = FreeVar(clearTimeout)
+2459 -> 2460 free var = FreeVar(clearTimeout)
 
 0 -> 2461 conditional = ("function" === ???*0*)
 - *0* typeof(???*1*)
@@ -17506,7 +17506,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 2464 free var = FreeVar(Promise)
+2463 -> 2464 free var = FreeVar(Promise)
 
 0 -> 2465 conditional = ("function" === ???*0*)
 - *0* typeof(???*1*)
@@ -17522,7 +17522,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 2468 free var = FreeVar(queueMicrotask)
+2467 -> 2468 free var = FreeVar(queueMicrotask)
 
 0 -> 2469 conditional = ("function" === ???*0*)
 - *0* typeof(???*1*)
@@ -17561,7 +17561,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-2472 -> 2476 member call = (???*0* ? ???*3* : undefined)["resolve"](null)
+2474 -> 2476 member call = (???*0* ? ???*3* : undefined)["resolve"](null)
 - *0* ("function" === ???*1*)
   ⚠️  nested operation
 - *1* typeof(???*2*)
@@ -17573,7 +17573,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-2472 -> 2477 member call = ???*0*["then"](???*6*)
+2473 -> 2477 member call = ???*0*["then"](???*6*)
 - *0* ???*1*(null)
   ⚠️  unknown callee
 - *1* ???*2*["resolve"]
@@ -17720,14 +17720,14 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 2513 free var = FreeVar(Math)
+2512 -> 2513 free var = FreeVar(Math)
 
-0 -> 2514 member call = ???*0*["random"]()
+2511 -> 2514 member call = ???*0*["random"]()
 - *0* FreeVar(Math)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 2515 member call = ???*0*()["toString"](36)
+2510 -> 2515 member call = ???*0*()["toString"](36)
 - *0* ???*1*["random"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
@@ -20036,7 +20036,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *15* arguments[2]
   ⚠️  function calls are not analyzed yet
 
-0 -> 3003 member call = module<react, {}>["Component"]()
+3001 -> 3003 member call = module<react, {}>["Component"]()
 
 0 -> 3005 call = (???*0* | ???*1* | (???*3* ? (???*5* | ???*6*) : ???*8*))(???*14*, (???*15* | ???*16*))
 - *0* arguments[2]
@@ -22531,7 +22531,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 3188 free var = FreeVar(Object)
+3187 -> 3188 free var = FreeVar(Object)
 
 0 -> 3189 member call = ???*0*["call"](???*3*)
 - *0* ???*1*["toString"]
@@ -22560,9 +22560,9 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  This value might have side effects
 - *4* Object: The global Object variable
 
-3191 -> 3194 free var = FreeVar(Object)
+3193 -> 3194 free var = FreeVar(Object)
 
-3191 -> 3195 member call = Object*0*["keys"](???*1*)
+3192 -> 3195 member call = Object*0*["keys"](???*1*)
 - *0* Object: The global Object variable
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
@@ -28614,7 +28614,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 3925 call = (...) => P()
+3924 -> 3925 call = (...) => P()
 
 0 -> 3926 unreachable = ???*0*
 - *0* unreachable
@@ -29235,7 +29235,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-0 -> 4011 call = (...) => P()
+4010 -> 4011 call = (...) => P()
 
 0 -> 4012 unreachable = ???*0*
 - *0* unreachable
@@ -30811,7 +30811,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *2* unsupported assign operation
   ⚠️  This value might have side effects
 
-0 -> 4064 call = (...) => P()
+4063 -> 4064 call = (...) => P()
 
 0 -> 4065 conditional = (undefined === ???*0*)
 - *0* arguments[1]
@@ -31074,7 +31074,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 4098 call = (...) => P()
+4097 -> 4098 call = (...) => P()
 
 0 -> 4099 unreachable = ???*0*
 - *0* unreachable
@@ -31113,7 +31113,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *5* a
   ⚠️  circular variable reference
 
-0 -> 4106 call = (...) => P()
+4105 -> 4106 call = (...) => P()
 
 0 -> 4107 unreachable = ???*0*
 - *0* unreachable
@@ -31614,7 +31614,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 
 0 -> 4133 conditional = (false | true)
 
-4133 -> 4135 call = (???*0* ? ???*2* : (...) => ???*4*)(???*6*)
+4134 -> 4135 call = (???*0* ? ???*2* : (...) => ???*4*)(???*6*)
 - *0* ???*1*["clz32"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
@@ -31812,9 +31812,9 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 4150 call = (...) => [b["memoizedState"], c["dispatch"]]((...) => (("function" === typeof(b)) ? b(a) : b))
+4149 -> 4150 call = (...) => [b["memoizedState"], c["dispatch"]]((...) => (("function" === typeof(b)) ? b(a) : b))
 
-0 -> 4152 call = (...) => P()
+4151 -> 4152 call = (...) => P()
 
 0 -> 4153 unreachable = ???*0*
 - *0* unreachable
@@ -32030,9 +32030,9 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 4163 call = (...) => [f, d]((...) => (("function" === typeof(b)) ? b(a) : b))
+4162 -> 4163 call = (...) => [f, d]((...) => (("function" === typeof(b)) ? b(a) : b))
 
-0 -> 4165 call = (...) => P()
+4164 -> 4165 call = (...) => P()
 
 0 -> 4166 unreachable = ???*0*
 - *0* unreachable
@@ -32065,7 +32065,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 4176 free var = FreeVar(console)
+4175 -> 4176 free var = FreeVar(console)
 
 0 -> 4178 member call = ???*0*["error"](???*1*)
 - *0* FreeVar(console)
@@ -32088,7 +32088,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 4182 free var = FreeVar(WeakMap)
+4181 -> 4182 free var = FreeVar(WeakMap)
 
 0 -> 4183 conditional = ("function" === ???*0*)
 - *0* typeof(???*1*)
@@ -39921,7 +39921,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *3* unsupported expression
   ⚠️  This value might have side effects
 
-5328 -> 5345 conditional = (9 === ???*0*)
+5343 -> 5345 conditional = (9 === ???*0*)
 - *0* ???*1*["nodeType"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
@@ -40437,7 +40437,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 5589 free var = FreeVar(WeakSet)
+5588 -> 5589 free var = FreeVar(WeakSet)
 
 0 -> 5590 conditional = ("function" === ???*0*)
 - *0* typeof(???*1*)
@@ -42749,7 +42749,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 6257 free var = FreeVar(Math)
+6256 -> 6257 free var = FreeVar(Math)
 
 0 -> 6261 call = (...) => {"current": a}(0)
 
@@ -42821,7 +42821,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-6276 -> 6279 free var = FreeVar(window)
+6278 -> 6279 free var = FreeVar(window)
 
 6276 -> 6280 conditional = (undefined === (???*0* | 0 | 1 | ???*1* | 4 | undefined | ???*2* | ???*7*))
 - *0* arguments[0]
@@ -43907,7 +43907,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 6413 call = (...) => a(???*0*, ???*1*)
+6412 -> 6413 call = (...) => a(???*0*, ???*1*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 - *1* max number of linking steps reached
@@ -48313,9 +48313,9 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 7356 free var = FreeVar(arguments)
+7355 -> 7356 free var = FreeVar(arguments)
 
-0 -> 7358 free var = FreeVar(arguments)
+7357 -> 7358 free var = FreeVar(arguments)
 
 0 -> 7359 conditional = (???*0* | (undefined !== ???*1*))
 - *0* unsupported expression
@@ -48327,7 +48327,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-7359 -> 7361 free var = FreeVar(arguments)
+7360 -> 7361 free var = FreeVar(arguments)
 
 0 -> 7362 conditional = (null == ???*0*)
 - *0* ((???*1* | ???*2*) ? ???*5* : null)
@@ -49899,7 +49899,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 7448 free var = FreeVar(reportError)
+7447 -> 7448 free var = FreeVar(reportError)
 
 0 -> 7449 conditional = ("function" === ???*0*)
 - *0* typeof(???*1*)
@@ -49910,7 +49910,7 @@ ${(???*50* | ???*51* | undefined | ???*55* | undefined[1] | "")}${(???*59* | ???
 
 7449 -> 7450 free var = FreeVar(reportError)
 
-7449 -> 7452 free var = FreeVar(console)
+7451 -> 7452 free var = FreeVar(console)
 
 7449 -> 7453 member call = ???*0*["error"](???*1*)
 - *0* FreeVar(console)

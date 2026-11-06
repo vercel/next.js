@@ -12,7 +12,7 @@
 
 0 -> 10 free var = FreeVar(require)
 
-0 -> 12 free var = FreeVar(process)
+11 -> 12 free var = FreeVar(process)
 
 0 -> 13 call = os.process*0*()
 - *0* os.process: The Node.js os.process method: https://nodejs.org/api/os.html#os_os_process
@@ -42,7 +42,7 @@
 0 -> 22 call = os.arch*0*()
 - *0* os.arch: The Node.js os.arch method: https://nodejs.org/api/os.html#os_os_arch
 
-0 -> 24 free var = FreeVar(process)
+23 -> 24 free var = FreeVar(process)
 
 0 -> 25 call = os.endianness*0*()
 - *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
@@ -52,9 +52,9 @@
 
 0 -> 27 free var = FreeVar(require)
 
-0 -> 29 free var = FreeVar(process)
+28 -> 29 free var = FreeVar(process)
 
-0 -> 31 free var = FreeVar(process)
+30 -> 31 free var = FreeVar(process)
 
 0 -> 32 call = os.endianness*0*()
 - *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness

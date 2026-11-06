@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/create-require/input/index.js:11:32  Module not found: Can't resolve './sub/'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/create-require/input/index.js:11:33  Module not found: Can't resolve './sub/'
   
        7 | })
        8 | 
