@@ -132,7 +132,9 @@ function createCacheControl() {
           if (rule.rule.action === 'reject') {
             throw new Error('Expected cache handler operation failure')
           }
-          await rule.pending
+          if (rule.rule.action === 'hold') {
+            await rule.pending
+          }
         }
         const result = await perform()
         record.status = 'completed'

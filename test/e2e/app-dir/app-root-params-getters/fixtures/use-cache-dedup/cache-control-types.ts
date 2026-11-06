@@ -53,7 +53,7 @@ export interface CacheOperationRecord {
 export interface CacheControlRule {
   id: string
   match: CacheOperationMatcher
-  action: 'hold' | 'reject'
+  action: 'hold' | 'reject' | 'observe'
 }
 
 export interface RegisteredCacheControlRule {

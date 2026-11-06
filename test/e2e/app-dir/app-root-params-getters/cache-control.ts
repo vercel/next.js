@@ -99,6 +99,9 @@ export async function createCacheControl(
     rejectNextWrite(match: Omit<CacheSetMatcher, 'type'>) {
       return register<CacheSetOperation>({ type: 'set', ...match }, 'reject')
     },
+    observeNextWrite(match: Omit<CacheSetMatcher, 'type'>) {
+      return register<CacheSetOperation>({ type: 'set', ...match }, 'observe')
+    },
     async waitForWrite(
       match: Omit<CacheSetMatcher, 'type'>,
       status: OperationStatus

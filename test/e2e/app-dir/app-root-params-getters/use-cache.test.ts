@@ -585,9 +585,16 @@ for (const { held, failure } of [
         tag: englishWriteTag,
         entry: held,
       })
-      if (failure !== null) {
-        await cache.rejectNextWrite({ tag: englishWriteTag, entry: failure })
-      }
+      const otherWrite =
+        failure === null
+          ? await cache.observeNextWrite({
+              tag: englishWriteTag,
+              entry: held === 'redirect' ? 'value' : 'redirect',
+            })
+          : await cache.rejectNextWrite({
+              tag: englishWriteTag,
+              entry: failure,
+            })
       const english = next.render$(`/ca/en/write-failure?id=${id}`)
       let french: ReturnType<typeof next.render$> | undefined
       try {
@@ -597,13 +604,11 @@ for (const { held, failure } of [
         expect((await cache.read()).lookupKeys).toHaveLength(1)
         await fill.release()
         await heldWrite.waitUntilStarted()
-        await cache.waitForWrite(
-          {
-            tag: englishWriteTag,
-            entry: held === 'redirect' ? 'value' : 'redirect',
-          },
-          failure === null ? 'completed' : 'rejected'
-        )
+        if (failure === null) {
+          await otherWrite.waitUntilCompleted()
+        } else {
+          await otherWrite.waitUntilRejected()
+        }
         // The other write settled. A root-key retry must wait for the held
         // write, even if the other write rejected.
         const pendingState = await cache.read()
@@ -658,6 +663,14 @@ describe('root cache lookup across two pending generations', () => {
       tag: englishWriteTag,
       entry: 'value',
     })
+    const firstRedirectWrite = await cache.observeNextWrite({
+      tag: englishWriteTag,
+      entry: 'redirect',
+    })
+    const secondRedirectWrite = await cache.observeNextWrite({
+      tag: englishWriteTag,
+      entry: 'redirect',
+    })
     const initialProducer = next.render$(pathname)
     let consumer: ReturnType<typeof next.render$> | undefined
     let specificProducer: ReturnType<typeof next.render$> | undefined
@@ -668,10 +681,7 @@ describe('root cache lookup across two pending generations', () => {
       await waitForCrossRequestJoin(next, id)
       await fill.release()
       const { cacheKey: specificKey } = await firstValueWrite.waitUntilStarted()
-      await cache.waitForWrite(
-        { tag: englishWriteTag, entry: 'redirect' },
-        'completed'
-      )
+      await firstRedirectWrite.waitUntilCompleted()
       specificProducer = next.render$(pathname)
       await secondValueWrite.waitUntilStarted()
       const pendingState = await cache.read()
@@ -685,6 +695,8 @@ describe('root cache lookup across two pending generations', () => {
       await firstValueWrite.release()
       await waitForCrossRequestJoin(next, id, '"lang","en"')
       await secondValueWrite.release()
+      await secondValueWrite.waitUntilCompleted()
+      await secondRedirectWrite.waitUntilCompleted()
       const [, specificPage, page] = await Promise.all([
         initialProducer,
         specificProducer,
