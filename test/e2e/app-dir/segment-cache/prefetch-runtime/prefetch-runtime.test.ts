@@ -1088,36 +1088,143 @@ describe('runtime prefetching', () => {
     })
   })
 
+  describe('cache values are consistent across HTML shell and runtime requests', () => {
+    const href = '/cache-from-rdc'
+    const htmlId = 'cached-data'
+
+    const getCacheValueFromInitialHTML = async (): Promise<string> => {
+      const $ = await next.render$(href)
+      const text = $(`#${htmlId}`).text()
+      if (!text) {
+        throw new Error('Cached value not found in HTML')
+      }
+      return text
+    }
+
+    it('runtime shell', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      const cacheValueFromHTMLShell = await getCacheValueFromInitialHTML()
+
+      // Reveal the link to trigger a runtime prefetch for the page
+      await act(async () => {
+        const linkToggle = await browser.elementByCss(
+          `input[data-prefetch="auto"][data-link-accordion="${href}"]`
+        )
+        await linkToggle.click()
+      }, [
+        {
+          includes: 'Cookie data',
+          kind: 'runtime',
+        },
+      ])
+
+      // Navigate to the page.
+      await act(async () => {
+        await browser.elementByCss(`a[href="${href}"]`).click()
+
+        // The runtime shell should contain the same cache value as the HTML.
+        expect(await browser.elementById(htmlId).text()).toBe(
+          cacheValueFromHTMLShell
+        )
+      }, [{ includes: 'Dynamic data' }])
+
+      // The navigation response should also contain the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cacheValueFromHTMLShell
+      )
+    })
+
+    it('runtime prefetch', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      const cacheValueFromHTMLShell = await getCacheValueFromInitialHTML()
+
+      // Reveal the link to trigger a runtime prefetch for the page
+      await act(async () => {
+        const linkToggle = await browser.elementByCss(
+          `input[data-prefetch="true"][data-link-accordion="${href}"]`
+        )
+        await linkToggle.click()
+      }, [
+        // Shell
+        {
+          includes: 'Cookie data',
+          kind: 'runtime',
+        },
+        // Prefetch
+        {
+          includes: 'Search params data',
+          kind: 'runtime',
+        },
+      ])
+
+      // Navigate to the page.
+      await act(async () => {
+        await browser.elementByCss(`a[href="${href}"]`).click()
+
+        // The runtime prefetch should contain the same cache value as the HTML.
+        expect(await browser.elementById(htmlId).text()).toBe(
+          cacheValueFromHTMLShell
+        )
+      }, [{ includes: 'Dynamic data' }])
+
+      // The navigation response should also contain the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cacheValueFromHTMLShell
+      )
+    })
+  })
+
   describe('errors', () => {
     it.each([
       {
         description: 'when sync IO is used after awaiting cookies()',
         path: '/errors/sync-io-after-runtime-api/cookies',
+        route: '/errors/sync-io-after-runtime-api/cookies',
       },
       {
         description: 'when sync IO is used after awaiting headers()',
         path: '/errors/sync-io-after-runtime-api/headers',
+        route: '/errors/sync-io-after-runtime-api/headers',
       },
       {
         description: 'when sync IO is used after awaiting dynamic params',
         path: '/errors/sync-io-after-runtime-api/dynamic-params/123',
+        route: '/errors/sync-io-after-runtime-api/dynamic-params/[id]',
       },
       {
         description: 'when sync IO is used after awaiting searchParams',
         path: '/errors/sync-io-after-runtime-api/search-params?foo=bar',
+        route: '/errors/sync-io-after-runtime-api/search-params',
       },
       {
         description: 'when sync IO is used after awaiting a private cache',
         path: '/errors/sync-io-after-runtime-api/private-cache',
+        route: '/errors/sync-io-after-runtime-api/private-cache',
       },
       {
         description:
           'when sync IO is used after awaiting a quickly-expiring public cache',
         path: '/errors/sync-io-after-runtime-api/quickly-expiring-public-cache',
+        route:
+          '/errors/sync-io-after-runtime-api/quickly-expiring-public-cache',
       },
     ])(
       'aborts the prerender without logging an error $description',
-      async ({ path }) => {
+      async ({ path, route }) => {
         // In a runtime prefetch, we might encounter sync IO usages that weren't caught during build,
         // because they were hidden behind e.g. a cookies() call.
         // We currently have no way to catch these statically.
@@ -1160,8 +1267,9 @@ describe('runtime prefetching', () => {
           },
         ])
 
+        const syncIOErrorText = `Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering`
         if (!isNextDeploy) {
-          expect(getCliOutput()).not.toMatch(`Date.now()`)
+          expect(getCliOutput()).toInclude(syncIOErrorText)
         }
 
         // Navigate to the page

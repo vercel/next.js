@@ -145,7 +145,10 @@ const packageManager: PackageManager = !!opts.useNpm
         : getPkgManager()
 
 async function run(): Promise<void> {
-  const conf = new Conf({ projectName: 'create-next-app' })
+  const conf = new Conf({
+    projectName: 'create-next-app',
+    cwd: process.env.NEXT_PRIVATE_TEST_CONFIG_DIR,
+  })
 
   if (opts.resetPreferences) {
     const { resetPreferences } = await prompts({
@@ -248,14 +251,13 @@ async function run(): Promise<void> {
       eslint: false,
       linter: 'eslint',
       tailwind: true,
-      app: true,
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
       empty: false,
       disableGit: false,
       reactCompiler: false,
-      cacheComponents: false,
+      cacheComponents: true,
       agentsMd: true,
     }
 
@@ -295,11 +297,6 @@ async function run(): Promise<void> {
         key: 'srcDir',
         values: { true: 'src/ directory', false: 'No src/ directory' },
         flags: { true: '--src-dir', false: '--no-src-dir' },
-      },
-      {
-        key: 'app',
-        values: { true: 'App Router', false: 'Pages Router' },
-        flags: { true: '--app', false: '--no-app' },
       },
       {
         key: 'cacheComponents',
@@ -591,30 +588,16 @@ async function run(): Promise<void> {
       }
     }
 
+    // New projects always use the App Router. Saved preferences from older
+    // versions are ignored; only an explicit --no-app opts out.
     if (!opts.app && !args.includes('--no-app') && !opts.api) {
-      if (skipPrompt) {
-        opts.app = getPrefOrDefault('app')
-      } else {
-        const styledAppDir = blue('App Router')
-        const { app } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'app',
-          message: `Would you like to use ${styledAppDir}? (recommended)`,
-          initial: getPrefOrDefault('app'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        opts.app = Boolean(app)
-        preferences.app = Boolean(app)
-      }
+      opts.app = true
     }
 
     // Cache Components is an App Router feature, so only offer it when the App
-    // Router is in use.
+    // Router is in use, including API-only projects.
     if (
-      opts.app &&
-      !opts.api &&
+      (opts.app || opts.api) &&
       !opts.cacheComponents &&
       !args.includes('--no-cache-components')
     ) {

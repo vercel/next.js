@@ -23,6 +23,7 @@ use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     rope::{Rope, RopeBuilder},
 };
+use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
     SOURCE_URL_PROTOCOL, asset::AssetContent, source::Source,
@@ -31,24 +32,85 @@ use crate::{
 };
 
 pub(crate) mod source_map_asset;
+mod source_maps;
 pub mod structured;
 pub mod utils;
 
 pub use source_map_asset::SourceMapAsset;
+pub use source_maps::SourceMaps;
 
 /// Represents an empty value in a u32 variable in the sourcemap crate.
 static SOURCEMAP_CRATE_NONE_U32: u32 = !0;
+
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Default, Clone, Copy, Hash, DeterministicHash)]
+pub enum SourceMapType {
+    /// Traces through input source maps to the original sources.
+    #[default]
+    Full,
+    /// Maps to the input files without tracing through their source maps.
+    Shallow,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionSourceMapType(Option<SourceMapType>);
+
+/// Which source maps should be generated. This is different than the source map type that is
+/// emitted to disk.
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Copy, Hash, DeterministicHash)]
+pub struct SourceMapGenerationOptions {
+    /// Generates maps that trace through input source maps to the original sources.
+    pub full: bool,
+    /// Generates maps to the input files without tracing through their source maps.
+    pub shallow: bool,
+    /// Retain source text when shallow maps are also used for debugging.
+    pub shallow_sources_content: bool,
+}
+
+impl SourceMapGenerationOptions {
+    pub const NONE: Self = Self {
+        full: false,
+        shallow: false,
+        shallow_sources_content: false,
+    };
+
+    pub fn from_emitted(ty: Option<SourceMapType>) -> Self {
+        Self {
+            full: matches!(ty, Some(SourceMapType::Full)),
+            shallow: matches!(ty, Some(SourceMapType::Shallow)),
+            shallow_sources_content: matches!(ty, Some(SourceMapType::Shallow)),
+        }
+    }
+
+    pub fn should_generate_any_source_maps(self) -> bool {
+        self.full || self.shallow
+    }
+}
+
+impl Default for SourceMapGenerationOptions {
+    fn default() -> Self {
+        Self {
+            full: true,
+            shallow: false,
+            shallow_sources_content: false,
+        }
+    }
+}
 
 /// Allows callers to generate source maps.
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
+    /// `ty` selects whether to trace through input source maps. Leaf implementations
+    /// may ignore this hint when the same map serves both variants.
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent>;
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent>;
 
     /// Returns an individual section of the larger source map, if found.
+    /// `ty` selects the map variant, as in [`GenerateSourceMap::generate_source_map`].
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<FileContent> {
+    fn by_section(self: Vc<Self>, _section: RcStr, _ty: SourceMapType) -> Vc<FileContent> {
         FileContent::NotFound.cell()
     }
 }
@@ -504,14 +566,44 @@ impl SourceMap {
     }
 }
 
-#[turbo_tasks::function]
-fn sourcemap_content_fs_root() -> Vc<FileSystemPath> {
-    VirtualFileSystem::new_with_name(rcstr!("sourcemap-content")).root()
+/// Splits a source URL of the form `turbopack:///[<fs name>]/<path>` (as written by
+/// [`SourceMap::with_resolved_sources`] and [`utils::resolve_source_map_sources`]) into the file
+/// system name and the path. Returns `None` for any other form.
+fn split_turbopack_source_url(url: &str) -> Option<(&str, &str)> {
+    let rest = url
+        .strip_prefix(SOURCE_URL_PROTOCOL.as_str())?
+        .strip_prefix("///[")?;
+    let (fs_name, path) = rest.split_once("]/")?;
+    (!fs_name.is_empty() && !path.is_empty()).then_some((fs_name, path))
 }
 
+/// The root of a virtual file system for embedded source-map contents. `name` is either
+/// `sourcemap-content` (for arbitrary source URLs) or the name of the original file system, so
+/// sources placed in it present with the same `[name]/path` as the original files.
+#[turbo_tasks::function]
+fn sourcemap_content_fs_root(name: RcStr) -> Vc<FileSystemPath> {
+    VirtualFileSystem::new_with_name(name).root()
+}
+
+/// Creates a source for the embedded `sourcesContent` of a source-map source.
+///
+/// The path is the source's URL. For Turbopack's own `turbopack:///[<fs>]/<path>` URLs the source
+/// is placed at `<path>` in a virtual file system named `<fs>`, so it presents (e.g. in issues) as
+/// the original file `[<fs>]/<path>`. Any other URL is placed verbatim in the `sourcemap-content`
+/// virtual file system.
 #[turbo_tasks::function]
 async fn sourcemap_content_source(path: RcStr, content: RcStr) -> Result<Vc<Box<dyn Source>>> {
-    let path = sourcemap_content_fs_root().await?.join(&path)?;
+    let path = if let Some((fs_name, fs_path)) = split_turbopack_source_url(&path)
+        && let Some(path) = sourcemap_content_fs_root(fs_name.into())
+            .await?
+            .try_join_inside(fs_path)
+    {
+        path
+    } else {
+        sourcemap_content_fs_root(rcstr!("sourcemap-content"))
+            .await?
+            .join(&path)?
+    };
     let content = AssetContent::file(FileContent::new(File::from(content)).cell());
     Ok(Vc::upcast(VirtualSource::new(path, content)))
 }
@@ -642,7 +734,7 @@ impl SourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self) -> Result<Vc<FileContent>> {
+    fn generate_source_map(&self, _ty: SourceMapType) -> Result<Vc<FileContent>> {
         Ok(FileContent::Content(File::from(self.to_rope()?)).cell())
     }
 }
@@ -713,3 +805,35 @@ impl<Context> Decode<Context> for CrateMapWrapper {
 }
 
 bincode::impl_borrow_decode!(CrateMapWrapper);
+
+#[cfg(test)]
+mod tests {
+    use super::split_turbopack_source_url;
+
+    #[test]
+    fn splits_turbopack_source_urls() {
+        assert_eq!(
+            split_turbopack_source_url("turbopack:///[project]/app/a.js"),
+            Some(("project", "app/a.js"))
+        );
+        assert_eq!(
+            split_turbopack_source_url("turbopack:///[next]/dist/x.js"),
+            Some(("next", "dist/x.js"))
+        );
+    }
+
+    #[test]
+    fn rejects_other_source_urls() {
+        for url in [
+            "webpack://app/a.js",
+            "app/a.js",
+            "turbopack:///app/a.js",
+            "turbopack:///[]/a.js",
+            "turbopack:///[project]",
+            "turbopack:///[project]/",
+            "turbopack://[project]/a.js",
+        ] {
+            assert_eq!(split_turbopack_source_url(url), None, "{url}");
+        }
+    }
+}

@@ -51,10 +51,12 @@ describe('upgrade menu', () => {
   ] as const)('returns %s and restores the terminal', async (action, down) => {
     const exits = process.listenerCount('exit')
     const resizes = process.stdout.listenerCount('resize')
-    const pending = promptUpgrade(
-      'Shared recommendation',
-      new AbortController().signal
-    )
+    const pending = promptUpgrade({
+      message: 'Shared recommendation',
+      signal: new AbortController().signal,
+      canUpdate: true,
+      onShown: null,
+    })
     expect(screen.startsWith('\x1b[?1049h')).toBe(true)
     for (let i = 0; i < down; i++) {
       input.emit('keypress', '', { name: 'down' })
@@ -82,7 +84,12 @@ describe('upgrade menu', () => {
     async (size) => {
       process.stdout.columns = size.columns
       process.stdout.rows = size.rows
-      const pending = promptUpgrade(size.message, new AbortController().signal)
+      const pending = promptUpgrade({
+        message: size.message,
+        signal: new AbortController().signal,
+        canUpdate: true,
+        onShown: null,
+      })
       expect(screen).toContain(size.message)
       expect(screen).toContain('Upgrade now')
       expect(screen).toContain('Skip until next version')
@@ -102,11 +109,12 @@ describe('upgrade menu', () => {
     'preserves selection on resize (canUpdate: %s)',
     async (canUpdate) => {
       const resizes = process.stdout.listenerCount('resize')
-      const pending = promptUpgrade(
-        'Reminder',
-        new AbortController().signal,
-        canUpdate
-      )
+      const pending = promptUpgrade({
+        message: 'Reminder',
+        signal: new AbortController().signal,
+        canUpdate,
+        onShown: null,
+      })
       input.emit('keypress', '', { name: 'down' })
       const initialScreen = screen
       process.stdout.columns = 60
@@ -132,7 +140,12 @@ describe('upgrade menu', () => {
     async (action) => {
       const resizes = process.stdout.listenerCount('resize')
       const controller = new AbortController()
-      const pending = promptUpgrade('Reminder', controller.signal)
+      const pending = promptUpgrade({
+        message: 'Reminder',
+        signal: controller.signal,
+        canUpdate: true,
+        onShown: null,
+      })
       process.stdout.emit('resize')
       if (action === 'abort') {
         controller.abort()
@@ -161,7 +174,12 @@ describe('upgrade menu', () => {
       }
       return true
     })
-    const pending = promptUpgrade('Reminder', new AbortController().signal)
+    const pending = promptUpgrade({
+      message: 'Reminder',
+      signal: new AbortController().signal,
+      canUpdate: true,
+      onShown: null,
+    })
     await new Promise<void>(queueMicrotask)
     expect(screen.split('Reminder')).toHaveLength(3)
     input.emit('keypress', '', { name: 'down' })
@@ -173,7 +191,12 @@ describe('upgrade menu', () => {
     const resizes = process.stdout.listenerCount('resize')
     const message =
       'Complete reminder\n\nReference: https://example.com/advisory'
-    const pending = promptUpgrade(message, new AbortController().signal)
+    const pending = promptUpgrade({
+      message,
+      signal: new AbortController().signal,
+      canUpdate: true,
+      onShown: null,
+    })
     input.emit('keypress', '', { name: 'down' })
     screen = ''
     process.stdout.rows = 4
@@ -189,11 +212,12 @@ describe('upgrade menu', () => {
   })
 
   it('only offers Skip and dismissal when no upgrade is available', async () => {
-    const pending = promptUpgrade(
-      'No eligible target.',
-      new AbortController().signal,
-      false
-    )
+    const pending = promptUpgrade({
+      message: 'No eligible target.',
+      signal: new AbortController().signal,
+      canUpdate: false,
+      onShown: null,
+    })
     expect(screen.includes('Upgrade now')).toBe(false)
     expect(screen).toContain('Skip until next version')
     input.emit('keypress', '', { name: 'return' })
@@ -204,7 +228,12 @@ describe('upgrade menu', () => {
     const listener = jest.fn()
     input.on('keypress', listener)
     const controller = new AbortController()
-    const pending = promptUpgrade('Reminder', controller.signal)
+    const pending = promptUpgrade({
+      message: 'Reminder',
+      signal: controller.signal,
+      canUpdate: true,
+      onShown: null,
+    })
     controller.abort()
     await expect(pending).resolves.toBe('skip')
     expect(listener).toHaveBeenCalledTimes(0)
@@ -215,7 +244,12 @@ describe('upgrade menu', () => {
 
   it('returns interruption without self-signalling', async () => {
     const kill = jest.spyOn(process, 'kill').mockReturnValue(true)
-    const pending = promptUpgrade('Reminder', new AbortController().signal)
+    const pending = promptUpgrade({
+      message: 'Reminder',
+      signal: new AbortController().signal,
+      canUpdate: true,
+      onShown: null,
+    })
     input.emit('keypress', '', { name: 'c', ctrl: true })
     await expect(pending).resolves.toBe('interrupt')
     expect(kill).toHaveBeenCalledTimes(0)
@@ -234,7 +268,12 @@ describe('upgrade menu', () => {
       return true
     })
     await expect(
-      promptUpgrade('Shared recommendation', new AbortController().signal)
+      promptUpgrade({
+        message: 'Shared recommendation',
+        signal: new AbortController().signal,
+        canUpdate: true,
+        onShown: null,
+      })
     ).rejects.toThrow('Rendering failed')
     expect(input.setRawMode.mock.calls).toEqual([[true], [false]])
     expect(input.listenerCount('keypress')).toBe(0)
@@ -247,7 +286,12 @@ describe('upgrade menu', () => {
   it('preserves an already raw and flowing input stream', async () => {
     input.isRaw = true
     input.resume()
-    const pending = promptUpgrade('Reminder', new AbortController().signal)
+    const pending = promptUpgrade({
+      message: 'Reminder',
+      signal: new AbortController().signal,
+      canUpdate: true,
+      onShown: null,
+    })
     input.emit('keypress', '', { name: 'escape' })
     await expect(pending).resolves.toBe('skip')
     expect(input.setRawMode).toHaveBeenLastCalledWith(true)

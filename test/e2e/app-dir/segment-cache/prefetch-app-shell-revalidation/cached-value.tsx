@@ -1,4 +1,4 @@
-import { cacheTag, revalidateTag, unstable_prefetch } from 'next/cache'
+import { cacheTag, revalidateTag, prefetch } from 'next/cache'
 
 import * as fs from 'node:fs'
 import { Suspense } from 'react'
@@ -92,7 +92,7 @@ async function CookieDataImpl({ label }: { label?: string }) {
 }
 
 async function RuntimePrefetchData() {
-  await unstable_prefetch()
+  await prefetch()
   return (
     <div id="cookies-runtime-prefetch-data">
       Runtime prefetch data (behind cookies)

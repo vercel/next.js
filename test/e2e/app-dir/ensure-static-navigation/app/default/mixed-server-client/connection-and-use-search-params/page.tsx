@@ -2,7 +2,7 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 import { ClientSearchQuery } from './client'
 
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 export default function Page() {
   return (

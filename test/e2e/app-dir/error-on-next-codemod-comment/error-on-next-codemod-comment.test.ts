@@ -7,12 +7,10 @@ import {
 } from 'next-test-utils'
 
 describe('app-dir - error-on-next-codemod-comment', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   if (isNextDev) {
     beforeAll(async () => {
@@ -121,11 +119,10 @@ describe('app-dir - error-on-next-codemod-comment', () => {
     })
   } else {
     it('should fail the build with next build', async () => {
-      const res = await next.build()
-      expect(res.exitCode).toBe(1)
-      expect(res.cliOutput).toContain(
+      await expect(next.start()).rejects.toThrow()
+      expect(next.cliOutput).toContain(
         'You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.'
       )
-    })
+    }, 240_000)
   }
 })

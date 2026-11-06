@@ -50,6 +50,11 @@ export async function copy_docs(task, opts) {
   await task
     .source(join(__dirname, 'src/agent-feedback/protocol.md'))
     .target('dist/agent-feedback')
+
+  // Keep upgrade workflow instructions outside the public docs bundle.
+  await task
+    .source(join(__dirname, 'src/lib/upgrade/*.md'))
+    .target('dist/lib/upgrade')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
@@ -1275,18 +1280,15 @@ export async function ncc_json5(task, opts) {
     .ncc({ packageName: 'json5', externals })
     .target('src/compiled/json5')
 }
-externals['jsonwebtoken'] = 'next/dist/compiled/jsonwebtoken'
-export async function ncc_jsonwebtoken(task, opts) {
+externals['fast-jwt'] = 'next/dist/compiled/fast-jwt'
+export async function ncc_fast_jwt(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('jsonwebtoken')))
+    .source(relative(__dirname, require.resolve('fast-jwt')))
     .ncc({
-      packageName: 'jsonwebtoken',
-      externals: {
-        ...externals,
-        semver: 'next/dist/lib/semver-noop',
-      },
+      packageName: 'fast-jwt',
+      externals,
     })
-    .target('src/compiled/jsonwebtoken')
+    .target('src/compiled/fast-jwt')
 }
 externals['loader-runner'] = 'next/dist/compiled/loader-runner'
 export async function ncc_loader_runner(task, opts) {
@@ -1666,7 +1668,12 @@ export async function copy_vendor_react(task_) {
       'cjs/react-dom-server.bun.production.min.js',
       'cjs/react-dom-test-utils.development.js',
       'cjs/react-dom-test-utils.production.min.js',
-      'unstable_server-external-runtime.js',
+      // `unstable_server-external-runtime.js` is deliberately kept. It is the
+      // standalone browser runtime that applies Fizz's instruction set when
+      // `unstable_externalRuntimeSrc` is set, and it is served as a static
+      // asset rather than bundled. React only publishes it on the experimental
+      // channel, so it is absent from the `react-dom` copy and present in the
+      // `react-dom-experimental` one.
     ]
     for (const item of itemsToRemove) {
       yield rmrf(join(reactDomCompiledDir, item))
@@ -1908,6 +1915,29 @@ export async function ncc_string_hash(task, opts) {
     .source(relative(__dirname, require.resolve('string-hash')))
     .ncc({ packageName: 'string-hash', externals })
     .target('src/compiled/string-hash')
+}
+// Bundle only SHA-256, using browser entrypoints so this is safe in Edge.
+export async function ncc_hash_sha256(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('hash.js/lib/hash/sha/256')))
+    .ncc({
+      packageName: 'hash.js',
+      bundleName: 'hash.js/sha256',
+      externals,
+      mainFields: ['browser', 'main'],
+    })
+    .target('src/compiled/hash.js/sha256')
+
+  // hash.js publishes its license in the README rather than a LICENSE file.
+  const readme = await fs.readFile(require.resolve('hash.js/README.md'), 'utf8')
+  const license = readme.split('#### LICENSE\n')[1]
+  if (!license) {
+    throw new Error('Missing hash.js license')
+  }
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/hash.js/sha256/LICENSE'),
+    `${license.trim()}\n`
+  )
 }
 externals['strip-ansi'] = 'next/dist/compiled/strip-ansi'
 externals['next/dist/compiled/strip-ansi'] = 'next/dist/compiled/strip-ansi'
@@ -2317,7 +2347,7 @@ export async function ncc(task, opts) {
         'ncc_is_docker',
         'ncc_is_wsl',
         'ncc_json5',
-        'ncc_jsonwebtoken',
+        'ncc_fast_jwt',
         'ncc_loader_runner',
         'ncc_loader_utils2',
         'ncc_loader_utils3',
@@ -2346,6 +2376,7 @@ export async function ncc(task, opts) {
         'ncc_source_map08',
         'ncc_serve_handler',
         'ncc_string_hash',
+        'ncc_hash_sha256',
         'ncc_strip_ansi',
         'ncc_superstruct',
         'ncc_zod',

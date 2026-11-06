@@ -63,8 +63,11 @@ describe('instant insights tab overlay', () => {
         rightBottom: rightContent.getBoundingClientRect().bottom,
         rightLeft: rightContent.getBoundingClientRect().left,
         rightEdge: rightContent.getBoundingClientRect().right,
+        leftWidth: leftContent.getBoundingClientRect().width,
+        rightWidth: rightContent.getBoundingClientRect().width,
         navRightEdge: nav.getBoundingClientRect().right,
         navBottomEdge: nav.getBoundingClientRect().bottom,
+        navPaddingLeft: parseFloat(getComputedStyle(nav).paddingLeft),
         navPaddingRight: parseFloat(getComputedStyle(nav).paddingRight),
         navPaddingBottom: parseFloat(getComputedStyle(nav).paddingBottom),
         clientWidth: nav.clientWidth,
@@ -164,7 +167,7 @@ describe('instant insights tab overlay', () => {
       expect((await getIndicatorPillState(browser))?.text).toMatch(/1\s*Issue/i)
     })
 
-    await browser.setDimensions({ width: 390, height: 844 })
+    await browser.setDimensions({ width: 767, height: 844 })
     await clickIndicatorPill(browser)
 
     await retry(async () => {
@@ -179,7 +182,17 @@ describe('instant insights tab overlay', () => {
       expect(layout!.scrollWidth).toBe(layout!.clientWidth)
     })
 
-    await browser.setDimensions({ width: 320, height: 844 })
+    await browser.setDimensions({ width: 390, height: 844 })
+    const mobileLayout = (await getErrorOverlayNavLayout(browser))!
+    const wrappedWidth = Math.ceil(
+      Math.max(mobileLayout.leftWidth, mobileLayout.rightWidth) +
+        390 -
+        mobileLayout.clientWidth +
+        mobileLayout.navPaddingLeft +
+        mobileLayout.navPaddingRight +
+        4
+    )
+    await browser.setDimensions({ width: wrappedWidth, height: 844 })
 
     await retry(async () => {
       const layout = await getErrorOverlayNavLayout(browser)

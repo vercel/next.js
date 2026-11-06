@@ -268,7 +268,8 @@ mod tests {
     use rustc_hash::FxHashMap;
     use swc_core::{
         common::{
-            FilePathMapping, GLOBALS, Globals, Mark, SourceMap, comments::SingleThreadedComments,
+            FileName, FilePathMapping, GLOBALS, Globals, Mark, SourceMap,
+            comments::SingleThreadedComments,
         },
         ecma::{
             ast::{EsVersion, Id},
@@ -365,7 +366,6 @@ mod tests {
                 &m,
                 &eval_context,
                 AnalyzeMode::code_generation_and_tracing(),
-                true,
                 SpecifiedModuleType::EcmaScript,
                 true,
                 false,
@@ -664,7 +664,10 @@ mod tests {
                         resolved.push((format!("{parent} -> {i} free var"), JsValue::FreeVar(var)));
                         0
                     }
-                    Effect::TypeOf { mut arg, .. } => {
+                    Effect::TypeOf {
+                        mut arg, effects, ..
+                    } => {
+                        queue.extend(BumpVec::from(effects).into_iter().rev().map(|e| (i, e)));
                         let (arg, steps) = resolve(
                             &arena,
                             &var_graph,
@@ -734,11 +737,17 @@ mod tests {
                         ));
                         0
                     }
+                    Effect::Member {
+                        base_effects: effects,
+                        ..
+                    }
+                    | Effect::In { effects, .. } => {
+                        queue.extend(BumpVec::from(effects).into_iter().rev().map(|e| (i, e)));
+                        0
+                    }
                     Effect::ImportMeta { .. }
                     | Effect::ImportedBinding { .. }
-                    | Effect::Member { .. }
-                    | Effect::DestructuredMember { .. }
-                    | Effect::In { .. } => 0,
+                    | Effect::DestructuredMember { .. } => 0,
                 };
                 let time = start.elapsed();
                 if time.as_millis() > 1 {
@@ -776,6 +785,75 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    /// Builds the var graph for `src` (parsed as a sloppy script unless it uses module syntax)
+    /// and returns whether a direct `eval` was detected.
+    fn detect_direct_eval(src: &str) -> bool {
+        let cm: Arc<SourceMap> = Arc::new(SourceMap::new(FilePathMapping::empty()));
+        let globals = Globals::new();
+        GLOBALS.set(&globals, || {
+            let fm = cm.new_source_file(FileName::Anon.into(), src.to_string());
+            let mut m = parse_file_as_program(
+                &fm,
+                Default::default(),
+                EsVersion::latest(),
+                None,
+                &mut vec![],
+            )
+            .unwrap();
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+            m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
+            let eval_context = EvalContext::new(
+                Some(&m),
+                unresolved_mark,
+                top_level_mark,
+                Default::default(),
+                None,
+            );
+            let arena = Bump::new();
+            create_graph(
+                &arena,
+                &m,
+                &eval_context,
+                AnalyzeMode::code_generation(),
+                SpecifiedModuleType::Automatic,
+                false,
+                false,
+            )
+            .has_direct_eval
+        })
+    }
+
+    #[test]
+    fn direct_eval_detection() {
+        for src in [
+            "eval('x')",
+            "(eval)('x')",
+            "((eval))('x')",
+            "function f() { return eval('x') }",
+            "(() => { eval('x') })()",
+            "class C { m() { eval('x') } }",
+            "if (cond) { eval('x') }",
+            "export const v = eval('x')",
+        ] {
+            assert!(detect_direct_eval(src), "expected direct eval: {src}");
+        }
+
+        for src in [
+            "(0, eval)('x')",
+            "globalThis.eval('x')",
+            "window.eval('x')",
+            "eval?.('x')",
+            "const e = eval; e('x')",
+            "new eval('x')",
+            "function f(eval) { return eval('x') }",
+            "var eval = (x) => x; eval('x')",
+            "export const v = 1",
+        ] {
+            assert!(!detect_direct_eval(src), "expected no direct eval: {src}");
+        }
     }
 
     async fn resolve<'a>(

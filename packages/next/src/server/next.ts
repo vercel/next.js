@@ -26,10 +26,6 @@ import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 import type { ServerInitResult } from './lib/render-server'
 import { AsyncCallbackSet } from './lib/async-callback-set'
-import {
-  RouterServerContextSymbol,
-  routerServerGlobal,
-} from './lib/router-utils/router-server-context'
 
 let ServerImpl: typeof NextNodeServer
 
@@ -47,7 +43,7 @@ const getServerImpl = async () => {
 export type NextServerOptions = Omit<
   ServerOptions | DevServerOptions,
   // This is assigned in this server abstraction.
-  'conf'
+  'conf' | 'compileMode'
 > &
   Partial<Pick<ServerOptions | DevServerOptions, 'conf'>>
 
@@ -255,6 +251,13 @@ export class NextServer implements NextWrapperServer {
     }
   }
 
+  getAssetPrefix(): string {
+    if (!this.server) {
+      throw new Error('prepare() must be called before getting assetPrefix')
+    }
+    return this.server.getAssetPrefix()
+  }
+
   logError(...args: Parameters<NextWrapperServer['logError']>) {
     if (this.server) {
       this.server.logError(...args)
@@ -362,8 +365,13 @@ export class NextServer implements NextWrapperServer {
           )
         ).config
 
-        config.experimental.isExperimentalCompile =
-          serializedConfig.experimental.isExperimentalCompile
+        return {
+          config,
+          compileMode: {
+            isExperimentalCompile:
+              serializedConfig.experimental.isExperimentalCompile,
+          },
+        }
       } catch (_) {
         // if distDir is customized we don't know until we
         // load the config so fallback to loading the config
@@ -371,12 +379,13 @@ export class NextServer implements NextWrapperServer {
       }
     }
 
-    return config
+    return { config, compileMode: undefined }
   }
 
   private async getServer() {
     if (!this.serverPromise) {
-      this.serverPromise = this[SYMBOL_LOAD_CONFIG]().then(async (conf) => {
+      this.serverPromise = this[SYMBOL_LOAD_CONFIG]().then(async (result) => {
+        const { config: conf, compileMode } = result
         if (!this.options.dev) {
           if (conf.output === 'standalone') {
             if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
@@ -394,6 +403,7 @@ export class NextServer implements NextWrapperServer {
         this.server = await this.createServer({
           ...this.options,
           conf,
+          compileMode,
         })
         if (this.preparedAssetPrefix) {
           this.server.setAssetPrefix(this.preparedAssetPrefix)
@@ -544,22 +554,6 @@ class NextCustomServer implements NextWrapperServer {
   setAssetPrefix(assetPrefix: string): void {
     warnDeprecatedCustomServerMethod('setAssetPrefix')
     this.server.setAssetPrefix(assetPrefix)
-
-    // update the router-server nextConfig instance as
-    // this is the source of truth for "handler" in serverful
-    const relativeProjectDir = path.relative(
-      process.cwd(),
-      this.options.dir || ''
-    )
-
-    if (
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
-        ?.nextConfig
-    ) {
-      routerServerGlobal[RouterServerContextSymbol][
-        relativeProjectDir
-      ].nextConfig.assetPrefix = assetPrefix
-    }
   }
 
   getUpgradeHandler(): UpgradeHandler {

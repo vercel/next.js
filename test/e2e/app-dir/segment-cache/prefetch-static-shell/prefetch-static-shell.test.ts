@@ -1,6 +1,10 @@
 import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
-import { createRouterAct } from 'router-act'
+import {
+  createRouterAct,
+  isActMissingResponseError,
+  waitForSuccessfulISRFallbackRetry,
+} from 'router-act'
 import { retry } from '../../../../lib/next-test-utils'
 
 const REPRODUCE_UNNECESSARY_RUNTIME_PREFETCH =
@@ -433,133 +437,188 @@ describe('static App Shell prefetch attempt', () => {
     expect(await browser.elementById('param-value').text()).toBe('Post: 2')
   })
 
-  it('uses a static app shell for a partial segment that awaits fallback params after navigation()', async () => {
-    let page: Playwright.Page
-    const browser = await next.browser('/', {
-      beforePageLoad(p: Playwright.Page) {
-        page = p
-      },
-    })
-    const act = createRouterAct(page, { includeAppShellRequests: true })
+  describe('fallback params after navigation()', () => {
+    it('uses a static app shell for a page that awaits fallback params after navigation()', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // Reveal a prefetch-auto link to /params-used-after-navigation/1.
-    // Runtime data was only awaited after navigation(), so a static app shell is sufficient
-    // (a runtime app shell would not provide more data, because it does not include navigation())
-    await act(async () => {
-      await browser
-        .elementByCss(
-          'input[data-prefetch="auto"][data-link-accordion="/params-used-after-navigation/1"]'
-        )
-        .click()
-    }, [
-      // We only expect a static prefetch, no runtime requests.
-      { includes: 'Params awaited after navigation', kind: 'static' },
-      // The param is not static, so it should not be part of the prefetch.
-      {
-        includes: 'Post: 1',
-        block: 'reject',
-      },
-      {
-        includes: '',
-        kind: 'runtime',
-        block: 'reject',
-      },
-    ])
-
-    // Navigate to an unprefetched link with a different param value.
-    // This should re-use the prefetch that we got from '1'.
-    await act(
-      async () => {
+      // Reveal a prefetch-auto link to /params-used-after-navigation/1.
+      // Runtime data was only awaited after navigation(), so a static app shell is sufficient
+      // (a runtime app shell would not provide more data, because it does not include navigation())
+      await act(async () => {
         await browser
-          .elementByCss('a[href="/params-used-after-navigation/2"]')
+          .elementByCss(
+            'input[data-prefetch="auto"][data-link-accordion="/params-used-after-navigation/1"]'
+          )
           .click()
+      }, [
+        // We only expect a static prefetch, no runtime requests.
+        { includes: 'Params awaited after navigation', kind: 'static' },
+        // The param is not static, so it should not be part of the prefetch.
+        {
+          includes: 'Post: 1',
+          block: 'reject',
+        },
+        {
+          includes: '',
+          kind: 'runtime',
+          block: 'reject',
+        },
+      ])
 
-        expect(await browser.elementById('page-content').text()).toBe(
-          'Params awaited after navigation'
-        )
+      // Navigate to an unprefetched link with a different param value.
+      // This should re-use the prefetch that we got from '1'.
+      await act(
+        async () => {
+          await browser
+            .elementByCss('a[href="/params-used-after-navigation/2"]')
+            .click()
 
-        // `navigation()` *does* resolve in static prefetches, so we have navigation-gated
-        // content. The static prefetch does not vary on params (because the param
-        // is a fallback), so we're using it instead of the shell, and navigation content
-        // is visible.
-        expect(await browser.elementById('navigation-content').text()).toBe(
-          'Navigation content'
-        )
-        expect(await browser.elementById('param-loading').text()).toBe(
-          'Loading param content...'
-        )
-      },
-      // The param-dependent content streams in with the navigation response.
-      { includes: 'Post: 2' }
-    )
+          expect(await browser.elementById('page-content').text()).toBe(
+            'Params awaited after navigation'
+          )
 
-    expect(await browser.elementById('navigation-content').text()).toBe(
-      'Navigation content'
-    )
-    expect(await browser.elementById('param-value').text()).toBe('Post: 2')
-  })
+          // `navigation()` *does* resolve in static prefetches, so we have navigation-gated
+          // content. The static prefetch does not vary on params (because the param
+          // is a fallback), so we're using it instead of the shell, and navigation content
+          // is visible.
+          expect(await browser.elementById('navigation-content').text()).toBe(
+            'Navigation content'
+          )
+          expect(await browser.elementById('param-loading').text()).toBe(
+            'Loading param content...'
+          )
+        },
+        // The param-dependent content streams in with the navigation response.
+        { includes: 'Post: 2' }
+      )
 
-  it('speculative: uses a static prefetch for a partial segment that awaits fallback params after navigation()', async () => {
-    let page: Playwright.Page
-    const browser = await next.browser('/', {
-      beforePageLoad(p: Playwright.Page) {
-        page = p
-      },
+      expect(await browser.elementById('navigation-content').text()).toBe(
+        'Navigation content'
+      )
+      expect(await browser.elementById('param-value').text()).toBe('Post: 2')
     })
-    const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // Reveal a prefetch-true link to /params-used-after-navigation/1.
-    // Runtime data was only awaited after navigation(), so a static prefetch is sufficient
-    // (a runtime prefetch would not provide more data, because it does not include navigation())
-    await act(async () => {
-      await browser
-        .elementByCss(
-          'input[data-prefetch="true"][data-link-accordion="/params-used-after-navigation/1"]'
-        )
-        .click()
-    }, [
-      // We only expect a static prefetch, no runtime requests.
-      { includes: 'Params awaited after navigation', kind: 'static' },
-      // The param is not static, so it should not be part of the prefetch.
-      {
-        includes: 'Post: 1',
-        block: 'reject',
-      },
-      {
-        includes: '',
-        kind: 'runtime',
-        block: 'reject',
-      },
-    ])
+    it('speculative: uses a static prefetch for a `prefetch={true}` link to a page that awaits fallback params after navigation()', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // Navigate to the prefetched link.
-    // We should show the prefetch while navigating.
-    await act(
-      async () => {
+      // Reveal a prefetch-true link to /params-used-after-navigation/1.
+      // Runtime data was only awaited after navigation(), so a static prefetch is sufficient
+      // (a runtime prefetch would not provide more data, because it does not include navigation())
+      await act(async () => {
         await browser
-          .elementByCss('a[href="/params-used-after-navigation/1"]')
+          .elementByCss(
+            'input[data-prefetch="true"][data-link-accordion="/params-used-after-navigation/1"]'
+          )
           .click()
+      }, [
+        // We only expect a static prefetch, no runtime requests.
+        { includes: 'Params awaited after navigation', kind: 'static' },
+        // The param is not static, so it should not be part of the prefetch.
+        {
+          includes: 'Post: 1',
+          block: 'reject',
+        },
+        {
+          includes: '',
+          kind: 'runtime',
+          block: 'reject',
+        },
+      ])
 
-        expect(await browser.elementById('page-content').text()).toBe(
-          'Params awaited after navigation'
-        )
+      // Navigate to the prefetched link.
+      // We should show the prefetch while navigating.
+      await act(
+        async () => {
+          await browser
+            .elementByCss('a[href="/params-used-after-navigation/1"]')
+            .click()
 
-        // `navigation()` *does* resolve in static prefetches, so we have navigation-gated
-        // content. The static prefetch does not vary on params (because the param
-        // is a fallback), so we're using it instead of the shell, and navigation content
-        // is visible.
-        expect(await browser.elementById('navigation-content').text()).toBe(
-          'Navigation content'
-        )
-        expect(await browser.elementById('param-loading').text()).toBe(
-          'Loading param content...'
-        )
-      },
-      // The param-dependent content streams in with the navigation response.
-      { includes: 'Post: 1' }
-    )
+          expect(await browser.elementById('page-content').text()).toBe(
+            'Params awaited after navigation'
+          )
 
-    expect(await browser.elementById('param-value').text()).toBe('Post: 1')
+          // `navigation()` *does* resolve in static prefetches, so we have navigation-gated
+          // content. The static prefetch does not vary on params (because the param
+          // is a fallback), so we're using it instead of the shell, and navigation content
+          // is visible.
+          expect(await browser.elementById('navigation-content').text()).toBe(
+            'Navigation content'
+          )
+          expect(await browser.elementById('param-loading').text()).toBe(
+            'Loading param content...'
+          )
+        },
+        // The param-dependent content streams in with the navigation response.
+        { includes: 'Post: 1' }
+      )
+
+      expect(await browser.elementById('param-value').text()).toBe('Post: 1')
+    })
+
+    it('speculative: uses a runtime request for a `prefetch="navigation` link to a page that awaits fallback params after navigation()', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal a prefetch-true link to /params-used-after-navigation/1.
+      // Runtime data was only awaited after navigation(), so a static prefetch is sufficient
+      // (a runtime prefetch would not provide more data, because it does not include navigation())
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-prefetch="navigation"][data-link-accordion="/params-used-after-navigation/1"]'
+          )
+          .click()
+      }, [
+        // Static shell
+        { includes: 'Params awaited after navigation', kind: 'static' },
+        // Runtime navigation
+        {
+          includes: 'Post: 1',
+          kind: 'runtime',
+        },
+      ])
+
+      // Navigate to the prefetched link.
+      await act(
+        async () => {
+          await browser
+            .elementByCss('a[href="/params-used-after-navigation/1"]')
+            .click()
+
+          expect(await browser.elementById('page-content').text()).toBe(
+            'Params awaited after navigation'
+          )
+
+          expect(await browser.elementById('navigation-content').text()).toBe(
+            'Navigation content'
+          )
+          expect(await browser.elementById('param-value').text()).toBe(
+            'Post: 1'
+          )
+        },
+        // The prefetch was complete, so it shouldn't need any additional requests.
+        'no-requests'
+      )
+
+      expect(await browser.elementById('param-value').text()).toBe('Post: 1')
+    })
   })
 
   const getPathnameFromHref = (href: string) =>
@@ -815,65 +874,165 @@ describe('static App Shell prefetch attempt', () => {
     )
   })
 
-  it('uses a static shell for a partial segment that calls runtime APIs after navigation()', async () => {
-    let page: Playwright.Page
-    const browser = await next.browser('/', {
-      beforePageLoad(p: Playwright.Page) {
-        page = p
-      },
+  describe('runtime APIs after navigation()', () => {
+    it('uses a static shell for a page that calls runtime APIs after navigation()', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-prefetch="auto"][data-link-accordion="/uses-runtime-after-navigation"]'
+          )
+          .click()
+      }, [
+        // In a static prerender, navigation() is allowed to resolve,
+        // so content behind navigation() will be part of a static prefetch.
+        { includes: 'Navigation content', kind: 'static' },
+        // No runtime request should fire.
+        {
+          includes: 'Runtime APIs called after navigation()',
+          kind: 'runtime',
+          block: 'reject',
+        },
+        // Runtime data should not be included.
+        {
+          includes: 'Runtime content',
+          block: 'reject',
+        },
+      ])
+
+      // Navigate. The prefetched shell renders instantly; the dynamic hole is
+      // filled by the navigation-time dynamic request, as always.
+      await act(
+        async () => {
+          await browser
+            .elementByCss('a[href="/uses-runtime-after-navigation"]')
+            .click()
+
+          // While the navigation response is blocked (we're still inside the
+          // `act` scope), the prefetched shell is already visible, with the
+          // loading fallback in place of the runtime content.
+          expect(await browser.elementById('page-content').text()).toBe(
+            'Runtime APIs called after navigation()'
+          )
+          expect(await browser.elementById('navigation-content').text()).toBe(
+            'Navigation content'
+          )
+          expect(await browser.elementById('runtime-loading').text()).toBe(
+            'Loading runtime content...'
+          )
+        },
+        // The runtime content streams in with the navigation response.
+        { includes: 'Runtime content' }
+      )
+      expect(await browser.elementById('runtime-content').text()).toBe(
+        'Runtime content'
+      )
     })
-    const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    await act(async () => {
-      await browser
-        .elementByCss(
-          'input[data-link-accordion="/uses-runtime-after-navigation"]'
-        )
-        .click()
-    }, [
-      // In a static prerender, navigation() is allowed to resolve,
-      // so content behind navigation() will be part of a static prefetch.
-      { includes: 'Navigation content', kind: 'static' },
-      // No runtime request should fire.
-      {
-        includes: 'Runtime APIs called after navigation()',
-        kind: 'runtime',
-        block: 'reject',
-      },
-      // Dynamic data should not be included.
-      {
-        includes: 'Dynamic content',
-        block: 'reject',
-      },
-    ])
+    it('speculative: uses a static prefetch for a `prefetch={true}` link to a page that calls runtime APIs after navigation()', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // Navigate. The prefetched shell renders instantly; the dynamic hole is
-    // filled by the navigation-time dynamic request, as always.
-    await act(
-      async () => {
+      // The page reads cookies only after navigation(), so the static response
+      // says a runtime request would have more content, but only past the
+      // prefetch stage. A link that asks for the prefetch stage stops after the
+      // static prefetch.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-prefetch="true"][data-link-accordion="/uses-runtime-after-navigation"]'
+          )
+          .click()
+      }, [
+        { includes: 'Navigation content', kind: 'static' },
+        // No runtime request should fire.
+        {
+          includes: '',
+          kind: 'runtime',
+          block: 'reject',
+        },
+        // Runtime data should not be included.
+        {
+          includes: 'Runtime content',
+          block: 'reject',
+        },
+      ])
+
+      await act(
+        async () => {
+          await browser
+            .elementByCss('a[href="/uses-runtime-after-navigation"]')
+            .click()
+
+          expect(await browser.elementById('navigation-content').text()).toBe(
+            'Navigation content'
+          )
+          expect(await browser.elementById('runtime-loading').text()).toBe(
+            'Loading runtime content...'
+          )
+        },
+        // The runtime content streams in with the navigation response.
+        { includes: 'Runtime content' }
+      )
+      expect(await browser.elementById('runtime-content').text()).toBe(
+        'Runtime content'
+      )
+    })
+
+    it('speculative: uses a runtime request for a `prefetch="navigation"` link to a page that calls runtime APIs after navigation()', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Same page as the previous test. The static prefetch is only cache
+      // complete up to the prefetch stage, so a link that asks for the
+      // navigation stage follows it with a runtime request. That request can
+      // read cookies, so it includes the content that reads them after
+      // navigation().
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-prefetch="navigation"][data-link-accordion="/uses-runtime-after-navigation"]'
+          )
+          .click()
+      }, [
+        { includes: 'Navigation content', kind: 'static' },
+        { includes: 'Runtime content', kind: 'runtime' },
+      ])
+
+      // Everything was prefetched, so the navigation needs no requests.
+      await act(async () => {
         await browser
           .elementByCss('a[href="/uses-runtime-after-navigation"]')
           .click()
-
-        // While the navigation response is blocked (we're still inside the
-        // `act` scope), the prefetched shell is already visible, with the
-        // loading fallback in place of the dynamic content.
-        expect(await browser.elementById('page-content').text()).toBe(
-          'Runtime APIs called after navigation()'
-        )
         expect(await browser.elementById('navigation-content').text()).toBe(
           'Navigation content'
         )
-        expect(await browser.elementById('dynamic-loading').text()).toBe(
-          'Loading dynamic content...'
+        expect(await browser.elementById('runtime-content').text()).toBe(
+          'Runtime content'
         )
-      },
-      // The dynamic content streams in with the navigation response.
-      { includes: 'Dynamic content' }
-    )
-    expect(await browser.elementById('dynamic-content').text()).toBe(
-      'Dynamic content'
-    )
+      }, 'no-requests')
+
+      expect(await browser.elementById('runtime-content').text()).toBe(
+        'Runtime content'
+      )
+    })
   })
 
   it('uses a static app shell for a partial segment that calls runtime APIs after prefetch()', async () => {
@@ -912,15 +1071,21 @@ describe('static App Shell prefetch attempt', () => {
       expect(await browser.elementById('page-content').text()).toBe(
         'Runtime APIs called after prefetch()'
       )
-      // The static prefetch includes both the shell and static prefetch data.
-      expect(await browser.elementById('prefetch-content').text()).toBe(
-        'Prefetch content'
+      // The static response has both the shell and the prefetch content, but
+      // we only keep the shell. The full payload read runtime data (after
+      // prefetch()), so it needs a runtime request, but its shell is cache
+      // complete. A more complete entry wins over a deeper one, so the shell
+      // replaces the full payload right away. That's fine. A link that asks
+      // for more than the shell would replace the full payload with a runtime
+      // prefetch anyway, and a shell link only needs the shell.
+      //
+      // TODO: When the full static payload needs runtime but its shell
+      // doesn't, the client never keeps the full payload. collect-segment-data
+      // should send only the shell in that case, with no extra bytes.
+      expect(await browser.elementById('prefetch-loading').text()).toBe(
+        'Loading prefetch content...'
       )
-      // Runtime data is not included.
-      expect(await browser.elementById('runtime-loading').text()).toBe(
-        'Loading runtime content...'
-      )
-    }, [{ includes: 'Runtime content' }])
+    }, [{ includes: 'Prefetch content' }, { includes: 'Runtime content' }])
   })
 
   it('speculative: uses a runtime prefetch for a partial segment that calls runtime APIs after prefetch()', async () => {
@@ -1714,15 +1879,17 @@ describe('static App Shell prefetch attempt', () => {
               )
               .click()
 
-            // We did a static prefetch for this link, so we should have param-dependent
-            // data, but not runtime data.
-            expect(await browser.elementById('param-content').text()).toBe(
-              'Slug: yes-cookies-in-prefetch'
+            // Only the shell is kept from the static prefetch, so the
+            // param-dependent content isn't here yet. See the comment in
+            // "uses a static app shell for a partial segment that calls
+            // runtime APIs after prefetch()".
+            expect(await browser.elementById('param-loading').text()).toBe(
+              'Loading param content...'
             )
-            expect(
-              await browser.elementById('maybe-runtime-content-fallback').text()
-            ).toBe('Loading runtime data...')
-          }, [{ includes: 'Dynamic content' }])
+          }, [
+            { includes: 'Slug: yes-cookies-in-prefetch' },
+            { includes: 'Dynamic content' },
+          ])
 
           // The missing runtime content should arrive in the navigation response.
           expect(
@@ -2115,7 +2282,7 @@ describe('static App Shell prefetch attempt', () => {
           'no-requests'
         )
 
-        // When we navigate, we should show the static prefetch.
+        // When we navigate, we should show the shell.
         await act(async () => {
           await browser
             .elementByCss(
@@ -2123,14 +2290,17 @@ describe('static App Shell prefetch attempt', () => {
             )
             .click()
 
-          // We have param-dependent content, but not runtime data.
-          expect(await browser.elementById('param-content').text()).toBe(
-            'Slug: yes-cookies-in-prefetch-not-prerendered'
+          // Only the shell is kept from the static prefetch, so the
+          // param-dependent content isn't here yet. See the comment in
+          // "uses a static app shell for a partial segment that calls runtime
+          // APIs after prefetch()".
+          expect(await browser.elementById('param-loading').text()).toBe(
+            'Loading param content...'
           )
-          expect(
-            await browser.elementById('maybe-runtime-content-fallback').text()
-          ).toBe('Loading runtime data...')
-        }, [{ includes: 'Dynamic content' }])
+        }, [
+          { includes: 'Slug: yes-cookies-in-prefetch-not-prerendered' },
+          { includes: 'Dynamic content' },
+        ])
 
         // The missing runtime data should arrive in the navigation response.
         expect(await browser.elementById('maybe-runtime-content').text()).toBe(
@@ -2140,8 +2310,8 @@ describe('static App Shell prefetch attempt', () => {
     })
   })
 
-  describe('unstable_ensureStatic', () => {
-    describe('unstable_ensureStatic = false', () => {
+  describe('ensureStatic', () => {
+    describe('ensureStatic = false', () => {
       it('uses a runtime shell for a page that uses cookies', async () => {
         let page: Playwright.Page
         const browser = await next.browser('/', {
@@ -2152,7 +2322,7 @@ describe('static App Shell prefetch attempt', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
 
         // Reveal the link to the page.
-        // The page has `unstable_ensureStatic = false`, and uses cookies (with no other dynamic holes).
+        // The page has `ensureStatic = false`, and uses cookies (with no other dynamic holes).
         // It should use a runtime shell.
         await act(async () => {
           await browser
@@ -2182,7 +2352,7 @@ describe('static App Shell prefetch attempt', () => {
       })
     })
 
-    describe('unstable_ensureStatic = "shell"', () => {
+    describe('ensureStatic = "shell"', () => {
       it('uses a static shell for a page that uses cookies`', async () => {
         let page: Playwright.Page
         const browser = await next.browser('/', {
@@ -2193,7 +2363,7 @@ describe('static App Shell prefetch attempt', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
 
         // Reveal a prefetch-auto link to the page.
-        // The page has `unstable_ensureStatic = "shell"`, and uses cookies.
+        // The page has `ensureStatic = "shell"`, and uses cookies.
         // It should use a static prefetch.
         await act(async () => {
           await browser
@@ -2236,7 +2406,7 @@ describe('static App Shell prefetch attempt', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
 
         // Reveal a prefetch-true link to the page.
-        // The page has `unstable_ensureStatic = "shell"`, and uses cookies.
+        // The page has `ensureStatic = "shell"`, and uses cookies.
         // It should use a static prefetch, and a runtime shell.
         await act(async () => {
           await browser
@@ -2266,9 +2436,50 @@ describe('static App Shell prefetch attempt', () => {
           'no-requests'
         )
       })
+
+      it('uses a runtime request for a `prefetch="navigation` link to a page that uses cookies`', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        // Reveal a prefetch-navigation link to the page.
+        // The page has `ensureStatic = "shell"`, and uses cookies.
+        // It should use a static prefetch, and a runtime navigation.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              'input[data-prefetch="navigation"][data-link-accordion="/ensure-static/shell/uses-cookies"]'
+            )
+            .click()
+        }, [
+          // Static shell
+          {
+            includes: 'Cookies page shell text',
+            kind: 'static',
+          },
+          // Runtime navigation
+          {
+            includes: 'cookie-content',
+            kind: 'runtime',
+          },
+        ])
+
+        // The shell was partial, but the navigation is complete, so we should not need any requests to navigate.
+        await act(
+          () =>
+            browser
+              .elementByCss('a[href="/ensure-static/shell/uses-cookies"]')
+              .click(),
+          'no-requests'
+        )
+      })
     })
 
-    describe('unstable_ensureStatic = "prefetch"', () => {
+    describe('ensureStatic = "prefetch"', () => {
       it('uses a static request for a link to a page that uses cookies', async () => {
         let page: Playwright.Page
         const browser = await next.browser('/', {
@@ -2279,7 +2490,7 @@ describe('static App Shell prefetch attempt', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
 
         // Reveal a prefetch-auto link to the page.
-        // The page has `unstable_ensureStatic = "prefetch"`, and uses cookies (with no other dynamic holes).
+        // The page has `ensureStatic = "prefetch"`, and uses cookies (with no other dynamic holes).
         // It should use a static prefetch.
         await act(async () => {
           await browser
@@ -2318,7 +2529,7 @@ describe('static App Shell prefetch attempt', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
 
         // Reveal a prefetch-true link to the page.
-        // The page has `unstable_ensureStatic = "prefetch"`, and uses cookies (with no other dynamic holes).
+        // The page has `ensureStatic = "prefetch"`, and uses cookies (with no other dynamic holes).
         // It should use a static prefetch.
         await act(async () => {
           await browser
@@ -2346,9 +2557,47 @@ describe('static App Shell prefetch attempt', () => {
           [{ includes: 'cookie-content' }]
         )
       })
+
+      it('uses a runtime request for a `prefetch="navigation"` link to a page that uses cookies', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        // Reveal a prefetch-navigation link to the page.
+        // The page has `ensureStatic = "prefetch"`, and uses cookies (with no other dynamic holes).
+        // It should use a static shell and a runtime navigation.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              'input[data-prefetch="navigation"][data-link-accordion="/ensure-static/prefetch/uses-cookies"]'
+            )
+            .click()
+        }, [
+          // Static shell
+          {
+            includes: 'Cookies page shell text',
+            kind: 'static',
+          },
+          // Navigation request
+          { includes: 'cookie-content', kind: 'runtime' },
+        ])
+
+        // The navigation stage is cache-complete.
+        await act(
+          () =>
+            browser
+              .elementByCss('a[href="/ensure-static/prefetch/uses-cookies"]')
+              .click(),
+          'no-requests'
+        )
+      })
     })
 
-    describe('unstable_ensureStatic = "navigation"', () => {
+    describe('ensureStatic = "navigation"', () => {
       // NOTE: "navigation" can't use IO, so we use params instead.
       it('uses a static request for a link to a page that uses static params', async () => {
         let page: Playwright.Page
@@ -2363,7 +2612,7 @@ describe('static App Shell prefetch attempt', () => {
         const href = `/ensure-static/navigation/${slug}`
 
         // Reveal a prefetch-auto link to the page.
-        // The page has `unstable_ensureStatic = "navigation"`, and uses params.
+        // The page has `ensureStatic = "navigation"`, and uses params.
         // It should use a static prefetch.
         await act(async () => {
           await browser
@@ -2402,12 +2651,51 @@ describe('static App Shell prefetch attempt', () => {
         const href = `/ensure-static/navigation/${slug}`
 
         // Reveal a prefetch-true link to the page.
-        // The page has `unstable_ensureStatic = "navigation"`, and uses params.
+        // The page has `ensureStatic = "navigation"`, and uses params.
         // It should use a static prefetch.
         await act(async () => {
           await browser
             .elementByCss(
               `input[data-prefetch="true"][data-link-accordion="${href}"]`
+            )
+            .click()
+        }, [
+          // Static prefetch
+          {
+            includes: `Slug: ${slug}`,
+            kind: 'static',
+          },
+          // No runtime requests.
+          { includes: '', kind: 'runtime', block: 'reject' },
+        ])
+
+        // The prefetch is complete, because the page is required to be fully-static.
+        await act(
+          () => browser.elementByCss(`a[href="${href}"]`).click(),
+          'no-requests'
+        )
+        expect(await browser.elementById('slug').text()).toBe(`Slug: ${slug}`)
+      })
+
+      it('uses a static request for a `prefetch="navigation"` link to a page that uses static params', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        const slug = 'prerendered-1'
+        const href = `/ensure-static/navigation/${slug}`
+
+        // Reveal a prefetch-true link to the page.
+        // The page has `ensureStatic = "navigation"`, and uses params.
+        // It should use a static prefetch.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              `input[data-prefetch="navigation"][data-link-accordion="${href}"]`
             )
             .click()
         }, [
@@ -2441,7 +2729,7 @@ describe('static App Shell prefetch attempt', () => {
         const href = `/ensure-static/navigation/${slug}`
 
         // Reveal a prefetch-true link to the page.
-        // The page has `unstable_ensureStatic = "navigation"`, and uses params.
+        // The page has `ensureStatic = "navigation"`, and uses params.
         // This param was not prerendered at build, but we should not serve an ISR fallback,
         // because `ensureStatic = "navigation"` requires prerenders to be blocking.
         // It should use a static prefetch.
@@ -2449,24 +2737,6 @@ describe('static App Shell prefetch attempt', () => {
           // TODO(ensure-static): In deploy, we apparently serve an ISR fallback for RSC prefetches
           // even though the route is configured as blocking.
           // The client router should retry the request.
-
-          const isActMissingSlugError = (thrown: unknown) => {
-            if (
-              thrown &&
-              typeof thrown === 'object' &&
-              'message' in thrown &&
-              typeof thrown.message === 'string'
-            ) {
-              const error = thrown as Error
-              return (
-                error.message.includes(
-                  'Expected a response containing the given string'
-                ) && error.message.includes(`Slug: ${slug}`)
-              )
-            }
-            return false
-          }
-
           try {
             await act(async () => {
               await browser
@@ -2485,50 +2755,17 @@ describe('static App Shell prefetch attempt', () => {
             ])
           } catch (err) {
             // We might not get the slug in the initial request.
-            // TODO: nested with block: true?
-
-            if (!isActMissingSlugError(err)) {
+            if (isActMissingResponseError(err, `Slug: ${slug}`)) {
+              console.error(
+                'initial link reveal failed (likely an ISR fallback)',
+                err
+              )
+              await waitForSuccessfulISRFallbackRetry(act, {
+                includes: `Slug: ${slug}`,
+                kind: 'static',
+              })
+            } else {
               throw err
-            }
-
-            console.error(
-              'initial link reveal failed (likely an ISR fallback)',
-              err
-            )
-            const interval = 2_000
-            const maxAttempts = 5
-            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-              try {
-                await act(async () => {
-                  await new Promise<void>((resolve) =>
-                    setTimeout(resolve, interval + 500)
-                  )
-                }, [
-                  // Static prefetch
-                  {
-                    includes: `Slug: ${slug}`,
-                    kind: 'static',
-                  },
-                  // No runtime requests (e.g. runtime follow-up due to ISR fallback)
-                  { includes: '', kind: 'runtime', block: 'reject' },
-                ])
-
-                // if act() succeeded, then we got a complete prerender, and can stop waiting
-                // for retries.
-                break
-              } catch (err) {
-                // act() threw.
-                if (!isActMissingSlugError(err)) {
-                  throw err
-                }
-                // The router did a retry, but got an ISR fallback again.
-                if (attempt < maxAttempts) {
-                  console.error(`Retry ${attempt} failed:`, err)
-                } else {
-                  console.error(`Retry ${attempt} failed, aborting`)
-                  throw err
-                }
-              }
             }
           }
         } else {
@@ -2536,6 +2773,84 @@ describe('static App Shell prefetch attempt', () => {
             await browser
               .elementByCss(
                 `input[data-prefetch="true"][data-link-accordion="${href}"]`
+              )
+              .click()
+          }, [
+            // Static prefetch
+            {
+              includes: `Slug: ${slug}`,
+              kind: 'static',
+            },
+            // No runtime requests (e.g. runtime follow-up due to ISR fallback)
+            { includes: '', kind: 'runtime', block: 'reject' },
+          ])
+        }
+
+        // The prefetch is complete, because the page is required to be fully-static.
+        await act(
+          () => browser.elementByCss(`a[href="${href}"]`).click(),
+          'no-requests'
+        )
+        expect(await browser.elementById('slug').text()).toBe(`Slug: ${slug}`)
+      })
+
+      it('uses a static request for a `prefetch="navigation"` link to a page that uses static params and was not prerendered', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        const slug = 'not-prerendered-2'
+        const href = `/ensure-static/navigation/${slug}`
+
+        // Reveal a prefetch-navigation link to the page.
+        // The page has `ensureStatic = "navigation"`, and uses params.
+        // This param was not prerendered at build, but we should not serve an ISR fallback,
+        // because `ensureStatic = "navigation"` requires prerenders to be blocking.
+        // It should use a static navigation.
+        if (isNextDeploy) {
+          // TODO(ensure-static): In deploy, we apparently serve an ISR fallback for RSC prefetches
+          // even though the route is configured as blocking.
+          // The client router should retry the request.
+          try {
+            await act(async () => {
+              await browser
+                .elementByCss(
+                  `input[data-prefetch="navigation"][data-link-accordion="${href}"]`
+                )
+                .click()
+            }, [
+              // Static prefetch
+              {
+                includes: `Slug: ${slug}`,
+                kind: 'static',
+              },
+              // No runtime requests (e.g. runtime follow-up due to ISR fallback)
+              { includes: '', kind: 'runtime', block: 'reject' },
+            ])
+          } catch (err) {
+            // We might not get the slug in the initial request.
+            if (isActMissingResponseError(err, `Slug: ${slug}`)) {
+              console.error(
+                'initial link reveal failed (likely an ISR fallback)',
+                err
+              )
+              await waitForSuccessfulISRFallbackRetry(act, {
+                includes: `Slug: ${slug}`,
+                kind: 'static',
+              })
+            } else {
+              throw err
+            }
+          }
+        } else {
+          await act(async () => {
+            await browser
+              .elementByCss(
+                `input[data-prefetch="navigation"][data-link-accordion="${href}"]`
               )
               .click()
           }, [

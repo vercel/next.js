@@ -2,13 +2,14 @@
 
 import { nextTestSetup } from 'e2e-utils'
 
-describe.skip('Invalid CSS Module Usage in node_modules', () => {
-  const { next, skipped } = nextTestSetup({
+// This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+// @force-gate !deploy
+// @force-gate TODO
+describe('Invalid CSS Module Usage in node_modules', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should fail to build', async () => {
     const { exitCode, cliOutput } = await next.build()

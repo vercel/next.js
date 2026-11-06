@@ -49,12 +49,10 @@ indexmap = { workspace = true }
 jiff = "0.2.10"
 lz4_flex = { workspace = true, optional = true }
 parking_lot = { workspace = true }
-rand = { workspace = true }
 ringmap = { workspace = true, features = ["serde"] }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_path_to_error = { workspace = true }
 smallvec = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
@@ -75,6 +73,7 @@ turbo-persistence = { workspace = true, default-features = false }
 async-trait = { workspace = true }
 futures = { workspace = true }
 indoc = { workspace = true }
+rand = { workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }
 triomphe = { workspace = true }

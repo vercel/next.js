@@ -33,11 +33,10 @@ it('exported lets are live', () => {
 })
 
 // Whether a binding is emitted as a plain value or as a getter is decided by the module that
-// *owns* it. A local-only module is no longer split merely for export mangling, so its namespace
-// is the right place to inspect the emitted property descriptors. Look up its exact module ID to
-// avoid accidentally testing a re-export facade instead of the original module.
+// *owns* it. Materialized-namespace mangling splits the public facade from its `<locals>` module,
+// so inspect the latter's descriptors rather than those on the forwarding facade.
 function moduleNamespaceOf(fileName) {
-  const suffix = `exports/live/input/${fileName} [test] (ecmascript)`
+  const suffix = `exports/live/input/${fileName} [test] (ecmascript) <locals>`
   const id = Array.from(__turbopack_modules__.keys()).find((m) =>
     m.endsWith(suffix)
   )

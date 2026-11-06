@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{ToTokens, quote};
 use syn::{
-    Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
+    Attribute, Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
     MetaNameValue, Path, Token, Type,
     parse::{Parse, ParseStream},
     parse_macro_input,
@@ -167,6 +167,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     fn trait_value_impl(
+        attrs: &[Attribute],
         ty: &Type,
         generics: &Generics,
         ty_ident: &Ident,
@@ -315,6 +316,10 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             #[automatically_derived]
             unsafe impl #impl_generics turbo_tasks::UpcastStrict<::std::boxed::Box<dyn #trait_path>> for #ty #where_clause {}
 
+            // Forward the impl's attributes, so that e.g. `#[async_trait]` placed below
+            // `#[turbo_tasks::value_impl]` applies to the plain (non-turbo-tasks) methods. The
+            // turbo-tasks functions are already lowered to sync signatures at this point.
+            #(#attrs)*
             impl #impl_generics #trait_path for #ty #where_clause {
                 #(#trait_items)*
                 #(#trait_functions)*
@@ -340,6 +345,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
     match &item.trait_ {
         None => inherent_value_impl(&item.self_ty, &ty_ident, &item.items).into(),
         Some((_, trait_path, _)) => trait_value_impl(
+            &item.attrs,
             &item.self_ty,
             &item.generics,
             &ty_ident,

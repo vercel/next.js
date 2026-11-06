@@ -1,11 +1,15 @@
 'use client'
 
+import { ArrowRight, CircleCheck, Route } from 'lucide-react'
+import Link from 'next/link'
 import type { MouseEventHandler } from 'react'
 import { CompareSidebar } from '@/components/sidebar'
 import { DiffTable } from '@/components/diff-table'
 import { DiffTreemap } from '@/components/diff-treemap'
 import { StatCard, CountCard } from '@/components/stat-cards'
 import { CompareView, Environment } from '@/components/top-bar'
+import { AlternateEnvironmentEmptyState } from '@/components/analyzer'
+import { Button } from '@/components/ui/button'
 import { TableSkeleton, TreemapSkeleton } from '@/components/ui/skeleton'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import {
@@ -24,7 +28,10 @@ export interface CompareLayoutProps {
 
 export interface CompareLayoutModel {
   baselineSnapshot: SnapshotMetadata
+  baselineIsLatest: boolean
   comparisonSnapshot: SnapshotMetadata | null
+  /** Route counts from each side's route summaries, not saved metadata. */
+  baselineRouteCount: number
   comparisonRouteCount: number | null
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
   selectedRoute: string | null
@@ -36,12 +43,15 @@ export interface CompareLayoutModel {
   moduleDepthMap: Map<number, number>
   baselineModuleDepthMap: Map<number, number>
   environmentFilter: Environment
+  hasAlternateEnvironmentSources: boolean
+  setEnvironmentFilter: (environment: Environment) => void
   sidebarWidth: number
   compareView: CompareView
   isViewPending: boolean
   searchQuery: string
   selectedKey: string | null
   onSelectedKeyChange: (key: string | null) => void
+  onOpenRoutePicker: () => void
 }
 
 /**
@@ -63,7 +73,7 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
           className="xl:min-w-0 xl:flex-1 xl:basis-0 xl:border-r xl:border-border"
         />
         <CompareContextStrip
-          baselineSnapshot={model.baselineSnapshot}
+          baselineRouteCount={model.baselineRouteCount}
           comparisonRouteCount={model.comparisonRouteCount}
           routeDiff={model.routeDiff}
           compressed
@@ -81,10 +91,16 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
             baselineAnalyzeData={model.baselineAnalyzeData}
             compressed
             searchQuery={model.searchQuery}
+            environmentFilter={model.environmentFilter}
+            hasAlternateEnvironmentSources={
+              model.hasAlternateEnvironmentSources
+            }
             baselineSnapshot={model.baselineSnapshot}
+            baselineIsLatest={model.baselineIsLatest}
             comparisonSnapshot={model.comparisonSnapshot}
             compareSelectedKey={model.selectedKey}
             onCompareSelectedKeyChange={model.onSelectedKeyChange}
+            onOpenRoutePicker={model.onOpenRoutePicker}
           />
         </div>
         <button
@@ -104,7 +120,11 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
           baselineModuleDepthMap={model.baselineModuleDepthMap}
           environmentFilter={model.environmentFilter}
           sidebarWidth={model.sidebarWidth}
-          aLabel={formatSnapshotLabel(model.baselineSnapshot)}
+          aLabel={
+            model.baselineIsLatest
+              ? 'Latest'
+              : formatSnapshotLabel(model.baselineSnapshot)
+          }
           bLabel={
             model.comparisonSnapshot
               ? formatSnapshotLabel(model.comparisonSnapshot)
@@ -126,19 +146,20 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
  * A/B label pills below identify which snapshot is which.
  */
 export function CompareContextStrip({
-  baselineSnapshot,
+  baselineRouteCount,
   comparisonRouteCount,
   routeDiff,
   compressed,
   className,
 }: {
-  baselineSnapshot: SnapshotMetadata
+  baselineRouteCount: number
   comparisonRouteCount: number | null
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
   compressed: boolean
   className?: string
 }) {
-  const baselineRoutes = baselineSnapshot.routeCount
+  // Counted from the summaries, not `routeCount` saved in older metadata.
+  const baselineRoutes = baselineRouteCount
   const comparisonRoutes =
     comparisonRouteCount ??
     routeDiff?.rows.filter((r) => r.status !== 'removed').length ??
@@ -334,10 +355,14 @@ export function ComparePerRoutePanel({
   baselineAnalyzeData,
   compressed,
   searchQuery,
+  environmentFilter,
+  hasAlternateEnvironmentSources,
   baselineSnapshot,
+  baselineIsLatest,
   comparisonSnapshot,
   compareSelectedKey,
   onCompareSelectedKeyChange,
+  onOpenRoutePicker,
 }: {
   compareView: CompareView
   isViewPending: boolean
@@ -347,10 +372,14 @@ export function ComparePerRoutePanel({
   baselineAnalyzeData: AnalyzeData | null
   compressed: boolean
   searchQuery: string
+  environmentFilter: Environment
+  hasAlternateEnvironmentSources: boolean
   baselineSnapshot: SnapshotMetadata
+  baselineIsLatest: boolean
   comparisonSnapshot: SnapshotMetadata | null
   compareSelectedKey: string | null
   onCompareSelectedKeyChange: (key: string | null) => void
+  onOpenRoutePicker: () => void
 }) {
   if (!selectedRoute) {
     return (
@@ -383,14 +412,36 @@ export function ComparePerRoutePanel({
     )
   }
 
+  const hasNoModuleChanges =
+    sourceDiff.rows.length > 0 &&
+    sourceDiff.counts.added === 0 &&
+    sourceDiff.counts.removed === 0 &&
+    sourceDiff.counts.changed === 0
+
+  if (hasNoModuleChanges) {
+    return (
+      <NoModuleChangesState
+        selectedRoute={selectedRoute}
+        onOpenRoutePicker={onOpenRoutePicker}
+      />
+    )
+  }
+
   return (
     <div className="flex flex-1 min-h-0 flex-col">
-      {compareView === CompareView.Treemap ? (
+      {compareView === CompareView.Treemap &&
+      sourceDiff.rows.length === 0 &&
+      hasAlternateEnvironmentSources ? (
+        <div className="flex h-full items-center justify-center p-4 text-sm text-muted-foreground">
+          <AlternateEnvironmentEmptyState environment={environmentFilter} />
+        </div>
+      ) : compareView === CompareView.Treemap ? (
         <DiffTreemap
           summary={sourceDiff}
           useCompressed={compressed}
           analyzeData={analyzeData}
           baselineAnalyzeData={baselineAnalyzeData}
+          searchQuery={searchQuery}
           selectedKey={compareSelectedKey}
           onSelectKey={onCompareSelectedKeyChange}
         />
@@ -399,17 +450,63 @@ export function ComparePerRoutePanel({
           summary={sourceDiff}
           useCompressed={compressed}
           nameHeading="Source"
-          aHeading={formatSnapshotLabel(baselineSnapshot)}
+          aHeading={
+            baselineIsLatest ? 'Latest' : formatSnapshotLabel(baselineSnapshot)
+          }
           bHeading={
             comparisonSnapshot
               ? formatSnapshotLabel(comparisonSnapshot)
               : 'Latest'
           }
           searchQuery={searchQuery}
+          emptyState={
+            hasAlternateEnvironmentSources ? (
+              <AlternateEnvironmentEmptyState environment={environmentFilter} />
+            ) : undefined
+          }
           selectedKey={compareSelectedKey}
           onRowSelect={(row) => onCompareSelectedKeyChange(row.key)}
         />
       )}
+    </div>
+  )
+}
+
+function NoModuleChangesState({
+  selectedRoute,
+  onOpenRoutePicker,
+}: {
+  selectedRoute: string
+  onOpenRoutePicker: () => void
+}) {
+  return (
+    <div className="flex flex-1 items-center justify-center p-6 text-center">
+      <div className="flex max-w-sm flex-col items-center">
+        <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <CircleCheck className="h-5 w-5" aria-hidden="true" />
+        </div>
+        <h2 className="text-base font-semibold text-foreground">
+          No module changes
+        </h2>
+        <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+          This route contains the same modules with the same sizes in both
+          revisions.
+        </p>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          <Button type="button" size="sm" onClick={onOpenRoutePicker}>
+            <Route aria-hidden="true" />
+            Choose another route
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link
+              href={{ pathname: '/analyze', query: { route: selectedRoute } }}
+            >
+              View latest analysis
+              <ArrowRight aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

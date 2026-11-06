@@ -24,7 +24,7 @@ Requests you issue directly with `fetch()` inside a Client Component, or through
 
 We will build a live-metrics page that fetches fresh data on every request, plus a ping form that calls a Server Action.
 
-- Source: [github.com/vercel-labs/use-offline](https://github.com/vercel-labs/use-offline)
+- Source: [github.com/nextjs/use-offline](https://github.com/nextjs/use-offline)
 - Live demo: [use-offline.labs.vercel.dev](https://use-offline.labs.vercel.dev)
 
 The companion demo has two versions of this dashboard: `/without-feedback` uses a generic loading fallback, `/with-feedback` uses a connectivity-aware one. The next sections of this guide walk through building each.
