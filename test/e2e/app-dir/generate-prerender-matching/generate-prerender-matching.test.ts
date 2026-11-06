@@ -623,9 +623,9 @@ describe('parameter matching static export validation', () => {
     await next.build().catch(() => {})
   })
 
-  it('requires every exported param to be explicitly closed for now', () => {
+  it('rejects static export before validating parameter matching', () => {
     expect(next.cliOutput).toContain(
-      'must configure parameter "lang" as "not-found"'
+      "`cacheComponents` is not currently supported with `output: 'export'`."
     )
   })
 })

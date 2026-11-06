@@ -40,6 +40,9 @@ describe('cache-components-output-export-config', () => {
         output: 'export',
         cacheComponents: false,
         partialPrefetching: false,
+        experimental: {
+          cachedNavigations: false,
+        },
       },
       skipStart: true,
     })
