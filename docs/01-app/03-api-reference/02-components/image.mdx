@@ -391,7 +391,7 @@ A callback function that is invoked if the image fails to load.
 
 #### `unoptimized`
 
-A boolean that indicates if the image should be optimized. This is useful for images that do not benefit from optimization such as small images (less than 1KB), vector images (SVG), or animated images (GIF).
+A boolean that indicates if the image should skip the Image Optimization API to be served as-is. This is useful for images that do not benefit from optimization such as small images (less than 1KB), vector images (SVG), or animated images (GIF).
 
 ```js
 import Image from 'next/image'
@@ -922,19 +922,9 @@ This might be necessary when hosting Next.js in a VPC with split-horizon DNS and
 
 #### `dangerouslyAllowSVG`
 
-`dangerouslyAllowSVG` allows you to serve SVG images.
+Next.js never optimizes SVG images for a few reasons:
 
-```js filename="next.config.js"
-module.exports = {
-  images: {
-    dangerouslyAllowSVG: true,
-  },
-}
-```
-
-By default, Next.js does not optimize SVG images for a few reasons:
-
-- SVG is a vector format meaning it can be resized losslessly.
+- SVG is a vector format, meaning browsers can resize the image without losing quality, no server-side rasterization needed.
 - SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/config/next-config-js/headers#content-security-policy).
 
 We recommend using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is known to be SVG. This happens automatically when `src` ends with `".svg"`.
@@ -942,6 +932,10 @@ We recommend using the [`unoptimized`](#unoptimized) prop when the [`src`](#src)
 ```jsx
 <Image src="/my-image.svg" unoptimized />
 ```
+
+This skips the Image Optimization API and serves the SVG directly from the source. The default `dangerouslyAllowSVG: false` rejects SVG images.
+
+If you can't use the [`unoptimized`](#unoptimized) prop and you understand the risks, you can enable SVG pass-through in the Image Optimization API with `dangerouslyAllowSVG: true`.
 
 In addition, it is strongly recommended to also set `contentDispositionType` to force the browser to download the image, as well as `contentSecurityPolicy` to prevent scripts embedded in the image from executing.
 
