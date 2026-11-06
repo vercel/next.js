@@ -9692,7 +9692,6 @@ dependencies = [
  "lightningcss",
  "parcel_selectors",
  "parcel_sourcemap",
- "petgraph 0.8.3",
  "rustc-hash 2.1.1",
  "serde",
  "smallvec",
