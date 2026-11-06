@@ -9,7 +9,6 @@ if (!process.env.NEXT_PRIVATE_START_TIME) {
 
 import '../server/lib/cpu-profile'
 import { saveCpuProfile } from '../server/lib/cpu-profile'
-import { startServer } from '../server/lib/start-server'
 import {
   getParsedDebugAddress,
   formatDebugAddress,
@@ -41,6 +40,11 @@ export type NextStartOptions = {
  * @param directory The directory to start the server in
  */
 const nextStart = async (options: NextStartOptions, directory?: string) => {
+  const { startServer } =
+    process.env.NODE_ENV === 'production'
+      ? (await import('next/dist/compiled/next-start/start-server.js')).default
+      : await import('../server/lib/start-server.js')
+
   const dir = getProjectDir(directory)
   warnMissingReactDependencies(dir)
   const hostname = options.hostname

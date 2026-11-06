@@ -215,8 +215,7 @@ export async function collectBuildTraces({
         ...sharedEntriesSet,
         ...(isStandalone
           ? [
-              require.resolve('next/dist/server/lib/start-server'),
-              require.resolve('next/dist/server/next'),
+              require.resolve('next/dist/compiled/next-start/start-server'),
               require.resolve('next/dist/server/require-hook'),
             ]
           : []),
