@@ -279,7 +279,7 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
 
     #[turbo_tasks::function]
     async fn chunk_item_content(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
@@ -287,8 +287,10 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         // `composes` are flattened across the whole module graph, so the exports are plain
         // strings and don't need to import other CSS modules at runtime.
-        let module = self.to_resolved().await?;
-        let Some(classes) = css_modules_composes(module_graph).get(&module).await? else {
+        let Some(classes) = css_modules_composes(module_graph).get(&self).await? else {
+            // The map is computed from the same module graph this module is chunked in, so a
+            // missing entry can only be a transient, eventually consistent read while the graph is
+            // being recomputed.
             bail!(
                 "CSS module {} is missing from the module graph",
                 turbofmt!("{}", self.ident()).await?
