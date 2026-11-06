@@ -1,0 +1,5 @@
+{
+  "productionChunking": true,
+  "maxChunkSize": 2500,
+  "scopeHoisting": false
+}
