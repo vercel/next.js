@@ -2,9 +2,13 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   compress: false,
+  cacheComponents: false,
   cacheMaxMemorySize:
     process.env.TEST_MEMORY_CACHE_OFF === '1' ? 0 : 50 * 1024 * 1024,
-  experimental: { preloadEntriesOnStart: false },
+  experimental: {
+    preloadEntriesOnStart: false,
+    cachedNavigations: false,
+  },
   async rewrites() {
     return [{ source: '/alias', destination: '/' }]
   },

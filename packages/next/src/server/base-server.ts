@@ -3080,6 +3080,8 @@ export default abstract class Server<
     if (!isRouteCacheOwner(pathname, route, prerendered)) return
 
     await this.prepare()
+    if (getTracer().isOpenTelemetryEnabled()) return
+
     const cached = await incrementalCache.get(pathname, {
       kind: IncrementalCacheKind.APP_PAGE,
       route,
