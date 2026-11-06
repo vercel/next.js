@@ -205,6 +205,8 @@ pub struct TransformContext<'a> {
     /// The value of `process.env.NODE_ENV` for this compilation
     /// (e.g. `"development"` or `"production"`).
     pub node_env: RcStr,
+    /// Whether the module was parsed as TypeScript.
+    pub is_typescript: bool,
 }
 
 impl EcmascriptInputTransform {
@@ -563,10 +565,17 @@ async fn apply_rust_react_compiler(
         crate::swc_comments::swc_comments_to_single_threaded(ctx.comments);
     let result = swc_ecma_react_compiler::transform(
         program,
-        swc_ecma_react_compiler::SourceType::from_program(program),
+        swc_ecma_react_compiler::SourceType::from_program(program)
+            .with_typescript(ctx.is_typescript),
         ctx.source_text,
         Some(&single_threaded_comments),
-        react_compiler_options(ctx.node_env.as_str(), ctx.file_name_str, options, target),
+        react_compiler_options(
+            ctx.node_env.as_str(),
+            ctx.file_name_str,
+            ctx.source_text,
+            options,
+            target,
+        ),
     );
 
     // TODO: Emit these diagnostics with an Info level once there's a way of adjusting log levels in
@@ -594,15 +603,17 @@ async fn apply_rust_react_compiler(
 fn react_compiler_options(
     node_env: &str,
     file_name: &str,
+    source_text: &str,
     options: ReactCompilerTransformOptions,
     target: ReactCompilerTarget,
 ) -> react_compiler::entrypoint::plugin_options::PluginOptions {
     use react_compiler::entrypoint::plugin_options::{CompilerTarget, PluginOptions};
 
+    let is_dev = node_env != "production";
     let mut plugin_options = PluginOptions {
         should_compile: true,
         enable_reanimated: false,
-        is_dev: node_env != "production",
+        is_dev,
         filename: Some(file_name.to_string()),
         compilation_mode: options.compilation_mode.as_str().to_string(),
         panic_threshold: "none".to_string(),
@@ -612,7 +623,7 @@ fn react_compiler_options(
         no_emit: false,
         output_mode: None,
         eslint_suppression_rules: None,
-        flow_suppressions: false,
+        flow_suppressions: true,
         ignore_use_no_forget: false,
         custom_opt_out_directives: None,
         environment: Default::default(),
@@ -627,6 +638,15 @@ fn react_compiler_options(
             .environment
             .enable_preserve_existing_memoization_guarantees =
             enable_preserve_existing_memoization_guarantees;
+    }
+    // Match the Babel plugin in development: reset the memo cache when the file's source changes
+    // (Fast Refresh) and name memoized anonymous functions for DevTools and stack traces.
+    if is_dev {
+        plugin_options
+            .environment
+            .enable_reset_cache_on_source_file_changes = Some(true);
+        plugin_options.environment.enable_name_anonymous_functions = true;
+        plugin_options.source_code = Some(source_text.to_string());
     }
 
     plugin_options
@@ -699,9 +719,10 @@ pub fn remove_directives(program: &mut Program) {
 #[cfg(test)]
 mod react_compiler_tests {
     use swc_core::{
-        common::{DUMMY_SP, FileName, GLOBALS, SourceMap},
+        common::{DUMMY_SP, FileName, GLOBALS, SourceMap, comments::SingleThreadedComments},
         ecma::{
             ast::{EsVersion, Module},
+            codegen::{Emitter, text_writer::JsWriter},
             parser::{Syntax, TsSyntax, parse_file_as_program},
         },
     };
@@ -713,6 +734,7 @@ mod react_compiler_tests {
         let options = react_compiler_options(
             "production",
             "input.js",
+            "",
             ReactCompilerTransformOptions::default(),
             ReactCompilerTarget::React19,
         );
@@ -729,6 +751,7 @@ mod react_compiler_tests {
         let options = react_compiler_options(
             "production",
             "input.js",
+            "",
             ReactCompilerTransformOptions {
                 compilation_mode: ReactCompilerCompilationMode::Infer,
                 enable_preserve_existing_memoization_guarantees: Some(false),
@@ -741,6 +764,109 @@ mod react_compiler_tests {
                 .environment
                 .enable_preserve_existing_memoization_guarantees
         );
+    }
+
+    const COUNTER_SOURCE: &str = r#"import { useState } from "react";
+
+export function Counter({ step }: { step: number }) {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + step)}>{count}</button>;
+}
+"#;
+
+    fn compile(source: &str, node_env: &str) -> String {
+        GLOBALS.set(&Default::default(), || {
+            let source_map: Arc<SourceMap> = Default::default();
+            let fm = source_map.new_source_file(
+                FileName::Custom("counter.tsx".into()).into(),
+                source.to_owned(),
+            );
+            let comments = SingleThreadedComments::default();
+            let mut errors = Vec::new();
+            let program = parse_file_as_program(
+                &fm,
+                Syntax::Typescript(TsSyntax {
+                    tsx: true,
+                    ..Default::default()
+                }),
+                EsVersion::EsNext,
+                Some(&comments),
+                &mut errors,
+            )
+            .expect("test fixture should parse");
+            let compiled = swc_ecma_react_compiler::transform(
+                &program,
+                swc_ecma_react_compiler::SourceType::from_program(&program),
+                source,
+                Some(&comments),
+                react_compiler_options(
+                    node_env,
+                    "counter.tsx",
+                    source,
+                    ReactCompilerTransformOptions::default(),
+                    ReactCompilerTarget::React19,
+                ),
+            )
+            .program
+            .unwrap_or(program);
+
+            let mut code = Vec::new();
+            let mut emitter = Emitter {
+                cfg: swc_core::ecma::codegen::Config::default(),
+                cm: source_map.clone(),
+                comments: None,
+                wr: JsWriter::new(source_map.clone(), "\n", &mut code, None),
+            };
+            emitter
+                .emit_program(&compiled)
+                .expect("compiled program should emit");
+            String::from_utf8(code).expect("emitted code should be utf-8")
+        })
+    }
+
+    fn source_hash_guard(code: &str) -> Option<&str> {
+        code.lines().find(|line| line.contains("if ($[0] !== \""))
+    }
+
+    #[test]
+    fn development_resets_memo_cache_when_source_changes() {
+        let code = compile(COUNTER_SOURCE, "development");
+        let edited_code = compile(
+            &COUNTER_SOURCE.replace("count + step", "count - step"),
+            "development",
+        );
+
+        let guard = source_hash_guard(&code).unwrap_or_else(|| panic!("{code}"));
+        assert_ne!(Some(guard), source_hash_guard(&edited_code));
+    }
+
+    #[test]
+    fn development_names_anonymous_functions() {
+        let code = compile(COUNTER_SOURCE, "development");
+
+        assert!(code.contains("\"Counter[<button>.onClick]\""), "{code}");
+    }
+
+    #[test]
+    fn production_omits_development_only_output() {
+        let code = compile(COUNTER_SOURCE, "production");
+
+        assert!(code.contains("_c("), "{code}");
+        assert_eq!(source_hash_guard(&code), None, "{code}");
+        assert!(!code.contains("Counter[<button>.onClick]"), "{code}");
+    }
+
+    #[test]
+    fn flow_suppressions_skip_suppressed_components() {
+        let code = compile(
+            &COUNTER_SOURCE.replace(
+                "  const [count",
+                "  // $FlowFixMe[react-rule-hook]\n  const [count",
+            ),
+            "production",
+        );
+
+        assert!(!code.contains("_c("), "{code}");
     }
 
     fn parse_program(source: &str) -> Program {
