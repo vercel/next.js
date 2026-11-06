@@ -21,7 +21,8 @@ import {
   absolutify,
   contextify,
   createHash,
-  getPath,
+  createCompilationFacade,
+  type LoaderHashOptions,
 } from './webpack-loaders-utils'
 import { fileURLToPath } from 'url'
 
@@ -69,11 +70,7 @@ type LoaderConfig =
       options: { [k: string]: unknown }
     }
 
-interface LoaderContextOptions {
-  hashFunction: string
-  hashDigest: string
-  hashDigestLength: number
-  hashSalt?: string
+interface LoaderContextOptions extends LoaderHashOptions {
   hot: boolean
 }
 
@@ -231,7 +228,7 @@ const transform = (
           hot: hot || undefined,
           // Only scalar output metadata and caller-supplied path templates are
           // supported here, not compilation hooks, options or graph state.
-          _compilation: { outputOptions: hashOptions, getPath },
+          _compilation: createCompilationFacade(hashOptions),
           utils: { absolutify, contextify, createHash },
           getOptions() {
             const entry = this.loaders[this.loaderIndex]

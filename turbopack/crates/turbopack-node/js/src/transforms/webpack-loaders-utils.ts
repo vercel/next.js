@@ -47,6 +47,13 @@ export function absolutify(context: string, request: string): string {
     .join('!')
 }
 
+export interface LoaderHashOptions {
+  hashFunction: string
+  hashDigest: string
+  hashDigestLength: number
+  hashSalt?: string
+}
+
 export interface LoaderPathData {
   filename?: string
   hash?: string
@@ -125,6 +132,46 @@ export function getPath(template: string, data: LoaderPathData = {}): string {
       ? `[${match.slice(2, -2)}]`
       : match
   })
+}
+
+function compatibilitySubset<T extends object>(
+  properties: T,
+  name: string,
+  optionalProbe?: string
+) {
+  return new Proxy(Object.freeze(properties), {
+    get(target, property, receiver) {
+      if (Object.hasOwn(target, property)) {
+        return Reflect.get(target, property, receiver)
+      }
+      if (property === optionalProbe) return undefined
+      throw new Error(
+        `Turbopack does not support ${name}.${String(property)} in webpack loaders`
+      )
+    },
+    set(_target, property) {
+      throw new Error(`${name}.${String(property)} is read-only in Turbopack`)
+    },
+  })
+}
+
+export function createCompilationFacade(hashOptions: LoaderHashOptions) {
+  const outputOptions = compatibilitySubset(
+    {
+      hashFunction: hashOptions.hashFunction,
+      hashDigest: hashOptions.hashDigest,
+      hashDigestLength: hashOptions.hashDigestLength,
+      hashSalt: hashOptions.hashSalt,
+    },
+    '_compilation.outputOptions'
+  )
+  // css-loader probes options before using optional webpack features. Leave
+  // that probe undefined; every other unsupported compilation read throws.
+  return compatibilitySubset(
+    { outputOptions, getPath },
+    '_compilation',
+    'options'
+  )
 }
 
 export interface WebpackHash {
