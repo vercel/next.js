@@ -131,6 +131,48 @@ describe('unrecognized server actions', () => {
   describe.each(['nodejs', 'edge'])(
     'should error and log a warning when submitting a server action with an unrecognized ID - %s',
     (runtime) => {
+      it('renders a GET with an action header as a page request', async () => {
+        const response = await next.fetch(`/${runtime}/unrecognized-action`, {
+          headers: { 'next-action': '123' },
+        })
+
+        if (isNextDeploy) {
+          // When deployed, a GET request with an action header is rejected
+          // with a 403 instead of rendering the page.
+          expect(response.status).toBe(403)
+        } else {
+          expect(response.status).toBe(200)
+          expect(await response.text()).toContain('form-simple-argument')
+        }
+      })
+
+      it.each([
+        {
+          actionId: undefined,
+          // When deployed, the Node.js page is served as a static route, which
+          // doesn't support POST requests and returns a 405 instead.
+          expectedStatus: isNextDeploy && runtime === 'nodejs' ? 405 : 200,
+        },
+        { actionId: '123', expectedStatus: 404 },
+      ])(
+        'preserves URL-encoded POST handling with action ID $actionId',
+        async ({ actionId, expectedStatus }) => {
+          const response = await next.fetch(`/${runtime}/unrecognized-action`, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/x-www-form-urlencoded',
+              ...(actionId ? { 'next-action': actionId } : {}),
+            },
+            body: 'foo=bar',
+          })
+
+          expect(response.status).toBe(expectedStatus)
+          if (expectedStatus === 200) {
+            expect(await response.text()).toContain('form-simple-argument')
+          }
+        }
+      )
+
       it.each([
         {
           description: 'a malformed ID',
