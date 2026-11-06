@@ -4,7 +4,7 @@ import { join } from 'path'
 import {
   getSharp,
   imageOptimizerTransform,
-  type ImageOptimizerTransformConfig,
+  type ImageOptimizerTransformOptions,
 } from 'next/image-optimizer-transform'
 import { getImageEtag } from 'next/dist/server/image-optimizer/extract-etag'
 import { optimizeImage } from 'next/dist/server/image-optimizer/sharp'
@@ -16,24 +16,20 @@ import type {
 const getImage = (filename: string) =>
   readFile(join(__dirname, 'images', filename))
 
-const config = {
-  images: {
-    dangerouslyAllowSVG: true,
-    minimumCacheTTL: 60,
-  },
-  experimental: {
-    imgOptConcurrency: 1,
-    imgOptOperationCache: false,
-    imgOptMaxInputPixels: 67_108_864,
-    imgOptSequentialRead: true,
-    imgOptTimeoutInSeconds: 6,
-  },
+const transformOptions: ImageOptimizerTransformOptions = {
+  dangerouslyAllowSVG: true,
+  minimumCacheTTL: 60,
+  concurrency: 1,
+  operationCache: false,
+  maxInputPixels: 67_108_864,
+  sequentialRead: true,
+  timeoutInSeconds: 6,
 }
 
 async function transform(
   filename: string,
   mimeType = 'image/webp',
-  nextConfig: ImageOptimizerTransformConfig = config
+  opts: ImageOptimizerTransformOptions = transformOptions
 ) {
   const buffer = await getImage(filename)
   return imageOptimizerTransform(
@@ -44,7 +40,7 @@ async function transform(
       etag: 'source-etag',
     },
     { href: `/${filename}`, width: 64, quality: 75, mimeType },
-    nextConfig
+    opts
   )
 }
 
@@ -79,7 +75,7 @@ function transformBufferInDevelopment(
       etag,
     },
     { href: '/image', width: 8, quality: 70, mimeType },
-    config,
+    transformOptions,
     { isDev: true, silent: true, previousCacheEntry }
   )
 }
@@ -126,12 +122,22 @@ describe('imageOptimizerTransform', () => {
     expect(result.optimized).toBe(true)
   })
 
+  it('transforms with default options', async () => {
+    const result = await transform('test.png', 'image/webp', {})
+    expect(result.contentType).toBe('image/webp')
+    expect(result.maxAge).toBe(120)
+    expect(result.optimized).toBe(true)
+    await expect(transform('test.svg', 'image/webp', {})).rejects.toMatchObject(
+      { statusCode: 400 }
+    )
+  })
+
   it.each([undefined, true, false])(
-    'encodes JPEGs with imgOptMozjpeg=%s',
-    async (imgOptMozjpeg) => {
+    'encodes JPEGs with mozjpeg=%s',
+    async (mozjpeg) => {
       const result = await transform('test.jpg', 'image/jpeg', {
-        ...config,
-        experimental: { ...config.experimental, imgOptMozjpeg },
+        ...transformOptions,
+        mozjpeg,
       })
       expect(result.error).toBeUndefined()
       expect(result.contentType).toBe('image/jpeg')
@@ -139,7 +145,7 @@ describe('imageOptimizerTransform', () => {
       expect(await sharp(result.buffer).metadata()).toMatchObject({
         format: 'jpeg',
         width: 64,
-        isProgressive: imgOptMozjpeg ?? true,
+        isProgressive: mozjpeg ?? true,
       })
     }
   )
@@ -231,10 +237,7 @@ describe('imageOptimizerTransform', () => {
           etag: 'source-etag',
         },
         { href: '/test.svg', width: 64, quality: 75, mimeType: 'image/webp' },
-        {
-          ...config,
-          images: { ...config.images, dangerouslyAllowSVG: false },
-        }
+        { ...transformOptions, dangerouslyAllowSVG: false }
       )
     ).rejects.toMatchObject({ statusCode: 400 })
   })
@@ -249,7 +252,7 @@ describe('imageOptimizerTransform', () => {
           etag: 'source-etag',
         },
         { href: '/bad', width: 64, quality: 75, mimeType: 'image/webp' },
-        config
+        transformOptions
       )
     ).rejects.toMatchObject({ statusCode: 400 })
   })
