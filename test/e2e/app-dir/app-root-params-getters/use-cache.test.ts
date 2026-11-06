@@ -178,10 +178,10 @@ describe('app-root-param-getters - cache - at runtime', () => {
         expect(await browser.elementById('dynamic').text()).toBe('dynamic')
       })
 
-      // If the Resume Data Cache lookup missed during the resume (e.g. due to a
-      // key mismatch caused by root params), the "use cache" function would
-      // re-execute and produce a different random value than the one in the
-      // prerendered shell, causing a hydration error.
+      // If the Resume Data Cache lookup missed during the resume (e.g. due
+      // to a key mismatch caused by root params), the "use cache" function
+      // would re-execute and produce a different random value than the one
+      // in the prerendered shell, causing a hydration error.
       await assertNoConsoleErrors(browser)
     })
 
@@ -256,8 +256,8 @@ describe('app-root-param-getters - cache - at runtime', () => {
         expect(await browser.elementById('lang-value').text()).toBe('fr')
       })
 
-      // Wait for the cache to settle by verifying the random value is stable
-      // across two consecutive loads.
+      // Wait for the cache to settle by verifying the random value is
+      // stable across two consecutive loads.
       let frRandom: string = ''
       await retry(async () => {
         await browser.loadPage(next.url + '/fr/ca/conditional-on-another-cache')
@@ -266,8 +266,8 @@ describe('app-root-param-getters - cache - at runtime', () => {
         expect(await browser.elementById('random').text()).toBe(frRandom)
       })
 
-      // Different root params must now produce different entries because lang
-      // is being read.
+      // Different root params must now produce different entries because
+      // lang is being read.
       await browser.loadPage(next.url + '/en/us/conditional-on-another-cache')
 
       expect(await browser.elementById('lang-value').text()).toBe('en')
@@ -371,8 +371,7 @@ describe('app-root-param-getters - cache - at build', () => {
   })
 
   if (isNextDev) {
-    // we omit these tests in dev because they are duplicates semantically to
-    // the runtime fixture tested above
+    // we omit these tests in dev because they are duplicates semantically to the runtime fixture tested above
     it('noop in dev', () => {})
   } else {
     it('should allow using root params within a "use cache" at build time', async () => {
