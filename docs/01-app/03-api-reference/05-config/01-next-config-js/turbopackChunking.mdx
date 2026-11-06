@@ -37,6 +37,8 @@ const nextConfig = {
       maxChunkCountPerGroup: 40,
       maxMergeChunkSize: 200000,
       maxChunkSize: 1000000,
+      minServerChunkSize: 4000,
+      maxMergeServerChunkSize: 100000,
       maxServerChunkSize: 10000000,
       minComponentChunkSize: 20000,
       generateComponentChunks: false,
@@ -56,6 +58,8 @@ const nextConfig = {
       maxChunkCountPerGroup: 40,
       maxMergeChunkSize: 200000,
       maxChunkSize: 1000000,
+      minServerChunkSize: 4000,
+      maxMergeServerChunkSize: 100000,
       maxServerChunkSize: 10000000,
       minComponentChunkSize: 20000,
       generateComponentChunks: false,
@@ -80,6 +84,8 @@ const nextConfig = {
       maxChunkCountPerGroup: 40,
       maxMergeChunkSize: 200000,
       maxChunkSize: 1000000,
+      minServerChunkSize: 4000,
+      maxMergeServerChunkSize: 100000,
       maxServerChunkSize: 10000000,
     },
   },
@@ -97,6 +103,8 @@ const nextConfig = {
       maxChunkCountPerGroup: 40,
       maxMergeChunkSize: 200000,
       maxChunkSize: 1000000,
+      minServerChunkSize: 4000,
+      maxMergeServerChunkSize: 100000,
       maxServerChunkSize: 10000000,
     },
   },
@@ -137,11 +145,6 @@ the size of the compressed, minified output).
   Otherwise, Turbopack increases `maxChunkSize` or decreases
   `maxMergeChunkSize` accordingly, and shows a warning. Set it to `0` to disable
   the limit.
-- **`maxServerChunkSize`** (default `10000000`): like `maxChunkSize`, but for
-  server (Node.js and edge) JavaScript chunks instead of client chunks. Server
-  chunks use a fixed minimum chunk size (4 KB for Node.js, 20 KB for edge) and
-  a fixed `maxMergeChunkSize` of 100 KB for Node.js, which are adjusted the same
-  way. Set it to `0` to disable the limit.
 
 When merging chunks, the trade-off being made is an improvement to performance on initial page
 loads at the cost of navigation performance. This is because each additional network request
@@ -149,15 +152,23 @@ being made is costly, however, smaller chunks are more likely to be re-usable ac
 
 ## Server Chunks
 
-The size thresholds above only apply to client-side JavaScript. Server-side JavaScript for the
-Node.js runtime uses separate thresholds:
+The size thresholds above only apply to client-side JavaScript. Server-side JavaScript uses
+separate thresholds:
 
-- **`minServerChunkSize`** (default `4000`): Turbopack will avoid creating more than one server
-  chunk smaller than this size by merging small chunks into larger ones.
-- **`maxMergeServerChunkSize`** (default `100000`): Turbopack never merges a server chunk larger
-  than this size with other chunks.
+- **`minServerChunkSize`** (default `4000`): Turbopack will avoid creating more than one Node.js
+  server chunk smaller than this size by merging small chunks into larger ones, unless the
+  maximum chunk size takes precedence.
+- **`maxMergeServerChunkSize`** (default `100000`): Turbopack never merges a Node.js server chunk
+  larger than this size with other chunks.
+- **`maxServerChunkSize`** (default `10000000`): like `maxChunkSize`, but for server (Node.js and
+  edge) JavaScript chunks instead of client chunks. For Node.js, it must be at least 3 times
+  `minServerChunkSize`, and `maxMergeServerChunkSize` must not be bigger. Otherwise, Turbopack
+  increases `maxServerChunkSize` or decreases `maxMergeServerChunkSize` accordingly, and shows a
+  warning. Set it to `0` to disable the maximum size limit.
 
-These options don't apply to the Edge runtime, whose chunking is not configurable.
+`minServerChunkSize` and `maxMergeServerChunkSize` don't apply to the Edge runtime. Edge uses a
+fixed minimum of 20 KB and the effective `maxServerChunkSize` as its merge limit. If its maximum
+is enabled but below 60 KB (3 times the minimum), it is increased with a warning.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
