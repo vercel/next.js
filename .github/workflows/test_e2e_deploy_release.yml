@@ -349,7 +349,7 @@ jobs:
         always() &&
         github.event_name == 'release' &&
         github.event.inputs.deployScriptPath == '' &&
-        github.repository_owner == 'vercel' &&
+        github.repository == 'vercel/next.js' &&
         !startsWith(needs.setup.outputs.next-version, 'http')
       }}
     permissions:
