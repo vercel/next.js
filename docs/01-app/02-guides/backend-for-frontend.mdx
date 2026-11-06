@@ -446,29 +446,34 @@ To forward requests to another backend, use [`rewrites`](/docs/app/api-reference
 
 Send the backend only the headers and credentials it needs. Copying every incoming header also forwards the user's `Cookie` and `Authorization` values. If you attach a credential, make sure the request cannot reach another server.
 
-This Route Handler validates an incoming JSON request, calls a JSON API with a server-side token, and transforms the response before returning it.
+This Route Handler exposes a fixed set of backend endpoints, validates the incoming JSON request, calls the backend with a server-side token, and transforms the response before returning it. Because the upstream path comes from the `ENDPOINTS` map rather than from the request URL, a caller cannot point the request, or its token, at another destination.
 
 ```ts filename="/app/api/[...slug]/route.ts" switcher
 import { isValidRequest } from '@/lib/utils'
 
 const BACKEND_ORIGIN = 'https://api.example.com'
 
+const ENDPOINTS = new Map([
+  ['checkout', '/v1/checkout'],
+  ['orders/preview', '/v1/orders/preview'],
+])
+
 export async function POST(request: Request, { params }) {
+  const { slug } = await params
+  const path = ENDPOINTS.get(slug.join('/'))
+
+  if (!path) {
+    return new Response(null, { status: 404, statusText: 'Not Found' })
+  }
+
   const isValid = await isValidRequest(request.clone())
 
   if (!isValid) {
     return new Response(null, { status: 400, statusText: 'Bad Request' })
   }
 
-  const { slug } = await params
-  // Encode each segment so an encoded `/` in the path cannot change the destination
-  const url = new URL(
-    `/${slug.map(encodeURIComponent).join('/')}`,
-    BACKEND_ORIGIN
-  )
-
   try {
-    const upstream = await fetch(url, {
+    const upstream = await fetch(new URL(path, BACKEND_ORIGIN), {
       method: 'POST',
       redirect: 'error',
       headers: {
@@ -499,22 +504,27 @@ import { isValidRequest } from '@/lib/utils'
 
 const BACKEND_ORIGIN = 'https://api.example.com'
 
+const ENDPOINTS = new Map([
+  ['checkout', '/v1/checkout'],
+  ['orders/preview', '/v1/orders/preview'],
+])
+
 export async function POST(request, { params }) {
+  const { slug } = await params
+  const path = ENDPOINTS.get(slug.join('/'))
+
+  if (!path) {
+    return new Response(null, { status: 404, statusText: 'Not Found' })
+  }
+
   const isValid = await isValidRequest(request.clone())
 
   if (!isValid) {
     return new Response(null, { status: 400, statusText: 'Bad Request' })
   }
 
-  const { slug } = await params
-  // Encode each segment so an encoded `/` in the path cannot change the destination
-  const url = new URL(
-    `/${slug.map(encodeURIComponent).join('/')}`,
-    BACKEND_ORIGIN
-  )
-
   try {
-    const upstream = await fetch(url, {
+    const upstream = await fetch(new URL(path, BACKEND_ORIGIN), {
       method: 'POST',
       redirect: 'error',
       headers: {
