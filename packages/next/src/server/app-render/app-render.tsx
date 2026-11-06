@@ -119,8 +119,8 @@ import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
 import {
   getActiveLocalSpan,
   isLocalSpanRecordingEnabled,
-  traceLocalSpan,
 } from '../lib/trace/local-span-recorder'
+import { traceRequestSpan } from '../lib/trace/request-span-recorder'
 import {
   importRequestInsightSpans,
   isRequestInsightsEnabled,
@@ -5033,7 +5033,7 @@ function runInstantInsightsSpan<T>(
   spanName: string,
   fn: () => Promise<T>
 ): Promise<T> {
-  return traceLocalSpan(
+  return traceRequestSpan(
     {
       name: spanName,
       attributes: {
@@ -5070,10 +5070,10 @@ async function runInstantInsightsWithTracing<T>(
   }
   startRequestInsight(identity)
   return runWithRequestInsightsIdentity(identity, () =>
-    traceLocalSpan(
+    traceRequestSpan(
       {
         name: 'Instant Insights',
-        parentSpan: null,
+        parent: null,
         attributes: {
           'next.span_category': 'nextjs',
           'next.span_name': 'Instant Insights',

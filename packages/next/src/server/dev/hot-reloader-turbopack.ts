@@ -61,7 +61,10 @@ import {
   clearModuleContext,
 } from '../lib/render-server'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
-import { trace } from '../../trace'
+import { getTracer } from '../lib/trace/tracer'
+import { ToolingSpan } from '../lib/trace/constants'
+import { traceLocalSpan } from '../lib/trace/local-span-recorder'
+import { recordSpans } from '../lib/trace/span-store'
 import {
   AssetMapper,
   type ChangeSubscriptions,
@@ -469,12 +472,12 @@ export async function createHotReloaderTurbopack(
     opts.fsChecker.rewrites.beforeFiles.length > 0 ||
     opts.fsChecker.rewrites.fallback.length > 0
 
-  const hotReloaderSpan = trace('hot-reloader', undefined, {
-    version: process.env.__NEXT_VERSION as string,
+  const hotReloaderSpan = getTracer().startSpan(ToolingSpan.hotReloader, {
+    attributes: { version: process.env.__NEXT_VERSION as string },
   })
   // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
   // of the current `next dev` invocation.
-  hotReloaderSpan.stop()
+  hotReloaderSpan.end()
 
   // Initialize log monitor for file logging
   // Enable logging by default in development mode
@@ -1709,24 +1712,36 @@ export async function createHotReloaderTurbopack(
               break
             }
             case 'span-end': {
-              hotReloaderSpan.manualTraceChild(
-                parsedData.spanName,
-                msToNs(parsedData.startTime),
-                msToNs(parsedData.endTime),
-                parsedData.attributes
+              recordSpans(
+                [
+                  {
+                    name: parsedData.spanName,
+                    startTime: msToNs(parsedData.startTime),
+                    endTime: msToNs(parsedData.endTime),
+                    attributes: parsedData.attributes,
+                  },
+                ],
+                'tooling',
+                hotReloaderSpan
               )
               break
             }
             case 'client-hmr-latency': // { id, startTime, endTime, page, updatedModules, isPageHidden }
-              hotReloaderSpan.manualTraceChild(
-                parsedData.event,
-                msToNs(parsedData.startTime),
-                msToNs(parsedData.endTime),
-                {
-                  updatedModules: parsedData.updatedModules,
-                  page: parsedData.page,
-                  isPageHidden: parsedData.isPageHidden,
-                }
+              recordSpans(
+                [
+                  {
+                    name: parsedData.event,
+                    startTime: msToNs(parsedData.startTime),
+                    endTime: msToNs(parsedData.endTime),
+                    attributes: {
+                      updatedModules: parsedData.updatedModules,
+                      page: parsedData.page,
+                      isPageHidden: parsedData.isPageHidden,
+                    },
+                  },
+                ],
+                'tooling',
+                hotReloaderSpan
               )
               break
 
@@ -2090,11 +2105,13 @@ export async function createHotReloaderTurbopack(
         if (inputPage === '/src/instrumentation') return
       }
 
-      return hotReloaderSpan
-        .traceChild('ensure-page', {
-          inputPage,
-        })
-        .traceAsyncFn(async () => {
+      return traceLocalSpan(
+        {
+          name: 'ensure-page',
+          parent: hotReloaderSpan,
+          attributes: { inputPage },
+        },
+        async () => {
           if (BLOCKED_PAGES.includes(inputPage) && inputPage !== '/_error') {
             return
           }
@@ -2281,7 +2298,8 @@ export async function createHotReloaderTurbopack(
               nonDeferredBuildingEntries.delete(routeDef.page)
             }
           }
-        })
+        }
+      )
     },
     close() {
       // Report MCP telemetry if MCP server is enabled

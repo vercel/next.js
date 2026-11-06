@@ -1,3 +1,4 @@
+import { traceLocalSpan } from '../lib/trace/local-span-recorder'
 import path from 'path'
 import fs from 'fs/promises'
 import { createHash } from 'crypto'
@@ -39,109 +40,116 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
     // a page that previously failed to build might not be rebuilt on the next request.
     await super.buildFallbackError()
 
-    const rspackStartSpan = this.hotReloaderSpan.traceChild(
-      'rspack-after-compile'
-    )
-    await rspackStartSpan.traceAsyncFn(async () => {
-      const hash = createHash('sha1')
-      multiCompiler.compilers.forEach((compiler) => {
-        const cache = compiler.options.cache
-        if (typeof cache === 'object' && 'version' in cache && cache.version) {
-          hash.update(cache.version)
-          if (compiler.name === COMPILER_NAMES.client) {
-            this.isClientCacheEnabled = true
-          } else if (compiler.name === COMPILER_NAMES.server) {
-            this.isServerCacheEnabled = true
-          } else if (compiler.name === COMPILER_NAMES.edgeServer) {
-            this.isEdgeServerCacheEnabled = true
+    await traceLocalSpan(
+      {
+        name: 'rspack-after-compile',
+        parent: this.hotReloaderSpan,
+      },
+      async () => {
+        const hash = createHash('sha1')
+        multiCompiler.compilers.forEach((compiler) => {
+          const cache = compiler.options.cache
+          if (
+            typeof cache === 'object' &&
+            'version' in cache &&
+            cache.version
+          ) {
+            hash.update(cache.version)
+            if (compiler.name === COMPILER_NAMES.client) {
+              this.isClientCacheEnabled = true
+            } else if (compiler.name === COMPILER_NAMES.server) {
+              this.isServerCacheEnabled = true
+            } else if (compiler.name === COMPILER_NAMES.edgeServer) {
+              this.isEdgeServerCacheEnabled = true
+            }
+          } else {
+            hash.update('-')
           }
-        } else {
-          hash.update('-')
-        }
-        return undefined
-      })
-      this.builtEntriesCachePath = path.join(
-        this.distDir,
-        'cache',
-        'rspack',
-        hash.digest('hex').substring(0, 16),
-        'built-entries.json'
-      )
-
-      const hasBuiltEntriesCache = await fs
-        .access(this.builtEntriesCachePath)
-        .then(
-          () => true,
-          () => false
+          return undefined
+        })
+        this.builtEntriesCachePath = path.join(
+          this.distDir,
+          'cache',
+          'rspack',
+          hash.digest('hex').substring(0, 16),
+          'built-entries.json'
         )
-      if (hasBuiltEntriesCache) {
-        try {
-          const builtEntries: ReturnType<typeof getEntries> = JSON.parse(
-            (await fs.readFile(this.builtEntriesCachePath, 'utf-8')) || '{}'
+
+        const hasBuiltEntriesCache = await fs
+          .access(this.builtEntriesCachePath)
+          .then(
+            () => true,
+            () => false
           )
+        if (hasBuiltEntriesCache) {
+          try {
+            const builtEntries: ReturnType<typeof getEntries> = JSON.parse(
+              (await fs.readFile(this.builtEntriesCachePath, 'utf-8')) || '{}'
+            )
 
-          await Promise.all(
-            Object.keys(builtEntries).map(async (entryKey) => {
-              const entryData = builtEntries[entryKey]
+            await Promise.all(
+              Object.keys(builtEntries).map(async (entryKey) => {
+                const entryData = builtEntries[entryKey]
 
-              const isEntry = entryData.type === EntryTypes.ENTRY
-              const isChildEntry = entryData.type === EntryTypes.CHILD_ENTRY
+                const isEntry = entryData.type === EntryTypes.ENTRY
+                const isChildEntry = entryData.type === EntryTypes.CHILD_ENTRY
 
-              // Check if the page was removed or disposed and remove it
-              if (isEntry) {
-                const pageExists =
-                  !entryData.dispose &&
-                  (await fs.access(entryData.absolutePagePath).then(
-                    () => true,
-                    () => false
-                  ))
-                if (!pageExists) {
-                  delete builtEntries[entryKey]
-                  return
-                } else if (
-                  !('hash' in builtEntries[entryKey]) ||
-                  builtEntries[entryKey].hash !==
-                    (await calculateFileHash(entryData.absolutePagePath))
-                ) {
-                  delete builtEntries[entryKey]
-                  return
-                }
-              }
-
-              // For child entries, if it has an entry file and it's gone, remove it
-              if (isChildEntry) {
-                if (entryData.absoluteEntryFilePath) {
+                // Check if the page was removed or disposed and remove it
+                if (isEntry) {
                   const pageExists =
                     !entryData.dispose &&
-                    (await fs.access(entryData.absoluteEntryFilePath).then(
+                    (await fs.access(entryData.absolutePagePath).then(
                       () => true,
                       () => false
                     ))
                   if (!pageExists) {
                     delete builtEntries[entryKey]
                     return
-                  } else {
-                    if (
-                      !('hash' in builtEntries[entryKey]) ||
-                      builtEntries[entryKey].hash !==
-                        (await calculateFileHash(
-                          entryData.absoluteEntryFilePath
-                        ))
-                    ) {
+                  } else if (
+                    !('hash' in builtEntries[entryKey]) ||
+                    builtEntries[entryKey].hash !==
+                      (await calculateFileHash(entryData.absolutePagePath))
+                  ) {
+                    delete builtEntries[entryKey]
+                    return
+                  }
+                }
+
+                // For child entries, if it has an entry file and it's gone, remove it
+                if (isChildEntry) {
+                  if (entryData.absoluteEntryFilePath) {
+                    const pageExists =
+                      !entryData.dispose &&
+                      (await fs.access(entryData.absoluteEntryFilePath).then(
+                        () => true,
+                        () => false
+                      ))
+                    if (!pageExists) {
                       delete builtEntries[entryKey]
                       return
+                    } else {
+                      if (
+                        !('hash' in builtEntries[entryKey]) ||
+                        builtEntries[entryKey].hash !==
+                          (await calculateFileHash(
+                            entryData.absoluteEntryFilePath
+                          ))
+                      ) {
+                        delete builtEntries[entryKey]
+                        return
+                      }
                     }
                   }
                 }
-              }
-            })
-          )
-          Object.assign(getEntries(multiCompiler.outputPath), builtEntries)
-        } catch (error) {
-          console.error('Rspack failed to read built entries cache: ', error)
+              })
+            )
+            Object.assign(getEntries(multiCompiler.outputPath), builtEntries)
+          } catch (error) {
+            console.error('Rspack failed to read built entries cache: ', error)
+          }
         }
       }
-    })
+    )
   }
 
   public async ensurePage({

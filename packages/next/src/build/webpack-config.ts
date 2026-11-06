@@ -60,7 +60,7 @@ import type {
   Feature,
   SWC_TARGET_TRIPLE,
 } from './webpack/plugins/telemetry-plugin/telemetry-plugin'
-import type { Span } from '../trace'
+import type { Span } from '@opentelemetry/api'
 import type { ProxyMatcher } from './analysis/get-page-static-info'
 import loadJsConfig, {
   type JsConfig,
