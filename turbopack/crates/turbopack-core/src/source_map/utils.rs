@@ -182,8 +182,12 @@ pub async fn resolve_source_map_sources(
 
             for (source, content) in sources.iter_mut().zip(contents.iter_mut()) {
                 if let Some(source) = source {
-                    if let Some(source_root) = &map.source_root {
-                        *source = format!("{source_root}{source}");
+                    // ECMA-426 prefixes sources with the root, followed by a `/` if it has none.
+                    if let Some(source_root) = map.source_root.as_deref()
+                        && !source_root.is_empty()
+                    {
+                        let separator = if source_root.ends_with('/') { "" } else { "/" };
+                        *source = format!("{source_root}{separator}{source}");
                     }
                     resolve_source(source, Some(content)).await?;
                 }
@@ -398,24 +402,37 @@ mod tests {
                     .to_str()?,
                 )?;
 
-                let rooted_source_map: SourceMapJson = serde_json::from_str(
-                    &resolve_source_map_sources(
-                        Some(&source_map_rope(
-                            // NOTE: these should get literally concated, a slash should NOT get
-                            // added.
-                            Some("../source%20root%20"),
-                            ["page.js"],
-                        )),
-                        &fs_root_path.join("app/page.js").unwrap(),
-                    )
-                    .await?
-                    .unwrap()
-                    .to_str()?,
-                )?;
+                let file_url_root = url_root.join("source%20root")?.to_string();
+                let mut rooted_sources = Vec::new();
+                for (source_root, source) in [
+                    (Some("../source%20root%20"), "page.js"),
+                    (Some("../src"), "page.js"),
+                    (Some("../src/"), "page.js"),
+                    (Some("../src"), "/page.js"),
+                    (Some("https://example.com/src"), "page.js"),
+                    (Some("https://example.com/src/"), "page.js"),
+                    (Some("https://example.com/src"), "/page.js"),
+                    (Some("https://example.com/src/"), "/page.js"),
+                    (Some(file_url_root.as_str()), "page.js"),
+                    (Some(""), "page.js"),
+                    (None, "page.js"),
+                ] {
+                    let rooted_source_map: SourceMapJson = serde_json::from_str(
+                        &resolve_source_map_sources(
+                            Some(&source_map_rope(source_root, [source])),
+                            &fs_root_path.join("app/page.js").unwrap(),
+                        )
+                        .await?
+                        .unwrap()
+                        .to_str()?,
+                    )?;
+                    assert!(rooted_source_map.source_root.is_none());
+                    rooted_sources.extend(rooted_source_map.sources.unwrap());
+                }
 
                 Ok(SourceMapSourcesOutput {
                     resolved_sources: resolved_source_map.sources.unwrap_or_default(),
-                    rooted_sources: rooted_source_map.sources.unwrap_or_default(),
+                    rooted_sources,
                 }
                 .cell())
             }
@@ -440,7 +457,19 @@ mod tests {
 
             assert_eq!(
                 resolved_source_maps.rooted_sources,
-                vec![Some(format!("{prefix}/source root page.js"))]
+                vec![
+                    Some(format!("{prefix}/source root /page.js")),
+                    Some(format!("{prefix}/src/page.js")),
+                    Some(format!("{prefix}/src/page.js")),
+                    Some(format!("{prefix}/src/page.js")),
+                    Some("https://example.com/src/page.js".to_owned()),
+                    Some("https://example.com/src/page.js".to_owned()),
+                    Some("https://example.com/src//page.js".to_owned()),
+                    Some("https://example.com/src//page.js".to_owned()),
+                    Some(format!("{prefix}/source root/page.js")),
+                    Some(format!("{prefix}/app/page.js")),
+                    Some(format!("{prefix}/app/page.js")),
+                ]
             );
 
             anyhow::Ok(())
