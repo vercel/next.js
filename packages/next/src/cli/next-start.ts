@@ -40,9 +40,10 @@ export type NextStartOptions = {
  * @param directory The directory to start the server in
  */
 const nextStart = async (options: NextStartOptions, directory?: string) => {
-  const { startServer } = (
-    await import('../compiled/next-server/start-server.runtime.prod.js')
-  ).default
+  const { startServer } =
+    process.env.NODE_ENV === 'production'
+      ? (await import('next/dist/compiled/next-start/start-server.js')).default
+      : await import('../server/lib/start-server.js')
 
   const dir = getProjectDir(directory)
   warnMissingReactDependencies(dir)

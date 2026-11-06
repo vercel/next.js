@@ -28,8 +28,8 @@ module.exports = {
   mode:
     process.env.NEXT_DEBUG_INTERNALS === 'true' ? 'development' : 'production',
   output: {
-    path: path.join(__dirname, 'dist/compiled/next-server'),
-    filename: 'start-server.runtime.prod.js',
+    path: path.join(__dirname, 'dist/compiled/next-start'),
+    filename: 'start-server.js',
     library: { type: 'commonjs2' },
   },
   devtool: 'source-map',
