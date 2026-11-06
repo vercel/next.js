@@ -1,10 +1,12 @@
 import { PassThrough } from 'stream'
 
 let latestForkEnv: NodeJS.ProcessEnv | undefined
+let latestForkExecArgv: string[] | undefined
 
 jest.mock('next/dist/compiled/jest-worker', () => {
   const WorkerMock = jest.fn().mockImplementation((_path, options) => {
     latestForkEnv = options?.forkOptions?.env
+    latestForkExecArgv = options?.forkOptions?.execArgv
     return {
       _workerPool: { _workers: [] },
       getStdout: () => new PassThrough(),
@@ -48,6 +50,7 @@ const overrideBooleanDescriptor = (
 
 describe('lib/worker color propagation', () => {
   const originalEnv = { ...process.env }
+  const originalExecArgv = [...process.execArgv]
 
   const restoreEnv = () => {
     for (const key of Object.keys(process.env)) {
@@ -58,12 +61,14 @@ describe('lib/worker color propagation', () => {
 
   afterEach(() => {
     restoreEnv()
+    process.execArgv.splice(0, process.execArgv.length, ...originalExecArgv)
     while (restoreDescriptors.length > 0) {
       const restore = restoreDescriptors.pop()
       restore?.()
     }
     jest.resetModules()
     latestForkEnv = undefined
+    latestForkExecArgv = undefined
   })
 
   it('enables FORCE_COLOR when the parent supports colors', () => {
@@ -123,5 +128,27 @@ describe('lib/worker color propagation', () => {
     worker.close()
 
     expect(latestForkEnv?.FORCE_COLOR).toBeUndefined()
+  })
+
+  it('does not forward node watch options to child process workers', () => {
+    process.execArgv.push(
+      '--watch',
+      '--watch-path=app',
+      '--watch-preserve-output',
+      '--experimental-network-inspection'
+    )
+
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, noopOptions)
+    worker.close()
+
+    expect(latestForkExecArgv).toContain('--experimental-network-inspection')
+    expect(latestForkExecArgv).not.toContain('--watch')
+    expect(latestForkExecArgv).not.toContain('--watch-path=app')
+    expect(latestForkExecArgv).not.toContain('--watch-preserve-output')
+    expect(latestForkEnv?.NODE_OPTIONS).not.toContain('--watch')
+    expect(latestForkEnv?.NODE_OPTIONS).not.toContain('--watch-path')
+    expect(latestForkEnv?.NODE_OPTIONS).not.toContain('--watch-preserve-output')
   })
 })
