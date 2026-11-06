@@ -4,6 +4,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     context::AssetContext,
+    environment::ChunkLoading,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -101,6 +102,16 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        if matches!(
+            *chunking_context.chunk_loading().await?,
+            ChunkLoading::SingleChunk
+        ) {
+            bail!(
+                "WebAssembly imports are not supported in single-chunk (service-worker) \
+                 entrypoints"
+            );
+        }
+
         let wasm_asset = self.wasm_asset(chunking_context);
         let path = wasm_asset.path().await?;
         let output_root = chunking_context.output_root().await?;
