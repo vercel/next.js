@@ -1561,7 +1561,10 @@ impl AppEndpoint {
                     },
                     matches!(ty, AppPageEndpointType::Html),
                 ),
-                AppEndpointType::Route { .. } => (false, false, EmitManifests::Minimal, true),
+                // SSR chunking is enabled so that client references reached from a Route Handler
+                // (e.g. one that renders a Flight payload) get entries in its client reference
+                // manifest, which is only written when an SSR chunking context exists.
+                AppEndpointType::Route { .. } => (false, true, EmitManifests::Minimal, true),
                 AppEndpointType::Metadata { metadata } => (
                     false,
                     false,
@@ -1666,6 +1669,7 @@ impl AppEndpoint {
             *client_chunking_context,
             availability_info,
             ssr_chunking_context.map(|ctx| *ctx),
+            matches!(this.ty, AppEndpointType::Route { .. }).then_some(*rsc_entry),
         )
         .to_resolved()
         .await?;
@@ -2768,6 +2772,8 @@ impl Endpoint for AppEndpoint {
             client_chunking_context,
             shared.availability_info,
             // Only client output groups are needed; SSR chunks are not browser assets.
+            None,
+            // Only pages are analyzed.
             None,
         )
         .await?;
