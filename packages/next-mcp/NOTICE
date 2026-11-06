@@ -1,0 +1,8 @@
+@next/mcp
+Copyright (c) 2026 Vercel, Inc.
+
+This package includes code adapted from eve (https://github.com/vercel/eve),
+Copyright 2026 Vercel, Inc. and contributors, licensed under the Apache
+License, Version 2.0. The adapted files live in `src/vendor/eve/` (compiled to
+`dist/vendor/eve/`), each with a header naming its upstream source. A copy of
+the Apache License, Version 2.0 is included at `src/vendor/eve/LICENSE`.
