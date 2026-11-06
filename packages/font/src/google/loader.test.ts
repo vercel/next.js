@@ -71,6 +71,11 @@ describe('next/font/google loader', () => {
         'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@1,9..144,100..900,0..100,0..1&display=swap',
       ],
       [
+        'Newsreader',
+        { weight: '700', axes: ['opsz'] },
+        'https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,700&display=swap',
+      ],
+      [
         'Molle',
         { weight: '400' },
         'https://fonts.googleapis.com/css2?family=Molle:ital,wght@1,400&display=swap',
