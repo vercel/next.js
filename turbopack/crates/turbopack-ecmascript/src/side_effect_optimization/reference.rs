@@ -223,12 +223,13 @@ impl EcmascriptModulePartReference {
                     // no need to import
                 }
                 ReferencedAssetIdent::Module { .. } => {
-                    let (sym, ctxt) = ident.into_module_namespace_ident().unwrap();
-                    if subsumed_namespaces.contains(&(sym.to_string(), ctxt)) {
+                    let namespace_key = ident.into_module_namespace_ident().unwrap();
+                    if subsumed_namespaces.contains(&namespace_key) {
                         // A compact registration performs this import, including evaluation-only
                         // empty groups such as a facade's structural locals reference.
                         return Ok(CodeGeneration::hoisted_stmts(result));
                     }
+                    let (sym, ctxt) = namespace_key;
                     let key = sym.as_str().into();
                     let name = Ident::new(sym.into(), DUMMY_SP, ctxt.unwrap_or_default());
 

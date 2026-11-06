@@ -225,6 +225,10 @@ export const conditions: Record<string, Condition> = {
     'dynamic prefetches are triggered on hover',
     (config) => config.experimental?.dynamicOnHover
   ),
+  prepareNavigation: lazyCondition(
+    '`router.experimental_prepare()` is enabled for the fixture',
+    (config) => config.experimental?.prepareNavigation
+  ),
   useOffline: lazyCondition(
     'the `useOffline()` hook is enabled for the fixture',
     (config) => config.experimental?.useOffline

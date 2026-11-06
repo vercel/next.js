@@ -12,6 +12,8 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
+import { cloneObject } from './lib/clone-object'
+import { deepFreeze } from '../shared/lib/deep-freeze'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
@@ -509,6 +511,8 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
+  /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
+  goRoutes?: boolean
   /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
   agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
@@ -816,6 +820,13 @@ export interface ExperimentalConfig {
   gestureTransition?: boolean
 
   /**
+   * Enables `router.experimental_prepare()`, which starts a navigation
+   * without committing it, so its data can be requested ahead of time (e.g.
+   * on `pointerdown`) and the navigation committed later (e.g. on `click`).
+   */
+  prepareNavigation?: boolean
+
+  /**
    * Controls Turbopack's memory eviction strategy for development sessions
    *
    * Only effective in dev sessions where
@@ -890,6 +901,13 @@ export interface ExperimentalConfig {
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
+
+  /**
+   * Minify each module separately instead of each finished chunk, so minification runs in
+   * parallel and is cached per module. The trade-off is slightly worse compression.
+   * Defaults to false. Only applies to production builds.
+   */
+  turbopackMinifyBeforeChunking?: boolean
 
   /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
@@ -1315,6 +1333,30 @@ export interface ExperimentalConfig {
   hydrationChangeEvent?: boolean
 
   /**
+   * Streams React's instruction set for the `app` directory as data instead of
+   * as inline `<script>` tags. React emits `<template data-rci="" …>` elements,
+   * and a standalone runtime script, served as a static asset from
+   * `/_next/static/chunks`, collects them with a `MutationObserver` and applies
+   * the instructions. This also removes React's inline form-replaying runtime.
+   *
+   * The goal is a document with no inline scripts, so a Content-Security-Policy
+   * can drop `unsafe-inline` without a per-response nonce (which is
+   * incompatible with static generation). Note that this alone is not
+   * sufficient yet: the Flight payload and the bootstrap script are still
+   * inlined.
+   *
+   * This feature is currently only available in React's experimental release
+   * channel, so enabling it opts the `app` directory into `react@experimental`
+   * (the same channel used by `taint`, `transitionIndicator`,
+   * `gestureTransition`, and `blockingSSR`).
+   *
+   * This is an opt-in only. Setting it to `false` does not disable the
+   * experimental channel when another feature (such as `taint`,
+   * `transitionIndicator`, or `gestureTransition`) requires it.
+   */
+  externalBrowserRuntime?: boolean
+
+  /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
    * the global process so that we can override the behavior, which in some
    * runtimes is to exit the process.
@@ -1632,19 +1674,6 @@ export interface ExperimentalConfig {
   exposeRuntimeErrorsToHMR?: boolean
 
   /**
-   * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
-   * build`. Failing to acquire the lock causes the process to exit with an
-   * error message.
-   *
-   * This is because if multiple processes write to the same `distDir` at the
-   * same time, it can mangle the state of the directory. Disabling this option
-   * is not recommended.
-   *
-   * @default true
-   */
-  lockDistDir?: boolean
-
-  /**
    * Hide logs that occur after a render has already aborted.
    * This can help reduce noise in the console when dealing with aborted renders.
    *
@@ -1952,6 +1981,15 @@ export interface NextConfig {
    * Each entry may be a bare npm package name or a path relative to the project root.
    */
   instrumentationClientInject?: string[]
+
+  /**
+   * Module specifiers compiled into the server `instrumentation` slot, ahead
+   * of the project's own `instrumentation.{ts,js}` file. Every entry's
+   * `register` and `onRequestError` run in array order, then the project
+   * file's. A hook that throws does not stop the others. Each entry may be a bare
+   * npm package name, a path relative to the project root, or an absolute path.
+   */
+  instrumentationInject?: string[]
 
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
@@ -2328,6 +2366,7 @@ export const defaultConfig = Object.freeze({
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   instrumentationClientInject: [],
+  instrumentationInject: [],
   poweredByHeader: true,
   compress: true,
   images: imageConfigDefault,
@@ -2498,6 +2537,7 @@ export const defaultConfig = Object.freeze({
     transitionIndicator: false,
     gestureTransition: false,
     hydrationChangeEvent: false,
+    prepareNavigation: false,
     inlineCss: false,
     useCache: undefined,
     useCacheStaticRootParamTracking: false,
@@ -2506,7 +2546,6 @@ export const defaultConfig = Object.freeze({
     explicitParallelRouteChildren: true,
     strictRouteMatching: true,
     browserDebugInfoInTerminal: 'warn',
-    lockDistDir: true,
     disableResumeDataCacheCompression: false,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
@@ -2527,9 +2566,24 @@ export const defaultConfig = Object.freeze({
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
 
+// In tests, deeply freeze the shared defaults (this also covers
+// `imageConfigDefault`, which `defaultConfig.images` points to). A write to
+// them would leak into every later `loadConfig` in the process, so make it
+// throw instead. `defaultConfig` itself is already shallowly frozen, which
+// makes `deepFreeze` stop at the top level, so freeze what it contains.
+if (process.env.__NEXT_TEST_MODE) {
+  for (const value of Object.values(defaultConfig)) {
+    if (value && typeof value === 'object') deepFreeze(value)
+  }
+}
+
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
-    config = config(phase, { defaultConfig })
+    // Pass a copy so a config function that writes into the nested defaults
+    // (e.g. `defaultConfig.images`) cannot change them for later loads.
+    config = config(phase, {
+      defaultConfig: Object.freeze(cloneObject(defaultConfig)),
+    })
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
@@ -2587,6 +2641,7 @@ export interface NextConfigRuntime {
 
   experimental: Pick<
     NextConfigComplete['experimental'],
+    | 'goRoutes'
     | 'taint'
     | 'agentFeedback'
     | 'serverActions'
@@ -2635,6 +2690,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
     | 'requestInsights'
+    | 'externalBrowserRuntime'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2708,7 +2764,9 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
+    externalBrowserRuntime: ex.externalBrowserRuntime,
 
+    goRoutes: ex.goRoutes,
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,
   } satisfies Requiredish<NextConfigRuntime['experimental']>

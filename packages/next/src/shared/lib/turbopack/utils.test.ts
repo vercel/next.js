@@ -125,6 +125,83 @@ https://nextjs.org/docs/messages/module-not-found
     expect(output).toContain('^^^^^^^')
   })
 
+  describe('source location header', () => {
+    const range = {
+      start: { line: 4, column: 14 },
+      end: { line: 4, column: 20 },
+    }
+    const issue = (source: Issue['source'], filePath: string): Issue => ({
+      ...baseIssue,
+      title: styledText('Unknown module type'),
+      documentationLink: '',
+      filePath,
+      source,
+      importTraces: [],
+    })
+
+    it('uses 1-based line and column of the source', () => {
+      const output = stripAnsi(
+        formatIssue(
+          issue(
+            {
+              source: {
+                ident: '[project]/src/index.js',
+                filePath: '[project]/src/index.js',
+              },
+              range,
+            },
+            '[project]/src/index.js'
+          )
+        )
+      )
+      expect(output).toBe(`\
+./src/index.js:5:15
+Error: Unknown module type
+`)
+    })
+
+    it('uses the source-mapped file path instead of the issue file path', () => {
+      const output = stripAnsi(
+        formatIssue(
+          issue(
+            {
+              source: {
+                ident: '[project]/src/index.js',
+                filePath: '[project]/src/index.js',
+              },
+              range,
+            },
+            '[project]/src/index.js.import-meta-glob.mjs'
+          )
+        )
+      )
+      expect(output).toBe(`\
+./src/index.js:5:15
+Error: Unknown module type
+`)
+    })
+
+    it('uses the source file path when the source has no range', () => {
+      const output = stripAnsi(
+        formatIssue(
+          issue(
+            {
+              source: {
+                ident: '[project]/src/index.js',
+                filePath: '[project]/src/index.js',
+              },
+            },
+            '[project]/src/index.js.import-meta-glob.mjs'
+          )
+        )
+      )
+      expect(output).toBe(`\
+./src/index.js
+Error: Unknown module type
+`)
+    })
+  })
+
   it('handles missing layers in traces', () => {
     const trace: PlainTraceItem[] = [
       traceItem('src/app/page.ts'),

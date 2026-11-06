@@ -1,41 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__0vvunn2xahlr6._.js",
-"[externals]/bun [external] (bun, cjs)", ((__turbopack_context__, module, exports) => {
-
-var mod = __turbopack_context__.x("bun", () => require("bun"));
-
-module.exports = mod;
-}),
-"[externals]/bun:ffi [external] (bun:ffi, cjs)", ((__turbopack_context__, module, exports) => {
-
-var mod = __turbopack_context__.x("bun:ffi", () => require("bun:ffi"));
-
-module.exports = mod;
-}),
-"[externals]/bun:jsc [external] (bun:jsc, cjs)", ((__turbopack_context__, module, exports) => {
-
-var mod = __turbopack_context__.x("bun:jsc", () => require("bun:jsc"));
-
-module.exports = mod;
-}),
-"[externals]/bun:sqlite [external] (bun:sqlite, cjs)", ((__turbopack_context__, module, exports) => {
-
-var mod = __turbopack_context__.x("bun:sqlite", () => require("bun:sqlite"));
-
-module.exports = mod;
-}),
-"[externals]/bun:test [external] (bun:test, cjs)", ((__turbopack_context__, module, exports) => {
-
-var mod = __turbopack_context__.x("bun:test", () => require("bun:test"));
-
-module.exports = mod;
-}),
-"[externals]/bun:wrap [external] (bun:wrap, cjs)", ((__turbopack_context__, module, exports) => {
-
-var mod = __turbopack_context__.x("bun:wrap", () => require("bun:wrap"));
-
-module.exports = mod;
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node/bun_protocol_external/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__0vvunn2xahlr6._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/node/bun_protocol_external/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([]);
@@ -58,7 +21,36 @@ console.log('bun:sqlite:', __TURBOPACK__imported__module__$5b$externals$5d2f$bun
 console.log('bun:test:', __TURBOPACK__imported__module__$5b$externals$5d2f$bun$3a$test__$5b$external$5d$__$28$bun$3a$test$2c$__cjs$29$__["default"]);
 console.log('bun:wrap:', __TURBOPACK__imported__module__$5b$externals$5d2f$bun$3a$wrap__$5b$external$5d$__$28$bun$3a$wrap$2c$__cjs$29$__["default"]);
 console.log('bun:', __TURBOPACK__imported__module__$5b$externals$5d2f$bun__$5b$external$5d$__$28$bun$2c$__cjs$29$__["default"]);
-}),
-]);
+}),"[externals]/bun [external] (bun, cjs)",((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("bun", () => require("bun"));
+
+module.exports = mod;
+}),"[externals]/bun:ffi [external] (bun:ffi, cjs)",((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("bun:ffi", () => require("bun:ffi"));
+
+module.exports = mod;
+}),"[externals]/bun:jsc [external] (bun:jsc, cjs)",((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("bun:jsc", () => require("bun:jsc"));
+
+module.exports = mod;
+}),"[externals]/bun:sqlite [external] (bun:sqlite, cjs)",((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("bun:sqlite", () => require("bun:sqlite"));
+
+module.exports = mod;
+}),"[externals]/bun:test [external] (bun:test, cjs)",((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("bun:test", () => require("bun:test"));
+
+module.exports = mod;
+}),"[externals]/bun:wrap [external] (bun:wrap, cjs)",((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("bun:wrap", () => require("bun:wrap"));
+
+module.exports = mod;
+})]);
 
 //# sourceMappingURL=%5Broot-of-the-server%5D__0vvunn2xahlr6._.js.map

@@ -4,6 +4,16 @@ import { isNodeNextResponse } from './base-http/helpers'
 import { pipeToNodeResponse } from './pipe-readable'
 import { splitCookiesString } from './web/utils'
 
+// The body may have been transparently decoded (e.g. fetch decompresses a
+// gzip body but preserves the original headers), in which case forwarding
+// these headers produces invalid response framing. Matches FORBIDDEN_HEADERS
+// in web/sandbox/sandbox.ts.
+const FORBIDDEN_HEADERS = [
+  'content-length',
+  'content-encoding',
+  'transfer-encoding',
+]
+
 /**
  * Sends the response on the underlying next response object.
  *
@@ -44,6 +54,10 @@ export async function sendResponse(
     response.headers?.forEach((value, name) => {
       // `x-middleware-set-cookie` is an internal header not needed for the response
       if (name.toLowerCase() === 'x-middleware-set-cookie') {
+        return
+      }
+
+      if (FORBIDDEN_HEADERS.includes(name)) {
         return
       }
 
