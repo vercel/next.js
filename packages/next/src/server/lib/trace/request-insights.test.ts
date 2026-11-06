@@ -967,10 +967,12 @@ describe('request insights', () => {
       }
       firstReceiver.receive(firstMessage, JSON.stringify(firstMessage).length)
       firstReceiver.dispose()
-      const budget = getRequestInsightForDebugRequest(
-        'react-stream',
-        'react-stream'
-      )!.browserTimings
+      const context = () =>
+        getRequestInsightForDebugRequest(
+          identity.requestId,
+          identity.requestId
+        )!
+      const budget = context().browserTimings
       expect(budget.recordCount).toBe(1)
       expect(getRequestInsightsSnapshot().requests[0]).toMatchObject({
         ...responseTiming,
@@ -985,27 +987,15 @@ describe('request insights', () => {
         recordSpan({ name: 'GET /', ...other })
         completeRequestInsight(other)
       }
-      expect(
-        getRequestInsightForDebugRequest('react-stream', 'react-stream')
-      ).toMatchObject({ parent: { spanId: parentSpanId } })
-      expect(
-        getRequestInsightForDebugRequest('react-stream', 'react-stream')!
-          .browserTimings
-      ).toBe(budget)
+      expect(context()).toMatchObject({ parent: { spanId: parentSpanId } })
+      expect(context().browserTimings).toBe(budget)
       await readRequestInsightsJournal(distDir, identity)
-      expect(
-        getRequestInsightForDebugRequest('react-stream', 'react-stream')
-      ).toMatchObject({ parent: { spanId: parentSpanId } })
+      expect(context()).toMatchObject({ parent: { spanId: parentSpanId } })
       const receiver = createBrowserReactTimingReceiver('react-stream', true)
-      expect(
-        getRequestInsightForDebugRequest('react-stream', 'react-stream')!
-          .browserTimings
-      ).toBe(budget)
+      expect(context().browserTimings).toBe(budget)
       receiver.receive(firstMessage, JSON.stringify(firstMessage).length)
       const message = {
-        event: HMR_MESSAGE_SENT_TO_SERVER.REACT_DEBUG_TIMINGS,
-        requestId: 'react-stream',
-        decoderId: '0',
+        ...firstMessage,
         records: [{ ...component, id: 'decoded:1', startTime: 6 }],
       }
       receiver.receive(message, JSON.stringify(message).length)
