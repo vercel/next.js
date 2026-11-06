@@ -35,12 +35,22 @@ describe('browser-log-forwarding verbose level', () => {
       )
       .join('\n')
 
-    expect(browserLogs).toMatchInlineSnapshot(`
-     "[browser] browser log: this is a log message (app/page.tsx:7:13)
-     [browser] browser info: this is an info message (app/page.tsx:8:13)
-     [browser] browser warn: this is a warning message (app/page.tsx:9:13)
-     [browser] browser error: this is an error message 
-     [browser] browser debug: this is a debug message (app/page.tsx:11:13)"
-    `)
+    if (process.env.__NEXT_ENABLE_REACT_COMPILER === 'true') {
+      expect(browserLogs).toMatchInlineSnapshot(`
+       "[browser] browser log: this is a log message (app/page.tsx:7:12)
+       [browser] browser info: this is an info message (app/page.tsx:8:12)
+       [browser] browser warn: this is a warning message (app/page.tsx:9:12)
+       [browser] browser error: this is an error message\u0020
+       [browser] browser debug: this is a debug message (app/page.tsx:11:12)"
+      `)
+    } else {
+      expect(browserLogs).toMatchInlineSnapshot(`
+       "[browser] browser log: this is a log message (app/page.tsx:7:13)
+       [browser] browser info: this is an info message (app/page.tsx:8:13)
+       [browser] browser warn: this is a warning message (app/page.tsx:9:13)
+       [browser] browser error: this is an error message\u0020
+       [browser] browser debug: this is a debug message (app/page.tsx:11:13)"
+      `)
+    }
   })
 })

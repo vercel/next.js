@@ -72,7 +72,7 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
          "p <anonymous>",
          "_PageListMap app/ssr/page.tsx (9:9)",
          "Array.map <anonymous>",
-         "Page app/ssr/page.tsx (8:13)",
+         "Page app/ssr/page.tsx (8:12)",
        ]
       `)
       expect(source).toMatchInlineSnapshot(`

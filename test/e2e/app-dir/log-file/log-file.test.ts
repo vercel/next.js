@@ -130,17 +130,23 @@ describe('log-file', () => {
       await retry(async () => {
         const newLogContent = getNewLogContent()
         // Only browser only logs are being forwarded to terminal
-        const effectName =
-          process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
-            ? '_ClientPageUseInsertionEffect'
-            : 'ClientPage.useInsertionEffect'
-        expect(newLogContent).toMatchInlineSnapshot(`
+        if (process.env.__NEXT_ENABLE_REACT_COMPILER === 'true') {
+          expect(newLogContent).toMatchInlineSnapshot(`
          "{"timestamp":"xx:xx:xx.xxx","source":"Browser","level":"LOG","message":"Client: Complex circular object: {\\"data\\":{\\"nested\\":{\\"items\\":[1,2,3],\\"value\\":42},\\"parent\\":\\"[Circular]\\"},\\"metadata\\":{\\"name\\":\\"safe stringify\\",\\"version\\":\\"1.0.0\\"},\\"name\\":\\"test\\"}"}
-         {"timestamp":"xx:xx:xx.xxx","source":"Browser","level":"ERROR","message":"Client: This is an error message from client component \\n    at ${effectName} (app/client/page.tsx:25:13)\\n  23 |     circularObj.data.parent = circularObj\\n  24 |     console.log('Client: Complex circular object:', circularObj)\\n> 25 |     console.error('Client: This is an error message from client component')\\n     |             ^\\n  26 |     console.warn('Client: This is a warning message from client component')\\n  27 |   }, [])\\n  28 | (app/client/page.tsx:25:13)"}
-         {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"[browser] \\"Client: This is an error message from client component\\" \\"\\\\n    at ${effectName} (app/client/page.tsx:25:13)\\\\n  23 |     circularObj.data.parent = circularObj\\\\n  24 |     console.log('Client: Complex circular object:', circularObj)\\\\n> 25 |     console.error('Client: This is an error message from client component')\\\\n     |             ^\\\\n  26 |     console.warn('Client: This is a warning message from client component')\\\\n  27 |   }, [])\\\\n  28 |\\" \\"(app/client/page.tsx:25:13)\\""}
+         {"timestamp":"xx:xx:xx.xxx","source":"Browser","level":"ERROR","message":"Client: This is an error message from client component \\n    at _ClientPageUseInsertionEffect (app/client/page.tsx:25:12)\\n  23 |     circularObj.data.parent = circularObj\\n  24 |     console.log('Client: Complex circular object:', circularObj)\\n> 25 |     console.error('Client: This is an error message from client component')\\n     |            ^\\n  26 |     console.warn('Client: This is a warning message from client component')\\n  27 |   }, [])\\n  28 | (app/client/page.tsx:25:12)"}
+         {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"[browser] \\"Client: This is an error message from client component\\" \\"\\\\n    at _ClientPageUseInsertionEffect (app/client/page.tsx:25:12)\\\\n  23 |     circularObj.data.parent = circularObj\\\\n  24 |     console.log('Client: Complex circular object:', circularObj)\\\\n> 25 |     console.error('Client: This is an error message from client component')\\\\n     |            ^\\\\n  26 |     console.warn('Client: This is a warning message from client component')\\\\n  27 |   }, [])\\\\n  28 |\\" \\"(app/client/page.tsx:25:12)\\""}
+         {"timestamp":"xx:xx:xx.xxx","source":"Browser","level":"WARN","message":"Client: This is a warning message from client component"}
+         {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"WARN","message":"[browser] \\"Client: This is a warning message from client component\\" \\"(app/client/page.tsx:26:12)\\""}"
+        `)
+        } else {
+          expect(newLogContent).toMatchInlineSnapshot(`
+         "{"timestamp":"xx:xx:xx.xxx","source":"Browser","level":"LOG","message":"Client: Complex circular object: {\\"data\\":{\\"nested\\":{\\"items\\":[1,2,3],\\"value\\":42},\\"parent\\":\\"[Circular]\\"},\\"metadata\\":{\\"name\\":\\"safe stringify\\",\\"version\\":\\"1.0.0\\"},\\"name\\":\\"test\\"}"}
+         {"timestamp":"xx:xx:xx.xxx","source":"Browser","level":"ERROR","message":"Client: This is an error message from client component \\n    at ClientPage.useInsertionEffect (app/client/page.tsx:25:13)\\n  23 |     circularObj.data.parent = circularObj\\n  24 |     console.log('Client: Complex circular object:', circularObj)\\n> 25 |     console.error('Client: This is an error message from client component')\\n     |             ^\\n  26 |     console.warn('Client: This is a warning message from client component')\\n  27 |   }, [])\\n  28 | (app/client/page.tsx:25:13)"}
+         {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"[browser] \\"Client: This is an error message from client component\\" \\"\\\\n    at ClientPage.useInsertionEffect (app/client/page.tsx:25:13)\\\\n  23 |     circularObj.data.parent = circularObj\\\\n  24 |     console.log('Client: Complex circular object:', circularObj)\\\\n> 25 |     console.error('Client: This is an error message from client component')\\\\n     |             ^\\\\n  26 |     console.warn('Client: This is a warning message from client component')\\\\n  27 |   }, [])\\\\n  28 |\\" \\"(app/client/page.tsx:25:13)\\""}
          {"timestamp":"xx:xx:xx.xxx","source":"Browser","level":"WARN","message":"Client: This is a warning message from client component"}
          {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"WARN","message":"[browser] \\"Client: This is a warning message from client component\\" \\"(app/client/page.tsx:26:13)\\""}"
         `)
+        }
       })
     } else {
       expect(hasLogFile()).toBe(false)

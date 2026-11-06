@@ -92,7 +92,7 @@ describe('ReactRefreshLogBox app', () => {
            |       ^",
          "stack": [
            "module evaluation index.js (3:7)",
-           "module evaluation app/page.js (2:1)",
+           "module evaluation app/page.js (2:${process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' ? 33 : 1})",
          ],
        }
       `)

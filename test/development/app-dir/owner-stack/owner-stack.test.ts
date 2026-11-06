@@ -25,6 +25,33 @@ describe('app-dir - owner-stack', () => {
   const { isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
+  const isReactCompiler = process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
+  const locations = !isReactCompiler
+    ? {
+        uncaughtHook: 'app/browser/uncaught/page.js (10:3)',
+        uncaughtPage: 'app/browser/uncaught/page.js (14:3)',
+        caughtHook: 'app/browser/caught/page.js (39:3)',
+        caughtThrower: 'app/browser/caught/page.js (29:3)',
+        ssrHook: 'app/ssr/page.js (8:3)',
+        ssrPage: 'app/ssr/page.js (12:3)',
+      }
+    : isTurbopack
+      ? {
+          uncaughtHook: 'app/browser/uncaught/page.js (9:1)',
+          uncaughtPage: 'app/browser/uncaught/page.js (13:16)',
+          caughtHook: 'app/browser/caught/page.js (38:1)',
+          caughtThrower: 'app/browser/caught/page.js (28:1)',
+          ssrHook: 'app/ssr/page.js (7:1)',
+          ssrPage: 'app/ssr/page.js (11:16)',
+        }
+      : {
+          uncaughtHook: './app/browser/uncaught/page.js',
+          uncaughtPage: './app/browser/uncaught/page.js',
+          caughtHook: './app/browser/caught/page.js',
+          caughtThrower: 'app/browser/caught/page.js (29:3)',
+          ssrHook: './app/ssr/page.js',
+          ssrPage: './app/ssr/page.js',
+        }
 
   it('should log stitched error for browser uncaught errors', async () => {
     let errorStack: string | undefined
@@ -68,8 +95,8 @@ describe('app-dir - owner-stack', () => {
          |           ^",
        "stack": [
          "useThrowError app/browser/uncaught/page.js (5:11)",
-         "useErrorHook app/browser/uncaught/page.js (10:3)",
-         "Page app/browser/uncaught/page.js (14:3)",
+         "useErrorHook ${locations.uncaughtHook}",
+         "Page ${locations.uncaughtPage}",
        ],
      }
     `)
@@ -103,8 +130,8 @@ describe('app-dir - owner-stack', () => {
           |           ^",
        "stack": [
          "useThrowError app/browser/caught/page.js (34:11)",
-         "useErrorHook app/browser/caught/page.js (39:3)",
-         "Thrower app/browser/caught/page.js (29:3)",
+         "useErrorHook ${locations.caughtHook}",
+         "Thrower ${locations.caughtThrower}",
          "Inner app/browser/caught/page.js (23:7)",
          "Page app/browser/caught/page.js (43:10)",
        ],
@@ -140,8 +167,8 @@ describe('app-dir - owner-stack', () => {
          |         ^",
        "stack": [
          "useThrowError app/ssr/page.js (4:9)",
-         "useErrorHook app/ssr/page.js (8:3)",
-         "Page app/ssr/page.js (12:3)",
+         "useErrorHook ${locations.ssrHook}",
+         "Page ${locations.ssrPage}",
        ],
      }
     `)
