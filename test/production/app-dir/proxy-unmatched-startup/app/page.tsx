@@ -1,6 +1,15 @@
 import { connection } from 'next/server'
+import { Suspense } from 'react'
 
-export default async function Page() {
+export default function Page() {
+  return (
+    <Suspense>
+      <ProxyState />
+    </Suspense>
+  )
+}
+
+async function ProxyState() {
   await connection()
   const loaded = Reflect.get(
     globalThis,
