@@ -8,6 +8,7 @@ use std::{
 use anyhow::{Context, Result};
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
+use petgraph::{algo::kosaraju_scc, graph::DiGraph};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
@@ -324,6 +325,117 @@ pub(crate) struct ProgramDeclUsage {
     pub(crate) exports: FxHashMap<RcStr, Id>,
 }
 impl ProgramDeclUsage {
+    /// Compute usage once for all requested bindings (including import users). Edges point from a
+    /// binding to the declarations using it, so a binding inherits its users' export dependencies.
+    fn compute_declaration_usage<'a>(
+        &'a self,
+        ids: impl IntoIterator<Item = &'a Id>,
+    ) -> FxHashMap<Id, ImportUsage> {
+        let ids: FxHashSet<_> = ids.into_iter().collect();
+        if ids.is_empty() {
+            return FxHashMap::default();
+        }
+
+        // Only build the part of the graph reachable from a requested binding. In particular, an
+        // import-only query must not compute usage sets for every unrelated declaration.
+        let mut graph = DiGraph::<&Id, ()>::new();
+        let mut indices = FxHashMap::default();
+        let mut stack = Vec::new();
+        for &id in &ids {
+            let node = graph.add_node(id);
+            indices.insert(id, node);
+            stack.push(node);
+        }
+        while let Some(node) = stack.pop() {
+            if let Some(DeclUsage::Bindings(users)) = self.decl_usages.get(graph[node]) {
+                for user in users {
+                    let user_node = *indices.entry(user).or_insert_with(|| {
+                        let node = graph.add_node(user);
+                        stack.push(node);
+                        node
+                    });
+                    graph.add_edge(node, user_node, ());
+                }
+            }
+        }
+
+        // Collect local export labels once, including aliases, rather than scanning all exports
+        // after every transitive walk.
+        let mut exports_by_node: FxHashMap<_, Vec<RcStr>> = FxHashMap::default();
+        for (name, id) in &self.exports {
+            if let Some(&node) = indices.get(id) {
+                exports_by_node.entry(node).or_default().push(name.clone());
+            }
+        }
+
+        // Kosaraju is iterative (deep declaration chains must not overflow the stack) and emits
+        // components in reverse topological order: each component's users are already computed.
+        // Mutually recursive bindings must share a result, not observe a partially cached result.
+        let components = kosaraju_scc(&graph);
+        let mut component_of = vec![0; graph.node_count()];
+        for (index, component) in components.iter().enumerate() {
+            for node in component {
+                component_of[node.index()] = index;
+            }
+        }
+        let mut usage = Vec::with_capacity(components.len());
+        for (index, component) in components.iter().enumerate() {
+            let mut users = FxHashSet::default();
+            let mut top_level = false;
+            for &node in component {
+                top_level |= matches!(
+                    self.decl_usages.get(graph[node]),
+                    Some(DeclUsage::SideEffects)
+                );
+                for user in graph.neighbors(node) {
+                    let user_component = component_of[user.index()];
+                    if user_component != index {
+                        users.insert(user_component);
+                    }
+                }
+            }
+            top_level |= users
+                .iter()
+                .any(|&user| matches!(usage[user], ImportUsage::TopLevel));
+            usage.push(if top_level {
+                ImportUsage::TopLevel
+            } else {
+                let mut exports = AutoSet::new();
+                for node in component {
+                    if let Some(names) = exports_by_node.remove(node) {
+                        exports.extend(names);
+                    }
+                }
+                for user in users {
+                    if let ImportUsage::Exports(names) = &usage[user] {
+                        exports.extend(names.iter().cloned());
+                    }
+                }
+                ImportUsage::Exports(exports.into_iter().collect())
+            });
+        }
+        // Frozen export sets own their entries. Move the last requested binding's result out of
+        // each component, rather than retaining a second copy of every declaration's export set.
+        let mut remaining = vec![0_usize; components.len()];
+        for &id in &ids {
+            remaining[component_of[indices[id].index()]] += 1;
+        }
+        ids.into_iter()
+            .map(|id| {
+                let component = component_of[indices[id].index()];
+                remaining[component] -= 1;
+                let value = if remaining[component] == 0 {
+                    std::mem::take(&mut usage[component])
+                } else {
+                    usage[component].clone()
+                };
+                (id.clone(), value)
+            })
+            .collect()
+    }
+
+    // Keep the former per-query walk as a correctness oracle for the shared analysis.
+    #[cfg(test)]
     fn compute_usage(&self, ids: impl IntoIterator<Item = Id>) -> ImportUsage {
         let mut visited: FxHashSet<Id> = ids.into_iter().collect();
         let mut stack: Vec<_> = visited.iter().cloned().collect();
@@ -349,13 +461,33 @@ impl ProgramDeclUsage {
         )
     }
 
-    fn compute_import_usage(&self) -> FxHashMap<usize, ImportUsage> {
+    fn compute_import_usage(
+        &self,
+        declaration_usage: &FxHashMap<Id, ImportUsage>,
+    ) -> FxHashMap<usize, ImportUsage> {
         let mut import_usage =
             FxHashMap::with_capacity_and_hasher(self.import_usages.len(), Default::default());
         for (reference, usage) in &self.import_usages {
-            // TODO make this more efficient, i.e. cache the result?
             if let DeclUsage::Bindings(ids) = usage {
-                import_usage.insert(*reference, self.compute_usage(ids.iter().cloned()));
+                let mut exports = AutoSet::new();
+                let mut top_level = false;
+                for id in ids {
+                    match &declaration_usage[id] {
+                        ImportUsage::TopLevel => {
+                            top_level = true;
+                            break;
+                        }
+                        ImportUsage::Exports(names) => exports.extend(names.iter().cloned()),
+                    }
+                }
+                import_usage.insert(
+                    *reference,
+                    if top_level {
+                        ImportUsage::TopLevel
+                    } else {
+                        ImportUsage::Exports(exports.into_iter().collect())
+                    },
+                );
             }
         }
         // Fold re-exports (`export { x } from "foo"`) into `import_usage` for tree-shaking.
@@ -968,23 +1100,33 @@ impl ImportMap {
 
         m.visit_with(&mut analyzer);
 
-        let mut import_usage = analyzer.program_decl_usage.compute_import_usage();
+        let pure_declarations = module_side_effects
+            .filter(|_| !analyzer.has_direct_eval)
+            .into_iter()
+            .flat_map(|m| &m.pure_top_level_declarations);
+        let import_users = analyzer
+            .program_decl_usage
+            .import_usages
+            .values()
+            .filter_map(|usage| match usage {
+                DeclUsage::Bindings(ids) => Some(ids),
+                DeclUsage::SideEffects => None,
+            })
+            .flatten();
+        let mut declaration_usage = analyzer
+            .program_decl_usage
+            .compute_declaration_usage(pure_declarations.clone().chain(import_users));
+        let mut import_usage = analyzer
+            .program_decl_usage
+            .compute_import_usage(&declaration_usage);
         if analyzer.has_direct_eval {
             // Eval can read bindings by name, without an identifier use in this AST.
             for usage in import_usage.values_mut() {
                 *usage = ImportUsage::TopLevel;
             }
         }
-        let pure_declaration_usage = module_side_effects
-            .filter(|_| !analyzer.has_direct_eval)
-            .into_iter()
-            .flat_map(|m| &m.pure_top_level_declarations)
-            .map(|id| {
-                (
-                    id.clone(),
-                    analyzer.program_decl_usage.compute_usage([id.clone()]),
-                )
-            })
+        let pure_declaration_usage = pure_declarations
+            .map(|id| (id.clone(), declaration_usage.remove(id).unwrap()))
             .collect();
         data.import_usage = import_usage;
         data.pure_declaration_usage = pure_declaration_usage;
@@ -1862,6 +2004,187 @@ mod tests {
     use swc_core::{atoms::Atom, common::DUMMY_SP};
 
     use super::*;
+
+    fn usage_id(name: &str) -> Id {
+        (name.into(), SyntaxContext::empty())
+    }
+
+    fn assert_shared_usage(program: &ProgramDeclUsage, ids: &[Id]) {
+        let import_users = program
+            .import_usages
+            .values()
+            .filter_map(|usage| match usage {
+                DeclUsage::Bindings(ids) => Some(ids),
+                DeclUsage::SideEffects => None,
+            })
+            .flatten();
+        let shared = program.compute_declaration_usage(ids.iter().chain(import_users));
+        for (id, actual) in &shared {
+            assert_eq!(
+                *actual,
+                program.compute_usage([id.clone()]),
+                "binding {id:?}"
+            );
+        }
+        for id in ids {
+            assert!(shared.contains_key(id));
+        }
+
+        let actual_imports = program.compute_import_usage(&shared);
+        let mut expected_imports = FxHashMap::default();
+        for (reference, usage) in &program.import_usages {
+            if let DeclUsage::Bindings(ids) = usage {
+                expected_imports.insert(*reference, program.compute_usage(ids.iter().cloned()));
+            }
+        }
+        for (reference, names) in &program.named_reexports {
+            let usage = match expected_imports.get(reference) {
+                Some(ImportUsage::TopLevel) => continue,
+                Some(ImportUsage::Exports(existing)) => ImportUsage::Exports(
+                    existing
+                        .iter()
+                        .cloned()
+                        .chain(names.iter().cloned())
+                        .collect(),
+                ),
+                None => ImportUsage::Exports(names.iter().cloned().collect()),
+            };
+            expected_imports.insert(*reference, usage);
+        }
+        assert_eq!(actual_imports, expected_imports);
+    }
+
+    #[test]
+    fn shared_usage_preserves_cycles_effects_aliases_and_imports() {
+        let mut program = ProgramDeclUsage::default();
+        let [a, b, effect, leaf, unused] = ["a", "b", "effect", "leaf", "unused"].map(usage_id);
+        program.decl_usages.insert(
+            a.clone(),
+            DeclUsage::Bindings([b.clone()].into_iter().collect()),
+        );
+        program.decl_usages.insert(
+            b.clone(),
+            DeclUsage::Bindings([a.clone(), effect.clone()].into_iter().collect()),
+        );
+        program
+            .decl_usages
+            .insert(effect.clone(), DeclUsage::SideEffects);
+        program.exports.insert("value".into(), leaf.clone());
+        program.exports.insert("alias".into(), leaf.clone());
+        program.import_usages.insert(
+            0,
+            DeclUsage::Bindings([a.clone(), leaf.clone()].into_iter().collect()),
+        );
+        program.import_usages.insert(
+            1,
+            DeclUsage::Bindings([leaf.clone(), unused.clone()].into_iter().collect()),
+        );
+        program
+            .import_usages
+            .insert(2, DeclUsage::Bindings(FxHashSet::default()));
+        // A direct top-level usage stays absent from the map (TopLevel is the default).
+        program.import_usages.insert(3, DeclUsage::SideEffects);
+        program
+            .named_reexports
+            .insert(0, [rcstr!("effect_reexport")].into_iter().collect());
+        program
+            .named_reexports
+            .insert(1, [rcstr!("reexport")].into_iter().collect());
+        program
+            .named_reexports
+            .insert(4, [rcstr!("direct_reexport")].into_iter().collect());
+        let ids = [a, b, effect, leaf, unused];
+        assert_shared_usage(&program, &ids);
+
+        // Also check a closed cycle without top-level effects, and an import-only query.
+        program.decl_usages.remove(&ids[2]);
+        program.decl_usages.insert(
+            ids[1].clone(),
+            DeclUsage::Bindings([ids[0].clone()].into_iter().collect()),
+        );
+        program.exports.insert("cycle".into(), ids[1].clone());
+        assert_shared_usage(&program, &ids);
+        assert_shared_usage(&program, &[]);
+        let shared = program.compute_declaration_usage([&ids[3]]);
+        assert_eq!(shared.len(), 1);
+        assert_eq!(shared[&ids[3]], program.compute_usage([ids[3].clone()]));
+    }
+
+    #[test]
+    fn shared_usage_empty_query() {
+        let mut program = ProgramDeclUsage::default();
+        program
+            .decl_usages
+            .insert(usage_id("unused"), DeclUsage::SideEffects);
+        assert!(program.compute_declaration_usage([]).is_empty());
+        assert_shared_usage(&program, &[]);
+    }
+
+    #[test]
+    fn shared_usage_deep_chain() {
+        const LEN: usize = 20_000;
+        let ids: Vec<_> = (0..LEN).map(|i| usage_id(&format!("binding{i}"))).collect();
+        let mut program = ProgramDeclUsage::default();
+        for pair in ids.windows(2) {
+            program.decl_usages.insert(
+                pair[0].clone(),
+                DeclUsage::Bindings([pair[1].clone()].into_iter().collect()),
+            );
+        }
+        program.exports.insert("value".into(), ids[LEN - 1].clone());
+        let usage = program.compute_declaration_usage(ids.iter());
+        assert_eq!(usage.len(), LEN);
+        let expected = ImportUsage::Exports([rcstr!("value")].into_iter().collect());
+        assert!(usage.values().all(|usage| *usage == expected));
+    }
+
+    #[test]
+    fn shared_usage_matches_transitive_walk() {
+        // Deterministic generated graphs exercise overlapping roots, SCCs, missing entries,
+        // aliases, and multiple import users without adding a random-number dependency.
+        let mut state = 1_u64;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        for _ in 0..1_000 {
+            let len = (next() % 16 + 1) as usize;
+            let ids: Vec<_> = (0..len).map(|i| usage_id(&format!("v{i}"))).collect();
+            let mut program = ProgramDeclUsage::default();
+            for (i, id) in ids.iter().enumerate() {
+                match next() % 8 {
+                    0 => {}
+                    1 => {
+                        program
+                            .decl_usages
+                            .insert(id.clone(), DeclUsage::SideEffects);
+                    }
+                    _ => {
+                        let users = ids.iter().filter(|_| next() % 5 == 0).cloned().collect();
+                        program
+                            .decl_usages
+                            .insert(id.clone(), DeclUsage::Bindings(users));
+                    }
+                }
+                if next() % 4 == 0 {
+                    program.exports.insert(format!("e{i}").into(), id.clone());
+                    program
+                        .exports
+                        .insert(format!("alias{i}").into(), id.clone());
+                }
+            }
+            for reference in 0..3 {
+                let users = ids.iter().filter(|_| next() % 3 == 0).cloned().collect();
+                program
+                    .import_usages
+                    .insert(reference, DeclUsage::Bindings(users));
+            }
+            let seeds: Vec<_> = ids.iter().filter(|_| next() % 2 == 0).cloned().collect();
+            assert_shared_usage(&program, &seeds);
+        }
+    }
 
     /// Helper to create a string literal expression
     fn str_lit(s: &str) -> Box<Expr> {
