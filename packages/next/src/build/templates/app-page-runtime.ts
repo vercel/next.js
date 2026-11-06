@@ -371,6 +371,11 @@ export function createAppPageEntrypoint({
       getRequestMeta(req, 'isRSCRequest') ??
       isRSCRequestHeader(req.headers[RSC_HEADER])
 
+    const isNavigationRSCRequest =
+      isRSCRequest &&
+      !isPrefetchRSCRequest &&
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] === undefined
+
     const serverActionRequestMetadata = getServerActionRequestMetadata(req)
     const { isPossibleServerAction } = serverActionRequestMetadata
 
@@ -1325,7 +1330,11 @@ export function createAppPageEntrypoint({
             // prerender of the concrete path when its cache entry is missing.
             // Dynamic RSC requests render fresh Flight data and can reuse the RDC from
             // cached postponed state.
-            if (isRoutePPREnabled && (!isRSCRequest || isPrefetchRSCRequest)) {
+            if (
+              isRoutePPREnabled &&
+              !isDynamicRSCRequest &&
+              !isNavigationRSCRequest
+            ) {
               const cacheKey =
                 isProduction && typeof prerenderInfo?.fallback === 'string'
                   ? prerenderInfo.fallback
@@ -2281,7 +2290,7 @@ export function createAppPageEntrypoint({
         if (isRSCRequest && !isDraftMode) {
           const shouldFallbackToDocumentNavigation =
             !isMinimalMode &&
-            !isPrefetchRSCRequest &&
+            isNavigationRSCRequest &&
             staticPrefetchDataRoute &&
             didPostpone
 
