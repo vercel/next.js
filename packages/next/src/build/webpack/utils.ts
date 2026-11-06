@@ -11,7 +11,7 @@ import type { ModuleGraphConnection } from 'webpack'
 import { getAppLoader } from '../entries'
 import { spans as webpackCompilationSpans } from './plugins/profiling-plugin'
 import { compilationSpans as rspackCompilationSpans } from './plugins/rspack-profiling-plugin'
-import type { Span } from '../../trace'
+import type { Span } from '@opentelemetry/api'
 
 export function traverseModules(
   compilation: Compilation,

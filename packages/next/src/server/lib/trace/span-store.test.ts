@@ -227,6 +227,7 @@ describe('span recording', () => {
 
     expect(exportSpans).toHaveBeenCalledTimes(1)
     expect(exportSpans).toHaveBeenCalledWith(spans)
+    expect(exportSpans.mock.calls[0][0]).toBe(spans)
     expect(getRequestInsightsSnapshot()).toEqual({ requests: [] })
   })
 

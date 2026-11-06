@@ -2492,6 +2492,7 @@ export async function next_compile(task, opts) {
       'diagnostics',
       'telemetry',
       'trace',
+      'trace_esm',
       'shared',
       'shared_esm',
       'shared_re_exported',
@@ -2785,6 +2786,21 @@ export async function trace(task, opts) {
     .target('dist/trace')
 }
 
+export async function trace_esm(task, opts) {
+  await task
+    .source('src/trace/**/*.+(js|ts|tsx)', {
+      // Runtime recorders need the local file/reporting path in ESM too. The
+      // upload entry points are CLI-only and depend on CommonJS telemetry.
+      ignore: [
+        '**/*.test.+(js|ts|tsx)',
+        'src/trace/upload-trace.ts',
+        'src/trace/trace-uploader.ts',
+      ],
+    })
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/trace')
+}
+
 export async function diagnostics(task, opts) {
   await task
     .source('src/diagnostics/**/*.+(js|ts|tsx)')
@@ -2851,7 +2867,7 @@ export default async function (task) {
   await task.watch('src/lib', 'lib_esm', opts)
   await task.watch('src/cli', 'cli', opts)
   await task.watch('src/telemetry', 'telemetry', opts)
-  await task.watch('src/trace', 'trace', opts)
+  await task.watch('src/trace', ['trace', 'trace_esm'], opts)
   await task.watch(
     'src/shared',
     ['shared_re_exported', 'shared_re_exported_esm', 'shared', 'shared_esm'],

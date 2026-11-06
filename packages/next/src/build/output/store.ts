@@ -1,5 +1,8 @@
 import createStore from 'next/dist/compiled/unistore'
-import { type Span, flushAllTraces, trace } from '../../trace'
+import { flushAllTraces } from '../../trace'
+import type { Span } from '@opentelemetry/api'
+import { getTracer } from '../../server/lib/trace/tracer'
+import { ToolingSpan } from '../../server/lib/trace/constants'
 import { teardownTraceSubscriber } from '../swc'
 import * as Log from './log'
 
@@ -105,8 +108,8 @@ store.subscribe((state) => {
       trigger = formatTrigger(state.trigger)
       triggerUrl = state.url
       if (trigger !== 'initial') {
-        traceSpan = trace('compile-path', undefined, {
-          trigger: trigger,
+        traceSpan = getTracer().startSpan(ToolingSpan.compilePath, {
+          attributes: { trigger },
         })
         if (!loadingLogTimer) {
           // Only log compiling if compiled is not finished quickly
@@ -179,7 +182,7 @@ store.subscribe((state) => {
       loadingLogTimer = null
     }
     if (traceSpan) {
-      traceSpan.stop()
+      traceSpan.end()
       traceSpan = null
     }
     trigger = ''

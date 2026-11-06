@@ -1,3 +1,7 @@
+import {
+  traceLocalSpan,
+  type LocalRecordingSpan,
+} from '../../../../server/lib/trace/local-span-recorder'
 import type { FontLoader } from '../../../../../font'
 
 import path from 'path'
@@ -7,9 +11,7 @@ import postcssNextFontPlugin from './postcss-next-font'
 import { promisify } from 'util'
 
 export default async function nextFontLoader(this: any) {
-  const nextFontLoaderSpan =
-    this.currentTraceSpan.traceChild('next-font-loader')
-  return nextFontLoaderSpan.traceAsyncFn(async () => {
+  const runLoader = async (nextFontLoaderSpan: LocalRecordingSpan) => {
     const callback = this.async()
 
     /**
@@ -101,23 +103,25 @@ export default async function nextFontLoader(this: any) {
       // The font loader function emits font files and returns @font-faces and fallback font metrics
       const fontLoader: FontLoader = require(fontLoaderPath).default
       let { css, fallbackFonts, adjustFontFallback, weight, style, variable } =
-        await nextFontLoaderSpan.traceChild('font-loader').traceAsyncFn(() =>
-          fontLoader({
-            functionName,
-            variableName,
-            data,
-            emitFontFile,
-            resolve: (src: string) =>
-              promisify(this.resolve)(
-                path.dirname(
-                  path.join(this.rootContext, relativeFilePathFromRoot)
+        await traceLocalSpan(
+          { name: 'font-loader', parent: nextFontLoaderSpan },
+          () =>
+            fontLoader({
+              functionName,
+              variableName,
+              data,
+              emitFontFile,
+              resolve: (src: string) =>
+                promisify(this.resolve)(
+                  path.dirname(
+                    path.join(this.rootContext, relativeFilePathFromRoot)
+                  ),
+                  src.startsWith('.') ? src : `./${src}`
                 ),
-                src.startsWith('.') ? src : `./${src}`
-              ),
-            isDev,
-            isServer,
-            loaderContext: this,
-          })
+              isDev,
+              isServer,
+              loaderContext: this,
+            })
         )
 
       const { postcss } = await getPostcss()
@@ -134,9 +138,9 @@ export default async function nextFontLoader(this: any) {
       )
 
       // Add CSS classes, exports and make the font-family locally scoped by turning it unguessable
-      const result = await nextFontLoaderSpan
-        .traceChild('postcss')
-        .traceAsyncFn(() =>
+      const result = await traceLocalSpan(
+        { name: 'postcss', parent: nextFontLoaderSpan },
+        () =>
           postcss(
             postcssNextFontPlugin({
               exports,
@@ -149,7 +153,7 @@ export default async function nextFontLoader(this: any) {
           ).process(css, {
             from: undefined,
           })
-        )
+      )
 
       const ast = {
         type: 'postcss',
@@ -166,5 +170,9 @@ export default async function nextFontLoader(this: any) {
     } catch (err: any) {
       callback(err)
     }
-  })
+  }
+  return traceLocalSpan(
+    { name: 'next-font-loader', parent: this.currentTraceSpan },
+    runLoader
+  )
 }

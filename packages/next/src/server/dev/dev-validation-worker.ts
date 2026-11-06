@@ -29,7 +29,7 @@ import {
 } from '../app-render/manifests-singleton'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
-import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
+import { registerLocalSpanRecorder } from '../lib/trace/request-span-recorder'
 import { runWithLocalSpanSink } from '../lib/trace/span-store'
 
 // Development runtimes externalize the recorder and span store, so the worker

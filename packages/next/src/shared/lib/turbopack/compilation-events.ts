@@ -1,6 +1,8 @@
 import type { Project } from '../../../build/swc/types'
 import * as Log from '../../../build/output/log'
-import { flushAllTraces, type Span } from '../../../trace'
+import { flushAllTraces } from '../../../trace'
+import type { Span } from '@opentelemetry/api'
+import { recordSpans } from '../../../server/lib/trace/span-store'
 import { traceMemoryUsage } from '../../../lib/memory/trace'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
@@ -46,11 +48,17 @@ export function backgroundLogCompilationEvents(
       if (parentSpan && event.typeName === 'TraceEvent' && event.eventJson) {
         try {
           const data = JSON.parse(event.eventJson)
-          parentSpan.manualTraceChild(
-            data.name,
-            msToNs(data.startTimeMs),
-            msToNs(data.endTimeMs),
-            Object.fromEntries(data.attributes ?? [])
+          recordSpans(
+            [
+              {
+                name: data.name,
+                startTime: msToNs(data.startTimeMs),
+                endTime: msToNs(data.endTimeMs),
+                attributes: Object.fromEntries(data.attributes ?? []),
+              },
+            ],
+            'tooling',
+            parentSpan
           )
           traceMemoryUsage(data.name, parentSpan)
           if (flushEachTraceEvent) {

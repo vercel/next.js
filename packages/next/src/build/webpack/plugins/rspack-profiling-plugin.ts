@@ -1,6 +1,7 @@
 // A basic implementation to allow loaders access to loaderContext.currentTraceSpan
 
-import type { Span } from '../../../trace'
+import type { Span } from '@opentelemetry/api'
+import { createLocalSpan } from '../../../server/lib/trace/local-span-recorder'
 
 import { getRspackCore } from '../../../shared/lib/get-rspack'
 
@@ -24,12 +25,16 @@ export class RspackProfilingPlugin {
         moduleSpansByCompilation.set(compilation, new WeakMap())
         compilationSpans.set(
           compilation,
-          this.runWebpackSpan.traceChild('compilation-' + compilation.name)
+          createLocalSpan({
+            name: 'compilation-' + compilation.name,
+            parent: this.runWebpackSpan,
+          })
         )
 
-        const compilationSpan = this.runWebpackSpan.traceChild(
-          `compilation-${compilation.name}`
-        )
+        const compilationSpan = createLocalSpan({
+          name: `compilation-${compilation.name}`,
+          parent: this.runWebpackSpan,
+        })
 
         const moduleHooks = rspack.NormalModule.getCompilationHooks(compilation)
         moduleHooks.loader.tap(
@@ -43,15 +48,17 @@ export class RspackProfilingPlugin {
         )
 
         compilation.hooks.buildModule.tap(pluginName, (module: any) => {
-          const span = compilationSpan.traceChild('build-module')
-          span.setAttribute('name', module.userRequest)
-          span.setAttribute('layer', module.layer)
+          const span = createLocalSpan({
+            name: 'build-module',
+            parent: compilationSpan,
+            attributes: { name: module.userRequest, layer: module.layer },
+          })
 
           moduleSpansByCompilation?.get(compilation)?.set(module, span)
         })
 
         compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
-          moduleSpansByCompilation?.get(compilation)?.get(module)?.stop()
+          moduleSpansByCompilation?.get(compilation)?.get(module)?.end()
         })
       }
     )
