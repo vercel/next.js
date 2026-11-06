@@ -946,12 +946,7 @@ impl Pattern {
                         } else {
                             MatchResult::None
                         }
-                    } else if offset >= value.len()
-                        // The wildcard may stop before a slash that belongs to the static subpath.
-                        // Keep other forbidden prefixes (e.g. ".") excluded rather than accepting
-                        // every partial constant beyond the wildcard's allowed offset.
-                        || (value[offset..].starts_with('/') && c.starts_with(&value[offset..]))
-                    {
+                    } else if partial_constant_after_dynamic(value, c, offset) {
                         MatchResult::Partial
                     } else {
                         MatchResult::None
@@ -1053,12 +1048,7 @@ impl Pattern {
                         } else {
                             MatchResult::None
                         }
-                    } else if offset >= value.len()
-                        // The wildcard may stop before a slash that belongs to the static subpath.
-                        // Keep other forbidden prefixes (e.g. ".") excluded rather than accepting
-                        // every partial constant beyond the wildcard's allowed offset.
-                        || (value[offset..].starts_with('/') && c.starts_with(&value[offset..]))
-                    {
+                    } else if partial_constant_after_dynamic(value, c, offset) {
                         MatchResult::Partial
                     } else {
                         MatchResult::None
@@ -1190,7 +1180,9 @@ impl Pattern {
                         } else {
                             NextConstantUntilResult::NoMatch
                         }
-                    } else if offset >= value.len() {
+                    } else if partial_constant_after_dynamic(value, c, offset) {
+                        // There may be multiple overlapping starts of the constant. Fall back to
+                        // enumeration rather than discarding a possible static continuation.
                         NextConstantUntilResult::PartialDynamic
                     } else {
                         NextConstantUntilResult::NoMatch
@@ -1395,6 +1387,21 @@ impl InNodeModules {
             InNodeModules::False
         }
     }
+}
+
+/// Whether the input can end partway through a constant after a wildcard. The wildcard can
+/// stop anywhere up to `offset`, not just at that limit: a forbidden wildcard character may
+/// instead belong to the constant. Only suffixes no longer than the constant can overlap.
+///
+/// Scan backwards at UTF-8 boundaries so slicing is safe and the work is bounded by the
+/// constant's length, not a potentially much longer input (at most quadratic in that length).
+fn partial_constant_after_dynamic(value: &str, constant: &str, offset: usize) -> bool {
+    offset >= value.len()
+        || value
+            .char_indices()
+            .rev()
+            .take_while(|(index, _)| value.len() - index <= constant.len())
+            .any(|(index, _)| index <= offset && constant.starts_with(&value[index..]))
 }
 
 #[derive(PartialEq, Debug)]
@@ -2407,11 +2414,15 @@ mod tests {
         assert!(pat.could_match(""));
         assert!(pat.is_match("index.js"));
 
+        // A bare wildcard cannot consume '.', but an explicit '.js' can start with it.
+        assert_eq!(pat.could_match("."), !matches!(pat, Pattern::Dynamic));
+        assert!(!pat.is_match("."));
+        assert!(!pat.could_match(".hidden.js"));
+        assert!(!pat.is_match(".hidden.js"));
+
         // forbidden:
         assert!(!pat.could_match("./"));
         assert!(!pat.is_match("./"));
-        assert!(!pat.could_match("."));
-        assert!(!pat.is_match("."));
         assert!(!pat.could_match("../"));
         assert!(!pat.is_match("../"));
         assert!(!pat.could_match(".."));
@@ -2450,6 +2461,62 @@ mod tests {
         assert!(!pat.is_match("dir/file.d.ts.map"));
         assert!(!pat.is_match("dir/inner/file.d.ts.map"));
         assert!(pat.could_match("dir/inner/file.d.ts.map"));
+    }
+
+    #[rstest]
+    #[case::slash("/package.json", "/package.json", "")]
+    #[case::dot(".js", ".js", "")]
+    #[case::root("ROOT/file", "ROOT/file", "")]
+    #[case::node_modules("node_modules/pkg/file", "node_modules/pkg/file", "")]
+    #[case::tests("__tests__/file", "__tests__/file", "")]
+    #[case::before_limit("st/worker", "test/worker", "te")]
+    #[case::unicode("é/工人", "pré/工人", "pr")]
+    #[case::unicode_capture("st/工人", "ést/工人", "é")]
+    #[case::overlap("abab/worker", "ababab/worker", "ab")]
+    fn dynamic_partial_constant(#[case] constant: &str, #[case] full: &str, #[case] capture: &str) {
+        for dynamic in [Pattern::Dynamic, Pattern::DynamicNoSlash] {
+            let pat = Pattern::concat([dynamic, Pattern::Constant(constant.into())]);
+            let mut dynamics = VecDeque::new();
+            assert!(pat.is_match(full), "{pat:?}: {full}");
+            assert!(
+                pat.match_collect_internal(full, None, InNodeModules::False, &mut dynamics)
+                    .is_match()
+            );
+            assert_eq!(
+                dynamics,
+                if capture.is_empty() {
+                    VecDeque::new()
+                } else {
+                    VecDeque::from([capture])
+                }
+            );
+
+            let alternatives =
+                Pattern::alternatives([pat.clone(), Pattern::Constant(rcstr!("unrelated"))]);
+            for (end, _) in full.char_indices() {
+                let prefix = &full[..end];
+                assert!(pat.could_match(prefix), "{pat:?}: {prefix:?}");
+                assert!(
+                    pat.match_collect_internal(
+                        prefix,
+                        None,
+                        InNodeModules::False,
+                        &mut VecDeque::new()
+                    )
+                    .could_match(),
+                    "capture {pat:?}: {prefix:?}"
+                );
+                // A finite candidate set must not prune a prefix of an accepted full match.
+                if let Some(candidates) = alternatives.next_constants(prefix) {
+                    assert!(
+                        candidates
+                            .iter()
+                            .any(|(suffix, _)| full[end..].starts_with(suffix)),
+                        "candidates {pat:?}: {prefix:?}: {candidates:?}"
+                    );
+                }
+            }
+        }
     }
 
     #[rstest]
@@ -2862,6 +2929,82 @@ mod tests {
             noop_backing_storage(),
         ));
         let disk_root: RcStr = root.to_str().unwrap().into();
+        tt.run_once(async move {
+            operation(disk_root).read_strongly_consistent().await?;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_read_matches_partial_constants() {
+        let scratch = tempfile::tempdir().unwrap();
+        for file in [
+            "node_modules/pkg/file.txt",
+            "__tests__/file.txt",
+            ".hidden/file.txt",
+            "test/worker",
+        ] {
+            let path = scratch.path().join(file);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, "content").unwrap();
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn operation(disk_root: RcStr) -> anyhow::Result<()> {
+            let root = DiskFileSystem::new(rcstr!("test"), Vc::cell(disk_root))
+                .root()
+                .owned()
+                .await?;
+            for (dynamic, constant, file) in [
+                (
+                    Pattern::Dynamic,
+                    "node_modules/pkg/file.txt",
+                    "node_modules/pkg/file.txt",
+                ),
+                (Pattern::Dynamic, "__tests__/file.txt", "__tests__/file.txt"),
+                (Pattern::Dynamic, ".hidden/file.txt", ".hidden/file.txt"),
+                (Pattern::DynamicNoSlash, "st/worker", "test/worker"),
+            ] {
+                let pat = Pattern::concat([dynamic, Pattern::Constant(constant.into())]);
+                // Alternatives combine finite candidates; a partial static match must not
+                // disappear from that set, even inside a directory excluded from wildcards.
+                let matches = read_matches(
+                    root.clone(),
+                    rcstr!(""),
+                    true,
+                    Pattern::new(Pattern::alternatives([
+                        pat,
+                        Pattern::Constant(rcstr!("unrelated")),
+                    ])),
+                )
+                .await?;
+                assert_eq!(
+                    &*matches,
+                    &[PatternMatch::File(file.into(), root.join(file)?)],
+                    "{constant}"
+                );
+            }
+            let matches = read_matches(
+                root.clone(),
+                rcstr!(""),
+                true,
+                Pattern::new(Pattern::Dynamic),
+            )
+            .await?;
+            assert!(matches.iter().all(|m| !m.name().contains("node_modules")
+                && !m.name().contains("__tests__")
+                && !m.name().contains(".hidden")));
+            assert!(matches.iter().any(|m| m.name() == "test/worker"));
+            Ok(())
+        }
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let disk_root: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async move {
             operation(disk_root).read_strongly_consistent().await?;
             anyhow::Ok(())
