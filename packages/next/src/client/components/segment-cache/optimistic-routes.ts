@@ -176,7 +176,7 @@ export type KnownRoutePart =
  * optional catch-all is the empty string). Keeping a single value type keeps
  * reads of this map monomorphic.
  */
-type ResolvedParams = Map<string, string>
+export type ResolvedParams = Map<string, string>
 
 /**
  * Read the pattern from a KnownRoutePart, evicting it if expired.
@@ -795,6 +795,10 @@ export function matchKnownRoute(
     null, // Start with null partial vary path at the root
     acc
   )
+  if (reifiedTree === null) {
+    // A param could not be resolved from the URL. Fall back to the server.
+    return null
+  }
 
   // The metadata tree is a flat page node without the intermediate layout
   // structure. Clone it with the updated metadata vary path collected during
@@ -1013,7 +1017,7 @@ function matchKnownRoutePart(
  * metadataVaryPath is collected from the first page node encountered
  * (parallel routes may have multiple pages, but metadata uses the first).
  */
-type ReifyAccumulator = {
+export type ReifyAccumulator = {
   metadataVaryPath: VaryPath | null
 }
 
@@ -1028,13 +1032,13 @@ type ReifyAccumulator = {
  * Example: Pattern for /blog/[slug] with resolvedParams { slug: "hello" }
  * produces a tree where segment [slug] has cacheKey "hello".
  */
-function reifyRouteTree(
+export function reifyRouteTree(
   pattern: RouteTree<null>,
   resolvedParams: ResolvedParams,
   search: NormalizedSearch,
   parentPartialVaryPath: PartialVaryPath | null,
   acc: ReifyAccumulator
-): RouteTree<null> {
+): RouteTree<null> | null {
   const originalSegment = pattern.segment
 
   // This segment's param (if any) is a root param iff the segment is at or
@@ -1063,9 +1067,14 @@ function reifyRouteTree(
         isRootParam
       )
     } else {
-      // Param not found in resolvedParams - keep original and inherit partial
-      // TODO: This should never happen. Bail out with null.
-      partialVaryPath = parentPartialVaryPath
+      // The param was not resolved while matching the URL. This happens when a
+      // parallel route slot has a catch-all (e.g. `@modal/[...catchAll]`) and
+      // the URL matched through a static sibling in another slot, so the
+      // catch-all's value was never recorded. Keeping the original segment would
+      // produce a vary path that omits the param, and the server response would
+      // never fulfill the entry the prefetch task waits on. Bail out so the
+      // route is resolved by the server instead.
+      return null
     }
   } else {
     // Static segment: inherit partial vary path from parent
@@ -1078,16 +1087,17 @@ function reifyRouteTree(
   if (patternSlots !== null) {
     newSlots = new Map()
     for (const [key, childPattern] of patternSlots) {
-      newSlots.set(
-        key,
-        reifyRouteTree(
-          childPattern,
-          resolvedParams,
-          search,
-          partialVaryPath,
-          acc
-        )
+      const reifiedChild = reifyRouteTree(
+        childPattern,
+        resolvedParams,
+        search,
+        partialVaryPath,
+        acc
       )
+      if (reifiedChild === null) {
+        return null
+      }
+      newSlots.set(key, reifiedChild)
     }
   }
 
