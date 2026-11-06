@@ -125,7 +125,6 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "module evaluation index.js (3:7)",
              "module evaluation pages/index.js (1:1)",
-             "module evaluation index.js (9:16)",
              "<FIXME-next-dist-dir>",
            ],
          }
@@ -166,7 +165,6 @@ describe('ReactRefreshLogBox', () => {
            "stack": [
              "module evaluation index.js (3:7)",
              "module evaluation pages/index.js (1:1)",
-             "module evaluation index.js (9:16)",
              "<FIXME-next-dist-dir>",
            ],
          }

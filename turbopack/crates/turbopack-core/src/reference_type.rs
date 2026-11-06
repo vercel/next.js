@@ -231,6 +231,13 @@ pub enum WorkerReferenceSubType {
 #[turbo_tasks::task_input]
 #[derive(PartialEq, Eq, Debug, Default, Clone, Hash, Encode, Decode)]
 pub struct EntryReferenceSubType {
+    /// The entry module isn't also reached through ordinary imports, so it is kept whole: it isn't
+    /// split into a facade or into module fragments, and its reexports aren't followed. That way
+    /// its identity doesn't depend on whether it has reexports.
+    ///
+    /// Don't set this for a module that may also be imported: the import would get a split
+    /// module, and the module would be evaluated twice.
+    pub standalone: bool,
     /// A label for this kind of entry, defined by the embedder. Turbopack doesn't interpret it,
     /// but module rules can match it with [`ReferenceTypeCondition::Entry`].
     pub tag: Option<RcStr>,
@@ -238,7 +245,10 @@ pub struct EntryReferenceSubType {
 
 impl EntryReferenceSubType {
     pub fn tagged(tag: RcStr) -> Self {
-        Self { tag: Some(tag) }
+        Self {
+            tag: Some(tag),
+            ..Default::default()
+        }
     }
 }
 

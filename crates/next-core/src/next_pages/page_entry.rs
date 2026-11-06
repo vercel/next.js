@@ -40,9 +40,12 @@ impl PagesEntryKind {
     /// The reference type to process the route's entry module with, and for pages also `_app`,
     /// `_document` and `_error`.
     pub fn reference_type(self) -> ReferenceType {
-        ReferenceType::Entry(match self {
-            PagesEntryKind::Data => EntryReferenceSubType::tagged(PAGE_DATA_ENTRY_TAG.clone()),
-            PagesEntryKind::Page | PagesEntryKind::Api => EntryReferenceSubType::default(),
+        ReferenceType::Entry(EntryReferenceSubType {
+            // Nothing imports a route's entry module, only the route template, which reads its
+            // whole namespace. Keeping it whole lets HMR follow it when an edit adds or removes a
+            // reexport.
+            standalone: true,
+            tag: matches!(self, PagesEntryKind::Data).then_some(PAGE_DATA_ENTRY_TAG.clone()),
         })
     }
 
