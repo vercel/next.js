@@ -96,20 +96,15 @@ async fn apply_module_type(
         _ => None,
     };
     let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
-    // A page entry is not split into a facade and its locals: nothing imports its exports, so the
-    // facade has nothing to tree shake, and whether a module has re-exports would change the
-    // identity of the entry, which HMR can't follow when an edit adds or removes one.
-    //
-    // This is limited to page entries since a module that is both an entry and imported would be
-    // split for the import only, and evaluated twice. That isn't expected of pages, but is of
-    // other entries, e.g. client components.
-    let is_page_entry = matches!(
+    // A standalone entry isn't canonicalized: nothing imports its exports, so a facade or module
+    // fragments would have nothing to tree shake, and whether the module has reexports would
+    // change the identity of the entry, which HMR can't follow when an edit adds or removes one.
+    let is_standalone_entry = matches!(
         &reference_type,
-        ReferenceType::Entry(
-            EntryReferenceSubType::Page
-                | EntryReferenceSubType::PageData
-                | EntryReferenceSubType::PagesApi
-        )
+        ReferenceType::Entry(EntryReferenceSubType {
+            standalone: true,
+            ..
+        })
     );
     let is_lazy_dynamic_import = matches!(
         &reference_type,
@@ -215,11 +210,13 @@ async fn apply_module_type(
                     }
                 }
 
-                let canonicalization = if module_fragments_enabled {
+                let canonicalization = if is_standalone_entry {
+                    EcmascriptModuleCanonicalization::None
+                } else if module_fragments_enabled {
                     EcmascriptModuleCanonicalization::ModuleFragments(
                         part.cloned().unwrap_or_else(ModulePart::facade),
                     )
-                } else if follow_reexports && !is_page_entry {
+                } else if follow_reexports {
                     EcmascriptModuleCanonicalization::FollowReexports(part.cloned())
                 } else {
                     EcmascriptModuleCanonicalization::None
