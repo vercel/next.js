@@ -41,7 +41,7 @@ For example:
 
 > **Good to know**: In development, `'unsafe-eval'` is required because React uses `eval` to provide enhanced debugging information, such as reconstructing server-side error stacks in the browser. `unsafe-eval` is not required for production. Neither React nor Next.js use `eval` in production by default.
 
-```ts filename="proxy.ts" switcher
+```ts filename="proxy.ts" highlight={8,9} switcher
 import { NextRequest, NextResponse } from 'next/server'
 
 export function proxy(request: NextRequest) {
@@ -50,7 +50,8 @@ export function proxy(request: NextRequest) {
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
-    style-src 'self' 'nonce-${nonce}';
+    style-src 'self' ${isDev ? "'unsafe-inline'" : `'nonce-${nonce}'`};
+    style-src-attr 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
     object-src 'none';
@@ -86,7 +87,7 @@ export function proxy(request: NextRequest) {
 }
 ```
 
-```js filename="proxy.js" switcher
+```js filename="proxy.js" highlight={8,9} switcher
 import { NextResponse } from 'next/server'
 
 export function proxy(request) {
@@ -95,7 +96,8 @@ export function proxy(request) {
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
-    style-src 'self' 'nonce-${nonce}';
+    style-src 'self' ${isDev ? "'unsafe-inline'" : `'nonce-${nonce}'`};
+    style-src-attr 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
     object-src 'none';
@@ -129,6 +131,10 @@ export function proxy(request) {
   return response
 }
 ```
+
+This policy uses [`'strict-dynamic'`](https://developer.mozilla.org/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/script-src#strict-dynamic), so supporting browsers trust scripts loaded by an already-trusted script and ignore host sources such as `'self'` in `script-src`. The nonce is what makes the framework scripts trusted, which in turn allows the chunks they load.
+
+> **Good to know**: A nonce cannot apply to `style` attributes, so `style-src-attr 'unsafe-inline'` is required for inline styles such as the ones [`next/image`](/docs/app/api-reference/components/image) sets. Adding `'unsafe-inline'` to `style-src` instead has no effect, because browsers ignore it when the directive also contains a nonce.
 
 By default, Proxy runs on all requests. You can filter Proxy to run on specific paths using a [`matcher`](/docs/app/api-reference/file-conventions/proxy#matcher).
 
@@ -182,8 +188,8 @@ To use a nonce, your page must be **dynamically rendered**. This is because Next
 
 Here’s how nonce support works in a dynamically rendered page:
 
-1. **Proxy generates a nonce**: Your proxy creates a unique nonce for the request, adds it to your `Content-Security-Policy` header, and also sets it in a custom `x-nonce` header.
-2. **Next.js extracts the nonce**: During rendering, Next.js parses the `Content-Security-Policy` header and extracts the nonce using the `'nonce-{value}'` pattern.
+1. **Proxy generates a nonce**: Your proxy creates a unique nonce for each request and sets it in the `Content-Security-Policy` header on both the request and the response, along with an `x-nonce` header for your own code to read.
+2. **Next.js extracts the nonce**: During rendering, Next.js parses the `Content-Security-Policy` or `Content-Security-Policy-Report-Only` header and extracts the nonce using the `'nonce-{value}'` pattern. Report-only lets you trial a policy while nonces are still applied.
 3. **Nonce is applied automatically**: Next.js attaches the nonce to:
    - Framework scripts (React, Next.js runtime)
    - Page-specific JavaScript bundles
@@ -388,22 +394,28 @@ Using nonces has important implications for how your Next.js application renders
 
 ### Dynamic Rendering Requirement
 
-When you use nonces in your CSP, **all pages must be dynamically rendered**. This means:
+A nonce comes from the incoming request, so a page that uses one must be [dynamically rendered](/docs/app/glossary#dynamic-rendering):
 
-- Pages will build successfully but may encounter runtime errors if not properly configured for dynamic rendering
-- Each request generates a fresh page with a new nonce
-- Static optimization and Incremental Static Regeneration (ISR) are disabled
+- Each request renders the page again with a fresh nonce
+- Prerendered pages carry no nonce at all
 - Pages cannot be cached by CDNs without additional configuration
-- **Partial Prerendering (PPR) is incompatible** with nonce-based CSP since static shell scripts won't have access to the nonce
+- [Partial Prerendering (PPR)](/docs/app/glossary#partial-prerendering-ppr) prerenders the shell, so the shell's scripts carry no nonce
+
+A page that renders without a nonce still builds and serves normally, and the browser blocks its scripts, so it never hydrates. After [forcing dynamic rendering](#forcing-dynamic-rendering), confirm the nonce reached the HTML:
+
+```bash filename="Terminal"
+curl -s http://localhost:3000/ | grep -c 'nonce='
+```
 
 ### Performance Implications
 
-The shift from static to dynamic rendering affects performance:
+Opting a page into dynamic rendering is what makes a nonce reachable, and that opt-in is per page. Applying it broadly is how apps lose prerendering without meaning to:
 
-- **Slower initial page loads**: Pages must be generated on each request
-- **Increased server load**: Every request requires server-side rendering
-- **No CDN caching**: Dynamic pages cannot be cached at the edge by default
-- **Higher hosting costs**: More server resources needed for dynamic rendering
+- Pages are rendered per request instead of being prerendered at build time
+- Static generation and ISR no longer apply to those pages, so their responses cannot be served from a CDN cache
+- Serving cost scales with traffic rather than with builds
+
+Add the opt-in only to the pages that need a nonce, rather than to a shared layout.
 
 ### When to use nonces
 
@@ -416,7 +428,7 @@ Consider nonces when:
 
 ## Without Nonces
 
-For applications that do not require nonces, you can set the CSP header directly in your [`next.config.js`](/docs/app/api-reference/config/next-config-js) file:
+For applications that do not require nonces, you can set the CSP header directly in your [`next.config.js`](/docs/app/api-reference/config/next-config-js) file. `'unsafe-inline'` is needed in `script-src` because Next.js sends the data required for hydration in inline `<script>` tags:
 
 ```js filename="next.config.js"
 const isDev = process.env.NODE_ENV === 'development'
@@ -455,13 +467,15 @@ module.exports = {
 
 ## Subresource Integrity (Experimental)
 
-As an alternative to nonces, Next.js offers experimental support for hash-based CSP using Subresource Integrity (SRI). This approach allows you to maintain static generation while still having a strict CSP.
+Next.js offers experimental support for [Subresource Integrity (SRI)](https://developer.mozilla.org/docs/Web/Security/Subresource_Integrity), which protects your script files from being modified in transit.
+
+SRI covers script files, not inline scripts. It is not a hash-based CSP: no hashes are added to your `Content-Security-Policy` header, and `script-src` still needs a nonce or `'unsafe-inline'` to allow the inline scripts Next.js emits while rendering.
 
 > **Good to know**: This feature is experimental and available in App Router applications.
 
 ### How SRI works
 
-Instead of using nonces, SRI generates cryptographic hashes of your JavaScript files at build time. These hashes are added as `integrity` attributes to script tags, allowing browsers to verify that files haven't been modified during transit.
+SRI generates cryptographic hashes of your JavaScript files at build time. These hashes are added as `integrity` attributes to the `<script src>` tags that load them, allowing browsers to verify that files haven't been modified during transit.
 
 ### Enabling SRI
 
@@ -484,15 +498,15 @@ module.exports = nextConfig
 
 When SRI is enabled, you can continue using your existing CSP policies. SRI works independently by adding `integrity` attributes to your assets:
 
-> **Good to know**: For dynamic rendering scenarios, you can still generate nonces with proxy if needed, combining both SRI integrity attributes and nonce-based CSP approaches.
+> **Good to know**: `'unsafe-inline'` is what allows the inline hydration scripts to run on a statically rendered page. You can combine `integrity` attributes with a [nonce](#nonces) on dynamically rendered routes, but browsers ignore `'unsafe-inline'` in a policy that also contains a nonce.
 
 ```js filename="next.config.js"
 const isDev = process.env.NODE_ENV === 'development'
 
 const cspHeader = `
     default-src 'self';
-    script-src 'self'${isDev ? " 'unsafe-eval'" : ''};
-    style-src 'self';
+    script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''};
+    style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
     object-src 'none';
@@ -524,18 +538,18 @@ module.exports = {
 }
 ```
 
-### Benefits of SRI over nonces
+### SRI compared to nonces
 
-- **Static generation**: Pages can be statically generated and cached
-- **CDN compatibility**: Static pages work with CDN caching
-- **Better performance**: No server-side rendering required for each request
-- **Build-time security**: Hashes are generated at build time, ensuring integrity
+- **Static generation**: Hashes are computed at build time, so pages can stay statically generated and cached by a CDN
+- **File integrity**: Browsers reject a script file that doesn't match the hash your build produced
+- **Inline scripts**: Still allowed by `'unsafe-inline'` or a nonce, and a nonce requires dynamic rendering
 
 ### Limitations of SRI
 
 - **Experimental**: Feature may change or be removed
 - **App Router only**: Not supported in Pages Router
-- **Build-time only**: Cannot handle dynamically generated scripts
+- **Script files only**: The inline scripts Next.js emits while rendering, such as the RSC payload (`self.__next_f.push(...)`), do not receive an `integrity` attribute
+- **Client component chunks**: Chunks the RSC runtime requests during rendering are served without an `integrity` attribute
 
 </AppOnly>
 
@@ -545,7 +559,7 @@ CSP implementation differs between development and production environments:
 
 ### Development Environment
 
-In development, you will need to enable `'unsafe-eval'` because React uses `eval` to provide enhanced debugging information, such as reconstructing server-side error stacks in the browser to show you where errors originated on the server:
+In development, you will need to enable `'unsafe-eval'` because React uses `eval` to provide enhanced debugging information, such as reconstructing server-side error stacks in the browser to show you where errors originated on the server. Development also needs `'unsafe-inline'` in `style-src` in place of the nonce, because Next.js injects inline styles for the dev overlay that don't carry one:
 
 ```ts filename="proxy.ts" switcher
 export function proxy(request: NextRequest) {
@@ -556,6 +570,7 @@ export function proxy(request: NextRequest) {
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ''};
     style-src 'self' ${isDev ? "'unsafe-inline'" : `'nonce-${nonce}'`};
+    style-src-attr 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
     object-src 'none';
@@ -578,6 +593,7 @@ export function proxy(request) {
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ''};
     style-src 'self' ${isDev ? "'unsafe-inline'" : `'nonce-${nonce}'`};
+    style-src-attr 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
     object-src 'none';
@@ -596,7 +612,7 @@ export function proxy(request) {
 Common issues in production:
 
 - **Nonce not applied**: Ensure your proxy runs on all necessary routes
-- **Static assets blocked**: Verify your CSP allows Next.js static assets
+- **Static assets blocked**: `'self'` already covers `/_next/static`, so check for a missing origin in `img-src`, `font-src`, or `connect-src` before widening `script-src`
 - **Third-party scripts**: Add necessary domains to your CSP policy
 
 ## Troubleshooting
@@ -716,10 +732,10 @@ const cspHeader = `
 
 ### Common CSP Violations
 
-1. **Inline styles**: Use CSS-in-JS libraries that support nonces or move styles to external files
-2. **Dynamic imports**: Ensure dynamic imports are allowed in your script-src policy
+1. **Inline styles**: `style` attributes are covered by `style-src-attr`, which a nonce cannot satisfy. Add `style-src-attr 'unsafe-inline'`, or move the styles into a stylesheet
+2. **Inline scripts you add yourself**: scripts injected with `dangerouslySetInnerHTML`, such as the ones that [prevent a flash before hydration](/docs/app/guides/preventing-flash-before-hydration), need the nonce passed to them explicitly
 3. **WebAssembly**: Add `'wasm-unsafe-eval'` if using WebAssembly
-4. **Service workers**: Add appropriate policies for service worker scripts
+4. **Service workers**: Add `worker-src` for the origins your service worker scripts are served from
 
 ## Version History
 
