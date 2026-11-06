@@ -1,0 +1,7 @@
+{
+  "productionChunking": true,
+  "scopeHoisting": false,
+  "crossModuleConstants": false,
+  "minChunkSize": 800,
+  "maxChunkSize": 2500
+}
