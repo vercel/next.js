@@ -1,6 +1,7 @@
 import execa from 'execa'
 import { join } from 'path'
 import { spawn } from 'child_process'
+import { existsSync } from 'fs'
 import { fetchViaHTTP, findPort, killApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { getPreferencesDir } from './lib/utils'
@@ -82,6 +83,34 @@ export const command = (cmd: string, args: string[]) =>
     env: { ...process.env },
   })
 
+export async function ensureReactCompilerDependency(dir: string) {
+  if (
+    process.env.__NEXT_ENABLE_REACT_COMPILER !== 'true' ||
+    existsSync(
+      join(dir, 'node_modules/babel-plugin-react-compiler/package.json')
+    )
+  ) {
+    return
+  }
+
+  const version = require('../../../package.json').devDependencies[
+    'babel-plugin-react-compiler'
+  ]
+  // The test matrix enables React Compiler even for templates that omit it.
+  // Install only before running Next.js, without changing the generated
+  // manifest or lockfile so git cleanliness assertions still pass.
+  await execa(
+    'npm',
+    [
+      'install',
+      '--no-save',
+      '--package-lock=false',
+      `babel-plugin-react-compiler@${version}`,
+    ],
+    { cwd: dir, stdio: 'inherit' }
+  )
+}
+
 export async function tryNextDev({
   cwd,
   projectName,
@@ -102,6 +131,7 @@ export async function tryNextDev({
   // after the test. Running `next build`/`next start` directly inside it
   // is safe — `.next/` artifacts are cleaned up with the temp dir.
   const dir = join(cwd, projectName)
+  await ensureReactCompilerDependency(dir)
 
   // CNA installs `eslint-config-next` from the same `packed.tgz` path as
   // `next` (both come from `NEXT_PRIVATE_TEST_VERSION`), which causes npm to

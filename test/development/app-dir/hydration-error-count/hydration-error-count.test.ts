@@ -248,6 +248,10 @@ describe('hydration-error-count', () => {
 
   it('should display runtime error separately from hydration errors', async () => {
     const browser = await next.browser('/hydration-with-runtime-errors')
+    const effectName =
+      process.env.__NEXT_ENABLE_REACT_COMPILER === 'true'
+        ? '_PageUseEffect'
+        : 'Page.useEffect'
 
     await expect(browser).toDisplayRedbox(`
      [
@@ -283,11 +287,11 @@ describe('hydration-error-count', () => {
          "description": "runtime error",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "app/hydration-with-runtime-errors/page.tsx (7:11) @ Page.useEffect
+         "source": "app/hydration-with-runtime-errors/page.tsx (7:11) @ ${effectName}
      >  7 |     throw new Error('runtime error')
           |           ^",
          "stack": [
-           "Page.useEffect app/hydration-with-runtime-errors/page.tsx (7:11)",
+           "${effectName} app/hydration-with-runtime-errors/page.tsx (7:11)",
          ],
        },
      ]

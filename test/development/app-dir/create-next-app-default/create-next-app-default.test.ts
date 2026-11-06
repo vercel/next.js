@@ -3,6 +3,7 @@ import { findPort, killApp, retry } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
+  ensureReactCompilerDependency,
   resolveNextTgzFilename,
   run,
   useTempDir,
@@ -37,6 +38,7 @@ describe('create-next-app default template', () => {
         expect(exitCode).toBe(0)
 
         const dir = join(cwd, projectName)
+        await ensureReactCompilerDependency(dir)
         const nextBin = join(dir, 'node_modules/next/dist/bin/next')
         const port = await findPort()
         const server = spawn(

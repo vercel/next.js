@@ -59,7 +59,7 @@ describe.each(['default', 'babelrc', 'rust'] as const)(
       // TODO: set only config instead once bundlers are consistent
       buildArgs: ['--profile'],
       dependencies: {
-        'babel-plugin-react-compiler': '0.0.0-experimental-3fde738-20250918',
+        'babel-plugin-react-compiler': '0.0.0-experimental-ff4e0fd-20260324',
         // For React versions below 19, need to install react-compiler-runtime.
         // https://react.dev/reference/react-compiler/target#targeting-react-17-or-18
         ...(isReact18 ? { 'react-compiler-runtime': 'latest' } : {}),
