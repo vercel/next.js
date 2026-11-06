@@ -401,8 +401,7 @@ impl ServerNftJsonAsset {
                 if is_standalone {
                     Either::Left(
                         [
-                            "next/dist/server/lib/start-server",
-                            "next/dist/server/next",
+                            "next/dist/compiled/next-start/start-server",
                             "next/dist/server/require-hook",
                         ]
                         .into_iter(),
