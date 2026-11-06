@@ -446,9 +446,19 @@ describe('404 handling', () => {
 
         await next.patchFile(
           'next.config.js',
-          `module.exports = { output: 'export' }`
+          `module.exports = {
+            output: 'export',
+            cacheComponents: false,
+            partialPrefetching: false,
+            experimental: { cachedNavigations: false },
+          }`
         )
-        await next.build()
+        const { exitCode } = await next.build()
+        if (exitCode !== 0) {
+          throw new Error(
+            `Static export build failed with exit code ${exitCode}`
+          )
+        }
         staticServer = await startStaticServer(
           path.join(next.testDir, 'out'),
           path.join(next.testDir, 'out/404.html')
@@ -532,9 +542,19 @@ describe('404 handling', () => {
         )
         await next.patchFile(
           'next.config.js',
-          `module.exports = { output: 'export' }`
+          `module.exports = {
+            output: 'export',
+            cacheComponents: false,
+            partialPrefetching: false,
+            experimental: { cachedNavigations: false },
+          }`
         )
-        await next.build()
+        const { exitCode } = await next.build()
+        if (exitCode !== 0) {
+          throw new Error(
+            `Static export build failed with exit code ${exitCode}`
+          )
+        }
         staticServer = await startStaticServer(
           path.join(next.testDir, 'out'),
           path.join(next.testDir, 'out/404.html')
