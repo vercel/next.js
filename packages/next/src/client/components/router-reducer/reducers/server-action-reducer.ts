@@ -509,6 +509,8 @@ export function serverActionReducer(
           // tree, so there's no pathname to parse them from (nor a need to).
           null,
           flightDataRenderedSearch,
+          // The action request was made with the current tree.
+          true,
           null,
           UnknownDynamicStaleTime
         )

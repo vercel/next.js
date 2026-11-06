@@ -1875,6 +1875,9 @@ async function fetchMissingDynamicData(
       // there's no pathname to parse them from (nor a need to).
       null,
       result.renderedSearch,
+      // The request tree was derived from this tree, so the segments the
+      // response reuses from it are part of the rendered route.
+      true,
       null,
       result.dynamicStaleTime
     )
@@ -1894,6 +1897,7 @@ async function fetchMissingDynamicData(
         result.responseChunks,
         dynamicRequestTree,
         result.renderedSearch,
+        true,
         map
       ).catch(() => {
         // The cache write failed. Not fatal — the navigation completed

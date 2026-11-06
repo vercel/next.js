@@ -96,6 +96,8 @@ export function createInitialRouterState({
     // pathname to parse them from.
     null,
     initialRenderedSearch,
+    // No base tree.
+    false,
     null,
     initialDynamicStaleTimeSeconds ?? UnknownDynamicStaleTime
   )
@@ -149,6 +151,9 @@ export function createInitialRouterState({
       initialRSCPayloadChunks,
       initialTree,
       initialRenderedSearch,
+      // The initial tree is a full render from the root, so none of its
+      // segments carry a refresh state.
+      false,
       segmentCacheMap // hydration writes are bound to the shared map
     ).catch(() => {
       // The cache write failed. Not fatal — the page rendered normally, we

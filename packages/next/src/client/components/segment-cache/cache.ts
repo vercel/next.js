@@ -1680,6 +1680,14 @@ function rejectSegmentCacheEntry(
 
 export type RouteTreeAccumulator = {
   metadataVaryPath: VaryPath | null
+  // Whether the base tree is the router state that the request which produced
+  // this response was made with. The server compares every position it skips
+  // or leaves out of the response against the route it rendered, so a segment
+  // inherited from such a base is part of that route, and a refresh state it
+  // carried from an earlier reuse through a "default" slot no longer applies
+  // (see getInheritedRefreshState). False when there is no base tree, or when
+  // the base is decoded on its own (restores, refreshes, the initial payload).
+  baseIsRequestTree: boolean
   // Whether the decoded tree's segment identities diverged from the base
   // tree it was overlaid onto. See NavigationSeed.treeDivergedFromBase.
   treeDivergedFromBase: boolean
@@ -1726,6 +1734,24 @@ export function rebaseInactiveRouteTree<TData>(
   }
 }
 
+/**
+ * The refresh state of a segment that the response being decoded reuses from
+ * the base tree. A segment carries a refresh state when it was reused through
+ * a "default" slot from an older route (see reuseActiveSegmentInDefaultSlot),
+ * so that it can be refreshed from the URL that rendered it. When the base is
+ * the tree the request was made with, the server has confirmed that every
+ * segment it skipped or left out is part of the route it rendered: the
+ * segment is active at the current URL again, keys the head like any other
+ * segment of the route and refreshes from the current URL, so the refresh
+ * state is dropped.
+ */
+export function getInheritedRefreshState(
+  refreshState: RefreshState | null,
+  acc: RouteTreeAccumulator
+): RefreshState | null {
+  return acc.baseIsRequestTree ? null : refreshState
+}
+
 export function convertFlightRouterStateToRouteTree(
   flightRouterState: FlightRouterState,
   requestKey: SegmentRequestKey,
@@ -1745,13 +1771,15 @@ export function convertFlightRouterStateToRouteTree(
   // the outer parent route. In order to construct the inactive route correctly,
   // we must restore the query that was originally used to render it.
   const compressedRefreshState = flightRouterState[2] ?? null
-  const refreshState =
+  const refreshState = getInheritedRefreshState(
     compressedRefreshState !== null
       ? {
           canonicalUrl: compressedRefreshState[0] as string,
           renderedSearch: compressedRefreshState[1] as NormalizedSearch,
         }
-      : null
+      : null,
+    acc
+  )
   // Use the incoming search params, even if the response has no new data for
   // this segment. The base tree may still have the previous URL's. History
   // restores pass in their saved search params instead.
@@ -2010,6 +2038,8 @@ export async function fetchRouteOnCacheMiss(
     const acc: RouteTreeAccumulator = {
       metadataVaryPath: null,
       treeDivergedFromBase: false,
+      // No base tree.
+      baseIsRequestTree: false,
     }
     const routeTree = decodeTransportTreeIntoRouteTree(
       transportData.t,
@@ -2412,6 +2442,8 @@ async function fetchAndWritePerSegmentPrefetchResponse(
     null,
     renderedPathname,
     route.renderedSearch,
+    // No base tree.
+    false,
     undefined,
     now + STATIC_STALETIME_MS,
     true,
@@ -2855,6 +2887,9 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       // there's no pathname to parse them from (nor a need to).
       null,
       renderedSearch,
+      // The request tree is derived from the route cache entry, which
+      // carries no refresh states, so there is nothing to drop.
+      false,
       buildId,
       staleAt,
       isFullResponsePartial,
@@ -2939,6 +2974,9 @@ function writeResponsePayloadsIntoCache(
   predictedFrom: KnownRoutePart | null,
   renderedPathname: string | null,
   renderedSearch: string,
+  // Whether the base tree is the router state the request was made with (see
+  // RouteTreeAccumulator.baseIsRequestTree).
+  baseIsRequestTree: boolean,
   buildId: string | undefined,
   // Response-level staleness of the full payload. The shell payload's own
   // staleness is read off the shell decode below (a shell payload is always
@@ -2990,6 +3028,7 @@ function writeResponsePayloadsIntoCache(
         predictedFrom,
         renderedPathname,
         renderedSearch,
+        baseIsRequestTree,
         buildId,
         staleAt,
         isFullResponsePartial,
@@ -3016,6 +3055,7 @@ function writeResponsePayloadsIntoCache(
       predictedFrom,
       renderedPathname,
       renderedSearch,
+      baseIsRequestTree,
       buildId,
       staleAt,
       isFullResponsePartial,
@@ -3039,6 +3079,7 @@ function writeResponsePayloadsIntoCache(
       predictedFrom,
       renderedPathname,
       renderedSearch,
+      baseIsRequestTree,
       buildId,
       staleAt,
       isFullResponsePartial,
@@ -3068,6 +3109,7 @@ function writeResponsePayloadsIntoCache(
       predictedFrom,
       renderedPathname,
       renderedSearch,
+      baseIsRequestTree,
       buildId,
       staleAt,
       isFullResponsePartial,
@@ -3085,6 +3127,7 @@ function writeResponsePayloadsIntoCache(
       predictedFrom,
       renderedPathname,
       renderedSearch,
+      baseIsRequestTree,
       buildId,
       // The shell payload carries its own staleness, independent of the
       // full payload's. Shell decodes are fully buffered, so it's read
@@ -3197,6 +3240,9 @@ function writeServerResponseIntoCache(
   // responses that always carry concrete values (navigation responses).
   renderedPathname: string | null,
   renderedSearch: string,
+  // Whether the base tree is the router state the request was made with (see
+  // RouteTreeAccumulator.baseIsRequestTree).
+  baseIsRequestTree: boolean,
   buildId: string | undefined,
   // Response-level staleness; a segment (or the head) with its own
   // staleTime overrides it.
@@ -3267,6 +3313,7 @@ function writeServerResponseIntoCache(
     isResponsePartial,
     renderedPathname,
     renderedSearch,
+    baseIsRequestTree,
     metadataVaryPath,
     // Only navigations consume the seed's dynamicStaleAt; cache writes pass
     // unknown to use the default.
@@ -3900,6 +3947,9 @@ export async function bufferAndWriteNavigationResponse(
   responseChunks: Array<Uint8Array> | null,
   baseTree: FlightRouterState,
   renderedSearch: string,
+  // Whether the base tree is the router state the request was made with (see
+  // RouteTreeAccumulator.baseIsRequestTree).
+  baseIsRequestTree: boolean,
   // The map the work that spawned this response's request is bound to. See
   // writeServerResponseIntoCache.
   map: CacheMap<SegmentCacheEntry>
@@ -3986,6 +4036,7 @@ export async function bufferAndWriteNavigationResponse(
     // there's no pathname to parse them from (nor a need to).
     null,
     renderedSearch,
+    baseIsRequestTree,
     // A navigation to a different build is an MPA navigation, so there's no
     // build to check.
     undefined,
