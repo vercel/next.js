@@ -1,6 +1,8 @@
 // Constants that the client-side routers need. Client code imports them from
-// this module instead of `lib/constants`, which re-exports them, so that the
-// browser bundles don't include the server and build constants.
+// this module instead of `lib/constants`, so that the browser bundles don't
+// include the server and build constants. `lib/constants` defines the same
+// values for server and build code and checks at compile time that they are
+// equal to these.
 
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'

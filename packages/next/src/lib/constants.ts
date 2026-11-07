@@ -1,18 +1,22 @@
 import type { ServerRuntime } from '../types'
 
+// Client code imports four of the constants below from
+// `shared/lib/router/constants`, which keeps this module out of the browser
+// bundles. They are defined in both modules, because a re-export from here
+// would make every server process load one more file. The `satisfies` checks
+// fail the type check if the two definitions differ.
+import type * as routerConstants from '../shared/lib/router/constants'
+
 export const TEXT_PLAIN_CONTENT_TYPE_HEADER = 'text/plain'
 export const HTML_CONTENT_TYPE_HEADER = 'text/html; charset=utf-8'
 export const JSON_CONTENT_TYPE_HEADER = 'application/json; charset=utf-8'
+export const NEXT_QUERY_PARAM_PREFIX =
+  'nxtP' satisfies typeof routerConstants.NEXT_QUERY_PARAM_PREFIX
+export const NEXT_INTERCEPTION_MARKER_PREFIX =
+  'nxtI' satisfies typeof routerConstants.NEXT_INTERCEPTION_MARKER_PREFIX
 
-// The constants that client code needs live in their own module, to keep this
-// one out of the browser bundles.
-export {
-  NEXT_QUERY_PARAM_PREFIX,
-  NEXT_INTERCEPTION_MARKER_PREFIX,
-  MATCHED_PATH_HEADER,
-  NEXT_NAV_DEPLOYMENT_ID_HEADER,
-} from '../shared/lib/router/constants'
-
+export const MATCHED_PATH_HEADER =
+  'x-matched-path' satisfies typeof routerConstants.MATCHED_PATH_HEADER
 export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
@@ -24,6 +28,9 @@ export const ACTION_SUFFIX = '.action'
 export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
+
+export const NEXT_NAV_DEPLOYMENT_ID_HEADER =
+  'x-nextjs-deployment-id' satisfies typeof routerConstants.NEXT_NAV_DEPLOYMENT_ID_HEADER
 
 // Distributed tracing headers must not affect fetch caching or deduplication.
 export const FETCH_CACHE_KEY_EXCLUDED_HEADERS = new Set([
