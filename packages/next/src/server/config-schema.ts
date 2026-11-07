@@ -250,6 +250,34 @@ const zTurbopackModuleFederationFilename = z
     'Module Federation filename must be a safe relative path without empty or ".." segments'
   )
 
+const zTurbopackModuleFederationTsConfigPath = z
+  .string()
+  .refine(
+    (value) =>
+      value.length > 0 &&
+      !value.startsWith('/') &&
+      !value.startsWith('\\') &&
+      !/[\\:\0?#]/.test(value) &&
+      value.split('/').every((segment) => segment !== '' && segment !== '..') &&
+      value.split('/').at(-1) !== '.',
+    'Module Federation dts.generateTypes.tsConfigPath must be a safe relative project path'
+  )
+
+const zTurbopackModuleFederationDts = z.union([
+  z.literal(false),
+  z.strictObject({
+    generateTypes: z.union([
+      z.literal(true),
+      z.strictObject({
+        tsConfigPath: zTurbopackModuleFederationTsConfigPath.optional(),
+        abortOnError: z.boolean().optional(),
+        extractThirdParty: z.boolean().optional(),
+        extractRemoteTypes: z.boolean().optional(),
+      }),
+    ]),
+  }),
+])
+
 const zTurbopackModuleFederationConfig: zod.ZodType<TurbopackModuleFederationOptions> =
   z
     .strictObject({
@@ -292,6 +320,7 @@ const zTurbopackModuleFederationConfig: zod.ZodType<TurbopackModuleFederationOpt
       remoteType: z.literal('script').optional(),
       shareStrategy: z.enum(['version-first', 'loaded-first']).optional(),
       implementation: z.string().min(1).optional(),
+      dts: zTurbopackModuleFederationDts.optional(),
       runtimePlugins: z
         .array(
           z.union([
@@ -311,6 +340,17 @@ const zTurbopackModuleFederationConfig: zod.ZodType<TurbopackModuleFederationOpt
           path: ['name'],
           message:
             'Module Federation exposes require a non-empty container name',
+        })
+      }
+      if (
+        config.dts &&
+        (!config.exposes || Object.keys(config.exposes).length === 0)
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['dts'],
+          message:
+            'Module Federation dts.generateTypes requires exposed modules',
         })
       }
     })

@@ -199,6 +199,42 @@ module.exports = {
 
 For CDN deployments, configure the same header on the CDN response for the manifest. This does not change the CORS policy of other Next.js assets.
 
+## Publishing TypeScript declarations
+
+A **producer** that exposes TypeScript modules can opt into the upstream Module Federation type archive and declaration API. Install the optional build-time peer in the producing app:
+
+```bash
+pnpm add @module-federation/dts-plugin@^2.9.0
+```
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    turbopackModuleFederation: {
+      name: 'catalog',
+      exposes: { './product': './app/product.tsx' },
+      dts: {
+        generateTypes: {
+          tsConfigPath: './tsconfig.json',
+          // Optional: abortOnError: false, extractThirdParty: true,
+          // extractRemoteTypes: true,
+        },
+      },
+    },
+  },
+}
+
+export default nextConfig
+```
+
+Use `dts: { generateTypes: true }` for upstream generation defaults with `abortOnError: true`. `tsConfigPath` must resolve inside the producing project; custom output names or paths and `consumeTypes` are not supported. A host-only config cannot enable generation. Apps without DTS need no DTS package or generation work.
+
+Successful builds serve `/_next/static/@mf-types.zip` (real declarations for exposed modules) and `/_next/static/@mf-types.d.ts` (remote API keys). The producer manifest advertises them under `metaData.types` with `path`, `name`, `zip` and `api`. Development edits to exposed TypeScript refresh the files without a restart. Declaration errors fail production builds by default and appear as development issues. Setting `abortOnError: false` instead logs a warning and publishes neither file nor manifest type metadata; it **does not** disable Next.js' own TypeScript build checks. Type artifacts are never served from a previous successful generation after a DTS error.
+
+This option only **produces** declarations. Hosts must acquire and configure remote declarations themselves; automatic host-side download/import resolution is not yet supported.
+
 ## Sharing modules
 
 The `shared` option uses webpack-compatible share keys and configuration:
