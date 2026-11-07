@@ -1,6 +1,6 @@
 'use client'
 
-import { preload } from 'react-dom'
+import { preload, type PreloadOptions } from 'react-dom'
 
 import { workAsyncStorage } from '../../../server/app-render/work-async-storage.external'
 import { encodeURIPath } from '../encode-uri-path'
@@ -66,6 +66,10 @@ export function PreloadChunks({
             as: 'script',
             fetchPriority: 'low',
             nonce: workStore.nonce,
+            ...(process.env.__NEXT_CROSS_ORIGIN && {
+              crossOrigin: process.env
+                .__NEXT_CROSS_ORIGIN as PreloadOptions['crossOrigin'],
+            }),
           })
           return null
         }
