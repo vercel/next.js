@@ -11,7 +11,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::OutputAssets,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -101,7 +101,7 @@ impl ModuleFederationEndpoint {
                     .await?
                     .join("static")?
                     .join(&filename)?,
-                ChunkGroup::Entry(vec![module]),
+                ChunkGroupKey::Entry(vec![module]),
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
