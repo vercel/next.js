@@ -49,6 +49,18 @@ const tests = {
             </div>
           );
     }`,
+    // A side-effect import of next/script has no specifiers; the rule should
+    // not crash while resolving the imported component name.
+    `import 'next/script';
+
+      export function MyApp() {
+          return <div />;
+    }`,
+    // A `<script>` used as a boolean-style flag has no attribute value; the
+    // rule should not crash reading its (null) value.
+    `export function MyApp() {
+          return <script src />;
+    }`,
   ],
 
   invalid: [
