@@ -29,4 +29,11 @@ export default function proxy(req: NextRequest) {
     // Rewrite to the given URL.
     return NextResponse.rewrite(new URL(mismatchRewrite, req.url))
   }
+
+  const errorStatus = req.nextUrl.searchParams.get('error-status')
+  if (errorStatus) {
+    return new NextResponse('Navigation failed', {
+      status: Number(errorStatus),
+    })
+  }
 }
