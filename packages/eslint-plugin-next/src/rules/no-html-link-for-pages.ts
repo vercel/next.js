@@ -62,6 +62,19 @@ export default defineRule({
           },
         ],
       },
+      {
+        type: 'object',
+        properties: {
+          pageExtensions: {
+            type: 'array',
+            uniqueItems: true,
+            items: {
+              type: 'string',
+            },
+          },
+        },
+        additionalProperties: false,
+      },
     ],
   },
 
@@ -69,8 +82,16 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    const ruleOptions: (string | string[] | { pageExtensions?: string[] })[] =
+      context.options
+    const [customPagesDirectory, secondOption] = ruleOptions
+
+    const pageExtensions =
+      (secondOption &&
+        typeof secondOption === 'object' &&
+        !Array.isArray(secondOption) &&
+        secondOption.pageExtensions) ||
+      undefined
 
     const rootDirs = getRootDirs(context)
 
@@ -107,8 +128,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
