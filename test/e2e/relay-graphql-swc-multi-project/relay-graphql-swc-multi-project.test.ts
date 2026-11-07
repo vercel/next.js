@@ -20,9 +20,14 @@ function relayCompilerValidate(next: NextInstance) {
 }
 
 describe('Relay Compiler Transform - Multi Project Config', () => {
+  const installCommand = shouldUseTurbopack()
+    ? 'pnpm install --no-frozen-lockfile --strict-peer-dependencies=false --config.enableGlobalVirtualStore=true --config.extendNodePath=false'
+    : undefined
+
   describe('project-a', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      installCommand,
       overrideFiles: {
         'vercel.json': new FileRef(join(__dirname, 'vercel-project-a.json')),
       },
@@ -63,6 +68,7 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
   describe('project-b', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      installCommand,
       overrideFiles: {
         'vercel.json': new FileRef(join(__dirname, 'vercel-project-b.json')),
       },
