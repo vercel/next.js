@@ -1488,7 +1488,8 @@ async function generateCacheEntryImpl(
       }
 
       errors.push(error)
-    }
+    },
+    () => getServerReact()?.captureOwnerStack?.() ?? null
   )
 
   let stream: ReadableStream<Uint8Array>
