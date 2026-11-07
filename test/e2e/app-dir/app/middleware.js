@@ -71,20 +71,24 @@ export async function middleware(request) {
 
   if (request.nextUrl.pathname === '/script-nonce') {
     const nonce = crypto.randomUUID()
+    // React and Webpack use eval() in development mode, so we need to allow it.
+    const csp = `script-src 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''};`
 
     return NextResponse.next({
       headers: {
-        'content-security-policy': `script-src 'nonce-${nonce}' 'strict-dynamic';`,
+        'content-security-policy': csp,
       },
     })
   }
 
   if (request.nextUrl.pathname === '/script-nonce/with-next-font') {
     const nonce = crypto.randomUUID()
+    // React and Webpack use eval() in development mode, so we need to allow it.
+    const csp = `script-src 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ''};`
 
     return NextResponse.next({
       headers: {
-        'content-security-policy': `script-src 'nonce-${nonce}' 'strict-dynamic';`,
+        'content-security-policy': csp,
       },
     })
   }
