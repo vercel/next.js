@@ -2910,6 +2910,7 @@ async function renderAppPage(
     res,
     url,
     rootParams,
+    renderOpts.variants ?? null,
     implicitTags,
     renderOpts.onUpdateCookies,
     renderOpts.previewProps,
@@ -6934,6 +6935,7 @@ export async function runValidationInDevFromSnapshot(
       search: message.request.urlSearch,
     },
     rootParams: message.request.rootParams,
+    variants: message.request.variants,
     implicitTags,
     resumeDataCache: null,
     previewProps: undefined,
@@ -8761,6 +8763,8 @@ async function validateInstantConfigInBuildWithSample(
         userspaceMutableCookies: unusedMutableCookies,
         draftMode,
         rootParams: sampleRootParams,
+        // TODO(variants): Define variants for instant validation.
+        variants: null,
         validationSamples,
         validationSampleTracking: createValidationSampleTracking(),
         // This will be set when rendering
