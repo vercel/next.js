@@ -1,6 +1,6 @@
 /**
  * `next internal static-routes-info` — analyzes a built Next.js app and
- * reports per-route bundle sizes statically (without running the app).
+ * reports per-route bundle sizes statically (without starting the server).
  *
  * The analysis is split into three steps so it's easy to swap in different
  * chunking strategies later:
