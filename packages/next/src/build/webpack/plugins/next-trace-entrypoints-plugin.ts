@@ -1,4 +1,5 @@
 import nodePath from 'path'
+import fs from 'fs/promises'
 import type { Span } from '../../../trace'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
@@ -99,6 +100,80 @@ export function getFilesMapFromReasons(
     propagateToParents(reason.parents, file)
   }
   return parentFilesMap
+}
+
+export async function expandPackageTraces(
+  outputFileTracingRoot: string,
+  fileList: Set<string>,
+  reasons: NodeFileTraceReasons
+): Promise<void> {
+  const processedPackageDirs = new Set<string>()
+
+  for (const relFile of Array.from(fileList)) {
+    if (
+      !relFile.includes('@img/sharp-libvips') &&
+      !relFile.includes('@img+sharp-libvips')
+    ) {
+      continue
+    }
+
+    const absFile = nodePath.join(outputFileTracingRoot, relFile)
+    let packageDir = nodePath.dirname(absFile)
+
+    while (
+      packageDir.length >= outputFileTracingRoot.length &&
+      !processedPackageDirs.has(packageDir)
+    ) {
+      const pkgJsonPath = nodePath.join(packageDir, 'package.json')
+      const stat = await fs.stat(pkgJsonPath).catch(() => null)
+      if (stat && stat.isFile()) {
+        try {
+          const pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, 'utf8'))
+          if (pkgJson.name && pkgJson.name.startsWith('@img/sharp-libvips')) {
+            processedPackageDirs.add(packageDir)
+            break
+          }
+        } catch {}
+      }
+
+      const parentDir = nodePath.dirname(packageDir)
+      if (parentDir === packageDir) break
+      packageDir = parentDir
+    }
+
+    if (!processedPackageDirs.has(packageDir)) {
+      continue
+    }
+
+    const reason = reasons.get(relFile)
+    const parents = reason?.parents || new Set<string>()
+
+    async function walkDir(currentDir: string) {
+      const entries = await fs
+        .readdir(currentDir, { withFileTypes: true })
+        .catch(() => [])
+      for (const entry of entries) {
+        const fullPath = nodePath.join(currentDir, entry.name)
+        if (entry.isDirectory()) {
+          await walkDir(fullPath)
+        } else if (entry.isFile()) {
+          const relPath = nodePath
+            .relative(outputFileTracingRoot, fullPath)
+            .replace(/\\/g, '/')
+          if (!fileList.has(relPath)) {
+            fileList.add(relPath)
+            reasons.set(relPath, {
+              type: ['dependency'],
+              ignored: reason?.ignored ?? false,
+              parents: new Set(parents),
+            })
+          }
+        }
+      }
+    }
+
+    await walkDir(packageDir)
+  }
 }
 
 export interface TurbotraceAction {
@@ -512,6 +587,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                 fileList = result.fileList
                 result.esmFileList.forEach((file) => fileList.add(file))
                 reasons = result.reasons
+                await expandPackageTraces(this.tracingRoot, fileList, reasons)
               })
 
             await finishModulesSpan
