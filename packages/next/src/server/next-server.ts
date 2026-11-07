@@ -14,6 +14,7 @@ import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type {
   PrerenderManifest,
+  PrerenderManifestRuntime,
   PreviewPropsManifest,
   RoutesManifest,
 } from '../build'
@@ -110,6 +111,10 @@ import { createRequestResponseMocks, MockedResponse } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { loadManifest } from './load-manifest.external'
+import {
+  getRoutePrerenderManifestPath,
+  type ResponseCacheOwner,
+} from './lib/route-cache-key'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
@@ -468,7 +473,11 @@ export default class NextNodeServer extends BaseServer<
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       previewProps: this.getPreviewProps(),
-      prerenderManifest: this.getPrerenderManifest(),
+      // This cache serves every route, so it looks the prerender data up by
+      // the route that owns a response.
+      prerenderManifest: dev
+        ? this.getPrerenderManifest()
+        : (route) => this.getRoutePrerenderManifest(route),
       locales: this.nextConfig.i18n?.locales,
       CurCacheHandler: CacheHandler,
     })
@@ -1992,6 +2001,31 @@ export default class NextNodeServer extends BaseServer<
     )
 
     return this._cachedPrerenderManifest
+  }
+
+  protected getRoutePrerenderManifest(
+    route: ResponseCacheOwner | undefined
+  ): DeepReadonly<PrerenderManifestRuntime> {
+    // A production build writes a manifest for every route with only that
+    // route's entries, so the complete manifest is not parsed unless the
+    // output has none for the route.
+    if (route && !this.dev) {
+      const manifest = loadManifest<PrerenderManifestRuntime>(
+        join(
+          /* turbopackIgnore: true */ this.distDir,
+          getRoutePrerenderManifestPath(route.kind, route.sourceRoute)
+        ),
+        true,
+        undefined,
+        false,
+        true
+      )
+      if (manifest) {
+        return manifest
+      }
+    }
+
+    return this.getPrerenderManifest()
   }
 
   private _cachedPreviewPropsManifest: PreviewPropsManifest | undefined

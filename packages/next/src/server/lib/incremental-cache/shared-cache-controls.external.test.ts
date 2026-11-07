@@ -118,6 +118,25 @@ describe('SharedCacheControls', () => {
     const cacheControl = sharedCacheControls.get('/route4', appRoute('/route4'))
     expect(cacheControl).toEqual({ revalidate: 30, expire: 50 })
   })
+  it('looks the prerender manifest up by the owner of the response', () => {
+    const owners: string[] = []
+    sharedCacheControls = new SharedCacheControls((route) => {
+      owners.push(route.sourceRoute)
+      return route.sourceRoute === '/route2'
+        ? prerenderManifest
+        : { routes: {}, dynamicRoutes: {} }
+    })
+
+    expect(sharedCacheControls.get('/route2', appRoute('/route2'))).toEqual({
+      revalidate: 20,
+      expire: 40,
+    })
+    expect(
+      sharedCacheControls.get('/route2', appRoute('/other'))
+    ).toBeUndefined()
+    expect(owners).toEqual(['/route2', '/other'])
+  })
+
   it('uses build-time metadata only for its recorded owner', () => {
     prerenderManifest.routes['/route2'].srcRoute = owner.sourceRoute
     prerenderManifest.routes['/route2'].dataRoute =

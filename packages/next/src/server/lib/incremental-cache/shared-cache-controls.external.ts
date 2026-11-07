@@ -9,6 +9,10 @@ import {
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { RouteKind } from '../../route-kind'
 
+type RoutePrerenderManifest = DeepReadonly<
+  Pick<PrerenderManifestRuntime, 'routes' | 'dynamicRoutes'>
+>
+
 /**
  * A shared cache of cache controls for routes. This cache is used so we don't
  * have to modify the prerender manifest when we want to update the cache
@@ -24,11 +28,11 @@ export class SharedCacheControls {
   constructor(
     /**
      * The prerender manifest that contains the initial cache controls for
-     * routes.
+     * routes, or a lookup of the manifest by the route that owns a response.
      */
-    private readonly prerenderManifest: DeepReadonly<
-      Pick<PrerenderManifestRuntime, 'routes' | 'dynamicRoutes'>
-    >,
+    private readonly prerenderManifest:
+      | RoutePrerenderManifest
+      | ((owner: ResponseCacheOwner) => RoutePrerenderManifest),
     private readonly locales?: readonly string[]
   ) {}
 
@@ -54,7 +58,12 @@ export class SharedCacheControls {
     )
     if (cacheControl) return cacheControl
 
-    let prerenderData = this.prerenderManifest.routes[route]
+    const prerenderManifest =
+      typeof this.prerenderManifest === 'function'
+        ? this.prerenderManifest(owner)
+        : this.prerenderManifest
+
+    let prerenderData = prerenderManifest.routes[route]
 
     if (
       prerenderData &&
@@ -75,7 +84,7 @@ export class SharedCacheControls {
         ? normalizeLocalePath(route, this.locales).pathname
         : route
     const dynamicPrerenderData =
-      this.prerenderManifest.dynamicRoutes[dynamicPathname]
+      prerenderManifest.dynamicRoutes[dynamicPathname]
 
     if (
       dynamicPrerenderData &&

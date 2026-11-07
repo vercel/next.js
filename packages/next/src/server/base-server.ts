@@ -31,6 +31,7 @@ import type {
   ManifestRewriteRoute,
   ManifestRoute,
   PrerenderManifest,
+  PrerenderManifestRuntime,
   PreviewPropsManifest,
 } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
@@ -151,6 +152,7 @@ import { getIsPossibleServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import type { ResponseCacheOwner } from './lib/route-cache-key'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 import {
@@ -400,6 +402,9 @@ export default abstract class Server<
     url?: string
   }): Promise<FindComponentsResult | null>
   protected abstract getPrerenderManifest(): DeepReadonly<PrerenderManifest>
+  protected abstract getRoutePrerenderManifest(
+    route: ResponseCacheOwner | undefined
+  ): DeepReadonly<PrerenderManifestRuntime>
   protected abstract getPreviewProps(): DeepReadonly<PreviewPropsManifest>
   protected abstract getNextFontManifest():
     | DeepReadonly<NextFontManifest>
@@ -2598,7 +2603,10 @@ export default abstract class Server<
     let staticPaths: string[] | undefined
     let hasFallback = false
 
-    const prerenderManifest = this.getPrerenderManifest()
+    // Only the entries of the page being rendered are read below.
+    const prerenderManifest = this.getRoutePrerenderManifest(
+      components.routeModule?.cacheOwner
+    )
 
     if (
       hasFallback ||

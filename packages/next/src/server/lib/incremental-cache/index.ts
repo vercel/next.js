@@ -1,4 +1,8 @@
-import { getRouteCacheKey, isRouteCacheOwner } from '../route-cache-key'
+import {
+  getRouteCacheKey,
+  isRouteCacheOwner,
+  type ResponseCacheOwner,
+} from '../route-cache-key'
 import type { CacheFs } from '../../../shared/lib/utils'
 import type {
   PrerenderManifest,
@@ -43,6 +47,14 @@ import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { areTagsExpired, areTagsStale } from './tags-manifest.external'
 import type { __ApiPreviewProps } from '../../api-utils'
+
+/**
+ * The prerender data to consult for a response: one manifest, or a lookup by
+ * the route that owns the response for a server that serves many routes.
+ */
+export type PrerenderManifestSource =
+  | DeepReadonly<PrerenderManifestRuntime>
+  | ((route: ResponseCacheOwner) => DeepReadonly<PrerenderManifestRuntime>)
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -166,7 +178,7 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly cacheHandler?: CacheHandler
   readonly hasCustomCacheHandler: boolean
   readonly previewProps: DeepReadonly<__ApiPreviewProps>
-  readonly prerenderManifest: DeepReadonly<PrerenderManifestRuntime>
+  readonly prerenderManifest: PrerenderManifestSource
   readonly requestHeaders: Record<string, undefined | string | string[]>
   readonly allowedRevalidateHeaderKeys?: string[]
   readonly minimalMode?: boolean
@@ -210,7 +222,7 @@ export class IncrementalCache implements IncrementalCacheType {
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
     previewProps: DeepReadonly<__ApiPreviewProps>
-    prerenderManifest: DeepReadonly<PrerenderManifestRuntime>
+    prerenderManifest: PrerenderManifestSource
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
   }) {
@@ -747,13 +759,18 @@ export class IncrementalCache implements IncrementalCacheType {
       }
     }
 
+    const prerenderManifest = cacheData
+      ? undefined
+      : typeof this.prerenderManifest === 'function'
+        ? this.prerenderManifest(ctx.route)
+        : this.prerenderManifest
+
     if (
-      !cacheData &&
-      this.prerenderManifest.notFoundRoutes.includes(cacheKey) &&
+      prerenderManifest?.notFoundRoutes.includes(cacheKey) &&
       isRouteCacheOwner(
         cacheKey,
         ctx.route,
-        this.prerenderManifest.routes[cacheKey],
+        prerenderManifest.routes[cacheKey],
         this.locales
       )
     ) {
