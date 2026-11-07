@@ -38,7 +38,8 @@ import { isInterceptionRouteAppPath } from '../../../shared/lib/router/utils/int
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
 import type { UrlWithParsedQuery } from 'url'
-import type { IncomingMessage } from 'http'
+import type { IncomingHttpHeaders, IncomingMessage } from 'http'
+import { createDevResponseLifecycle } from '../../app-render/dev-response-lifecycle'
 import {
   applyAppPageRscRequestMetaFromHeaders,
   normalizeAppPageRequestUrl,
@@ -93,6 +94,8 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   // Exact path-relative URL (pathname plus search) after route preparation,
   // preserving its encoded bytes for rendering and prerender request IDs.
   requestUrl: string
+  // Shared headers after request preparation; retain their live identity.
+  requestHeaders: IncomingHttpHeaders
   page: string
   routeMatch: RouteMatch
   query: NextParsedUrlQuery
@@ -191,6 +194,7 @@ export class AppPageRouteModule extends RouteModule<
       req,
       res,
       context.requestUrl,
+      context.requestHeaders,
       context.page,
       context.query,
       context.fallbackRouteParams,
@@ -204,29 +208,26 @@ export class AppPageRouteModule extends RouteModule<
       context.routeMatch,
       context.parsedRequestHeaders,
       context.serverActionRequestMetadata,
-      context.stagedFallbackParams
+      context.stagedFallbackParams,
+      process.env.__NEXT_DEV_SERVER ? createDevResponseLifecycle(res) : null
     )
   }
 
   public prerender(
-    req: BaseNextRequest,
     res: BaseNextResponse,
     context: AppPageRouteHandlerContext
   ): Promise<PrerenderResult> {
     return prerenderToHTMLOrFlight(
-      req,
       res,
       context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,
       context.renderOpts,
-      undefined,
       context.sharedContext,
       context.routeMatch,
       context.parsedRequestHeaders,
-      context.serverActionRequestMetadata,
-      context.stagedFallbackParams
+      context.serverActionRequestMetadata
     )
   }
 

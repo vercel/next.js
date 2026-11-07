@@ -120,6 +120,8 @@ type ActConfig =
   | 'no-requests'
   | null
 
+export type RouterAct = ReturnType<typeof createRouterAct>
+
 export function createRouterAct(
   page: Playwright.Page,
   options?: {
@@ -827,10 +829,14 @@ ${fulfilled.body}
           // Print a helpful error message.
 
           if (expectedResponses.length === 1) {
+            const includes = expectedResponses[0].includes
             error.message =
               'Expected a response containing the given string:\n\n' +
-              expectedResponses[0].includes +
+              includes +
               '\n'
+            ;(error as ActMissingResponseError).code =
+              MISSING_RESPONSE_ERROR_CODE
+            ;(error as ActMissingResponseError).includes = includes
           } else {
             const expectedSubstrings = expectedResponses.map(
               (item) => item.includes
@@ -891,4 +897,84 @@ ${fulfilled.body}
   }
 
   return act
+}
+
+const MISSING_RESPONSE_ERROR_CODE = 'MISSING_RESPONSE'
+type ActMissingResponseError = Error & {
+  code: typeof MISSING_RESPONSE_ERROR_CODE
+  includes: string
+}
+
+export function isActMissingResponseError(
+  thrown: unknown,
+  expected: string
+): thrown is ActMissingResponseError {
+  if (
+    thrown &&
+    typeof thrown === 'object' &&
+    'message' in thrown &&
+    typeof thrown.message === 'string' &&
+    'code' in thrown &&
+    thrown.code === MISSING_RESPONSE_ERROR_CODE
+  ) {
+    const error = thrown as ActMissingResponseError
+    return error.includes === expected
+  }
+  return false
+}
+
+/**
+ * Waits for the ISR fallback retry loop to receive a concrete response.
+ *
+ * @param concretePrerenderAssertion - An `act()` assertion that matches the concrete prerender.
+ * If the response needs to be delayed (e.g. to assert that it's followed with a runtime prefetch),
+ * nest the call in an another `act()` and set `block: true`.
+ * */
+export async function waitForSuccessfulISRFallbackRetry(
+  act: RouterAct,
+  concretePrerenderAssertion: {
+    includes: string
+    kind: 'static'
+    block?: boolean
+  }
+) {
+  // The router retries ISR fallbacks in 2s intervals.
+  const interval = 2_000
+  const maxAttempts = 5
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await act(async () => {
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, interval + 100)
+        )
+      }, [
+        // The retried request eventually yields a concrete prerender.
+        concretePrerenderAssertion,
+        // NO Runtime prefetch to get the content
+        // or runtime requests of any kind
+        { includes: '', kind: 'runtime', block: 'reject' },
+      ])
+
+      // if act() succeeded, then we got a complete prerender, and can stop waiting
+      // for retries.
+      break
+    } catch (err) {
+      // act() threw. Check if it's because we still didn't get a slug in the response.
+      // This may happen if the concrete prerender hasn't finished yet.
+      if (isActMissingResponseError(err, concretePrerenderAssertion.includes)) {
+        // The router did a retry, but got an ISR fallback again.
+        if (attempt < maxAttempts) {
+          console.error(`Retry ${attempt} failed:`, err)
+        } else {
+          throw new Error(
+            `Did not receive a concrete prerender after ${maxAttempts} attempts`,
+            { cause: err }
+          )
+        }
+      } else {
+        // All other errors get reported as-is.
+        throw err
+      }
+    }
+  }
 }

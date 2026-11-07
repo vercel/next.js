@@ -22,6 +22,7 @@ use turbopack_core::{
     reference_type::ReferenceType,
     resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult},
     source::OptionSource,
+    source_map::SourceMapGenerationOptions,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
@@ -33,6 +34,8 @@ use turbopack_ecmascript::{
     runtime_functions::TURBOPACK_EXPORT_NAMESPACE,
     utils::StringifyJs,
 };
+
+use crate::next_client_reference::{CLIENT_MERGE_TAG, SSR_MERGE_TAG};
 
 /// A [`EcmascriptClientReferenceModule`] is used in RSC to represent
 /// a client or SSR asset.
@@ -72,7 +75,7 @@ impl EcmascriptClientReferenceModule {
 
     #[turbo_tasks::function]
     async fn proxy_module(&self) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
         let is_esm: bool;
 
         let server_module_path = &*self.server_ident.to_string().await?;
@@ -186,13 +189,6 @@ impl EcmascriptClientReferenceModule {
     }
 }
 
-pub fn ecmascript_client_reference_merge_tag() -> RcStr {
-    rcstr!("client")
-}
-pub fn ecmascript_client_reference_merge_tag_ssr() -> RcStr {
-    rcstr!("ssr")
-}
-
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
@@ -229,7 +225,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*client_module),
                     ChunkGroupType::Evaluated,
-                    Some(ecmascript_client_reference_merge_tag()),
+                    Some(CLIENT_MERGE_TAG),
                     rcstr!("ecmascript client reference to client"),
                 )
                 .to_resolved()
@@ -239,7 +235,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*ssr_module),
                     ChunkGroupType::Entry,
-                    Some(ecmascript_client_reference_merge_tag_ssr()),
+                    Some(SSR_MERGE_TAG),
                     rcstr!("ecmascript client reference to ssr"),
                 )
                 .to_resolved()

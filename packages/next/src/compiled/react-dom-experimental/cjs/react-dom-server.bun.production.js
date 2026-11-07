@@ -290,6 +290,7 @@ function createRenderState(
         pushScriptImpl(externalRuntimeScript.chunks, {
           src: externalRuntimeConfig,
           async: !0,
+          crossOrigin: void 0,
           integrity: void 0,
           nonce: nonceScript
         }))
@@ -300,6 +301,7 @@ function createRenderState(
         pushScriptImpl(externalRuntimeScript.chunks, {
           src: externalRuntimeConfig.src,
           async: !0,
+          crossOrigin: externalRuntimeConfig.crossOrigin,
           integrity: externalRuntimeConfig.integrity,
           nonce: nonceScript
         })));
@@ -479,6 +481,16 @@ function createRenderState(
         bootstrapChunks.push(' async="">\x3c/script>');
   return onHeaders;
 }
+function resumeRenderState(resumableState, nonce) {
+  return createRenderState(
+    resumableState,
+    nonce,
+    resumableState.externalRuntimeConfig,
+    void 0,
+    void 0,
+    void 0
+  );
+}
 function createResumableState(
   identifierPrefix,
   externalRuntimeConfig,
@@ -492,6 +504,7 @@ function createResumableState(
     idPrefix: void 0 === identifierPrefix ? "" : identifierPrefix,
     nextFormID: 0,
     streamingFormat: streamingFormat,
+    externalRuntimeConfig: externalRuntimeConfig,
     bootstrapScriptContent: bootstrapScriptContent,
     bootstrapScripts: bootstrapScripts,
     bootstrapModules: bootstrapModules,
@@ -3315,10 +3328,9 @@ function pushTreeContext(baseContext, totalChildren, index) {
   var length = 32 - clz32(totalChildren) + baseLength;
   if (30 < length) {
     var numberOfOverflowBits = baseLength - (baseLength % 5);
-    length = (
-      baseIdWithLeadingBit &
-      ((1 << numberOfOverflowBits) - 1)
-    ).toString(32);
+    length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+      .toString(32)
+      .padStart(numberOfOverflowBits / 5, "0");
     baseIdWithLeadingBit >>= numberOfOverflowBits;
     baseLength -= numberOfOverflowBits;
     return {
@@ -5668,18 +5680,18 @@ function retryNode(request, task) {
                           x)
                         );
                       task.replay.pendingTasks--;
-                      key = getThrownInfo(task.componentStack);
+                      props = getThrownInfo(task.componentStack);
                       currentNode = request;
-                      props = task.blockedBoundary;
+                      key = task.blockedBoundary;
                       request = request.aborted ? request.fatalError : x;
-                      key = logRecoverableError(currentNode, request, key);
+                      props = logRecoverableError(currentNode, request, props);
                       abortRemainingReplayNodes(
                         currentNode,
-                        props,
+                        key,
                         childNodes,
                         childSlots,
                         request,
-                        key
+                        props
                       );
                     }
                     task.replay = replay;
@@ -5691,16 +5703,16 @@ function retryNode(request, task) {
                           ">. The tree doesn't match so React will fallback to client rendering."
                       );
                     b: {
-                      replay = node$jscomp$0[5];
-                      type = node$jscomp$0[2];
-                      ref = node$jscomp$0[3];
-                      name =
+                      var id = node$jscomp$0[5];
+                      replay = node$jscomp$0[2];
+                      type = node$jscomp$0[3];
+                      ref =
                         null === node$jscomp$0[4] ? [] : node$jscomp$0[4][2];
                       node$jscomp$0 =
                         null === node$jscomp$0[4] ? null : node$jscomp$0[4][3];
-                      keyOrIndex = task.keyPath;
-                      var prevContext = task.formatContext,
-                        prevRow = task.row,
+                      name = task.keyPath;
+                      keyOrIndex = task.formatContext;
+                      var prevRow = task.row,
                         previousReplaySet = task.replay,
                         parentBoundary = task.blockedBoundary,
                         parentHoistableState = task.hoistableState,
@@ -5721,18 +5733,28 @@ function retryNode(request, task) {
                         defer
                       );
                       defer.parentFlushed = !0;
-                      defer.rootSegmentID = replay;
+                      defer.rootSegmentID = id;
+                      id = [key[0], "Suspense Fallback", key[2]];
+                      var trackedPostpones = request.trackedPostpones;
+                      if (null !== trackedPostpones) {
+                        var fallbackReplayNode = [id[1], id[2], [], null];
+                        trackedPostpones.workingMap.set(id, fallbackReplayNode);
+                        defer.tracked = {
+                          contentKeyPath: key,
+                          fallbackNode: fallbackReplayNode
+                        };
+                      }
                       task.blockedBoundary = defer;
                       task.hoistableState = defer.contentState;
                       task.keyPath = key;
                       task.formatContext = getSuspenseContentFormatContext(
                         request.resumableState,
-                        prevContext
+                        keyOrIndex
                       );
                       task.row = null;
                       task.replay = {
-                        nodes: type,
-                        slots: ref,
+                        nodes: replay,
+                        slots: type,
                         pendingTasks: 1
                       };
                       try {
@@ -5768,20 +5790,20 @@ function retryNode(request, task) {
                         (task.blockedBoundary = parentBoundary),
                           (task.hoistableState = parentHoistableState),
                           (task.replay = previousReplaySet),
-                          (task.keyPath = keyOrIndex),
-                          (task.formatContext = prevContext),
+                          (task.keyPath = name),
+                          (task.formatContext = keyOrIndex),
                           (task.row = prevRow);
                       }
                       task = createReplayTask(
                         request,
                         null,
-                        { nodes: name, slots: node$jscomp$0, pendingTasks: 0 },
+                        { nodes: ref, slots: node$jscomp$0, pendingTasks: 0 },
                         fallback,
                         -1,
                         parentBoundary,
                         defer.fallbackState,
                         props,
-                        [key[0], "Suspense Fallback", key[2]],
+                        id,
                         getSuspenseFallbackFormatContext(
                           request.resumableState,
                           task.formatContext
@@ -5997,7 +6019,8 @@ function renderChildrenArray(request, task, children, childIndex) {
 }
 function trackPostponedBoundary(request, trackedPostpones, boundary) {
   boundary.status = 5;
-  boundary.rootSegmentID = request.nextSegmentId++;
+  -1 === boundary.rootSegmentID &&
+    (boundary.rootSegmentID = request.nextSegmentId++);
   var tracked = boundary.tracked;
   if (null === tracked)
     throw Error(
@@ -6577,7 +6600,10 @@ function finishedTask(request, boundary, row, segment) {
           segment.parentFlushed &&
           (1 === segment.status || 3 === segment.status) &&
           queueCompletedSegment(boundary, segment),
-        boundary.parentFlushed && request.completedBoundaries.push(boundary),
+        boundary.parentFlushed &&
+          (5 === boundary.status
+            ? request.partialBoundaries.push(boundary)
+            : request.completedBoundaries.push(boundary)),
         1 === boundary.status)
       )
         (row = boundary.row),
@@ -7547,7 +7573,8 @@ function flushCompletedQueues(request, destination) {
       null !== i && (i.nextSegmentId = request.nextSegmentId),
       0 === request.allPendingTasks &&
       0 === request.clientRenderedBoundaries.length &&
-      0 === request.completedBoundaries.length
+      0 === request.completedBoundaries.length &&
+      0 === request.partialBoundaries.length
         ? ((request.flushScheduled = !1),
           (i = request.resumableState),
           i.hasBody && writeChunk(destination, endChunkForTag("body")),
@@ -7721,11 +7748,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-experimental-ba39b32a-20261019" !== isomorphicReactPackageVersion)
+  if ("19.3.0-experimental-e84e1492-20261031" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-experimental-ba39b32a-20261019\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-experimental-e84e1492-20261031\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7794,13 +7821,9 @@ function resumeRequestImpl(children, postponedState, options) {
   return resumeRequest(
     children,
     postponedState,
-    createRenderState(
+    resumeRenderState(
       postponedState.resumableState,
-      options ? options.nonce : void 0,
-      void 0,
-      void 0,
-      void 0,
-      void 0
+      options ? options.nonce : void 0
     ),
     options ? options.onError : void 0,
     options ? options.onBrowserBailout : void 0,
@@ -8061,13 +8084,9 @@ exports.resume = function (children, postponedState, options) {
       request = resumeRequest(
         children,
         postponedState,
-        createRenderState(
+        resumeRenderState(
           postponedState.resumableState,
-          options ? options.nonce : void 0,
-          void 0,
-          void 0,
-          void 0,
-          void 0
+          options ? options.nonce : void 0
         ),
         options ? options.onError : void 0,
         options ? options.onBrowserBailout : void 0,
@@ -8111,14 +8130,7 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     var request = resumeAndPrerenderRequest(
       children,
       postponedState,
-      createRenderState(
-        postponedState.resumableState,
-        void 0,
-        void 0,
-        void 0,
-        void 0,
-        void 0
-      ),
+      resumeRenderState(postponedState.resumableState, void 0),
       options ? options.onError : void 0,
       options ? options.onBrowserBailout : void 0,
       function () {
@@ -8160,14 +8172,7 @@ exports.resumeAndPrerenderToNodeStream = function (
     var request = resumeAndPrerenderRequest(
       children,
       postponedState,
-      createRenderState(
-        postponedState.resumableState,
-        void 0,
-        void 0,
-        void 0,
-        void 0,
-        void 0
-      ),
+      resumeRenderState(postponedState.resumableState, void 0),
       options ? options.onError : void 0,
       options ? options.onBrowserBailout : void 0,
       function () {
@@ -8219,4 +8224,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.3.0-experimental-ba39b32a-20261019";
+exports.version = "19.3.0-experimental-e84e1492-20261031";

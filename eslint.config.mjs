@@ -310,9 +310,6 @@ export default defineConfig([
             'itSkipDeploy',
             'itCI',
             'itHeaded',
-            'itTurbopack',
-            'itTurbopackDev',
-            'itOnlyTurbopack',
           ],
         },
       ],
@@ -473,6 +470,19 @@ export default defineConfig([
   {
     files: ['packages/next/src/server/app-render/app-render.tsx'],
     rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'req',
+          property: 'url',
+          message: 'Use the explicit `requestUrl` input instead.',
+        },
+        {
+          object: 'req',
+          property: 'headers',
+          message: 'Use the explicit `requestHeaders` input instead.',
+        },
+      ],
       '@typescript-eslint/no-restricted-imports': [
         'error',
         {

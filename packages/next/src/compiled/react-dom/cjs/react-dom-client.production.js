@@ -2918,10 +2918,9 @@ function pushTreeId(workInProgress, totalChildren, index) {
   var length = 32 - clz32(totalChildren) + baseLength;
   if (30 < length) {
     var numberOfOverflowBits = baseLength - (baseLength % 5);
-    length = (
-      baseIdWithLeadingBit &
-      ((1 << numberOfOverflowBits) - 1)
-    ).toString(32);
+    length = (baseIdWithLeadingBit & ((1 << numberOfOverflowBits) - 1))
+      .toString(32)
+      .padStart(numberOfOverflowBits / 5, "0");
     baseIdWithLeadingBit >>= numberOfOverflowBits;
     baseLength -= numberOfOverflowBits;
     treeContextId =
@@ -12429,7 +12428,11 @@ function resetWorkInProgressStack() {
 function prepareFreshStack(root, lanes) {
   var timeoutHandle = root.timeoutHandle;
   -1 !== timeoutHandle &&
-    ((root.timeoutHandle = -1), cancelTimeout(timeoutHandle));
+    ((root.timeoutHandle = -1),
+    cancelTimeout(timeoutHandle),
+    (timeoutHandle = pendingEffectsLanes),
+    (root.pingedLanes |= root.suspendedLanes & timeoutHandle),
+    (root.warmLanes &= ~timeoutHandle));
   timeoutHandle = root.cancelPendingCommit;
   null !== timeoutHandle &&
     ((root.cancelPendingCommit = null), timeoutHandle());
@@ -13383,7 +13386,9 @@ function resolveRetryWakeable(boundaryFiber, wakeable) {
       retryCache = boundaryFiber.stateNode;
       break;
     case 22:
-      retryCache = boundaryFiber.stateNode._retryCache;
+      retryCache = boundaryFiber.stateNode;
+      if (null === retryCache) return;
+      retryCache = retryCache._retryCache;
       break;
     default:
       throw Error(formatProdErrorMessage(314));
@@ -13683,20 +13688,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1672 = 0;
-  i$jscomp$inline_1672 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1672++
+  var i$jscomp$inline_1675 = 0;
+  i$jscomp$inline_1675 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1675++
 ) {
-  var eventName$jscomp$inline_1673 =
-      simpleEventPluginEvents[i$jscomp$inline_1672],
-    domEventName$jscomp$inline_1674 =
-      eventName$jscomp$inline_1673.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1675 =
-      eventName$jscomp$inline_1673[0].toUpperCase() +
-      eventName$jscomp$inline_1673.slice(1);
+  var eventName$jscomp$inline_1676 =
+      simpleEventPluginEvents[i$jscomp$inline_1675],
+    domEventName$jscomp$inline_1677 =
+      eventName$jscomp$inline_1676.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1678 =
+      eventName$jscomp$inline_1676[0].toUpperCase() +
+      eventName$jscomp$inline_1676.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1674,
-    "on" + capitalizedEvent$jscomp$inline_1675
+    domEventName$jscomp$inline_1677,
+    "on" + capitalizedEvent$jscomp$inline_1678
   );
 }
 registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
@@ -13996,7 +14001,10 @@ function dispatchEventForPluginEventSystem(
           case ANIMATION_START:
             SyntheticEventCtor = SyntheticAnimationEvent;
             break;
+          case TRANSITION_CANCEL:
           case TRANSITION_END:
+          case TRANSITION_RUN:
+          case TRANSITION_START:
             SyntheticEventCtor = SyntheticTransitionEvent;
             break;
           case "scroll":
@@ -15882,17 +15890,18 @@ function startViewTransition(
           if ("object" === typeof error && null !== error)
             switch (error.name) {
               case "InvalidStateError":
-                if (
-                  "View transition was skipped because document visibility state is hidden." ===
-                    error.message ||
-                  "Skipping view transition because document visibility state has become hidden." ===
-                    error.message ||
-                  "Skipping view transition because viewport size changed." ===
-                    error.message ||
-                  "Transition was aborted because of invalid state" ===
-                    error.message
-                )
-                  error = null;
+                switch (error.message) {
+                  case "Transition was aborted because of invalid state":
+                  case "Transition was aborted because of invalid state.":
+                  case "Transition was aborted because of invalid state. Document hidden":
+                  case "Transition was aborted because of invalid state. Viewport size changed":
+                  case "Skipped ViewTransition due to document being hidden":
+                  case "Skipped view transition due to viewport resize":
+                  case "View transition was skipped because document visibility state is hidden.":
+                  case "Skipping view transition because document visibility state has become hidden.":
+                  case "Skipping view transition because viewport size changed.":
+                    error = null;
+                }
             }
           null !== error && errorCallback(error);
         } finally {
@@ -18545,16 +18554,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2051 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2054 = React.version;
 if (
-  "19.3.0-canary-ba39b32a-20261019" !==
-  isomorphicReactPackageVersion$jscomp$inline_2051
+  "19.3.0-canary-e84e1492-20261031" !==
+  isomorphicReactPackageVersion$jscomp$inline_2054
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2051,
-      "19.3.0-canary-ba39b32a-20261019"
+      isomorphicReactPackageVersion$jscomp$inline_2054,
+      "19.3.0-canary-e84e1492-20261031"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18574,24 +18583,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2599 = {
+var internals$jscomp$inline_2605 = {
   bundleType: 0,
-  version: "19.3.0-canary-ba39b32a-20261019",
+  version: "19.3.0-canary-e84e1492-20261031",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-ba39b32a-20261019"
+  reconcilerVersion: "19.3.0-canary-e84e1492-20261031"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2600 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2606 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2600.isDisabled &&
-    hook$jscomp$inline_2600.supportsFiber
+    !hook$jscomp$inline_2606.isDisabled &&
+    hook$jscomp$inline_2606.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2600.inject(
-        internals$jscomp$inline_2599
+      (rendererID = hook$jscomp$inline_2606.inject(
+        internals$jscomp$inline_2605
       )),
-        (injectedHook = hook$jscomp$inline_2600);
+        (injectedHook = hook$jscomp$inline_2606);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -18677,4 +18686,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-ba39b32a-20261019";
+exports.version = "19.3.0-canary-e84e1492-20261031";

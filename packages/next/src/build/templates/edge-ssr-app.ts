@@ -128,6 +128,7 @@ async function requestHandler(
     'parsedRequestHeaders'
   > = {
     requestUrl: baseReq.url,
+    requestHeaders: baseReq.headers,
     serverActionRequestMetadata,
     page: normalizedSrcPage,
     routeMatch,
@@ -212,8 +213,7 @@ async function requestHandler(
           nextConfig.experimental.durableUseCacheEntries
         ),
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
-        clientTraceMetadata:
-          nextConfig.experimental.clientTraceMetadata || ([] as any),
+        clientTraceMetadata: nextConfig.experimental.clientTraceMetadata || [],
         clientParamParsingOrigins:
           nextConfig.experimental.clientParamParsingOrigins,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
@@ -225,6 +225,8 @@ async function requestHandler(
           nextConfig.cacheComponents === true &&
           (pageRouteModule.isDev === true ||
             nextConfig.experimental.exposeTestingApiInProductionBuild === true),
+        externalBrowserRuntime:
+          nextConfig.experimental.externalBrowserRuntime === true,
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(
@@ -272,7 +274,7 @@ async function requestHandler(
     const headers = new Headers()
     finalStatus = metadata.statusCode || baseRes.statusCode || 200
     // Pull any fetch metrics from the render onto the request.
-    ;(req as any).fetchMetrics = metadata.fetchMetrics
+    req.fetchMetrics = metadata.fetchMetrics
 
     // Set content type
     const contentType = result.contentType || 'text/html; charset=utf-8'
@@ -404,6 +406,9 @@ async function requestHandler(
 
       return renderResultToResponse(result)
     } catch (err) {
+      if (!closeController.isClosed) {
+        closeController.dispatchClose()
+      }
       const silenceLog = false
       await pageRouteModule.onRequestError(
         baseReq,

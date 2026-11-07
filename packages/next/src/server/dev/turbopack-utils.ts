@@ -425,12 +425,12 @@ export async function handleRouteType({
 
       break
     }
-    case 'app-route': {
+    case 'app-route':
+    case 'app-route-go': {
       const key = getEntryKey('app', 'server', page)
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
-
       if (dev) {
         // Advance the hot-reloader's HMR refresh hash whenever this route
         // handler is recompiled, so its `"use cache"` entries are invalidated
@@ -460,6 +460,12 @@ export async function handleRouteType({
       }
 
       const type = writtenEndpoint.value.type
+      const isNative = type === 'native'
+      if (isNative) {
+        // Native compilation may fail without publishing manifests. Keep the
+        // issue subscription above active so source edits can repair the route.
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
 
       manifestLoader.loadAppPathsManifest(page)
       if (route.hasActionManifest) {
@@ -478,7 +484,9 @@ export async function handleRouteType({
         productionRewrites,
         entrypoints,
       })
-      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      if (!isNative) {
+        processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      }
 
       break
     }
@@ -670,7 +678,8 @@ export async function handleEntrypoints({
         })
         break
       }
-      case 'app-route': {
+      case 'app-route':
+      case 'app-route-go': {
         currentEntrypoints.app.set(route.originalName, route)
         break
       }

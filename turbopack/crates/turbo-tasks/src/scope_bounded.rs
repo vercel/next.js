@@ -119,6 +119,8 @@ pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
     /// Max number of threads to use, threads are only spawned when needed. The calling thread
     /// counts towards this budget, so we spawn at most `worker_tasks - 1` helpers.
     worker_tasks: NonZeroUsize,
+    /// The caller's turbo-tasks context, entered by each helper task so jobs on helper threads see
+    /// the same context as jobs drained inline by the calling thread.
     turbo_tasks: Option<Arc<dyn TurboTasksApi>>,
     span: Span,
     /// Invariance over 'env, to make sure 'env cannot shrink, which is necessary for soundness.
@@ -167,17 +169,11 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
         assert!(index < self.results.len(), "Too many tasks spawned");
         let result_cell: &Mutex<Option<R>> = &self.results[index];
 
-        let turbo_tasks = self.turbo_tasks.clone();
+        // The turbo-tasks context is not entered per job: helpers enter it once (below), and the
+        // calling thread already has it. Re-entering it on the calling thread would panic when the
+        // caller holds a borrow of the task-local, e.g. inside `with_turbo_tasks`.
         let f: Box<dyn FnOnce() + Send + 'scope> = Box::new(|| {
-            let result = {
-                if let Some(turbo_tasks) = turbo_tasks {
-                    // Ensure that the turbo tasks context is maintained across the job.
-                    turbo_tasks_scope(turbo_tasks, f)
-                } else {
-                    // If no turbo tasks context is available, just run the job.
-                    f()
-                }
-            };
+            let result = f();
             *result_cell.lock() = Some(result);
         });
         let f: *mut (dyn FnOnce() + Send + 'scope) = Box::into_raw(f);
@@ -209,9 +205,15 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
         if index < self.worker_tasks.get() - 1 {
             let inner = self.inner.clone();
             let span = self.span.clone();
+            let turbo_tasks = self.turbo_tasks.clone();
             self.handle.spawn(async move {
                 let _span = span.entered();
-                inner.run_jobs();
+                if let Some(turbo_tasks) = turbo_tasks {
+                    // Ensure that the turbo tasks context is maintained across the jobs.
+                    turbo_tasks_scope(turbo_tasks, || inner.run_jobs());
+                } else {
+                    inner.run_jobs();
+                }
             });
         }
     }

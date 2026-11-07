@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
@@ -32,7 +32,7 @@ describe('app-dir edge SSR', () => {
     expect(appHtml).toContain('the /index route')
   })
 
-  if ((globalThis as any).isNextDev) {
+  if (isNextDev) {
     it('should resolve module without error in edge runtime', async () => {
       const logs = []
       next.on('stderr', (log) => {

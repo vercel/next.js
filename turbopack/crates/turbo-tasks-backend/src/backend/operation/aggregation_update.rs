@@ -40,10 +40,7 @@ use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::
 use crate::{
     backend::{
         TaskDataCategory,
-        operation::{
-            ExecuteContext, TaskGuard, connect_child::resurrect_deleted,
-            invalidate::make_task_dirty_internal,
-        },
+        operation::{ExecuteContext, TaskGuard, invalidate::make_task_dirty_internal},
         storage_schema::TaskStorageAccessors,
     },
     data::{ActivenessState, AggregationNumber, CollectibleRef, CollectiblesRef},
@@ -75,6 +72,9 @@ const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::All;
 
 type TaskIdVec = SmallVec<[TaskId; 4]>;
 type TaskIdWithCountVec = SmallVec<[(TaskId, u32); 2]>;
+/// Collectible count changes of an [`AggregatedDataUpdate`]. Most updates change a single
+/// collectible, so one entry is stored inline.
+pub type CollectiblesUpdateVec = SmallVec<[(CollectibleRef, i32); 1]>;
 
 /// Returns true, when a node is aggregating its children and a partial subgraph.
 pub fn is_aggregating_node(aggregation_number: u32) -> bool {
@@ -348,9 +348,11 @@ struct DirtyContainerUpdate {
 ///
 /// The order of the result is unspecified. Counts are added without overflow checks; their sum is
 /// not expected to overflow.
-fn sum_collectibles_update<K: Hash + Eq + Copy>(mut update: Vec<(K, i32)>) -> Vec<(K, i32)> {
+fn sum_collectibles_update<K: Hash + Eq + Copy>(
+    mut update: SmallVec<[(K, i32); 1]>,
+) -> SmallVec<[(K, i32); 1]> {
     if update.len() < 2 {
-        update.retain(|&(_, count)| count != 0);
+        update.retain(|&mut (_, count)| count != 0);
         return update;
     }
     let mut sums: FxHashMap<K, i32> =
@@ -369,7 +371,7 @@ pub struct AggregatedDataUpdate {
     /// One of the inner tasks has changed its dirty state or aggregated dirty state.
     dirty_container_update: Option<DirtyContainerUpdate>,
     /// One of the inner tasks has changed its collectibles count or aggregated collectibles count.
-    collectibles_update: Vec<(CollectibleRef, i32)>,
+    collectibles_update: CollectiblesUpdateVec,
 }
 
 impl AggregatedDataUpdate {
@@ -390,8 +392,9 @@ impl AggregatedDataUpdate {
                 .unwrap_or_default();
             // Allocate an upper bound of the number of entries up front, so the update isn't
             // reallocated while the task is locked.
-            let mut collectibles_update =
-                Vec::with_capacity(task.collectibles_len() + task.aggregated_collectibles_len());
+            let mut collectibles_update = CollectiblesUpdateVec::with_capacity(
+                task.collectibles_len() + task.aggregated_collectibles_len(),
+            );
             collectibles_update.extend(task.iter_collectibles().map(|(&k, &v)| (k, v)));
             for (collectible, count) in task.iter_aggregated_collectibles() {
                 if *count > 0 {
@@ -670,7 +673,7 @@ impl AggregatedDataUpdate {
     pub fn new() -> Self {
         Self {
             dirty_container_update: None,
-            collectibles_update: Vec::new(),
+            collectibles_update: SmallVec::new(),
         }
     }
 
@@ -690,7 +693,7 @@ impl AggregatedDataUpdate {
     }
 
     /// Adds a collectibles update to the update.
-    pub fn collectibles_update(mut self, collectibles_update: Vec<(CollectibleRef, i32)>) -> Self {
+    pub fn collectibles_update(mut self, collectibles_update: CollectiblesUpdateVec) -> Self {
         self.collectibles_update = collectibles_update;
         self
     }
@@ -1563,7 +1566,7 @@ impl AggregationUpdateQueue {
             false
         } else if let Some(OptimizeJob {
             task_id,
-            optimization_pending_flag_already_set,
+            optimization_pending_flag_already_set: _,
             #[cfg(feature = "trace_aggregation_update_queue")]
             span,
         }) = self.optimize_queue.pop_front()
@@ -1579,7 +1582,7 @@ impl AggregationUpdateQueue {
                 self.stats.optimize_task += 1;
             }
             self.optimizations_executed += 1;
-            self.optimize_task(ctx, task_id, optimization_pending_flag_already_set);
+            self.optimize_task(ctx, task_id);
             false
         } else if !self.find_and_schedule.is_empty() {
             let count = self
@@ -3213,14 +3216,13 @@ impl AggregationUpdateQueue {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
-        let task = ctx.task(
+        let mut task = ctx.task(
             task_id,
             // For performance reasons this should stay Meta and not All.
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
-        // Revive the task if GC soft-deleted it.
-        let mut task = resurrect_deleted(task, task_id, self, ctx);
+        task.assert_not_deleted("increase_active_count");
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
@@ -3271,12 +3273,11 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             AGGREGATION_UPDATE_CATEGORY,
         );
-        // Skip deleted tasks, which can be encountered while processing GC's deferred cleanup.
-        // This just means there is no point in rebalancing the subgraph here since this 'root' is
-        // dead.
-        if task.deleted() {
-            return;
-        }
+        // Only balance and optimize jobs and normal operations update aggregation numbers. GC's
+        // parallel collect runs neither, and its deferred rebalance starts from edges whose
+        // endpoints were filtered for deletion, so reaching a deleted task means edge removal left
+        // an aggregation or child edge to it.
+        task.assert_not_deleted("update_aggregation_number");
         self.check_optimization_pending(&task);
         let current = task.get_aggregation_number().copied().unwrap_or_default();
         let old = current.effective;
@@ -3355,16 +3356,7 @@ impl AggregationUpdateQueue {
     /// than the number of upper edges. Increasing the aggregation reduces the number of upper
     /// edges, as it places the task in a bigger aggregation group. We want to avoid having too many
     /// upper edges as this amplifies the updates needed when changes to that task occur.
-    ///
-    /// `optimization_pending_flag_already_set` is the snapshot recorded on the `OptimizeJob`: when
-    /// `true`, we also need to clear `optimization_pending` here (this is the only path that
-    /// does so); when `false`, the flag is known to be unset already and we can skip the write.
-    fn optimize_task(
-        &mut self,
-        ctx: &mut ExecuteContext<'_>,
-        task_id: TaskId,
-        optimization_pending_flag_already_set: bool,
-    ) {
+    fn optimize_task(&mut self, ctx: &mut ExecuteContext<'_>, task_id: TaskId) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("check optimize").entered();
 
@@ -3373,18 +3365,13 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             TaskDataCategory::Meta,
         );
-        if optimization_pending_flag_already_set {
-            // Clear the pending flag — this is the only path that does so. We skip the
-            // write when our snapshot says the flag wasn't set (push path / self-re-enqueue
-            // path); the setter would just no-op in that case, but reading the snapshot is
-            // free and lets us elide the write entirely.
-            task.set_optimization_pending(false);
-        }
-        // A racing GC pass may have deleted this task, just return
-        // still clear the `optimization_pending` flag just in case we get resurrected.
-        if task.deleted() {
-            return;
-        }
+
+        // Optimize jobs only target live tasks: GC's parallel collect never optimizes, and its
+        // deferred rebalance starts from edges whose endpoints were filtered for deletion. An
+        // optimization reaching a deleted task means edge removal left an aggregation edge to it.
+        task.assert_not_deleted("optimize_task");
+        // We are about to optimize, so optimization is no longer pending.
+        task.set_optimization_pending(false);
         let aggregation_number = task.get_aggregation_number().copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {
             return;
@@ -3588,6 +3575,7 @@ fn retry_loop(mut retry: u16, mut f: impl FnMut() -> ControlFlow<()>) -> Result<
 #[cfg(test)]
 mod tests {
     use rustc_hash::{FxHashMap, FxHashSet};
+    use smallvec::{SmallVec, smallvec};
     use turbo_tasks::{CellId, TaskId, TraitTypeId, ValueTypeId};
 
     use super::{AggregatedDataUpdate, sum_collectibles_update};
@@ -3657,7 +3645,7 @@ mod tests {
     /// the unsummed ones: equal final counts, equal sets of keys whose presence changed, and every
     /// such key still flips.
     fn assert_equivalent(start: &FxHashMap<u32, i32>, update: &[(u32, i32)]) {
-        let summed = sum_collectibles_update(update.to_vec());
+        let summed = sum_collectibles_update(SmallVec::from_slice(update));
         let mut expected = FxHashMap::default();
         for &(key, count) in update {
             *expected.entry(key).or_insert(0) += count;
@@ -3688,28 +3676,45 @@ mod tests {
     #[test]
     fn optimize_sums_per_key_and_drops_zeros() {
         let update = [(1, -1), (2, 1), (1, 1), (3, 2), (2, -1), (3, 1)];
-        let summed = sum_collectibles_update(update.to_vec());
-        assert_eq!(summed, vec![(3, 3)]);
+        let summed = sum_collectibles_update(SmallVec::from_slice(&update));
+        assert_eq!(summed.as_slice(), [(3, 3)]);
     }
 
     #[test]
     fn optimize_mixed_signs_and_counts() {
         let update = [(1, -2), (1, 1), (1, 1), (2, 5), (2, -3), (4, -1)];
-        let summed = sum_collectibles_update(update.to_vec());
+        let summed = sum_collectibles_update(SmallVec::from_slice(&update));
         assert_eq!(as_map(&summed), [(2, 2), (4, -1)].into_iter().collect());
     }
 
     #[test]
     fn optimize_empty_and_single_entry() {
-        assert_eq!(sum_collectibles_update(Vec::<(u32, i32)>::new()), vec![]);
-        assert_eq!(sum_collectibles_update(vec![(7, 3)]), vec![(7, 3)]);
-        assert_eq!(sum_collectibles_update(vec![(7, 0)]), vec![]);
+        let empty = sum_collectibles_update(SmallVec::<[(u32, i32); 1]>::new());
+        assert!(empty.is_empty());
+        assert!(!empty.spilled());
+        let single = sum_collectibles_update(smallvec![(7u32, 3)]);
+        assert_eq!(single.as_slice(), [(7, 3)]);
+        assert!(!single.spilled());
+        assert!(sum_collectibles_update(smallvec![(7u32, 0)]).is_empty());
+    }
+
+    #[test]
+    fn optimize_reuses_the_allocation() {
+        let update: SmallVec<[(u32, i32); 1]> = smallvec![(1, 1), (2, 1), (1, 1), (3, -1)];
+        assert!(update.spilled());
+        let ptr = update.as_ptr();
+        let summed = sum_collectibles_update(update);
+        assert_eq!(summed.as_ptr(), ptr);
+        assert_eq!(
+            as_map(&summed),
+            [(1, 2), (2, 1), (3, -1)].into_iter().collect()
+        );
     }
 
     #[test]
     fn optimize_keeps_disjoint_keys() {
         let update: Vec<(u32, i32)> = (0..200).map(|k| (k, (k as i32 % 3) + 1)).collect();
-        let summed = sum_collectibles_update(update.clone());
+        let summed = sum_collectibles_update(SmallVec::from_slice(&update));
         assert_eq!(as_map(&summed), as_map(&update));
     }
 
@@ -3722,7 +3727,7 @@ mod tests {
         let update = from_task_update(&own, &aggregated);
         assert_eq!(update.len(), 2004);
 
-        let summed = sum_collectibles_update(update.clone());
+        let summed = sum_collectibles_update(SmallVec::from_slice(&update));
         assert_eq!(
             as_map(&summed),
             (1000..1004).map(|k| (k, 1)).collect::<FxHashMap<_, _>>()
@@ -3772,7 +3777,7 @@ mod tests {
         let b = collectible(2);
         let c = collectible(3);
         let update = AggregatedDataUpdate::new()
-            .collectibles_update(vec![(a, -1), (b, 2), (a, 1), (c, -1), (b, -1)])
+            .collectibles_update(smallvec![(a, -1), (b, 2), (a, 1), (c, -1), (b, -1)])
             .dirty_container_update(task_id, 1, 0)
             .optimize();
         assert_eq!(
@@ -3796,7 +3801,7 @@ mod tests {
 
         assert!(
             AggregatedDataUpdate::new()
-                .collectibles_update(vec![(a, -1), (a, 1)])
+                .collectibles_update(smallvec![(a, -1), (a, 1)])
                 .optimize()
                 .is_empty()
         );

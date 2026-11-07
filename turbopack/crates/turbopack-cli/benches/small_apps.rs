@@ -65,26 +65,35 @@ fn bench_small_apps(c: &mut Criterion) {
                     let app_name = app.file_name().unwrap().to_string_lossy().to_string();
 
                     rt.block_on(async move {
-                        turbopack_cli::build::build(&BuildArguments {
-                            common: CommonArguments {
-                                entries: Some(vec![format!("{app_name}/index.tsx")]),
-                                dir: Some(app.clone()),
-                                root: Some(apps_dir),
-                                log_level: None,
-                                show_all: false,
-                                log_detail: false,
-                                full_stats: false,
-                                target: None,
-                                worker_threads: None,
-                                persistent_caching: false,
-                                cache_dir: None,
+                        let (exit, receiver) =
+                            turbopack_trace_utils::exit::ExitHandler::new_receiver();
+                        let result = turbopack_cli::build::build(
+                            &BuildArguments {
+                                common: CommonArguments {
+                                    go: Default::default(),
+                                    entries: Some(vec![format!("{app_name}/index.tsx")]),
+                                    dir: Some(app.clone()),
+                                    root: Some(apps_dir),
+                                    log_level: None,
+                                    show_all: false,
+                                    log_detail: false,
+                                    full_stats: false,
+                                    target: None,
+                                    worker_threads: None,
+                                    persistent_caching: false,
+                                    cache_dir: None,
+                                },
+                                no_sourcemap: false,
+                                watch: false,
+                                no_minify: false,
+                                force_memory_cleanup: true,
+                                no_scope_hoist: false,
                             },
-                            no_sourcemap: false,
-                            no_minify: false,
-                            force_memory_cleanup: true,
-                            no_scope_hoist: false,
-                        })
-                        .await
+                            &exit,
+                        )
+                        .await;
+                        receiver.run_exit_handler().await;
+                        result
                     })
                     .unwrap();
                 });
