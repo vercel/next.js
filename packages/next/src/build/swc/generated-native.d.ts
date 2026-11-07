@@ -40,12 +40,6 @@ export declare class ExternalObject<T> {
     [K: symbol]: T
   }
 }
-/** Utility object only. Its identity supplies no allocation or compiler authority. */
-export declare class TestSnapshotDirectoryDeletionWatch {
-  poll(): TestSnapshotDirectoryDeletionObservation
-  close(): TestSnapshotDirectoryDeletionClosure
-}
-
 /**
  * An opaque handle to a running trace server instance.
  * Holds a reference to the shared store so that `query_trace_spans` can
@@ -851,69 +845,6 @@ export declare function startTurbopackTraceServerHandle(
 export declare function teardownTraceSubscriber(
   guardExternal: ExternalObject<RefCell<FlushGuard | undefined | null>>
 ): void
-
-export interface TestSnapshotDeletionDirectoryIdentity {
-  device: string
-  inode: string
-}
-
-/** Compile-target query only. No descriptors or paths are opened. */
-export declare function testSnapshotDirectoryDeletionCapability(): TestSnapshotDirectoryDeletionCapability
-
-export interface TestSnapshotDirectoryDeletionCapability {
-  version: number
-  platformSupported: boolean
-}
-
-export interface TestSnapshotDirectoryDeletionClosure {
-  version: number
-  duplicateClosed: boolean
-  queueClosed: boolean
-  uncertain: boolean
-  errors: Array<string>
-}
-
-export interface TestSnapshotDirectoryDeletionObservation {
-  version: number
-  device: string
-  inode: string
-  deleted: boolean
-  revoked: boolean
-  uncertain: boolean
-  errors: Array<string>
-}
-
-export interface TestSnapshotDirectoryIdentity {
-  device: string
-  inode: string
-}
-
-/**
- * Compile-target capability only. This does not touch the filesystem or certify
- * that a particular filesystem supports atomic destination no-replace.
- */
-export declare function testSnapshotNoReplaceCapability(): TestSnapshotNoReplaceCapability
-
-export interface TestSnapshotNoReplaceCapability {
-  version: number
-  platformSupported: boolean
-}
-
-/**
- * Uncached filesystem publication, not a native artifact/provenance issuer.
- * Destination no-replace is atomic; source identity checks are not inode CAS.
- */
-export declare function testSnapshotPublishNoReplace(
-  stagingPath: string,
-  publicationPath: string,
-  expectedIdentity: TestSnapshotDirectoryIdentity
-): TestSnapshotDirectoryIdentity
-
-/** Duplicate and watch the exact held descriptor, never reopen a pathname. */
-export declare function testSnapshotWatchDirectoryDeletion(
-  heldStageFd: number,
-  expectedIdentity: TestSnapshotDeletionDirectoryIdentity
-): TestSnapshotDirectoryDeletionWatch
 
 /** Aggregate view of a span's TurboMalloc memory samples. */
 export interface TraceMemorySummary {

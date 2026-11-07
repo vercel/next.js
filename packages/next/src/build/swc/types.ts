@@ -1,5 +1,3 @@
-import type { TestSnapshotNoReplaceMethods } from './test-snapshot-no-replace'
-import type { TestSnapshotDirectoryDeletionMethods } from './test-snapshot-directory-deletion'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 import type {
@@ -39,9 +37,7 @@ export interface TurbopackProjectCallbacks {
   onBeforeDeferredEntries?: () => Promise<void>
 }
 
-export interface Binding
-  extends TestSnapshotNoReplaceMethods,
-    TestSnapshotDirectoryDeletionMethods {
+export interface Binding {
   isWasm: boolean
   turbo: {
     createProject(

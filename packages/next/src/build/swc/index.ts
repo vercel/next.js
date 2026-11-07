@@ -2,8 +2,6 @@ import {
   assertTestingDefaultConfigurationEnvironment,
   type TestingDefaultConfiguration,
 } from '../../server/config-testing-policy'
-import { bindTestSnapshotNoReplaceMethods } from './test-snapshot-no-replace'
-import { bindTestSnapshotDirectoryDeletionMethods } from './test-snapshot-directory-deletion'
 import { withNativeTsConfigRevision } from './test-tsconfig-provenance'
 import { withNativeNodeSourcePreservation } from './test-node-source-preservation'
 import { requireImportCoverageCapability } from './test-import-coverage'
@@ -1696,8 +1694,6 @@ async function loadWasm(importPath = '') {
   // Note wasm binary does not support async intefaces yet, all async
   // interface coereces to sync interfaces.
   let wasmBindings = {
-    ...bindTestSnapshotNoReplaceMethods(undefined),
-    ...bindTestSnapshotDirectoryDeletionMethods(undefined),
     css: {
       lightning: {
         transform: function (_options: any) {
@@ -1942,8 +1938,6 @@ function loadNative(importPath?: string): Binding {
 
   if (bindings) {
     loadedBindings = {
-      ...bindTestSnapshotNoReplaceMethods(bindings),
-      ...bindTestSnapshotDirectoryDeletionMethods(bindings),
       isWasm: false,
       transform(src: string, options: any) {
         const isModule =
