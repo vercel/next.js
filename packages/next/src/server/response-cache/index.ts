@@ -15,6 +15,7 @@ import { Batcher } from '../../lib/batcher'
 import { LRUCache } from '../lib/lru-cache'
 import { warnOnce } from '../../build/output/log'
 import { scheduleOnNextTick } from '../../lib/scheduler'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {
   fromResponseCacheEntry,
   routeKindToIncrementalCacheKind,
@@ -116,7 +117,7 @@ function extractInvocationID(compoundKey: string): string | undefined {
 export * from './types'
 
 export default class ResponseCache implements ResponseCacheBase {
-  // The get and revalidate batchers share pending renders across invocation
+  // The get batcher and pending revalidations share renders across invocation
   // IDs, including failures. Invocation IDs scope reuse of completed results in
   // the LRU below.
   private readonly getBatcher = Batcher.create<
@@ -134,15 +135,37 @@ export default class ResponseCache implements ResponseCacheBase {
     schedulerFn: scheduleOnNextTick,
   })
 
-  private readonly revalidateBatcher = Batcher.create<
+  /**
+   * Revalidations in flight, by key. A revalidation joins the one in flight
+   * for its key, except that an on-demand revalidation only joins another
+   * on-demand revalidation. Otherwise it replaces the one in flight, as that
+   * render may have read data from before the on-demand revalidation was
+   * requested, and revalidations that start later join it instead.
+   */
+  private readonly pendingRevalidations = new Map<
     string,
-    IncrementalResponseCacheResult
-  >({
-    // We wait to do any async work until after we've added our promise to
-    // `pendingResponses` to ensure that any any other calls will reuse the
-    // same promise until we've fully finished our work.
-    schedulerFn: scheduleOnNextTick,
-  })
+    {
+      promise: Promise<IncrementalResponseCacheResult>
+      isOnDemandRevalidate: boolean
+    }
+  >()
+
+  /**
+   * Results of revalidations that an on-demand revalidation superseded. The
+   * callers that joined one still get its result, but it may be older than the
+   * on-demand result, so it isn't stored in the minimal mode entry that
+   * requests without an invocation ID share.
+   */
+  private readonly supersededResults = new WeakSet<
+    NonNullable<IncrementalResponseCacheResult>
+  >()
+
+  /**
+   * The latest incremental cache write in flight for each key. Writes for a key
+   * in this process run one after another, so a write that started earlier
+   * can't finish after a newer one and overwrite it.
+   */
+  private readonly pendingWrites = new Map<string, Promise<void>>()
 
   /**
    * LRU cache for minimal mode using compound keys (pathname + invocationID).
@@ -238,7 +261,7 @@ export default class ResponseCache implements ResponseCacheBase {
       /**
        * The invocation ID from the infrastructure. Used to scope the in-memory
        * cache to a single revalidation request in minimal mode. Concurrent
-       * invocations can still share a pending render through the batchers.
+       * invocations can still share a pending render.
        */
       invocationID?: string
     }
@@ -329,10 +352,15 @@ export default class ResponseCache implements ResponseCacheBase {
     // In minimal mode, each caller with an invocation ID stores the shared
     // failure under its own ID for reuse by related requests. Callers without
     // an invocation ID receive the failure but do not store it in the LRU.
+    // They also don't store a superseded result, as the entry they share may
+    // already hold the newer on-demand result.
     if (
       this.minimal_mode &&
       response &&
-      ('error' in response ? invocationID !== undefined : response.cacheControl)
+      ('error' in response
+        ? invocationID !== undefined
+        : response.cacheControl) &&
+      (invocationID !== undefined || !this.supersededResults.has(response))
     ) {
       const cacheKey = createCacheKey(key, invocationID)
       this.cache.set(cacheKey, {
@@ -420,7 +448,8 @@ export default class ResponseCache implements ResponseCacheBase {
               context.isFallback,
               responseGenerator,
               previousIncrementalCacheEntry,
-              resolved
+              resolved,
+              undefined
             )
           : await this.revalidate(
               key,
@@ -429,7 +458,11 @@ export default class ResponseCache implements ResponseCacheBase {
               context.isFallback,
               responseGenerator,
               previousIncrementalCacheEntry,
-              resolved
+              resolved,
+              undefined,
+              // An on-demand revalidation must not join a revalidation that
+              // isn't on-demand and started before it, see `revalidate`.
+              context.isOnDemandRevalidate
             )
 
       if (
@@ -482,7 +515,9 @@ export default class ResponseCache implements ResponseCacheBase {
    * @param previousIncrementalCacheEntry - The previous cache entry to use to revalidate the cache entry.
    * @param hasResolved - Whether the response has been resolved.
    * @param waitUntil - Optional function to register background work.
-   * @param invocationID - The invocation ID for cache key scoping.
+   * @param isOnDemandRevalidate - Whether this is an on-demand revalidation,
+   * which doesn't join a revalidation in flight that isn't on-demand, but
+   * supersedes it.
    * @returns The revalidated cache entry.
    */
   public async revalidate(
@@ -493,24 +528,59 @@ export default class ResponseCache implements ResponseCacheBase {
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
     hasResolved: boolean,
-    waitUntil?: (prom: Promise<any>) => void
+    waitUntil?: (prom: Promise<any>) => void,
+    isOnDemandRevalidate = false
   ) {
-    return this.revalidateBatcher.batch(key, () => {
-      const promise = this.handleRevalidate(
-        key,
-        incrementalCache,
-        isRoutePPREnabled,
-        isFallback,
-        responseGenerator,
-        previousIncrementalCacheEntry,
-        hasResolved
-      )
+    const pending = this.pendingRevalidations.get(key)
+    if (pending && (pending.isOnDemandRevalidate || !isOnDemandRevalidate)) {
+      return pending.promise
+    }
 
-      // We need to ensure background revalidates are passed to waitUntil.
-      if (waitUntil) waitUntil(promise)
+    const { promise, resolve, reject } =
+      createPromiseWithResolvers<IncrementalResponseCacheResult>()
+    const revalidation = { promise, isOnDemandRevalidate }
+    this.pendingRevalidations.set(key, revalidation)
 
-      return promise
+    // Once an on-demand revalidation replaces this one, this one's result may
+    // be older than the on-demand result, so it must not be persisted.
+    const isSuperseded = () =>
+      this.pendingRevalidations.get(key) !== revalidation
+
+    // Other calls reuse the promise from `pendingRevalidations` until the work
+    // has finished. The work starts on the next tick, like the batchers do.
+    scheduleOnNextTick(async () => {
+      try {
+        const handleRevalidatePromise = this.handleRevalidate(
+          key,
+          incrementalCache,
+          isRoutePPREnabled,
+          isFallback,
+          responseGenerator,
+          previousIncrementalCacheEntry,
+          hasResolved,
+          isSuperseded
+        )
+
+        // We need to ensure background revalidates are passed to waitUntil.
+        if (waitUntil) waitUntil(handleRevalidatePromise)
+
+        const result = await handleRevalidatePromise
+        // This check can't miss a later supersession, as `finally` removes
+        // this revalidation from `pendingRevalidations` right after `resolve`.
+        if (result !== null && isSuperseded()) {
+          this.supersededResults.add(result)
+        }
+        resolve(result)
+      } catch (err) {
+        reject(err)
+      } finally {
+        if (this.pendingRevalidations.get(key) === revalidation) {
+          this.pendingRevalidations.delete(key)
+        }
+      }
     })
+
+    return promise
   }
 
   private async handleRevalidate(
@@ -520,7 +590,8 @@ export default class ResponseCache implements ResponseCacheBase {
     isFallback: boolean,
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
-    hasResolved: boolean
+    hasResolved: boolean,
+    isSuperseded: (() => boolean) | undefined
   ): Promise<IncrementalResponseCacheResult> {
     let failure: PrerenderFailure
     try {
@@ -544,13 +615,18 @@ export default class ResponseCache implements ResponseCacheBase {
         })
 
         // We want to persist the result only if it has a cache control value
-        // defined. The minimal mode LRU write is handled in get() so that every
-        // caller, including batched invocations, populates the cache.
-        if (incrementalResponseCacheEntry.cacheControl && !this.minimal_mode) {
-          await incrementalCache.set(key, incrementalResponseCacheEntry.value, {
-            ...this.getCacheContext(isRoutePPREnabled, isFallback),
-            cacheControl: incrementalResponseCacheEntry.cacheControl,
-          })
+        // defined, and no on-demand revalidation has superseded this one, see
+        // `setIncrementalCacheEntry`. The minimal mode LRU write is handled in
+        // get() so that every caller, including batched invocations, populates
+        // the cache.
+        const { value, cacheControl } = incrementalResponseCacheEntry
+        if (cacheControl && !this.minimal_mode) {
+          await this.setIncrementalCacheEntry(key, isSuperseded, () =>
+            incrementalCache.set(key, value, {
+              cacheControl,
+              ...this.getCacheContext(isRoutePPREnabled, isFallback),
+            })
+          )
         }
 
         return incrementalResponseCacheEntry
@@ -561,7 +637,8 @@ export default class ResponseCache implements ResponseCacheBase {
         incrementalCache,
         isRoutePPREnabled,
         isFallback,
-        previousIncrementalCacheEntry
+        previousIncrementalCacheEntry,
+        isSuperseded
       )
       throw err
     }
@@ -571,19 +648,21 @@ export default class ResponseCache implements ResponseCacheBase {
       incrementalCache,
       isRoutePPREnabled,
       isFallback,
-      previousIncrementalCacheEntry
+      previousIncrementalCacheEntry,
+      isSuperseded
     )
     return failure
   }
 
   // Retain the previous successful value and delay retries after revalidation
-  // fails.
+  // fails, unless an on-demand revalidation has since superseded this one.
   private async retainPreviousCacheEntry(
     key: string,
     incrementalCache: IncrementalResponseCache,
     isRoutePPREnabled: boolean,
     isFallback: boolean,
-    previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null
+    previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
+    isSuperseded: (() => boolean) | undefined
   ): Promise<void> {
     if (previousIncrementalCacheEntry?.cacheControl) {
       const revalidate = Math.min(
@@ -598,10 +677,44 @@ export default class ResponseCache implements ResponseCacheBase {
               previousIncrementalCacheEntry.cacheControl.expire
             )
 
-      await incrementalCache.set(key, previousIncrementalCacheEntry.value, {
-        ...this.getCacheContext(isRoutePPREnabled, isFallback),
-        cacheControl: { revalidate: revalidate, expire: expire },
-      })
+      const { value } = previousIncrementalCacheEntry
+      await this.setIncrementalCacheEntry(key, isSuperseded, () =>
+        incrementalCache.set(key, value, {
+          cacheControl: { revalidate: revalidate, expire: expire },
+          ...this.getCacheContext(isRoutePPREnabled, isFallback),
+        })
+      )
+    }
+  }
+
+  /**
+   * Writes an entry to the incremental cache once the earlier writes for the
+   * key have settled, unless an on-demand revalidation supersedes the
+   * revalidation it's for before then. A write that has already started isn't
+   * cancelled, but later writes wait for it instead of racing it.
+   */
+  private async setIncrementalCacheEntry(
+    key: string,
+    isSuperseded: (() => boolean) | undefined,
+    write: () => Promise<void>
+  ): Promise<void> {
+    if (isSuperseded?.()) return
+
+    const previous = this.pendingWrites.get(key)
+    // The caller of an earlier write reports its failure, so this one runs
+    // either way.
+    const writeUnlessSuperseded = () => (isSuperseded?.() ? undefined : write())
+    const current = previous
+      ? previous.then(writeUnlessSuperseded, writeUnlessSuperseded)
+      : write()
+    this.pendingWrites.set(key, current)
+
+    try {
+      await current
+    } finally {
+      if (this.pendingWrites.get(key) === current) {
+        this.pendingWrites.delete(key)
+      }
     }
   }
 
