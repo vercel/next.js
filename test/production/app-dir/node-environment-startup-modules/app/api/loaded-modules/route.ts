@@ -1,9 +1,11 @@
 import Module from 'node:module'
-
-export const dynamic = 'force-dynamic'
+import { connection } from 'next/server'
 
 // Reports which `next/dist` files the server process has loaded so far.
-export function GET() {
+export async function GET() {
+  // Opt out of prerendering: the list must come from the running server.
+  await connection()
+
   const loaded = Object.keys(
     (Module as unknown as { _cache: Record<string, unknown> })._cache
   )
