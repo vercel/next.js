@@ -1,0 +1,30 @@
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+   ,-[input.js:2:1]
+ 1 | export default function Page() {
+ 2 |   'use client'
+   :   ^^^^^^^^^^^^
+ 3 |   return null
+   `----
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+   ,-[input.js:7:1]
+ 6 | export function foo() {
+ 7 |   'use client'
+   :   ^^^^^^^^^^^^
+ 8 | }
+   `----
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+    ,-[input.js:11:1]
+ 10 | export const bar = () => {
+ 11 |   'use client'
+    :   ^^^^^^^^^^^^
+ 12 | }
+    `----

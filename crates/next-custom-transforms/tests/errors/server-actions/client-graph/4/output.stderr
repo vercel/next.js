@@ -1,0 +1,10 @@
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+   ,-[input.js:5:1]
+ 4 |   function helper() {
+ 5 |     'use client'
+   :     ^^^^^^^^^^^^
+ 6 |   }
+   `----

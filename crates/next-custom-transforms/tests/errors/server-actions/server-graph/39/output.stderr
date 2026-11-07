@@ -1,0 +1,40 @@
+  x The "use server" directive must be at the top of the file or the top of a function body.
+  | 
+    ,-[input.js:16:1]
+ 15 | 
+ 16 | if (true) 'use server'
+    :           ^^^^^^^^^^^^
+    `----
+  x The "use cache" directive must be at the top of the file or the top of a function body.
+  | 
+    ,-[input.js:18:1]
+ 17 | 
+ 18 | while (false) 'use cache'
+    :               ^^^^^^^^^^^
+    `----
+  x The "use server" directive must be at the top of the function body.
+  | 
+   ,-[input.js:3:1]
+ 2 |   for (;;) {
+ 3 |     'use server'
+   :     ^^^^^^^^^^^^
+ 4 |   }
+   `----
+  x The "use cache" directive must be at the top of the function body.
+  | 
+   ,-[input.js:8:1]
+ 7 |     case true:
+ 8 |       'use cache'
+   :       ^^^^^^^^^^^
+ 9 |   }
+   `----
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+    ,-[input.js:12:1]
+ 11 |   label: {
+ 12 |     'use client'
+    :     ^^^^^^^^^^^^
+ 13 |   }
+    `----
