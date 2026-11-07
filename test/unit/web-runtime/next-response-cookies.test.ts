@@ -107,6 +107,27 @@ it('reflect .delete into `set-cookie`', async () => {
   })
 })
 
+it('response.cookies duplicate cookies behavior in constructor', () => {
+  const headers = new Headers()
+  headers.append('set-cookie', 'foo=bar; Path=/')
+  headers.append('set-cookie', 'foo=baz; Path=/admin')
+
+  const response = new NextResponse(null, { headers })
+
+  expect(response.cookies.getAll('foo')).toEqual([
+    {
+      name: 'foo',
+      value: 'bar',
+      path: '/',
+    },
+    {
+      name: 'foo',
+      value: 'baz',
+      path: '/admin',
+    },
+  ])
+})
+
 it('response.cookie does not modify options', async () => {
   const { NextResponse } = await import(
     'next/dist/server/web/spec-extension/response'
