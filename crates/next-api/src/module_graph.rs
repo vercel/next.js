@@ -206,7 +206,7 @@ impl NextDynamicGraph {
                             result.push((*dynamic_entry, parent_client_reference));
 
                             state_map.insert(module, parent_state);
-                            GraphTraversalAction::Skip
+                            GraphTraversalAction::Continue
                         }
                         Some(DynamicImportEntriesMapType::ClientReference(client_reference)) => {
                             state_map.insert(
