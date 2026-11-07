@@ -39,6 +39,7 @@ pub struct NftJsonAsset {
     additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     // The page name, e.g. `pages/index` or `app/route1`
     page_name: Option<RcStr>,
+
     traced_files: ResolvedVc<EndpointTraceResult>,
 }
 
