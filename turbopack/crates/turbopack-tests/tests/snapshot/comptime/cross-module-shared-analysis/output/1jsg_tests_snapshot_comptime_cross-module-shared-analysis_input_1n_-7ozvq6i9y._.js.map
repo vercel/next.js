@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-shared-analysis/input/index.js"],"sourcesContent":["import { UPPER, lower } from './other'\nimport value from './other' with { turbopackConstants: 'true' }\n\nif (UPPER !== 'x') require('./dead-uppercase')\nif (value !== 'dev') require('./dead-default')\nconsole.log(lower)\n"],"names":["console","log"],"mappings":";AAAA;;;AAGA;;AACA;;AACAA,QAAQC,GAAG"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-shared-analysis/input/other.js"],"sourcesContent":["'use turbopack: constants'\n\nexport default 'dev'\nexport const UPPER = 'x'\nexport const lower = 'y'\nexport const NON_CONSTANT = globalThis.value\n"],"names":["UPPER","lower","NON_CONSTANT","globalThis","value"],"mappings":";;;;;;;;;;AAAA;uCAEe;AACR,MAAMA,QAAQ;AACd,MAAMC,QAAQ;AACd,MAAMC,eAAeC,WAAWC,KAAK"}}]
+}
