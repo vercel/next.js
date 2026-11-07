@@ -6,10 +6,15 @@
     "start": "next start"
   },
   "dependencies": {
-    "mobx": "^6.6.1",
-    "mobx-react-lite": "^3.4.0",
+    "mobx": "^6.13.6",
+    "mobx-react-lite": "^4.1.0",
     "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "@types/react": "^19.0.10",
+    "typescript": "^5.8.2"
   }
 }
