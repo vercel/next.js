@@ -302,28 +302,25 @@ export function getServerUtils({
     const checkRewrite = (rewrite: DeepReadonly<Rewrite>): boolean => {
       if (!rewrittenParsedUrl.pathname) return false
 
-      // Check `has` and `missing` before the source: they're header, cookie
-      // and query lookups, while the source can be a large regex. Both have
-      // to match either way.
-      let hasParams: ReturnType<typeof matchHas> | undefined
-      if (rewrite.has || rewrite.missing) {
-        hasParams = matchHas(
-          req,
-          rewrittenParsedUrl.query,
-          rewrite.has as Rewrite['has'],
-          rewrite.missing as Rewrite['missing']
-        )
-        if (!hasParams) return false
-      }
-
-      const params = getRewriteMatcher(
+      let params = getRewriteMatcher(
         rewrite,
         trailingSlash,
         !!caseSensitive
       )(rewrittenParsedUrl.pathname)
 
-      if (params && hasParams) {
-        Object.assign(params, hasParams)
+      if ((rewrite.has || rewrite.missing) && params) {
+        const hasParams = matchHas(
+          req,
+          rewrittenParsedUrl.query,
+          rewrite.has as Rewrite['has'],
+          rewrite.missing as Rewrite['missing']
+        )
+
+        if (hasParams) {
+          Object.assign(params, hasParams)
+        } else {
+          params = false
+        }
       }
 
       if (params) {

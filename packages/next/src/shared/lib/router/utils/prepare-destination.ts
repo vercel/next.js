@@ -45,39 +45,6 @@ function unescapeSegments(str: string) {
   return str.replace(/__ESC_COLON_/gi, ':')
 }
 
-// `has` and `missing` conditions come from the routes manifest, so the same
-// patterns are checked on every request. The cap keeps the cache bounded
-// regardless of the input.
-const MAX_HAS_VALUE_REGEXES = 1000
-const hasValueRegexes = new Map<string, RegExp>()
-
-function getHasValueRegex(value: string): RegExp {
-  let regex = hasValueRegexes.get(value)
-  if (regex === undefined) {
-    regex = new RegExp(`^${value}$`)
-    if (hasValueRegexes.size >= MAX_HAS_VALUE_REGEXES) {
-      hasValueRegexes.clear()
-    }
-    hasValueRegexes.set(value, regex)
-  }
-  return regex
-}
-
-// A request's rewrites can check several cookie conditions in a row, so the
-// last parsed `Cookie` header is reused instead of parsing it for each one.
-let lastCookieHeader: string | null | undefined
-let lastParsedCookies: ReturnType<ReturnType<typeof getCookieParser>> = {}
-
-function getParsedCookies(headers: Parameters<typeof getCookieParser>[0]) {
-  const { cookie } = headers
-  const cookieHeader = Array.isArray(cookie) ? cookie.join('; ') : cookie
-  if (cookieHeader !== lastCookieHeader) {
-    lastParsedCookies = getCookieParser(headers)()
-    lastCookieHeader = cookieHeader
-  }
-  return lastParsedCookies
-}
-
 export function matchHas(
   req: BaseNextRequest | IncomingMessage,
   query: Params,
@@ -100,7 +67,8 @@ export function matchHas(
         if ('cookies' in req) {
           value = req.cookies[hasItem.key]
         } else {
-          value = getParsedCookies(req.headers)[hasItem.key]
+          const cookies = getCookieParser(req.headers)()
+          value = cookies[hasItem.key]
         }
 
         break
@@ -125,7 +93,7 @@ export function matchHas(
       params[getSafeParamName(key!)] = value
       return true
     } else if (value) {
-      const matcher = getHasValueRegex(hasItem.value!)
+      const matcher = new RegExp(`^${hasItem.value}$`)
       const matches = Array.isArray(value)
         ? value.slice(-1)[0].match(matcher)
         : value.match(matcher)
