@@ -26,9 +26,13 @@ pub enum ServerToClientMessage {
         #[serde(flatten)]
         update: ViewLineUpdate,
     },
+    #[serde(rename_all = "camelCase")]
     ViewLinesCount {
         count: usize,
         max: u64,
+        // Optional to older clients: advertise support without a new message type.
+        view_modes: [&'static str; 1],
+        view_mode: String,
     },
     #[serde(rename_all = "camelCase")]
     QueryResult {
@@ -199,18 +203,26 @@ fn handle_connection(
         if !force_send && state.last_update_generation == store.generation() {
             return Ok(());
         }
+        if state.last_update_generation != store.generation() {
+            state.viewer.invalidate_timeline();
+        }
         state.last_update_generation = store.generation();
         let Update {
             lines: updates,
             max,
+            count,
         } = state.viewer.compute_update(&store, &state.view_rect);
-        let count = updates.len();
         for update in updates {
             let message = ServerToClientMessage::ViewLine { update };
             let message = serde_json::to_string(&message).unwrap();
             websocket.send(Message::Text(message))?;
         }
-        let message = ServerToClientMessage::ViewLinesCount { count, max };
+        let message = ServerToClientMessage::ViewLinesCount {
+            count,
+            max,
+            view_modes: ["timeline"],
+            view_mode: state.view_rect.view_mode.clone(),
+        };
         let message = serde_json::to_string(&message).unwrap();
         websocket.send(Message::Text(message))?;
         *ready_for_update = false;

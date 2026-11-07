@@ -142,3 +142,77 @@ struct NextJsSpan<'a> {
     // Emitted by Next.js trace
     // trace_id: Cow<'a, str>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{server::ViewRect, viewer::Viewer};
+
+    #[test]
+    fn timeline_uses_parent_self_time_gaps_and_live_json_updates() {
+        let store = Arc::new(StoreContainer::new());
+        let mut format = NextJsFormat::new(store.clone());
+        // The parent arrives after its children, as in completed JSON spans.
+        let data = b"[{\"name\":\"child-a\",\"timestamp\":120,\"duration\":20,\"id\":2,\"parentId\":1,\"tags\":{}},{\"name\":\"child-b\",\"timestamp\":160,\"duration\":20,\"id\":3,\"parentId\":1,\"tags\":{}},{\"name\":\"parent\",\"timestamp\":100,\"duration\":100,\"id\":1,\"tags\":{}}]\n";
+        assert_eq!(format.read(data, &mut ()).unwrap(), data.len());
+        let rect = ViewRect {
+            x: 0,
+            y: 0,
+            width: 20000,
+            height: 100,
+            horizontal_pixels: 20000,
+            query: String::new(),
+            view_mode: "timeline".into(),
+            value_mode: "duration".into(),
+            value_filter: None,
+            count_filter: None,
+        };
+        let mut viewer = Viewer::new();
+        let update = viewer.compute_update(&store.read(), &rect);
+        assert_eq!(update.count, 1); // children replace parent CPU time, not overlap it
+        assert_eq!(update.max, 10000);
+        let lines = serde_json::to_value(&update.lines).unwrap();
+        let spans = lines[0]["spans"].as_array().unwrap();
+        let mut segments: Vec<_> = spans
+            .iter()
+            .map(|s| {
+                (
+                    s["t"].as_str().unwrap(),
+                    s["x"].as_u64().unwrap(),
+                    s["w"].as_u64().unwrap(),
+                )
+            })
+            .collect();
+        segments.sort_unstable();
+        assert_eq!(
+            segments,
+            [
+                ("child-a", 2000, 2000),
+                ("child-b", 6000, 2000),
+                ("parent", 0, 2000),
+                ("parent", 4000, 2000),
+                ("parent", 8000, 2000),
+            ]
+        );
+        let parent_ids: Vec<_> = spans
+            .iter()
+            .filter(|s| s["t"] == "parent")
+            .map(|s| &s["id"])
+            .collect();
+        assert_eq!(parent_ids.len(), 3);
+        assert!(parent_ids.iter().all(|id| *id == parent_ids[0]));
+        let next =
+            b"[{\"name\":\"later\",\"timestamp\":220,\"duration\":10,\"id\":4,\"tags\":{}}]\n";
+        // An unfinished JSON record cannot alter the tree.
+        assert_eq!(format.read(&next[..next.len() - 1], &mut ()).unwrap(), 0);
+        assert_eq!(format.read(next, &mut ()).unwrap(), next.len());
+        viewer.invalidate_timeline();
+        let update = viewer.compute_update(&store.read(), &rect);
+        assert_eq!(update.max, 13000);
+        let lines = serde_json::to_value(&update.lines).unwrap();
+        assert_eq!(
+            lines[0]["spans"].as_array().unwrap().last().unwrap()["x"],
+            12000
+        );
+    }
+}
