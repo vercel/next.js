@@ -892,3 +892,35 @@ fn test_multibyte_cjk_truncation_with_highlighting() {
     assert!(stripped.contains("あ"), "Should contain CJK characters");
     assert!(stripped.contains("^"), "Should contain marker");
 }
+
+#[test]
+fn test_deeply_nested_template_expressions_do_not_overflow() {
+    // `scan` and `scan_template` recurse into each other for every `${`;
+    // unbounded nesting (e.g. in a generated or minified file) would overflow
+    // the stack. Past the nesting limit the rest of the template is treated
+    // as plain string content instead.
+    let depth = 100_000;
+    let mut source = String::from("const t = ");
+    for _ in 0..depth {
+        source.push_str("`${");
+    }
+    source.push('1');
+    for _ in 0..depth {
+        source.push_str("}`");
+    }
+    source.push(';');
+    let location = CodeFrameLocation {
+        start: Location {
+            line: 1,
+            column: Some(source.len()),
+        },
+        end: None,
+    };
+    let options = CodeFrameOptions {
+        color: CodeFrameColorMode::Error,
+        highlight_code: true,
+        ..Default::default()
+    };
+    let result = render_code_frame(&source, &location, &options).unwrap();
+    assert!(result.is_some());
+}
