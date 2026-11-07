@@ -31,7 +31,6 @@ export default function Page() {
         alt="Gundam"
         src="/brucetang.jpg"
         priority
-        layout="responsive"
         width={700}
         height={475}
       />
@@ -39,7 +38,6 @@ export default function Page() {
         alt="Musgo"
         src="/cameronsmith.jpg"
         priority
-        layout="responsive"
         width={700}
         height={475}
       />
@@ -47,24 +45,11 @@ export default function Page() {
         alt="Valley"
         src="/ganapathykumar.jpg"
         priority
-        layout="responsive"
         width={700}
         height={475}
       />
-      <Image
-        alt="Beach"
-        src="/roanlavery.jpg"
-        layout="responsive"
-        width={700}
-        height={475}
-      />
-      <Image
-        alt="Torii"
-        src="/tianshuliu.jpg"
-        layout="responsive"
-        width={700}
-        height={475}
-      />
+      <Image alt="Beach" src="/roanlavery.jpg" width={700} height={475} />
+      <Image alt="Torii" src="/tianshuliu.jpg" width={700} height={475} />
     </Carousel>
   );
 }
