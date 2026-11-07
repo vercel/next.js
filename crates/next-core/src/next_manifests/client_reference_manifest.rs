@@ -431,8 +431,13 @@ async fn build_manifest(
                         Ok(if components.is_empty() {
                             ClientChunk::Path(url)
                         } else {
-                            let (paths, sizes) = components.into_iter().unzip();
-                            ClientChunk::Merged(url, paths, sizes)
+                            let (component_paths, component_sizes) =
+                                components.into_iter().unzip();
+                            ClientChunk::Merged {
+                                url,
+                                component_paths,
+                                component_sizes,
+                            }
                         })
                     })
                     .try_join()

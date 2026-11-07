@@ -401,9 +401,15 @@ function parseClientReferenceManifest(filePath: string): {
     return null
   }
   const g = globalThis as { __RSC_MANIFEST?: Record<string, any> }
-  g.__RSC_MANIFEST = undefined
-  require(filePath)
-  return Object.values(g.__RSC_MANIFEST!)[0]
+  try {
+    require(filePath)
+    return Object.values(g.__RSC_MANIFEST!)[0]
+  } finally {
+    // Release this route's manifest before loading the next one, instead of keeping every
+    // route's manifest (and its module) alive for the rest of the run.
+    g.__RSC_MANIFEST = undefined
+    delete require.cache[require.resolve(filePath)]
+  }
 }
 
 /**
