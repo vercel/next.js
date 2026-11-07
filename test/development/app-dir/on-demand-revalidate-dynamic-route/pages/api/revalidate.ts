@@ -5,7 +5,9 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    await res.revalidate(req.query.path as string)
+    await res.revalidate(req.query.path as string, {
+      unstable_onlyGenerated: req.query.onlyGenerated === '1',
+    })
     res.json({ revalidated: true })
   } catch (err) {
     res.status(500).json({ revalidated: false, error: String(err) })
