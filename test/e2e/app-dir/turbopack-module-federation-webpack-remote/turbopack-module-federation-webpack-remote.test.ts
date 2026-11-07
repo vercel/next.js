@@ -6,21 +6,28 @@ import { findPort, retry, startStaticServer } from 'next-test-utils'
 const webpack = require('next/dist/compiled/webpack/webpack')
   .webpack as typeof import('webpack')
 
-async function buildRemote(context: string, outputPath: string) {
+async function buildRemote(
+  context: string,
+  outputPath: string,
+  worker = false
+) {
   await new Promise<void>((resolve, reject) => {
     webpack(
       {
         mode: 'development',
         context,
+        target: worker ? 'webworker' : 'web',
         entry: {},
         output: {
           path: outputPath,
-          publicPath: 'auto',
-          uniqueName: 'webpack-catalog',
+          publicPath: worker ? '/webpack-worker-remote/' : '/webpack-remote/',
+          uniqueName: worker ? 'webpack-worker-catalog' : 'webpack-catalog',
+          chunkLoading: worker ? 'import-scripts' : 'jsonp',
+          globalObject: 'globalThis',
         },
         plugins: [
           new webpack.container.ModuleFederationPlugin({
-            name: 'catalog',
+            name: worker ? 'workerCatalog' : 'catalog',
             filename: 'remoteEntry.js',
             exposes: {
               './message': './message.js',
@@ -62,9 +69,12 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
   beforeAll(async () => {
     const remotePort = await findPort()
     const remoteOutput = join(next.testDir, 'remote-dist')
-    await buildRemote(join(next.testDir, 'remote'), remoteOutput)
+    const remoteContext = join(next.testDir, 'remote')
+    await buildRemote(remoteContext, join(remoteOutput, 'browser'))
+    await buildRemote(remoteContext, join(remoteOutput, 'worker'), true)
     remoteServer = await startStaticServer(remoteOutput, undefined, remotePort)
-    process.env.MF_REMOTE_URL = `http://localhost:${remotePort}/remoteEntry.js`
+    process.env.MF_REMOTE_ORIGIN = `http://localhost:${remotePort}`
+    process.env.MF_REMOTE_URL = '/webpack-remote/remoteEntry.js'
     await next.start()
   })
 
@@ -72,6 +82,7 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
     await new Promise<void>((resolve, reject) => {
       remoteServer.close((error) => (error ? reject(error) : resolve()))
     })
+    delete process.env.MF_REMOTE_ORIGIN
     delete process.env.MF_REMOTE_URL
   })
 
@@ -80,6 +91,12 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
     await retry(async () => {
       expect(await browser.elementByCss('#remote-message').text()).toBe(
         'hello from Turbopack host sharing'
+      )
+      expect(await browser.elementByCss('#worker-message').text()).toBe(
+        'hello from Turbopack host sharing'
+      )
+      expect(await browser.elementByCss('#remote-script-count').text()).toBe(
+        '1'
       )
     })
   })
