@@ -23,6 +23,9 @@ export default function DocsPage({ params }: { params: Params }) {
             <LinkAccordion href={`/docs/${slug}`}>/docs/{slug}</LinkAccordion>
           </li>
         ))}
+        <li>
+          <LinkAccordion href="/docs/changelog">/docs/changelog</LinkAccordion>
+        </li>
       </ul>
       <PrefetchButton href="/docs/changelog" />
     </>
