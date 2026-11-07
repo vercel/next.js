@@ -820,8 +820,14 @@ internal
   )
   .addOption(
     new Option(
+      '--tool <tool>',
+      'Tool to call: "query_spans" (default) lists spans, "flat_profile" sums time and allocations by name across a subtree, "memory_timeline" shows committed memory and RSS over time with phase markers.'
+    ).choices(['query_spans', 'flat_profile', 'memory_timeline'])
+  )
+  .addOption(
+    new Option(
       '--parent <parent>',
-      'Span ID to enumerate children of. Omit for root level.'
+      'Span ID to enumerate children of (or, for flat_profile and memory_timeline, to scope to). Omit for root level.'
     )
   )
   .addOption(
@@ -833,8 +839,18 @@ internal
   .addOption(
     new Option(
       '--sort <mode>',
-      'Sort mode: "value" for corrected duration descending, "name" for alphabetical, "allocations" for total allocated bytes descending, "persistent-allocations" for persistentAllocations descending.'
-    ).choices(['value', 'name', 'allocations', 'persistent-allocations'])
+      'Sort mode. query_spans: "value" for corrected duration descending, "name" for alphabetical, "allocations" for total allocated bytes descending, "persistent-allocations" for persistentAllocations descending. flat_profile: "self" (default), "total", "self-allocations", "self-persistent-allocations" or "count".'
+    ).choices([
+      'value',
+      'name',
+      'allocations',
+      'persistent-allocations',
+      'self',
+      'total',
+      'self-allocations',
+      'self-persistent-allocations',
+      'count',
+    ])
   )
   .addOption(
     new Option(
@@ -844,17 +860,53 @@ internal
   )
   .addOption(
     new Option(
+      '--recursive',
+      'List every span in the subtree below --parent, as if --search matched everything.'
+    )
+  )
+  .addOption(
+    new Option(
       '--max-depth <depth>',
-      'Levels to descend for --search and --depth (default 32, also the cap).'
+      'Levels to descend for --search and --recursive (default unlimited).'
     ).argParser(parseValidPositiveInteger)
   )
   .addOption(
     new Option(
       '--depth <depth>',
-      'Levels of descendants to nest inline under each span (default 1).'
+      'Levels of descendants to nest inline under each span (default 1, max 32).'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .addOption(
+    new Option(
+      '--start <ticks>',
+      'memory_timeline: absolute start in ticks (10 ns), overriding --parent.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .addOption(
+    new Option(
+      '--end <ticks>',
+      'memory_timeline: absolute end in ticks (10 ns), overriding --parent.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .addOption(
+    new Option(
+      '--max-samples <count>',
+      'memory_timeline: samples to downsample to (default 100, max 2000).'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .addOption(
+    new Option(
+      '--max-phases <count>',
+      'memory_timeline: phases to list (default 20, max 200).'
     ).argParser(parseValidPositiveInteger)
   )
   .addOption(new Option('--json', 'Output as JSON instead of markdown.'))
+  .addOption(
+    new Option(
+      '--fields <fields>',
+      'query_spans: comma-separated span fields to return (plus id), e.g. "name,args". Implies --json and allows --page-size up to 10000.'
+    )
+  )
   .addOption(
     new Option('--page <page>', 'Page number (1-based, default 1).').argParser(
       parseValidPositiveInteger
@@ -863,12 +915,16 @@ internal
   .addOption(
     new Option(
       '--page-size <size>',
-      'Spans per page (default 20, max 500).'
+      'Spans per page (default 20, max 500, or 10000 with --fields).'
     ).argParser(parseValidPositiveInteger)
   )
   .addHelpText('after', ({ command }) => {
     const port = (command.opts() as { port?: number }).port ?? 5748
-    return `\nExample:\n  next internal query-trace --port ${port} --parent <id>`
+    return (
+      `\nExamples:\n  next internal query-trace --port ${port} --parent <id>` +
+      `\n  next internal query-trace --port ${port} --tool flat_profile` +
+      `\n  next internal query-trace --port ${port} --tool memory_timeline`
+    )
   })
   .action((options) =>
     import('../cli/internal/query-trace.js').then((mod) =>

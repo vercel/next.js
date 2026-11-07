@@ -10,37 +10,65 @@ const DEFAULT_MCP_PORT = 5748 // Keep in sync with turbo-trace-server.ts
 
 interface QueryTraceOptions {
   port: number | undefined
+  tool: 'query_spans' | 'flat_profile' | 'memory_timeline' | undefined
   parent: string | undefined
   aggregated: boolean | undefined
   sort: string | undefined
   search: string | undefined
+  recursive: boolean | undefined
   maxDepth: number | undefined
   depth: number | undefined
+  start: number | undefined
+  end: number | undefined
+  maxSamples: number | undefined
+  maxPhases: number | undefined
   page: number | undefined
   pageSize: number | undefined
   json: boolean | undefined
+  fields: string | undefined
 }
 
 export async function queryTraceCli(options: QueryTraceOptions): Promise<void> {
   const port = options.port ?? DEFAULT_MCP_PORT
 
-  // Build arguments — only include values explicitly set by the user.
+  const tool = options.tool ?? 'query_spans'
+
+  // Build arguments — only include values explicitly set by the user. Each
+  // tool validates its own arguments, so options another tool doesn't take
+  // are left out rather than rejected.
   const args: Record<string, unknown> = {}
   if (options.parent !== undefined) args.parent = options.parent
-  if (options.aggregated !== undefined) args.aggregated = options.aggregated
-  if (options.sort !== undefined) args.sort = options.sort
-  if (options.search !== undefined) args.search = options.search
-  if (options.maxDepth !== undefined) args.maxDepth = options.maxDepth
-  if (options.depth !== undefined) args.depth = options.depth
-  if (options.page !== undefined) args.page = options.page
-  if (options.pageSize !== undefined) args.pageSize = options.pageSize
   if (options.json) args.outputType = 'json'
+  if (tool === 'query_spans' || tool === 'flat_profile') {
+    if (options.sort !== undefined) args.sort = options.sort
+    if (options.search !== undefined) args.search = options.search
+    if (options.page !== undefined) args.page = options.page
+    if (options.pageSize !== undefined) args.pageSize = options.pageSize
+  }
+  if (tool === 'query_spans') {
+    if (options.aggregated !== undefined) args.aggregated = options.aggregated
+    if (options.recursive !== undefined) args.recursive = options.recursive
+    if (options.maxDepth !== undefined) args.maxDepth = options.maxDepth
+    if (options.depth !== undefined) args.depth = options.depth
+    if (options.fields !== undefined) {
+      args.fields = options.fields
+        .split(',')
+        .map((field) => field.trim())
+        .filter(Boolean)
+    }
+  }
+  if (tool === 'memory_timeline') {
+    if (options.start !== undefined) args.start = options.start
+    if (options.end !== undefined) args.end = options.end
+    if (options.maxSamples !== undefined) args.maxSamples = options.maxSamples
+    if (options.maxPhases !== undefined) args.maxPhases = options.maxPhases
+  }
 
   const requestBody = JSON.stringify({
     jsonrpc: '2.0',
     method: 'tools/call',
     params: {
-      name: 'query_spans',
+      name: tool,
       arguments: args,
     },
     id: 1,
@@ -88,7 +116,10 @@ export async function queryTraceCli(options: QueryTraceOptions): Promise<void> {
   for (const line of body.split('\n')) {
     if (!line.startsWith('data: ')) continue
     let msg: {
-      result?: { content?: Array<{ type: string; text?: string }> }
+      result?: {
+        content?: Array<{ type: string; text?: string }>
+        isError?: boolean
+      }
       error?: unknown
     }
     try {
@@ -101,6 +132,12 @@ export async function queryTraceCli(options: QueryTraceOptions): Promise<void> {
       process.exit(1)
     }
     const text = msg.result?.content?.find((c) => c.type === 'text')?.text
+    if (msg.result?.isError) {
+      // e.g. an option the tool's schema rejects, like a `--sort` mode of
+      // another tool.
+      console.error(`Error: ${text ?? JSON.stringify(msg.result)}`)
+      process.exit(1)
+    }
     if (text !== undefined) {
       process.stdout.write(text)
       return
