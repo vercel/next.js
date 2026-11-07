@@ -537,14 +537,14 @@ export default async function Image() {
 If a page uses a different image from its colocated `opengraph-image` or `twitter-image` file:
 
 1. Inspect the page's rendered `og:image` or `twitter:image` meta tag to find the selected image URL. A file-based image route can still serve an image even when the page's metadata points elsewhere.
-2. Check the page's `metadata` object or `generateMetadata` return value for `openGraph.images` or `twitter.images`. Include properties copied from shared objects with object spread.
-3. Omit the corresponding `images` property entirely to use the colocated file. Setting `images` to `[]`, `null`, or `undefined` still overrides the file-based image.
+2. Check for `openGraph.images` or `twitter.images` in the page's [metadata export](#precedence-with-metadata-exports), including properties copied from shared objects.
+3. Omit the corresponding `images` property entirely to use the colocated file.
 
-> **Good to know**: With `twitter.images: null` or `undefined`, Next.js can still fill `twitter:image` from the resolved Open Graph images. Use `twitter.images: []` to suppress that fallback.
+> **Good to know**: Setting `images` to `[]`, `null`, or `undefined` still overrides the file-based image. For Twitter, only `[]` also suppresses fallback to resolved Open Graph images.
 
 ### An inherited image disappears
 
-If an inherited image disappears after adding a child `openGraph` or `twitter` object, check [metadata merging](/docs/app/api-reference/functions/generate-metadata#merging). A child object replaces the corresponding inherited object, so a child object without `images` can remove an inherited image when there is no colocated file to supply it.
+When a child route defines `openGraph` or `twitter` without `images` and has no colocated image file, it can lose inherited images. See [metadata merging](/docs/app/api-reference/functions/generate-metadata#merging) for how to retain inherited fields.
 
 ## Version History
 
