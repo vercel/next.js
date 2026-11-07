@@ -3,6 +3,7 @@
 import type { RouteTree } from './segment-cache/cache'
 
 import type { CacheNode } from '../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../shared/lib/app-router-types'
 import type { LoadingModuleData } from '../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
@@ -581,6 +582,9 @@ export default function OuterLayoutRouter({
   }
 
   const activeSegment = activeTree[0]
+  const isRootLayout =
+    ((parentTree[4] ?? 0) & PrefetchHint.IsRootLayoutOrAbove) !== 0 &&
+    ((activeTree[4] ?? 0) & PrefetchHint.IsRootLayoutOrAbove) === 0
   const activeStateKey = createSegmentKey(activeSegment)
 
   // At each level of the route tree, not only do we render the currently
@@ -685,6 +689,12 @@ export default function OuterLayoutRouter({
             loading={parentLoadingData}
           >
             <HTTPAccessFallbackBoundary
+              trackNotFoundMetadata={
+                isRootLayout &&
+                parallelRouterKey === 'children' &&
+                isActive &&
+                stateKey === activeStateKey
+              }
               notFound={notFound}
               forbidden={forbidden}
               unauthorized={unauthorized}

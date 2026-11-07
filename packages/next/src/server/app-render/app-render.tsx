@@ -2231,7 +2231,7 @@ async function getErrorRSCPayload(
 
   let Viewport: ComponentType | null = null
   let Metadata: ComponentType | null = null
-  if (shouldRenderMetadataAndViewport) {
+  if (shouldRenderMetadataAndViewport || errorType === 'not-found') {
     const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
     const metadataComponents = createMetadataComponents({
       tree,
@@ -2242,7 +2242,9 @@ async function getErrorRSCPayload(
       interpolatedParams: ctx.interpolatedParams,
       serveStreamingMetadata: serveStreamingMetadata,
     })
-    Viewport = metadataComponents.Viewport
+    Viewport = shouldRenderMetadataAndViewport
+      ? metadataComponents.Viewport
+      : null
     Metadata = metadataComponents.Metadata
   }
 
@@ -10614,8 +10616,8 @@ async function prerenderToStream(
         ctx,
         reactServerErrorsByDigest.has((err as any)?.digest) ? undefined : err,
         errorType,
-        // The recovery shell only bootstraps the original Flight data. Avoid
-        // blocking that shell on error-page metadata or viewport.
+        // A dynamic viewport must not block the recovery shell. Not-found
+        // metadata can still stream behind its own Suspense boundary.
         false
       )
 

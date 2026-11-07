@@ -28,6 +28,7 @@ import { useActionQueue } from './use-action-queue'
 import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
+import { NotFoundMetadataProvider } from './http-access-fallback/metadata-boundary'
 import { unresolvedThenable } from './unresolved-thenable'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
@@ -499,14 +500,16 @@ function Router({
   )
 
   let content = (
-    <RedirectBoundary>
-      {head}
-      {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
+    <NotFoundMetadataProvider url={canonicalUrl}>
+      <RedirectBoundary>
+        {head}
+        {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
           When users wrap their layout in <Suspense>, this creates the component stack pattern
           "Suspense -> RootLayoutBoundary" which dynamic-rendering.ts uses to allow dynamic rendering. */}
-      <RootLayoutBoundary>{root.tree.data.rsc}</RootLayoutBoundary>
-      <AppRouterAnnouncer tree={tree} />
-    </RedirectBoundary>
+        <RootLayoutBoundary>{root.tree.data.rsc}</RootLayoutBoundary>
+        <AppRouterAnnouncer tree={tree} />
+      </RedirectBoundary>
+    </NotFoundMetadataProvider>
   )
 
   if (process.env.__NEXT_DEV_SERVER) {

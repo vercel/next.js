@@ -20,6 +20,10 @@ import {
   isHTTPAccessFallbackError,
 } from './http-access-fallback'
 import { MissingSlotContext } from '../../../shared/lib/app-router-context.shared-runtime'
+import {
+  NotFoundMetadataContext,
+  type NotFoundMetadataStore,
+} from './metadata-boundary'
 
 interface HTTPAccessFallbackBoundaryProps {
   notFound?: React.ReactNode
@@ -28,11 +32,13 @@ interface HTTPAccessFallbackBoundaryProps {
   // TODO: Make this required once `React.createElement` understands that positional args go into children
   children?: React.ReactNode
   missingSlots?: Set<string>
+  trackNotFoundMetadata?: boolean
 }
 
 interface HTTPAccessFallbackErrorBoundaryProps
   extends HTTPAccessFallbackBoundaryProps {
   pathname: string | null
+  metadataStore: NotFoundMetadataStore | null
   missingSlots?: Set<string>
 }
 
@@ -54,6 +60,7 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
   }
 
   componentDidCatch(): void {
+    this.syncMetadata()
     if (
       process.env.NODE_ENV === 'development' &&
       this.props.missingSlots &&
@@ -87,6 +94,21 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
     }
     // Re-throw if error is not for 404
     throw error
+  }
+
+  componentDidMount() {
+    this.syncMetadata()
+  }
+
+  componentDidUpdate() {
+    this.syncMetadata()
+  }
+
+  syncMetadata() {
+    this.props.metadataStore?.setNotFound(
+      this.state.triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND &&
+        !!this.props.notFound
+    )
   }
 
   static getDerivedStateFromProps(
@@ -156,6 +178,7 @@ export function HTTPAccessFallbackBoundary({
   forbidden,
   unauthorized,
   children,
+  trackNotFoundMetadata,
 }: HTTPAccessFallbackBoundaryProps) {
   // When we're rendering the missing params shell, this will return null. This
   // is because we won't be rendering any not found boundaries or error
@@ -163,12 +186,14 @@ export function HTTPAccessFallbackBoundary({
   // (where these error can occur), we will get the correct pathname.
   const pathname = useUntrackedPathname()
   const missingSlots = useContext(MissingSlotContext)
+  const metadataStore = useContext(NotFoundMetadataContext)
   const hasErrorFallback = !!(notFound || forbidden || unauthorized)
 
   if (hasErrorFallback) {
     return (
       <HTTPAccessFallbackErrorBoundary
         pathname={pathname}
+        metadataStore={trackNotFoundMetadata ? metadataStore : null}
         notFound={notFound}
         forbidden={forbidden}
         unauthorized={unauthorized}
