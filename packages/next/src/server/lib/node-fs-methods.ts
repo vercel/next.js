@@ -23,4 +23,5 @@ export const nodeFs: CacheFs = {
   },
   mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
   stat: (f) => fs.promises.stat(f),
+  rename: (oldPath, newPath) => fs.promises.rename(oldPath, newPath),
 }
