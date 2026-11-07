@@ -2002,7 +2002,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                 Some((#unwraper)(old))
             } else {
                 #track_insert
-                self.typed_mut().lazy.push(#constructor);
+                self.typed_mut().lazy.push_exact(#constructor);
                 None
             }
         }
@@ -2232,7 +2232,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                     Some((#unwraper)(old))
                 } else {
                     #track_modification
-                    self.typed_mut().lazy.push(#ctor);
+                    self.typed_mut().lazy.push_exact(#ctor);
                     None
                 }
             };
@@ -2306,7 +2306,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                     }
                     #track_modification
                     let set: #field_type = iter.collect();
-                    self.typed_mut().lazy.push(#ctor);
+                    self.typed_mut().lazy.push_exact(#ctor);
                 }
             }
         } else {
@@ -2633,7 +2633,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                         } else {
                             let mut new_map = CounterMap::default();
                             new_map.insert(key, value);
-                            self.typed_mut().lazy.push(#constructor);
+                            self.typed_mut().lazy.push_exact(#constructor);
                         }
                     }
                     None => {
@@ -3841,7 +3841,7 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
                     ));
                 }
             };
-            self.lazy.push(field);
+            self.lazy.push_exact(field);
         }
     }
 }
@@ -4032,7 +4032,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 match incoming {
                     #(#merge_lazy_arms)*
                     _ => {
-                        self.lazy.push(incoming);
+                        self.lazy.push_exact(incoming);
                     }
                 }
             }
@@ -4062,7 +4062,7 @@ fn gen_restore_lazy_merge_arm(field: &FieldInfo, discriminant: u8) -> TokenStrea
                 };
                 residue.merge_restore(incoming);
             } else {
-                self.lazy.push(LazyField::#variant_name(incoming));
+                self.lazy.push_exact(LazyField::#variant_name(incoming));
             }
         }
     }

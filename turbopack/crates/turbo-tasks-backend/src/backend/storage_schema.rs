@@ -709,7 +709,7 @@ impl TaskStorage {
         if let Some(idx) = idx {
             extract(&mut self.lazy[idx])
         } else {
-            self.lazy.push(create());
+            self.lazy.push_exact(create());
             extract(self.lazy.last_mut().unwrap())
         }
     }
@@ -745,7 +745,7 @@ impl TaskStorage {
             let old = std::mem::replace(&mut self.lazy[idx], new_value);
             Some(extract(old))
         } else {
-            self.lazy.push(new_value);
+            self.lazy.push_exact(new_value);
             None
         }
     }
@@ -800,7 +800,7 @@ impl TaskStorage {
         };
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
-            self.lazy.push(LazyField::Activeness(activeness));
+            self.lazy.push_exact(LazyField::Activeness(activeness));
         }
 
         // Set the task as scheduled so it can be executed
