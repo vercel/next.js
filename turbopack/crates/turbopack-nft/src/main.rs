@@ -76,8 +76,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
         let trace_file = current_dir()?.join("turbopack.log");
-        let trace_writer = std::fs::File::create(trace_file).unwrap();
-        let (trace_writer, guard) = TraceWriter::new(trace_writer);
+        let (trace_writer, guard) = TraceWriter::new(trace_file, Default::default()).unwrap();
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         exit_handler
