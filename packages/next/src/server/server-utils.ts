@@ -32,7 +32,9 @@ import { formatUrl } from '../shared/lib/router/utils/format-url'
 /**
  * Compiled matchers for rewrite sources. Rewrites come from the routes
  * manifest, so every request checks the same sources: each one is compiled
- * once per process instead of on every request.
+ * once per copy of this module instead of on every request. A process can
+ * hold several copies: each pre-compiled runtime that handles a request has
+ * its own.
  *
  * A matcher is keyed by its source, so rewrites that share a source share a
  * matcher. There is one map for each combination of the two options a source
