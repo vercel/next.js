@@ -565,20 +565,33 @@ export async function exportPages(
     return { result, path, page, pageKey }
   }
 
-  for (let i = 0; i < exportPaths.length; i += maxConcurrency) {
-    const subset = exportPaths.slice(i, i + maxConcurrency)
-
-    const subsetResults = await Promise.all(
-      subset.map((exportPath) =>
-        exportPageWithRetry(
-          exportPath,
-          nextConfig.experimental.staticGenerationRetryCount ?? 1
+  // Prerender with a sliding window of `maxConcurrency` pages: each runner
+  // picks up the next path as soon as its current one finishes, so a single
+  // slow page doesn't hold back the other slots. Results keep the order of
+  // `exportPaths`.
+  const maxAttempts = nextConfig.experimental.staticGenerationRetryCount ?? 1
+  let nextIndex = 0
+  let failed = false
+  const runner = async () => {
+    while (!failed && nextIndex < exportPaths.length) {
+      const index = nextIndex++
+      try {
+        results[index] = await exportPageWithRetry(
+          exportPaths[index],
+          maxAttempts
         )
-      )
-    )
-
-    results.push(...subsetResults)
+      } catch (err) {
+        // Stop handing out new pages once one has failed, like the previous
+        // batched implementation did.
+        failed = true
+        throw err
+      }
+    }
   }
+
+  await Promise.all(
+    Array.from({ length: Math.min(maxConcurrency, exportPaths.length) }, runner)
+  )
 
   return results
 }
