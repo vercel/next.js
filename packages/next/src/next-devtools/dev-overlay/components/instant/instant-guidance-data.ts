@@ -1087,9 +1087,9 @@ export function getCards(
       group: 'cache',
       link: 'https://nextjs.org/docs/app/api-reference/functions/cacheLife#prerendering-behavior',
       snippets: [
-        { text: 'cacheLife({', highlight: true },
-        { text: '  expire: 300, // …', highlight: true },
-        { text: '})', highlight: true },
+        { text: 'cacheLife({' },
+        { text: '  expire: 300,', highlight: true },
+        { text: '  // ...' },
       ],
       copyable: true,
     }
