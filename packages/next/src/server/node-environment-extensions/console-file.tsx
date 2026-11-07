@@ -1,10 +1,5 @@
 import { consoleAsyncStorage } from '../app-render/console-async-storage.external'
 
-// Only the development server writes logs to a file, so these two are loaded
-// in the development branch at the end of this file.
-let getFileLogger: typeof import('../dev/browser-logs/file-logger').getFileLogger
-let formatConsoleArgs: typeof import('../../client/lib/console').formatConsoleArgs
-
 type InterceptableConsoleMethod =
   | 'error'
   | 'assert'
@@ -21,7 +16,11 @@ type InterceptableConsoleMethod =
   | 'warn'
 
 // Based on https://github.com/facebook/react/blob/28dc0776be2e1370fe217549d32aee2519f0cf05/packages/react-server/src/ReactFlightServer.js#L248
-function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
+function patchConsoleMethod(
+  methodName: InterceptableConsoleMethod,
+  getFileLogger: typeof import('../dev/browser-logs/file-logger').getFileLogger,
+  formatConsoleArgs: typeof import('../../client/lib/console').formatConsoleArgs
+): void {
   const descriptor = Object.getOwnPropertyDescriptor(console, methodName)
   if (
     descriptor &&
@@ -60,12 +59,17 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
 }
 
 if (process.env.NODE_ENV === 'development') {
-  getFileLogger = (
+  // Only the development server writes logs to a file, so what that needs is
+  // loaded here and not at the top of this file.
+  const getFileLogger = (
     require('../dev/browser-logs/file-logger') as typeof import('../dev/browser-logs/file-logger')
   ).getFileLogger
-  formatConsoleArgs = (
+  const formatConsoleArgs = (
     require('../../client/lib/console') as typeof import('../../client/lib/console')
   ).formatConsoleArgs
+  const patchConsoleMethodDEV = (methodName: InterceptableConsoleMethod) =>
+    patchConsoleMethod(methodName, getFileLogger, formatConsoleArgs)
+
   patchConsoleMethodDEV('error')
   patchConsoleMethodDEV('assert')
   patchConsoleMethodDEV('debug')
