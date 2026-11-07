@@ -26,6 +26,7 @@ function makeCacheEntry(html: string): ResponseCacheEntry {
       status: 200,
       headers: undefined,
       segmentData: undefined,
+      inlineScriptHashes: undefined,
     },
     cacheControl: { revalidate: 60, expire: undefined },
   }
