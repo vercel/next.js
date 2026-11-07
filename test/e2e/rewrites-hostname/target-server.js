@@ -7,6 +7,8 @@ const { promisify } = require('util')
  * @returns {Promise<() => Promise<void>>} A promise that resolves to a function that closes the server
  */
 function createServer(targetPort) {
+  const socketIds = new WeakMap()
+  let nextSocketId = 0
   const server = http.createServer((req, res) => {
     const headers = req.headers
 
@@ -15,9 +17,11 @@ function createServer(targetPort) {
       JSON.stringify({
         forwardedHost: headers['x-forwarded-host'],
         host: headers['host'],
+        socketId: socketIds.get(req.socket),
       })
     )
   })
+  server.on('connection', (socket) => socketIds.set(socket, ++nextSocketId))
 
   return new Promise((resolve, reject) => {
     server.listen(targetPort, () => {
