@@ -677,6 +677,18 @@ function assignDefaultsAndValidate(
     )
   }
 
+  // The legacy option is normalized later and takes precedence when present.
+  const cacheComponents =
+    'cacheComponents' in result.experimental
+      ? result.experimental.cacheComponents
+      : result.cacheComponents
+
+  if (result.output === 'export' && cacheComponents) {
+    throw new Error(
+      "`cacheComponents` is not currently supported with `output: 'export'`. Remove `output: 'export'`, or disable `cacheComponents` and `partialPrefetching` to generate a static export.\nRead more: https://nextjs.org/docs/app/guides/static-exports#unsupported-features"
+    )
+  }
+
   // TODO: Before Next.js 17, also warn when `partialPrefetching` is `false`
   // so apps can migrate before both features are enabled together by default.
   if (
