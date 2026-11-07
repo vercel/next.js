@@ -1,7 +1,7 @@
 import { type ReactNode, Suspense } from 'react'
 import { cookies } from 'next/headers'
 
-// Reading a cookie in the root layout makes every page of the app dynamic,
+// Reading a cookie in the root layout makes every App Router page dynamic,
 // the not-found page included: none of them has a cache entry. With Cache
 // Components the pages keep a prerendered shell instead.
 async function Theme() {
