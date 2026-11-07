@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use swc_core::{
     common::{DUMMY_SP, util::take::Take},
@@ -11,7 +11,10 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, ChunkingType, EvaluatableAsset},
+    chunk::{
+        ChunkableModule, ChunkingContext, ChunkingType, EvaluatableAsset, ModuleChunkItemIdExt,
+        worker_type::WorkerType,
+    },
     context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -26,13 +29,16 @@ use turbopack_core::{
 
 use crate::{
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
+    chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
+        esm::generated_export_key,
         pattern_mapping::{PatternMapping, ResolveType},
         raw::resolve_static_files,
     },
-    worker_chunk::{WorkerType, module::WorkerLoaderModule},
+    runtime_functions::TURBOPACK_REQUIRE,
+    utils::module_id_to_lit,
 };
 
 /// A unified reference to a Worker (web or Node.js) that creates an isolated chunk group
@@ -45,6 +51,9 @@ pub struct WorkerAssetReference {
     pub request: WorkerRequest,
     pub issue_source: IssueSource,
     pub error_mode: ResolveErrorMode,
+    /// The helper referenced by the module containing the worker call, passed to the loader at
+    /// runtime. Absent for tracing-only references, which generate no worker loader.
+    pub helper: Option<ResolvedVc<Box<dyn Module>>>,
     /// When true, skip creating WorkerLoaderModule and return the inner module directly.
     /// This is used when we're only tracing dependencies, not generating code.
     pub tracing_only: bool,
@@ -73,6 +82,7 @@ impl WorkerAssetReference {
         error_mode: ResolveErrorMode,
         tracing_only: bool,
         is_shared: bool,
+        helper: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Self {
         WorkerAssetReference {
             worker_type: if is_shared {
@@ -85,6 +95,7 @@ impl WorkerAssetReference {
             issue_source,
             error_mode,
             tracing_only,
+            helper,
         }
     }
 
@@ -97,6 +108,7 @@ impl WorkerAssetReference {
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,
         tracing_only: bool,
+        helper: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Self {
         WorkerAssetReference {
             worker_type: WorkerType::NodeWorkerThread,
@@ -110,6 +122,7 @@ impl WorkerAssetReference {
             issue_source,
             error_mode,
             tracing_only,
+            helper,
         }
     }
 }
@@ -182,13 +195,15 @@ impl ModuleReference for WorkerAssetReference {
             }
         };
 
-        // When tracing only (no code generation), return the resolved modules directly
-        // without wrapping them in WorkerLoaderModule
+        // Validate the resolved modules, but resolve straight to them: the
+        // `WorkerLoaderModule` is created later, during chunking, so it can be given the
+        // enclosing chunk group's availability info (see
+        // `ChunkingContext::worker_loader_chunk_item`). The `ChunkingType::Worker` edge is what
+        // tells the chunking traversal to do that.
         if self.tracing_only {
             return Ok(result);
         }
 
-        // Wrap each resolved module in a WorkerLoaderModule
         let result_ref = result.await?;
         let mut primary = Vec::with_capacity(result_ref.primary.len());
 
@@ -249,15 +264,7 @@ impl ModuleReference for WorkerAssetReference {
                         continue;
                     }
 
-                    let loader =
-                        WorkerLoaderModule::new(*chunkable, self.worker_type, *asset_context)
-                            .to_resolved()
-                            .await?;
-
-                    primary.push((
-                        request_key.clone(),
-                        ModuleResolveResultItem::Module(ResolvedVc::upcast(loader)),
-                    ));
+                    primary.push((request_key.clone(), resolve_item.clone()));
                 }
                 // Pass through other result types (External, Ignore, etc.)
                 _ => {
@@ -274,9 +281,17 @@ impl ModuleReference for WorkerAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
+        if self.tracing_only {
+            // Tracing-only references must not take the worker chunking path (which creates a
+            // `WorkerLoaderModule` during chunking). Keep following them as plain parallel
+            // references so the traced subgraph still lists the worker's files.
+            return Some(ChunkingType::Parallel {
+                inherit_async: false,
+                hoisted: false,
+            });
+        }
+        Some(ChunkingType::Worker {
+            ty: self.worker_type,
         })
     }
 
@@ -367,14 +382,33 @@ impl WorkerAssetReferenceCodeGen {
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
-            ResolveType::ChunkItem,
+            ResolveType::WorkerLoader(reference.worker_type),
             None,
         )
         .await?;
 
-        // Transform `new Worker(url, opts)` into `require(id)(Worker, opts)`
-        // The loader module exports a function that creates the worker with all necessary
-        // configuration (entrypoint, chunks, forwarded globals, etc.)
+        // The referring module already references this helper. Pass its exported function to
+        // the late worker loader at runtime, rather than making the loader resolve it again.
+        let helper = reference
+            .helper
+            .context("Worker codegen requires a createWorker helper reference")?;
+        let helper_id = helper.chunk_item_id(chunking_context).await?;
+        let helper_export =
+            match ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(helper) {
+                Some(placeable) => {
+                    generated_export_key(placeable, chunking_context, &rcstr!("default")).await?
+                }
+                None => rcstr!("default"),
+            };
+        let helper_expr = quote_expr!(
+            "$require($id)[$export]",
+            require: Expr = TURBOPACK_REQUIRE.into(),
+            id: Expr = module_id_to_lit(&helper_id),
+            export: Expr = Expr::Lit(Lit::Str(helper_export.to_string().into()))
+        );
+
+        // Transform `new Worker(url, opts)` into
+        // `require(loaderId)(require(helperId)[export], Worker, opts)`.
         let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::New(new_expr) = expr {
                 if let Some(args) = &mut new_expr.args {
@@ -395,11 +429,17 @@ impl WorkerAssetReferenceCodeGen {
                             };
                             let require_call = pm.create_require(key_expr);
 
-                            // Build the arguments: (WorkerConstructor, ...rest_args)
-                            let mut call_args = vec![ExprOrSpread {
-                                spread: None,
-                                expr: constructor,
-                            }];
+                            // Build the arguments: (createWorker, WorkerConstructor, ...rest_args)
+                            let mut call_args = vec![
+                                ExprOrSpread {
+                                    spread: None,
+                                    expr: helper_expr.clone(),
+                                },
+                                ExprOrSpread {
+                                    spread: None,
+                                    expr: constructor,
+                                },
+                            ];
                             // Add any remaining arguments (e.g., worker options)
                             call_args.extend(args.drain(1..));
 
