@@ -1,4 +1,11 @@
-import { cpSync, mkdtempSync, mkdirSync, realpathSync, rmSync } from 'node:fs'
+import {
+  cpSync,
+  mkdtempSync,
+  mkdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -89,5 +96,39 @@ describe('TypeScript CLI config metadata', () => {
         path.join(testDir, 'node_modules/typescript/lib/tsc.js')
       ),
     })
+  })
+
+  it('reads incremental and composite from the config', () => {
+    const configPath = path.join(testDir, 'incremental.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({ compilerOptions: { incremental: true } })
+    )
+    expect(loadTsConfigOptions(configPath).incremental).toBe(true)
+
+    const compositePath = path.join(testDir, 'composite.json')
+    writeFileSync(
+      compositePath,
+      JSON.stringify({ compilerOptions: { composite: true } })
+    )
+    expect(loadTsConfigOptions(compositePath).composite).toBe(true)
+  })
+
+  it('lets a child config disable incremental inherited from a base', () => {
+    const basePath = path.join(testDir, 'tsconfig.base.json')
+    writeFileSync(
+      basePath,
+      JSON.stringify({ compilerOptions: { incremental: true } })
+    )
+    const childPath = path.join(testDir, 'tsconfig.child.json')
+    writeFileSync(
+      childPath,
+      JSON.stringify({
+        extends: './tsconfig.base.json',
+        compilerOptions: { incremental: false },
+      })
+    )
+
+    expect(loadTsConfigOptions(childPath).incremental).toBe(false)
   })
 })
