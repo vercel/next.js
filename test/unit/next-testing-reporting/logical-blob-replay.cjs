@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -5,7 +6,8 @@ const { runReporterCommand } = require('./reporter-command.cjs')
 const repo = path.resolve(__dirname, '../../..')
 const source = path.join(__dirname, 'fixtures/case-result-cohort')
 const pristine = path.join(__dirname, 'fixtures/case-result-blob')
-const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'))
+const read = (file) =>
+  JSON.parse(fs.readFileSync(resolveFixturePath(file), 'utf8'))
 async function run(root, args, mode) {
   return runReporterCommand({
     root,

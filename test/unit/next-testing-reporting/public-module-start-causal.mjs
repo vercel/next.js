@@ -28,7 +28,7 @@ if (installedConsumer)
     assert.throws(() => require.resolve(name), { code: 'MODULE_NOT_FOUND' })
 const input = join(local, 'fixtures/module-start-public', profile + '.json'),
   authored = JSON.parse(readFileSync(input)),
-  expected = authored.genuine[mode],
+  expected = { ...authored.genuine.development, ...authored.genuine[mode] },
   out = output + '.public',
   fixture = join(consumer, '.next-test-module-start-' + randomUUID()),
   markers = join(out, 'queued'),

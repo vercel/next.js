@@ -10,6 +10,7 @@ import {
 import { dirname, resolve, join, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 import {
   runOwnedNode,
   assertOwnedNodeCompleted,
@@ -24,10 +25,14 @@ if (installedConsumer)
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
     assert.throws(() => require.resolve(name), { code: 'MODULE_NOT_FOUND' })
 const input = join(local, 'fixtures', 'snapshot-preparation-public', profile),
-  expected = JSON.parse(readFileSync(join(input, mode + '.json'), 'utf8')),
+  expected = JSON.parse(readFileSync(join(input, 'expected.json'), 'utf8')),
   summary = JSON.parse(
-    readFileSync(join(input, mode + '.default-summary.json'), 'utf8')
+    readFileSync(join(input, 'default-summary.json'), 'utf8')
   )
+assert(['development', 'production'].includes(mode))
+expected.mode = mode
+expected.config.test.mode = mode
+summary.mode = mode
 assert.equal(expected.profile, profile)
 assert.equal(expected.mode, mode)
 assert.equal(summary.profile, profile)
@@ -36,7 +41,10 @@ const fixture = join(consumer, '.next-test-default-snapshot-' + randomUUID()),
   out = output + '.public'
 mkdirSync(fixture)
 mkdirSync(out)
-copyFileSync(join(input, 'modes.case.mjs.txt'), join(fixture, 'modes.case.mjs'))
+copyFileSync(
+  resolveFixturePath(join(input, 'modes.case.mjs.txt')),
+  join(fixture, 'modes.case.mjs')
+)
 writeFileSync(
   join(fixture, 'vitest.config.mjs'),
   'export default ' + JSON.stringify(expected.config) + '\n'

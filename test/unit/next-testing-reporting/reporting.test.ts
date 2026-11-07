@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 import {
   cp,
   realpath,
@@ -9499,7 +9500,7 @@ describe('actual prior custom completion ownership through close', () => {
         string,
         string,
       ][]) {
-        let source = await readFile(sourceFile, 'utf8')
+        let source = await readFile(resolveFixturePath(sourceFile), 'utf8')
         if (name === 'worker-death' && file === 'first.mjs')
           source = source.replace('this.release?.()', 'process.exit(23)')
         await writeFile(join(root, file), source)
@@ -9643,7 +9644,9 @@ describe('actual ordinary end hook descriptor planning', () => {
       )
       const root = await mkdtemp(join(tmpdir(), 'next-getter118-'))
       let source = await readFile(
-        join(__dirname, 'fixtures/custom-getter-planning', name + '.mjs'),
+        resolveFixturePath(
+          join(__dirname, 'fixtures/custom-getter-planning', name + '.mjs')
+        ),
         'utf8'
       )
       if (name.startsWith('proxy-'))
@@ -10138,7 +10141,9 @@ describe('actual pre-call completion failure owns earlier callbacks until close'
         ['third.mjs', 'third.mjs'],
       ])
         await cp(
-          join(__dirname, 'fixtures/custom-access-pending', source),
+          resolveFixturePath(
+            join(__dirname, 'fixtures/custom-access-pending', source)
+          ),
           join(root, file)
         )
       const controller = new AbortController()

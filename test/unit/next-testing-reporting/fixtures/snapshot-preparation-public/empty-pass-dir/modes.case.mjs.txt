@@ -1,4 +1,0 @@
-import{test,expect,describe,beforeAll,afterAll}from'vitest'
-import{appendFileSync}from'node:fs'
-const record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event,snapshotStatePresent:expect.getState().snapshotState!==undefined})+'\n')
-record('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));

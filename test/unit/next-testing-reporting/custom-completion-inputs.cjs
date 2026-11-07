@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const { join } = require('node:path')
 
@@ -36,7 +37,9 @@ function completionInputs(family, name) {
   assert(profiles[family]?.includes(name), 'Unknown reporter input profile')
   const files = {}
   const add = (target, variant, directory = family) => {
-    files[target] = join(__dirname, 'fixtures', 'custom-' + directory, variant)
+    files[target] = resolveFixturePath(
+      join(__dirname, 'fixtures', 'custom-' + directory, variant)
+    )
   }
   let reporters
   let priorJSONBytes = null

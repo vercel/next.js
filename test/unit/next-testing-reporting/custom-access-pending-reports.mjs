@@ -1,3 +1,4 @@
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
@@ -52,7 +53,9 @@ try {
   for (const [file, source] of reporterFiles)
     sourceFiles.set(
       file,
-      fs.readFileSync(join(fixtures, 'custom-access-pending', source))
+      fs.readFileSync(
+        resolveFixturePath(join(fixtures, 'custom-access-pending', source))
+      )
     )
   for (const [file, bytes] of sourceFiles)
     fs.writeFileSync(join(fixture, file), bytes)

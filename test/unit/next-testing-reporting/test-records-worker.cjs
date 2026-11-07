@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -221,18 +222,18 @@ async function main() {
     const source = path.join(fixture, 'sources', name)
     const file = path.join(dir, 'contract.test.mjs')
     const body = fs.readFileSync(
-      path.join(source, 'contract.test.mjs.txt'),
+      resolveFixturePath(path.join(source, 'contract.test.mjs.txt')),
       'utf8'
     )
     fs.writeFileSync(file, body)
     fs.copyFileSync(
-      path.join(source, 'reporter.mjs.txt'),
+      resolveFixturePath(path.join(source, 'reporter.mjs.txt')),
       path.join(dir, 'reporter.mjs')
     )
     const reporters = [path.join(dir, 'reporter.mjs')]
     if (expected.profile.multi) {
       fs.copyFileSync(
-        path.join(source, 'second-reporter.mjs.txt'),
+        resolveFixturePath(path.join(source, 'second-reporter.mjs.txt')),
         path.join(dir, 'second-reporter.mjs')
       )
       reporters.push(path.join(dir, 'second-reporter.mjs'))

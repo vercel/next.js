@@ -1,3 +1,7 @@
+const {
+  resolveFixturePath,
+  fixtureFiles,
+} = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -28,11 +32,11 @@ for (const name of [
       path.join(repo, '.next-test-suite-error-owner-')
     )
     try {
-      for (const file of fs
-        .readdirSync(source)
-        .filter((file) => file.endsWith('.txt')))
+      for (const file of fixtureFiles(source).filter((file) =>
+        file.endsWith('.txt')
+      ))
         fs.copyFileSync(
-          path.join(source, file),
+          resolveFixturePath(path.join(source, file)),
           path.join(fixture, file.slice(0, -4))
         )
       fs.writeFileSync(
@@ -106,7 +110,9 @@ for (const name of [
       assert.deepEqual(
         result,
         JSON.parse(
-          fs.readFileSync(path.join(source, 'pristine-' + mode + '.json'))
+          fs.readFileSync(
+            resolveFixturePath(path.join(source, 'pristine-' + mode + '.json'))
+          )
         )
       )
       const events = report.next.events,
@@ -131,12 +137,12 @@ for (const name of [
           diagnostic.diagnostic
         )
       }
-      for (const file of fs
-        .readdirSync(source)
-        .filter((file) => file.endsWith('.txt')))
+      for (const file of fixtureFiles(source).filter((file) =>
+        file.endsWith('.txt')
+      ))
         assert.deepEqual(
           fs.readFileSync(path.join(fixture, file.slice(0, -4))),
-          fs.readFileSync(path.join(source, file))
+          fs.readFileSync(resolveFixturePath(path.join(source, file)))
         )
       completeProfiles++
     } finally {

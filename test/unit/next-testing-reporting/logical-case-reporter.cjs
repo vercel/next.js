@@ -1,3 +1,4 @@
+const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -5,7 +6,8 @@ const { spawn } = require('node:child_process')
 const repo = path.resolve(__dirname, '../../..')
 const cliRepo = process.argv[2] || repo
 const source = path.join(__dirname, 'fixtures/case-result-reporter')
-const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'))
+const read = (file) =>
+  JSON.parse(fs.readFileSync(resolveFixturePath(file), 'utf8'))
 function earlyRows(fixture, child, closed) {
   return new Promise((resolve, reject) => {
     let observer

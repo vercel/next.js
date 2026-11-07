@@ -1,3 +1,4 @@
+import { resolveFixturePath } from '../../lib/next-testing-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -59,7 +60,9 @@ for (const profile of manifest.profiles) {
   let joined = false
   try {
     for (const [name, hash] of Object.entries(profile.sourceSHA256)) {
-      const bytes = await readFile(join(corpus, profile.name, name + '.txt'))
+      const bytes = await readFile(
+        resolveFixturePath(join(corpus, profile.name, name + '.txt'))
+      )
       assert.equal(sha(bytes), hash)
       await writeFile(join(fixture, name), bytes)
     }
