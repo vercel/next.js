@@ -1,0 +1,28 @@
+[package]
+name = "turbopack-nft-napi"
+version = "0.1.0"
+description = "NAPI bindings for turbopack node-file-trace"
+license = "MIT"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+napi = { workspace = true }
+napi-derive = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-rcstr = { workspace = true, features = ["napi"] }
+turbo-tasks-backend = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false, features = [
+    "custom_allocator",
+] }
+turbopack-nft = { workspace = true }
+
+[build-dependencies]
+napi-build = { workspace = true }
