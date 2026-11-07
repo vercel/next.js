@@ -203,7 +203,10 @@ fn use_react_experimental_config(config: &NextConfig) -> bool {
         || config.experimental.transition_indicator.unwrap_or(false)
         || config.experimental.gesture_transition.unwrap_or(false)
         || config.experimental.hydration_change_event.unwrap_or(false)
-        || config.experimental.external_browser_runtime.unwrap_or(false)
+        || config
+            .experimental
+            .external_browser_runtime
+            .unwrap_or(false)
 }
 
 #[derive(
