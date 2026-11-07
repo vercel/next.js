@@ -192,10 +192,10 @@ impl Asset for NftJsonAsset {
 
             // Every route reads its own prerender manifest at runtime. Next.js writes it after
             // Turbopack ran, so it is not part of the module graph and there is no content to hash
-            // yet. It sits in the directory named after the entry file (`getRoutePrerenderManifestPath`
-            // in `packages/next/src/server/lib/route-cache-key.ts`), so derive it from the chunk
-            // path: a page name is not the output path for a Pages Router `index` file in a
-            // subdirectory.
+            // yet. It sits in the directory named after the entry file: see
+            // `getRoutePrerenderManifestPath` in `packages/next/src/server/lib/route-cache-key.ts`.
+            // Derive it from the chunk path, because the page name of a Pages Router `index` file
+            // in a subdirectory is not its output path.
             //
             // Middleware and instrumentation have no page name, and `/_app` and `/_document` are
             // not routes.
