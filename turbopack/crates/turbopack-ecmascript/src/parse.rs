@@ -144,7 +144,15 @@ impl Visit for IdentCollector {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
+/// Not serialized, so an evicted parse result has to be recomputed by re-parsing the source.
+/// Tagged `evict = "last"` so eviction prefers evicting cheaper cells first.
+#[turbo_tasks::value(
+    shared,
+    serialization = "skip",
+    evict = "last",
+    eq = "manual",
+    cell = "new"
+)]
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
     Ok {
