@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import { resolve } from 'path'
+import { join, resolve } from 'path'
 import {
   access,
   cp,
@@ -123,6 +123,16 @@ function expectedHarnessPath(name: string): string {
           .filter(Boolean)[0]
       : ''
   return resolve('/agents', `${name}${extension}`)
+}
+
+function expectedHarnessPrompt(prompt: string): string {
+  if (
+    process.platform === 'win32' &&
+    /\.(cmd|bat)$/i.test(expectedHarnessPath('codex'))
+  ) {
+    return `Read and follow the complete instructions in ${JSON.stringify(join('/tmp/next-upgrade-test', 'PROMPT.md'))}.`
+  }
+  return prompt
 }
 
 function normalizedFileWriteCalls() {
@@ -736,7 +746,7 @@ describe('agentic upgrade prompts', () => {
         '-c',
         'sandbox_workspace_write.network_access=true',
         '--approve-for-me',
-        'Upgrade prompt',
+        expectedHarnessPrompt('Upgrade prompt'),
       ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
@@ -835,7 +845,7 @@ describe('agentic upgrade prompts', () => {
                 '--approve-for-me',
               ]
             : ['--permission-mode', 'auto']),
-          'Upgrade prompt',
+          expectedHarnessPrompt('Upgrade prompt'),
         ],
         { cwd: '/workspace/app', stdio: 'inherit' }
       )
@@ -877,7 +887,13 @@ describe('agentic upgrade prompts', () => {
     })
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('claude'),
-      ['--model', 'default', '--permission-mode', 'auto', 'Upgrade prompt'],
+      [
+        '--model',
+        'default',
+        '--permission-mode',
+        'auto',
+        expectedHarnessPrompt('Upgrade prompt'),
+      ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
     expect(getHarnessModels).toHaveBeenCalledTimes(2)
@@ -1058,7 +1074,7 @@ describe('agentic upgrade prompts', () => {
           ? ['-c', 'model_reasoning_effort=high']
           : ['--effort', 'high']),
         ...flags,
-        'Upgrade prompt',
+        expectedHarnessPrompt('Upgrade prompt'),
       ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
@@ -1110,7 +1126,7 @@ describe('agentic upgrade prompts', () => {
         'workspace-write',
         '--ask-for-approval',
         'on-request',
-        'Upgrade prompt',
+        expectedHarnessPrompt('Upgrade prompt'),
       ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
@@ -1160,7 +1176,7 @@ describe('agentic upgrade prompts', () => {
         'high',
         '--permission-mode',
         'default',
-        'Upgrade prompt',
+        expectedHarnessPrompt('Upgrade prompt'),
       ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
@@ -1251,7 +1267,7 @@ describe('agentic upgrade prompts', () => {
         '-c',
         'sandbox_workspace_write.network_access=true',
         '--approve-for-me',
-        'Upgrade prompt',
+        expectedHarnessPrompt('Upgrade prompt'),
       ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
@@ -1288,7 +1304,13 @@ describe('agentic upgrade prompts', () => {
     expect(jest.mocked(cliSelect).mock.calls[8][0].defaultValue).toBe(0)
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('claude'),
-      ['--model', 'opus', '--permission-mode', 'auto', 'Upgrade prompt'],
+      [
+        '--model',
+        'opus',
+        '--permission-mode',
+        'auto',
+        expectedHarnessPrompt('Upgrade prompt'),
+      ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
   })
@@ -1329,7 +1351,7 @@ describe('agentic upgrade prompts', () => {
         'medium',
         '--permission-mode',
         'auto',
-        'Upgrade prompt',
+        expectedHarnessPrompt('Upgrade prompt'),
       ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
@@ -1386,7 +1408,7 @@ describe('agentic upgrade prompts', () => {
         'workspace-write',
         '--ask-for-approval',
         'on-request',
-        'Upgrade prompt',
+        expectedHarnessPrompt('Upgrade prompt'),
       ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
@@ -1440,7 +1462,7 @@ describe('agentic upgrade prompts', () => {
         '-c',
         'sandbox_workspace_write.network_access=true',
         '--approve-for-me',
-        'Worktree prompt',
+        expectedHarnessPrompt('Worktree prompt'),
       ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
