@@ -13,15 +13,16 @@ type ProbeState = {
 
 // With Cache Components, every layout slot keeps up to 3 recently active
 // segments mounted, the inactive ones inside `<Activity mode="hidden">`.
-// These tests document what `useParams()` and `usePathname()` return inside
-// those hidden trees, and which trees re-render on each navigation.
+// Inside a hidden tree, `useParams()` and `usePathname()` return the values the
+// tree had when it was hidden, which are the values it gets again when
+// navigating back to it. So hidden trees don't re-render when the active route
+// changes, and a tree shown again with the same values doesn't re-render
+// either.
 //
-// Today, the hooks read router-wide contexts, so hidden trees re-render and
-// commit with the active route's values, while the segment's own params (from
-// the server) still describe the hidden route. They should probably reflect
-// the navigation state of the hidden route instead (`params` equal to
-// `segmentParams`, `pathname` equal to the URL the route was last shown at),
-// and hidden trees should not re-render.
+// React still calls hidden components that read these hooks when the router's
+// values change, because it propagates a context change to every consumer
+// below the changed provider, including below a nested provider with an
+// unchanged value. They read unchanged values and bail out ('bailout').
 describe('router-hooks-hidden-routes', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -93,7 +94,7 @@ describe('router-hooks-hidden-routes', () => {
     return result
   }
 
-  it('hidden routes see the active route params and pathname', async () => {
+  it('hidden routes keep the params and pathname they were hidden with', async () => {
     const browser = await next.browser('/acme/a')
     await waitForIdle(browser)
     const initial = await readProbes(browser)
@@ -121,18 +122,20 @@ describe('router-hooks-hidden-routes', () => {
           label: 'project-page',
           hidden: true,
           segmentParams: { team: 'acme', project: 'a' },
-          // TODO: should be { team: 'acme', project: 'a' } and '/acme/a'.
-          params: { team: 'acme', project: 'b' },
-          pathname: '/acme/b',
+          params: { team: 'acme', project: 'a' },
+          pathname: '/acme/a',
         },
       ])
     })
     await waitForIdle(browser)
-    const onB = await readProbes(browser)
-    expect(rerendered(initial, onB)).toEqual({
-      'team-layout acme': 'render',
-      // TODO: hidden, should not re-render.
-      'project-page acme/a': 'render',
+    let onB: ProbeState[] = []
+    await retry(async () => {
+      onB = await readProbes(browser)
+      expect(rerendered(initial, onB)).toEqual({
+        // Visible, and its params changed.
+        'team-layout acme': 'render',
+        'project-page acme/a': 'bailout',
+      })
     })
 
     // /acme/b → /account: the whole `[team]` subtree is hidden in the root
@@ -151,35 +154,34 @@ describe('router-hooks-hidden-routes', () => {
           label: 'project-page',
           hidden: true,
           segmentParams: { team: 'acme', project: 'a' },
-          // TODO: should be { team: 'acme', project: 'a' } and '/acme/a'.
-          params: {},
-          pathname: '/account',
+          params: { team: 'acme', project: 'a' },
+          pathname: '/acme/a',
         },
         {
           label: 'project-page',
           hidden: true,
           segmentParams: { team: 'acme', project: 'b' },
-          // TODO: should be { team: 'acme', project: 'b' } and '/acme/b'.
-          params: {},
-          pathname: '/account',
+          params: { team: 'acme', project: 'b' },
+          pathname: '/acme/b',
         },
         {
           label: 'team-layout',
           hidden: true,
           segmentParams: { team: 'acme' },
-          // TODO: should be { team: 'acme', project: 'b' } and '/acme/b'.
-          params: {},
-          pathname: '/account',
+          params: { team: 'acme', project: 'b' },
+          pathname: '/acme/b',
         },
       ])
     })
     await waitForIdle(browser)
-    const onAccount = await readProbes(browser)
-    expect(rerendered(onB, onAccount)).toEqual({
-      // TODO: hidden, should not re-render.
-      'team-layout acme': 'render',
-      'project-page acme/a': 'render',
-      'project-page acme/b': 'render',
+    let onAccount: ProbeState[] = []
+    await retry(async () => {
+      onAccount = await readProbes(browser)
+      expect(rerendered(onB, onAccount)).toEqual({
+        'team-layout acme': 'bailout',
+        'project-page acme/a': 'bailout',
+        'project-page acme/b': 'bailout',
+      })
     })
 
     // Back to /acme/b: the team subtree is visible again, and the account page
@@ -205,29 +207,29 @@ describe('router-hooks-hidden-routes', () => {
           label: 'account-page',
           hidden: true,
           segmentParams: {},
-          // TODO: should be {} and '/account'.
-          params: { team: 'acme', project: 'b' },
-          pathname: '/acme/b',
+          params: {},
+          pathname: '/account',
         },
         {
           label: 'project-page',
           hidden: true,
           segmentParams: { team: 'acme', project: 'a' },
-          // TODO: should be { team: 'acme', project: 'a' } and '/acme/a'.
-          params: { team: 'acme', project: 'b' },
-          pathname: '/acme/b',
+          params: { team: 'acme', project: 'a' },
+          pathname: '/acme/a',
         },
       ])
     })
     await waitForIdle(browser)
-    const backOnB = await readProbes(browser)
-    expect(rerendered(onAccount, backOnB)).toEqual({
-      // TODO: the account page is hidden, and the team subtree shows the same
-      // values as when it was hidden. None of these should re-render.
-      'account-page': 'render',
-      'team-layout acme': 'render',
-      'project-page acme/a': 'render',
-      'project-page acme/b': 'render',
+    let backOnB: ProbeState[] = []
+    await retry(async () => {
+      backOnB = await readProbes(browser)
+      expect(rerendered(onAccount, backOnB)).toEqual({
+        'account-page': 'bailout',
+        // Shown again with the values it was hidden with.
+        'team-layout acme': 'bailout',
+        'project-page acme/a': 'bailout',
+        'project-page acme/b': 'bailout',
+      })
     })
   })
 })

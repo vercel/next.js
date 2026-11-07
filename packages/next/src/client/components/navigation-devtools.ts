@@ -128,10 +128,17 @@ export function createRootNavigationPromises(
   return promises
 }
 
+/**
+ * Nested layout promises are cached by their parent promises and the values of
+ * the layout segment promises, not by tree. Navigating back to a route creates
+ * a new tree with the same values, and a stable object keeps hidden or
+ * restored subtrees from re-rendering (see RouterNavigationState).
+ */
 const nestedLayoutPromisesCache = new WeakMap<
-  FlightRouterState,
-  Map<NavigationPromises | null, NavigationPromises>
+  NavigationPromises,
+  Map<string, NavigationPromises>
 >()
+const noParentNavPromises = {} as NavigationPromises
 
 /**
  * Creates merged navigation promises for nested layouts.
@@ -153,27 +160,38 @@ export function createNestedLayoutNavigationPromises(
     return null
   }
 
-  // Get or create the cache for this tree
-  let treeCache = nestedLayoutPromisesCache.get(tree)
-  if (!treeCache) {
-    treeCache = new Map<NavigationPromises | null, NavigationPromises>()
-    nestedLayoutPromisesCache.set(tree, treeCache)
+  const layoutSegmentPromises = createLayoutSegmentPromises(tree)!
+  const cacheKey = JSON.stringify(
+    parallelRouteKeys.map((parallelRouteKey) => [
+      layoutSegmentPromises.selectedLayoutSegmentPromises.get(parallelRouteKey)!
+        .value,
+      layoutSegmentPromises.selectedLayoutSegmentsPromises.get(
+        parallelRouteKey
+      )!.value,
+    ])
+  )
+
+  // Get or create the cache for this parent
+  const parentKey = parentNavPromises ?? noParentNavPromises
+  let parentCache = nestedLayoutPromisesCache.get(parentKey)
+  if (!parentCache) {
+    parentCache = new Map<string, NavigationPromises>()
+    nestedLayoutPromisesCache.set(parentKey, parentCache)
   }
 
-  // Check if we have cached promises for this parent combination
-  const cached = treeCache.get(parentNavPromises)
+  // Check if we have cached promises for these segment values
+  const cached = parentCache.get(cacheKey)
   if (cached) {
     return cached
   }
 
   // Create merged promises
-  const layoutSegmentPromises = createLayoutSegmentPromises(tree)
   const promises: NavigationPromises = {
     ...parentNavPromises!,
     ...layoutSegmentPromises,
   }
 
-  treeCache.set(parentNavPromises, promises)
+  parentCache.set(cacheKey, promises)
 
   return promises
 }

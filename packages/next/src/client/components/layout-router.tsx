@@ -42,10 +42,14 @@ import { createSegmentKey } from './router-reducer/create-segment-key'
 import {
   useRouterBFCache,
   type RouterBFCacheEntry,
+  type RouterNavigationState,
 } from './bfcache-state-manager'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
   NavigationPromisesContext,
+  PathnameContext,
+  PathParamsContext,
+  SearchParamsContext,
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { getParamValueFromCacheKey } from '../route-params'
@@ -588,11 +592,29 @@ export default function OuterLayoutRouter({
   // this level inside a hidden <Activity> boundary, to preserve their state
   // if or when the user navigates to them again.
   //
+  // The values useParams(), usePathname() and useSearchParams() currently
+  // read at this level. Each entry stores them while active, so inactive
+  // entries can keep providing the values they were hidden with. See
+  // RouterNavigationState.
+  let activeNavigationState: RouterNavigationState | null = null
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    activeNavigationState = {
+      params: use(PathParamsContext),
+      pathname: use(PathnameContext),
+      searchParams: use(SearchParamsContext),
+      navigationPromises:
+        process.env.NODE_ENV !== 'production'
+          ? use(NavigationPromisesContext)
+          : null,
+    }
+  }
+
   // bfcacheEntry is a linked list of FlightRouterStates.
   let bfcacheEntry: RouterBFCacheEntry | null = useRouterBFCache(
     activeTree,
     activeRenderTree!,
-    activeStateKey
+    activeStateKey,
+    activeNavigationState
   )
   let children: Array<React.ReactNode> = []
   do {
@@ -741,13 +763,31 @@ export default function OuterLayoutRouter({
     }
 
     if (process.env.__NEXT_CACHE_COMPONENTS) {
+      const navigationState = bfcacheEntry.navigationState!
+      if (process.env.NODE_ENV !== 'production') {
+        child = (
+          <NavigationPromisesContext.Provider
+            value={navigationState.navigationPromises}
+          >
+            {child}
+          </NavigationPromisesContext.Provider>
+        )
+      }
       child = (
         <Activity
           name={debugNameToDisplay}
           key={stateKey}
           mode={stateKey === activeStateKey ? 'visible' : 'hidden'}
         >
-          {child}
+          <PathParamsContext.Provider value={navigationState.params}>
+            <PathnameContext.Provider value={navigationState.pathname}>
+              <SearchParamsContext.Provider
+                value={navigationState.searchParams}
+              >
+                {child}
+              </SearchParamsContext.Provider>
+            </PathnameContext.Provider>
+          </PathParamsContext.Provider>
         </Activity>
       )
     }
