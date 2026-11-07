@@ -31,6 +31,7 @@ import {
   ACTION_INSTANT_NAVS_TOGGLE,
   ACTION_REQUEST_INSIGHTS_SNAPSHOT,
   ACTION_REQUEST_INSIGHTS_UPDATE,
+  ACTION_VULNERABILITY_INSIGHT,
 } from './dev-overlay/shared'
 
 import type { FlightRouterState } from '../shared/lib/app-router-types'
@@ -59,7 +60,7 @@ import type { DevToolsConfig } from './dev-overlay/shared'
 import type { SegmentTrieData } from '../shared/lib/mcp-page-metadata-types'
 import { EventQueue } from './dev-overlay/event-queue'
 import type {
-  RequestInsight,
+  RequestInsightDelta,
   RequestInsightsSnapshot,
 } from './shared/request-insights'
 
@@ -67,6 +68,7 @@ export interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
   onVersionInfo(versionInfo: VersionInfo): void
+  onVulnerabilityInsight(hasVulnerabilityInsight: boolean): void
   onDebugInfo(debugInfo: DebugInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
@@ -91,7 +93,7 @@ export interface Dispatcher {
   ): void
   instantNavsToggle(): void
   onRequestInsightsSnapshot(snapshot: RequestInsightsSnapshot): void
-  onRequestInsightsUpdate(insight: RequestInsight): void
+  onRequestInsightsUpdate(insight: RequestInsightDelta): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
@@ -216,6 +218,11 @@ export const dispatcher: Dispatcher = {
       dispatch({ type: ACTION_VERSION_INFO, versionInfo })
     }
   ),
+  onVulnerabilityInsight: createQueuable(
+    (dispatch: Dispatch, hasVulnerabilityInsight: boolean) => {
+      dispatch({ type: ACTION_VULNERABILITY_INSIGHT, hasVulnerabilityInsight })
+    }
+  ),
   onCacheIndicator: createQueuable(
     (dispatch: Dispatch, status: CacheIndicatorState) => {
       dispatch({ type: ACTION_CACHE_INDICATOR, cacheIndicator: status })
@@ -313,7 +320,7 @@ export const dispatcher: Dispatcher = {
     }
   ),
   onRequestInsightsUpdate: createQueuable(
-    (dispatch: Dispatch, insight: RequestInsight) => {
+    (dispatch: Dispatch, insight: RequestInsightDelta) => {
       dispatch({ type: ACTION_REQUEST_INSIGHTS_UPDATE, insight })
     }
   ),

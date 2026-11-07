@@ -90,14 +90,25 @@ export class WebpackHotMiddleware {
   private middlewareLatestStats: { ts: number; stats: webpack.Stats } | null =
     null
   private serverLatestStats: { ts: number; stats: webpack.Stats } | null = null
+  private hasVulnerabilityInsight = false
 
   constructor(
     compilers: webpack.Compiler[],
     private versionInfo: VersionInfo,
     private devtoolsFrontendUrl: string | undefined,
     private config: NextConfigComplete,
-    private devToolsConfig: DevToolsConfig
+    private devToolsConfig: DevToolsConfig,
+    hasVulnerabilityInsight: Promise<boolean>
   ) {
+    hasVulnerabilityInsight.then((enabled) => {
+      if (enabled) {
+        this.hasVulnerabilityInsight = true
+        this.publish({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT,
+          hasVulnerabilityInsight: true,
+        })
+      }
+    })
     compilers[0].hooks.invalid.tap(
       'webpack-hot-middleware',
       this.onClientInvalid
@@ -220,6 +231,7 @@ export class WebpackHotMiddleware {
           ...(middlewareStats.warnings || []),
         ],
         versionInfo: this.versionInfo,
+        hasVulnerabilityInsight: this.hasVulnerabilityInsight,
         debug: {
           devtoolsFrontendUrl: this.devtoolsFrontendUrl,
         },

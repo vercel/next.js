@@ -53,7 +53,7 @@ struct FieldInfo {
     field_type: Type,
     storage_type: StorageType,
     category: Category,
-    /// If true, field is lazily allocated in Vec<LazyField> (the default).
+    /// If true, field is lazily allocated in `Vec<LazyField>` (the default).
     /// If false (marked with `inline`), field is stored directly on TaskStorage.
     lazy: bool,
     /// If true, filter out values that reference transient tasks during encoding.
@@ -61,11 +61,14 @@ struct FieldInfo {
     /// For collections: filter out entries where key/value is_transient() returns true.
     filter_transient: bool,
     /// If true, use Default::default() semantics instead of Option for inline direct fields.
-    /// The field type should be T (not Option<T>), and empty is represented by T::default().
+    /// The field type should be `T` (not `Option<T>`), and empty is represented by `T::default()`.
     use_default: bool,
     /// If true, shrink this collection after task execution completes.
     /// Empty collections are removed entirely from the lazy vec.
     shrink_on_completion: bool,
+    /// If true, drop this collection after task execution completes. For transient bookkeeping
+    /// that is only meaningful while an execution is in progress.
+    drop_on_completion: bool,
     /// If true, drop this field entirely after execution completes if the task is immutable.
     /// Immutable tasks don't re-execute, so dependency tracking fields are not needed.
     drop_on_completion_if_immutable: bool,
@@ -127,7 +130,8 @@ impl FieldInfo {
     ///
     /// Used by mutators that track unconditionally (a replace/batch/counter update that reaches the
     /// track call is always a real change), so the returned `TrackOutcome` is discarded with
-    /// `let _ =`. Mutators that track-then-undo use [`track_modification_outcome_expr`] instead.
+    /// `let _ =`. Mutators that track-then-undo use
+    /// [`track_modification_outcome_expr`](Self::track_modification_outcome_expr) instead.
     fn track_modification_call(&self) -> TokenStream {
         let field_name_str = self.field_name.to_string();
         match self.category {
@@ -145,13 +149,14 @@ impl FieldInfo {
         }
     }
 
-    /// [`track_modification_call`], but for `filter_transient` fields it only
-    /// fires when `key_expr` is not transient — transient entries are dropped at
+    /// [`track_modification_call`](Self::track_modification_call), but for `filter_transient`
+    /// fields it only fires when `key_expr` is not transient — transient entries are dropped at
     /// encode (see [`generate_filter_predicate`]), so mutating one changes no
     /// persistable bytes. Safe because tracking is monotonic (we only omit, never
     /// clear). `key_expr` is the entry whose transience decides tracking and is
-    /// matched with `.is_transient()`. Identical to [`track_modification_call`]
-    /// for non-`filter_transient` fields.
+    /// matched with `.is_transient()`. Identical to
+    /// [`track_modification_call`](Self::track_modification_call) for non-`filter_transient`
+    /// fields.
     fn track_modification_call_guarded(&self, key_expr: TokenStream) -> TokenStream {
         if !self.filter_transient || self.is_transient() {
             return self.track_modification_call();
@@ -166,8 +171,9 @@ impl FieldInfo {
 
     /// An *expression* (no trailing `;`) that calls `self.track_modification(...)` and evaluates to
     /// a `TrackOutcome`. Used by mutators that track-before-mutate and then undo if the mutation
-    /// was a no-op (see [`track_modification_undo_expr`]). For transient *fields* there is nothing
-    /// to track, so it evaluates to `TrackOutcome::NoChange`.
+    /// was a no-op (see [`track_modification_undo_expr`](Self::track_modification_undo_expr)). For
+    /// transient *fields* there is nothing to track, so it evaluates to
+    /// `TrackOutcome::NoChange`.
     fn track_modification_outcome_expr(&self) -> TokenStream {
         let field_name_str = self.field_name.to_string();
         match self.category {
@@ -181,9 +187,10 @@ impl FieldInfo {
         }
     }
 
-    /// Like [`track_modification_outcome_expr`], but for `filter_transient` fields it only tracks
-    /// when `key_expr` is not transient (transient entries change no persistable bytes), evaluating
-    /// to `TrackOutcome::NoChange` otherwise. Identical to [`track_modification_outcome_expr`] for
+    /// Like [`track_modification_outcome_expr`](Self::track_modification_outcome_expr), but for
+    /// `filter_transient` fields it only tracks when `key_expr` is not transient (transient
+    /// entries change no persistable bytes), evaluating to `TrackOutcome::NoChange` otherwise.
+    /// Identical to [`track_modification_outcome_expr`](Self::track_modification_outcome_expr) for
     /// non-`filter_transient` fields.
     fn track_modification_outcome_expr_guarded(&self, key_expr: TokenStream) -> TokenStream {
         if !self.filter_transient || self.is_transient() {
@@ -451,6 +458,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut filter_transient = false;
     let mut use_default = false;
     let mut shrink_on_completion = false;
+    let mut drop_on_completion = false;
     let mut drop_on_completion_if_immutable = false;
     let mut custom_drop_partial = false;
     let mut custom_mutators = false;
@@ -573,6 +581,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                         use_default = true;
                     } else if ident == "shrink_on_completion" {
                         shrink_on_completion = true;
+                    } else if ident == "drop_on_completion" {
+                        drop_on_completion = true;
                     } else if ident == "drop_on_completion_if_immutable" {
                         drop_on_completion_if_immutable = true;
                     } else if ident == "custom_drop_partial" {
@@ -585,8 +595,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                             .error(format!(
                                 "unknown modifier `{ident}`, expected `inline`, \
                                  `filter_transient`, `default`, `shrink_on_completion`, \
-                                 `drop_on_completion_if_immutable`, `custom_drop_partial`, or \
-                                 `custom_mutators`"
+                                 `drop_on_completion`, `drop_on_completion_if_immutable`, \
+                                 `custom_drop_partial`, or `custom_mutators`"
                             ))
                             .emit();
                     }
@@ -670,6 +680,16 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                 ))
                 .emit();
         }
+        if drop_on_completion {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`drop_on_completion` on field `{field_name}` has no effect: only collection \
+                     types (auto_set, auto_map, counter_map) support clearing"
+                ))
+                .emit();
+        }
         if inline && drop_on_completion_if_immutable {
             field_name
                 .span()
@@ -681,6 +701,17 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                 ))
                 .emit();
         }
+    }
+
+    if drop_on_completion && (shrink_on_completion || drop_on_completion_if_immutable) {
+        field_name
+            .span()
+            .unwrap()
+            .error(format!(
+                "`drop_on_completion` on field `{field_name}` already empties it; remove \
+                 `shrink_on_completion` / `drop_on_completion_if_immutable`"
+            ))
+            .emit();
     }
 
     if custom_drop_partial {
@@ -738,6 +769,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         filter_transient,
         use_default,
         shrink_on_completion,
+        drop_on_completion,
         drop_on_completion_if_immutable,
         custom_drop_partial,
         as_type,
@@ -869,18 +901,6 @@ impl GroupedFields {
 // =============================================================================
 // Code Generation Helpers
 // =============================================================================
-
-/// Generate inline field clone assignments: `snapshot.field = self.field.clone();`
-fn gen_clone_inline_fields<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> Vec<TokenStream> {
-    fields
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                snapshot.#field_name = self.#field_name.clone();
-            }
-        })
-        .collect()
-}
 
 fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
@@ -2920,10 +2940,12 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
 ///
 /// This method:
 /// 1. Queries `self.typed().flags.immutable()` once
-/// 2. Shrinks any inline collection fields with `shrink_on_completion`
+/// 2. Shrinks any inline collection fields with `shrink_on_completion` and drops any with
+///    `drop_on_completion`
 /// 3. Uses swap_retain pattern to process all lazy fields in one pass
 /// 4. For fields with `shrink_on_completion`: shrink or remove if empty
-/// 5. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
+/// 5. For fields with `drop_on_completion`: remove
+/// 6. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
 fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStream {
     // Generate cleanup calls for inline collection fields.
     // Invalid attribute combinations (e.g. shrink/drop on non-collection fields) are rejected
@@ -2934,7 +2956,11 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
             continue;
         }
         let field_name = &field.field_name;
-        if field.drop_on_completion_if_immutable {
+        if field.drop_on_completion {
+            inline_cleanups.push(quote! {
+                typed.#field_name = Default::default();
+            });
+        } else if field.drop_on_completion_if_immutable {
             inline_cleanups.push(quote! {
                 if is_immutable {
                     typed.#field_name = Default::default();
@@ -2963,6 +2989,12 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
         let shrink = field.shrink_on_completion;
         let drop_if_immutable = field.drop_on_completion_if_immutable;
 
+        if field.drop_on_completion {
+            match_arms.push(quote! {
+                LazyField::#variant_name(_) => false,
+            });
+            continue;
+        }
         if !shrink && !drop_if_immutable {
             continue;
         }
@@ -3014,6 +3046,7 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
         #[doc = ""]
         #[doc = "This method performs a single pass over lazy fields to:"]
         #[doc = "- Shrink collections marked with `shrink_on_completion`"]
+        #[doc = "- Remove collections marked with `drop_on_completion`"]
         #[doc = "- Remove empty collections"]
         #[doc = "- Drop fields marked with `drop_on_completion_if_immutable` for immutable tasks"]
         #[doc = ""]
@@ -3316,7 +3349,7 @@ fn gen_drop_lazy_match_arm(field: &FieldInfo) -> TokenStream {
     }
 }
 
-/// Extract the inner type from Option<T>, or return the type as-is if not Option
+/// Extract the inner type from `Option<T>`, or return the type as-is if not Option
 fn extract_option_inner_type(ty: &Type) -> TokenStream {
     // Try to parse as Option<T> and extract T
     if let Type::Path(type_path) = ty
@@ -3332,7 +3365,7 @@ fn extract_option_inner_type(ty: &Type) -> TokenStream {
     quote! { #ty }
 }
 
-/// Extract the element type K from AutoSet<K> (which is FxHashSet<K>)
+/// Extract the element type `K` from `AutoSet<K>` (which is `FxHashSet<K>`)
 fn extract_set_element_type(ty: &Type) -> Option<TokenStream> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
@@ -3443,8 +3476,8 @@ fn gen_decode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
 /// Generate encode/decode methods for TaskStorage serialization.
 ///
 /// Generates four methods:
-/// - `encode_meta<E>(&self, encoder: &mut E)` - Encode meta category fields
-/// - `encode_data<E>(&self, encoder: &mut E)` - Encode data category fields
+/// - `encode_meta(&self, encoder: &mut TurboBincodeEncoder)` - Encode meta category fields
+/// - `encode_data(&self, encoder: &mut TurboBincodeEncoder)` - Encode data category fields
 /// - `decode_meta<D>(&mut self, decoder: &mut D)` - Decode meta category fields
 /// - `decode_data<D>(&mut self, decoder: &mut D)` - Decode data category fields
 ///
@@ -3502,9 +3535,9 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
         impl TaskStorage {
             /// Encode meta category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
-            pub fn encode_meta<E: bincode::enc::Encoder>(
+            pub fn encode_meta(
                 &self,
-                encoder: &mut E,
+                encoder: &mut turbo_bincode::TurboBincodeEncoder<'_>,
             ) -> Result<(), bincode::error::EncodeError> {
                 #encode_meta_body
                 #encode_meta_flags
@@ -3513,9 +3546,9 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
 
             /// Encode data category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
-            pub fn encode_data<E: bincode::enc::Encoder>(
+            pub fn encode_data(
                 &self,
-                encoder: &mut E,
+                encoder: &mut turbo_bincode::TurboBincodeEncoder<'_>,
             ) -> Result<(), bincode::error::EncodeError> {
                 #encode_data_body
                 #encode_data_flags
@@ -3607,8 +3640,9 @@ fn generate_filter_predicate(field: &FieldInfo) -> Option<(TokenStream, FilterPr
 /// is already a reference from the match arm).
 ///
 /// For non-filtered fields, encodes the value directly.
-/// For filtered fields, uses a single-pass collect to a Vec, then encodes.
-/// This avoids multiple iterations (check non-empty + count + encode).
+/// For filtered collections, reserves the unfiltered length as the length prefix, encodes the
+/// surviving entries in a single pass, then patches the prefix with the actual count. This avoids
+/// both iterating twice (count + encode) and collecting the entries into a temporary `Vec`.
 fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStream {
     let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         // No filtering needed, just encode normally
@@ -3628,40 +3662,35 @@ fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStre
             }
         }
         FilterPredicateType::Set => {
-            // For AutoSet<K>, filter out transient keys - collect once then encode
+            // For AutoSet<K>, filter out transient keys
             quote! {
                 {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for key in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                    }
+                    let collection = #value_ref;
+                    turbo_bincode::encode_len_prefixed(encoder, collection.len(), |encoder| {
+                        let mut count = 0usize;
+                        for key in collection.iter().filter(#predicate) {
+                            bincode::Encode::encode(key, encoder)?;
+                            count += 1;
+                        }
+                        Ok(count)
+                    })?;
                 }
             }
         }
-        FilterPredicateType::CounterMap => {
-            // For counter maps, filter out entries with transient keys - collect once
+        FilterPredicateType::CounterMap | FilterPredicateType::Map => {
+            // For maps, filter out entries with transient keys (or values, for AutoMap)
             quote! {
                 {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
-                    }
-                }
-            }
-        }
-        FilterPredicateType::Map => {
-            // For maps, filter out entries with transient keys or values - collect once
-            quote! {
-                {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
-                    }
+                    let collection = #value_ref;
+                    turbo_bincode::encode_len_prefixed(encoder, collection.len(), |encoder| {
+                        let mut count = 0usize;
+                        for (key, value) in collection.iter().filter(#predicate) {
+                            bincode::Encode::encode(key, encoder)?;
+                            bincode::Encode::encode(value, encoder)?;
+                            count += 1;
+                        }
+                        Ok(count)
+                    })?;
                 }
             }
         }
@@ -3678,8 +3707,8 @@ fn generate_encode_inline_field(field: &FieldInfo) -> TokenStream {
 
 /// Generate code to encode a lazy field value with index.
 ///
-/// For filtered fields, collects to a Vec first, then checks if non-empty before
-/// writing index. This avoids multiple iterations over the data.
+/// For filtered fields, writes the index and entries in a single pass and truncates them away
+/// again if every entry was filtered out. This avoids multiple iterations over the data.
 fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenStream {
     let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         // No filtering needed - encode directly
@@ -3703,32 +3732,46 @@ fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenS
             }
         }
         FilterPredicateType::Set => {
-            // Collect once, check if non-empty, then encode
+            // Encode optimistically in a single pass, then roll back the index too if every entry
+            // was filtered out
             quote! {
                 {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for key in filtered {
-                            bincode::Encode::encode(key, encoder)?;
-                        }
+                    let start = bincode::enc::Encoder::writer(encoder).buffer.len();
+                    bincode::Encode::encode(&#index, encoder)?;
+                    let count =
+                        turbo_bincode::encode_len_prefixed(encoder, data.len(), |encoder| {
+                            let mut count = 0usize;
+                            for key in data.iter().filter(#predicate) {
+                                bincode::Encode::encode(key, encoder)?;
+                                count += 1;
+                            }
+                            Ok(count)
+                        })?;
+                    if count == 0 {
+                        bincode::enc::Encoder::writer(encoder).buffer.truncate(start);
                     }
                 }
             }
         }
         FilterPredicateType::CounterMap | FilterPredicateType::Map => {
-            // Collect once, check if non-empty, then encode
+            // Encode optimistically in a single pass, then roll back the index too if every entry
+            // was filtered out
             quote! {
                 {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for (key, value) in filtered {
-                            bincode::Encode::encode(key, encoder)?;
-                            bincode::Encode::encode(value, encoder)?;
-                        }
+                    let start = bincode::enc::Encoder::writer(encoder).buffer.len();
+                    bincode::Encode::encode(&#index, encoder)?;
+                    let count =
+                        turbo_bincode::encode_len_prefixed(encoder, data.len(), |encoder| {
+                            let mut count = 0usize;
+                            for (key, value) in data.iter().filter(#predicate) {
+                                bincode::Encode::encode(key, encoder)?;
+                                bincode::Encode::encode(value, encoder)?;
+                                count += 1;
+                            }
+                            Ok(count)
+                        })?;
+                    if count == 0 {
+                        bincode::enc::Encoder::writer(encoder).buffer.truncate(start);
                     }
                 }
             }
@@ -3737,7 +3780,7 @@ fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenS
 }
 
 /// Generate code to encode lazy fields to bincode.
-/// Uses sentinel-terminated format: [index, data]... [sentinel]
+/// Uses sentinel-terminated format: `[index, data]... [sentinel]`
 fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
     if fields.is_empty() {
         return quote! {};
@@ -3803,25 +3846,6 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
     }
 }
 
-/// Generate clone inline statements for a category.
-fn gen_clone_inline_for_category(
-    grouped_fields: &GroupedFields,
-    category: Category,
-) -> Vec<TokenStream> {
-    gen_clone_inline_fields(grouped_fields.persistent_inline(category))
-}
-
-/// Generate clone lazy match arms for a category.
-fn gen_clone_lazy_arms_for_category(
-    grouped_fields: &GroupedFields,
-    category: Category,
-) -> Vec<TokenStream> {
-    gen_lazy_match_arms(grouped_fields.persistent_lazy(category), |_, field| {
-        let variant_name = &field.variant_name;
-        quote! { snapshot.lazy.push(LazyField::#variant_name(data.clone())); }
-    })
-}
-
 /// Generate restore inline statements for a category.
 fn gen_restore_inline_for_category(
     grouped_fields: &GroupedFields,
@@ -3833,11 +3857,9 @@ fn gen_restore_inline_for_category(
         .collect()
 }
 
-/// Generate snapshot clone and restore methods for TaskStorage.
+/// Generate snapshot restore methods for TaskStorage.
 ///
 /// Generates:
-/// - `clone_meta_snapshot(&self) -> TaskStorage` - Clone only persistent meta fields
-/// - `clone_data_snapshot(&self) -> TaskStorage` - Clone only persistent data fields
 /// - `restore_from(&mut self, source, category)` - Restore data by category from decoded storage
 /// - `restore_meta_from(&mut self, source)` - Restore meta fields from source
 /// - `restore_data_from(&mut self, source)` - Restore data fields from source
@@ -3845,14 +3867,8 @@ fn gen_restore_inline_for_category(
 fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStream {
     let has_meta_flags = grouped_fields.persisted_meta_flags().next().is_some();
     let has_data_flags = grouped_fields.persisted_data_flags().next().is_some();
-    let has_any_flags = has_meta_flags || has_data_flags;
 
     // Generate field operations by category
-    let clone_meta_inline = gen_clone_inline_for_category(grouped_fields, Category::Meta);
-    let clone_data_inline = gen_clone_inline_for_category(grouped_fields, Category::Data);
-    let clone_meta_lazy_arms = gen_clone_lazy_arms_for_category(grouped_fields, Category::Meta);
-    let clone_data_lazy_arms = gen_clone_lazy_arms_for_category(grouped_fields, Category::Data);
-
     let restore_meta_inline = gen_restore_inline_for_category(grouped_fields, Category::Meta);
     let restore_data_inline = gen_restore_inline_for_category(grouped_fields, Category::Data);
 
@@ -3870,15 +3886,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
         .filter(|(_, f)| !f.is_transient() && (f.filter_transient || f.custom_drop_partial))
         .map(|(idx, f)| gen_restore_lazy_merge_arm(f, idx as u8))
         .collect();
-
-    let clone_all_flags = if has_any_flags {
-        quote! {
-            // Clone all persisted flags
-            snapshot.flags.set_persisted_bits(self.flags.persisted_bits());
-        }
-    } else {
-        quote! {}
-    };
 
     // Generate flags handling for restore - per category
     let restore_meta_flags = if has_meta_flags {
@@ -3902,34 +3909,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     quote! {
         #[automatically_derived]
         impl TaskStorage {
-            /// Create a snapshot containing all persistent fields
-            pub fn clone_snapshot(&self) -> TaskStorage {
-                let mut snapshot = TaskStorage::new();
-
-                // Clone inline meta fields
-                #(#clone_meta_inline)*
-
-                // Clone inline data fields
-                #(#clone_data_inline)*
-
-                #clone_all_flags
-
-                // Clone all persistent lazy fields (both meta and data).
-                // (No pre-`reserve`: the schema has ≤24 lazy fields, so at most 3 grows
-                // (0→4→8→16→24) total — cheaper than complicating the public API surface
-                // of `TinyVec`.)
-                for field in &self.lazy {
-                    match field {
-                        #(#clone_data_lazy_arms)*
-                        #(#clone_meta_lazy_arms)*
-                        // Skip transient fields
-                        _ => {}
-                    }
-                }
-
-                snapshot
-            }
-
             /// Restore persisted data from a decoded TaskStorage.
             ///
             /// This is used during restore operations to copy decoded persisted data

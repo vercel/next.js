@@ -111,7 +111,7 @@ export const config = {
 
 `bodyParser` is automatically enabled. If you want to consume the body as a `Stream` or with [`raw-body`](https://www.npmjs.com/package/raw-body), you can set this to `false`.
 
-One use case for disabling the automatic `bodyParsing` is to allow you to verify the raw body of a **webhook** request, for example [from GitHub](https://docs.github.com/en/developers/webhooks-and-events/webhooks/securing-your-webhooks#validating-payloads-from-github).
+One use case for disabling the automatic `bodyParser` is to allow you to verify the raw body of a **webhook** request, for example [from GitHub](https://docs.github.com/en/developers/webhooks-and-events/webhooks/securing-your-webhooks#validating-payloads-from-github).
 
 ```js
 export const config = {
@@ -239,11 +239,11 @@ export default async function handler(req, res) {
 }
 ```
 
-### Sending a HTTP response
+### Sending an HTTP response
 
 Sending an HTTP response works the same way as when sending a JSON response. The only difference is that the response body can be a `string`, an `object` or a `Buffer`.
 
-The following example sends a HTTP response with the status code `200` (`OK`) and the result of the async operation.
+The following example sends an HTTP response with the status code `200` (`OK`) and the result of the async operation.
 
 ```ts filename="pages/api/hello.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'

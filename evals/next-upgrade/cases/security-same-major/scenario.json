@@ -1,0 +1,7 @@
+{
+  "kind": "direct",
+  "policy": "security",
+  "app": "member-dashboard/next-15",
+  "sourceVersion": "15.5.23",
+  "targetVersion": "15.5.24"
+}

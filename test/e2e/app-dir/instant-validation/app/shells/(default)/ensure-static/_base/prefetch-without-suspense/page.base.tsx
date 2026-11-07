@@ -1,4 +1,4 @@
-import { unstable_prefetch } from 'next/cache'
+import { prefetch } from 'next/cache'
 
 // NOTE: the page must export the following literally, we can't
 // reexport them from here:
@@ -23,6 +23,6 @@ export default async function Page() {
 }
 
 async function Prefetch() {
-  await unstable_prefetch()
+  await prefetch()
   return <div>Prefetch data</div>
 }

@@ -15,6 +15,10 @@ const developmentRewrites = () => {
 const nextConfig = {
   output: 'export',
   distDir: 'dist',
+  reactCompiler: true,
+  experimental: {
+    turbopackRustReactCompiler: true,
+  },
   rewrites:
     process.env.NODE_ENV === 'development' ? developmentRewrites : undefined,
 }

@@ -114,6 +114,9 @@ export function NextLogo({
     state.cacheIndicator
   )
   const showStatusIndicator = displayStatus !== Status.None
+  const statusReplacesIssues = showStatusIndicator && !state.disableDevIndicator
+  const showIssues =
+    !statusReplacesIssues && (isErrorExpanded || state.disableDevIndicator)
 
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
@@ -438,9 +441,9 @@ export function NextLogo({
       <div
         data-next-badge
         data-error={hasError && !insightsOnly}
-        data-insights-only={insightsOnly}
+        data-insights-only={insightsOnly && !statusReplacesIssues}
         data-error-expanded={isExpanded}
-        data-status={hasError ? Status.None : displayStatus}
+        data-status={displayStatus}
         data-cache-badge={cacheBadge ?? undefined}
         data-animate={newErrorDetected}
         style={{ width }}
@@ -460,7 +463,7 @@ export function NextLogo({
               aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
               data-nextjs-dev-tools-button
               style={{
-                display: showStatusIndicator && !hasError ? 'none' : 'flex',
+                display: showStatusIndicator ? 'none' : 'flex',
               }}
               {...buttonProps}
             >
@@ -470,7 +473,7 @@ export function NextLogo({
           {isExpanded && (
             <>
               {/* Error badge has priority over cache indicator */}
-              {(isErrorExpanded || state.disableDevIndicator) && (
+              {showIssues && (
                 <div data-issues data-toast-pill>
                   <button
                     data-issues-open
@@ -542,14 +545,13 @@ export function NextLogo({
                 />
               )}
               {/* Status indicator shown while rendering or compiling */}
-              {showStatusIndicator &&
-                !hasError &&
-                !state.disableDevIndicator && (
-                  <StatusIndicator
-                    status={displayStatus}
-                    onClick={onTriggerClick}
-                  />
-                )}
+              {showStatusIndicator && !state.disableDevIndicator && (
+                <StatusIndicator
+                  status={displayStatus}
+                  isError={hasError && !insightsOnly}
+                  onClick={onTriggerClick}
+                />
+              )}
             </>
           )}
         </div>

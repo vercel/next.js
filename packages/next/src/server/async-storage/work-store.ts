@@ -147,6 +147,7 @@ function createWorkStoreImpl(
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics,
+    clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
   }
 

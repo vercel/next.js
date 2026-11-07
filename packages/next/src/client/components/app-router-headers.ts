@@ -5,6 +5,15 @@ export const ACTION_HEADER = 'next-action' as const
 // prefetches, which also need to specify a particular segment.
 export const NEXT_ROUTER_STATE_TREE_HEADER = 'next-router-state-tree' as const
 export const NEXT_ROUTER_PREFETCH_HEADER = 'next-router-prefetch' as const
+// The values of NEXT_ROUTER_PREFETCH_HEADER. A static prefetch can be answered
+// from the prerender. It's also how we ask for the legacy prefetch up to the
+// loading boundary.
+export const NEXT_ROUTER_PREFETCH_STATIC = '1' as const
+// A runtime prefetch, rendered with cookies, headers and params, up to the
+// stage it names.
+export const NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH = '2' as const
+export const NEXT_ROUTER_PREFETCH_RUNTIME_SHELL = '3' as const
+export const NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION = '4' as const
 // This contains the path to the segment being prefetched.
 // TODO: If we change next-router-state-tree to be a segment path, we can use
 // that instead. Then next-router-prefetch and next-router-segment-prefetch can

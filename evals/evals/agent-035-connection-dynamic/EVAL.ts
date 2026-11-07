@@ -27,24 +27,12 @@ test('enables Cache Components without opt-outs', () => {
 })
 
 test('uses an explicit synchronous I/O boundary', () => {
-  expect(source).toMatch(/\b(?:io|connection)\s*\(/)
+  expect(source).toMatch(/\bconnection\s*\(/)
   expect(source).toMatch(/<Suspense[\s>]/)
 })
 
-test('keeps the operations frame useful while metadata loads', async () => {
+test('keeps the frame useful and metadata request-specific', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The stable Operations navigation and page frame must remain outside the Suspense boundary used for request metadata. Accept equivalent component and file organization.`
-  )
-})
-
-test('keeps request metadata fresh', async () => {
-  await expect(environment).toSatisfyCriterion(
-    `The request identifier, current time, and sampling value must remain request-specific. Render them in a focused async child that awaits io() or connection() before calling randomUUID, new Date or Date.now, and Math.random. Prefer io() unless the implementation specifically needs to wait for a real user request. Accept equivalent component and file organization.`
-  )
-})
-
-test('does not reuse request metadata', async () => {
-  await expect(environment).toSatisfyCriterion(
-    `The request identifier, current time, and sampling value must not be cached, evaluated at module scope, or replaced with static values. Reject any solution that can reuse those values across requests. Accept equivalent component and file organization.`
+    `The stable Operations navigation and page frame remain outside the Suspense boundary used for request metadata. Inside that focused async boundary, the implementation awaits connection() before generating the request identifier, current time, and sampling value with randomUUID, new Date or Date.now, and Math.random. None of those values are cached, evaluated at module scope, or replaced with static values, so they are generated for each real request rather than during prerendering or prefetching. Accept equivalent component and file organization.`
   )
 })

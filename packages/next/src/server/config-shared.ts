@@ -12,7 +12,8 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
+import { cloneObject } from './lib/clone-object'
+import { deepFreeze } from '../shared/lib/deep-freeze'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
@@ -41,6 +42,7 @@ export type NextConfigComplete = Required<
   Omit<
     NextConfig,
     | 'configFile'
+    | 'generateBuildId'
     | 'cacheLife'
     | 'expireTime'
     | 'output'
@@ -52,6 +54,7 @@ export type NextConfigComplete = Required<
   // Don't apply `Required<>` for these properties. They really can be undefined in the finalized config.
   Pick<
     NextConfig,
+    | 'generateBuildId'
     | 'cacheLife'
     | 'expireTime'
     | 'output'
@@ -358,6 +361,15 @@ export interface ReactCompilerOptions {
    * @see https://react.dev/reference/react-compiler/compilationMode
    */
   compilationMode?: 'infer' | 'annotation' | 'all'
+  environment?: {
+    /**
+     * Controls whether the React Compiler preserves existing memoization
+     * guarantees from `useMemo`, `useCallback`, and `React.memo`.
+     *
+     * When omitted, the installed React Compiler's default is used.
+     */
+    enablePreserveExistingMemoizationGuarantees?: boolean
+  }
   /**
    * Controls how the React Compiler handles errors during compilation.
    *
@@ -499,8 +511,10 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
+  /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
+  goRoutes?: boolean
   /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
-  agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
+  agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
    * Adds managed instructions to AGENTS.md that let AI coding agents prepare
    * anonymized Next.js feedback for user review.
@@ -519,6 +533,12 @@ export interface ExperimentalConfig {
     string,
     { path: string; ignoreIfMissing?: boolean }
   >
+  /**
+   * Detect pnpm's global virtual store and add it as an additional root. Requires pnpm 11 or later.
+   *
+   * @default false
+   */
+  turbopackDetectGlobalVirtualStore?: boolean
 
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
@@ -800,6 +820,13 @@ export interface ExperimentalConfig {
   gestureTransition?: boolean
 
   /**
+   * Enables `router.experimental_prepare()`, which starts a navigation
+   * without committing it, so its data can be requested ahead of time (e.g.
+   * on `pointerdown`) and the navigation committed later (e.g. on `click`).
+   */
+  prepareNavigation?: boolean
+
+  /**
    * Controls Turbopack's memory eviction strategy for development sessions
    *
    * Only effective in dev sessions where
@@ -876,10 +903,16 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
+   * Minify each module separately instead of each finished chunk, so minification runs in
+   * parallel and is cached per module. The trade-off is slightly worse compression.
+   * Defaults to false. Only applies to production builds.
+   */
+  turbopackMinifyBeforeChunking?: boolean
+
+  /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
-   * true on canary releases and false on stable releases. Only applies to production builds; has
-   * no effect in development mode.
+   * true. Only applies to production builds; has no effect in development mode.
    */
   turbopackSharedRuntime?: boolean
 
@@ -928,7 +961,7 @@ export interface ExperimentalConfig {
      */
     requestCost?: number
     /**
-     * Avoid creating more than one chunk smaller than this size, in bytes. Smaller
+     * Avoid creating more than one client-side chunk smaller than this size, in bytes. Smaller
      * chunks are merged into bigger ones to avoid that. Defaults to `50000` (50 KB).
      */
     minChunkSize?: number
@@ -938,8 +971,9 @@ export interface ExperimentalConfig {
      */
     maxChunkCountPerGroup?: number
     /**
-     * Never merge chunks bigger than this size, in bytes, with other chunks. This keeps code
-     * in big chunks from being duplicated across multiple chunks. Defaults to `200000` (200 KB).
+     * Never merge client-side chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `200000`
+     * (200 KB).
      */
     maxMergeChunkSize?: number
     /**
@@ -953,6 +987,18 @@ export interface ExperimentalConfig {
      * single remainder chunk. Defaults to `20000` (20 KB).
      */
     minComponentChunkSize?: number
+    /**
+     * Avoid creating more than one Node.js server chunk smaller than this size, in bytes.
+     * Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB). Doesn't
+     * apply to Edge runtime chunks.
+     */
+    minServerChunkSize?: number
+    /**
+     * Never merge Node.js server chunks bigger than this size, in bytes, with other chunks. This
+     * keeps code in big chunks from being duplicated across multiple chunks. Defaults to `100000`
+     * (100 KB). Doesn't apply to Edge runtime chunks.
+     */
+    maxMergeServerChunkSize?: number
   }
 
   /**
@@ -1004,6 +1050,13 @@ export interface ExperimentalConfig {
    * Defaults to `false`.
    */
   turbopackLazyDynamicImports?: boolean
+
+  /**
+   * Compile SSR dynamic import targets when they are first reached during server rendering in development.
+   *
+   * Defaults to `false`.
+   */
+  turbopackLazyDynamicImportsSSR?: boolean
 
   /**
    * Enable filesystem cache for the turbopack dev server.
@@ -1082,9 +1135,19 @@ export interface ExperimentalConfig {
    * can be observed by user code (a namespace object that escapes, a dynamic `import()`, a
    * CommonJS `require()`) keeps its original names.
    *
-   * Defaults to `false`
+   * Defaults to `true` for production builds and `false` in development.
    */
   turbopackMangleExportNames?: boolean
+
+  /**
+   * Materialize namespace objects behind a facade so their local export keys can still be
+   * mangled. This can interfere with code that patches modules, since a module might be split
+   * into multiple parts.
+   *
+   * Defaults to `true` only when `turbopackMangleExportNames` is explicitly `true`; otherwise
+   * defaults to `false`, including when export mangling is enabled by default.
+   */
+  turbopackMangleViaMaterializedNamespaceObject?: boolean
 
   /**
    * Enable scope hoisting of static CommonJS modules.
@@ -1256,6 +1319,42 @@ export interface ExperimentalConfig {
    * `transitionIndicator`, or `gestureTransition`) requires it.
    */
   blockingSSR?: boolean
+
+  /**
+   * Opts the `app` directory into React's experimental release channel
+   * (`react@experimental`), which ships React's internal
+   * `enableHydrationChangeEvent` feature flag. This lets teams try that flag
+   * before it lands in React's canary channel. The name mirrors React's
+   * underlying feature flag.
+   *
+   * This flag has no effect of its own beyond selecting the experimental
+   * React build.
+   */
+  hydrationChangeEvent?: boolean
+
+  /**
+   * Streams React's instruction set for the `app` directory as data instead of
+   * as inline `<script>` tags. React emits `<template data-rci="" …>` elements,
+   * and a standalone runtime script, served as a static asset from
+   * `/_next/static/chunks`, collects them with a `MutationObserver` and applies
+   * the instructions. This also removes React's inline form-replaying runtime.
+   *
+   * The goal is a document with no inline scripts, so a Content-Security-Policy
+   * can drop `unsafe-inline` without a per-response nonce (which is
+   * incompatible with static generation). Note that this alone is not
+   * sufficient yet: the Flight payload and the bootstrap script are still
+   * inlined.
+   *
+   * This feature is currently only available in React's experimental release
+   * channel, so enabling it opts the `app` directory into `react@experimental`
+   * (the same channel used by `taint`, `transitionIndicator`,
+   * `gestureTransition`, and `blockingSSR`).
+   *
+   * This is an opt-in only. Setting it to `false` does not disable the
+   * experimental channel when another feature (such as `taint`,
+   * `transitionIndicator`, or `gestureTransition`) requires it.
+   */
+  externalBrowserRuntime?: boolean
 
   /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
@@ -1462,6 +1561,13 @@ export interface ExperimentalConfig {
   durableUseCacheEntries?: boolean
 
   /**
+   * Collects root param dependencies for `'use cache'` in Turbopack production
+   * builds. Defaults to `false`. When disabled, the server-reference manifest
+   * omits `rootParamDependencies`.
+   */
+  useCacheStaticRootParamTracking?: boolean
+
+  /**
    * Enables detection and reporting of slow modules during development builds.
    * Enabling this may impact build performance to ensure accurate measurements.
    */
@@ -1566,19 +1672,6 @@ export interface ExperimentalConfig {
 
   /** Report runtime errors and their catching boundary over the development HMR socket. */
   exposeRuntimeErrorsToHMR?: boolean
-
-  /**
-   * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
-   * build`. Failing to acquire the lock causes the process to exit with an
-   * error message.
-   *
-   * This is because if multiple processes write to the same `distDir` at the
-   * same time, it can mangle the state of the directory. Disabling this option
-   * is not recommended.
-   *
-   * @default true
-   */
-  lockDistDir?: boolean
 
   /**
    * Hide logs that occur after a render has already aborted.
@@ -1888,6 +1981,15 @@ export interface NextConfig {
    * Each entry may be a bare npm package name or a path relative to the project root.
    */
   instrumentationClientInject?: string[]
+
+  /**
+   * Module specifiers compiled into the server `instrumentation` slot, ahead
+   * of the project's own `instrumentation.{ts,js}` file. Every entry's
+   * `register` and `onRequestError` run in array order, then the project
+   * file's. A hook that throws does not stop the others. Each entry may be a bare
+   * npm package name, a path relative to the project root, or an absolute path.
+   */
+  instrumentationInject?: string[]
 
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
@@ -2243,16 +2345,6 @@ export interface NextConfig {
    * @internal
    */
   configOrigin?: string | undefined
-
-  /**
-   * @internal
-   */
-  _originalRedirects?: any
-
-  /**
-   * @internal
-   */
-  _originalRewrites?: any
 }
 
 export const defaultConfig = Object.freeze({
@@ -2271,10 +2363,10 @@ export const defaultConfig = Object.freeze({
   cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   instrumentationClientInject: [],
+  instrumentationInject: [],
   poweredByHeader: true,
   compress: true,
   images: imageConfigDefault,
@@ -2356,6 +2448,7 @@ export const defaultConfig = Object.freeze({
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   deprecated: {} as DeprecatedConfig,
   experimental: {
+    agentUpgrade: 'security',
     agentFeedback: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
@@ -2388,8 +2481,7 @@ export const defaultConfig = Object.freeze({
     manualClientBasePath: false,
     cpus: Math.max(
       1,
-      (Number(process.env.CIRCLE_NODE_TOTAL) ||
-        (os.cpus() || { length: 1 }).length) - 1
+      (Number(process.env.CIRCLE_NODE_TOTAL) || os.availableParallelism()) - 1
     ),
     memoryBasedWorkersCount: false,
     imgOptConcurrency: null,
@@ -2444,14 +2536,16 @@ export const defaultConfig = Object.freeze({
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
     gestureTransition: false,
+    hydrationChangeEvent: false,
+    prepareNavigation: false,
     inlineCss: false,
     useCache: undefined,
+    useCacheStaticRootParamTracking: false,
     slowModuleDetection: undefined,
     globalNotFound: false,
     explicitParallelRouteChildren: true,
     strictRouteMatching: true,
     browserDebugInfoInTerminal: 'warn',
-    lockDistDir: true,
     disableResumeDataCacheCompression: false,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
@@ -2462,19 +2556,34 @@ export const defaultConfig = Object.freeze({
     turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
-    turbopackSharedRuntime: !isStableBuild(),
-    // Pinned off for stable releases. Left unset on canary so the Turbopack side picks the
-    // default from the build mode (on for production builds, off in development) — see
-    // `NextConfig::turbopack_mangle_export_names`. An explicit value always wins either way.
-    turbopackMangleExportNames: isStableBuild() ? false : undefined,
+    turbopackSharedRuntime: true,
+    // Left unset so the Turbopack side picks the default from the build mode (on for production
+    // builds, off in development) — see `NextConfig::turbopack_mangle_export_names`. An explicit
+    // value always wins either way.
+    turbopackMangleExportNames: undefined,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
 
+// In tests, deeply freeze the shared defaults (this also covers
+// `imageConfigDefault`, which `defaultConfig.images` points to). A write to
+// them would leak into every later `loadConfig` in the process, so make it
+// throw instead. `defaultConfig` itself is already shallowly frozen, which
+// makes `deepFreeze` stop at the top level, so freeze what it contains.
+if (process.env.__NEXT_TEST_MODE) {
+  for (const value of Object.values(defaultConfig)) {
+    if (value && typeof value === 'object') deepFreeze(value)
+  }
+}
+
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
-    config = config(phase, { defaultConfig })
+    // Pass a copy so a config function that writes into the nested defaults
+    // (e.g. `defaultConfig.images`) cannot change them for later loads.
+    config = config(phase, {
+      defaultConfig: Object.freeze(cloneObject(defaultConfig)),
+    })
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
@@ -2532,6 +2641,7 @@ export interface NextConfigRuntime {
 
   experimental: Pick<
     NextConfigComplete['experimental'],
+    | 'goRoutes'
     | 'taint'
     | 'agentFeedback'
     | 'serverActions'
@@ -2580,6 +2690,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
     | 'requestInsights'
+    | 'externalBrowserRuntime'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2653,7 +2764,9 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
+    externalBrowserRuntime: ex.externalBrowserRuntime,
 
+    goRoutes: ex.goRoutes,
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,
   } satisfies Requiredish<NextConfigRuntime['experimental']>

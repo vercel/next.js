@@ -18,6 +18,12 @@ user:
 Only then restore the selected contract assertions and change the
 implementation.
 
+Use a `data-testid` on a real, visible DOM node after its client subtree
+commits. Do not infer that commit by searching the RSC response for text:
+Client Component text might not appear in the response bytes. A marker on
+`display: none`, `display: contents`, a fragment, off-screen content, or a
+hover-only overlay cannot prove that the user can see the selected UI.
+
 ## What each signal rules out
 
 - **Destination URL wait** rules out matching the source page or clicking a
@@ -75,10 +81,10 @@ prop against `prefetch={true}`.
 
 ## Lock engagement
 
-`experimental.exposeTestingApiInProductionBuild` must be true on the measured
-artifact. A marker that is absent under lock and visible after release is the
-in-band proof that the lock engaged. A vacuous no-op cannot satisfy both
-halves.
+[`experimental.exposeTestingApiInProductionBuild`](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)
+must be true on the measured artifact. A marker that is absent under lock and
+visible after release is the in-band proof that the lock engaged. A vacuous
+no-op cannot satisfy both halves.
 
 Never enable this flag for real production traffic. For a remote rig, verify
 the deployed commit before trusting RED or GREEN.

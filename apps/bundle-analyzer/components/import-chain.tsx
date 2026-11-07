@@ -13,7 +13,7 @@ import {
   MessageCircleQuestion,
   Package,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import type {
   AnalyzeData,
   ModuleIndex,
@@ -321,26 +321,15 @@ export function ImportChain({
   // Track which dependent is selected at each level
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
 
-  // Build the import chain based on current selections
-  const chain = useMemo(() => {
-    return buildImportChain(
-      startFileId,
-      analyzeData,
-      modulesData,
-      depthMap,
-      environmentFilter,
-      selectedIndices,
-      currentRouteOnly
-    )
-  }, [
+  const chain = buildImportChain(
     startFileId,
     analyzeData,
     modulesData,
-    selectedIndices,
-    currentRouteOnly,
     depthMap,
     environmentFilter,
-  ])
+    selectedIndices,
+    currentRouteOnly
+  )
 
   const handlePrevious = (levelIndex: number) => {
     setSelectedIndices((prev) => {

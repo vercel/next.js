@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { Command as CommandPrimitive } from 'cmdk'
 import { SearchIcon } from 'lucide-react'
 
@@ -155,6 +156,38 @@ function CommandItem({
   )
 }
 
+// Keep cmdk's option semantics and keyboard selection while allowing normal
+// link behavior (including modifier-click) for items that change pages.
+function CommandLinkItem({
+  href,
+  className,
+  children,
+  ...props
+}: Omit<React.ComponentProps<typeof CommandItem>, 'onSelect'> & {
+  href: string
+}) {
+  const linkRef = React.useRef<HTMLAnchorElement>(null)
+  return (
+    <CommandItem
+      {...props}
+      className={cn('p-0', className)}
+      onSelect={() => linkRef.current?.click()}
+    >
+      <Link
+        ref={linkRef}
+        href={href}
+        className="flex w-full min-w-0 items-center gap-2 px-2 py-1.5"
+        onClick={(event) => {
+          // Clicks on the link must not also select the parent command item.
+          event.stopPropagation()
+        }}
+      >
+        {children}
+      </Link>
+    </CommandItem>
+  )
+}
+
 function CommandShortcut({
   className,
   ...props
@@ -179,6 +212,7 @@ export {
   CommandEmpty,
   CommandGroup,
   CommandItem,
+  CommandLinkItem,
   CommandShortcut,
   CommandSeparator,
 }

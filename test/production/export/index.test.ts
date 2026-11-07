@@ -10,14 +10,10 @@ import { AddressInfo, Server } from 'net'
 import cheerio from 'cheerio'
 
 describe('static export', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   const nextConfigPath = 'next.config.js'
   const outdir = 'out'

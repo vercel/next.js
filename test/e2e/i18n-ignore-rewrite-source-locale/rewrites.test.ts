@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDeploy } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import fs from 'fs-extra'
@@ -61,7 +61,7 @@ describe('i18n-ignore-rewrite-source-locale', () => {
   )
 
   // build artifacts aren't available on deploy
-  if (!(global as any).isNextDeploy) {
+  if (!isNextDeploy) {
     // chunks are not written to disk with TURBOPACK
     ;(process.env.IS_TURBOPACK_TEST ? it.skip.each : it.each)(locales)(
       'get _next/static/ files by skipping locale in rewrite, locale: %s',

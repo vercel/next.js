@@ -1,4 +1,4 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { fetchViaHTTP, retry } from 'next-test-utils'
 import { join } from 'path'
 
@@ -30,6 +30,8 @@ function normalizeMiddlewareManifest(value: unknown, key?: string): unknown {
   return value
 }
 
+// TODO(deploy-test-completion): Remove this suite from the deploy manifest.
+// It was excluded as a known deploy failure without a documented root cause.
 describe('Middleware can set the matcher in its config', () => {
   const { next } = nextTestSetup({
     files: new FileRef(join(__dirname, 'app')),
@@ -119,7 +121,7 @@ describe('Middleware can set the matcher in its config', () => {
 
     await retry(async () => {
       const matchers = await browser.eval(
-        (global as any).isNextDev
+        isNextDev
           ? 'window.__DEV_MIDDLEWARE_MATCHERS'
           : 'window.__MIDDLEWARE_MATCHERS'
       )
@@ -131,7 +133,7 @@ describe('Middleware can set the matcher in its config', () => {
     })
   })
 
-  if ((global as any).isNextStart) {
+  if (isNextStart) {
     it('produces the expected middleware manifest', async () => {
       const manifest = JSON.parse(
         await next.readFile('.next/server/middleware-manifest.json')
@@ -361,7 +363,7 @@ describe.each([
       dependencies: {},
     })
 
-    if ((global as any).isNextStart) {
+    if (isNextStart) {
       it('produces the expected middleware manifest', async () => {
         const manifest = JSON.parse(
           await next.readFile('.next/server/middleware-manifest.json')

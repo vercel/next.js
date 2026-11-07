@@ -29,12 +29,14 @@ use next_api::{
         RouteOperation,
     },
     project::{
-        AdditionalRootConfig, DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions,
-        Project, ProjectContainer, ProjectOptions, WatchOptions, activate_lazy_chunk_operation,
+        AdditionalRootConfig, AdditionalRootName, DebugBuildPaths, DefineEnv, DraftModeOptions,
+        PartialProjectOptions, Project, ProjectContainer, ProjectOptions, WatchOptions,
+        activate_lazy_chunk_operation,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
     routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
+    shutdown::ShutdownHooks,
 };
 use next_core::{
     app_structure::find_app_dir,
@@ -78,7 +80,7 @@ use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, Resource
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
-    raw_trace::RawTraceLayer,
+    raw_trace::{RawTraceLayer, RawTraceLayerOptions},
     trace_writer::TraceWriter,
 };
 use url::Url;
@@ -227,6 +229,8 @@ pub struct NapiProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: Option<bool>,
+    /// Retains shallow source maps for `analyze` without changing the emitted source map variant.
+    pub ensure_shallow_source_maps: Option<bool>,
 }
 
 /// The subset of [`NapiProjectOptions`] that may change without restarting the process. Used by
@@ -318,6 +322,7 @@ impl NapiProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr,
+            ensure_shallow_source_maps,
         } = val;
         ProjectOptions {
             root_path,
@@ -327,7 +332,7 @@ impl NapiProjectOptions {
             additional_roots: additional_roots
                 .into_iter()
                 .map(|root| AdditionalRootConfig {
-                    key: root.key,
+                    name: AdditionalRootName::Configured(root.key),
                     path: root.path,
                     ignore_if_missing: root.ignore_if_missing.unwrap_or(false),
                 })
@@ -350,6 +355,7 @@ impl NapiProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr: server_hmr.unwrap_or(false),
+            ensure_shallow_source_maps: ensure_shallow_source_maps.unwrap_or(false),
         }
     }
 }
@@ -412,6 +418,7 @@ pub struct ProjectInstance {
     container: ResolvedVc<ProjectContainer>,
     // Never locked across an await point.
     exit_receiver: Mutex<Option<ExitReceiver>>,
+    shutdown: Arc<ShutdownHooks>,
     // Pin the ProjectContainer for as long as this struct survives.
     _container_gc_root: GcRoot<ProjectContainer>,
 }
@@ -468,8 +475,11 @@ pub fn project_new<'env>(
         None,
         GzipFast,
         GzipBest,
+        /// zstd with the given compression level
+        Zstd(i32),
     }
     let mut compress = Compression::None;
+    let mut raw_trace_options = RawTraceLayerOptions::default();
     if let Some(mut trace) = trace {
         let trace_path_override = std::env::var_os("NEXT_TURBOPACK_TRACING_PATH")
             .filter(|v| !v.is_empty())
@@ -515,6 +525,22 @@ pub fn project_new<'env>(
                         compress = Compression::GzipBest;
                         return None;
                     }
+                    "zstd" => {
+                        compress = Compression::Zstd(3);
+                        return None;
+                    }
+                    "zstd-fast" => {
+                        compress = Compression::Zstd(1);
+                        return None;
+                    }
+                    "zstd-best" => {
+                        compress = Compression::Zstd(19);
+                        return None;
+                    }
+                    "no-memory" => {
+                        raw_trace_options.memory = false;
+                        return None;
+                    }
                     _ => Cow::Borrowed(item),
                 })
             })
@@ -557,8 +583,17 @@ pub fn project_new<'env>(
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::best());
                 TraceWriter::new(trace_writer)
             }
+            Compression::Zstd(level) => {
+                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+                // `auto_finish` completes the zstd frame when the trace writer drops it on exit.
+                let trace_writer = zstd::Encoder::new(trace_writer, level)
+                    .unwrap()
+                    .auto_finish();
+                TraceWriter::new(trace_writer)
+            }
         };
-        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+        let subscriber =
+            subscriber.with(RawTraceLayer::with_options(trace_writer, raw_trace_options));
 
         exit.on_exit(async move {
             tokio::task::spawn_blocking(move || drop(trace_writer_guard))
@@ -614,12 +649,15 @@ pub fn project_new<'env>(
             let options = options.into_project_options();
             let is_dev = options.dev;
             let root_path = options.root_path.clone();
+            let shutdown = Arc::new(ShutdownHooks::default());
+            let shutdown_hooks = shutdown.clone();
             let (container, container_op, initialization_issues) = turbo_tasks
                 .run(async move {
                     let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
                     let initialization_issues =
                         ProjectContainer::initialize(container_op, options).await?;
                     let container = container_op.resolve().strongly_consistent().await?;
+                    container.await?.register_shutdown_hooks(&shutdown_hooks);
                     // Return the operation itself so we can pin it below
                     Ok((container, container_op, initialization_issues))
                 })
@@ -668,6 +706,7 @@ pub fn project_new<'env>(
                         turbopack_ctx,
                         container,
                         exit_receiver: Mutex::new(Some(exit_receiver)),
+                        shutdown,
                         _container_gc_root: container_gc_root,
                     }),
                 },
@@ -715,8 +754,8 @@ impl CompilationEvent for SlowFilesystemEvent {
 /// more than `SLOW_FILESYSTEM_THRESHOLD`.
 ///
 /// This idea is copied from Bun:
-/// - https://x.com/jarredsumner/status/1637549427677364224
-/// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
+/// - <https://x.com/jarredsumner/status/1637549427677364224>
+/// - <https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038>
 async fn benchmark_file_io(turbo_tasks: &NextTurboTasks, dir: &Path) -> Result<()> {
     let temp_path = dir.join(format!(
         "tmp_file_io_benchmark_{:x}",
@@ -808,14 +847,15 @@ pub async fn project_invalidate_file_system_cache(
     Ok(())
 }
 
-/// Runs exit handlers for the project registered using the [`ExitHandler`] API.
+/// Runs resource cleanup and exit handlers for the project registered using the [`ExitHandler`]
+/// API.
 ///
-/// This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
-/// one.
+/// This cleanup is included in `project_shutdown`, so callers should normally use only one API.
 #[napi]
 pub async fn project_on_exit(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
+    run_shutdown_hooks(project).await;
     run_exit_handlers(&project.exit_receiver).await;
     Ok(())
 }
@@ -836,7 +876,26 @@ async fn run_exit_handlers(exit_receiver: &Mutex<Option<ExitReceiver>>) {
         .await;
 }
 
-/// Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
+/// Resource cleanup can still read task-backed state, so it must finish before engine shutdown.
+async fn run_shutdown_hooks(project: &ProjectInstance) {
+    if project.shutdown.is_empty() {
+        return;
+    }
+    let shutdown = project.shutdown.clone();
+    if let Err(error) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            shutdown.run().await;
+            Ok(())
+        })
+        .await
+    {
+        eprintln!("Failed to run project pre-shutdown hooks: {error:#}");
+    }
+}
+
+/// Runs resource cleanup, stops Turbo Tasks, and then flushes the project's exit handlers.
 ///
 /// This is used in builds where it's important that we completely persist turbo-tasks to disk, but
 /// it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
@@ -847,6 +906,7 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks();
+    run_shutdown_hooks(project).await;
     tt.stop_and_wait().await;
     run_exit_handlers(&project.exit_receiver).await;
     Ok(())
@@ -926,6 +986,17 @@ impl NapiRoute {
                         })
                         .collect(),
                 ),
+                ..Default::default()
+            },
+            RouteOperation::AppGoRoute {
+                original_name,
+                endpoint,
+            } => NapiRoute {
+                pathname,
+                original_name: Some(original_name),
+                r#type: "app-route-go",
+                endpoint: convert_endpoint(endpoint),
+                has_action_manifest: Some(false),
                 ..Default::default()
             },
             RouteOperation::AppRoute {
@@ -1206,7 +1277,7 @@ fn compute_deferred_phase_build_paths(
                     non_deferred_app.insert(app_debug_path);
                 }
             }
-            Route::AppRoute { original_name, .. } => {
+            Route::AppRoute { original_name, .. } | Route::AppGoRoute { original_name, .. } => {
                 let app_debug_path = to_app_debug_path(route_key.as_str(), "route");
                 if is_deferred_app_route(route_key.as_str(), deferred_entries) {
                     deferred_app.insert(app_debug_path);

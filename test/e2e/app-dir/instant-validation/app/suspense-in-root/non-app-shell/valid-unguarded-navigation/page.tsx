@@ -1,5 +1,5 @@
 import { Instant } from 'next'
-import { unstable_navigation as navigation } from 'next/cache'
+import { navigation } from 'next/cache'
 
 export const instant: Instant = {
   level: 'experimental-error',

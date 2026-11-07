@@ -1,6 +1,6 @@
 import { ConditionalCookies } from '../../../cached-value'
 import { Suspense } from 'react'
-import { unstable_prefetch } from 'next/cache'
+import { prefetch } from 'next/cache'
 
 export default async function Page() {
   return (
@@ -22,6 +22,6 @@ export default async function Page() {
 }
 
 async function PrefetchData() {
-  await unstable_prefetch()
+  await prefetch()
   return <div id="prefetch-data">Prefetch data</div>
 }

@@ -244,7 +244,8 @@ where
 }
 
 /// One `impl Trait for ConcreteType` registration, gathered at link time into
-/// [`TRAIT_IMPLS_SLICE`].
+/// `TRAIT_IMPLS_SLICE`.
+#[doc(hidden)]
 pub struct TraitImplRecord {
     pub value_type: &'static ValueType,
     pub trait_type: &'static TraitType,

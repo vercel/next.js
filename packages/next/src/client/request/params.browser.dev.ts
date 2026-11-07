@@ -17,9 +17,6 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     return cachedParams
   }
 
-  // We don't use makeResolvedReactPromise here because params
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
   const promise = Promise.resolve(underlyingParams)
 
   const proxiedProperties = new Set<string>()
@@ -57,6 +54,12 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
       return Reflect.ownKeys(target)
     },
   })
+
+  // Mark it as fulfilled the way React does once it has tracked it, so `use()`
+  // can unwrap it without suspending. This goes through the proxy, like React
+  // does, so a param named `value` isn't reported as a sync access.
+  ;(proxiedPromise as any).status = 'fulfilled'
+  ;(proxiedPromise as any).value = underlyingParams
 
   CachedParams.set(underlyingParams, proxiedPromise)
   return proxiedPromise

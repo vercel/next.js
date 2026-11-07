@@ -22,7 +22,7 @@ import type {
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
-import { push, replace, refresh, hmrRefresh } from './navigator'
+import { push, replace, prepare, refresh, hmrRefresh } from './navigator'
 import { prefetchRoute } from './prefetch'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
@@ -89,7 +89,7 @@ function runRemainingActions(
   }
 }
 
-async function runAction({
+function runAction({
   actionQueue,
   action,
   setState,
@@ -103,7 +103,11 @@ async function runAction({
   actionQueue.pending = action
 
   const payload = action.payload
-  const actionResult = actionQueue.action(prevState, payload)
+
+  function handleError(err: Error) {
+    runRemainingActions(actionQueue, action, setState)
+    action.reject(err)
+  }
 
   function handleResult(nextState: AppRouterState) {
     // if we discarded this action, the state should also be discarded
@@ -129,12 +133,17 @@ async function runAction({
     action.resolve(nextState)
   }
 
+  let actionResult: ReducerState
+  try {
+    actionResult = actionQueue.action(prevState, payload)
+  } catch (err) {
+    handleError(err as Error)
+    return
+  }
+
   // if the action is a promise, set up a callback to resolve it
   if (isThenable(actionResult)) {
-    actionResult.then(handleResult, (err) => {
-      runRemainingActions(actionQueue, action, setState)
-      action.reject(err)
-    })
+    actionResult.then(handleResult, handleError)
   } else {
     handleResult(actionResult)
   }
@@ -226,10 +235,7 @@ export function createMutableActionQueue(
     state: initialState,
     dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
       dispatchAction(actionQueue, payload, setState),
-    action: async (state: AppRouterState, action: ReducerActions) => {
-      const result = reducer(state, action)
-      return result
-    },
+    action: reducer,
     pending: null,
     last: null,
   }
@@ -304,7 +310,9 @@ function gesturePush(href: string, options?: NavigateOptions): void {
       state.nextUrl,
       freshnessPolicy,
       scrollBehavior,
-      'push'
+      'push',
+      // Not part of a prepared navigation.
+      null
     )
     dispatchGestureState(forkedGestureState)
   }
@@ -330,7 +338,12 @@ export const publicAppRouterInstance: AppRouterInstance = {
 
 // Conditionally add experimental_gesturePush when gestureTransition is enabled
 if (process.env.__NEXT_GESTURE_TRANSITION) {
-  ;(publicAppRouterInstance as any).experimental_gesturePush = gesturePush
+  publicAppRouterInstance.experimental_gesturePush = gesturePush
+}
+
+// Conditionally add experimental_prepare when prepareNavigation is enabled
+if (process.env.__NEXT_PREPARE_NAVIGATION) {
+  publicAppRouterInstance.experimental_prepare = prepare
 }
 
 // Exists for debugging purposes. Don't use in application code.
