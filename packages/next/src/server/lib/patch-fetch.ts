@@ -1193,15 +1193,14 @@ export function createPatchedFetcher(
           }
         }
 
-        if (
-          init &&
-          typeof init === 'object' &&
-          shouldProcessFetchConfigForWorkUnit(workUnitStore)
-        ) {
-          const { cache } = init
+        if (shouldProcessFetchConfigForWorkUnit(workUnitStore)) {
+          // The cache mode can be in `init` or on a `Request` input.
+          const cache = getRequestMeta('cache')
 
           // Delete `cache` property as Cloudflare Workers will throw an error
-          if (isEdgeRuntime) delete init.cache
+          if (isEdgeRuntime && init && typeof init === 'object') {
+            delete init.cache
+          }
 
           if (cache === 'no-store') {
             // If enabled, we should bail out of static generation.
@@ -1250,7 +1249,13 @@ export function createPatchedFetcher(
               `no-store fetch ${input} ${workStore.route}`
             )
           }
+        }
 
+        if (
+          init &&
+          typeof init === 'object' &&
+          shouldProcessFetchConfigForWorkUnit(workUnitStore)
+        ) {
           const hasNextConfig = 'next' in init
           const { next = {} } = init
           if (
