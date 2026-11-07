@@ -36,6 +36,22 @@ describe('metadata: resolveUrl', () => {
     )
   })
 
+  it('should not normalize query and hash when composing with metadataBase', () => {
+    const metadataBase = new URL('https://example.com/abc')
+    expect(
+      resolveUrl('/og?url=https://example.com/post', metadataBase).href
+    ).toBe('https://example.com/abc/og?url=https://example.com/post')
+    expect(resolveUrl('/search?q=a//b', metadataBase).href).toBe(
+      'https://example.com/abc/search?q=a//b'
+    )
+    expect(resolveUrl('/page?from=/a/../b', metadataBase).href).toBe(
+      'https://example.com/abc/page?from=/a/../b'
+    )
+    expect(resolveUrl('/page#a/../b', metadataBase).href).toBe(
+      'https://example.com/abc/page#a/../b'
+    )
+  })
+
   it('should ignore metadataBase when url is valid URL', () => {
     const metadataBase = new URL('https://example.com/abc')
     expect(resolveUrl('https://example.com/def', metadataBase)).toEqual(
@@ -66,6 +82,12 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     it('should resolve absolute internal url with query', () => {
       expect(resolver('https://example.com/?foo=bar')).toBe(
         'https://example.com/?foo=bar'
+      )
+    })
+
+    it('should preserve slashes in query of relative url', () => {
+      expect(resolver('/api/og?url=https://example.com/post')).toBe(
+        'https://example.com/api/og?url=https://example.com/post'
       )
     })
   })
