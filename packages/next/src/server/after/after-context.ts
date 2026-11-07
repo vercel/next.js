@@ -14,7 +14,7 @@ import {
   withExecuteRevalidates,
   type RevalidationState,
 } from '../revalidation-utils'
-import { bindSnapshot } from '../app-render/async-local-storage'
+import { bindSnapshot } from '../app-render/async-context-snapshot'
 import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 import { scheduleImmediate } from '../../lib/scheduler'

@@ -92,7 +92,7 @@ import {
   createWorkStore,
 } from '../async-storage/work-store'
 import { formatValidationEvent } from './dev-validation-events'
-import { createSnapshot } from './async-local-storage'
+import { createSnapshot } from './async-context-snapshot'
 import {
   getDevValidationWorker,
   type DevValidationWorkerMessage,

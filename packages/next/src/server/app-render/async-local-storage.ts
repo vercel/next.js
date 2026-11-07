@@ -1,4 +1,4 @@
-import type { AsyncLocalStorage, AsyncResource } from 'async_hooks'
+import type { AsyncLocalStorage } from 'async_hooks'
 
 const sharedAsyncLocalStorageNotAvailableError = new Error(
   'Invariant: AsyncLocalStorage accessed in runtime where it is not available'
@@ -27,29 +27,10 @@ class FakeAsyncLocalStorage<Store extends {}>
   enterWith(): void {
     throw sharedAsyncLocalStorageNotAvailableError
   }
-
-  static bind<T>(fn: T): T {
-    return fn
-  }
 }
 
-const maybeGlobalAsyncLocalStorage =
+export const maybeGlobalAsyncLocalStorage =
   typeof globalThis !== 'undefined' && (globalThis as any).AsyncLocalStorage
-
-// In Node.js, `AsyncLocalStorage.bind()` and `AsyncLocalStorage.snapshot()`
-// return a function made by `AsyncResource.prototype.bind()`, which defines the
-// deprecated `asyncResource` accessor on it. V8 keeps accessors in the old
-// generation, so a minor garbage collection cannot free what such a function
-// captured: the async context, with every store of the request. Entering an
-// `AsyncResource` ourselves restores the same context without that accessor.
-let NodeAsyncResource: typeof AsyncResource | undefined
-if (process.env.NEXT_RUNTIME === 'edge') {
-  NodeAsyncResource = undefined
-} else {
-  NodeAsyncResource = (
-    require('node:async_hooks') as typeof import('node:async_hooks')
-  ).AsyncResource
-}
 
 export function createAsyncLocalStorage<
   Store extends {},
@@ -95,41 +76,4 @@ export function getOrCreateGlobalAsyncLocalStorage<Store extends {}>(
   }
 
   return (globalStore[key] ??= createAsyncLocalStorage<Store>())
-}
-
-export function bindSnapshot<T>(
-  // WARNING: Don't pass a named function to this argument! See: https://github.com/facebook/react/pull/34911
-  fn: T
-): T {
-  if (maybeGlobalAsyncLocalStorage) {
-    if (NodeAsyncResource) {
-      // The resource type is the one `AsyncResource.bind()` uses.
-      const resource = new NodeAsyncResource(
-        (fn as Function).name || 'bound-anonymous-fn'
-      )
-      return function (this: unknown, ...args: unknown[]) {
-        return resource.runInAsyncScope(fn as any, this, ...args)
-      } as T
-    }
-    return maybeGlobalAsyncLocalStorage.bind(fn)
-  }
-  return FakeAsyncLocalStorage.bind(fn)
-}
-
-export function createSnapshot(): <R, TArgs extends any[]>(
-  fn: (...args: TArgs) => R,
-  ...args: TArgs
-) => R {
-  if (maybeGlobalAsyncLocalStorage) {
-    if (NodeAsyncResource) {
-      const resource = new NodeAsyncResource('bound-anonymous-fn')
-      return function (fn: any, ...args: any[]) {
-        return resource.runInAsyncScope(fn, undefined, ...args)
-      }
-    }
-    return maybeGlobalAsyncLocalStorage.snapshot()
-  }
-  return function (fn: any, ...args: any[]) {
-    return fn(...args)
-  }
 }

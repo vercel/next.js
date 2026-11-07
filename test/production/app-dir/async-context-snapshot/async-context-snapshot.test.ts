@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
@@ -43,5 +45,37 @@ describe('async-context-snapshot', () => {
       expect(await browser.elementByCss('#result').text()).toBe('done')
     })
     expect((await boundFunctions()) - before).toBe(0)
+  })
+
+  // `next/dynamic` in a client component makes the browser load the module
+  // that creates the async local storages. The code that restores an async
+  // context needs `node:async_hooks`, which a browser bundle cannot resolve,
+  // so it must stay out of that module.
+  it('should hydrate a client component that uses next/dynamic', async () => {
+    const browser = await next.browser('/dynamic', {
+      pushErrorAsConsoleLog: true,
+    })
+    await browser.elementByCss('button').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('button').text()).toBe('1')
+    })
+    expect(await browser.elementByCss('#lazy').text()).toBe('lazy')
+    const logs = await browser.log()
+    expect(logs.filter((log) => log.source === 'error')).toEqual([])
+  })
+
+  it('should not reference async_hooks in the browser chunks', () => {
+    const staticDir = path.join(next.testDir, next.distDir, 'static')
+    const chunks = fs
+      .readdirSync(staticDir, { recursive: true, encoding: 'utf8' })
+      .filter((file) => file.endsWith('.js'))
+    expect(chunks.length).toBeGreaterThan(0)
+    expect(
+      chunks.filter((file) =>
+        fs
+          .readFileSync(path.join(staticDir, file), 'utf8')
+          .includes('async_hooks')
+      )
+    ).toEqual([])
   })
 })

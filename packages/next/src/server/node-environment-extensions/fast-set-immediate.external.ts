@@ -1,9 +1,7 @@
 import { promisify } from 'node:util'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import {
-  bindSnapshot,
-  getOrCreateGlobalAsyncLocalStorage,
-} from '../app-render/async-local-storage'
+import { getOrCreateGlobalAsyncLocalStorage } from '../app-render/async-local-storage'
+import { bindSnapshot } from '../app-render/async-context-snapshot'
 
 type Execution = {
   state: ExecutionState
