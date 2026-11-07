@@ -33,6 +33,8 @@
     "legacy",
     "script.js",
     "script.d.ts",
+    "iframe.js",
+    "iframe.d.ts",
     "server.js",
     "server.d.ts",
     "head.js",
