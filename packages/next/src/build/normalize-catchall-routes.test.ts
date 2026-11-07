@@ -551,6 +551,74 @@ describe('normalizeCatchallRoutes', () => {
 
       expect(unmatchedAppPages).toEqual([])
     })
+
+    it('keeps a page in another route group when a sibling group catch-all cannot render', () => {
+      const appPaths = {
+        '/': ['/(dashboard)/page'],
+        '/tasks': ['/(dashboard)/tasks/page'],
+        '/[...catchAll]': ['/(dashboard)/@modal/[...catchAll]/page'],
+        '/settings': ['/(settings)/settings/page'],
+      }
+
+      const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+        defaultAppPaths: ['/(dashboard)/@modal/default'],
+      })
+
+      expect(appPaths).toEqual({
+        '/': ['/(dashboard)/page'],
+        '/tasks': [
+          '/(dashboard)/tasks/page',
+          '/(dashboard)/@modal/[...catchAll]/page',
+        ],
+        '/settings': ['/(settings)/settings/page'],
+      })
+      expect(unmatchedAppPages).toEqual([])
+    })
+
+    it('keeps a page outside every route group when a grouped catch-all cannot render', () => {
+      const appPaths = {
+        '/': ['/(main)/page', '/(main)/@breadcrumb/page'],
+        '/dashboard': ['/(main)/dashboard/page'],
+        '/[...all]': ['/(main)/@breadcrumb/[...all]/page'],
+        '/login': ['/login/page'],
+      }
+
+      const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+        defaultAppPaths: ['/(main)/@breadcrumb/default'],
+      })
+
+      expect(appPaths).toEqual({
+        '/': ['/(main)/page', '/(main)/@breadcrumb/page'],
+        '/dashboard': [
+          '/(main)/dashboard/page',
+          '/(main)/@breadcrumb/[...all]/page',
+        ],
+        '/login': ['/login/page'],
+      })
+      expect(unmatchedAppPages).toEqual([])
+    })
+
+    it('keeps pruning catch-alls that relied on a pruned sibling catch-all', () => {
+      const appPaths = {
+        '/[...slug]': ['/[...slug]/page', '/@outer/[...slug]/page'],
+        '/foo': ['/@outer/@inner/foo/page'],
+      }
+
+      const { unmatchedAppPages, incompatibleParallelRouteSlots } =
+        normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
+
+      expect(appPaths).toEqual({
+        '/foo': [
+          '/@outer/@inner/foo/page',
+          '/@outer/[...slug]/page',
+          '/[...slug]/page',
+        ],
+      })
+      expect(unmatchedAppPages).toEqual([])
+      expect(incompatibleParallelRouteSlots).toEqual([])
+    })
   })
 
   describe('incompatible parallel route slots', () => {
