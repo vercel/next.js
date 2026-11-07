@@ -324,14 +324,14 @@ export async function adapter(
         // the root span inserted below. When this request registered
         // `instrumentation.ts`, its lifecycle spans are children of the
         // middleware span, which is backdated to cover registration.
-        const receivedHeaders = new Headers(request.headers)
-        forwardedTraceContext = getSharedParentTraceContext(
-          receivedHeaders,
-          tracer.getTraceContextHeaders()
-        )
-        if (forwardedTraceContext) {
+        const activeTraceContext = tracer.getTraceContextHeaders()
+        if (activeTraceContext) {
           // Snapshot before the handler can mutate `request.headers`.
-          forwardedRequestHeaders = receivedHeaders
+          forwardedRequestHeaders = new Headers(request.headers)
+          forwardedTraceContext = getSharedParentTraceContext(
+            forwardedRequestHeaders,
+            activeTraceContext
+          )
         }
 
         return tracer.trace(
