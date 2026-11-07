@@ -36,6 +36,15 @@ export type RecursiveReadDirOptions = {
    * Whether to return relative pathnames, true by default.
    */
   relativePathnames?: boolean
+
+  /**
+   * When true, stop descending into further subdirectories as soon as at
+   * least one pathname has matched. Useful for existence checks where only
+   * knowing "is there at least one match" is needed, since it avoids
+   * walking the rest of the tree. The returned list may be incomplete when
+   * this is enabled.
+   */
+  stopAfterFirstMatch?: boolean
 }
 
 /**
@@ -56,6 +65,7 @@ export async function recursiveReadDir(
     ignorePartFilter,
     sortPathnames = true,
     relativePathnames = true,
+    stopAfterFirstMatch = false,
   } = options
 
   // The list of pathnames to return.
@@ -172,6 +182,12 @@ export async function recursiveReadDir(
           pathnames.push(coerce(absolutePathname))
         }
       }
+    }
+
+    // Stop descending into the remaining directories once we've already
+    // found a match, since the caller only cares whether any match exists.
+    if (stopAfterFirstMatch && pathnames.length > 0) {
+      break
     }
   }
 
