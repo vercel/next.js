@@ -30,17 +30,16 @@ import { parseReqUrl } from '../lib/url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 
 /**
- * Compiled matchers for rewrite sources, keyed by the source. Rewrites come
- * from the routes manifest, so every request checks the same sources; they're
- * compiled once instead of on every request, and rewrites that share a source
- * share a matcher. The cap keeps the cache bounded regardless of the input.
+ * Compiled matchers for rewrite sources. Rewrites come from the routes
+ * manifest, so every request checks the same sources: each one is compiled
+ * once per process instead of on every request. The key is the source and the
+ * case sensitivity, so rewrites that share a source share a matcher.
  */
-const MAX_REWRITE_MATCHERS = 1000
 const rewriteMatchers = new Map<string, ReturnType<typeof getPathMatch>>()
 
 function getRewriteMatcher(
   rewrite: DeepReadonly<Rewrite>,
-  trailingSlash: boolean | undefined,
+  trailingSlash: boolean,
   caseSensitive: boolean
 ) {
   const source = trailingSlash ? `${rewrite.source}(/)?` : rewrite.source
@@ -53,9 +52,6 @@ function getRewriteMatcher(
       strict: true,
       sensitive: caseSensitive,
     })
-    if (rewriteMatchers.size >= MAX_REWRITE_MATCHERS) {
-      rewriteMatchers.clear()
-    }
     rewriteMatchers.set(key, matcher)
   }
   return matcher
@@ -304,7 +300,7 @@ export function getServerUtils({
 
       let params = getRewriteMatcher(
         rewrite,
-        trailingSlash,
+        !!trailingSlash,
         !!caseSensitive
       )(rewrittenParsedUrl.pathname)
 
