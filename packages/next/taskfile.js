@@ -1248,8 +1248,8 @@ export async function ncc_ignore_loader(task, opts) {
 externals['is-animated'] = 'next/dist/compiled/is-animated'
 export async function ncc_is_animated(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('is-animated')))
-    .ncc({ packageName: 'is-animated', externals })
+    .source('src/bundles/is-animated/index.js')
+    .ncc({ packageName: 'is-animated', externals, esm: false })
     .target('src/compiled/is-animated')
 }
 externals['ipaddr.js'] = 'next/dist/compiled/ipaddr.js'
