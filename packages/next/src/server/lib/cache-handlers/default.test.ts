@@ -47,6 +47,33 @@ describe('default use cache handler', () => {
 
     await expectCollected(requestStoreRef)
   })
+
+  describe('updateTags', () => {
+    it('keeps an immediate expiration when a longer profile is applied later', async () => {
+      const handler = createDefaultCacheHandler(1024 * 1024)
+      await populateCache(handler, ['expire-then-max'])
+
+      await handler.updateTags(['expire-then-max'], { expire: 0 })
+      await handler.updateTags(['expire-then-max'], { expire: 3600 })
+      // `updateTags` rounds the current time, so let the clock catch up.
+      await new Promise((resolve) => setTimeout(resolve, 5))
+
+      expect(await handler.get('key', [])).toBeUndefined()
+    })
+
+    it('still applies a shorter expiration after a longer profile', async () => {
+      const handler = createDefaultCacheHandler(1024 * 1024)
+      await populateCache(handler, ['max-then-expire'])
+
+      await handler.updateTags(['max-then-expire'], { expire: 3600 })
+      expect(await handler.get('key', [])).toBeDefined()
+
+      await handler.updateTags(['max-then-expire'], { expire: 0 })
+      // `updateTags` rounds the current time, so let the clock catch up.
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      expect(await handler.get('key', [])).toBeUndefined()
+    })
+  })
 })
 
 async function runInRequestContext(
@@ -73,7 +100,10 @@ async function runInRequestContext(
   return requestStoreRef
 }
 
-async function populateCache(handler: CacheHandler): Promise<void> {
+async function populateCache(
+  handler: CacheHandler,
+  tags: string[] = []
+): Promise<void> {
   const entry: CacheEntry = {
     value: new ReadableStream({
       start(controller) {
@@ -81,9 +111,9 @@ async function populateCache(handler: CacheHandler): Promise<void> {
         controller.close()
       },
     }),
-    tags: [],
+    tags,
     stale: 60,
-    timestamp: Date.now(),
+    timestamp: Date.now() - 1000,
     expire: 120,
     revalidate: 60,
   }
