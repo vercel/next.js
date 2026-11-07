@@ -43,7 +43,7 @@ export function createShortLivedCacheError(
     `Route "${route}": Next.js encountered a short-lived cache${location}${requirement}.\n\n` +
       `This \`"use cache"\` entry is excluded from the required prerendered output because of its \`cacheLife\`. ${lifetime}\n\n` +
       `Ways to fix this:\n${remedies}\n` +
-      'Learn more: https://nextjs.org/docs/app/api-reference/functions/cacheLife#prerendering-behavior'
+      'Learn more: https://nextjs.org/docs/messages/short-lived-cache'
   )
 }
 

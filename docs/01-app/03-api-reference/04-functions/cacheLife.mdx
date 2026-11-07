@@ -269,7 +269,7 @@ A short cache lifetime changes where the cached content can be delivered from:
 
 Of the presets, only `seconds` falls under any of these thresholds: its `expire` of 1 minute excludes it from prerenders.
 
-If one of these thresholds blocks required prerendered output, development validation identifies the short-lived cache and recommends increasing the relevant `cacheLife` value. Production builds may report a combined uncached/runtime diagnostic, which also includes the cache lifetime requirements. With [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation), `<Suspense>` cannot make an excluded cache static: increase its lifetime or remove the access. For ordinary Instant Navigation validation, an intentionally short-lived cache can stream behind `<Suspense>`.
+If a short lifetime blocks required prerendered output, see [Short-lived cache](/docs/messages/short-lived-cache) for the error and its fixes.
 
 This behavior allows you to mix static and dynamic content within the same page. Static parts are prerendered, while short-lived caches create boundaries where data is fetched at request time rather than build time. Use a `<Suspense>` boundary around dynamic caches to provide a fallback while content loads.
 

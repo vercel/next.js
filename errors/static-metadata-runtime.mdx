@@ -24,7 +24,7 @@ A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/
 
 During [prerendering](/docs/app/glossary#prerendering), [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) read request-specific data from [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional). Reading these values in `generateMetadata()` requires rendering at request time, which conflicts with the route's static requirement.
 
-In development, a [`use cache`](/docs/app/api-reference/directives/use-cache) scope with a short lifetime receives a cache-specific diagnostic. See [`cacheLife` prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for the `expire`, `stale`, and `revalidate` thresholds.
+In development, a [`use cache`](/docs/app/api-reference/directives/use-cache) scope with a short lifetime receives a cache-specific diagnostic. See [Short-lived cache](/docs/messages/short-lived-cache) for the lifetime requirements and fixes.
 
 Uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) requests, database calls, and [`connection()`](/docs/app/api-reference/functions/connection) have different fixes. See [Uncached data in `generateMetadata()` on a route that must be fully static](/docs/messages/static-metadata-dynamic).
 
@@ -76,7 +76,7 @@ The metadata is determined during prerendering rather than per request.
 
 ### Extend the cache lifetime
 
-Set `expire` to at least five minutes, `stale` to at least 30 seconds, and `revalidate` above `0`. Increase the lifetime only when serving shared, older metadata is acceptable.
+See [Increase the cache lifetime](/docs/messages/short-lived-cache#increase-the-cache-lifetime) for the required lifetime settings. Increase the lifetime only when serving shared, older metadata is acceptable.
 
 Learn more: [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
 

@@ -1105,6 +1105,9 @@ describe('short-lived cache diagnostics', () => {
               : `dynamic-${scope}`
         )
         expect(error.message).toContain('300 seconds (five minutes)')
+        expect(error.message).toContain(
+          'Learn more: https://nextjs.org/docs/messages/short-lived-cache'
+        )
         expect(error.message).not.toContain('params')
         expect(error.message).not.toContain('searchParams')
       }

@@ -82,6 +82,9 @@ describe('short-lived-cache diagnostics', () => {
       expect(output).toContain('cacheLife')
       if (isNextDev) {
         expect(output).toContain('Next.js encountered a short-lived cache')
+        expect(output).toContain(
+          'https://nextjs.org/docs/messages/short-lived-cache'
+        )
         expect(output).not.toContain('Next.js encountered URL data')
         expect(output).not.toContain('Cache the data access with')
       }

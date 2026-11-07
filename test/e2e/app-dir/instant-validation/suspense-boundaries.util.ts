@@ -989,7 +989,7 @@ export function registerSuspenseBoundariesTests(
              - [stream] Wrap the short-lived cache access in \`<Suspense fallback={...}>\`
              - [block] Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/app/api-reference/functions/cacheLife#prerendering-behavior
+           Learn more: https://nextjs.org/docs/messages/short-lived-cache
                at main (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)

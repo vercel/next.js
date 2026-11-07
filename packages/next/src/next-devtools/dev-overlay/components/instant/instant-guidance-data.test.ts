@@ -288,9 +288,7 @@ describe('instant-guidance-data card invariants', () => {
   it('every link is either null or a docs URL', () => {
     for (const card of allCards()) {
       if (card.link === null) continue
-      expect(card.link).toMatch(
-        /^https:\/\/nextjs\.org\/docs\/(messages\/|app\/api-reference\/functions\/cacheLife#prerendering-behavior)/
-      )
+      expect(card.link).toMatch(/^https:\/\/nextjs\.org\/docs\/messages\//)
     }
   })
 })
@@ -368,7 +366,10 @@ describe('short-lived cache remedies', () => {
     'viewport',
   ] as const)('offers a lifetime adjustment for %s', (kind) => {
     const cards = getCards(kind, 'short-cache')
-    expect(cards[0].id).toBe('prerendering-behavior')
+    expect(cards[0].id).toBe('increase-the-cache-lifetime')
+    expect(cards[0].link).toBe(
+      'https://nextjs.org/docs/messages/short-lived-cache#increase-the-cache-lifetime'
+    )
     expect(cards[0].snippets.map((s) => s.text).join('\n')).toContain(
       'expire: 300'
     )

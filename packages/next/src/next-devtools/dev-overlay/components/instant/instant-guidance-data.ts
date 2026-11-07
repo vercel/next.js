@@ -901,8 +901,7 @@ export const DOCS_URLS: Record<GuidanceKind, string> = {
 }
 
 export const BLOCKING_ROUTE_DOCS_URLS: Record<GuidanceVariant, string> = {
-  'short-cache':
-    'https://nextjs.org/docs/app/api-reference/functions/cacheLife#prerendering-behavior',
+  'short-cache': 'https://nextjs.org/docs/messages/short-lived-cache',
   runtime: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
   link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
@@ -912,8 +911,7 @@ export const BLOCKING_ROUTE_DOCS_URLS: Record<GuidanceVariant, string> = {
 }
 
 export const BLOCKING_METADATA_DOCS_URLS: Record<GuidanceVariant, string> = {
-  'short-cache':
-    'https://nextjs.org/docs/app/api-reference/functions/cacheLife#prerendering-behavior',
+  'short-cache': 'https://nextjs.org/docs/messages/short-lived-cache',
   runtime:
     'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
@@ -927,8 +925,7 @@ export const BLOCKING_METADATA_DOCS_URLS: Record<GuidanceVariant, string> = {
 }
 
 export const BLOCKING_VIEWPORT_DOCS_URLS: Record<GuidanceVariant, string> = {
-  'short-cache':
-    'https://nextjs.org/docs/app/api-reference/functions/cacheLife#prerendering-behavior',
+  'short-cache': 'https://nextjs.org/docs/messages/short-lived-cache',
   runtime:
     'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
@@ -1082,10 +1079,10 @@ export function getCards(
 ): FixCard[] {
   if (variant === 'short-cache') {
     const increase: FixCard = {
-      id: 'prerendering-behavior',
+      id: 'increase-the-cache-lifetime',
       title: 'Increase the cache lifetime',
       group: 'cache',
-      link: 'https://nextjs.org/docs/app/api-reference/functions/cacheLife#prerendering-behavior',
+      link: 'https://nextjs.org/docs/messages/short-lived-cache#increase-the-cache-lifetime',
       snippets: [
         { text: 'cacheLife({' },
         { text: '  expire: 300,', highlight: true },
