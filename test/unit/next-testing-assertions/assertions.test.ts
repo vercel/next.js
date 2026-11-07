@@ -1196,297 +1196,135 @@ it.each([
   130000
 )
 
-it.each(['default', 'proxy-disabled', 'proxify', 'proxify-disabled'])(
-  'retains actual callable name metadata after File disposal in %s',
-  async (family) => {
-    const { stdout, stderr } = await promisify(execFile)(
-      process.execPath,
-      [join(__dirname, 'chai-callable-name.cjs'), process.cwd(), '', family],
-      { timeout: 20000 }
-    )
-    expect(stderr).toBe('')
-    expect(JSON.parse(stdout)).toMatchObject({
-      cases: family.startsWith('proxify') ? 2 : 3,
-      behaviorAssertions: true,
-      actualFileDisposalJoined: true,
-      actualNameReadsAfterDispose: true,
-    })
+const callableFamilies = [
+  {
+    kind: 'name',
+    variants: ['default', 'proxy-disabled', 'proxify', 'proxify-disabled'],
+    count: (family: string) => (family.startsWith('proxify') ? 2 : 3),
+    privateTitle:
+      'retains actual callable name metadata after File disposal in %s',
+    publicTitle: 'checks callable name metadata in %s %s %s',
+    facts: { actualNameReadsAfterDispose: true },
   },
-  25000
-)
-
-it.each([
-  ['development', 'js', 'default'],
-  ['production', 'mjs', 'default'],
-  ['development', 'js', 'proxy-disabled'],
-  ['production', 'mjs', 'proxy-disabled'],
-  ['development', 'js', 'proxify'],
-  ['production', 'mjs', 'proxify'],
-  ['development', 'js', 'proxify-disabled'],
-  ['production', 'mjs', 'proxify-disabled'],
-])(
-  'checks callable name metadata in %s %s %s',
-  async (mode, extension, family) => {
-    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
-    const { tmpdir } = await import('node:os')
-    const directory = await mkdtemp(join(tmpdir(), 'next-chai-name-public-'))
-    const output = join(directory, 'observed')
-    let completed = false
-    try {
-      await promisify(execFile)(
-        process.execPath,
-        [
-          join(__dirname, 'chai-callable-name-public.mjs'),
-          'source',
-          process.cwd(),
-          output,
-          mode,
-          extension,
-          family,
-        ],
-        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
-      )
-      expect(
-        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-      ).toMatchObject({
-        lane: 'source',
-        mode,
-        extension,
-        cases: family.startsWith('proxify') ? 2 : 3,
-        behaviorAssertions: true,
-        allOwnersJoined: true,
-      })
-      completed = true
-    } finally {
-      if (completed) await rm(directory, { recursive: true, force: true })
-      else
-        console.error(
-          'Retained failed callable name observations at ' + directory
-        )
-    }
+  {
+    kind: 'fields',
+    variants: ['default', 'disabled'],
+    count: () => 2,
+    privateTitle:
+      'retains actual callable descriptor identity after File disposal in %s',
+    publicTitle: 'checks callable descriptor traversal in %s %s %s',
+    facts: { actualDescriptorIdentityAfterDispose: true, noGetterReads: true },
   },
-  130000
-)
-
-it.each(['default', 'disabled'])(
-  'retains actual callable descriptor identity after File disposal in %s',
-  async (family) => {
-    const { stdout, stderr } = await promisify(execFile)(
-      process.execPath,
-      [join(__dirname, 'chai-callable-fields.cjs'), process.cwd(), '', family],
-      { timeout: 20000 }
-    )
-    expect(stderr).toBe('')
-    expect(JSON.parse(stdout)).toMatchObject({
-      cases: 2,
-      behaviorAssertions: true,
-      actualFileDisposalJoined: true,
-      actualDescriptorIdentityAfterDispose: true,
-      noGetterReads: true,
-    })
-  },
-  25000
-)
-
-it.each([
-  ['development', 'js', 'default'],
-  ['production', 'mjs', 'default'],
-  ['development', 'js', 'disabled'],
-  ['production', 'mjs', 'disabled'],
-])(
-  'checks callable descriptor traversal in %s %s %s',
-  async (mode, extension, family) => {
-    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
-    const { tmpdir } = await import('node:os')
-    const directory = await mkdtemp(join(tmpdir(), 'next-chai-fields-public-'))
-    const output = join(directory, 'observed')
-    let completed = false
-    try {
-      await promisify(execFile)(
-        process.execPath,
-        [
-          join(__dirname, 'chai-callable-fields-public.mjs'),
-          'source',
-          process.cwd(),
-          output,
-          mode,
-          extension,
-          family,
-        ],
-        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
-      )
-      expect(
-        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-      ).toMatchObject({
-        lane: 'source',
-        mode,
-        extension,
-        cases: 2,
-        behaviorAssertions: true,
-        allOwnersJoined: true,
-      })
-      completed = true
-    } finally {
-      if (completed) await rm(directory, { recursive: true, force: true })
-      else
-        console.error(
-          'Retained failed callable descriptor observations at ' + directory
-        )
-    }
-  },
-  130000
-)
-
-it.each(['default', 'disabled'])(
-  'retains native callable string intrinsic after File disposal in %s',
-  async (family) => {
-    const { stdout, stderr } = await promisify(execFile)(
-      process.execPath,
-      [
-        join(__dirname, 'chai-callable-intrinsic.cjs'),
-        process.cwd(),
-        '',
-        family,
-      ],
-      { timeout: 20000 }
-    )
-    expect(stderr).toBe('')
-    expect(JSON.parse(stdout)).toMatchObject({
-      cases: 3,
-      behaviorAssertions: true,
-      actualFileDisposalJoined: true,
+  {
+    kind: 'intrinsic',
+    variants: ['default', 'disabled'],
+    count: () => 3,
+    privateTitle:
+      'retains native callable string intrinsic after File disposal in %s',
+    publicTitle: 'checks native callable string intrinsic in %s %s %s',
+    facts: {
       retainedIntrinsicAfterDispose: true,
       exactNativeReceiverErrorsAfterDispose: true,
       noAdditionalGetterReads: true,
-    })
+    },
   },
-  25000
-)
-
-it.each([
-  ['development', 'js', 'default'],
-  ['production', 'mjs', 'default'],
-  ['development', 'js', 'disabled'],
-  ['production', 'mjs', 'disabled'],
-])(
-  'checks native callable string intrinsic in %s %s %s',
-  async (mode, extension, family) => {
-    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
-    const { tmpdir } = await import('node:os')
-    const directory = await mkdtemp(
-      join(tmpdir(), 'next-chai-intrinsic-public-')
-    )
-    const output = join(directory, 'observed')
-    let completed = false
-    try {
-      await promisify(execFile)(
-        process.execPath,
-        [
-          join(__dirname, 'chai-callable-intrinsic-public.mjs'),
-          'source',
-          process.cwd(),
-          output,
-          mode,
-          extension,
-          family,
-        ],
-        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
-      )
-      expect(
-        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-      ).toMatchObject({
-        lane: 'source',
-        mode,
-        extension,
-        cases: 3,
-        behaviorAssertions: true,
-        allOwnersJoined: true,
-      })
-      completed = true
-    } finally {
-      if (completed) await rm(directory, { recursive: true, force: true })
-      else
-        console.error(
-          'Retained failed callable intrinsic observations at ' + directory
-        )
-    }
-  },
-  130000
-)
-
-it.each(['default', 'disabled', 'forwarding', 'forwarding-disabled'])(
-  'preserves callable data identity and alias ownership after File disposal in %s',
-  async (family) => {
-    const { stdout, stderr } = await promisify(execFile)(
-      process.execPath,
-      [join(__dirname, 'chai-callable-data.cjs'), process.cwd(), '', family],
-      { timeout: 20000 }
-    )
-    expect(stderr).toBe('')
-    expect(JSON.parse(stdout)).toMatchObject({
-      cases: family.startsWith('forwarding') ? 3 : 2,
-      behaviorAssertions: true,
-      actualFileDisposalJoined: true,
+  {
+    kind: 'data',
+    variants: ['default', 'disabled', 'forwarding', 'forwarding-disabled'],
+    count: (family: string) => (family.startsWith('forwarding') ? 3 : 2),
+    privateTitle:
+      'preserves callable data identity and alias ownership after File disposal in %s',
+    publicTitle: 'checks own callable data behavior in %s %s %s',
+    facts: {
       retainedCallerFunctionsAfterDispose: true,
       publicAliasOwnershipAfterDispose: true,
       neverCalledMetadataGetters: true,
-    })
+    },
   },
-  25000
-)
-
-it.each([
-  ['development', 'js', 'default'],
-  ['production', 'mjs', 'default'],
-  ['development', 'js', 'disabled'],
-  ['production', 'mjs', 'disabled'],
-  ['development', 'js', 'forwarding'],
-  ['production', 'mjs', 'forwarding'],
-  ['development', 'js', 'forwarding-disabled'],
-  ['production', 'mjs', 'forwarding-disabled'],
-])(
-  'checks own callable data behavior in %s %s %s',
-  async (mode, extension, family) => {
-    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
-    const { tmpdir } = await import('node:os')
-    const directory = await mkdtemp(join(tmpdir(), 'next-chai-data-public-')),
-      output = join(directory, 'observed')
-    let completed = false
-    try {
-      await promisify(execFile)(
+]
+for (const {
+  kind,
+  variants,
+  count,
+  privateTitle,
+  publicTitle,
+  facts,
+} of callableFamilies) {
+  it.each(variants)(
+    privateTitle,
+    async (family) => {
+      const { stdout, stderr } = await promisify(execFile)(
         process.execPath,
         [
-          join(__dirname, 'chai-callable-data-public.mjs'),
-          'source',
+          join(__dirname, `chai-callable-${kind}.cjs`),
           process.cwd(),
-          output,
-          mode,
-          extension,
+          '',
           family,
         ],
-        { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
+        { timeout: 20000 }
       )
-      expect(
-        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-      ).toMatchObject({
-        lane: 'source',
-        mode,
-        extension,
-        cases: family.startsWith('forwarding') ? 3 : 2,
+      expect(stderr).toBe('')
+      expect(JSON.parse(stdout)).toMatchObject({
+        cases: count(family),
         behaviorAssertions: true,
-        allOwnersJoined: true,
+        actualFileDisposalJoined: true,
+        ...facts,
       })
-      completed = true
-    } finally {
-      if (completed) await rm(directory, { recursive: true, force: true })
-      else
-        console.error(
-          'Retained failed callable data observations at ' + directory
+    },
+    25000
+  )
+
+  it.each(
+    variants.flatMap((family) => [
+      ['development', 'js', family],
+      ['production', 'mjs', family],
+    ])
+  )(
+    publicTitle,
+    async (mode, extension, family) => {
+      const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+      const { tmpdir } = await import('node:os')
+      const directory = await mkdtemp(
+        join(tmpdir(), `next-chai-${kind}-public-`)
+      )
+      const output = join(directory, 'observed')
+      let completed = false
+      try {
+        await promisify(execFile)(
+          process.execPath,
+          [
+            join(__dirname, `chai-callable-${kind}-public.mjs`),
+            'source',
+            process.cwd(),
+            output,
+            mode,
+            extension,
+            family,
+          ],
+          { timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
         )
-    }
-  },
-  130000
-)
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          lane: 'source',
+          mode,
+          extension,
+          cases: count(family),
+          behaviorAssertions: true,
+          allOwnersJoined: true,
+        })
+        completed = true
+      } finally {
+        if (completed) await rm(directory, { recursive: true, force: true })
+        else
+          console.error(
+            `Retained failed callable ${kind} observations at ${directory}`
+          )
+      }
+    },
+    130000
+  )
+}
 
 it.each(['dispatch', 'classes', 'null'])(
   'forwards actual Chai receivers through the file lifecycle in %s',
