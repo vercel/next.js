@@ -1,0 +1,5 @@
+{
+  "name": "pnpm-v11-workspace-overrides",
+  "private": true,
+  "packageManager": "pnpm@11.5.3"
+}
