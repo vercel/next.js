@@ -28,6 +28,27 @@ export function findConfigPath(
   )
 }
 
+// Returns the file `findConfig` reads the configuration from: the nearest
+// `package.json` when it has a `key` object, otherwise the config file.
+export async function findConfigFile(
+  directory: string,
+  key: string
+): Promise<string | undefined> {
+  const packageJsonPath = await findUp('package.json', { cwd: directory })
+  if (packageJsonPath) {
+    try {
+      const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'))
+      if (packageJson?.[key] != null && typeof packageJson[key] === 'object') {
+        return packageJsonPath
+      }
+    } catch {
+      // Ignore error and continue, like `findConfig`
+    }
+  }
+
+  return findConfigPath(directory, key)
+}
+
 // We'll allow configuration to be typed, but we force everything provided to
 // become optional. We do not perform any schema validation. We should maybe
 // force all the types to be `unknown` as well.
