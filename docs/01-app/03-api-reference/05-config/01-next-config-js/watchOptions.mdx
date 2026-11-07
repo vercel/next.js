@@ -1,0 +1,53 @@
+---
+title: watchOptions
+description: Enable file watch polling for Turbopack and Webpack.
+---
+
+Enable file watch polling for Turbopack and Webpack.
+
+## Usage
+
+The `watchOptions` option allows you to configure a file watching polling interval during development.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  watchOptions: {
+    pollIntervalMs: 1000,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  watchOptions: {
+    pollIntervalMs: 1000,
+  },
+}
+
+module.exports = nextConfig
+```
+
+## Config options
+
+- `pollIntervalMs`: How often to poll for file changes.
+
+Polling is only enabled when the `watchOptions.pollIntervalMs` option is specified.
+
+## When to use
+
+Enable this option if you're running into issues where file changes are not being detected during development.
+
+This can happen when working inside a VM, Docker container, or over a networked volume.
+
+`watchOptions.pollIntervalMs` is passed to both Turbopack and Webpack.
+
+## Version History
+
+| Version  | Changes                                 |
+| -------- | --------------------------------------- |
+| `15.0.0` | `watchOptions.pollIntervalMs` is added. |
