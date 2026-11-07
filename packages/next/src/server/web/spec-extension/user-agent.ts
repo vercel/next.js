@@ -1,5 +1,3 @@
-import parseua from 'next/dist/compiled/ua-parser-js'
-
 interface UserAgent {
   isBot: boolean
   ua: string
@@ -33,6 +31,10 @@ export function isBot(input: string): boolean {
 }
 
 export function userAgentFromString(input: string | undefined): UserAgent {
+  // The parser builds its regular expressions when it is loaded, so it is
+  // loaded on first use and not with every import of `next/server`.
+  const parseua =
+    require('next/dist/compiled/ua-parser-js') as typeof import('next/dist/compiled/ua-parser-js')
   return {
     ...parseua(input),
     isBot: input === undefined ? false : isBot(input),
