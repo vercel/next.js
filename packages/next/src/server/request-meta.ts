@@ -1,10 +1,16 @@
-import type { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
-import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import type {
+  NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_RSC_UNION_QUERY,
+  NEXT_URL,
+} from '../client/components/app-router-headers'
 import type {
   ResponseCacheEntry,
   ServerComponentsHmrCache,
@@ -153,6 +159,20 @@ export interface RequestMeta {
    * everything into the search param.
    */
   cacheBustingSearchParam?: string
+
+  /**
+   * The values of the request headers that `cacheBustingSearchParam` is a hash
+   * of, as the client sent them. Set when a middleware overrides the request
+   * headers, since the client computed the search param from the original
+   * values and the hash must be verified against those.
+   */
+  cacheBustingSearchParamHeaders?: Pick<
+    IncomingHttpHeaders,
+    | typeof NEXT_ROUTER_PREFETCH_HEADER
+    | typeof NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
+    | typeof NEXT_ROUTER_STATE_TREE_HEADER
+    | typeof NEXT_URL
+  >
 
   /**
    * True when the request is for the `/_next/data` route using the pages
