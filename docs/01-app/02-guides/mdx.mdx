@@ -304,7 +304,7 @@ export function generateStaticParams() {
   return [{ slug: 'welcome' }, { slug: 'about' }]
 }
 
-export const dynamicParams = false
+export const dynamicParams = false // not compatible nor necessary with cacheComponents
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
