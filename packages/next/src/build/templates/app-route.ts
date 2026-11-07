@@ -24,6 +24,7 @@ import {
   NextRequestAdapter,
   signalFromNodeResponse,
 } from '../../server/web/spec-extension/adapters/next-request'
+import { NextRequest } from '../../server/web/spec-extension/request'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { sendResponse } from '../../server/send-response'
@@ -87,6 +88,9 @@ const routeModule = new AppRouteRouteModule({
 // be eliminated when we've moved the other routes to the new format. These
 // are used to hook into the route.
 const { workAsyncStorage, workUnitAsyncStorage, serverHooks } = routeModule
+
+// The class of the request that the route module handles as it is.
+const RouteHandlerRequest = routeModule.getRequestClass(NextRequest)
 
 function patchFetch() {
   return _patchFetch({
@@ -317,7 +321,8 @@ async function handleRequest(
 
   const nextReq = NextRequestAdapter.fromNodeNextRequest(
     nodeNextReq,
-    signalFromNodeResponse(res)
+    signalFromNodeResponse(res),
+    RouteHandlerRequest
   )
 
   const responseGenerator: ResponseGenerator = async ({
