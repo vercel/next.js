@@ -4697,45 +4697,6 @@ export default async function build(
         buildTracesSpinner = undefined
       }
 
-      if (proxyFilePath && bundler !== Bundler.Turbopack) {
-        await fs.rename(
-          path.join(distDir, SERVER_DIRECTORY, 'proxy.js'),
-          path.join(distDir, SERVER_DIRECTORY, 'middleware.js')
-        )
-        await fs.rename(
-          path.join(distDir, SERVER_DIRECTORY, 'proxy.js.nft.json'),
-          path.join(distDir, SERVER_DIRECTORY, 'middleware.js.nft.json')
-        )
-
-        const middlewareNft = JSON.parse(
-          await fs.readFile(
-            path.join(distDir, SERVER_DIRECTORY, 'middleware.js.nft.json'),
-            'utf8'
-          )
-        )
-
-        // When Proxy self-reference itself e.g. __filename, it is traced to
-        // the NFT file. However, since we rename 'proxy.js' to 'middleware.js',
-        // the files in NFT will differ from the actual outputs, which will fail
-        // for the providers like Vercel that uses NFT. Therefore also rename
-        // the 'proxy.js' to 'middleware.js' in the NFT file.
-        let hasProxyJsInNft = false
-        middlewareNft.files = middlewareNft.files.map((file: string) => {
-          if (file === 'proxy.js') {
-            hasProxyJsInNft = true
-            return 'middleware.js'
-          }
-          return file
-        })
-
-        if (hasProxyJsInNft) {
-          await fs.writeFile(
-            path.join(distDir, SERVER_DIRECTORY, 'middleware.js.nft.json'),
-            JSON.stringify(middlewareNft)
-          )
-        }
-      }
-
       if (isCompileMode) {
         Log.info(
           `Build ran with "compile" mode, to finalize the build run either "generate" or "generate-env" mode as well`
