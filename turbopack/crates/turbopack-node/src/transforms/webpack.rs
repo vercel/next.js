@@ -485,6 +485,16 @@ impl WebpackLoadersProcessedAsset {
                     ),
                 )))),
             };
+            let input_source_map = if let Some(generator) =
+                ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.source)
+            {
+                match &*generator.generate_source_map().await? {
+                    FileContent::Content(file) => serde_json::from_str(&file.content().to_str()?)?,
+                    FileContent::NotFound => JsonValue::Null,
+                }
+            } else {
+                JsonValue::Null
+            };
             let evaluate_context = transform.evaluate_context;
 
             let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
@@ -546,6 +556,7 @@ impl WebpackLoadersProcessedAsset {
                     EvaluateArg::Vc(ResolvedVc::cell(transform.target.await?.to_string().into())),
                     EvaluateArg::Vc(ResolvedVc::cell(transform.mode.to_string().into())),
                     EvaluateArg::Vc(ResolvedVc::cell(transform.source_maps.into())),
+                    EvaluateArg::Vc(ResolvedVc::cell(input_source_map)),
                 ],
                 additional_invalidation: Completion::immutable().to_resolved().await?,
                 loader_names,
