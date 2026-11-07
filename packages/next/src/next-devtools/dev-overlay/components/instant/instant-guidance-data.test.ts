@@ -1,4 +1,5 @@
 import {
+  createShortLivedCacheError,
   createRuntimeBodyError,
   createDynamicBodyError,
   createRuntimeBodyErrorInNavigation,
@@ -45,6 +46,7 @@ describe('static route explanations', () => {
 })
 
 const GUIDANCE_VARIANTS = [
+  'short-cache',
   'runtime',
   'link',
   'prefetch',
@@ -286,7 +288,9 @@ describe('instant-guidance-data card invariants', () => {
   it('every link is either null or a docs URL', () => {
     for (const card of allCards()) {
       if (card.link === null) continue
-      expect(card.link).toMatch(/^https:\/\/nextjs\.org\/docs\/messages\//)
+      expect(card.link).toMatch(
+        /^https:\/\/nextjs\.org\/docs\/(messages\/|app\/api-reference\/functions\/cacheLife#prerendering-behavior)/
+      )
     }
   })
 })
@@ -342,4 +346,48 @@ describe('instant-guidance-data dispatcher', () => {
       expect(used).toContain(group)
     }
   })
+})
+
+describe('short-lived cache remedies', () => {
+  it.each([
+    'static-route',
+    'static-metadata',
+    'static-viewport',
+    'blocking-route',
+    'metadata',
+    'viewport',
+  ] as const)('offers a lifetime adjustment for %s', (kind) => {
+    const cards = getCards(kind, 'short-cache')
+    expect(cards[0].id).toBe('prerendering-behavior')
+    expect(cards[0].snippets.map((s) => s.text).join('\n')).toContain(
+      'expire: 300'
+    )
+    expect(cards.some((c) => c.title === 'Cache the data')).toBe(false)
+    if (kind.startsWith('static-')) {
+      expect(cards.map((c) => c.group)).not.toContain('stream')
+      expect(cards.map((c) => c.group)).not.toContain('block')
+    } else if (kind === 'blocking-route') {
+      expect(cards.map((c) => c.group)).toContain('stream')
+    }
+  })
+})
+
+it('keeps short-cache console fixes and overlay card groups aligned', () => {
+  for (const scope of ['body', 'metadata', 'viewport'] as const) {
+    for (const fullyStatic of [false, true]) {
+      const kind: GuidanceKind = fullyStatic
+        ? `static-${scope === 'body' ? 'route' : scope}`
+        : scope === 'body'
+          ? 'blocking-route'
+          : scope
+      const message = createShortLivedCacheError(
+        '/example',
+        scope,
+        fullyStatic
+      ).message
+      expect(getCards(kind, 'short-cache').map((c) => c.group)).toEqual(
+        tagsFromMessage(message)
+      )
+    }
+  }
 })

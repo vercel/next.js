@@ -112,6 +112,8 @@ describe('Cache Components Errors - Client Components', () => {
 
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
+               For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
@@ -138,6 +140,8 @@ describe('Cache Components Errors - Client Components', () => {
                "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during prerendering.
 
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
@@ -169,6 +173,8 @@ describe('Cache Components Errors - Client Components', () => {
 
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
+               For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
@@ -195,6 +201,8 @@ describe('Cache Components Errors - Client Components', () => {
                "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during prerendering.
 
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access

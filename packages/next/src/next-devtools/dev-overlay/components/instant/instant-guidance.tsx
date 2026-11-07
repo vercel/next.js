@@ -279,7 +279,12 @@ export function InstantGuidance({
       break
   }
 
-  const defaultExplanation = explanation || EXPLANATIONS[kind]
+  const cacheExplanation =
+    variant === 'short-cache'
+      ? 'This cached data is excluded by its cacheLife. Prerendering requires expire of at least 300 seconds, stale of at least 30 seconds, and revalidate greater than 0. App Shells require stale of at least 300 seconds.'
+      : undefined
+  const defaultExplanation =
+    explanation || cacheExplanation || EXPLANATIONS[kind]
 
   return (
     <div data-nextjs-instant-guidance>
@@ -317,7 +322,13 @@ export function InstantHeaderExplanation({
   explanation?: string
   docsUrl?: string
 }) {
-  const resolvedExplanation = explanation || (kind ? EXPLANATIONS[kind] : '')
+  const resolvedExplanation =
+    explanation ||
+    (variant === 'short-cache'
+      ? 'This cached data is excluded by its cacheLife. Increase the lifetime or defer the access where allowed.'
+      : kind
+        ? EXPLANATIONS[kind]
+        : '')
   let resolvedDocsUrl = docsUrl
   if (!resolvedDocsUrl && kind === 'blocking-route') {
     resolvedDocsUrl = BLOCKING_ROUTE_DOCS_URLS[variant ?? 'dynamic']

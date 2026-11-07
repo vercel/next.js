@@ -53,9 +53,11 @@ export function registerMetadataAndViewportTests(
 
            This route's metadata is blocked, but the rest of its content can be prerendered.
 
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -70,9 +72,11 @@ export function registerMetadataAndViewportTests(
 
            This route's metadata is blocked, but the rest of its content can be prerendered.
 
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -127,6 +131,8 @@ export function registerMetadataAndViewportTests(
 
              \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
+             For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
@@ -154,6 +160,8 @@ export function registerMetadataAndViewportTests(
 
              \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
+             For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
@@ -176,6 +184,8 @@ export function registerMetadataAndViewportTests(
              "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during prerendering.
 
              \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
@@ -203,6 +213,8 @@ export function registerMetadataAndViewportTests(
              "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during prerendering.
 
              \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+             For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
@@ -286,9 +298,11 @@ export function registerMetadataAndViewportTests(
 
            This route's metadata is blocked, but the rest of its content can be prerendered.
 
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -303,9 +317,11 @@ export function registerMetadataAndViewportTests(
 
            This route's metadata is blocked, but the rest of its content can be prerendered.
 
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -357,9 +373,11 @@ export function registerMetadataAndViewportTests(
 
            This route's metadata is blocked, but the rest of its content can be prerendered.
 
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -374,9 +392,11 @@ export function registerMetadataAndViewportTests(
 
            This route's metadata is blocked, but the rest of its content can be prerendered.
 
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -428,9 +448,11 @@ export function registerMetadataAndViewportTests(
 
            This route's metadata is blocked, but the rest of its content can be prerendered.
 
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -445,9 +467,11 @@ export function registerMetadataAndViewportTests(
 
            This route's metadata is blocked, but the rest of its content can be prerendered.
 
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -524,6 +548,8 @@ export function registerMetadataAndViewportTests(
 
            This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
 
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
            Ways to fix this:
              - [static] Use a static viewport export instead of \`generateViewport()\`
              - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
@@ -540,6 +566,8 @@ export function registerMetadataAndViewportTests(
            "Route "/dynamic-viewport-static-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
 
            This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
+
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
            Ways to fix this:
              - [static] Use a static viewport export instead of \`generateViewport()\`
@@ -633,6 +661,8 @@ export function registerMetadataAndViewportTests(
 
            This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
 
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
            Ways to fix this:
              - [static] Use a static viewport export instead of \`generateViewport()\`
              - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
@@ -649,6 +679,8 @@ export function registerMetadataAndViewportTests(
            "Route "/dynamic-viewport-dynamic-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
 
            This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
+
+           For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
            Ways to fix this:
              - [static] Use a static viewport export instead of \`generateViewport()\`

@@ -917,12 +917,6 @@ export function registerHeadAndReportingTests(
           // Caches with `stale < MIN_SHELL_STALE` are not allowed in app shells
           // (although they are allowed in runtime prefetches).
 
-          // TODO(app-shells): We're reporting caches that only resolve in a prefetch
-          // as URL data (same as `prefetch()`) which is a bit misleading.
-          // The suggested fixes might also be confusing, because they don't mention
-          // that increasing `stale` would help.
-          // We should improve this.
-
           beforeEach(async () => {
             await restartDevServerToEnsureColdCaches()
           })
@@ -947,7 +941,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "description": "Next.js encountered a short-lived cache outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9) @ PrefetchContent
@@ -1002,7 +996,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "description": "Next.js encountered a short-lived cache outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9) @ PrefetchContent
@@ -1435,6 +1429,8 @@ export function registerHeadAndReportingTests(
                "Error: Route "/shells/ensure-static/navigation/session-data-without-suspense": Next.js encountered uncached or runtime data on a route that must be fully static.
 
                This route is configured to be fully static, but some data requires rendering at request time.
+
+               For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
                Ways to fix this:
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)

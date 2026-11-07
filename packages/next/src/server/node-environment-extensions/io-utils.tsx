@@ -62,13 +62,16 @@ export function io(expression: string, type: SyncIOApiType) {
         // `shouldTrackSyncInterrupt`/`syncInterruptCurrentStageWithReason`
         switch (stageController.currentStage) {
           case RenderStage.ShellStatic:
+          case RenderStage.PrefetchStatic_cache:
           case RenderStage.PrefetchStatic_prefetchApi:
           case RenderStage.PrefetchStatic:
           case RenderStage.NavigationStatic: {
             syncIOError = createSyncIOError(workStore.route, expression, type)
             break
           }
+          case RenderStage.ShellRuntime_cache:
           case RenderStage.ShellRuntime:
+          case RenderStage.PrefetchRuntime_cache:
           case RenderStage.PrefetchRuntime_prefetchApi:
           case RenderStage.PrefetchRuntime:
           case RenderStage.NavigationRuntime: {
@@ -82,6 +85,7 @@ export function io(expression: string, type: SyncIOApiType) {
             break
           }
           case RenderStage.Before:
+          case RenderStage.Dynamic_cache:
           case RenderStage.Dynamic:
           case RenderStage.Abandoned: {
             throw new InvariantError(

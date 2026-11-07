@@ -205,26 +205,33 @@ export async function collectStagedSegmentData(
     case ValidationPrefetchKind.StaticAppShell: {
       partialStages = [
         RenderStage.ShellStatic,
+        RenderStage.PrefetchStatic_cache,
         RenderStage.PrefetchStatic_prefetchApi,
         RenderStage.PrefetchStatic,
         RenderStage.NavigationStatic, // TODO(cache-stages): only if needed
+        RenderStage.ShellRuntime_cache,
         RenderStage.PrefetchRuntime,
+        RenderStage.Dynamic_cache,
       ]
       break
     }
     case ValidationPrefetchKind.RuntimeAppShell: {
       partialStages = [
         RenderStage.ShellRuntime,
+        RenderStage.PrefetchRuntime_cache,
         RenderStage.PrefetchRuntime_prefetchApi,
         RenderStage.PrefetchRuntime,
         RenderStage.NavigationRuntime, // TODO(cache-stages): only if needed
+        RenderStage.Dynamic_cache,
       ]
       break
     }
     case ValidationPrefetchKind.LegacySpeculative: {
       partialStages = [
         RenderStage.NavigationStatic,
+        RenderStage.ShellRuntime_cache,
         RenderStage.PrefetchRuntime,
+        RenderStage.Dynamic_cache,
       ]
       break
     }
@@ -294,15 +301,19 @@ async function collectSegmentDataForStage(
     switch (currentStage) {
       case RenderStage.Before:
       case RenderStage.ShellStatic:
+      case RenderStage.PrefetchStatic_cache:
       case RenderStage.PrefetchStatic_prefetchApi:
       case RenderStage.PrefetchStatic:
       case RenderStage.NavigationStatic:
         return 'Prerender'
+      case RenderStage.ShellRuntime_cache:
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
+      case RenderStage.PrefetchRuntime_cache:
       case RenderStage.PrefetchRuntime_prefetchApi:
       case RenderStage.PrefetchRuntime:
       case RenderStage.NavigationRuntime:
         return 'Prefetch'
+      case RenderStage.Dynamic_cache:
       case RenderStage.Dynamic:
         return 'Server'
       default:
@@ -1037,6 +1048,10 @@ export async function createCombinedPayloadAtDepth(
   clientReferenceManifest: ClientReferenceManifest,
   overrideStageForPartialSegments:
     | null
+    | RenderStage.PrefetchStatic_cache
+    | RenderStage.ShellRuntime_cache
+    | RenderStage.PrefetchRuntime_cache
+    | RenderStage.Dynamic_cache
     | RenderStage.PrefetchRuntime_prefetchApi
     | RenderStage.PrefetchRuntime
     | RenderStage.NavigationRuntime

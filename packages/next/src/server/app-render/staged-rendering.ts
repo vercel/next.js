@@ -5,18 +5,26 @@ export enum RenderStage {
   Before = 1,
   //
   ShellStatic = 10,
-  /** Discrimination-only stage: `prefetch()` in validation renders (static) */
-  PrefetchStatic_prefetchApi = 11,
-  PrefetchStatic = 12,
-  NavigationStatic = 13,
+  /** Discrimination-only stage: caches excluded from static App Shells. */
+  PrefetchStatic_cache = 11,
+  /** Discrimination-only stage: `prefetch()` in validation renders (static). */
+  PrefetchStatic_prefetchApi = 12,
+  PrefetchStatic = 13,
+  NavigationStatic = 14,
   //
-  ShellRuntime = 20,
-  /** Discrimination-only stage: `prefetch()` in validation renders (runtime) */
-  PrefetchRuntime_prefetchApi = 21,
-  PrefetchRuntime = 22,
-  NavigationRuntime = 23,
+  /** Discrimination-only stage: caches with short expire or zero revalidate. */
+  ShellRuntime_cache = 20,
+  ShellRuntime = 21,
+  /** Discrimination-only stage: caches excluded from runtime App Shells. */
+  PrefetchRuntime_cache = 22,
+  /** Discrimination-only stage: `prefetch()` in validation renders (runtime). */
+  PrefetchRuntime_prefetchApi = 23,
+  PrefetchRuntime = 24,
+  NavigationRuntime = 25,
   //
-  Dynamic = 30,
+  /** Discrimination-only stage: caches with stale below the prefetch minimum. */
+  Dynamic_cache = 30,
+  Dynamic = 31,
   Abandoned = 40,
 }
 
@@ -27,15 +35,19 @@ export type AdvanceableRenderStage = Exclude<
 
 export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
   RenderStage.ShellStatic,
+  RenderStage.PrefetchStatic_cache,
   RenderStage.PrefetchStatic_prefetchApi,
   RenderStage.PrefetchStatic,
   RenderStage.NavigationStatic,
   //
+  RenderStage.ShellRuntime_cache,
   RenderStage.ShellRuntime,
+  RenderStage.PrefetchRuntime_cache,
   RenderStage.PrefetchRuntime_prefetchApi,
   RenderStage.PrefetchRuntime,
   RenderStage.NavigationRuntime,
   //
+  RenderStage.Dynamic_cache,
   RenderStage.Dynamic,
 ]
 
@@ -150,7 +162,7 @@ export class StagedRenderingController {
         // - in the dynamic stage
         return (
           currentStage > RenderStage.Before &&
-          currentStage < RenderStage.Dynamic
+          currentStage < RenderStage.Dynamic_cache
         )
       }
     }
@@ -161,6 +173,7 @@ export class StagedRenderingController {
     const { currentStage } = this
     if (
       currentStage === RenderStage.Before ||
+      currentStage === RenderStage.Dynamic_cache ||
       currentStage === RenderStage.Dynamic ||
       currentStage === RenderStage.Abandoned
     ) {
@@ -219,6 +232,7 @@ export class StagedRenderingController {
       )
     }
     if (
+      currentStage === RenderStage.Dynamic_cache ||
       currentStage === RenderStage.Dynamic ||
       currentStage === RenderStage.Abandoned
     ) {

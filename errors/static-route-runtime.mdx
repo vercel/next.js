@@ -24,7 +24,7 @@ A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/
 
 During [prerendering](/docs/app/glossary#prerendering), the page or layout read request-specific data from [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional). Reading these values requires rendering at request time, which conflicts with the route's static requirement.
 
-A [`use cache`](/docs/app/api-reference/directives/use-cache) scope also triggers this error when its [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes, [`stale`](/docs/app/api-reference/functions/cacheLife#stale) is under 30 seconds, or [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) is `0`.
+In development, a [`use cache`](/docs/app/api-reference/directives/use-cache) scope with a short lifetime receives a cache-specific diagnostic. See [`cacheLife` prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for the `expire`, `stale`, and `revalidate` thresholds.
 
 Uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) requests, database calls, and [`connection()`](/docs/app/api-reference/functions/connection) have different fixes. See [Uncached data on a route that must be fully static](/docs/messages/static-route-dynamic).
 

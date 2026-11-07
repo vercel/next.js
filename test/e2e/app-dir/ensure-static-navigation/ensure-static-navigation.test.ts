@@ -20,6 +20,12 @@ import {
 
 const ERROR_PATTERNS = {
   body: {
+    shortLivedCache: {
+      dev: literalError('Next.js encountered a short-lived cache'),
+      build: literalError(
+        'Next.js encountered uncached or runtime data on a route that must be fully static'
+      ),
+    },
     uncachedData: {
       dev: literalError(
         'Next.js encountered uncached data on a route that must be fully static'
@@ -230,6 +236,8 @@ describe('ensureStatic = "navigation"', () => {
 
          This route is configured to be fully static, but some data requires rendering at request time.
 
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
@@ -284,6 +292,8 @@ describe('ensureStatic = "navigation"', () => {
          "Error: Route "/default/connection": Next.js encountered uncached or runtime data on a route that must be fully static.
 
          This route is configured to be fully static, but some data requires rendering at request time.
+
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
@@ -340,6 +350,8 @@ describe('ensureStatic = "navigation"', () => {
 
          This route is configured to be fully static, but some data requires rendering at request time.
 
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
@@ -395,6 +407,8 @@ describe('ensureStatic = "navigation"', () => {
 
          This route is configured to be fully static, but some data requires rendering at request time.
 
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
@@ -449,6 +463,8 @@ describe('ensureStatic = "navigation"', () => {
          "Error: Route "/default/dynamic-data-passed-to-client": Next.js encountered uncached or runtime data on a route that must be fully static.
 
          This route is configured to be fully static, but some data requires rendering at request time.
+
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
@@ -523,14 +539,14 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-{
-  "description": "Page "/default/fallback-params/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
-  "environmentLabel": null,
-  "label": "Runtime Error",
-  "source": null,
-  "stack": [],
-}
-`)
+         {
+           "description": "Page "/default/fallback-params/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, {
@@ -564,14 +580,14 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-{
-  "description": "Page "/default/fallback-params-passed-to-client/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
-  "environmentLabel": null,
-  "label": "Runtime Error",
-  "source": null,
-  "stack": [],
-}
-`)
+         {
+           "description": "Page "/default/fallback-params-passed-to-client/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, {
@@ -602,14 +618,14 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-{
-  "description": "Page "/default/fallback-params-client-segment/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
-  "environmentLabel": null,
-  "label": "Runtime Error",
-  "source": null,
-  "stack": [],
-}
-`)
+         {
+           "description": "Page "/default/fallback-params-client-segment/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, {
@@ -662,6 +678,8 @@ describe('ensureStatic = "navigation"', () => {
 
          This route is configured to be fully static, but some data requires rendering at request time.
 
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
          Ways to fix this:
            - [cache] For uncached data: cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateMetadata()\` with static data
@@ -713,6 +731,8 @@ describe('ensureStatic = "navigation"', () => {
          "Error: Route "/default/dynamic-viewport": Next.js encountered uncached or runtime data in \`generateViewport()\` on a route that must be fully static.
 
          This route is configured to be fully static, but some data requires rendering at request time.
+
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
          Ways to fix this:
            - [cache] For uncached data: cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)
@@ -837,14 +857,14 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-{
-  "description": "Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
-  "environmentLabel": null,
-  "label": "Runtime Error",
-  "source": null,
-  "stack": [],
-}
-`)
+         {
+           "description": "Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, { isMinified: true })
@@ -874,14 +894,14 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-{
-  "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
-  "environmentLabel": null,
-  "label": "Runtime Error",
-  "source": null,
-  "stack": [],
-}
-`)
+         {
+           "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, { isMinified: true })
@@ -904,7 +924,7 @@ describe('ensureStatic = "navigation"', () => {
 
   describe('excluded caches', () => {
     it('does not allow using a non-prerenderable cache despite suspense', async () => {
-      const errorPattern = ERROR_PATTERNS.body.runtimeData
+      const errorPattern = ERROR_PATTERNS.body.shortLivedCache
       const route = '/default/excluded-caches/non-prerenderable-cache'
       if (isNextDev) {
         const browser = await next.browser(route)
@@ -912,7 +932,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Next.js encountered runtime data on a route that must be fully static.",
+           "description": "Next.js encountered a short-lived cache on a route that must be fully static.",
            "environmentLabel": "Server",
            "label": "Static Route",
            "source": "app/default/excluded-caches/non-prerenderable-cache/page.tsx (17:9) @ Inner
@@ -932,6 +952,8 @@ describe('ensureStatic = "navigation"', () => {
          "Error: Route "/default/excluded-caches/non-prerenderable-cache": Next.js encountered uncached or runtime data on a route that must be fully static.
 
          This route is configured to be fully static, but some data requires rendering at request time.
+
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
@@ -1147,6 +1169,8 @@ describe('ensureStatic = "navigation"', () => {
 
          \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
@@ -1204,6 +1228,8 @@ describe('ensureStatic = "navigation"', () => {
 
          This route is configured to be fully static, but some data requires rendering at request time.
 
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
@@ -1259,6 +1285,8 @@ describe('ensureStatic = "navigation"', () => {
          "Error: Route "/default/mixed-server-client/connection-and-use-search-params": Next.js encountered uncached or runtime data on a route that must be fully static.
 
          This route is configured to be fully static, but some data requires rendering at request time.
+
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
@@ -1342,6 +1370,8 @@ describe('ensureStatic = "navigation"', () => {
 
          This route is configured to be fully static, but some data requires rendering at request time.
 
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
+
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
@@ -1361,6 +1391,8 @@ describe('ensureStatic = "navigation"', () => {
          Error: Route "/default/mixed-server-client/connection-and-use-io": Next.js encountered uncached or runtime data on a route that must be fully static.
 
          This route is configured to be fully static, but some data requires rendering at request time.
+
+         For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)

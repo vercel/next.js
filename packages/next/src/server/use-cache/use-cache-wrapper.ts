@@ -2761,7 +2761,7 @@ export async function cache(
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,
-                  RENDER_STAGES_BY_DATA_KIND.sessionData
+                  RenderStage.ShellRuntime_cache
                 )
               }
               break
@@ -2882,7 +2882,7 @@ export async function cache(
                 if (!isPrefetchable) {
                   // An unprefetchable entry is excluded from prerenders, so it
                   // resolves in the dynamic stage.
-                  stage = RenderStage.Dynamic
+                  stage = RenderStage.Dynamic_cache
                 } else {
                   // If the entry would be be excluded from the shell, treat it as
                   // if it were static URL data.
@@ -2892,10 +2892,9 @@ export async function cache(
                     workUnitStore,
                     '"use cache" excluded from app shells due to a short staletime'
                   )
-                  stage =
-                    RENDER_STAGES_BY_DATA_KIND.staticUrlData[
-                      workUnitStore.needsRuntimeShell ? 'runtime' : 'static'
-                    ]
+                  stage = workUnitStore.needsRuntimeShell
+                    ? RenderStage.PrefetchRuntime_cache
+                    : RenderStage.PrefetchStatic_cache
                 }
                 debug?.(
                   logPrefix,
@@ -3512,7 +3511,7 @@ export async function cache(
                   cacheSignal.endRead()
                   cacheSignalReadEnded = true
                 }
-                const stage = RENDER_STAGES_BY_DATA_KIND.sessionData
+                const stage = RenderStage.ShellRuntime_cache
                 debug?.(
                   logPrefix,
                   'delaying entry',
@@ -3523,7 +3522,7 @@ export async function cache(
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,
-                  RENDER_STAGES_BY_DATA_KIND.sessionData
+                  RenderStage.ShellRuntime_cache
                 )
               }
               break
@@ -3560,7 +3559,7 @@ export async function cache(
                 if (!isPrefetchable) {
                   // An unprefetchable entry is excluded from prerenders, so it
                   // resolves in the dynamic stage.
-                  stage = RenderStage.Dynamic
+                  stage = RenderStage.Dynamic_cache
                 } else {
                   // If the entry would be be excluded from the shell, treat it as
                   // if it were static URL data.
@@ -3570,10 +3569,9 @@ export async function cache(
                     workUnitStore,
                     '"use cache" excluded from app shells due to a short staletime'
                   )
-                  stage =
-                    RENDER_STAGES_BY_DATA_KIND.staticUrlData[
-                      workUnitStore.needsRuntimeShell ? 'runtime' : 'static'
-                    ]
+                  stage = workUnitStore.needsRuntimeShell
+                    ? RenderStage.PrefetchRuntime_cache
+                    : RenderStage.PrefetchStatic_cache
                 }
                 debug?.(
                   logPrefix,

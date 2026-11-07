@@ -1,4 +1,5 @@
 import {
+  createShortLivedCacheError,
   createRuntimeBodyErrorInStaticRoute,
   createDynamicBodyErrorInStaticRoute,
   createNonPrerenderableBodyErrorInStaticRoute,
@@ -986,7 +987,7 @@ describe('deriveCauseFromCodeFrame', () => {
 
 describe('fully static route errors', () => {
   const runtimeDataExplanation =
-    'This route is configured to be fully static, but runtime data from `cookies()`, `headers()`, `params`, `searchParams`, or a short-lived cache requires rendering at request time.'
+    'This route is configured to be fully static, but runtime data from `cookies()`, `headers()`, `params`, or `searchParams` requires rendering at request time.'
   const uncachedDataExplanation =
     'This route is configured to be fully static, but an uncached `fetch(...)`, database call, or `connection()` requires rendering at request time.'
   const combinedDataExplanation =
@@ -1068,4 +1069,55 @@ describe('fully static route errors', () => {
       ).not.toContain('cache')
     }
   )
+})
+
+describe('short-lived cache diagnostics', () => {
+  it.each(['body', 'metadata', 'viewport'] as const)(
+    'selects cache guidance for %s with and without ensureStatic',
+    (scope) => {
+      for (const fullyStatic of [false, true]) {
+        const error = createShortLivedCacheError(ROUTE, scope, fullyStatic)
+        const details = getBlockingRouteErrorDetails(error)
+        expect(details).toMatchObject({ variant: 'short-cache' })
+        expect(details?.type).toBe(
+          fullyStatic
+            ? 'static-route'
+            : scope === 'body'
+              ? 'blocking-route'
+              : `dynamic-${scope}`
+        )
+        expect(error.message).toContain('300 seconds (five minutes)')
+        expect(error.message).not.toContain('params')
+        expect(error.message).not.toContain('searchParams')
+      }
+    }
+  )
+})
+
+it('keeps short-stale App Shell findings as Instant Insights', () => {
+  for (const scope of ['body', 'metadata', 'viewport'] as const) {
+    const error = createShortLivedCacheError(ROUTE, scope, false, true)
+    expect(isInstantNavigationError(error)).toBe(true)
+    expect(
+      getErrorTypeLabel(error, 'console', getBlockingRouteErrorDetails(error)!)
+    ).toBe('Instant')
+  }
+})
+
+it('qualifies caching advice when a build diagnostic may mean a short-lived cache', () => {
+  for (const createError of [
+    createDynamicOrRuntimeBodyError,
+    createDynamicOrRuntimeMetadataError,
+    createDynamicOrRuntimeViewportError,
+    createNonPrerenderableBodyErrorInStaticRoute,
+    createNonPrerenderableMetadataErrorInStaticRoute,
+    createNonPrerenderableViewportErrorInStaticRoute,
+  ]) {
+    const message = createError(ROUTE).message
+    expect(message).toContain(
+      'For short-lived cached data, increase `cacheLife`'
+    )
+    expect(message).toContain('300 seconds (five minutes)')
+    expect(message).toContain('For uncached data')
+  }
 })
