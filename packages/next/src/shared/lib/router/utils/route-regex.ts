@@ -90,6 +90,21 @@ type GetRouteRegexOptions = {
   excludeOptionalTrailingSlash?: boolean
 }
 
+// Requests contain UTF-8 percent escapes, while route definitions and client
+// navigation can contain Unicode. Match both without decoding captured params.
+function escapeRouteSegment(segment: string): string {
+  return escapeStringRegexp(segment).replace(
+    /[\u0080-\u{10ffff}]/gu,
+    (character) => {
+      const encoded = encodeURIComponent(character).replace(
+        /[A-F]/g,
+        (hex) => `[${hex}${hex.toLowerCase()}]`
+      )
+      return `(?:${character}|${encoded})`
+    }
+  )
+}
+
 function getParametrizedRoute(
   route: string,
   includeSuffix: boolean,
@@ -114,7 +129,7 @@ function getParametrizedRoute(
       groups[key] = { pos: groupIndex++, repeat, optional }
 
       if (includePrefix && paramMatches[1]) {
-        segments.push(`/${escapeStringRegexp(paramMatches[1])}`)
+        segments.push(`/${escapeRouteSegment(paramMatches[1])}`)
       }
 
       let s = repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
@@ -126,12 +141,12 @@ function getParametrizedRoute(
 
       segments.push(s)
     } else {
-      segments.push(`/${escapeStringRegexp(segment)}`)
+      segments.push(`/${escapeRouteSegment(segment)}`)
     }
 
     // If there's a suffix, add it to the segments if it's enabled.
     if (includeSuffix && paramMatches && paramMatches[3]) {
-      segments.push(escapeStringRegexp(paramMatches[3]))
+      segments.push(escapeRouteSegment(paramMatches[3]))
     }
   }
 
@@ -323,7 +338,7 @@ function getNamedParametrizedRoute(
     } else if (paramMatches && paramMatches[2]) {
       // If there's a prefix, add it to the segments if it's enabled.
       if (includePrefix && paramMatches[1]) {
-        segments.push(`/${escapeStringRegexp(paramMatches[1])}`)
+        segments.push(`/${escapeRouteSegment(paramMatches[1])}`)
         inverseParts.push(`/${paramMatches[1]}`)
       }
 
@@ -348,13 +363,13 @@ function getNamedParametrizedRoute(
       )
       reference.names[key] ??= cleanedKey
     } else {
-      segments.push(`/${escapeStringRegexp(segment)}`)
+      segments.push(`/${escapeRouteSegment(segment)}`)
       inverseParts.push(`/${segment}`)
     }
 
     // If there's a suffix, add it to the segments if it's enabled.
     if (includeSuffix && paramMatches && paramMatches[3]) {
-      segments.push(escapeStringRegexp(paramMatches[3]))
+      segments.push(escapeRouteSegment(paramMatches[3]))
       inverseParts.push(paramMatches[3])
     }
   }
