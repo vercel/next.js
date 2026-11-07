@@ -28,6 +28,7 @@ import type {
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { DYNAMIC_CSS_MANIFEST } from '../../../shared/lib/constants'
+import { WEBPACK_LAYERS } from '../../../lib/constants'
 
 function getModuleId(compilation: any, module: any): string | number {
   return compilation.chunkGraph.getModuleId(module)
@@ -145,7 +146,19 @@ function buildManifest(
         // next/dynamic so they are loaded by the same technique
 
         // add the id and files to the manifest
-        const id = dev ? key : getModuleId(compilation, module)
+        // A module imported by both routers is walked once per client layer under
+        // the same key. The App Router only ever reads `files` (PreloadChunks), while
+        // the pages router also relies on `id` (`dynamicIds` -> `preloadReady`), so
+        // an App Router walk must not overwrite the id a pages walk recorded: the
+        // pages client would then never preload the component and hydrate its
+        // `loading` fallback over server HTML that has it (React #418).
+        const existing = manifest[key]
+        const id =
+          existing && originModule.layer === WEBPACK_LAYERS.appPagesBrowser
+            ? existing.id
+            : dev
+              ? key
+              : getModuleId(compilation, module)
         manifest[key] = { id, files: Array.from(files) }
       }
     }
