@@ -89,6 +89,9 @@ export async function getInstrumentationModule(
   const startTime = getInstrumentationTimestamp()
   let error: unknown
   try {
+    // `instrumentation.js` is `INSTRUMENTATION_HOOK_FILENAME` plus `.js`. The
+    // constant isn't imported, because that would load `lib/constants` in
+    // every server process.
     const mod = await require(
       path.join(projectDir, distDir, 'server', 'instrumentation.js')
     )
