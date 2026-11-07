@@ -41,6 +41,7 @@ describe('Instrumentation Hook', () => {
       expect(result.headers.get('My-Custom-Header')).toBe(
         'instrumentationFinished=nodejs'
       )
+      expect(result.headers.get('Instrumentation-At-Import')).toBe('nodejs')
       expect(await result.text()).toContain(
         'Page Node instrumentationFinished=nodejs'
       )
