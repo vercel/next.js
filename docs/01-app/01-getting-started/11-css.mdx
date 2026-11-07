@@ -445,7 +445,7 @@ To keep CSS ordering predictable:
 - Import global styles and Tailwind stylesheets in the root of your application.
 - **Use Tailwind CSS** for most styling needs as it covers common design patterns with utility classes.
 - Use CSS Modules for component-specific styles when Tailwind utilities aren't sufficient.
-- Use a consistent naming convention for your CSS modules. For example, using `<name>.module.css` over `<name>.tsx`.
+- Use a consistent naming convention for your CSS modules. For example, using `<name>.module.css` over `<name>.css`.
 - Extract shared styles into shared components to avoid duplicate imports.
 - Turn off linters or formatters that auto-sort imports like ESLint’s [`sort-imports`](https://eslint.org/docs/latest/rules/sort-imports).
 - You can use the [`cssChunking`](/docs/app/api-reference/config/next-config-js/cssChunking) option in `next.config.js` to control how CSS is chunked.
