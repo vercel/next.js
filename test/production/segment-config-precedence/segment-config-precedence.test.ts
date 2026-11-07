@@ -31,11 +31,6 @@ describe('segment-config-precedence', () => {
               'intercept',
               'slot-edge-runtime',
               'entry-config',
-              'sibling-dynamic',
-              'sibling-dynamic-layout',
-              'sibling-revalidate',
-              'sibling-fetch-cache',
-              'sibling-dynamic-params',
               'duration-above-u32',
               'layout-extensions',
             ].map((route) => `!app/${route}/**`),
@@ -457,8 +452,6 @@ describe('segment-config-precedence', () => {
     'revalidate',
     'fetch-cache',
   ]) {
-    // TODO: Fix Turbopack rejecting unequal sibling rendering configs at build time.
-    // @force-gate !turbopack
     it(`resolves unequal sibling rendering config: ${config}`, async () => {
       const route = `/sibling-${config}`
       const $ = await next.render$(route)
@@ -478,8 +471,6 @@ describe('segment-config-precedence', () => {
     })
   }
 
-  // TODO: Fix Turbopack rejecting unequal sibling dynamicParams at build time.
-  // @force-gate !turbopack
   it('renders generated params and rejects ungenerated ones with unequal sibling dynamicParams', async () => {
     const $ = await next.render$('/sibling-dynamic-params/known')
     expect($('#children').text()).toBe('known')
