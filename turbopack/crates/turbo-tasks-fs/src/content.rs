@@ -8,19 +8,19 @@ use std::{
     path::Path,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use serde_json::Value;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{NonLocalValue, ReadRef, ValueToString, Vc};
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
 };
 
 use crate::{
-    DiskFileSystem, FileSystemEntryType, FileSystemPath, RealPathErrorType,
+    FileSystemEntryType, FileSystemPath, RealPathErrorType,
     json::UnparsableJson,
     retry::retry_blocking,
     rope::{Rope, RopeReader},
@@ -276,12 +276,10 @@ impl WriteLinkContent {
     /// stable across builds.
     pub async fn hash(&self, salt: &RcStr, algorithm: HashAlgorithm) -> Result<RcStr> {
         // convert the fs Vc (which is not stable across cold builds therefore cannot implement
-        // DeterministicHash) to the configured name, which should be globally unique and stable
-        // across cold builds.
-        let target_fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.target.fs)
-            .context("link target must use a disk filesystem")?
-            .await?;
-        let target_fs_name = target_fs.name();
+        // DeterministicHash) to its name, which should be globally unique and stable across cold
+        // builds. Only read the name: the whole filesystem may also contain location-dependent
+        // data, like the absolute root of a disk filesystem.
+        let target_fs_name = &*self.target.fs.to_string().await?;
 
         Ok(RcStr::from(deterministic_hash(
             salt,
