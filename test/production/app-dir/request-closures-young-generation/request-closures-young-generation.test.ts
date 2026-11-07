@@ -30,4 +30,17 @@ describe('request-closures-young-generation', () => {
     expect(html).toContain('require:true')
     expect(html).toContain('loadChunk:true')
   })
+
+  // The error boundaries are Client Components, and every server render of a
+  // segment with an `error.js` file creates one. `reset` and `retry` are
+  // created for each instance.
+  it('should not allocate the reset and retry functions of an error boundary in the old generation', async () => {
+    const res = await next.fetch('/error-boundaries')
+    const html = await res.text()
+    expect(html).toContain('control:false')
+    expect(html).toContain('errorBoundary.reset:true')
+    expect(html).toContain('errorBoundary.retry:true')
+    expect(html).toContain('catchError.reset:true')
+    expect(html).toContain('catchError.retry:true')
+  })
 })
