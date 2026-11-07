@@ -50,7 +50,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       // When using forceStatic we override all other logic and always just return an empty
       // cookies object without tracking
       const underlyingCookies = createEmptyCookies()
-      return makeUntrackedCookies(underlyingCookies)
+      return makeUntrackedCookies(workStore, underlyingCookies)
     }
 
     if (workStore.dynamicShouldError) {
@@ -98,13 +98,13 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               workUnitStore.cookies
             )
           } else {
-            return makeUntrackedCookies(workUnitStore.cookies)
+            return makeUntrackedCookies(workStore, workUnitStore.cookies)
           }
         }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
-          return makeUntrackedCookies(workUnitStore.cookies)
+          return makeUntrackedCookies(workStore, workUnitStore.cookies)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
@@ -135,7 +135,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               return workUnitStore.asyncApiPromises.cookies
             }
           } else {
-            return makeUntrackedCookies(underlyingCookies)
+            return makeUntrackedCookies(workStore, underlyingCookies)
           }
         default:
           workUnitStore satisfies never
@@ -178,9 +178,10 @@ function makeHangingCookies(
 }
 
 function makeUntrackedCookies(
+  workStore: WorkStore,
   underlyingCookies: ReadonlyRequestCookies
 ): Promise<ReadonlyRequestCookies> {
-  return getResolvedPromise(underlyingCookies, CachedCookies)
+  return getResolvedPromise(workStore, underlyingCookies)
 }
 
 function makeUntrackedCookiesWithDevWarnings(

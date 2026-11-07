@@ -90,7 +90,7 @@ export function createParamsFromClient(
             workUnitStore.validationSamples
           )
         }
-        return makeUntrackedParams(underlyingParams)
+        return makeUntrackedParams(workStore, underlyingParams)
       }
       case 'request': {
         if (workUnitStore.validationSamples) {
@@ -111,7 +111,7 @@ export function createParamsFromClient(
             workUnitStore
           )
         } else {
-          return createRenderParamsInProd(underlyingParams)
+          return createRenderParamsInProd(workStore, underlyingParams)
         }
       }
       default:
@@ -188,7 +188,7 @@ export function createServerParamsForRoute(
             workUnitStore
           )
         } else {
-          return createRenderParamsInProd(underlyingParams)
+          return createRenderParamsInProd(workStore, underlyingParams)
         }
       default:
         workUnitStore satisfies never
@@ -344,7 +344,7 @@ function createStaticPrerenderParams(
         optionalCatchAllParamName === null
       ) {
         // This route has no params.
-        return makeUntrackedParams(userspaceParams)
+        return makeUntrackedParams(workStore, userspaceParams)
       }
 
       const fallbackParams = prerenderStore.fallbackRouteParams
@@ -375,7 +375,7 @@ function createStaticPrerenderParams(
         }
       }
 
-      return makeUntrackedParams(userspaceParams)
+      return makeUntrackedParams(workStore, userspaceParams)
     }
     case 'prerender-client': {
       const fallbackParams = prerenderStore.fallbackRouteParams
@@ -411,7 +411,7 @@ function createStaticPrerenderParams(
       optionalCatchAllParamName
     )
   }
-  return makeUntrackedParams(userspaceParams)
+  return makeUntrackedParams(workStore, userspaceParams)
 }
 
 function createRuntimePrerenderParams(
@@ -434,7 +434,7 @@ function createRuntimePrerenderParams(
   // createStaticPrerenderParams).
   if (isEmptyParams(underlyingParams) && optionalCatchAllParamName === null) {
     // This route has no params.
-    return makeUntrackedParams(userspaceParams)
+    return makeUntrackedParams(workStore, userspaceParams)
   }
 
   // Root params are allowed in shells, so we allow them to resolve without a delay.
@@ -442,7 +442,7 @@ function createRuntimePrerenderParams(
     optionalCatchAllParamName === null &&
     allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)
   ) {
-    return makeUntrackedParams(userspaceParams)
+    return makeUntrackedParams(workStore, userspaceParams)
   }
 
   // Non-root params are URL data, and we need to recover a param-less session shell,
@@ -456,7 +456,7 @@ function createRuntimePrerenderParams(
     if (workUnitStore.finalStage < paramsStage) {
       return makeHangingParams(underlyingParams, workStore, workUnitStore)
     } else {
-      return makeUntrackedParams(userspaceParams)
+      return makeUntrackedParams(workStore, userspaceParams)
     }
   }
 
@@ -524,7 +524,7 @@ function createRenderParamsForPage(
       workUnitStore
     )
   } else {
-    return createRenderParamsInProd(userspaceParams)
+    return createRenderParamsInProd(workStore, userspaceParams)
   }
 }
 
@@ -538,6 +538,7 @@ function createStagedRenderParams(
   userspaceParams: Params
 ) {
   const promise = createStagedRenderParamsImpl(
+    workStore,
     workUnitStore,
     stagedRendering,
     asyncApiPromises,
@@ -557,6 +558,7 @@ function createStagedRenderParams(
 }
 
 function createStagedRenderParamsImpl(
+  workStore: WorkStore,
   workUnitStore: RequestStore,
   stagedRendering: NonNullable<RequestStore['stagedRendering']>,
   asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
@@ -569,7 +571,7 @@ function createStagedRenderParamsImpl(
 ) {
   // If the route has no params, they should resolve immediately.
   if (isEmptyParams(underlyingParams) && optionalCatchAllParamName === null) {
-    return makeUntrackedParams(userspaceParams)
+    return makeUntrackedParams(workStore, userspaceParams)
   }
 
   // If we have fallback params, then they should always resolve in the runtime link data stage.
@@ -621,7 +623,7 @@ function createStagedRenderParamsImpl(
     }
   }
 
-  return makeUntrackedParams(userspaceParams)
+  return makeUntrackedParams(workStore, userspaceParams)
 }
 
 function createParamsPromiseFromTrigger(
@@ -678,8 +680,11 @@ function createClientParamsInInstantValidation(
   return Promise.resolve(proxiedUnderlying)
 }
 
-function createRenderParamsInProd(userspaceParams: Params): Promise<Params> {
-  return makeUntrackedParams(userspaceParams)
+function createRenderParamsInProd(
+  workStore: WorkStore,
+  userspaceParams: Params
+): Promise<Params> {
+  return makeUntrackedParams(workStore, userspaceParams)
 }
 
 function createRenderParamsInDev(
@@ -762,8 +767,11 @@ function makeHangingParams(
   return promise
 }
 
-function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
-  return getResolvedPromise(underlyingParams, CachedParams)
+function makeUntrackedParams(
+  workStore: WorkStore,
+  underlyingParams: Params
+): Promise<Params> {
+  return getResolvedPromise(workStore, underlyingParams)
 }
 
 function makeDynamicallyTrackedParamsWithDevWarnings(

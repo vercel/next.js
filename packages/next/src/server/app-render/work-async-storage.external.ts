@@ -206,7 +206,7 @@ export interface WorkStore {
    * hand out during this render, by the value that they resolve with. Created
    * on first use.
    */
-  resolvedPromises?: Map<object, Promise<unknown>>
+  resolvedPromises: Map<object, Promise<unknown>> | undefined
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

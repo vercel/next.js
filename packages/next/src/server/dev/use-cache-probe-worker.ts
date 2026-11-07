@@ -219,6 +219,7 @@ function buildProbeWorkStore(msg: ProbeMessage): WorkStore {
     shouldTrackFetchMetrics: false,
     clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
+    resolvedPromises: undefined,
     afterContext,
     cacheComponentsEnabled: true,
     // In the probe the validation level is irrelevant because we do not perform validation

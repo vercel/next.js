@@ -83,7 +83,7 @@ export function createSearchParamsFromClient(
             workUnitStore
           )
         }
-        return makeUntrackedSearchParams(underlyingSearchParams)
+        return makeUntrackedSearchParams(workStore, underlyingSearchParams)
       }
       case 'request':
         return createRenderSearchParams(
@@ -255,7 +255,7 @@ function createRuntimePrerenderSearchParams(
     if (workUnitStore.finalStage < searchParamsStage) {
       return makeHangingSearchParams(workStore, workUnitStore)
     } else {
-      return makeUntrackedSearchParams(userspaceSearchParams)
+      return makeUntrackedSearchParams(workStore, userspaceSearchParams)
     }
   }
 
@@ -317,7 +317,7 @@ function createRenderSearchParams(
       requestStore
     )
   } else {
-    return makeUntrackedSearchParams(underlyingSearchParams)
+    return makeUntrackedSearchParams(workStore, underlyingSearchParams)
   }
 }
 
@@ -551,9 +551,10 @@ export function makeErroringSearchParamsForUseCache(): Promise<SearchParams> {
 }
 
 function makeUntrackedSearchParams(
+  workStore: WorkStore,
   underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
-  return getResolvedPromise(underlyingSearchParams, CachedSearchParams)
+  return getResolvedPromise(workStore, underlyingSearchParams)
 }
 
 function makeUntrackedSearchParamsWithDevWarnings(

@@ -57,7 +57,7 @@ export function headers(): Promise<ReadonlyHeaders> {
       // When using forceStatic we override all other logic and always just return an empty
       // headers object without tracking
       const underlyingHeaders = HeadersAdapter.seal(new Headers({}))
-      return makeUntrackedHeaders(underlyingHeaders)
+      return makeUntrackedHeaders(workStore, underlyingHeaders)
     }
 
     if (workUnitStore) {
@@ -123,13 +123,13 @@ export function headers(): Promise<ReadonlyHeaders> {
               workUnitStore.headers
             )
           } else {
-            return makeUntrackedHeaders(workUnitStore.headers)
+            return makeUntrackedHeaders(workStore, workUnitStore.headers)
           }
         }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
-          return makeUntrackedHeaders(workUnitStore.headers)
+          return makeUntrackedHeaders(workStore, workUnitStore.headers)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
@@ -145,7 +145,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           } else if (workUnitStore.asyncApiPromises) {
             return workUnitStore.asyncApiPromises.headers
           } else {
-            return makeUntrackedHeaders(workUnitStore.headers)
+            return makeUntrackedHeaders(workStore, workUnitStore.headers)
           }
           break
         default:
@@ -182,9 +182,10 @@ function makeHangingHeaders(
 }
 
 function makeUntrackedHeaders(
+  workStore: WorkStore,
   underlyingHeaders: ReadonlyHeaders
 ): Promise<ReadonlyHeaders> {
-  return getResolvedPromise(underlyingHeaders, CachedHeaders)
+  return getResolvedPromise(workStore, underlyingHeaders)
 }
 
 function makeUntrackedHeadersWithDevWarnings(

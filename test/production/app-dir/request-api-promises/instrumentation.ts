@@ -4,6 +4,7 @@ export async function register() {
     const set = WeakMap.prototype.set
     const counter = globalThis as { weakMapPromises?: number }
     counter.weakMapPromises = 0
+    // eslint-disable-next-line no-extend-native -- wraps `set` to count promises
     WeakMap.prototype.set = function (
       this: WeakMap<object, unknown>,
       key,
