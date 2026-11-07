@@ -1,0 +1,1 @@
+export { ObjectElement } from './registration'
