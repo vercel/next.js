@@ -248,6 +248,13 @@ export function discoverKnownRoute(
   supportsPerSegmentPrefetching: boolean,
   hasDynamicRewrite: boolean
 ): FulfilledRouteCacheEntry {
+  // A route cache entry is shared by every hash of the route, and readers
+  // append the target's hash to this URL, so it must not carry one.
+  const hashIndex = canonicalUrl.indexOf('#')
+  if (hashIndex !== -1) {
+    canonicalUrl = canonicalUrl.slice(0, hashIndex)
+  }
+
   const tree = root.tree
 
   const pathnameParts = splitPathnameIntoParts(pathname)
