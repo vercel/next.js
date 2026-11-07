@@ -39,14 +39,19 @@ function shouldOutputCommonJs(filename: string) {
 export function getParserOptions({ filename, jsConfig, ...rest }: any) {
   const isTSFile = filename.endsWith('.ts')
   const hasTsSyntax = isTypeScriptFile(filename)
-  const enableDecorators = Boolean(
+  const enableLegacyDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
   )
   return {
     ...rest,
     syntax: hasTsSyntax ? 'typescript' : 'ecmascript',
     dynamicImport: true,
-    decorators: enableDecorators,
+    // Always enable decorator parsing for TypeScript files so that both
+    // legacy (@experimentalDecorators) and stage-3/TS5 decorators are parsed.
+    // Without this, SWC rejects @decorator syntax at the parser level before
+    // any transform runs — making TS5 decorators impossible even when the
+    // transform is correctly configured (fixes #48360).
+    decorators: hasTsSyntax || enableLegacyDecorators,
     // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
     [hasTsSyntax ? 'tsx' : 'jsx']: !isTSFile,
     importAssertions: true,
@@ -106,7 +111,7 @@ function getBaseSWCOptions({
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
-  const enableDecorators = Boolean(
+  const enableLegacyDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
   )
   const emitDecoratorMetadata = Boolean(
@@ -147,8 +152,16 @@ function getBaseSWCOptions({
               },
             }
           : {}),
-        legacyDecorator: enableDecorators,
-        decoratorMetadata: emitDecoratorMetadata,
+        // When experimentalDecorators is set, use the legacy (stage 1) transform.
+        // Otherwise, use the stage-3/TS5 Ecma decorator proposal (decoratorVersion "2022-03").
+        // This matches Turbopack's behavior in crates/next-core/src/transform_options.rs
+        // which selects DecoratorsKind::Legacy vs DecoratorsKind::Ecma (fixes #48360).
+        ...(enableLegacyDecorators
+          ? { legacyDecorator: true }
+          : { decoratorVersion: '2022-03' as const }),
+        decoratorMetadata: enableLegacyDecorators
+          ? emitDecoratorMetadata
+          : false,
         useDefineForClassFields: useDefineForClassFields,
         react: {
           importSource:
