@@ -74,7 +74,7 @@ Continue the current user request without reporting immediately. Routine debuggi
 
 Retain qualifying friction even if it is later fixed or worked around; record the final outcome during the reporting pass.
 
-Before the final response, run one reporting pass. If candidates remain, run \`npx --no-install next internal agent-feedback-instructions\` once from the Next.js app directory (in monorepos, the workspace that depends on \`next\`), without piping or truncating its output. Follow its output or error guidance. If a network sandbox blocks it, retry with network access; if it still returns no output, continue normally.
+Before the final response, run one reporting pass. If candidates remain, run \`npx --no-install next internal agent-feedback-instructions\` once from the Next.js app directory without piping or truncating its output. Follow its output or error guidance. If a network sandbox blocks it, retry with network access; if it still returns no output, continue normally.
 
 ${AGENT_FEEDBACK_END_MARKER}`
 }

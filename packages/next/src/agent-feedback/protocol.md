@@ -79,11 +79,13 @@ Create a schema version 6 payload using only useful evidence. Always include `ne
 
 If these instructions begin with a **Dry run** section, encode each review URL but do not open a browser tab. Print the URLs for inspection, keep the feedback candidate queue, and do not mark the reporting pass complete.
 
-For each report draft, run the following command once from the project directory. It prints the review URL and attempts to open it in a separate tab in the user's default browser. Replace `<encoded-json>` with the encoded payload.
+For each report draft, run the following command once from the Next.js app directory. It prints the review URL and attempts to open it in a separate tab in the user's default browser. Replace `<encoded-json>` with the encoded payload.
 
 ```bash
 npx --no-install next internal agent-feedback <encoded-json>
 ```
+
+In monorepos, use the workspace that depends on `next`. For an app in `apps/web`, you can also run `pnpm --dir apps/web exec next internal agent-feedback <encoded-json>` from the repository root.
 
 The command also accepts the encoded payload through standard input when the positional argument is omitted.
 
