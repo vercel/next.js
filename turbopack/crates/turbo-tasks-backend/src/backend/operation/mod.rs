@@ -2524,7 +2524,7 @@ mod task_by_type_tests {
     use tempfile::TempDir;
     use turbo_tasks::{
         TaskId, TurboTasks,
-        backend::{CachedTaskType, CachedTaskTypeArc},
+        backend::CachedTaskTypeArc,
         macro_helpers::{ArgMeta, NativeFunction, into_task_fn},
     };
 
@@ -2561,11 +2561,7 @@ mod task_by_type_tests {
     }
 
     fn task_type() -> CachedTaskTypeArc {
-        CachedTaskTypeArc::new(CachedTaskType {
-            native_fn: &TEST_FN,
-            this: None,
-            arg: Box::new(ARG),
-        })
+        CachedTaskTypeArc::new(&TEST_FN, None, ARG)
     }
 
     /// A backend whose type index on disk names `candidates` for `test_fn(ARG)`, in order. No

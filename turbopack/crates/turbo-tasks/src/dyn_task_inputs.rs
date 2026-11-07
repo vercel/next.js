@@ -8,6 +8,8 @@ use turbo_dyn_eq_hash::{
     DynEq, DynHash, impl_eq_for_dyn, impl_hash_for_dyn, impl_partial_eq_for_dyn,
 };
 
+use crate::{RawVc, backend::CachedTaskTypeArc, macro_helpers::NativeFunction};
+
 pub trait DynTaskInputs: Debug + DynEq + DynHash + Send + Sync + 'static {
     #[cfg(debug_assertions)]
     fn dyn_type_name(&self) -> &'static str;
@@ -48,6 +50,13 @@ pub trait DynTaskInputsStorage {
     fn as_ref(&self) -> &dyn DynTaskInputs;
     /// Move the argument out into a heap-allocated Box (panics if already taken).
     fn take_box(&mut self) -> Box<dyn DynTaskInputs>;
+    /// Move the argument into a new task type, which stores it in the same allocation (panics if
+    /// already taken).
+    fn take_task_type(
+        &mut self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+    ) -> CachedTaskTypeArc;
     /// Downcast to `&mut dyn Any` for concrete type recovery without boxing.
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
@@ -93,6 +102,19 @@ impl<T: DynTaskInputs> DynTaskInputsStorage for StackDynTaskInputsStorage<T> {
     }
 
     #[inline]
+    fn take_task_type(
+        &mut self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+    ) -> CachedTaskTypeArc {
+        let arg = self
+            .slot
+            .take()
+            .expect("StackDynTaskInputsStorage::take_task_type called after the value was taken");
+        CachedTaskTypeArc::new(native_fn, this, arg)
+    }
+
+    #[inline]
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
@@ -124,6 +146,15 @@ impl DynTaskInputsStorage for HeapDynTaskInputsStorage {
         self.slot
             .take()
             .expect("HeapDynTaskInputsStorage::take_box called twice")
+    }
+
+    #[inline]
+    fn take_task_type(
+        &mut self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+    ) -> CachedTaskTypeArc {
+        CachedTaskTypeArc::new_boxed(native_fn, this, self.take_box())
     }
 
     #[inline]
