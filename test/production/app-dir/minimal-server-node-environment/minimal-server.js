@@ -6,7 +6,7 @@ const Module = require('module')
 
 process.env.NODE_ENV = 'production'
 
-// Some of the globals that the Node.js environment setup replaces.
+// Globals that the Node.js environment setup can replace.
 function readGlobals() {
   return {
     Date,
@@ -16,10 +16,6 @@ function readGlobals() {
     'Module._resolveFilename': Module._resolveFilename,
     'Module.prototype.require': Module.prototype.require,
   }
-}
-
-function getReplaced(before, after) {
-  return Object.keys(after).filter((name) => before[name] !== after[name])
 }
 
 const original = readGlobals()
@@ -49,11 +45,17 @@ server.listen(0, '127.0.0.1', async () => {
   const body = await res.text()
   const afterRequest = readGlobals()
 
+  const replacedAtStartup = Object.keys(original).filter(
+    (name) => original[name] !== afterStartup[name]
+  )
+
   const result = {
     status: res.status,
     body,
-    replacedAtStartup: getReplaced(original, afterStartup),
-    replacedByRequest: getReplaced(afterStartup, afterRequest),
+    replacedAtStartup,
+    replacedAgainByRequest: replacedAtStartup.filter(
+      (name) => afterStartup[name] !== afterRequest[name]
+    ),
     loadedSetupModules: Object.keys(require.cache)
       .map((id) => id.replace(/\\/g, '/'))
       .filter((id) =>

@@ -143,14 +143,6 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 export * from './base-server'
 
-// The imports at the top of this file have set up the Node.js environment.
-// Route modules import `build/adapter/setup-node-env.external` for the same
-// purpose. This tells it that there is nothing left to do, see the comment
-// there.
-;(globalThis as Record<symbol, unknown>)[
-  Symbol.for('next.server.setup-node-env')
-] = true
-
 // For module that can be both CJS or ESM
 const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
   ? (id: string) =>

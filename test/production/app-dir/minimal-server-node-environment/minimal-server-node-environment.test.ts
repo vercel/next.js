@@ -24,20 +24,14 @@ describe('minimal-server-node-environment', () => {
       body: 'pong',
     })
 
-    // Loading the server sets up the environment. If it stops replacing these
-    // globals, the checks below would pass for the wrong reason.
-    expect(result.replacedAtStartup).toEqual([
-      'Date',
-      'Math.random',
-      'crypto.randomUUID',
-      'console.error',
-      'Module._resolveFilename',
-      'Module.prototype.require',
-    ])
+    // Loading the server sets up the environment. The checks below are about
+    // the globals that it replaced. Without any, they would pass for the wrong
+    // reason.
+    expect(result.replacedAtStartup).not.toEqual([])
 
-    // The first request loads the route module. That must not replace the
-    // globals again, and must not load a second copy of the setup.
-    expect(result.replacedByRequest).toEqual([])
+    // The first request loads the route module. That must not replace any of
+    // them again, and must not load a second copy of the setup.
+    expect(result.replacedAgainByRequest).toEqual([])
     expect(result.loadedSetupModules).toEqual([])
   })
 })

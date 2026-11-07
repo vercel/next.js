@@ -18,3 +18,8 @@ import './node-environment-extensions/date'
 import './node-environment-extensions/web-crypto'
 import './node-environment-extensions/node-crypto'
 import './node-environment-extensions/fast-set-immediate.external'
+
+// See `build/adapter/setup-node-env.external`.
+;(globalThis as Record<symbol, unknown>)[
+  Symbol.for('next.server.node-environment')
+] = true
