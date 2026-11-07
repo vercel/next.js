@@ -1,0 +1,27 @@
+---
+title: Route segment config is incompatible with Cache Components
+---
+
+## Why This Error Occurred
+
+Your application enables [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), and a route file exports an unsupported [route segment config](/docs/app/api-reference/file-conventions/route-segment-config).
+
+This check applies to App Router pages, layouts, Route Handlers, and metadata route files.
+
+## Possible Ways to Fix It
+
+Remove the export named in the error. Follow the matching migration guidance to preserve the route's intended rendering and caching behavior. The migration depends on the export's value and how the route uses data.
+
+| Export             | Migration guidance                                                                                                                                                                                                                                                                                                         |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runtime`          | [Remove the runtime export](/docs/app/guides/migrating-to-cache-components#runtime--edge), including an explicit `runtime = 'nodejs'`. Node.js is the default.                                                                                                                                                             |
+| `dynamic`          | Follow the instructions for [`force-dynamic`](/docs/app/guides/migrating-to-cache-components#dynamic--force-dynamic), [`force-static`](/docs/app/guides/migrating-to-cache-components#dynamic--force-static), or [`error`](/docs/app/guides/migrating-to-cache-components#dynamic--error) according to the exported value. |
+| `dynamicParams`    | [Handle params not returned by `generateStaticParams`](/docs/app/guides/migrating-to-cache-components#dynamicparams-is-not-supported).                                                                                                                                                                                     |
+| `revalidate`       | [Migrate cache lifetimes and request-time behavior](/docs/app/guides/migrating-to-cache-components#revalidate).                                                                                                                                                                                                            |
+| `fetchCache`       | [Configure caching at the data source](/docs/app/guides/migrating-to-cache-components#fetchcache).                                                                                                                                                                                                                         |
+| `experimental_ppr` | [Remove the export](/docs/app/guides/migrating-to-cache-components#experimental_ppr). Cache Components includes Partial Prerendering.                                                                                                                                                                                      |
+
+## Useful Links
+
+- [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components)
+- [Route Handlers with Cache Components](/docs/app/guides/migrating-to-cache-components#route-handlers-get)

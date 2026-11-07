@@ -25,19 +25,19 @@ describe('cache-components-route-handler-errors', () => {
 
       if (isTurbopack) {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
+          `"Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/messages/cache-components-route-config"`
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"  x Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
+          `"  x Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/messages/cache-components-route-config"`
         )
       }
       expect(redbox.source).toContain(
-        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/messages/cache-components-route-config'
       )
       // Both invalid exports should be reported without fixing one first.
       expect(next.cliOutput).toContain(
-        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/messages/cache-components-route-config'
       )
     } else {
       await expect(next.start()).rejects.toThrow()
@@ -45,20 +45,20 @@ describe('cache-components-route-handler-errors', () => {
       // In build mode, check every incompatible export, including both in one handler.
       expect(next.cliOutput).toContain('./app/route-with-dynamic/route.ts')
       expect(next.cliOutput).toContain(
-        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/messages/cache-components-route-config'
       )
       expect(next.cliOutput).toContain(
-        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/messages/cache-components-route-config'
       )
 
       expect(next.cliOutput).toContain('./app/route-with-revalidate/route.ts')
       expect(next.cliOutput).toContain(
-        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
+        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/messages/cache-components-route-config'
       )
 
       expect(next.cliOutput).toContain('./app/route-with-fetchcache/route.ts')
       expect(next.cliOutput).toContain(
-        '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
+        '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/messages/cache-components-route-config'
       )
     }
   }, 240_000)

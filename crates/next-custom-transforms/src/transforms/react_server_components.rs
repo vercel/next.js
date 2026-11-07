@@ -394,7 +394,7 @@ fn report_error(filepath: &str, error_kind: RSCErrorKind) {
         ),
         RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => {
             let documentation = match property {
-                NextConfigProperty::CacheComponents => " Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components",
+                NextConfigProperty::CacheComponents => " Read more: https://nextjs.org/docs/messages/cache-components-route-config",
                 NextConfigProperty::UseCache => "",
             };
             (
