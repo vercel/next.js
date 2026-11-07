@@ -57,7 +57,10 @@ impl ModuleFederationEndpoint {
         Ok(self
             .app_project
             .client_module_context()
-            .process(source, ReferenceType::Entry(EntryReferenceSubType::Web))
+            .process(
+                source,
+                ReferenceType::Entry(EntryReferenceSubType::default()),
+            )
             .module())
     }
 
