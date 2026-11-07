@@ -8,23 +8,15 @@ import { connection } from 'next/server'
 // surface — `lang` from the static shell, `slug` from the runtime prefetch —
 // while the genuinely request-time `connection()` sibling stays deferred until
 // the lock releases.
-export const instant: {
-  unstable_samples: Array<{ params: { lang: string; slug: string } }>
-} = {
-  unstable_samples: [{ params: { lang: 'en', slug: 'anything' } }],
-}
-export const prefetch = 'partial'
 
-export default function MixedParamsRuntimePage({
+export default function MixedParamsPage({
   params,
 }: {
   params: Promise<{ lang: string; slug: string }>
 }) {
   return (
     <div>
-      <h1 data-testid="mixed-params-runtime-title">
-        Mixed Params Runtime Page
-      </h1>
+      <h1 data-testid="mixed-params-title">Mixed Params Runtime Page</h1>
       <Suspense
         fallback={<div data-testid="mixed-slug-fallback">Loading slug...</div>}
       >
