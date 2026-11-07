@@ -13,11 +13,19 @@
     "seed:run": "knex seed:run"
   },
   "dependencies": {
-    "knex": "0.95.15",
-    "next": "latest",
+    "@azure/app-configuration": "^1.8.0",
+    "@azure/identity": "^4.7.0",
+    "@azure/keyvault-secrets": "^4.9.0",
     "@next/env": "latest",
-    "pg": "8.4.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "knex": "^3.1.0",
+    "next": "latest",
+    "oci-common": "^2.103.0",
+    "oci-objectstorage": "^2.103.0",
+    "oci-secrets": "^2.103.0",
+    "oracledb": "^6.8.0",
+    "pg": "^8.13.3",
+    "pg-query-stream": "^4.7.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }
