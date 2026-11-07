@@ -250,6 +250,7 @@ impl ModuleOptions {
                     cjs_scope_hoisting,
                     cross_module_constants,
                     lazy_compilation,
+                    defer_module_evaluation,
                     ref preset_env_config,
                     ..
                 },
@@ -349,6 +350,7 @@ impl ModuleOptions {
             cjs_scope_hoisting,
             cross_module_constants,
             lazy_compilation,
+            defer_module_evaluation,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();

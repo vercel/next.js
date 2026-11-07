@@ -978,6 +978,7 @@ pub async fn import_meta_glob_reference(
             import_usage: ImportUsage::TopLevel,
             import_externals,
             module_fragments_enabled,
+            deferrable: false,
             export_usage_passthrough: None,
             resolve_override: Some(synthetic_module),
         },

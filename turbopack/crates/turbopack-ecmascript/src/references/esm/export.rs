@@ -659,6 +659,7 @@ async fn compact_reference_target(
             ImportSource::Module {
                 asset,
                 namespace_ident,
+                ..
             },
         ..
     }) = referenced_asset
@@ -783,6 +784,7 @@ async fn build_compact_reexports(
                 ImportSource::Module {
                     asset,
                     namespace_ident,
+                    ..
                 },
         }) = referenced_asset
             .get_ident(

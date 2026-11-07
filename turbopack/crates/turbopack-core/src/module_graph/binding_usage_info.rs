@@ -8,12 +8,16 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
-    chunk::chunking_context::UnusedReferences,
+    chunk::{
+        ChunkingType,
+        chunking_context::{DeferredReferences, UnusedReferences},
+    },
     module::Module,
     module_graph::{
         GraphEdgeIndex, GraphTraversalAction, ModuleGraph,
         side_effect_module_info::compute_side_effect_free_module_info,
     },
+    reference::ModuleReference,
     resolve::{ExportUsage, ImportUsage},
 };
 
@@ -45,6 +49,7 @@ pub struct UnusedReferenceEdges(FxHashSet<GraphEdgeIndex>);
 pub struct BindingUsageInfo {
     unused_references: ResolvedVc<UnusedReferences>,
     unused_references_edges: ResolvedVc<UnusedReferenceEdges>,
+    deferred_references: ResolvedVc<DeferredReferences>,
 
     used_exports: ResolvedVc<UsedExportsMap>,
     export_circuit_breakers: ResolvedVc<ExportCircuitBreakers>,
@@ -111,6 +116,27 @@ impl BindingUsageInfo {
     pub fn unused_references_edges(&self) -> Vc<UnusedReferenceEdges> {
         *self.unused_references_edges
     }
+
+    /// The import references whose target is evaluated when the importing module first reads one
+    /// of the imported bindings, instead of before the importing module is evaluated.
+    ///
+    /// A reference is in this set when the importing module asked for it
+    /// ([`BindingUsage::deferrable`][crate::resolve::BindingUsage::deferrable]) and nothing can
+    /// observe the later evaluation:
+    /// - evaluating the target, including everything that triggers, has no side effect,
+    /// - the target is not an async module (the read is synchronous),
+    /// - neither module is part of an import cycle, and
+    /// - every other used reference between the two modules is in this set too (they share one
+    ///   namespace binding in the importing module).
+    ///
+    /// Such a reference doesn't execute the target "immediately before the parent" anymore, so
+    /// the two modules can't be merged. Code generation only honors the set when the chunking
+    /// context returns it from
+    /// [`ChunkingContext::deferred_references`][crate::chunk::ChunkingContext::deferred_references].
+    #[turbo_tasks::function]
+    pub fn deferred_references(&self) -> Vc<DeferredReferences> {
+        *self.deferred_references
+    }
 }
 
 /// Computes which exports and references of the modules in `graph` are used.
@@ -128,7 +154,8 @@ pub async fn compute_binding_usage_info(
     let span_outer = tracing::info_span!(
         "compute binding usage info",
         visit_count = tracing::field::Empty,
-        unused_reference_count = tracing::field::Empty
+        unused_reference_count = tracing::field::Empty,
+        deferred_reference_count = tracing::field::Empty
     );
     let span = span_outer.clone();
 
@@ -145,6 +172,7 @@ pub async fn compute_binding_usage_info(
         let mut unused_references =
             FxHashMap::<_, FxHashSet<ResolvedVc<Box<dyn Module>>>>::default();
 
+        let graph_op = graph;
         let graph = graph.connect();
         let graph_ref = graph.await?;
         if graph_ref.unused_references_edges.is_some() {
@@ -180,6 +208,8 @@ pub async fn compute_binding_usage_info(
         // (shared with the other analyses of this graph).
         let module_rank = graph_ref.entry_ranks()?;
 
+        let mut has_deferrable_references = false;
+
         let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
             graph_ref
                 .all_chunk_group_entry_modules()
@@ -197,6 +227,8 @@ pub async fn compute_binding_usage_info(
                     used_exports.insert(target, ModuleExportUsageInfo::All);
                     return Ok(GraphTraversalAction::Continue);
                 };
+
+                has_deferrable_references |= ref_data.binding_usage.deferrable;
 
                 if remove_unused_imports {
                     // If this is an evaluation reference and the target has no side effects
@@ -379,8 +411,23 @@ pub async fn compute_binding_usage_info(
             },
         )?;
 
+        // Deferring needs the unused evaluation references to be gone: an import's evaluation
+        // reference to a module without side effects is what would evaluate it eagerly.
+        let deferred_references = if has_deferrable_references && remove_unused_imports {
+            compute_deferred_references(
+                graph_op,
+                &graph_ref,
+                &unused_references,
+                &export_circuit_breakers,
+            )
+            .await?
+        } else {
+            FxHashSet::default()
+        };
+
         span.record("visit_count", visit_count);
         span.record("unused_reference_count", unused_references.len());
+        span.record("deferred_reference_count", deferred_references.len());
 
         if drop_unused_module_data {
             // The traversal visits every module that is reachable via used references (and sets
@@ -442,6 +489,7 @@ pub async fn compute_binding_usage_info(
         Ok(BindingUsageInfo {
             unused_references: ResolvedVc::cell(unused_references),
             unused_references_edges: ResolvedVc::cell(unused_references_edges),
+            deferred_references: ResolvedVc::cell(deferred_references),
             used_exports: ResolvedVc::cell(used_exports),
             export_circuit_breakers: ResolvedVc::cell(export_circuit_breakers),
             partial_namespace_modules: ResolvedVc::cell(partial_namespace_modules),
@@ -450,6 +498,86 @@ pub async fn compute_binding_usage_info(
     }
     .instrument(span_outer)
     .await
+}
+
+/// Selects the references of [`BindingUsageInfo::deferred_references`].
+#[allow(clippy::type_complexity)]
+async fn compute_deferred_references(
+    graph: OperationVc<ModuleGraph>,
+    graph_ref: &ModuleGraph,
+    unused_references: &FxHashMap<
+        ResolvedVc<Box<dyn ModuleReference>>,
+        FxHashSet<ResolvedVc<Box<dyn Module>>>,
+    >,
+    modules_in_cycles: &FxHashSet<ResolvedVc<Box<dyn Module>>>,
+) -> Result<FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>> {
+    // The used references between each pair of modules, or `None` when one of them needs the
+    // target to be evaluated before the importing module.
+    type Pair = (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>);
+    let mut pairs: FxHashMap<Pair, Option<Vec<ResolvedVc<Box<dyn ModuleReference>>>>> =
+        FxHashMap::default();
+    // A reference that resolves to several modules has one edge per module. The generated code
+    // has a single binding for it, so it stays eager.
+    let mut reference_targets: FxHashMap<ResolvedVc<Box<dyn ModuleReference>>, u32> =
+        FxHashMap::default();
+    graph_ref.traverse_edges_unordered(|parent, target| {
+        let Some((parent, ref_data)) = parent else {
+            return Ok(());
+        };
+        if parent == target
+            || !ref_data.chunking_type.is_parallel()
+            || unused_references
+                .get(&ref_data.reference)
+                .is_some_and(|targets| targets.contains(&target))
+        {
+            return Ok(());
+        }
+        *reference_targets.entry(ref_data.reference).or_default() += 1;
+        let deferrable = ref_data.binding_usage.deferrable
+            && matches!(ref_data.binding_usage.export, ExportUsage::Named(_))
+            && matches!(
+                ref_data.chunking_type,
+                ChunkingType::Parallel { hoisted: true, .. }
+            );
+        match pairs.entry((parent, target)) {
+            Entry::Vacant(e) => {
+                e.insert(deferrable.then(|| vec![ref_data.reference]));
+            }
+            Entry::Occupied(mut e) => match e.get_mut() {
+                Some(references) if deferrable => references.push(ref_data.reference),
+                pair => *pair = None,
+            },
+        }
+        Ok(())
+    })?;
+    pairs.retain(|(parent, target), references| {
+        references.as_ref().is_some_and(|references| {
+            references.iter().all(|r| reference_targets[r] == 1)
+                && !modules_in_cycles.contains(parent)
+                && !modules_in_cycles.contains(target)
+        })
+    });
+    if pairs.is_empty() {
+        return Ok(FxHashSet::default());
+    }
+
+    // Moving the evaluation of a module is only unobservable when nothing it evaluates has a side
+    // effect, so this needs the transitive variant.
+    let graph = graph.connect();
+    let side_effect_free_modules = compute_side_effect_free_module_info(graph, true);
+    // This graph still has the unused references, so it has at least the async modules of the
+    // final graph.
+    let async_modules = graph.async_module_info();
+    let side_effect_free_modules = side_effect_free_modules.await?;
+    let async_modules = async_modules.await?;
+
+    Ok(pairs
+        .into_iter()
+        .filter(|((_, target), _)| {
+            side_effect_free_modules.contains(target) && !async_modules.contains(target)
+        })
+        .flat_map(|(_, references)| references.into_iter().flatten())
+        .collect())
 }
 
 #[turbo_tasks::value]

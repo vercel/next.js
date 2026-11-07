@@ -198,6 +198,12 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let async_module_info = module_graph.async_module_info();
         let chunk_group_info = module_graph.chunk_group_info().await?;
         let module_graph = module_graph.await?;
+        // A deferred reference executes the referenced module on first use, so it is not hoisted.
+        let deferred_references = if let Some(binding_usage) = module_graph.input_binding_usage {
+            Some(binding_usage.connect().deferred_references().await?)
+        } else {
+            None
+        };
 
         let graphs = &module_graph.graphs;
         let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
@@ -292,7 +298,12 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         (
                             Some(node),
                             match &ty.chunking_type {
-                                ChunkingType::Parallel { hoisted, .. } => *hoisted,
+                                ChunkingType::Parallel { hoisted, .. } => {
+                                    *hoisted
+                                        && !deferred_references
+                                            .as_ref()
+                                            .is_some_and(|d| d.contains(&ty.reference))
+                                }
                                 _ => false,
                             },
                         )

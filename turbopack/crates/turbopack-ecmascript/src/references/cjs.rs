@@ -162,6 +162,7 @@ impl ModuleReference for CjsRequireAssetReference {
         BindingUsage {
             import: ImportUsage::TopLevel,
             export: self.usage.clone(),
+            deferrable: false,
         }
     }
 

@@ -461,6 +461,10 @@ pub(crate) struct ImportMap {
 
     pub(crate) import_usage: FxHashMap<usize, ImportUsage>,
 
+    /// Indices of the references whose binding is read outside of a function body, i.e. possibly
+    /// while the module itself is evaluated.
+    evaluation_time_reads: FxHashSet<usize>,
+
     /// Map from exported name to local binding id (includes the syntax context).
     pub(crate) exports_ids: FxHashMap<RcStr, (Id, Span)>,
 
@@ -974,6 +978,17 @@ impl ImportMap {
         data.import_usage = analyzer.program_decl_usage.compute_import_usage();
 
         data
+    }
+
+    /// Whether this reference imports a binding that the module only reads inside function
+    /// bodies, i.e. not before the module itself was evaluated. A binding that is re-exported
+    /// (see [`Self::reexports_reference_idxs`]) has no read here but is needed for the module's
+    /// namespace.
+    pub(crate) fn is_only_read_in_functions(&self, esm_reference_index: usize) -> bool {
+        matches!(
+            self.references[esm_reference_index].imported_symbol,
+            ImportedSymbol::Symbol(_) | ImportedSymbol::Exports
+        ) && !self.evaluation_time_reads.contains(&esm_reference_index)
     }
 
     pub(crate) fn should_import_all(&self, esm_reference_index: usize) -> bool {
@@ -1574,6 +1589,9 @@ impl Visit for Analyzer<'_> {
         let id = node.to_id();
         if let Some((esm_reference_index, _)) = self.data.get_binding(&id) {
             // An import binding
+            if !self.state.is_in_fn() {
+                self.data.evaluation_time_reads.insert(esm_reference_index);
+            }
             let usage = self
                 .program_decl_usage
                 .import_usages

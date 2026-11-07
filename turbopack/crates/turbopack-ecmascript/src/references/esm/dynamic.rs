@@ -121,6 +121,7 @@ impl ModuleReference for EsmAsyncAssetReference {
         BindingUsage {
             import: Default::default(),
             export: self.export_usage.clone(),
+            deferrable: false,
         }
     }
 

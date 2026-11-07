@@ -6,8 +6,9 @@ use strsim::jaro;
 use swc_core::{
     common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
     ecma::ast::{
-        ComputedPropName, Decl, Expr, ExprStmt, Ident, Lit, MemberExpr, MemberProp, Number,
-        SeqExpr, Stmt, Str,
+        AssignExpr, AssignOp, AssignTarget, BinExpr, BinaryOp, ComputedPropName, Decl, Expr,
+        ExprStmt, Ident, Lit, MemberExpr, MemberProp, Number, ParenExpr, SeqExpr,
+        SimpleAssignTarget, Stmt, Str,
     },
     quote,
 };
@@ -17,7 +18,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt, ModuleId},
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
         code_gen::CodeGenerationIssue,
@@ -103,6 +104,11 @@ pub enum ImportSource {
         asset: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         /// The name of the variable that should hold the imported namespace.
         namespace_ident: String,
+        /// The id of `asset` when its evaluation is deferred. The variable is then declared
+        /// without a value, and every read of an export imports the module first if that hasn't
+        /// happened yet (see [`EsmAssetReference::get_ident`]). It is a variable of its own, so
+        /// that it never stands in for the variable of an import that is not deferred.
+        deferred: Option<ModuleId>,
     },
     /// Import an external dependency. The emitting site decides between
     /// `__turbopack_external_import` and `__turbopack_external_require` based on its own
@@ -124,6 +130,7 @@ impl ImportSource {
             asset,
             namespace_ident: ReferencedAsset::get_ident_from_placeable(*asset, chunking_context)
                 .await?,
+            deferred: None,
         })
     }
 
@@ -187,13 +194,16 @@ impl ReferencedAssetIdent {
             } => {
                 let namespace_ident = import_source.namespace_ident();
                 if let Some(export) = export {
+                    let namespace =
+                        Ident::new(namespace_ident.into(), DUMMY_SP, ctxt.unwrap_or_default());
                     Either::Right(MemberExpr {
                         span,
-                        obj: Box::new(Expr::Ident(Ident::new(
-                            namespace_ident.into(),
-                            DUMMY_SP,
-                            ctxt.unwrap_or_default(),
-                        ))),
+                        obj: Box::new(match import_source {
+                            ImportSource::Module {
+                                deferred: Some(id), ..
+                            } => import_on_first_read(namespace, id),
+                            _ => Expr::Ident(namespace),
+                        }),
                         prop: MemberProp::Computed(ComputedPropName {
                             span: DUMMY_SP,
                             expr: Box::new(Expr::Lit(Lit::Str(Str {
@@ -235,6 +245,33 @@ impl ReferencedAssetIdent {
             }
         }
     }
+}
+
+/// `(namespace || (namespace = __turbopack_context__.i(id)))`: the namespace of a module whose
+/// evaluation is deferred. The module is evaluated by the first read that gets here.
+fn import_on_first_read(namespace: Ident, id: &ModuleId) -> Expr {
+    let import = quote!(
+        "$turbopack_import($id)" as Expr,
+        turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+        id: Expr = module_id_to_lit(id),
+    );
+    Expr::Paren(ParenExpr {
+        span: DUMMY_SP,
+        expr: Box::new(Expr::Bin(BinExpr {
+            span: DUMMY_SP,
+            op: BinaryOp::LogicalOr,
+            left: Box::new(Expr::Ident(namespace.clone())),
+            right: Box::new(Expr::Paren(ParenExpr {
+                span: DUMMY_SP,
+                expr: Box::new(Expr::Assign(AssignExpr {
+                    span: DUMMY_SP,
+                    op: AssignOp::Assign,
+                    left: AssignTarget::Simple(SimpleAssignTarget::Ident(namespace.into())),
+                    right: Box::new(import),
+                })),
+            })),
+        })),
+    })
 }
 
 impl ReferencedAsset {
@@ -463,6 +500,9 @@ pub struct EsmAssetReference {
     pub import_externals: bool,
     pub module_fragments_enabled: bool,
     pub is_pure_import: bool,
+    /// Whether the referenced module may be evaluated on the first read of the imported binding,
+    /// see [`BindingUsage::deferrable`].
+    pub deferrable: bool,
     /// Rarely-present, slightly-large fields (import-annotation overrides and a resolve override),
     /// boxed off the common path so the typical reference stays small. `None` whenever every field
     /// would be empty.
@@ -480,6 +520,8 @@ pub struct EsmAssetReferenceOptions {
     pub import_usage: ImportUsage,
     pub import_externals: bool,
     pub module_fragments_enabled: bool,
+    /// See [`BindingUsage::deferrable`].
+    pub deferrable: bool,
     /// Explicit export-usage passthrough mode for syntax-driven forwarding. `Some(false)` forwards
     /// used names without exposing the target namespace's original property names.
     pub export_usage_passthrough: Option<bool>,
@@ -584,6 +626,7 @@ impl EsmAssetReference {
             import_usage,
             import_externals,
             module_fragments_enabled,
+            deferrable,
             export_usage_passthrough,
             resolve_override,
         } = options;
@@ -609,6 +652,7 @@ impl EsmAssetReference {
             import_externals,
             module_fragments_enabled,
             is_pure_import,
+            deferrable,
             extras: EsmReferenceExtras::new(
                 annotations.as_ref(),
                 export_usage_passthrough,
@@ -661,6 +705,7 @@ impl EsmAssetReference {
             import_externals: self.import_externals,
             module_fragments_enabled: self.module_fragments_enabled,
             is_pure_import: self.is_pure_import,
+            deferrable: self.deferrable,
             extras: self.extras.clone(),
         }
     }
@@ -669,6 +714,52 @@ impl EsmAssetReference {
         self: Vc<Self>,
     ) -> impl Future<Output = Result<ReferencedAsset>> {
         ReferencedAsset::from_resolve_result(self.resolve_reference())
+    }
+
+    /// Like [`ReferencedAsset::get_ident`] for the asset this reference resolved to, but also
+    /// decides whether the evaluation of that asset is deferred to the first read of `export`.
+    ///
+    /// That is the case when the chunking context lists this reference as deferred and the
+    /// identifier is a named export of an ES module, read from the module's namespace. All
+    /// references from one module to another are deferred together, so the binding declared by
+    /// [`EsmAssetReference::code_generation`] and the reads generated from this identifier agree.
+    pub(crate) async fn get_ident(
+        self: ResolvedVc<Self>,
+        referenced_asset: &ReferencedAsset,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        export: Option<RcStr>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
+    ) -> Result<Option<ReferencedAssetIdent>> {
+        let mut ident = referenced_asset
+            .get_ident(chunking_context, export, scope_hoisting_context)
+            .await?;
+        if self.await?.deferrable
+            && let ReferencedAsset::Some(referenced_asset) = referenced_asset
+            && let Some(ReferencedAssetIdent::Module {
+                export: Some(_),
+                import_source:
+                    ImportSource::Module {
+                        asset,
+                        namespace_ident,
+                        deferred,
+                    },
+                ..
+            }) = &mut ident
+            && asset == referenced_asset
+            && matches!(
+                *asset.get_exports().await?,
+                EcmascriptExports::EsmExports(_)
+            )
+            && chunking_context
+                .deferred_references()
+                .contains_key(&ResolvedVc::upcast(self))
+                .await?
+        {
+            let id = asset.chunk_item_id(chunking_context).await?;
+            *namespace_ident = magic_identifier::mangle(&format!("deferred module {id}"));
+            *deferred = Some(id);
+        }
+        Ok(ident)
     }
 }
 
@@ -790,6 +881,7 @@ impl ModuleReference for EsmAssetReference {
             .and_then(|extras| extras.export_usage_passthrough);
         BindingUsage {
             import: self.import_usage.clone(),
+            deferrable: self.deferrable,
             export: match (&self.export_name, export_usage_passthrough) {
                 // Evaluation references preserve their side-effect-only semantics even when the
                 // corresponding import forwards export usage.
@@ -899,8 +991,9 @@ impl EsmAssetReference {
                         // namespace import)
                     } else {
                         'import: {
-                            let ident = referenced_asset
+                            let ident = self
                                 .get_ident(
+                                    &referenced_asset,
                                     chunking_context,
                                     this.export_name
                                         .as_ref()
@@ -951,6 +1044,13 @@ impl EsmAssetReference {
                                         DUMMY_SP,
                                         ctxt.unwrap_or_default(),
                                     );
+                                    let deferred = matches!(
+                                        import_source,
+                                        ImportSource::Module {
+                                            deferred: Some(_),
+                                            ..
+                                        }
+                                    );
                                     let (key, mut call_expr) = match import_source {
                                         ImportSource::Module { asset, .. } => {
                                             let id = asset.chunk_item_id(chunking_context).await?;
@@ -959,7 +1059,11 @@ impl EsmAssetReference {
                                             // same target but have different syntax contexts (which
                                             // would cause hygiene to rename one of them).
                                             (
-                                                format!("{} {:?}", id, ctxt).into(),
+                                                if deferred {
+                                                    format!("deferred {} {:?}", id, ctxt).into()
+                                                } else {
+                                                    format!("{} {:?}", id, ctxt).into()
+                                                },
                                                 quote!(
                                                     "$turbopack_import($id)" as Expr,
                                                     turbopack_import: Expr = TURBOPACK_IMPORT.into(),
@@ -1038,11 +1142,16 @@ impl EsmAssetReference {
                                     result.push(CodeGenerationHoistedStmt::new(
                                         key,
                                         var_decl_with_span(
-                                            quote!(
-                                                "var $name = $call;" as Stmt,
-                                                name = name,
-                                                call: Expr = call_expr
-                                            ),
+                                            if deferred {
+                                                // The first read of an export imports the module.
+                                                quote!("var $name;" as Stmt, name = name)
+                                            } else {
+                                                quote!(
+                                                    "var $name = $call;" as Stmt,
+                                                    name = name,
+                                                    call: Expr = call_expr
+                                                )
+                                            },
                                             span,
                                         ),
                                     ));

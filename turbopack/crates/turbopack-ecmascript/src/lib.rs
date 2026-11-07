@@ -263,6 +263,11 @@ pub struct EcmascriptOptions {
     pub cross_module_constants: bool,
     /// Whether dynamic import targets are compiled after their runtime proxy is activated.
     pub lazy_compilation: bool,
+    /// Whether an imported module may be evaluated when this module first reads one of the
+    /// imported bindings, instead of before this module is evaluated. It only happens for imports
+    /// where the difference can't be observed, see `BindingUsageInfo::deferred_references`.
+    /// Defaults to false.
+    pub defer_module_evaluation: bool,
 }
 
 #[turbo_tasks::value(task_input)]

@@ -145,6 +145,14 @@ impl ModuleResolveResultItem {
 pub struct BindingUsage {
     pub import: ImportUsage,
     pub export: ExportUsage,
+    /// Whether the referencing module only reads the imported binding inside function bodies, and
+    /// opted into evaluating the referenced module on the first such read instead of before its
+    /// own evaluation. This only describes the referencing side. Whether the evaluation is
+    /// actually deferred is decided for the whole module graph, see
+    /// [`BindingUsageInfo::deferred_references`][deferred].
+    ///
+    /// [deferred]: crate::module_graph::binding_usage_info::BindingUsageInfo::deferred_references
+    pub deferrable: bool,
 }
 
 #[turbo_tasks::value_impl]
