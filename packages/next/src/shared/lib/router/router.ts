@@ -1034,6 +1034,30 @@ export default class Router implements BaseRouter {
       return
     }
 
+    // If we have cached route info for the target route, immediately render
+    // it to avoid a flash of the current page while getInitialProps loads.
+    // This fixes the flicker when swiping back/forward on mobile browsers.
+    const cleanedPathname = removeBasePath(pathname)
+    const route = removeTrailingSlash(cleanedPathname)
+    const cachedRouteInfo = this.components[route]
+    if (cachedRouteInfo && this.route !== route) {
+      this.set(
+        {
+          ...this.state,
+          route,
+          pathname: cleanedPathname,
+          query: parseRelativeUrl(url).query,
+          asPath: removeBasePath(as),
+          isFallback: false,
+        },
+        cachedRouteInfo,
+        null
+      ).catch(() => {
+        // Ignore cancellations from the optimistic cached render;
+        // the subsequent this.change() call handles the navigation.
+      })
+    }
+
     this.change(
       'replaceState',
       url,
