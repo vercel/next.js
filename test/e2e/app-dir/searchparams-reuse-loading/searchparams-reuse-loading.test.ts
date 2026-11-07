@@ -492,6 +492,90 @@ describe('searchparams-reuse-loading', () => {
       expect(params1).toBe('{}')
     })
 
+    // /search-params (searchless, full) to /search-params?id=2 (missing)
+    // The segment cache builds an optimistic entry via deprecated_requestOptimisticRouteCacheEntry
+    // using the searchless Fulfilled entry as the base. The optimistic entry must use the clicked
+    // link's search params (?id=2) as renderedSearch, not the empty string from the searchless entry.
+    it('should use the clicked search params when building an optimistic entry from the searchless prefetch', async () => {
+      const rscRequestPromise = new Map<
+        string,
+        { resolve: () => Promise<void> }
+      >()
+
+      let interceptRequests = false
+      const browser = await next.browser('/onclick-navs/version-4', {
+        beforePageLoad(page) {
+          page.route('**/search-params*', async (route) => {
+            if (!interceptRequests) {
+              return route.continue()
+            }
+
+            const request = route.request()
+            const headers = await request.allHeaders()
+            const url = new URL(request.url())
+            const promiseKey =
+              url.pathname +
+              (url.searchParams.has('id')
+                ? `?id=${url.searchParams.get('id')}`
+                : '')
+
+            if (headers['rsc'] === '1' && !headers['next-router-prefetch']) {
+              let resolvePromise: () => void
+              const promise = new Promise<void>((res) => {
+                resolvePromise = res
+              })
+
+              if (rscRequestPromise.has(promiseKey)) {
+                throw new Error('Duplicate request')
+              }
+
+              rscRequestPromise.set(promiseKey, {
+                resolve: async () => {
+                  await route.continue()
+                  // wait a moment to ensure the response is received
+                  await new Promise((res) => setTimeout(res, 500))
+                  resolvePromise()
+                },
+              })
+
+              // Await the promise to effectively stall the request
+              await promise
+            } else {
+              await route.continue()
+            }
+          })
+        },
+      })
+
+      await browser.waitForIdleNetwork()
+      interceptRequests = true
+
+      // The button triggers router.push('/search-params?id=2'). The searchless
+      // prefetch for /search-params is Fulfilled, but the exact entry for ?id=2
+      // is missing. deprecated_requestOptimisticRouteCacheEntry builds an optimistic
+      // entry using the searchless entry as the base, with renderedSearch = '?id=2'
+      // (the clicked URL's search params, not the empty string from the searchless entry).
+      await browser.elementByCss('button').click()
+
+      // The optimistic entry should show loading while the fresh fetch is in-flight.
+      expect(await browser.elementById('loading').text()).toBe('Loading...')
+
+      // The URL must reflect the clicked search params during the loading state, not
+      // the stale empty search of the searchless entry.
+      expect(await browser.url()).toContain('/search-params?id=2')
+
+      let dynamicRequest = rscRequestPromise.get('/search-params?id=2')
+      expect(dynamicRequest).toBeDefined()
+
+      // resolve the promise
+      await dynamicRequest.resolve()
+      dynamicRequest = undefined
+
+      // After the fresh fetch resolves, params must match the clicked URL.
+      const params = await browser.waitForElementByCss('#params').text()
+      expect(params).toBe('{"id":"2"}')
+    })
+
     // /search-params?id=1 (full) to /search-params?id=2 (missing)
     // navigation will use loading from the full prefetch
     it('should re-use loading from "full" prefetch for param-full URL when navigating to param-full route', async () => {
