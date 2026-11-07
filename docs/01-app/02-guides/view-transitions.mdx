@@ -265,7 +265,7 @@ Then wrap page content in a `ViewTransition` that maps transition types to direc
 
 The `enter` and `exit` props accept an object keyed by transition type. When a navigation carries the `nav-forward` type, the exit animation slides old content left and the enter animation slides new content in from the right. The `default: "none"` ensures that transitions without a type (browser back/forward, `router.refresh()`, Suspense reveals) produce no directional animation.
 
-Wrap every participating page the same way. For the gallery to slide out on forward navigation and back in on `nav-back`, its page needs the same wrapper. Put the wrapper in each `page.tsx`, not the layout. Layouts persist across navigations, so enter and exit never fire there:
+Wrap every participating page the same way. For the gallery to slide out on forward navigation and back in on `nav-back`, its page needs the same wrapper. For `enter` and `exit`, `<ViewTransition>` must appear before any DOM nodes in the entering or exiting subtree, so wrap the page's DOM content instead of nesting the transition inside an element such as `<main>`. This restriction does not apply to named shared-element transitions, which can be nested deeper in the tree. Put the wrapper in each `page.tsx`, not the layout. Layouts persist across navigations, so enter and exit never fire there:
 
 ```tsx filename="app/page.tsx"
 <ViewTransition
