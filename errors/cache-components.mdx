@@ -1,0 +1,88 @@
+---
+title: Route couldn't be rendered statically because it used uncached IO
+---
+
+## Why This Error Occurred
+
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, a `GET` [Route Handler](/docs/app/api-reference/file-conventions/route) is prerendered at build time as long as it reads only cached data. Next.js throws this error when the handler awaits IO — a `fetch`, a database query, an async file system read — outside a cache scope, which leaves Next.js unable to produce a static response for the route.
+
+```ts filename="app/api/products/route.ts"
+export async function GET() {
+  // Awaited during prerendering, but nothing marks it cacheable
+  const products = await db.query('SELECT * FROM products')
+  return Response.json(products)
+}
+```
+
+Next.js raises the error instead of silently making the route dynamic, so the choice between caching the data and rendering per request stays explicit.
+
+> **Good to know**: The bail-out happens by **throwing**. A `try/catch` you already have around other operations will catch it. If the `catch` block logs, it adds noise to the build output — set `experimental.hideLogsAfterAbort: true` to hide logs emitted after a bail-out.
+
+## Possible Ways to Fix It
+
+### Cache the data
+
+If the response can be shared between requests, move the data access into a helper marked with [`use cache`](/docs/app/api-reference/directives/use-cache) and give it a lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife). The directive works on the helper rather than on the `GET` export, so the handler calls the cached helper.
+
+```ts filename="app/api/products/route.ts" switcher
+import { cacheLife } from 'next/cache'
+
+export async function GET() {
+  const products = await getProducts()
+  return Response.json(products)
+}
+
+async function getProducts() {
+  'use cache'
+  cacheLife('hours')
+  return db.query('SELECT * FROM products')
+}
+```
+
+```js filename="app/api/products/route.js" switcher
+import { cacheLife } from 'next/cache'
+
+export async function GET() {
+  const products = await getProducts()
+  return Response.json(products)
+}
+
+async function getProducts() {
+  'use cache'
+  cacheLife('hours')
+  return db.query('SELECT * FROM products')
+}
+```
+
+### Render the route at request time
+
+If the response genuinely has to differ per request, opt out of prerendering by awaiting [`connection()`](/docs/app/api-reference/functions/connection) before the uncached work. Reading runtime data such as [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) has the same effect.
+
+```ts filename="app/api/products/route.ts" switcher
+import { connection } from 'next/server'
+
+export async function GET() {
+  await connection() // prerendering stops here
+  const products = await db.query('SELECT * FROM products')
+  return Response.json(products)
+}
+```
+
+```js filename="app/api/products/route.js" switcher
+import { connection } from 'next/server'
+
+export async function GET() {
+  await connection() // prerendering stops here
+  const products = await db.query('SELECT * FROM products')
+  return Response.json(products)
+}
+```
+
+## Useful Links
+
+- [`cacheComponents` config option](/docs/app/api-reference/config/next-config-js/cacheComponents)
+- [`use cache` directive](/docs/app/api-reference/directives/use-cache)
+- [`cacheLife` function](/docs/app/api-reference/functions/cacheLife)
+- [`connection` function](/docs/app/api-reference/functions/connection)
+- [Route Handlers](/docs/app/api-reference/file-conventions/route)
+- [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components)
