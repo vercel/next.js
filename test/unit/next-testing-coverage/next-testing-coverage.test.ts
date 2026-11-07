@@ -23443,3 +23443,77 @@ describe('actual production custom coverage', () => {
     130000
   )
 })
+
+describe('public Browser coverage regressions', () => {
+  const shapes =
+    require('./fixtures/browser-production/shapes.expected.json') as Record<
+      string,
+      { cases: string[]; coverage: Record<string, unknown> }
+    >
+  async function runBrowserCoverageRegression(
+    script: string,
+    args: string[] = []
+  ) {
+    const { resolve } = await import('path')
+    const project = resolve(__dirname, '../../..')
+    return withOutputDirectory(
+      'next-browser-coverage-',
+      async (output) => {
+        const { stdout } = await runNodeHelper(
+          [join(__dirname, script), project, output, 'production', ...args],
+          { cwd: project, timeout: 270000, maxBuffer: 10 * 1024 * 1024 }
+        )
+        return JSON.parse(stdout)
+      },
+      { cleanup: 'always' }
+    )
+  }
+
+  it.each(
+    Object.entries(shapes).map(
+      ([shape, { cases, coverage }]) =>
+        [shape, cases.length, Object.keys(coverage).length] as const
+    )
+  )(
+    'preserves source coverage counts and locations for %s',
+    async (shape, cases, coveredFiles) => {
+      expect(
+        await runBrowserCoverageRegression('browser-coverage-shapes.mjs', [
+          shape,
+        ])
+      ).toEqual({
+        mode: 'production',
+        groups: 1,
+        cases,
+        coveredFiles,
+        thresholdFailure: false,
+      })
+    },
+    300000
+  )
+
+  it('publishes Browser reports while failing all configured coverage thresholds', async () => {
+    expect(
+      await runBrowserCoverageRegression('browser-coverage-shapes.mjs', [
+        'threshold',
+      ])
+    ).toEqual({
+      mode: 'production',
+      groups: 1,
+      cases: 2,
+      coveredFiles: 3,
+      thresholdFailure: true,
+    })
+  }, 300000)
+
+  it('withholds Browser coverage after SIGINT and captures a fresh recovery run', async () => {
+    expect(
+      await runBrowserCoverageRegression('browser-coverage-cancel-recovery.mjs')
+    ).toEqual({
+      mode: 'production',
+      cancelled: true,
+      recovered: true,
+      cases: 1,
+    })
+  }, 300000)
+})
