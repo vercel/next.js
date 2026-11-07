@@ -4,7 +4,7 @@ import type {
   PrerenderManifest,
 } from '../../../build'
 import { RenderingMode } from '../../../build/rendering-mode'
-import { SharedCacheControls } from './shared-cache-controls.external'
+import { SharedCacheControls } from './shared-cache-controls'
 import { getRouteCacheKey } from '../route-cache-key'
 import { RouteKind } from '../../route-kind'
 

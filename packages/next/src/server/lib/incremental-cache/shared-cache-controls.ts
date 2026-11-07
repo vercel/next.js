@@ -8,6 +8,7 @@ import {
 } from '../route-cache-key'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { RouteKind } from '../../route-kind'
+import { sharedCacheControlsMap } from './shared-cache-controls-map.external'
 
 /**
  * A shared cache of cache controls for routes. This cache is used so we don't
@@ -19,7 +20,7 @@ export class SharedCacheControls {
    * The in-memory cache of cache lives for routes. This cache is populated when
    * the cache is updated with new cache lives.
    */
-  private static readonly cacheControls = new Map<string, CacheControl>()
+  private static readonly cacheControls = sharedCacheControlsMap
 
   constructor(
     /**
