@@ -1,7 +1,19 @@
 import { promisify } from 'node:util'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getOrCreateGlobalAsyncLocalStorage } from '../app-render/async-local-storage'
-import { bindSnapshot } from '../app-render/async-context-snapshot'
+
+// Every server loads this module at startup, and only a render that captures
+// immediates or waits for them binds a callback. So the module that binds it is
+// loaded with the first callback.
+let lazyBindSnapshot:
+  | typeof import('../app-render/async-context-snapshot').bindSnapshot
+  | undefined
+function bindSnapshot<T>(fn: T): T {
+  lazyBindSnapshot ??= (
+    require('../app-render/async-context-snapshot') as typeof import('../app-render/async-context-snapshot')
+  ).bindSnapshot
+  return lazyBindSnapshot(fn)
+}
 
 type Execution = {
   state: ExecutionState
