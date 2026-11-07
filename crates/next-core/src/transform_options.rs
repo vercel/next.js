@@ -223,7 +223,9 @@ pub async fn get_jsx_transform_options(
             })
         })
         .await?
-        .unwrap_or_default()
+        // An empty/missing/unparsable tsconfig must not discard the computed
+        // defaults (automatic runtime, Fast Refresh, development flag).
+        .unwrap_or(react_transform_options)
     } else {
         react_transform_options
     };
