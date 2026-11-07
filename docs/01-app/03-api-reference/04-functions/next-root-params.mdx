@@ -48,6 +48,7 @@ Root parameters are the [dynamic segments](/docs/app/api-reference/file-conventi
 > - Root parameter names must be valid JavaScript function identifiers. Kebab-cased segment names (e.g. `[post-slug]`) are not supported and will cause an error at dev time or during build.
 > - `next/root-params` can be used in Server Components. It cannot be used in Client Components, Server Actions, or [Route Handlers](/docs/app/api-reference/file-conventions/route). Support for Route Handlers is planned for a future release.
 > - Types for the `next/root-params` exports are generated during `next dev`, `next build`, or [`next typegen`](/docs/app/api-reference/cli/next#next-typegen-options), the same as [`PageProps` and `LayoutProps`](/docs/app/api-reference/config/typescript#route-aware-type-helpers).
+> - Root parameters must not be under any [Route Group](/docs/app/api-reference/file-conventions/route-groups). Any Route Group that you have will not allow the compiler to generate and therefore export the params.
 
 ## Root parameters and `generateStaticParams`
 
