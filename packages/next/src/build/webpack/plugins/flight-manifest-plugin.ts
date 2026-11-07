@@ -602,6 +602,9 @@ export class ClientReferenceManifestPlugin {
 
       const pagePath = pageName.replace(/%5F/g, '_')
       const pageBundlePath = normalizePagePath(pagePath.slice('app'.length))
+      // This shape is recognized and parsed as JSON by
+      // `classifyClientReferenceManifestSource` in
+      // `server/load-manifest.external.ts`. Keep both in sync.
       compilation.emitAsset(
         'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js',
         new sources.RawSource(
