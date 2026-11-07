@@ -4,13 +4,23 @@
   "description": "ESLint plugin for Next.js.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./index.mjs",
+      "default": "./dist/index.js"
+    },
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
   "license": "MIT",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/eslint-plugin-next"
   },
   "files": [
-    "dist"
+    "dist",
+    "index.mjs"
   ],
   "dependencies": {
     "@eslint-community/eslint-utils": "4.9.1",
