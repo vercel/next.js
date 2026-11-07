@@ -88,16 +88,29 @@ if (targets.length === 0) {
 function buildImage() {
   console.log(`Building Docker image: ${DOCKER_IMAGE}`)
   const ctx = fs.mkdtempSync(path.join(os.tmpdir(), 'next-swc-docker-'))
+  const scriptsDir = path.join(ctx, 'scripts')
+  fs.mkdirSync(scriptsDir)
   fs.copyFileSync(
     path.join(REPO_ROOT, 'rust-toolchain.toml'),
     path.join(ctx, 'rust-toolchain.toml')
   )
+  fs.copyFileSync(
+    path.join(REPO_ROOT, 'scripts/install-native-llvm.sh'),
+    path.join(scriptsDir, 'install-native-llvm.sh')
+  )
+  const installNativeLlvm =
+    !quick &&
+    targets.some(({ target }) =>
+      ['x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu'].includes(target)
+    )
   try {
     execFileSync(
       'docker',
       [
         'build',
         ...(rebuild ? ['--no-cache'] : []),
+        '--build-arg',
+        `INSTALL_NATIVE_LLVM=${installNativeLlvm ? '1' : '0'}`,
         '-t',
         DOCKER_IMAGE,
         '-f',
