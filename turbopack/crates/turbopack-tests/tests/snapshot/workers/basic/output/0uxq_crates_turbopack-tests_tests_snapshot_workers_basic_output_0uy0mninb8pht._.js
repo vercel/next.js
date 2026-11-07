@@ -14,7 +14,9 @@ if (
 var url = new URL(location.href);
 var paramsString = url.searchParams.get("params");
 if (!paramsString && url.hash.startsWith("#params=")) {
-    paramsString = decodeURIComponent(url.hash.slice("#params=".length));
+    var rawParams = url.hash.slice("#params=".length);
+    var end = rawParams.search(/[?&#]/);
+    paramsString = decodeURIComponent(end === -1 ? rawParams : rawParams.slice(0, end));
 }
 
 if (!paramsString) abort("Missing worker bootstrap config");
