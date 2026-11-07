@@ -16,6 +16,35 @@ describe('app dir - css - experimental inline css', () => {
       expect(await p.getComputedCss('color')).toBe('rgb(255, 255, 0)') // yellow
     })
 
+    it('should not load an inlined CSS chunk again for a lazy import', async () => {
+      const browser = await next.browser('/')
+
+      const inlinedChunks = await browser.eval(() =>
+        Array.from(document.querySelectorAll('style[data-href]')).flatMap(
+          (style) => style.getAttribute('data-href')!.split(/\s+/)
+        )
+      )
+      expect(inlinedChunks.length).toBeGreaterThan(0)
+
+      await browser.waitForElementByCss('#load-lazy').click()
+      await browser.waitForElementByCss('#lazy-loaded')
+
+      const duplicatedLinks = await browser.eval(() => {
+        const inlined = new Set(
+          Array.from(document.querySelectorAll('style[data-href]')).flatMap(
+            (style) => style.getAttribute('data-href')!.split(/\s+/)
+          )
+        )
+        return Array.from(
+          document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
+        )
+          .map((link) => link.getAttribute('href'))
+          .filter((href) => href !== null && inlined.has(href))
+      })
+
+      expect(duplicatedLinks).toEqual([])
+    })
+
     it('should not return rsc payload with inlined style as a dynamic client nav', async () => {
       const rscPayload = await (
         await next.fetch(`/a?${NEXT_RSC_UNION_QUERY}`, {
