@@ -62,15 +62,11 @@ Before the final response, run one reporting pass. If candidates remain, run `np
 <!-- END:nextjs-agent-feedback -->
 ```
 
-Run the feedback command from the Next.js app directory. In a monorepo with Next.js installed only in `apps/web`, change to `apps/web` first. Running from the repository root may fail because `next` is not available there.
-
-With pnpm, you can also run the command from the repository root by selecting the app workspace:
+In monorepos, run the command from the app workspace, or use pnpm from the repository root:
 
 ```bash filename="Terminal"
 pnpm --dir apps/web exec next internal agent-feedback-instructions
 ```
-
-The command prints the feedback protocol when agent feedback is available. Replace `apps/web` with your app's directory.
 
 Next.js updates only the content between the markers and preserves the rest of the file.
 
