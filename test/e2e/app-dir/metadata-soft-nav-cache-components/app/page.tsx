@@ -1,4 +1,4 @@
-import { LinkAccordion } from './link-accordion'
+import { LinkAccordion, ProductLinks } from './link-accordion'
 
 export default function Home() {
   return (
@@ -14,6 +14,7 @@ export default function Home() {
           </LinkAccordion>
         </li>
       </ul>
+      <ProductLinks />
     </main>
   )
 }
