@@ -28,6 +28,97 @@ import metadata from './rules/metadata'
 import errorEntry from './rules/error'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
+const UNUSED_TS_EXPECT_ERROR_CODE = 2578
+const TYPESCRIPT_SINGLE_LINE_DIRECTIVE =
+  /^\/\/\/?\s*@(ts-expect-error|ts-ignore)/
+const TYPESCRIPT_MULTI_LINE_DIRECTIVE =
+  /^(?:\/|\*)*\s*@(ts-expect-error|ts-ignore)/
+
+type TypeScriptDirective = {
+  line: number
+  type: 'ts-expect-error' | 'ts-ignore'
+}
+
+function getTypeScriptDirectiveForDiagnostic(
+  source: tsModule.SourceFile,
+  diagnostic: tsModule.Diagnostic
+): TypeScriptDirective | undefined {
+  if (diagnostic.file !== source || diagnostic.start === undefined) {
+    return
+  }
+
+  const lineStarts = source.getLineStarts()
+  let line = source.getLineAndCharacterOfPosition(diagnostic.start).line - 1
+
+  while (line >= 0) {
+    const lineText = source.text
+      .slice(lineStarts[line], lineStarts[line + 1])
+      .trim()
+    const match = (
+      lineText.startsWith('//')
+        ? TYPESCRIPT_SINGLE_LINE_DIRECTIVE
+        : TYPESCRIPT_MULTI_LINE_DIRECTIVE
+    ).exec(lineText)
+
+    if (match) {
+      return {
+        line,
+        type: match[1] as TypeScriptDirective['type'],
+      }
+    }
+
+    // Match TypeScript's behavior: skip blank and single-line comment lines
+    // while looking for a directive that precedes the diagnostic.
+    if (lineText !== '' && !/^\/\/.*$/.test(lineText)) {
+      return
+    }
+
+    line--
+  }
+}
+
+function applyTypeScriptCommentDirectives(
+  source: tsModule.SourceFile,
+  diagnostics: tsModule.Diagnostic[],
+  priorDiagnosticCount: number
+): tsModule.Diagnostic[] {
+  const usedExpectErrorLines = new Set<number>()
+  const filteredDiagnostics: tsModule.Diagnostic[] = []
+
+  for (let i = 0; i < diagnostics.length; i++) {
+    const diagnostic = diagnostics[i]
+
+    if (i >= priorDiagnosticCount) {
+      const directive = getTypeScriptDirectiveForDiagnostic(source, diagnostic)
+      if (directive) {
+        if (directive.type === 'ts-expect-error') {
+          usedExpectErrorLines.add(directive.line)
+        }
+        continue
+      }
+    }
+
+    filteredDiagnostics.push(diagnostic)
+  }
+
+  if (usedExpectErrorLines.size === 0) {
+    return filteredDiagnostics
+  }
+
+  return filteredDiagnostics.filter((diagnostic) => {
+    if (
+      diagnostic.code !== UNUSED_TS_EXPECT_ERROR_CODE ||
+      diagnostic.file !== source ||
+      diagnostic.start === undefined
+    ) {
+      return true
+    }
+
+    const line = source.getLineAndCharacterOfPosition(diagnostic.start).line
+    return !usedExpectErrorLines.has(line)
+  })
+}
+
 export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
@@ -177,6 +268,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     // Show errors for disallowed imports
     proxy.getSemanticDiagnostics = (fileName: string) => {
       const prior = info.languageService.getSemanticDiagnostics(fileName)
+      const priorDiagnosticCount = prior.length
       const source = getSource(fileName)
       if (!source) return prior
 
@@ -351,7 +443,11 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         }
       })
 
-      return prior
+      return applyTypeScriptCommentDirectives(
+        source,
+        prior,
+        priorDiagnosticCount
+      )
     }
 
     return proxy
