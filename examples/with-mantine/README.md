@@ -1,6 +1,6 @@
 # Example app with mantine
 
-This example features how you use [mantine](https://github.com/mantine/mantine), a React component library.
+This example features how you use [mantine](https://github.com/mantinedev/mantine), a React component library.
 
 ## Deploy your own
 
