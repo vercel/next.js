@@ -10,6 +10,15 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   if (!ran[Symbol.for('next.server.node-environment')]) {
     // eslint-disable-next-line @next/internal/typechecked-require
     require('next/dist/server/node-environment')
+  } else {
+    // One extension still has to run here. It wraps the console methods as
+    // they are at this point, and whatever it wraps runs outside of the
+    // render's tracking. A bundle's copy ran when the bundle was loaded, so it
+    // does not cover a console method that the instrumentation hook replaced
+    // after that. Where the modules above ran as files, this is the file that
+    // already ran.
+    // eslint-disable-next-line @next/internal/typechecked-require
+    require('next/dist/server/node-environment-extensions/console-exit')
   }
   if (!ran[Symbol.for('next.server.require-hook')]) {
     // eslint-disable-next-line @next/internal/typechecked-require
