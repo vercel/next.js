@@ -147,6 +147,7 @@ interface ScrollHandlerProps {
  */
 function InnerScrollHandler(props: ScrollHandlerProps) {
   const childrenRef = React.useRef<FragmentInstance>(null)
+  const [, retryScroll] = React.useReducer((count: number) => count + 1, 0)
 
   useLayoutEffect(
     () => {
@@ -262,7 +263,13 @@ function InnerScrollHandler(props: ScrollHandlerProps) {
       )
 
       if (!didHandleScroll) {
-        return
+        // The Fragment has no client rects yet: its content is behind a
+        // fallback without host nodes or is not hydrated yet. Run this
+        // effect again once the content lays out.
+        const fragment = instance as FragmentInstance
+        const observer = new ResizeObserver(retryScroll)
+        fragment.observeUsing(observer)
+        return () => fragment.unobserveUsing(observer)
       }
 
       // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`

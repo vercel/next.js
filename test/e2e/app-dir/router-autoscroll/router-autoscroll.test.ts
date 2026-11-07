@@ -275,6 +275,20 @@ describe('router autoscrolling on navigation', () => {
       await check(() => browser.eval('window.scrollY'), 0)
     })
 
+    it('should scroll to the top once the page content suspended without a fallback appears', async () => {
+      const browser = await next.browser('/suspense-without-fallback')
+      await browser.eval(
+        `document.getElementById("to-suspended-page").scrollIntoView()`
+      )
+      expect(await browser.eval('window.scrollY')).toBeGreaterThan(0)
+
+      await browser.elementByCss('#to-suspended-page').click()
+      await browser.waitForElementByCss('#suspended-content')
+      await retry(async () => {
+        expect(await browser.eval('window.scrollY')).toBe(0)
+      })
+    })
+
     it('should scroll to top when navigating to same page with different search params', async () => {
       const browser = await next.browser('/loading-scroll?skipSleep=1')
 
