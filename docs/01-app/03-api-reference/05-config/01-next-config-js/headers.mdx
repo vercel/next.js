@@ -438,13 +438,10 @@ You can also use caching headers (`Cache-Control`) inside `getServerSideProps` t
 ```ts filename="pages/index.tsx" switcher
 import { GetStaticProps, GetStaticPaths, GetServerSideProps } from 'next'
 
-// This value is considered fresh for ten seconds (s-maxage=10).
-// If a request is repeated within the next 10 seconds, the previously
-// cached value will still be fresh. If the request is repeated before 59 seconds,
-// the cached value will be stale but still render (stale-while-revalidate=59).
-//
-// In the background, a revalidation request will be made to populate the cache
-// with a fresh value. If you refresh the page, you will see the new value.
+// A shared cache considers this response fresh for 10 seconds (s-maxage=10).
+// For up to 59 more seconds, it may serve the stale response while
+// revalidating it in the background (stale-while-revalidate=59).
+// A page refresh during that window may still receive the stale response.
 export const getServerSideProps = (async (context) => {
   context.res.setHeader(
     'Cache-Control',
@@ -458,13 +455,10 @@ export const getServerSideProps = (async (context) => {
 ```
 
 ```js filename="pages/index.js" switcher
-// This value is considered fresh for ten seconds (s-maxage=10).
-// If a request is repeated within the next 10 seconds, the previously
-// cached value will still be fresh. If the request is repeated before 59 seconds,
-// the cached value will be stale but still render (stale-while-revalidate=59).
-//
-// In the background, a revalidation request will be made to populate the cache
-// with a fresh value. If you refresh the page, you will see the new value.
+// A shared cache considers this response fresh for 10 seconds (s-maxage=10).
+// For up to 59 more seconds, it may serve the stale response while
+// revalidating it in the background (stale-while-revalidate=59).
+// A page refresh during that window may still receive the stale response.
 export async function getServerSideProps({ req, res }) {
   res.setHeader(
     'Cache-Control',
