@@ -1,6 +1,5 @@
 import * as module from 'module'
 import * as process from 'process'
-import { patchErrorInspectNodeJS } from '../patch-error-inspect'
 
 const sourceMappingEnabled =
   // @ts-expect-error Node.js 22+ only
@@ -11,6 +10,10 @@ const sourceMappingEnabled =
       process.execArgv.includes('--enable-source-maps')
 
 if (sourceMappingEnabled) {
+  // Loaded on demand: the patch pulls in the source map consumer and stack
+  // parser, which a server without source maps never uses.
+  const { patchErrorInspectNodeJS } =
+    require('../patch-error-inspect') as typeof import('../patch-error-inspect')
   patchErrorInspectNodeJS(globalThis.Error)
 } else {
   // leave Errors untouched if source maps are disabled.
