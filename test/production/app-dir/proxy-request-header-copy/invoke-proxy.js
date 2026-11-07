@@ -9,16 +9,17 @@ process.env.NODE_ENV = 'production'
 
 require('next/dist/build/adapter/setup-node-env.external')
 
-const PlatformHeaders = globalThis.Headers
+// A `Proxy` and not a subclass, so that `instanceof Headers` stays true for
+// the headers that the platform creates.
 globalThis.copiedHeaders = new WeakSet()
-globalThis.Headers = class extends PlatformHeaders {
-  constructor(init) {
-    super(init)
-    if (init instanceof PlatformHeaders) {
-      globalThis.copiedHeaders.add(init)
+globalThis.Headers = new Proxy(Headers, {
+  construct(target, args, newTarget) {
+    if (args[0] instanceof target) {
+      globalThis.copiedHeaders.add(args[0])
     }
-  }
-}
+    return Reflect.construct(target, args, newTarget)
+  },
+})
 
 async function main() {
   const { handler } = require(
