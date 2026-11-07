@@ -415,6 +415,10 @@ module.exports = {
 }
 ```
 
+Do not serve untrusted SVG files from your application's domain without extreme caution. If the image is opened directly, inline `<script>` tags will be executed in the context of your origin unless the appropriate [`Content-Disposition`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Disposition) is set or an appropriate [Content Security Policy](/docs/app/guides/content-security-policy) is configured.
+
+The [`images.contentDispositionType`](#contentdispositiontype) and [`images.contentSecurityPolicy`](#contentsecuritypolicy) options in `next.config.js` do not apply to unoptimized images.
+
 #### `overrideSrc`
 
 When providing the `src` prop to the `<Image>` component, both the `srcset` and `src` attributes are generated automatically for the resulting `<img>`.
@@ -922,36 +926,41 @@ This might be necessary when hosting Next.js in a VPC with split-horizon DNS and
 
 #### `dangerouslyAllowSVG`
 
-Next.js never optimizes SVG images for a few reasons:
+Next.js never resizes or compresses SVG images. SVG is a vector format, meaning browsers can resize the image without losing quality. No server-side rasterization is needed.
 
-- SVG is a vector format, meaning browsers can resize the image without losing quality, no server-side rasterization needed.
-- SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/config/next-config-js/headers#content-security-policy).
+SVG has many of the same features as HTML/CSS, including support for inline `<script>` tags. The Image Optimization API serves images through the same domain as your application. When an untrusted SVG is served with your application's origin, it can introduce vulnerabilities without proper [`contentDispositionType`](#contentdispositiontype) and [Content Security Policy (CSP)](#contentsecuritypolicy) headers.
 
-We recommend using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is known to be SVG. This happens automatically when `src` ends with `".svg"`.
+Instead of using `dangerouslyAllowSVG`, we recommend using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is an SVG. If `dangerouslyAllowSVG` is not enabled, this happens automatically when `src` ends with `".svg"`.
 
 ```jsx
 <Image src="/my-image.svg" unoptimized />
 ```
 
-This skips the Image Optimization API and serves the SVG directly from the source. The default `dangerouslyAllowSVG: false` rejects SVG images.
+This skips the Image Optimization API and serves the SVG directly from the source.
 
-If you can't use the [`unoptimized`](#unoptimized) prop and you understand the risks, you can enable SVG pass-through in the Image Optimization API with `dangerouslyAllowSVG: true`.
+When using `unoptimized`, Next.js does not proxy remote untrusted images through your domain. This reduces [XSS risks](https://developer.mozilla.org/en-US/docs/Web/Security/Attacks/XSS) because of [same-origin policies](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Same-origin_policy). You must not serve untrusted SVGs from your own domain.
 
-In addition, it is strongly recommended to also set `contentDispositionType` to force the browser to download the image, as well as `contentSecurityPolicy` to prevent scripts embedded in the image from executing.
+If you can't use the [`unoptimized`](#unoptimized) prop and you understand the risks, you can enable SVG pass-through in the Image Optimization API with `dangerouslyAllowSVG: true`. SVGs will be proxied through your domain without alteration.
+
+When using `dangerouslyAllowSVG`, it is strongly recommended to keep the default `contentDispositionType: 'attachment'` to force the browser to download the image, as well as the default [`contentSecurityPolicy`](#contentsecuritypolicy) to prevent scripts embedded in the image from executing.
 
 ```js filename="next.config.js"
 module.exports = {
   images: {
     dangerouslyAllowSVG: true,
-    contentDispositionType: 'attachment',
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 }
 ```
 
+The default value of `dangerouslyAllowSVG` is `false`.
+
 #### `contentDispositionType`
 
-`contentDispositionType` allows you to configure the [`Content-Disposition`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Disposition#as_a_response_header_for_the_main_body) header.
+`contentDispositionType` allows you to configure the [`Content-Disposition`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Disposition) header.
+
+The default value is `attachment` which forces the browser to download the image when visiting directly. This is particularly important when [`dangerouslyAllowSVG`](#dangerouslyallowsvg) is true, since the API can serve arbitrary remote images.
+
+You can optionally configure `inline` to allow the browser to render the image when visiting directly, without downloading it.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -963,21 +972,20 @@ module.exports = {
 
 #### `contentSecurityPolicy`
 
-`contentSecurityPolicy` allows you to configure the [`Content-Security-Policy`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP) header for images. This is particularly important when using [`dangerouslyAllowSVG`](#dangerouslyallowsvg) to prevent scripts embedded in the image from executing.
+`contentSecurityPolicy` allows you to configure the [`Content-Security-Policy`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP) header for images.
+
+The default value is `script-src 'none'; frame-src 'none'; sandbox;`, which prevents SVG files served with [`dangerouslyAllowSVG`](#dangerouslyallowsvg) from executing scripts or including iframes if visited directly without [`contentDispositionType: 'attachment'`](#contentdispositiontype).
+
+You can configure a stricter policy, for example one that also restricts other resources, such as images, styles, and fonts, to your application's origin:
 
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    contentSecurityPolicy:
+      "default-src 'self'; script-src 'none'; frame-src 'none'; sandbox;",
   },
 }
 ```
-
-By default, the [loader](#loader) sets the [`Content-Disposition`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Disposition#as_a_response_header_for_the_main_body) header to `attachment` for added protection since the API can serve arbitrary remote images.
-
-The default value is `attachment` which forces the browser to download the image when visiting directly. This is particularly important when [`dangerouslyAllowSVG`](#dangerouslyallowsvg) is true.
-
-You can optionally configure `inline` to allow the browser to render the image when visiting directly, without downloading it.
 
 ### Deprecated configuration options
 
