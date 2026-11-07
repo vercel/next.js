@@ -678,7 +678,36 @@ impl TaskStorage {
     /// # Panics
     /// Panics if `idx` is out of bounds.
     fn lazy_take_at<T>(&mut self, idx: usize, extract: impl FnOnce(LazyField) -> T) -> T {
-        extract(self.lazy.swap_remove(idx))
+        extract(self.remove_lazy_at(idx))
+    }
+
+    /// Removes the lazy field matched by `matches` if it is an empty collection.
+    ///
+    /// Called by the generated mutators of lazy collection fields once a removal left the
+    /// collection empty, so an emptied field does not keep its `LazyField` slot (or the Vec's
+    /// buffer) for the rest of the task's life.
+    fn remove_lazy_if_empty(&mut self, matches: impl Fn(&LazyField) -> bool) {
+        if let Some(idx) = self.lazy.iter().position(matches)
+            && self.lazy[idx].is_empty()
+        {
+            self.remove_lazy_at(idx);
+        }
+    }
+
+    /// Removes the lazy field at `idx` via swap_remove, shrinking the Vec once at most half of it
+    /// is used.
+    ///
+    /// Fields are removed from finished tasks (e.g. `dirty` once a task is clean) long after
+    /// `cleanup_after_execution` last shrank the Vec. Shrinking by a slot or two would not release
+    /// memory (`realloc` keeps a block that is still at least half used in place) but costs a call
+    /// on every removal and another when the field comes back, so only shrink at
+    /// `capacity > 2 * len`, which includes freeing the buffer when the last field goes.
+    fn remove_lazy_at(&mut self, idx: usize) -> LazyField {
+        let field = self.lazy.swap_remove(idx);
+        if self.lazy.capacity() > 2 * self.lazy.len() {
+            self.lazy.shrink_to_fit();
+        }
+        field
     }
 
     /// Get or create a lazy field, returning a mutable reference.
@@ -726,7 +755,7 @@ impl TaskStorage {
         extract: impl FnOnce(LazyField) -> T,
     ) -> Option<T> {
         let idx = self.lazy.iter().position(matches)?;
-        Some(extract(self.lazy.swap_remove(idx)))
+        Some(extract(self.remove_lazy_at(idx)))
     }
 
     /// Set a lazy field value, replacing any existing value.

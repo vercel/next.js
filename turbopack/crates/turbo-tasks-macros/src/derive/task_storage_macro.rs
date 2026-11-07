@@ -2463,10 +2463,27 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     // no-op so no undo is needed.
     let remove_outcome = field.track_modification_outcome_expr_guarded(quote! { key });
     let remove_undo = field.track_modification_undo_expr(quote! { _track_outcome });
+    // For lazy fields, drop the `LazyField` variant once a mutation left the map empty. Expects
+    // the mutated map bound to `map`; `is_empty` is O(1), the lazy Vec is only rescanned when the
+    // map actually became empty.
+    let drop_if_empty = if is_option {
+        let matches = field.lazy_matches_closure();
+        quote! {
+            if map.is_empty() {
+                self.typed_mut().remove_lazy_if_empty(#matches);
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     let remove_body = if field.is_transient() {
         quote! {
             #track_modification
-            #mut_expr.remove(key)
+            let map = #mut_expr;
+            let removed = map.remove(key);
+            #drop_if_empty
+            removed
         }
     } else if is_option {
         // Lazy: still locate the map without allocating it (a bare `field_mut()` would create an
@@ -2475,8 +2492,13 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         quote! {
             let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
             let _track_outcome = #remove_outcome;
-            let removed = self.typed_mut().lazy_at_mut(idx, #extractor).remove(key);
-            if removed.is_none() { #remove_undo }
+            let map = self.typed_mut().lazy_at_mut(idx, #extractor);
+            let removed = map.remove(key);
+            if removed.is_none() {
+                #remove_undo
+            } else if map.is_empty() {
+                self.typed_mut().remove_lazy_at(idx);
+            }
             removed
         }
     } else {
@@ -2514,7 +2536,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
         let update_positive_crossing_body = if field.is_transient() {
             quote! {
-                #mut_expr.update_positive_crossing(key, delta)
+                let map = #mut_expr;
+                let crossed = map.update_positive_crossing(key, delta);
+                #drop_if_empty
+                crossed
             }
         } else {
             quote! {
@@ -2522,7 +2547,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                     return false;
                 }
                 #track_modification_key
-                #mut_expr.update_positive_crossing(key, delta)
+                let map = #mut_expr;
+                let crossed = map.update_positive_crossing(key, delta);
+                #drop_if_empty
+                crossed
             }
         };
 
@@ -2541,7 +2569,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     let update_count_body = if field.is_transient() {
         quote! {
-            #mut_expr.update_count(key, delta)
+            let map = #mut_expr;
+            let crossed = map.update_count(key, delta);
+            #drop_if_empty
+            crossed
         }
     } else {
         quote! {
@@ -2549,7 +2580,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return false;
             }
             #track_modification_key
-            #mut_expr.update_count(key, delta)
+            let map = #mut_expr;
+            let crossed = map.update_count(key, delta);
+            #drop_if_empty
+            crossed
         }
     };
 
@@ -2559,6 +2593,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             for key in keys {
                 map.update_count(key, delta);
             }
+            #drop_if_empty
         }
     } else if field.filter_transient {
         // Batch update: track once, iff at least one key is non-transient
@@ -2581,6 +2616,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             for key in keys {
                 map.update_count(key, delta);
             }
+            #drop_if_empty
         }
     } else {
         quote! {
@@ -2592,12 +2628,16 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             for key in keys {
                 map.update_count(key, delta);
             }
+            #drop_if_empty
         }
     };
 
     let update_and_get_body = if field.is_transient() {
         quote! {
-            #mut_expr.update_and_get(key, delta)
+            let map = #mut_expr;
+            let value = map.update_and_get(key, delta);
+            #drop_if_empty
+            value
         }
     } else {
         quote! {
@@ -2605,7 +2645,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return self.#get_name(&key).copied().unwrap_or_default();
             }
             #track_modification_key
-            #mut_expr.update_and_get(key, delta)
+            let map = #mut_expr;
+            let value = map.update_and_get(key, delta);
+            #drop_if_empty
+            value
         }
     };
 
@@ -2638,8 +2681,12 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                     }
                     None => {
                         // the position must be available, otherwise `f` would have mapped None to None and thus the != check above would have failed.
-                        self.typed_mut().lazy_at_mut(position.unwrap(), #extractor).remove(&key);
-
+                        let position = position.unwrap();
+                        let map = self.typed_mut().lazy_at_mut(position, #extractor);
+                        map.remove(&key);
+                        if map.is_empty() {
+                            self.typed_mut().remove_lazy_at(position);
+                        }
                     }
                 }
             }
