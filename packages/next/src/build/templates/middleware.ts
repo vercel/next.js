@@ -161,7 +161,7 @@ export async function handler(
           : undefined,
       waitUntil: ctx.waitUntil,
       requestMeta: ctx.requestMeta,
-      signal: ctx.signal || new AbortController().signal,
+      signal: ctx.signal,
     },
   })
 
