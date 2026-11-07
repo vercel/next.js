@@ -13,6 +13,8 @@ You can use `config.outputHashSalt` to set a salt for the content hashes, if you
 
 Note that you need to continue supporting non-immutable static assets (which may change between deployments and continue to be requested with the `?dpl` query parameter), e.g. for the `public` folder or for older Next.js versions.
 
+> **Good to know**: With `output: 'standalone'`, immutable static assets are only enabled when an adapter is configured. The build still calls the adapter's `onBuildComplete` before it writes the standalone directory, so the adapter can deploy the immutable files. Without an adapter, `config.supportsImmutableAssets` is ignored for standalone builds.
+
 ## Adapter Implementation
 
 You need to:
