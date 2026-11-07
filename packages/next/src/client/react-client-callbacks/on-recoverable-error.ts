@@ -2,6 +2,7 @@
 
 import type { HydrationOptions } from 'react-dom/client'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { isNextRouterError } from '../components/is-next-router-error'
 import isError from '../../lib/is-error'
 import { reportGlobalError } from './report-global-error'
 
@@ -22,7 +23,7 @@ export const onRecoverableError: HydrationOptions['onRecoverableError'] = (
   // x-ref: https://github.com/facebook/react/pull/28736
   let cause = isError(error) && 'cause' in error ? error.cause : error
   // Skip certain custom errors which are not expected to be reported on client
-  if (isBailoutToCSRError(cause)) return
+  if (isBailoutToCSRError(cause) || isNextRouterError(cause)) return
 
   // Instant Navigation Testing API: suppress "server could not finish this
   // Suspense boundary" errors (React error #419) during instant test mode.
