@@ -154,12 +154,10 @@ pub struct BackendOptions {
     pub eviction_mode: EvictionMode,
 
     /// Whether the reference-counting GC runs for this backend. `None` (default) leaves it off.
-    ///
-    /// In Next.js this is driven by the `experimental.turbopackGc` config option.
     pub gc: Option<bool>,
 
-    /// How long a GC root may go un-anchored before it ages out. `None` (default) uses
-    /// [`DEFAULT_GC_ROOT_TTL`].
+    /// How long a recorded GC root may go without a session-only pin before it ages out. `None`
+    /// (default) uses `DEFAULT_GC_ROOT_TTL`.
     pub gc_root_ttl: Option<Duration>,
 
     /// How long a GC pass runs before it will honour an interrupt. `None` (default) uses
@@ -274,7 +272,7 @@ pub struct TurboTasksBackend {
     task_statistics: TaskStatisticsApi,
 
     backing_storage: TurboBackingStorage,
-    /// How long a GC root may go un-anchored before it ages out.
+    /// How long a recorded GC root may go without a session-only pin before it ages out.
     gc_root_ttl: Duration,
 
     /// How long a GC pass runs before it will honour an interrupt
@@ -1213,7 +1211,7 @@ impl TurboTasksBackend {
 
         // One exclusion covers the GC pass and the snapshot that follows it, so the collected
         // tasks' tombstones (derived from the `deleted` flag) ride this same commit and no
-        // operation can resurrect a collected task in between.
+        // operation can observe a collected task in between.
         let start = Instant::now();
         // SystemTime for wall-clock timestamps in trace events (milliseconds
         // since epoch). Instant is monotonic but has no defined epoch, so it
@@ -1418,9 +1416,27 @@ impl TurboTasksBackend {
         // modified don't need re-persisting since the on-disk version is still valid.
         // Tasks that were modified again during snapshot mode were already encoded by
         // `track_modification` (see `Storage::snapshots`), and are yielded without calling this.
+        // Roots in the map are protected by their TTL, so a collectible one is still persisted.
+        #[cfg(debug_assertions)]
+        let gc_protected_roots: FxHashSet<TaskId> = if !self.gc_enabled {
+            FxHashSet::default()
+        } else if let Some(roots) = &gc_roots_to_persist {
+            roots.iter().map(|(id, _)| *id).collect()
+        } else {
+            self.backing_storage
+                .roots()
+                .expect("reading gc roots should not fail")
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect()
+        };
         let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
+            #[cfg(debug_assertions)]
             debug_assert!(
-                !self.gc_enabled || inner.flags.deleted() || !inner.gc_collectible(),
+                !self.gc_enabled
+                    || inner.flags.deleted()
+                    || !inner.gc_collectible()
+                    || gc_protected_roots.contains(&task_id),
                 "tasks scheduled for persistent must not be collectible, this implies a missed \
                  task during GC"
             );
@@ -2011,7 +2027,6 @@ impl TurboTasksBackend {
         {
             let mut ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id, TaskDataCategory::All);
-            task.assert_not_deleted("try_start_task_execution");
             task_type = task.get_task_type().to_owned();
             let once_task = matches!(task_type, TaskType::Transient(ref tt) if matches!(&**tt, TransientTask::Once(_)));
             if let Some(tasks) = task.prefetch() {
@@ -3258,7 +3273,6 @@ impl TurboTasksBackend {
     ) -> Result<TypedCellContent> {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
-        task.assert_not_deleted("try_read_own_task_cell");
         if let Some(content) = task.get_cell_data(&cell).cloned() {
             Ok(CellContent(Some(content)).into_typed(cell.type_id()))
         } else {
@@ -3277,7 +3291,6 @@ impl TurboTasksBackend {
         let mut collectibles = AutoMap::default();
         {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
-            task.assert_not_deleted("read_task_collectibles");
             if task
                 .get_persistent_task_type()
                 .is_some_and(|t| !t.native_fn.is_root)
