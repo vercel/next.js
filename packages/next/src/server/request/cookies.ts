@@ -26,6 +26,7 @@ import {
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestApiAllowedInCurrentPhase } from './utils'
+import { getResolvedPromise } from './resolved-promise'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -179,15 +180,7 @@ function makeHangingCookies(
 function makeUntrackedCookies(
   underlyingCookies: ReadonlyRequestCookies
 ): Promise<ReadonlyRequestCookies> {
-  const cachedCookies = CachedCookies.get(underlyingCookies)
-  if (cachedCookies) {
-    return cachedCookies
-  }
-
-  const promise = Promise.resolve(underlyingCookies)
-  CachedCookies.set(underlyingCookies, promise)
-
-  return promise
+  return getResolvedPromise(underlyingCookies, CachedCookies)
 }
 
 function makeUntrackedCookiesWithDevWarnings(

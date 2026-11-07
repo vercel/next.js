@@ -33,6 +33,7 @@ import {
   trackIncompatibleShellContent,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
+import { getResolvedPromise } from './resolved-promise'
 import { abortOnDynamicAccess } from '../app-render/dynamic-access-async-storage.external'
 import {
   isEmptyParams,
@@ -762,15 +763,7 @@ function makeHangingParams(
 }
 
 function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
-    return cachedParams
-  }
-
-  const promise = Promise.resolve(underlyingParams)
-  CachedParams.set(underlyingParams, promise)
-
-  return promise
+  return getResolvedPromise(underlyingParams, CachedParams)
 }
 
 function makeDynamicallyTrackedParamsWithDevWarnings(

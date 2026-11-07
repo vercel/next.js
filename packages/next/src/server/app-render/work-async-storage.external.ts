@@ -200,6 +200,13 @@ export interface WorkStore {
   ) => R
 
   reactServerErrorsByDigest: Map<string, DigestedError>
+
+  /**
+   * The promises that `cookies()`, `headers()`, `params` and `searchParams`
+   * hand out during this render, by the value that they resolve with. Created
+   * on first use.
+   */
+  resolvedPromises?: Map<object, Promise<unknown>>
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

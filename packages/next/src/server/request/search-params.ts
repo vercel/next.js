@@ -34,6 +34,7 @@ import {
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
+import { getResolvedPromise } from './resolved-promise'
 import {
   describeStringPropertyAccess,
   describeHasCheckingStringProperty,
@@ -552,15 +553,7 @@ export function makeErroringSearchParamsForUseCache(): Promise<SearchParams> {
 function makeUntrackedSearchParams(
   underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
-  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
-  if (cachedSearchParams) {
-    return cachedSearchParams
-  }
-
-  const promise = Promise.resolve(underlyingSearchParams)
-  CachedSearchParams.set(underlyingSearchParams, promise)
-
-  return promise
+  return getResolvedPromise(underlyingSearchParams, CachedSearchParams)
 }
 
 function makeUntrackedSearchParamsWithDevWarnings(
