@@ -4,10 +4,6 @@ import type {
 } from '../app-render/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
-import {
-  isRequestInsightsEnabled,
-  recordRequestInsightFetch,
-} from './trace/request-insights'
 import { getRequestInsightsIdentity } from './trace/request-insights-identity'
 import { getTracer, SpanKind, SpanStatusCode } from './trace/tracer'
 import {
@@ -42,6 +38,17 @@ import { encodeHeaderSafe } from './encode-header-safe'
 import type { Span } from './trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+// Request Insights is a development feature. It imports the local span
+// recorder, which loads the OpenTelemetry API. Requiring it in a branch that
+// production builds remove keeps all of that out of production bundles.
+function getRequestInsights() {
+  if (process.env.__NEXT_DEV_SERVER) {
+    return require('./trace/request-insights') as typeof import('./trace/request-insights')
+  } else {
+    return undefined
+  }
+}
 
 /**
  * Whether fetch cache configuration needs to be processed for the current work
@@ -190,13 +197,14 @@ function trackFetchMetric(
     span.setAttribute('error.type', String(metric.status))
   }
 
-  if (isRequestInsightsEnabled()) {
+  const requestInsights = getRequestInsights()
+  if (requestInsights?.isRequestInsightsEnabled()) {
     const requestInsightsIdentity = getRequestInsightsIdentity()
     const requestInsightsRequestId =
       requestInsightsIdentity?.requestId ?? workStore.requestId
 
     if (requestInsightsRequestId) {
-      recordRequestInsightFetch(
+      requestInsights.recordRequestInsightFetch(
         {
           requestId: requestInsightsRequestId,
           kind: requestInsightsIdentity?.kind,
