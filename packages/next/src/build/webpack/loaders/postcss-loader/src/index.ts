@@ -1,6 +1,27 @@
+import { existsSync } from 'fs'
 import Warning from './Warning'
 import SyntaxError from './Error'
 import { normalizeSourceMap, normalizeSourceMapAfterPostcss } from './utils'
+
+/**
+ * Registers a directory reported by a PostCSS plugin as a dependency of the
+ * module.
+ *
+ * A directory that doesn't exist (e.g. a Tailwind CSS `content` glob like
+ * `./pages/**` in a project without a `pages` directory) is registered as a
+ * missing dependency instead of a context dependency. Webpack still
+ * invalidates the module once the directory is created, but the watcher no
+ * longer reports the non-existent directory as removed right after the first
+ * compilation, which triggered a spurious rebuild that rewrote the emitted
+ * chunks while the browser could still be downloading them.
+ */
+function addContextDependency(loaderContext: any, directory: string): void {
+  if (existsSync(directory)) {
+    loaderContext.addContextDependency(directory)
+  } else {
+    loaderContext.addMissingDependency(directory)
+  }
+}
 
 /**
  * **PostCSS Loader**
@@ -94,10 +115,10 @@ export default async function loader(
             this.addMissingDependency(message.file)
             break
           case 'context-dependency':
-            this.addContextDependency(message.file)
+            addContextDependency(this, message.file)
             break
           case 'dir-dependency':
-            this.addContextDependency(message.dir)
+            addContextDependency(this, message.dir)
             break
           case 'asset':
             if (message.content && message.file) {
