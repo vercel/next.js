@@ -26,15 +26,15 @@ describe('cache-components-segment-configs', () => {
 
       if (isTurbopack) {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
+          `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Use "use cache" and \`cacheLife()\` to configure caching. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
+          `"  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Use "use cache" and \`cacheLife()\` to configure caching. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
         )
       }
       expect(redbox.source).toContain(
-        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Use "use cache" and `cacheLife()` to configure caching.'
       )
       return
     }
@@ -49,17 +49,17 @@ describe('cache-components-segment-configs', () => {
     expect(next.cliOutput).toContain('./app/dynamic/nested/page.tsx')
     expect(next.cliOutput).toContain('./app/dynamic/page.tsx')
     expect(next.cliOutput).toContain(
-      '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+      '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Use `connection()` for request-time rendering or "use cache" to cache data.'
     )
 
     expect(next.cliOutput).toContain('./app/fetch-cache/page.tsx')
     expect(next.cliOutput).toContain(
-      '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+      '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it. Use "use cache" and `cacheLife()` to configure caching.'
     )
 
     expect(next.cliOutput).toContain('./app/revalidate/page.tsx')
     expect(next.cliOutput).toContain(
-      '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+      '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Use "use cache" and `cacheLife()` to configure caching.'
     )
 
     // The remaining fixtures opt into `export const runtime = 'edge'` (the
@@ -83,7 +83,7 @@ describe('cache-components-segment-configs', () => {
       // `runtime/page.tsx`, `multiple/page.tsx`, and the five `metadata/*`
       // convention files.
       expect(next.cliOutput).toIncludeRepeated(
-        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.',
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Cache Components uses the Node.js runtime by default.',
         7
       )
     }
@@ -118,11 +118,11 @@ describe('cache-components-segment-configs layout propagation', () => {
         // The page-level error is shown first in the redbox, but
         // the layout error is also present in the CLI output.
         expect(redbox.description).toMatchInlineSnapshot(
-          `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
+          `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Use "use cache" and \`cacheLife()\` to configure caching. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"  x Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
+          `"  x Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Cache Components uses the Node.js runtime by default. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
         )
       }
       expect(redbox.source).toContain(
@@ -132,7 +132,7 @@ describe('cache-components-segment-configs layout propagation', () => {
       // is present in the CLI output even if it's not the first error
       // shown in the redbox.
       expect(next.cliOutput).toContain(
-        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Cache Components uses the Node.js runtime by default.'
       )
       return
     }
@@ -142,7 +142,7 @@ describe('cache-components-segment-configs layout propagation', () => {
 
     await retry(async () => {
       expect(next.cliOutput).toContain(
-        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Cache Components uses the Node.js runtime by default.'
       )
 
       // the stack trace is different between turbopack/webpack
