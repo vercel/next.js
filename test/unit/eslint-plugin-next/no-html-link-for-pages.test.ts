@@ -10,6 +10,10 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withCustomExtensionsDir = path.join(
+  __dirname,
+  'with-custom-extensions-dir'
+)
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +30,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withCustomExtensions: new Linter({
+    cwd: withCustomExtensionsDir,
     configType: 'eslintrc',
   }),
 }
@@ -69,6 +77,15 @@ const linterConfigWithNestedContentRootDirDirectory = {
   settings: {
     next: {
       rootDir: path.join(withNestedPagesDir, 'demos/with-nextjs'),
+    },
+  },
+}
+// Custom `pageExtensions` (e.g. MDX) passed through `settings.next.pageExtensions`.
+const linterConfigWithCustomExtensions = {
+  ...linterConfig,
+  settings: {
+    next: {
+      pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
     },
   },
 }
@@ -493,6 +510,48 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('does not flag a custom-extension page when pageExtensions is not configured', function () {
+    // `about.mdx` is not recognized as a page because `mdx` is not part of the
+    // default page extensions, so navigating to it with `<a>` is not flagged.
+    const toMdxRoute = `
+import Link from 'next/link';
+export default function Page() {
+  return (
+    <div>
+      <a href='/about'>About</a>
+    </div>
+  );
+}
+`
+    const report = linters.withCustomExtensions.verify(
+      toMdxRoute,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
+  })
+  it('flags a custom-extension page when pageExtensions is configured', function () {
+    const toMdxRoute = `
+import Link from 'next/link';
+export default function Page() {
+  return (
+    <div>
+      <a href='/about'>About</a>
+    </div>
+  );
+}
+`
+    const [report] = linters.withCustomExtensions.verify(
+      toMdxRoute,
+      linterConfigWithCustomExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })

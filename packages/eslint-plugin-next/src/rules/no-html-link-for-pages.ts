@@ -3,6 +3,8 @@ import * as path from 'path'
 import * as fs from 'fs'
 import { getRootDirs } from '../utils/get-root-dirs'
 
+const DEFAULT_PAGE_EXTENSIONS = ['tsx', 'ts', 'jsx', 'js']
+
 import {
   getUrlFromPagesDirectories,
   normalizeURL,
@@ -72,6 +74,16 @@ export default defineRule({
     const ruleOptions: (string | string[])[] = context.options
     const [customPagesDirectory] = ruleOptions
 
+    const nextSettings: { pageExtensions?: string[] } =
+      context.settings.next || {}
+    const pageExtensions =
+      Array.isArray(nextSettings.pageExtensions) &&
+      nextSettings.pageExtensions.length > 0
+        ? nextSettings.pageExtensions.map(
+            (ext) => ext.replace(/^\./, '') // normalize e.g. `.tsx` -> `tsx`
+          )
+        : DEFAULT_PAGE_EXTENSIONS
+
     const rootDirs = getRootDirs(context)
 
     const pagesDirs = (
@@ -107,8 +119,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
