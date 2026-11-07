@@ -9,6 +9,10 @@ const MODULES_NOT_NEEDED_AT_STARTUP = [
   'next/dist/compiled/source-map/',
   // Only the development server writes logs to a file.
   'next/dist/server/dev/browser-logs/file-logger.js',
+  // Only used once a prerender or a staged render observes synchronous IO.
+  'next/dist/server/app-render/dynamic-rendering.js',
+  'next/dist/server/app-render/staged-rendering.js',
+  'next/dist/server/dynamic-rendering-utils.js',
 ]
 
 describe('node-environment-startup-modules', () => {
