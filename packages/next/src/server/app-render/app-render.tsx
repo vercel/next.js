@@ -11090,9 +11090,11 @@ async function iterateStreamingPrerenderChunks(
   stream: AnyStream,
   signal: AbortSignal,
   onChunk: (chunk: Uint8Array) => void,
-  streamState?: StreamPendingState,
-  drainAfterAbort = process.env.NODE_ENV === 'development'
+  streamState?: StreamPendingState
 ): Promise<void> {
+  // Development keeps reading after `signal` aborts, because it uses the
+  // chunks that React emits for the abort.
+  const drainAfterAbort = process.env.NODE_ENV === 'development'
   if (stream instanceof ReadableStream) {
     const reader = stream.getReader()
     if (streamState) {
