@@ -1,5 +1,6 @@
 import { NextLogo } from "./next-logo";
 import { SupabaseLogo } from "./supabase-logo";
+import { CopyButton } from "./copy-button";
 
 export function Hero() {
   return (
@@ -38,6 +39,21 @@ export function Hero() {
           Next.js
         </a>
       </p>
+      <div className="flex flex-col items-center gap-3">
+        <p className="text-sm text-foreground/70">
+          Install{" "}
+          <a
+            href="https://supabase.com/docs/guides/getting-started/ai-skills"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium underline"
+          >
+            agent skills
+          </a>{" "}
+          to help you move faster
+        </p>
+        <CopyButton text="npx skills add supabase/agent-skills" />
+      </div>
       <div className="w-full p-[1px] bg-gradient-to-r from-transparent via-foreground/10 to-transparent my-8" />
     </div>
   );
