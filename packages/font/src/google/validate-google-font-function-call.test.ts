@@ -1,6 +1,6 @@
 import { validateGoogleFontFunctionCall } from './validate-google-font-function-call'
 
-describe('validateFontFunctionCall errors', () => {
+describe('validateFontFunctionCall', () => {
   test('Missing function name', () => {
     expect(() =>
       validateGoogleFontFunctionCall(
@@ -105,15 +105,16 @@ describe('validateFontFunctionCall errors', () => {
     )
   })
 
-  test('Setting axes on variable font with incorrect weight', async () => {
-    expect(() =>
-      validateGoogleFontFunctionCall('Roboto_Flex', {
-        weight: ['400', '700'],
-        axes: ['wght'],
+  test('Setting axes on variable font with discrete weight', async () => {
+    expect(
+      validateGoogleFontFunctionCall('Newsreader', {
+        weight: ['700'],
+        axes: ['opsz'],
         subsets: ['latin'],
       })
-    ).toThrowErrorMatchingInlineSnapshot(
-      '"Axes can only be defined for variable fonts when the weight property is nonexistent or set to `variable`."'
-    )
+    ).toMatchObject({
+      weights: ['700'],
+      selectedVariableAxes: ['opsz'],
+    })
   })
 })
