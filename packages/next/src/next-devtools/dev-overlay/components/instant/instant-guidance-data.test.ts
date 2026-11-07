@@ -349,6 +349,16 @@ describe('instant-guidance-data dispatcher', () => {
 })
 
 describe('short-lived cache remedies', () => {
+  it('removes the short-lived cache access from a fully static route', () => {
+    const card = getCards('static-route', 'short-cache').find(
+      (candidate) => candidate.group === 'remove'
+    )!
+    const snippet = card.snippets.map((line) => line.text).join('\n')
+    expect(snippet).toContain('- const data = await getData()')
+    expect(snippet).toContain("+ const data = 'Static data'")
+    expect(snippet).not.toContain('cookies()')
+  })
+
   it.each([
     'static-route',
     'static-metadata',

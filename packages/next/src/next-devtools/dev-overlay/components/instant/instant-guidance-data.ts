@@ -1104,9 +1104,22 @@ export function getCards(
     // A lifetime fix replaces the inapplicable "add use cache" advice.
     return [
       increase,
-      ...getCards(kind, 'runtime', cause).filter(
-        (card) => card.group !== 'client'
-      ),
+      ...getCards(kind, 'runtime', cause)
+        .filter((card) => card.group !== 'client')
+        .map((card) =>
+          kind === 'static-route' && card.group === 'remove'
+            ? {
+                ...card,
+                snippets: [
+                  { text: 'async function Page() {' },
+                  { text: '- const data = await getData()', highlight: true },
+                  { text: "+ const data = 'Static data'", highlight: true },
+                  { text: '  return <Content data={data} />' },
+                  { text: '}' },
+                ],
+              }
+            : card
+        ),
     ]
   }
   switch (kind) {

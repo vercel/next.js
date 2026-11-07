@@ -95,7 +95,9 @@ function CopyPromptButton({
     '',
     "2. Identify the failing code in the error block below. It may be a data-access call, a hook call, a metadata or viewport export, or a component. Keep the fix focused on that code. If you think a related refactor (a sibling component, a shared layout, a wrapping boundary) would make the result meaningfully better, name it and check with the user before doing it — don't expand the scope silently.",
     '',
-    `3. Read the rule docs at ${rulePage} for the full Insight explanation, then read the fix section at ${link}. Pick the pattern under "### Patterns" that matches the failing code, then read "### Gotchas" before editing — they list constraints that are easy to miss. Use the canonical imports and code shape from the page; don't improvise variations.`,
+    rulePage.includes('/docs/messages/')
+      ? `3. Read the rule docs at ${rulePage} for the full Insight explanation, then read the fix section at ${link}. Pick the pattern under "### Patterns" that matches the failing code, then read "### Gotchas" before editing — they list constraints that are easy to miss. Use the canonical imports and code shape from the page; don't improvise variations.`
+      : `3. Read the API reference at ${rulePage}, especially the section at ${link}. Use its documented requirements, imports, and examples to choose the fix that matches the failing code.`,
     '',
     `4. Apply the chosen pattern to the code identified in step 2. Don't narrate the change with new comments — the code should explain itself. Only leave a comment when the *why* isn't clear (e.g. a deliberate Block with a reason).`,
     '',
