@@ -119,13 +119,15 @@ function unique() {
 function reduceComponents(
   headChildrenElements: Array<React.ReactElement<any>>
 ) {
-  return headChildrenElements
+  const resolved = headChildrenElements
     .reduce(onlyReactElement, [])
     .reverse()
     .concat(defaultHead().reverse())
     .filter(unique())
     .reverse()
-    .map((c: React.ReactElement<any>, i: number) => {
+
+  const mapAndWarn = (items: Array<React.ReactElement<any>>) =>
+    items.map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
       if (process.env.NODE_ENV === 'development') {
         const { warnOnce } =
@@ -146,6 +148,34 @@ function reduceComponents(
       }
       return React.cloneElement(c, { key })
     })
+
+  const allowedTags = new Set(['title', 'meta', 'link', 'script', 'style', 'base', 'noscript'])
+
+  const filtered = resolved.filter((c) => {
+    const t = c.type
+    if (typeof t === 'string') {
+      if (!allowedTags.has(t)) {
+        if (process.env.NODE_ENV === 'development') {
+          warnOnce(
+            `Unsupported tag <${t}> found in next/head — it will be ignored. Use Document for document-level tags. See https://nextjs.org/docs/messages/no-head-element`
+          )
+        }
+        return false
+      }
+      return true
+    }
+
+    // If it's not a string (component/class/function), warn and ignore it in development
+    if (process.env.NODE_ENV === 'development') {
+      const displayName = (t as any).displayName || (t as any).name || String(t)
+      warnOnce(
+        `Unsupported child type in next/head: ${displayName} — only plain HTML elements are supported. The element will be ignored.`
+      )
+    }
+    return false
+  })
+
+  return mapAndWarn(filtered)
 }
 
 /**
