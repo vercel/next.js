@@ -148,8 +148,11 @@ function handleLoading(
         img.height.toString() !== img.getAttribute('height')
       const widthModified = img.width.toString() !== img.getAttribute('width')
       if (
-        (heightModified && !widthModified) ||
-        (!heightModified && widthModified)
+        ((heightModified && !widthModified) ||
+          (!heightModified && widthModified)) &&
+        // Other object-fit values preserve the image's aspect ratio even when
+        // the image element's dimensions have a different aspect ratio.
+        window.getComputedStyle(img).objectFit === 'fill'
       ) {
         warnOnce(
           `Image with src "${origSrc}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`

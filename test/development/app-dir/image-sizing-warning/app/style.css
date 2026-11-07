@@ -1,0 +1,13 @@
+.aspect-ratio {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 17 / 18;
+}
+
+.height-only {
+  height: 600px;
+}
+
+#cover {
+  object-fit: cover;
+}
