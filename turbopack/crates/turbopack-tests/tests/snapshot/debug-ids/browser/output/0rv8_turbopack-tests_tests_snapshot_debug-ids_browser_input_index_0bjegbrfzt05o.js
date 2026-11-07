@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="11caa15c-a91d-4669-0131-f93eab81a7c3")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="11a6aa18-f6b2-2692-c6af-ed4e64622c0a")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -76,11 +76,6 @@ const REEXPORTED_OBJECTS = new WeakMap();
 }
 const contextPrototype = Context.prototype;
 contextPrototype.M = moduleFactories;
-contextPrototype.R = {
-    shareScopes: Object.create(null),
-    initScopes: Object.create(null),
-    remoteInitializations: Object.create(null)
-};
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
@@ -2746,5 +2741,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=11caa15c-a91d-4669-0131-f93eab81a7c3
+//# debugId=11a6aa18-f6b2-2692-c6af-ed4e64622c0a
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
