@@ -1,3 +1,4 @@
+import { types } from 'node:util'
 import type { NextRequest } from 'next/server'
 
 export const dynamic = 'error'
@@ -13,5 +14,10 @@ export function GET(request: NextRequest) {
     error = (err as Error).message
   }
 
-  return Response.json({ method: copy.method + ' ' + clone.method, error })
+  return Response.json({
+    // Node.js 24 does not copy a Proxy of a request, Node.js 20 does.
+    isProxy: types.isProxy(request) || types.isProxy(clone),
+    method: copy.method + ' ' + clone.method,
+    error,
+  })
 }
