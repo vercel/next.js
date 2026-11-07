@@ -81,7 +81,8 @@ describe('prepareFlightRouterStateForRequest', () => {
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
 
-      expect(decoded[2]).toBeUndefined()
+      expect(decoded[2]).toBeNull()
+      expect(decodeURIComponent(result)).not.toContain('/sensitive/url/path')
     })
   })
 
@@ -114,22 +115,26 @@ describe('prepareFlightRouterStateForRequest', () => {
       expect(decoded[3]).toBe('inside-shared-layout')
     })
 
-    it('should strip "refresh" state (client-only)', () => {
-      const flightRouterState: FlightRouterState = ['segment', {}, ['/url', '']]
-
-      const result = prepareFlightRouterStateForRequest(flightRouterState)
-      const decoded = JSON.parse(decodeURIComponent(result))
-
-      expect(decoded[2]).toBeUndefined()
-    })
-
-    it('should strip null refresh marker', () => {
+    it('should send a stale segment (one with a refresh state) as "refetch"', () => {
+      // The segment was reused in a "default" slot from an older route. The
+      // server must not treat it as current, or it skips rendering it when
+      // the slot becomes active again.
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
         ['/url', ''],
         null,
       ]
+
+      const result = prepareFlightRouterStateForRequest(flightRouterState)
+      const decoded = JSON.parse(decodeURIComponent(result))
+
+      expect(decoded[2]).toBeNull() // URL stripped
+      expect(decoded[3]).toBe('refetch')
+    })
+
+    it('should strip null refresh marker', () => {
+      const flightRouterState: FlightRouterState = ['segment', {}, null, null]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
@@ -200,8 +205,8 @@ describe('prepareFlightRouterStateForRequest', () => {
           children: [
             '__PAGE__',
             {},
-            // URL stripped
-            // 'refresh' marker stripped
+            null, // URL stripped
+            'refetch', // stale segment must be re-rendered
           ],
           modal: [
             'modal-segment',
@@ -296,14 +301,14 @@ describe('prepareFlightRouterStateForRequest', () => {
       const modalRoute = childrenRoute[1].modal
       expect(modalRoute[0]).toBe('__PAGE__')
       expect(modalRoute[2]).toBeNull() // URL stripped
-      expect(modalRoute[3]).toBeNull() // 'refresh' marker stripped
+      expect(modalRoute[3]).toBe('refetch') // stale segment must be re-rendered
       expect(modalRoute[4]).toBe(PrefetchHint.SegmentHasLoadingBoundary) // prefetchHints preserved
 
       // Sidebar route (dynamic segment) checks
       const sidebarRoute = decoded[1].sidebar
       expect(sidebarRoute[0]).toEqual(['slug', 'user-123', 'd', null]) // dynamic segment preserved
-      expect(sidebarRoute[2]).toBeUndefined() // URL stripped
-      expect(sidebarRoute[3]).toBeUndefined() // null marker stripped
+      expect(sidebarRoute[2]).toBeNull() // URL stripped
+      expect(sidebarRoute[3]).toBe('refetch') // stale segment must be re-rendered
     })
   })
 })
