@@ -22,6 +22,15 @@ describe('pages-browser-chunks', () => {
   })
 
   it('must not bundle route utilities that only the server uses into browser chunks', () => {
+    // The client router always bundles the route matcher. If the source maps
+    // are not emitted or name their sources in another way, it is not found,
+    // and the check below would pass for the wrong reason.
+    expect(
+      sources.some((source) =>
+        source.includes('shared/lib/router/utils/route-matcher')
+      )
+    ).toBe(true)
+
     const serverRouteUtilSources = Array.from(
       new Set(
         sources.filter(
