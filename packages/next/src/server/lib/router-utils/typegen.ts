@@ -548,8 +548,10 @@ export function generateValidatorFile(
     routesManifest.filePathToRoute
   )
 
-  const hasAppRouteHandlers =
-    Object.keys(routesManifest.appRouteHandlerRoutes).length > 0
+  // Only import route handler types when a route handler is validated.
+  // Metadata routes and JavaScript route handlers are listed in the manifest
+  // but aren't validated, so they mustn't add imports that would be unused.
+  const hasAppRouteHandlerValidations = appRouteHandlerValidations !== ''
 
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
@@ -666,7 +668,7 @@ export function generateValidatorFile(
     routeImports.push('ParamMap')
   }
 
-  if (hasAppRouteHandlers) {
+  if (hasAppRouteHandlerValidations) {
     routeImports.push('AppRouteHandlerRoutes')
   }
 
@@ -675,7 +677,7 @@ export function generateValidatorFile(
       ? `import type { ${routeImports.join(', ')} } from "./routes.js"`
       : ''
 
-  const nextRequestImport = hasAppRouteHandlers
+  const nextRequestImport = hasAppRouteHandlerValidations
     ? "import type { NextRequest } from 'next/server.js'\n"
     : ''
 
@@ -797,8 +799,9 @@ export function generateValidatorFileStrict(
     routesManifest.filePathToRoute
   )
 
-  const hasAppRouteHandlers =
-    Object.keys(routesManifest.appRouteHandlerRoutes).length > 0
+  // Only import route handler types when a route handler is validated.
+  // See generateValidatorFile.
+  const hasAppRouteHandlerValidations = appRouteHandlerValidations !== ''
 
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
@@ -915,7 +918,7 @@ export function generateValidatorFileStrict(
     routeImports.push('ParamMap')
   }
 
-  if (hasAppRouteHandlers) {
+  if (hasAppRouteHandlerValidations) {
     routeImports.push('AppRouteHandlerRoutes')
   }
 
@@ -924,7 +927,7 @@ export function generateValidatorFileStrict(
       ? `import type { ${routeImports.join(', ')} } from "./routes.js"`
       : ''
 
-  const nextRequestImport = hasAppRouteHandlers
+  const nextRequestImport = hasAppRouteHandlerValidations
     ? "import type { NextRequest } from 'next/server.js'\n"
     : ''
 
