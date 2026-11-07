@@ -43,27 +43,30 @@ const rewriteMatchers = [0, 1, 2, 3].map(
   () => new Map<string, ReturnType<typeof getPathMatch>>()
 )
 
-function getRewriteMatcher(
-  rewrite: DeepReadonly<Rewrite>,
+/**
+ * Returns the function that gives the matcher of a rewrite source for one
+ * combination of the two options. The options are the same for every rewrite
+ * of a `getServerUtils` call, so the map is chosen once here.
+ */
+function getRewriteMatcherLookup(
   trailingSlash: boolean,
   caseSensitive: boolean
 ) {
   const matchers =
     rewriteMatchers[(trailingSlash ? 2 : 0) + (caseSensitive ? 1 : 0)]
 
-  let matcher = matchers.get(rewrite.source)
-  if (matcher === undefined) {
-    matcher = getPathMatch(
-      trailingSlash ? `${rewrite.source}(/)?` : rewrite.source,
-      {
+  return (source: string) => {
+    let matcher = matchers.get(source)
+    if (matcher === undefined) {
+      matcher = getPathMatch(trailingSlash ? `${source}(/)?` : source, {
         removeUnnamedParams: true,
         strict: true,
         sensitive: caseSensitive,
-      }
-    )
-    matchers.set(rewrite.source, matcher)
+      })
+      matchers.set(source, matcher)
+    }
+    return matcher
   }
-  return matcher
 }
 
 function filterInternalQuery(
@@ -284,6 +287,11 @@ export function getServerUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
+  const getRewriteMatcher = getRewriteMatcherLookup(
+    !!trailingSlash,
+    !!caseSensitive
+  )
+
   function handleRewrites(
     req: BaseNextRequest | IncomingMessage,
     parsedUrl: DeepReadonly<NextUrlWithParsedQuery>
@@ -307,11 +315,9 @@ export function getServerUtils({
     const checkRewrite = (rewrite: DeepReadonly<Rewrite>): boolean => {
       if (!rewrittenParsedUrl.pathname) return false
 
-      let params = getRewriteMatcher(
-        rewrite,
-        !!trailingSlash,
-        !!caseSensitive
-      )(rewrittenParsedUrl.pathname)
+      let params = getRewriteMatcher(rewrite.source)(
+        rewrittenParsedUrl.pathname
+      )
 
       if ((rewrite.has || rewrite.missing) && params) {
         const hasParams = matchHas(
