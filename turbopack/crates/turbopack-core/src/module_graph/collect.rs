@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashMap;
 use turbo_bitset::Bitset;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, OrderedIndexMap, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::ChunkingType,
@@ -21,8 +21,7 @@ use crate::{
 ///
 /// (Collecting Module) -> Vec<(ChunkGroup::Entry Modules, Vec<(Reference, Collected Module)>)>
 pub struct CollectedModules(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<
+    OrderedIndexMap<
         ResolvedVc<Box<dyn Module>>,
         Vec<(
             Vec<ResolvedVc<Box<dyn Module>>>,
