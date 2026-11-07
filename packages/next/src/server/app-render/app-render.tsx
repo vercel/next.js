@@ -9791,6 +9791,7 @@ async function prerenderToStream(
       }
 
       let didHandleUnexpectedAbort = false
+      const unexpectedAbortController = new AbortController()
       /**
        * @returns - whether or not the task should be skipped
        * because the render was already aborted.
@@ -9811,6 +9812,9 @@ async function prerenderToStream(
 
       const onUnexpectedAbort = () => {
         resultIsPartial = true
+        unexpectedAbortController.abort(
+          finalServerReactController.signal.reason
+        )
 
         // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
         // finish the accumulators. However, it seems like in `--debug-prerender`
@@ -9871,10 +9875,15 @@ async function prerenderToStream(
           // We await it here so that if the stream errors, it's not an unhandled rejection.
           await iterateStreamingPrerenderChunks(
             stream,
-            finalServerReactController.signal,
+            // An on-demand prerender also reads the chunks that React emits
+            // for the abort at the end of the render. An unexpected abort
+            // discards the result, and the stream may never end after it, so
+            // that is where it stops reading.
+            isBuildTimePrerendering
+              ? finalServerReactController.signal
+              : unexpectedAbortController.signal,
             collectChunk,
-            streamState,
-            collectedChunks.allChunks !== null
+            streamState
           )
         },
         () => {
