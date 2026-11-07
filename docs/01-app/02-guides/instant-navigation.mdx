@@ -334,7 +334,7 @@ A route can be reached two ways, and a `<Suspense>` boundary can cover one witho
 - **Initial page load**: Use `page.goto()` to test the static UI from the document response.
 - **Client navigation**: Click a `<Link>` to test the destination's prefetched UI. [Per-link prefetching](/docs/app/guides/optimizing-prefetching) can add request-specific content to this UI.
 
-```typescript filename="e2e/navigation.test.ts" highlight={6-18,26-38}
+```typescript filename="e2e/navigation.test.ts" highlight={6-18,29-41}
 import { test, expect } from '@playwright/test'
 import { instant } from '@next/playwright'
 
@@ -344,14 +344,17 @@ test.describe('Product page (/store/[slug])', () => {
       page,
       async () => {
         await page.goto('/store/hats')
-        await expect(page.getByRole('heading', { level: 1 })).toContainText(
-          'Baseball Cap'
-        )
+        await expect(
+          page.getByText('Loading product...').filter({ visible: true })
+        ).toBeVisible()
         await expect(
           page.getByText('In stock').filter({ visible: true })
         ).toHaveCount(0)
       },
       { baseURL }
+    )
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(
+      'Baseball Cap'
     )
     await expect(
       page.getByText('In stock').filter({ visible: true })
@@ -380,6 +383,8 @@ test.describe('Product page (/store/[slug])', () => {
 })
 ```
 
+The example route has no `generateStaticParams`, so its product heading is outside the initial static shell. Check the product fallback inside the initial-load scope and the heading after it finishes. On a client navigation, per-link prefetching makes the product heading available inside the scope.
+
 Pass Playwright's `baseURL` to `instant()` when `page.goto()` is the first navigation. The helper needs the origin before requesting the document.
 
 Inside the callback, an initial page load shows the static UI and a client navigation shows the destination's prefetched UI. Other dynamic content remains blocked until the callback finishes.
@@ -392,13 +397,14 @@ Cache Components keeps previous pages hidden in the DOM after navigation. Use `g
 
 Run these against `next dev`, where the testing API is enabled automatically. For CI with a production build, enable [`exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) only for the test build:
 
-```ts filename="next.config.ts" highlight={3,8}
+```ts filename="next.config.ts" highlight={3,9}
 import type { NextConfig } from 'next'
 
 const exposeTestingApi = process.env.EXPOSE_TESTING_API === '1'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  partialPrefetching: true,
   experimental: {
     exposeTestingApiInProductionBuild: exposeTestingApi,
   },
