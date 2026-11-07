@@ -66,5 +66,10 @@ export function AppRouterAnnouncer({ tree }: { tree: FlightRouterState }) {
     previousTitle.current = currentTitle
   }, [tree])
 
-  return portalNode ? createPortal(routeAnnouncement, portalNode) : null
+  return portalNode
+    ? createPortal(
+        <span key={routeAnnouncement}>{routeAnnouncement}</span>,
+        portalNode
+      )
+    : null
 }
