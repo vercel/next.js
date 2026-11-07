@@ -3,6 +3,18 @@
 const http = require('node:http')
 const path = require('node:path')
 
+// Counts how often this process evaluates the OpenTelemetry API, as a file or
+// as a copy that is bundled into a chunk: every copy creates this context key
+// when it is evaluated.
+let apiEvaluations = 0
+const symbolFor = Symbol.for
+Symbol.for = function (key) {
+  if (key === 'OpenTelemetry Context Key SPAN') {
+    apiEvaluations++
+  }
+  return symbolFor.call(Symbol, key)
+}
+
 require('next/dist/build/adapter/setup-node-env.external')
 
 const entries = {
@@ -14,6 +26,12 @@ const entries = {
 }
 
 const server = http.createServer((req, res) => {
+  if (req.url === '/api-evaluations') {
+    res.setHeader('content-type', 'application/json')
+    res.end(String(apiEvaluations))
+    return
+  }
+
   const entry = entries[req.url]
   if (!entry) {
     res.statusCode = 404

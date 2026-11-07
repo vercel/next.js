@@ -22,7 +22,7 @@ describe.each([
       serverReadyPattern: /minimal server ready/,
     },
   ],
-])('opentelemetry-api-on-demand (%s)', (_server, options) => {
+])('opentelemetry-api-on-demand (%s)', (server, options) => {
   const { next } = nextTestSetup({
     files: __dirname,
     ...options,
@@ -33,6 +33,10 @@ describe.each([
     expect(res.status).toBe(200)
     return res.json()
   }
+
+  // The loaded files don't show a copy of the API that is bundled into a
+  // chunk. The server for the route entries counts every evaluation of the API.
+  const countsApiEvaluations = server === 'route entries'
 
   // These tests must run first: the last test registers a tracer provider.
   it.each(routes)(
@@ -50,6 +54,10 @@ describe.each([
       expect(
         loaded.filter((id) => id.includes('/@opentelemetry/api/'))
       ).toEqual([])
+
+      if (countsApiEvaluations) {
+        expect(await fetchJson('/api-evaluations')).toBe(0)
+      }
     }
   )
 
@@ -92,5 +100,10 @@ describe.each([
         }),
       })
     )
+
+    if (countsApiEvaluations) {
+      // If the count stops working, the checks above pass for the wrong reason.
+      expect(await fetchJson('/api-evaluations')).toBeGreaterThan(0)
+    }
   })
 })
