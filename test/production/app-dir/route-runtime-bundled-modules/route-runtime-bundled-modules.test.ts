@@ -10,7 +10,7 @@ import execa from 'execa'
 // which always comes from separate files.
 //
 // These modules are loaded twice today, grouped by the module that imports
-// them. Remove a module from the list when that is fixed.
+// them. Remove a module from its list when that is fixed.
 const KNOWN_DUPLICATES = [
   // server/lib/trace/tracer
   'next/dist/server/lib/trace/constants.js',
@@ -21,13 +21,17 @@ const KNOWN_DUPLICATES = [
   'next/dist/server/response-cache/types.js',
   // server/app-render/module-loading/track-module-loading.external
   'next/dist/server/app-render/cache-signal.js',
-  // build/templates/app-route, where webpack keeps this import external
+]
+
+// Loaded twice with webpack and Rspack only, which keep this import of
+// build/templates/app-route external.
+const KNOWN_DUPLICATES_WEBPACK = [
   'next/dist/shared/lib/page-path/ensure-leading-slash.js',
   'next/dist/shared/lib/router/utils/app-paths.js',
 ]
 
 describe('route-runtime-bundled-modules', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -63,11 +67,22 @@ describe('route-runtime-bundled-modules', () => {
       'next/dist/server/route-modules/app-route/module.js'
     )
 
+    const knownDuplicates = isTurbopack
+      ? KNOWN_DUPLICATES
+      : [...KNOWN_DUPLICATES, ...KNOWN_DUPLICATES_WEBPACK]
+
     // The route loaded these modules from separate files although its runtime
     // contains them. Change the import that loads the file, or add the module
     // to KNOWN_DUPLICATES with the module that imports it.
     expect(
-      result.loadedTwice.filter((id) => !KNOWN_DUPLICATES.includes(id))
+      result.loadedTwice.filter((id) => !knownDuplicates.includes(id))
+    ).toEqual([])
+
+    // A module that stays listed after it is fixed could regress unnoticed.
+    expect(
+      knownDuplicates
+        .filter((id) => !result.loadedTwice.includes(id))
+        .map((id) => `${id} is no longer loaded twice, remove it from its list`)
     ).toEqual([])
 
     // The cache controls themselves stay in a module that all bundles share.
