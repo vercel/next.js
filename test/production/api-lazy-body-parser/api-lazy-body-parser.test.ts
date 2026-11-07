@@ -25,6 +25,16 @@ describe('api-lazy-body-parser', () => {
       bodyReaderLoaded: false,
     })
 
+    // Charset names are case-insensitive.
+    res = await next.fetch('/api/body', {
+      headers: { 'content-type': 'application/json; charset=UTF-8' },
+    })
+    expect(await res.json()).toEqual({
+      body: {},
+      contentLength: null,
+      bodyReaderLoaded: false,
+    })
+
     const body = JSON.stringify({ hello: 'world' })
     res = await next.fetch('/api/body', {
       method: 'POST',

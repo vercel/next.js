@@ -6,26 +6,29 @@ import isError from '../../../lib/is-error'
 import type { SizeLimit } from '../../../types'
 import { ApiError } from '../index'
 
+const BODY_HEADER = /^(content-length|transfer-encoding)$/i
+
+// Loaded for the first request that has a body.
+let getRawBody: typeof import('next/dist/compiled/raw-body') | undefined
+
 /**
- * Whether the request can have a body. Node.js only reads a body for an HTTP/1
- * request that announces one with a `Content-Length` or `Transfer-Encoding`
- * header (https://www.rfc-editor.org/rfc/rfc9112#section-6.3). The headers are
- * checked as they were received, because `req.headers` can be rewritten before
- * the route runs. Any other kind of request object, like an HTTP/2 or a mocked
- * request, is assumed to have a body.
+ * Whether the request may have a body. Node.js only reads a body for an HTTP/1
+ * request that has a `Content-Length` or a `Transfer-Encoding` header
+ * (https://www.rfc-editor.org/rfc/rfc9112#section-6.3).
  */
-function hasBody(req: IncomingMessage): boolean {
-  if (
-    !(req instanceof IncomingMessage) ||
-    req.httpVersionMajor !== 1 ||
-    req.rawHeaders.length === 0
-  ) {
+function mayHaveBody(req: IncomingMessage): boolean {
+  if ('content-length' in req.headers || 'transfer-encoding' in req.headers) {
     return true
   }
 
+  // Not a request that Node.js parsed: HTTP/2, mocked or built by hand.
+  if (!(req instanceof IncomingMessage) || req.rawHeaders.length === 0) {
+    return true
+  }
+
+  // A proxy can replace `req.headers`. `rawHeaders` has what was received.
   for (let i = 0; i < req.rawHeaders.length; i += 2) {
-    const name = req.rawHeaders[i].toLowerCase()
-    if (name === 'content-length' || name === 'transfer-encoding') {
+    if (BODY_HEADER.test(req.rawHeaders[i])) {
       return true
     }
   }
@@ -70,16 +73,14 @@ export async function parseBody(
   let buffer
 
   try {
-    if (encoding === 'utf-8' && !hasBody(req)) {
-      // Reading no body in the default encoding results in an empty string. The
-      // body reader, which bundles every character encoding it can decode, is
-      // only loaded once there is a body to read or another charset to check.
-      // The request is still read to its end, so that the handler gets it in
-      // the same state as after reading a body.
+    if (!mayHaveBody(req) && encoding.toLowerCase() === 'utf-8') {
+      // No body in the default encoding is an empty string. This does not load
+      // the body reader, which bundles every encoding it can decode. The
+      // request is still read to its end, like the body reader leaves it.
       await once(req.resume(), 'end')
       buffer = ''
     } else {
-      const getRawBody =
+      getRawBody ??=
         require('next/dist/compiled/raw-body') as typeof import('next/dist/compiled/raw-body')
       buffer = await getRawBody(req, { encoding, limit })
     }
