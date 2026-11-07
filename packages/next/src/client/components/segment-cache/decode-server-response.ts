@@ -485,6 +485,7 @@ function decodeTransportNode(
       ? {
           canonicalUrl: baseCompressedRefreshState[0] as string,
           renderedSearch: parentRenderedSearch,
+          nextUrl: baseCompressedRefreshState[2] ?? null,
         }
       : null
   const renderedSearch =

@@ -70,6 +70,7 @@ export function restoreReducer(
     now,
     currentUrl,
     state.renderedSearch,
+    state.previousNextUrl,
     state.root,
     restoreSeed.root,
     FreshnessPolicy.HistoryTraversal,

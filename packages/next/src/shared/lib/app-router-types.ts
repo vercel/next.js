@@ -192,7 +192,11 @@ export type FlightRouterState = [
  * a refresh of the segment, and the search query is needed for looking up
  * matching entries in the segment cache.
  */
-export type CompressedRefreshState = [url: string, renderedSearch: string]
+export type CompressedRefreshState = [
+  url: string,
+  renderedSearch: string,
+  nextUrl?: string | null,
+]
 
 export const enum PrefetchHint {
   // NOTE: The 0b00001 bit was previously HasRuntimePrefetch (prefetch:
