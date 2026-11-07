@@ -138,7 +138,7 @@ export async function continueDynamicPrerender(
 
 export async function continueStaticFallbackPrerender(
   prerenderStream: AnyStream,
-  opts: ContinueStaticPrerenderOptions
+  opts: ContinueStaticPrerenderOptions & { externalBrowserRuntime: boolean }
 ): Promise<AnyStream> {
   return webContinueStaticFallbackPrerender(
     prerenderStream as ReadableStream<Uint8Array>,
