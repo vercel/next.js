@@ -1,10 +1,11 @@
 const assert = require('node:assert/strict')
+const { createRuntimeConfig } = require('./runtime-fixtures.cjs')
 const {
-  createRuntimeFile,
-  installClientRuntime,
-  createRuntimeConfig,
-  installRuntimeEnvironment,
-} = require('./runtime-fixtures.cjs')
+  createCleanupError,
+  createCleanupFile,
+  installCleanupRuntime,
+  startCleanupRuntime,
+} = require('./cleanup-consumer-utils.cjs')
 const mode = process.argv[2]
 assert(
   [
@@ -23,60 +24,22 @@ const trace = [],
   shared = new Error('same actual cleanup failure')
 shared.name = 'FixtureCleanupError'
 shared.stack = ''
-const reads = [],
-  fields = {
-    name: 'FixtureCleanupError',
-    message: 'original component getter failure',
-    stack: '',
-  },
-  getterError = {}
-for (const key of ['name', 'message', 'stack'])
-  Object.defineProperty(getterError, key, {
-    get() {
-      assert.equal(this, getterError)
-      reads.push(key)
-      return fields[key]
-    },
-  })
+const {
+  reads,
+  fields,
+  error: getterError,
+} = createCleanupError('original component getter failure')
 const component = mode === 'getter-values' ? getterError : shared
 const workerFails = ['component-worker', 'file-component-worker-same'].includes(
     mode
   ),
   fileFails = mode === 'file-component-worker-same'
-let snapshots = false,
-  workerJoined = false,
-  workerTaken = false
-const file = createRuntimeFile({
-  run: async () => ({
-    cases: [],
-    errors: fileFails ? [{ phase: 'cleanup', error: shared }] : [],
-    interrupted: false,
-  }),
-  async dispose(options) {
-    trace.push('file-start')
-    await options?.beforeOwnedWorkerDispose?.()
-    trace.push('worker')
-    workerJoined = true
-    if (workerFails) throw shared
-  },
-  takeOwnedWorkerDisposalFailure(error) {
-    assert(workerJoined)
-    if (!workerFails || workerTaken || error !== shared) return undefined
-    workerTaken = true
-    return Object.freeze({ error })
-  },
-  takeSnapshotUpdates() {
-    snapshots = true
-    return []
-  },
-})
-const runtimePath = installClientRuntime({
+const state = createCleanupFile({ trace, shared, workerFails, fileFails })
+const { file } = state
+const runtimePath = installCleanupRuntime({
+  trace,
   file,
   browserContext: {
-    initializeBrowserContext: () => ({
-      install() {},
-      dispose: () => trace.push('context-dispose'),
-    }),
     async cleanupBrowserContext(observation) {
       trace.push('component')
       if (mode === 'normal') return
@@ -102,19 +65,14 @@ const config = createRuntimeConfig(
   ),
   originalConsole = console
 async function main() {
-  installRuntimeEnvironment(config, messages, originalConsole)
   try {
-    await require(runtimePath).startClientTest(
-      () => trace.push('load'),
-      {
-        initialize: () => ({ dispose: () => trace.push('mocks') }),
-        register() {},
-      },
-      () => ({
-        waitForImports: async () => {},
-        dispose: () => trace.push('imports'),
-      })
-    )
+    await startCleanupRuntime({
+      runtimePath,
+      config,
+      messages,
+      trace,
+      originalConsole,
+    })
   } finally {
     globalThis.console = originalConsole
   }
@@ -155,7 +113,7 @@ async function main() {
   const terminal = messages.at(-1)
   assert.equal(terminal.type, 'complete')
   assert.equal(terminal.status, mode === 'normal' ? 'passed' : 'failed')
-  assert.equal(snapshots, mode === 'normal')
+  assert.equal(state.snapshots, mode === 'normal')
   assert.deepEqual(terminal.updates, [])
   process.stdout.write(
     JSON.stringify({

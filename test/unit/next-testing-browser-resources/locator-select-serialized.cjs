@@ -1,46 +1,16 @@
 'use strict'
 const assert = require('node:assert/strict')
 
-const { createDOMFixture, locatorGlobals } = require('./dom-fixture.cjs')
-const { dom } = createDOMFixture({
-  html: '<!DOCTYPE html><body><select data-testid="target" multiple><option value="a">A</option><option value="b">B</option></select></body>',
-  globals: locatorGlobals,
-  load: require,
-})
-const scopes = require('next/dist/experimental/testing/client/async-context')
-const api = require('next/dist/experimental/testing/client/browser-context')
+const { createLocatorTargetFixture } = require('./locator-target-fixture.cjs')
 const mode = process.argv[2],
-  late = [],
-  commands = [],
   trace = [],
-  task = { type: 'test', id: 'file/0', onFinished: [] }
-const collection = scopes.createAsyncScope(
-  { kind: 'collection', context: { id: 'file', name: 'file' } },
-  (error) => late.push(error)
-)
-const hook = collection.run(() =>
-  scopes.createAsyncScope(
-    { kind: 'hook', context: { id: 'hook', suiteId: 'file', name: 'hook' } },
-    (error) => late.push(error)
-  )
-)
-const leave = scopes.enterCreatorScope(
-  hook.run(() => scopes.captureCreatorScope())
-)
-const legacy = mode === 'legacy'
-const binding = api.initializeBrowserContext(
-  (value) => {
-    commands.push(value)
-    return Promise.resolve()
-  },
-  {
-    getConsoleTask() {
-      trace.push('task')
-      return task
-    },
-  },
-  legacy ? undefined : { serializedClickTargets: true }
-)
+  legacy = mode === 'legacy'
+const fixture = createLocatorTargetFixture({
+  html: '<!DOCTYPE html><body><select data-testid="target" multiple><option value="a">A</option><option value="b">B</option></select></body>',
+  legacy,
+  trace,
+})
+const { api, late, commands, task } = fixture
 const target = api.page.getByTestId('target'),
   descriptor = { selector: '#replacement', locator: "locator('#replacement')" },
   optionDescriptor = { selector: '#option-a', locator: "locator('#option-a')" },
@@ -182,11 +152,7 @@ async function run() {
       }) + '\n'
     )
   } finally {
-    binding.dispose()
-    leave()
-    hook.close()
-    collection.close()
-    dom.window.close()
+    fixture.dispose()
   }
 }
 run().catch((error) => {

@@ -58,47 +58,17 @@ async function run() {
         /Invalid Browser Mode element command/
       )
   } else {
-    const { createDOMFixture, locatorGlobals } = require('./dom-fixture.cjs')
-    const { dom } = createDOMFixture({
+    const {
+      createLocatorTargetFixture,
+    } = require('./locator-target-fixture.cjs')
+    const fixture = createLocatorTargetFixture({
       html: '<!DOCTYPE html><body><div data-testid="source"></div><div data-testid="target"></div></body>',
-      globals: locatorGlobals,
-      load: require,
+      legacy: mode === 'legacy',
+      recordOrigin: true,
     })
-    const scopes = require('next/dist/experimental/testing/client/async-context'),
-      api = require('next/dist/experimental/testing/client/browser-context'),
-      late = [],
-      commands = [],
-      task = { type: 'test', id: 'file/0', onFinished: [] }
-    const collection = scopes.createAsyncScope(
-        { kind: 'collection', context: { id: 'file', name: 'file' } },
-        (error) => late.push(error)
-      ),
-      hook = collection.run(() =>
-        scopes.createAsyncScope(
-          {
-            kind: 'hook',
-            context: { id: 'hook', suiteId: 'file', name: 'hook' },
-          },
-          (error) => late.push(error)
-        )
-      )
-    const leave = scopes.enterCreatorScope(
-      hook.run(() => scopes.captureCreatorScope())
-    )
+    const { api, late, commands, task, hook, leave } = fixture
     let left = false,
       lateFailure
-    const binding = api.initializeBrowserContext(
-      (command, origin, source) => {
-        commands.push({ command, origin, source })
-        return Promise.resolve()
-      },
-      {
-        getConsoleTask() {
-          return task
-        },
-      },
-      mode === 'legacy' ? undefined : { serializedClickTargets: true }
-    )
     try {
       const source = api.page.getByTestId('source'),
         target = api.page.getByTestId('target'),
@@ -274,11 +244,7 @@ async function run() {
       for (const finish of task.onFinished) finish()
       assert.deepEqual(late, mode === 'late' ? [lateFailure] : [])
     } finally {
-      binding.dispose()
-      if (!left) leave()
-      hook.close()
-      collection.close()
-      dom.window.close()
+      fixture.dispose(left)
     }
   }
   console.log(

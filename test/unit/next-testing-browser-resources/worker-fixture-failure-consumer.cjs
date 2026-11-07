@@ -1,10 +1,13 @@
 const assert = require('node:assert/strict')
 const {
   createRuntimeFile,
-  installClientRuntime,
   createRuntimeConfig,
-  installRuntimeEnvironment,
 } = require('./runtime-fixtures.cjs')
+const {
+  createCleanupError,
+  installCleanupRuntime,
+  startCleanupRuntime,
+} = require('./cleanup-consumer-utils.cjs')
 const mode = process.argv[2]
 assert.equal(mode, 'worker')
 const trace = [],
@@ -19,20 +22,11 @@ const fileStarted = new Promise((resolve) => {
 const fileGate = new Promise((resolve) => {
   release = resolve
 })
-const reads = [],
-  fields = {
-    name: 'FixtureCleanupError',
-    message: 'actual original worker failure',
-    stack: '',
-  },
-  failure = {}
-for (const key of ['name', 'message', 'stack'])
-  Object.defineProperty(failure, key, {
-    get() {
-      reads.push(key)
-      return fields[key]
-    },
-  })
+const {
+  reads,
+  fields,
+  error: failure,
+} = createCleanupError('actual original worker failure', false)
 const throws = (stage) => stage === 'file'
 const file = createRuntimeFile({
   run: async () => ({
@@ -58,13 +52,10 @@ const file = createRuntimeFile({
     return []
   },
 })
-const runtimePath = installClientRuntime({
+const runtimePath = installCleanupRuntime({
+  trace,
   file,
   browserContext: {
-    initializeBrowserContext: () => ({
-      install() {},
-      dispose: () => trace.push('context-dispose'),
-    }),
     async cleanupBrowserContext() {
       assert(fileSettled)
       trace.push('browser')
@@ -80,23 +71,18 @@ const runtimePath = installClientRuntime({
 const config = createRuntimeConfig('fixture-order', '/fixture-order.test.mjs')
 const originalConsole = console
 async function main() {
-  installRuntimeEnvironment(config, messages, originalConsole)
-  const running = require(runtimePath).startClientTest(
-    () => trace.push('load'),
-    {
-      initialize: () => ({ dispose: () => trace.push('mocks') }),
-      register() {},
+  const running = startCleanupRuntime({
+    runtimePath,
+    config,
+    messages,
+    trace,
+    originalConsole,
+    onImports: () => {
+      fields.name = 'LaterName'
+      fields.message = 'later mutation'
+      fields.stack = 'later stack'
     },
-    () => ({
-      waitForImports: async () => {},
-      dispose: () => {
-        trace.push('imports')
-        fields.name = 'LaterName'
-        fields.message = 'later mutation'
-        fields.stack = 'later stack'
-      },
-    })
-  )
+  })
   try {
     await fileStarted
     assert.deepEqual(trace, ['load', 'file-start'])

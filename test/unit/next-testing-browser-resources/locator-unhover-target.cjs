@@ -2,45 +2,15 @@
 const assert = require('node:assert/strict')
 
 const mode = process.argv[2]
-const { createDOMFixture, locatorGlobals } = require('./dom-fixture.cjs')
-const { dom } = createDOMFixture({
+const { createLocatorTargetFixture } = require('./locator-target-fixture.cjs')
+const fixture = createLocatorTargetFixture({
   html: '<!DOCTYPE html><body><button data-testid="subject"></button></body>',
-  globals: locatorGlobals,
-  load: require,
+  legacy: mode === 'legacy',
+  noCallback: mode === 'no-callback',
+  recordOrigin: true,
 })
-const scopes = require('next/dist/experimental/testing/client/async-context')
-const api = require('next/dist/experimental/testing/client/browser-context')
-const late = [],
-  commands = [],
-  task = { type: 'test', id: 'file/0', onFinished: [] }
-const collection = scopes.createAsyncScope(
-  { kind: 'collection', context: { id: 'file', name: 'file' } },
-  (error) => late.push(error)
-)
-const hook = collection.run(() =>
-  scopes.createAsyncScope(
-    { kind: 'hook', context: { id: 'hook', suiteId: 'file', name: 'hook' } },
-    (error) => late.push(error)
-  )
-)
+const { api, late, commands, task, hook, leave } = fixture
 let left = false
-const leave = scopes.enterCreatorScope(
-  hook.run(() => scopes.captureCreatorScope())
-)
-const binding = api.initializeBrowserContext(
-  (command, origin, source) => {
-    commands.push({ command, origin, source })
-    return Promise.resolve()
-  },
-  mode === 'no-callback'
-    ? undefined
-    : {
-        getConsoleTask() {
-          return task
-        },
-      },
-  mode === 'legacy' ? undefined : { serializedClickTargets: true }
-)
 async function run() {
   let lateFailure
   try {
@@ -171,11 +141,7 @@ async function run() {
       })
     )
   } finally {
-    binding.dispose()
-    if (!left) leave()
-    hook.close()
-    collection.close()
-    dom.window.close()
+    fixture.dispose(left)
   }
 }
 run().catch((error) => {
