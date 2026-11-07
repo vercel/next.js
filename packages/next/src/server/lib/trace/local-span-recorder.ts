@@ -28,15 +28,23 @@ const TRACE_ID_HEX_LENGTH = 32
 const SPAN_ID_HEX_LENGTH = 16
 
 // Production servers and route bundles import this module without recording
-// spans. To keep the OpenTelemetry API out of those processes, the one enum
-// value that is used is a constant, and the API is loaded where a span context
-// is wrapped.
+// spans, so it must not load the OpenTelemetry API when it is evaluated.
+//
+// `SpanStatusCode` is not imported from `./tracer`: the pre-compiled runtimes
+// only treat imports that end in `trace/tracer` as the external tracer, so
+// that import would bundle a second tracer into them.
 const SPAN_STATUS_CODE_ERROR: SpanStatusCode.ERROR = 2
 
-function wrapSpanContext(spanContext: SpanContext): Span {
-  const { trace } =
-    require('next/dist/compiled/@opentelemetry/api') as typeof import('next/dist/compiled/@opentelemetry/api')
-  return trace.wrapSpanContext(spanContext)
+function wrapSpanContext(spanContext: SpanContext): Span | undefined {
+  // Only the development server records spans. Production builds remove this
+  // branch, and with it the API.
+  if (process.env.__NEXT_DEV_SERVER) {
+    const { trace } =
+      require('next/dist/compiled/@opentelemetry/api') as typeof import('next/dist/compiled/@opentelemetry/api')
+    return trace.wrapSpanContext(spanContext)
+  } else {
+    return undefined
+  }
 }
 
 type LocalSpanAttributes = Partial<Record<string, AttributeValue | undefined>>

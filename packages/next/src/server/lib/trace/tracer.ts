@@ -30,24 +30,19 @@ type GlobalWithLocalSpanRecorder = typeof globalThis & {
   [LOCAL_SPAN_RECORDER_KEY]?: LocalSpanRecorder
 }
 
-type OpenTelemetryApi = typeof import('next/dist/compiled/@opentelemetry/api')
-
 // Every copy of `@opentelemetry/api` 1.x keeps its global registrations (the
 // tracer provider, context manager, propagator, meter provider and diag
 // logger) on this object. The first registration creates it.
 const OPENTELEMETRY_API_REGISTRY_KEY = Symbol.for('opentelemetry.js.api.1')
 
-type GlobalWithOpenTelemetryApiRegistry = typeof globalThis & {
-  [OPENTELEMETRY_API_REGISTRY_KEY]?: object
-}
+type OpenTelemetryApi = typeof import('next/dist/compiled/@opentelemetry/api')
 
-let api: OpenTelemetryApi | undefined
-// Assigned when the API is loaded.
-let context: OpenTelemetryApi['context']
-let propagation: OpenTelemetryApi['propagation']
-let trace: OpenTelemetryApi['trace']
-let ROOT_CONTEXT: OpenTelemetryApi['ROOT_CONTEXT']
-let rootSpanIdKey: symbol
+type LoadedApi = Pick<
+  OpenTelemetryApi,
+  'context' | 'propagation' | 'trace' | 'ROOT_CONTEXT'
+> & { rootSpanIdKey: symbol }
+
+let loadedApi: LoadedApi | undefined
 
 // `SpanStatusCode` and `SpanKind` of the OpenTelemetry API. The values are the
 // same in every 1.x version, so they are available without loading the API.
@@ -64,70 +59,77 @@ const SpanKind: typeof OpenTelemetrySpanKind = {
   CONSUMER: 4,
 }
 
+// Only the development server installs a local span recorder. A production
+// server doesn't look for one: reading `process.env` on every call is slow.
+const CAN_HAVE_LOCAL_SPAN_RECORDER =
+  process.env.NODE_ENV !== 'production' || !!process.env.__NEXT_DEV_SERVER
+
 function getLocalSpanRecorder() {
-  if (process.env.__NEXT_DEV_SERVER) {
+  if (CAN_HAVE_LOCAL_SPAN_RECORDER && process.env.__NEXT_DEV_SERVER) {
     return (globalThis as GlobalWithLocalSpanRecorder)[LOCAL_SPAN_RECORDER_KEY]
   } else {
     return undefined
   }
 }
 
-function loadApi(): void {
-  if (api !== undefined) {
-    return
-  }
+function loadApi(): LoadedApi {
+  if (loadedApi === undefined) {
+    let api: OpenTelemetryApi
 
-  // we want to allow users to use their own version of @opentelemetry/api if they
-  // want to, so we try to require it first, and if it fails we fall back to the
-  // version that is bundled with Next.js
-  // this is because @opentelemetry/api has to be synced with the version of
-  // @opentelemetry/tracing that is used, and we don't want to force users to use
-  // the version that is bundled with Next.js.
-  // the API is ~stable, so this should be fine
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    api = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
-  } else {
-    try {
+    // we want to allow users to use their own version of @opentelemetry/api if they
+    // want to, so we try to require it first, and if it fails we fall back to the
+    // version that is bundled with Next.js
+    // this is because @opentelemetry/api has to be synced with the version of
+    // @opentelemetry/tracing that is used, and we don't want to force users to use
+    // the version that is bundled with Next.js.
+    // the API is ~stable, so this should be fine
+    if (process.env.NEXT_RUNTIME === 'edge') {
       api = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
-    } catch (err) {
-      api =
-        require('next/dist/compiled/@opentelemetry/api') as typeof import('next/dist/compiled/@opentelemetry/api')
+    } else {
+      try {
+        api =
+          require('@opentelemetry/api') as typeof import('@opentelemetry/api')
+      } catch (err) {
+        api =
+          require('next/dist/compiled/@opentelemetry/api') as typeof import('next/dist/compiled/@opentelemetry/api')
+      }
+    }
+
+    loadedApi = {
+      context: api.context,
+      propagation: api.propagation,
+      trace: api.trace,
+      ROOT_CONTEXT: api.ROOT_CONTEXT,
+      rootSpanIdKey: api.createContextKey('next.rootSpanId'),
     }
   }
 
-  ;({ context, propagation, trace, ROOT_CONTEXT } = api)
-  rootSpanIdKey = api.createContextKey('next.rootSpanId')
+  return loadedApi
 }
 
 /**
- * Loads the OpenTelemetry API once something can be registered with it, and
- * returns whether it is loaded.
+ * Returns the OpenTelemetry API if it can have an effect, loading it on the
+ * first such call, and `undefined` otherwise.
  *
- * While nothing is registered, the API is a set of no-ops: no context and no
- * span is active, nothing is propagated, and the spans it starts don't record.
- * The tracer returns those results itself as long as this returns `false`, so
- * that it doesn't load the API in a server that doesn't use OpenTelemetry.
+ * While nothing is registered with the API, all of it is a no-op: no context
+ * and no span is active, nothing is propagated, and the spans it starts don't
+ * record. The tracer then returns those results itself, so that a server that
+ * doesn't use OpenTelemetry doesn't load the API.
  *
  * A provider can be registered at any time (`register()` of
- * `instrumentation.ts`, or later), so this is checked on every call.
+ * `instrumentation.ts`, or later), so every tracer method calls this.
  */
-function isApiInUse(): boolean {
-  if (api !== undefined) {
-    return true
-  }
-
+function loadApiIfNeeded(): LoadedApi | undefined {
   if (
-    NEXT_OTEL_PERFORMANCE_PREFIX ||
-    getLocalSpanRecorder() !== undefined ||
-    (globalThis as GlobalWithOpenTelemetryApiRegistry)[
-      OPENTELEMETRY_API_REGISTRY_KEY
-    ] !== undefined
+    loadedApi === undefined &&
+    (NEXT_OTEL_PERFORMANCE_PREFIX ||
+      OPENTELEMETRY_API_REGISTRY_KEY in globalThis ||
+      getLocalSpanRecorder() !== undefined)
   ) {
-    loadApi()
-    return true
+    return loadApi()
   }
 
-  return false
+  return loadedApi
 }
 
 if (process.env.NEXT_RUNTIME === 'edge') {
@@ -334,47 +336,27 @@ const clientTraceDataSetter: TextMapSetter<ClientTraceDataEntry[]> = {
   },
 }
 
-const INVALID_SPAN_CONTEXT: ReturnType<Span['spanContext']> = {
+const INVALID_SPAN_CONTEXT = Object.freeze({
   traceId: '00000000000000000000000000000000',
   spanId: '0000000000000000',
   traceFlags: 0,
-}
+})
 
 /**
- * The span that the OpenTelemetry API starts while no tracer provider is
- * registered: it has an invalid span context and records nothing.
+ * What `startSpan` of the OpenTelemetry API returns while no tracer provider
+ * is registered: a span with an invalid span context that records nothing.
  */
-class NoopSpan implements Span {
-  spanContext() {
-    return INVALID_SPAN_CONTEXT
-  }
-  setAttribute() {
-    return this
-  }
-  setAttributes() {
-    return this
-  }
-  addEvent() {
-    return this
-  }
-  addLink() {
-    return this
-  }
-  addLinks() {
-    return this
-  }
-  setStatus() {
-    return this
-  }
-  updateName() {
-    return this
-  }
-  end() {}
-  isRecording() {
-    return false
-  }
-  recordException() {}
-}
+const NOOP_SPAN: Span = Object.freeze({
+  spanContext: () => INVALID_SPAN_CONTEXT,
+  setAttribute: () => NOOP_SPAN,
+  setAttributes: () => NOOP_SPAN,
+  addEvent: () => NOOP_SPAN,
+  setStatus: () => NOOP_SPAN,
+  updateName: () => NOOP_SPAN,
+  end: () => {},
+  isRecording: () => false,
+  recordException: () => {},
+})
 
 class NextTracerImpl implements NextTracer {
   /**
@@ -383,13 +365,13 @@ class NextTracerImpl implements NextTracer {
    * This should be lazily evaluated.
    */
   private getTracerInstance(): Tracer {
-    return trace.getTracer('next.js', process.env.__NEXT_VERSION)
+    return loadApi().trace.getTracer('next.js', process.env.__NEXT_VERSION)
   }
 
   public isOpenTelemetryEnabled(): boolean {
-    if (!isApiInUse()) {
-      return false
-    }
+    const api = loadApiIfNeeded()
+    if (!api) return false
+    const { context, trace } = api
 
     const activeSpan = trace.getSpan(context.active())
     if (activeSpan?.isRecording()) {
@@ -410,14 +392,13 @@ class NextTracerImpl implements NextTracer {
   }
 
   public getContext(): ContextAPI {
-    loadApi()
-    return context
+    return loadApi().context
   }
 
   public getTracePropagationData(): ClientTraceDataEntry[] {
-    if (!isApiInUse()) {
-      return []
-    }
+    const api = loadApiIfNeeded()
+    if (!api) return []
+    const { context, propagation } = api
 
     const activeContext = context.active()
     const entries: ClientTraceDataEntry[] = []
@@ -426,9 +407,9 @@ class NextTracerImpl implements NextTracer {
   }
 
   public getTraceContextHeaders(): TraceContextHeaders | undefined {
-    if (!isApiInUse()) {
-      return undefined
-    }
+    const api = loadApiIfNeeded()
+    if (!api) return undefined
+    const { context, propagation, trace } = api
 
     const activeContext = context.active()
     if (
@@ -449,18 +430,18 @@ class NextTracerImpl implements NextTracer {
   }
 
   public hasActiveSpanContext(): boolean {
-    if (!isApiInUse()) {
-      return false
-    }
+    const api = loadApiIfNeeded()
+    if (!api) return false
+    const { context, trace } = api
 
     const spanContext = trace.getSpanContext(context.active())
     return Boolean(spanContext && trace.isSpanContextValid(spanContext))
   }
 
   public getActiveScopeSpan(): Span | undefined {
-    if (!isApiInUse()) {
-      return undefined
-    }
+    const api = loadApiIfNeeded()
+    if (!api) return undefined
+    const { context, trace } = api
 
     return (
       getLocalSpanRecorder()?.getLocalParentSpan(
@@ -475,9 +456,9 @@ class NextTracerImpl implements NextTracer {
     getter?: TextMapGetter<C>,
     force = false
   ): T {
-    if (!isApiInUse()) {
-      return fn()
-    }
+    const api = loadApiIfNeeded()
+    if (!api) return fn()
+    const { context, propagation, trace, ROOT_CONTEXT } = api
 
     const activeContext = context.active()
 
@@ -534,9 +515,11 @@ class NextTracerImpl implements NextTracer {
   public trace<T>(...args: Array<any>) {
     const [type, fnOrOptions, fnOrEmpty] = args
 
-    if (!isApiInUse()) {
+    const api = loadApiIfNeeded()
+    if (!api) {
       return typeof fnOrOptions === 'function' ? fnOrOptions() : fnOrEmpty()
     }
+    const { context, rootSpanIdKey } = api
 
     const tracingEnabled =
       Boolean(NEXT_OTEL_PERFORMANCE_PREFIX) || this.isOpenTelemetryEnabled()
@@ -723,6 +706,8 @@ class NextTracerImpl implements NextTracer {
     isolateOpenTelemetry: boolean,
     fn: (span: Span) => T
   ): T {
+    const { context, trace } = loadApi()
+
     if (tracingEnabled) {
       return this.getTracerInstance().startActiveSpan(
         spanName,
@@ -770,6 +755,7 @@ class NextTracerImpl implements NextTracer {
     parentSpan?: Span,
     isolateOpenTelemetry = false
   ): Span {
+    const { trace } = loadApi()
     const parentSpanContext =
       parentSpan?.spanContext() ?? trace.getSpanContext(parentContext)
     const delegateSpanContext = delegateSpan?.spanContext()
@@ -822,9 +808,9 @@ class NextTracerImpl implements NextTracer {
       const cb = arguments[lastArgId]
 
       if (typeof cb === 'function') {
-        // Without a context manager, binding returns the function itself.
-        const scopeBoundCb = isApiInUse()
-          ? tracer.getContext().bind(context.active(), cb)
+        const api = loadApiIfNeeded()
+        const scopeBoundCb = api
+          ? api.context.bind(api.context.active(), cb)
           : cb
         return tracer.trace(name, optionsObj, (_span, done) => {
           arguments[lastArgId] = function (err: any) {
@@ -843,6 +829,10 @@ class NextTracerImpl implements NextTracer {
   public startSpan(type: SpanTypes): Span
   public startSpan(type: SpanTypes, options: TracerSpanOptions): Span
   public startSpan(...args: Array<any>): Span {
+    const api = loadApiIfNeeded()
+    if (!api) return NOOP_SPAN
+    const { context } = api
+
     const [type, passedOptions]: [string, TracerSpanOptions | undefined] =
       args as any
     const options: TracerSpanOptions = passedOptions
@@ -854,13 +844,6 @@ class NextTracerImpl implements NextTracer {
           },
         }
       : { attributes: { 'next.span_category': 'nextjs' } }
-
-    if (options.parentSpan) {
-      // The API decides what the child of an existing span is.
-      loadApi()
-    } else if (!isApiInUse()) {
-      return new NoopSpan()
-    }
 
     const localSpanRecorder = getLocalSpanRecorder()
     const parentSpan = options.parentSpan ?? this.getActiveScopeSpan()
@@ -899,6 +882,7 @@ class NextTracerImpl implements NextTracer {
   }
 
   private getSpanContext(parentSpan: Span) {
+    const { context, trace } = loadApi()
     const recorder = getLocalSpanRecorder()
     const publicSpan = recorder?.isLocalRecordingSpan(parentSpan)
       ? recorder.getOpenTelemetrySpan(parentSpan)
@@ -909,18 +893,18 @@ class NextTracerImpl implements NextTracer {
   }
 
   public getRootSpanAttributes() {
-    if (!isApiInUse()) {
-      return undefined
-    }
+    const api = loadApiIfNeeded()
+    if (!api) return undefined
+    const { context, rootSpanIdKey } = api
 
     const spanId = context.active().getValue(rootSpanIdKey) as number
     return rootSpanAttributesStore.get(spanId)
   }
 
   public setRootSpanAttribute(key: AttributeNames, value: AttributeValue) {
-    if (!isApiInUse()) {
-      return
-    }
+    const api = loadApiIfNeeded()
+    if (!api) return
+    const { context, rootSpanIdKey } = api
 
     const spanId = context.active().getValue(rootSpanIdKey) as number
     const attributes = rootSpanAttributesStore.get(spanId)
@@ -928,7 +912,7 @@ class NextTracerImpl implements NextTracer {
       attributes.set(key, value)
     }
 
-    if (process.env.__NEXT_DEV_SERVER) {
+    if (CAN_HAVE_LOCAL_SPAN_RECORDER) {
       const localSpan = getLocalSpanRecorder()?.getActiveLocalSpan()
       if (localSpan) {
         localSpan.setAttribute(key, value)
@@ -937,9 +921,9 @@ class NextTracerImpl implements NextTracer {
   }
 
   public withSpan<T>(span: Span, fn: () => T): T {
-    if (!isApiInUse()) {
-      return fn()
-    }
+    const api = loadApiIfNeeded()
+    if (!api) return fn()
+    const { context, trace } = api
 
     const recorder = getLocalSpanRecorder()
     if (recorder?.isLocalRecordingSpan(span)) {
