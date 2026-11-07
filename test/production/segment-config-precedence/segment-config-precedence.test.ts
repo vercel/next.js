@@ -653,8 +653,6 @@ describe('global-not-found deployment exports', () => {
     files: `${__dirname}/fixtures/global-not-found`,
   })
 
-  // TODO: Align Turbopack's global-not-found runtime with webpack's Node.js entry.
-  // @gate !turbopack
   it('does not turn a global 404 into an Edge function with regions', async () => {
     const response = await next.fetch('/missing')
     expect(response.status).toBe(404)
