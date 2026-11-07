@@ -16,7 +16,12 @@ export function getPreloadableFonts(
   if (!nextFontManifest || !filePath) {
     return null
   }
-  const filepathWithoutExtension = filePath.replace(/\.[^.]+$/, '')
+  // Strip the full trailing extension chain so file paths match manifest
+  // keys when custom multi-part pageExtensions are used,
+  // e.g. app/page.page.tsx with pageExtensions: ['page.tsx'] -> app/page.
+  // Segments containing dots (e.g. app/docs.v1/page.tsx) are unaffected
+  // because each stripped part cannot span a path separator.
+  const filepathWithoutExtension = filePath.replace(/(\.[^./\\]+)+$/, '')
   const fontFiles = new Set<string>()
   let foundFontUsage = false
 
