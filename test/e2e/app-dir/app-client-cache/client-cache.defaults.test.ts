@@ -1,5 +1,9 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
+import type {
+  Page as PlaywrightPage,
+  Response as PlaywrightResponse,
+} from 'playwright'
 import {
   browserConfigWithFixedTime,
   createRequestsListener,
@@ -7,6 +11,28 @@ import {
   getPathname,
 } from './test-utils'
 import path from 'path'
+
+function isTargetPrefetch(response: PlaywrightResponse) {
+  const url = new URL(response.url())
+  const headers = response.request().headers()
+
+  return (
+    url.pathname === '/1' &&
+    url.searchParams.get('timeout') === '1000' &&
+    headers['next-router-prefetch'] === '1' &&
+    headers['next-router-segment-prefetch'] === undefined
+  )
+}
+
+async function waitForTargetPrefetch(
+  page: PlaywrightPage,
+  action: () => Promise<unknown>
+) {
+  const responsePromise = page.waitForResponse(isTargetPrefetch)
+  await action()
+  const response = await responsePromise
+  expect(await response.finished()).toBeNull()
+}
 
 describe('app dir client cache semantics (default semantics)', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -192,9 +218,15 @@ describe('app dir client cache semantics (default semantics)', () => {
     })
     describe('prefetch={undefined} - default', () => {
       let browser: Playwright
+      let page: PlaywrightPage
 
       beforeEach(async () => {
-        browser = await next.browser('/', browserConfigWithFixedTime)
+        browser = await next.browser('/', {
+          beforePageLoad(p) {
+            page = p
+            browserConfigWithFixedTime.beforePageLoad(page)
+          },
+        })
       })
 
       it('should prefetch partially a dynamic page', async () => {
@@ -267,14 +299,11 @@ describe('app dir client cache semantics (default semantics)', () => {
       })
 
       it('should refetch the full page after 5 mins', async () => {
-        // Wait for initial prefetch to complete before clicking
-        await browser.waitForIdleNetwork()
+        await waitForTargetPrefetch(page, () => browser.refresh())
 
-        const randomLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
-          .click()
-          .waitForElementByCss('#loading')
-          .text()
+        const loadingText = page.locator('#loading').textContent()
+        await browser.elementByCss('[href="/1?timeout=1000"]').click()
+        const randomLoadingNumber = await loadingText
 
         const randomNumber = await browser
           .waitForElementByCss('#random-number')
@@ -282,20 +311,16 @@ describe('app dir client cache semantics (default semantics)', () => {
 
         await browser.eval(fastForwardTo, 5 * 60 * 1000)
 
-        await browser
-          .elementByCss('[href="/"]')
-          .click()
-          .waitForElementByCss('[href="/1?timeout=1000"]')
+        await waitForTargetPrefetch(page, () =>
+          browser
+            .elementByCss('[href="/"]')
+            .click()
+            .waitForElementByCss('[href="/1?timeout=1000"]')
+        )
 
-        // Wait for prefetch requests to complete before clicking, otherwise
-        // clicking during an in-flight prefetch aborts it and skips loading state
-        await browser.waitForIdleNetwork()
-
-        const newLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
-          .click()
-          .waitForElementByCss('#loading')
-          .text()
+        const newLoadingText = page.locator('#loading').textContent()
+        await browser.elementByCss('[href="/1?timeout=1000"]').click()
+        const newLoadingNumber = await newLoadingText
 
         const newNumber = await browser
           .waitForElementByCss('#random-number')
