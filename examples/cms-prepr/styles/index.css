@@ -1,10 +1,38 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
+/* Acme Lease brand palette (mirrors the acme-lease project theme) */
+@theme {
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+
+  --color-secondary-100: #f1f5f9;
+  --color-secondary-300: #cbd5e1;
+  --color-secondary-400: #94a3b8;
+  --color-secondary-500: #64748b;
+  --color-secondary-600: #475569;
+  --color-secondary-700: #334155;
+}
+
+body {
+  background-color: #fff;
+  color: var(--color-secondary-700);
+}
+
+/* Article typography for rendered rich-text (Text.html) */
 @layer components {
+  .article {
+    @apply text-lg leading-relaxed text-secondary-600;
+  }
+
   .article h2 {
-    @apply mb-5 text-4xl font-bold leading-tight;
+    @apply mt-8 mb-4 text-3xl font-semibold leading-tight text-secondary-700;
+  }
+
+  .article h3 {
+    @apply mt-6 mb-3 text-2xl font-semibold leading-tight text-secondary-700;
   }
 
   .article p,
@@ -21,11 +49,11 @@
     @apply ml-5 list-disc list-outside;
   }
 
-  .article a {
-    @apply underline;
+  .article li {
+    @apply mb-2;
   }
 
-  .article ol li {
-    @apply mb-4;
+  .article a {
+    @apply text-primary-600 underline hover:text-primary-700;
   }
 }

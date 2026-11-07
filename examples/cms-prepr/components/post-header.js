@@ -1,28 +1,40 @@
-import Avatar from "../components/avatar";
-import Date from "../components/date";
-import CoverImage from "../components/cover-image";
-import PostTitle from "../components/post-title";
+import Avatar from './avatar'
+import Date from './date'
+import CoverImage from './cover-image'
+import PostTitle from './post-title'
+import Badge from './badge'
+import ReadTime from './read-time'
 
-export default function PostHeader({ title, coverImage, date, author }) {
+export default function PostHeader({
+  title,
+  coverImage,
+  date,
+  author,
+  categories,
+  readTime,
+}) {
   return (
     <>
+      {categories?.length > 0 && (
+        <div className="mb-6 flex flex-wrap justify-center gap-2 md:justify-start">
+          {categories.map((c, i) => (
+            <Badge key={i}>{c.name}</Badge>
+          ))}
+        </div>
+      )}
       <PostTitle>{title}</PostTitle>
-      <div className="hidden md:block md:mb-12">
-        <Avatar name={author.full_name} picture={author.profile_pic[0].url} />
-      </div>
-      <div className="mb-8 md:mb-16 sm:mx-0">
+      <div className="mb-8 sm:mx-0 md:mb-16">
         <CoverImage title={title} url={coverImage} />
       </div>
-      <div className="max-w-2xl mx-auto">
-        <div className="block md:hidden mb-6">
-          <Avatar name={author.full_name} picture={author.profile_pic[0].url} />
-        </div>
-        {date && (
-          <div className="mb-6 text-lg">
-            <Date dateString={date} />
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          {author && <Avatar name={author.name} picture={author.image?.url} />}
+          <div className="flex items-center gap-4 text-lg text-secondary-500">
+            {date && <Date dateString={date} />}
+            <ReadTime minutes={readTime} />
           </div>
-        )}
+        </div>
       </div>
     </>
-  );
+  )
 }

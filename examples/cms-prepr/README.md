@@ -1,17 +1,17 @@
-# A statically generated blog example using Next.js and Prepr
+# Blog site example using Next.js and Prepr
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Prepr](https://prepr.io/) as the data source.
+This example showcases live and preview versons of a blog site using [Next.js's features](https://nextjs.org/docs/basic-features/pages) and [Prepr](https://prepr.io/) as the data source.
 
 ## Demo
 
 Check out our Blog page example:
 
 - **Live**: [https://next-blog-prepr.vercel.app/](https://next-blog-prepr.vercel.app/)
-- **Preview**: [https://next-blog-prepr.vercel.app/api/preview...](https://next-blog-prepr.vercel.app/api/preview?secret=237864ihasdhj283768&slug=blueberry-cheesecake)
+- **Preview**: [https://next-blog-prepr.vercel.app/api/preview...](https://next-blog-prepr.vercel.app/api/preview?secret=237864ihasdhj283768&slug=electric-vehicle-leasing-is-it-the-smart-choice-in-2025)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Run one of the following [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) commands using [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to create a new Next.js app and connect it to Prepr:
 
 ```bash
 npx create-next-app --example cms-prepr cms-prepr-app
@@ -29,21 +29,21 @@ pnpm create next-app --example cms-prepr cms-prepr-app
 
 ### Step 1. Set up Prepr
 
-**1.1** First, [sign up for a Prepr account](https://signup.prepr.io/).
+1. First, [sign up for a Prepr account](https://signup.prepr.io/).
 
-**1.2** After you sign up, create a new environment in Prepr. For more details, [check out the environment docs](https://docs.prepr.io/developing-with-prepr/set-up-environments).
+2. After you sign up, create a new environment in Prepr. For more details, [check out the environment docs](https://docs.prepr.io/developing-with-prepr/set-up-environments).
 
-![Create Prepr environment](https://assets-site.prepr.io//1bynxkn1084r-create-enviroment.png)
+    ![Create Prepr environment](https://assets-site.prepr.io/ki6nbcjodkg//updated-navigation-add-new-environment.png)
 
-**1.3** Once you’ve created the environment, choose to **Load demo data**. With that, Prepr will automatically upload sample models, content items, and other data you can use for your example Next.js app.
+3. Once you’ve created the environment, choose to **Load Acme Lease demo**. With that, Prepr will automatically upload sample models, content items, and other data you can use for your example Next.js app.
 
-![Load Prepr demo data](https://assets-site.prepr.io//2xrbs9aquhij-import-demo-data.png)
+    ![Load Prepr demo data](https://assets-site.prepr.io/7gr66b3dc6wo//updated-navigation-import-demo-content.png)
 
 ### Step 2. Set up environment variables
 
 Once you’ve set up your Prepr environment, you can define environment variables for your project. Please proceed with the steps below.
 
-**2.1** Run the following command to copy and rename the `.env.local.example` file as follows:
+1. Run the following command to copy and rename the `.env.local.example` file as follows:
 
 ```bash
 cp .env.local.example .env.local
@@ -51,15 +51,15 @@ cp .env.local.example .env.local
 
 The `.env.local` file will be ignored by Git.
 
-**2.2** In your environment, navigate to **Settings > Access Tokens**. You will see the automatically generated access tokens for your Prepr environment.
+2. In your environment, navigate to **Settings > Access Tokens**. You will see the automatically generated access tokens for your Prepr environment.
 
-![Access tokens](https://assets-site.prepr.io//6jouln4xi3wp-default-access-tokens.png)
+    ![Access tokens](https://assets-site.prepr.io/3kdyjg8srggm//prepr-generated-access-tokens.png)
 
 Copy the _GraphQL Production_ access token and paste it as the `PREPRIO_PRODUCTION_TOKEN` variable in `.env.local`. Then copy and paste the _GraphQL Preview_ access token as the `PREPRIO_PREVIEW_TOKEN` variable.
 
 Alternatively, you can create access tokens yourself by clicking **Add access token**. If so, make sure to [choose the right GraphQL permissions](https://docs.prepr.io/reference/graphql/v1/authorization) for the access tokens.
 
-**2.3** Set a custom value with no spaces as the `PREPRIO_PREVIEW_SECRET` variable, for example, a UUID. This value will be used to enable [preview mode](https://nextjs.org/docs/advanced-features/preview-mode).
+3. Set a custom value with no spaces as the `PREPRIO_PREVIEW_SECRET` variable, for example, a UUID. This value will be used to enable [preview mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
 Once done, your `.env.local` file should look like this:
 
@@ -74,7 +74,7 @@ PREPRIO_PREVIEW_SECRET='your secret id'
 
 Now that you've finished preparing the project, you may proceed to run it.
 
-**3.1** Execute one of the following commands to install the packages listed in the `package.json` file:
+1. Execute one of the following commands to install the packages listed in the `package.json` file:
 
 ```bash
 npm install
@@ -84,7 +84,7 @@ npm install
 yarn install
 ```
 
-**3.2** Execute one of the following commands to run the dev script defined in the `package.json` file:
+2. Execute one of the following commands to run the dev script defined in the `package.json` file:
 
 ```bash
 npm run dev
@@ -103,9 +103,9 @@ Before proceeding, you can test how the content preview works in Prepr. This ste
 
 To try preview mode, follow these steps:
 
-**4.1** In Prepr, go to one of the content items of the _Article model_ and update the item title. For example, you can add _[PREVIEW]_ in front of the title. After you edit the content item, save it with the _Review status_.
+1. In Prepr, go to one of the content items of the _Post model_ and update the item title. For example, you can add _[PREVIEW]_ in front of the title. After you edit the content item, save it with the _Review status_.
 
-**4.2** To preview the content item, transform its URL to the following format:
+2. To preview the content item, transform its URL to the following format:
 
 `http://localhost:3000/api/preview?secret=<PREPRIO_PREVIEW_SECRET>&slug=<SLUG_TO_PREVIEW>`,
 where:
