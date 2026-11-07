@@ -2853,6 +2853,7 @@ async function prerenderAppPage({
 async function renderAppPage(
   req: BaseNextRequest,
   requestHeaders: IncomingHttpHeaders,
+  onUpdateCookies: RenderOpts['onUpdateCookies'],
   {
     ctx,
     metadata,
@@ -2907,11 +2908,10 @@ async function renderAppPage(
   const createRequestStore = createRequestStoreForRender.bind(
     null,
     requestHeaders,
-    res,
     url,
     rootParams,
     implicitTags,
-    renderOpts.onUpdateCookies,
+    onUpdateCookies,
     renderOpts.previewProps,
     isHmrRefresh,
     dev?.serverComponentsHmrCache,
@@ -3169,7 +3169,8 @@ async function renderToHTMLOrFlightImpl(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch,
   stagedFallbackParams: OpaqueFallbackRouteParams | null,
-  devResponseLifecycle: DevResponseLifecycle | null
+  devResponseLifecycle: DevResponseLifecycle | null,
+  onUpdateCookies: RenderOpts['onUpdateCookies']
 ) {
   if (renderOpts.ComponentMod.__next_app__) {
     installGlobalModuleLoadingHandlers(
@@ -3206,6 +3207,7 @@ async function renderToHTMLOrFlightImpl(
   return renderAppPage(
     req,
     requestHeaders,
+    onUpdateCookies,
     prepared,
     postponedState,
     dev,
@@ -3279,7 +3281,8 @@ export type AppPageRender = (
   parsedRequestHeaders: ParsedRequestHeaders,
   serverActionRequestMetadata: ServerActionRequestMetadata,
   stagedFallbackParams: OpaqueFallbackRouteParams | null,
-  devResponseLifecycle: DevResponseLifecycle | null
+  devResponseLifecycle: DevResponseLifecycle | null,
+  onUpdateCookies: RenderOpts['onUpdateCookies']
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
@@ -3383,7 +3386,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   parsedRequestHeaders,
   serverActionRequestMetadata,
   stagedFallbackParams,
-  devResponseLifecycle
+  devResponseLifecycle,
+  onUpdateCookies
 ) => {
   const { url, interpolatedParams, postponedState } = prepareAppPage(
     serverActionRequestMetadata,
@@ -3426,7 +3430,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     fallbackRouteParams,
     routeMatch,
     stagedFallbackParams,
-    devResponseLifecycle
+    devResponseLifecycle,
+    onUpdateCookies
   )
 }
 
