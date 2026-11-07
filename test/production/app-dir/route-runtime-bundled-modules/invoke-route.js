@@ -1,10 +1,12 @@
 // Runs a built route handler in this process the way a deployment adapter
 // does: it sets up the Node.js environment, requires the entrypoint of the
 // route and calls its `handler` with one request. It reports the `next/dist`
-// files that the route loaded on top of the environment, and which of them
-// are modules that the loaded runtime bundles contain as well.
+// files that the route loaded on top of the environment, which of them are
+// modules that the loaded runtime bundles contain as well, and the modules
+// that import those.
 const fs = require('fs')
 const http = require('http')
+const path = require('path')
 
 process.env.NODE_ENV = 'production'
 
@@ -51,13 +53,33 @@ server.listen(0, '127.0.0.1', async () => {
     }
   }
 
+  const loadedTwice = [...loaded.keys()].filter((id) => bundled.has(id)).sort()
+
+  // A module lists every module that it requires in its `children`. An
+  // importer outside of `next/dist` is named by its path in the application.
+  const importers = {}
+  for (const id of loadedTwice) {
+    importers[id] = Object.values(require.cache)
+      .filter((mod) =>
+        mod.children.some((child) => child.filename === loaded.get(id))
+      )
+      .map((mod) => {
+        const file = mod.filename.replace(/\\/g, '/')
+        return file.includes('/next/dist/')
+          ? file.slice(file.lastIndexOf('/next/dist/') + 1)
+          : path.relative(__dirname, mod.filename)
+      })
+      .sort()
+  }
+
   const result = {
     status: res.status,
     body,
     runtimes,
     bundled: [...bundled].sort(),
     loaded: [...loaded.keys()].sort(),
-    loadedTwice: [...loaded.keys()].filter((id) => bundled.has(id)).sort(),
+    loadedTwice,
+    importers,
   }
 
   process.stdout.write(JSON.stringify(result) + '\n', () => process.exit(0))

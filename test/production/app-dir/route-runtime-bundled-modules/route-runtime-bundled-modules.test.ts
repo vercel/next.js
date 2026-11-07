@@ -19,7 +19,7 @@ const KNOWN_DUPLICATES = [
   'next/dist/lib/constants.js',
   // server/lib/incremental-cache/memory-cache.external
   'next/dist/server/response-cache/types.js',
-  // server/app-render/module-loading/track-module-loading.external
+  // server/app-render/module-loading/track-module-loading.instance
   'next/dist/server/app-render/cache-signal.js',
 ]
 
@@ -49,6 +49,7 @@ describe('route-runtime-bundled-modules', () => {
       bundled: string[]
       loaded: string[]
       loadedTwice: string[]
+      importers: Record<string, string[]>
     } = JSON.parse(stdout.trim().split('\n').pop()!)
 
     expect({ status: result.status, body: result.body }).toEqual({
@@ -72,10 +73,14 @@ describe('route-runtime-bundled-modules', () => {
       : [...KNOWN_DUPLICATES, ...KNOWN_DUPLICATES_WEBPACK]
 
     // The route loaded these modules from separate files although its runtime
-    // contains them. Change the import that loads the file, or add the module
-    // to KNOWN_DUPLICATES with the module that imports it.
+    // contains them.
     expect(
-      result.loadedTwice.filter((id) => !knownDuplicates.includes(id))
+      result.loadedTwice
+        .filter((id) => !knownDuplicates.includes(id))
+        .map(
+          (id) =>
+            `${id} is loaded twice: from the runtime bundle, and as a separate file imported by ${result.importers[id].join(' and ')}. Change that import, or add the module to KNOWN_DUPLICATES under the module that imports it`
+        )
     ).toEqual([])
 
     // A module that stays listed after it is fixed could regress unnoticed.
