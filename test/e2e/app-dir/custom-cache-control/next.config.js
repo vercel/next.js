@@ -67,6 +67,15 @@ const nextConfig = {
           },
         ],
       },
+      {
+        source: '/pages-ssr-overridden',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 's-maxage=37',
+          },
+        ],
+      },
     ]
   },
 }
