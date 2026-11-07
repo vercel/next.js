@@ -80,6 +80,17 @@ export async function inlineStaticEnv({
 
   // hashes need updating for any changed client files
   for (const { file, content } of changedClientFiles) {
+    // Source maps are renamed alongside their chunk below: they share the
+    // chunk's original hash, so computing a separate content hash for the
+    // map would produce two hashChanges entries with the same originalHash
+    // and different newHashes. The reference fixup would then rewrite
+    // manifests/runtime to whichever entry landed first (nondeterministic,
+    // under concurrent I/O), potentially pointing at a .js name that was
+    // never created.
+    if (file.endsWith('.js.map')) {
+      continue
+    }
+
     // hash is 16 chars currently for all client chunks
     const originalHash = file.match(/([a-z0-9]{16})\./)?.[1] || ''
 
@@ -98,6 +109,28 @@ export async function inlineStaticEnv({
 
     const filepath = path.join(clientDir, file)
     const newFilepath = filepath.replace(originalHash, newHash)
+
+    filesToCheck.delete(filepath)
+    filesToCheck.add(newFilepath)
+
+    await fs.promises.rename(filepath, newFilepath)
+  }
+
+  // Rename source maps to their chunk's new hash so every name derived from
+  // one original hash stays consistent (and so `sourceMappingURL` references
+  // rewritten by the fixup below resolve to an existing file).
+  for (const { file } of changedClientFiles) {
+    if (!file.endsWith('.js.map')) {
+      continue
+    }
+    const originalHash = file.match(/([a-z0-9]{16})\./)?.[1] || ''
+    const change = hashChanges.find((c) => c.originalHash === originalHash)
+    if (!change) {
+      // The chunk itself wasn't renamed — leave the map as is.
+      continue
+    }
+    const filepath = path.join(clientDir, file)
+    const newFilepath = filepath.replace(originalHash, change.newHash)
 
     filesToCheck.delete(filepath)
     filesToCheck.add(newFilepath)
