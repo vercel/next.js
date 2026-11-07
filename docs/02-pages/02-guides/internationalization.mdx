@@ -213,6 +213,40 @@ When [prerendering](/docs/pages/building-your-application/rendering/static-site-
 
 When leveraging `getStaticPaths`, the configured locales are provided in the context parameter of the function under `locales` and the configured defaultLocale under `defaultLocale`.
 
+### Client-side via `useRouter()`
+
+You can access locale data in the browser using the [`useRouter()`](https://nextjs.org/docs/pages/api-reference/functions/use-router) hook:
+
+```jsx
+import { useRouter } from 'next/router';
+
+export default function LocaleExample() {
+  const { locale, locales, defaultLocale } = useRouter();
+
+  return (
+      Current locale: {locale}
+      All locales: {locales?.join(', ')}
+      Default locale: {defaultLocale}
+  );
+}
+```
+
+### Server-side via `getStaticProps` or `getServerSideProps`
+
+When using [`getStaticProps`](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-static-props) or [`getServerSideProps`](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props), locale values are available through the `context` parameter:
+
+```jsx
+export async function getStaticProps({ locale, locales, defaultLocale }) {
+  return {
+    props: {
+      locale,
+      locales,
+      defaultLocale,
+    },
+  };
+}
+```
+
 ## Transition between locales
 
 You can use `next/link` or `next/router` to transition between locales.
