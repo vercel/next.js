@@ -795,6 +795,10 @@ export function matchKnownRoute(
     null, // Start with null partial vary path at the root
     acc
   )
+  if (reifiedTree === null) {
+    // A param could not be resolved from the URL. Fall back to the server.
+    return null
+  }
 
   // The metadata tree is a flat page node without the intermediate layout
   // structure. Clone it with the updated metadata vary path collected during
@@ -1034,7 +1038,7 @@ function reifyRouteTree(
   search: NormalizedSearch,
   parentPartialVaryPath: PartialVaryPath | null,
   acc: ReifyAccumulator
-): RouteTree<null> {
+): RouteTree<null> | null {
   const originalSegment = pattern.segment
 
   // This segment's param (if any) is a root param iff the segment is at or
@@ -1063,9 +1067,11 @@ function reifyRouteTree(
         isRootParam
       )
     } else {
-      // Param not found in resolvedParams - keep original and inherit partial
-      // TODO: This should never happen. Bail out with null.
-      partialVaryPath = parentPartialVaryPath
+      // A parallel slot's catch-all can overlap a static sibling in another
+      // slot, leaving this param unresolved. Keeping the original segment
+      // would omit it from the vary path and prevent the prefetch response
+      // from fulfilling its cache entry. Let the server resolve the route.
+      return null
     }
   } else {
     // Static segment: inherit partial vary path from parent
@@ -1078,16 +1084,17 @@ function reifyRouteTree(
   if (patternSlots !== null) {
     newSlots = new Map()
     for (const [key, childPattern] of patternSlots) {
-      newSlots.set(
-        key,
-        reifyRouteTree(
-          childPattern,
-          resolvedParams,
-          search,
-          partialVaryPath,
-          acc
-        )
+      const reifiedChild = reifyRouteTree(
+        childPattern,
+        resolvedParams,
+        search,
+        partialVaryPath,
+        acc
       )
+      if (reifiedChild === null) {
+        return null
+      }
+      newSlots.set(key, reifiedChild)
     }
   }
 

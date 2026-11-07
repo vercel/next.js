@@ -584,4 +584,47 @@ describe('optimistic-routing', () => {
       { url: '/dashboard/settings/profile', params: {} },
     ])
   })
+  it('falls back to server resolution when a parallel catch-all param is unresolved beside a static sibling', async () => {
+    const rscSegmentRequestCounts = new Map<string, number>()
+    const maxRequestsPerPath = 25
+
+    const browser = await next.browser('/acme/dashboard', {
+      beforePageLoad(page) {
+        page.on('request', (request) => {
+          const headers = request.headers()
+          if (headers['next-router-segment-prefetch'] === undefined) {
+            return
+          }
+
+          const pathname = new URL(request.url()).pathname
+          rscSegmentRequestCounts.set(
+            pathname,
+            (rscSegmentRequestCounts.get(pathname) ?? 0) + 1
+          )
+        })
+      },
+    })
+
+    expect(await browser.elementById('workspace-dashboard').text()).toBe(
+      'Workspace dashboard for acme'
+    )
+
+    // The unresolved catch-all used to trigger an endless stream of segment
+    // prefetches for one of the visible item links.
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    const excessiveRequest = Array.from(rscSegmentRequestCounts.entries()).find(
+      ([, count]) => count > maxRequestsPerPath
+    )
+    expect(excessiveRequest).toBeUndefined()
+
+    const itemLink = await browser.elementByCss(
+      'a[href="/acme/items/5/view"]'
+    )
+    await itemLink.click()
+    expect(await browser.elementById('item-view').text()).toBe(
+      'Item 5 for acme'
+    )
+  })
+
+
 })
