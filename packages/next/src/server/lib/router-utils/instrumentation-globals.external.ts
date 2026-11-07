@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs'
 import path from 'node:path'
 import isError from '../../../lib/is-error'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
@@ -92,25 +91,18 @@ export async function getInstrumentationModule(
     return cachedInstrumentationModule
   }
 
-  const instrumentationFile = path.join(
-    projectDir,
-    distDir,
-    'server',
-    `${INSTRUMENTATION_HOOK_FILENAME}.js`
-  )
-  if (existsSync(instrumentationFile)) {
-    // An instrumentation file that sets up OpenTelemetry loads its API, when
-    // the file is loaded or in `register()`, and the extensions load it after
-    // `register()`. Loaded before the timed regions so that the lifecycle
-    // spans don't include it.
-    preloadOpenTelemetryApi()
-  }
-
   const startTime = getInstrumentationTimestamp()
   let error: unknown
   try {
     cachedInstrumentationModule = interopDefault(
-      await require(instrumentationFile)
+      await require(
+        path.join(
+          projectDir,
+          distDir,
+          'server',
+          `${INSTRUMENTATION_HOOK_FILENAME}.js`
+        )
+      )
     )
     return cachedInstrumentationModule
   } catch (err: unknown) {
@@ -166,6 +158,10 @@ async function registerInstrumentation(
     throw err
   }
   if (instrumentation?.register) {
+    // The extensions load the OpenTelemetry API after `register()`, and a
+    // `register()` that sets up OpenTelemetry loads it too. Loaded before the
+    // timed region so that the span below doesn't include it.
+    preloadOpenTelemetryApi()
     const startTime = getInstrumentationTimestamp()
     let error: unknown
     let registered = false
