@@ -32,6 +32,14 @@ export default function DepAcceptArrayPage() {
           setAcceptCallCount((c) => c + 1)
         }
       })
+    } else if (import.meta.webpackHot) {
+      import.meta.webpackHot.accept(['./dep-a', './dep-b'], () => {
+        if (mountedRef.current) {
+          setDepAValue(valueA)
+          setDepBValue(valueB)
+          setAcceptCallCount((c) => c + 1)
+        }
+      })
     }
   }, [])
 

@@ -34,21 +34,28 @@ use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
+    source_map::{SourceMaps, structured::StructuredSourceMap},
 };
 
 use crate::parse::{IdentCollector, generate_js_source_map};
 
 /// Minify a whole program, typically a finished chunk.
 #[instrument(level = "info", name = "minify ecmascript code", skip_all)]
-pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
+pub fn minify(code: Code, emit_source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
     // Pass None for the debug ID so we don't needlessly compute it for the pre-minified content, it
     // will be added by the Code object returned from this function
-    let original_map = source_maps.then(|| code.generate_source_map_ref(None));
+    let original_maps = code.source_maps()?;
+    let source_maps = code.has_source_map();
+    anyhow::ensure!(
+        !source_maps || original_maps != SourceMaps::None,
+        "Cannot minify code with incompatible source map variants"
+    );
     let generate_debug_id = code.should_generate_debug_id();
     let source_code = BytesStr::from_utf8(code.into_source_code().into_bytes())?;
     minify_source(
         source_code,
-        original_map,
+        original_maps,
+        emit_source_maps,
         generate_debug_id,
         mangle,
         MinifyTarget::Program,
@@ -66,15 +73,21 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
 #[instrument(level = "info", name = "minify chunk item", skip_all)]
 pub fn minify_chunk_item(
     code: &Code,
-    source_maps: bool,
+    emit_source_maps: bool,
     mangle: Option<MangleType>,
 ) -> Result<Code> {
-    let original_map = source_maps.then(|| code.generate_source_map_ref(None));
+    let original_maps = code.source_maps()?;
+    let source_maps = code.has_source_map();
+    anyhow::ensure!(
+        !source_maps || original_maps != SourceMaps::None,
+        "Cannot minify code with incompatible source map variants"
+    );
     let generate_debug_id = code.should_generate_debug_id();
     let source_code = BytesStr::from_utf8(code.source_code().clone().into_bytes())?;
     minify_source(
         source_code,
-        original_map,
+        original_maps,
+        emit_source_maps,
         generate_debug_id,
         mangle,
         MinifyTarget::ChunkItem,
@@ -108,11 +121,13 @@ const CHUNK_ITEM_SENTINEL: &str = "__TURBOPACK_CHUNK_ITEM__";
 
 fn minify_source(
     source_code: BytesStr,
-    original_map: Option<Rope>,
+    original_maps: SourceMaps<Rope>,
+    emit_source_maps: bool,
     generate_debug_id: bool,
     mangle: Option<MangleType>,
     target: MinifyTarget,
 ) -> Result<Code> {
+    let source_maps = !matches!(original_maps, SourceMaps::None);
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let fm = cm.new_source_file(FileName::Anon.into(), source_code);
 
@@ -156,7 +171,7 @@ fn minify_source(
 
             // Collect identifier names for source maps before minification. Synthetic nodes
             // (the sentinel) have dummy spans and are skipped by the collector.
-            let source_map_names = if original_map.is_some() {
+            let source_map_names = if source_maps {
                 let mut collector = IdentCollector::default();
                 program.visit_with(&mut collector);
                 collector.into_map()
@@ -168,7 +183,7 @@ fn minify_source(
 
             let output = match target {
                 MinifyTarget::Program => {
-                    let (src, src_map_buf) = print(&cm, &program, original_map.is_some())?;
+                    let (src, src_map_buf) = print(&cm, &program, source_maps)?;
                     MinifiedOutput {
                         prefix: None,
                         src,
@@ -202,7 +217,7 @@ fn minify_source(
                         ),
                     };
                     let has_directive = body_starts_with_use_strict(factory);
-                    let (src, src_map_buf) = print(&cm, &*factory, original_map.is_some())?;
+                    let (src, src_map_buf) = print(&cm, &*factory, source_maps)?;
                     let strict_directive = if has_directive {
                         find_leading_use_strict(&src)
                     } else {
@@ -227,44 +242,44 @@ fn minify_source(
         src_map_buf,
         strict_directive,
     } = output;
-    let source_map = |src_map_buf: Vec<(BytePos, LineCol)>| {
-        original_map
-            .as_ref()
-            .map(|original_map| {
-                generate_js_source_map(
-                    &*cm,
-                    src_map_buf,
-                    Some(original_map),
-                    true,
-                    // We do not inline source contents.
-                    // We provide a synthesized value to `cm.new_source_file` above, so it cannot
-                    // be the value user expect anyway.
-                    false,
-                    source_map_names.clone(),
-                )
-            })
-            .transpose()
+    let src_map_buf = if let Some(directive) = &strict_directive {
+        mappings_after(&src, src_map_buf, directive.end)
+    } else {
+        src_map_buf
     };
-
-    let mut builder = CodeBuilder::new(original_map.is_some(), generate_debug_id);
+    let mut maps = original_maps.try_map(|original_map| {
+        generate_js_source_map(
+            &*cm,
+            &src_map_buf,
+            Some(&original_map),
+            true,
+            false,
+            &source_map_names,
+        )
+    })?;
+    if emit_source_maps && matches!(maps, SourceMaps::None) {
+        maps = SourceMaps::Shared(StructuredSourceMap::from_swc_map(
+            swc_sourcemap::SourceMapBuilder::new(None).into_sourcemap(),
+        )?);
+    }
+    let mut builder = CodeBuilder::new(generate_debug_id, maps.generation_options());
     if let Some(prefix) = prefix {
-        builder.push_source(&format!("{prefix},").into(), None::<Rope>);
+        builder.push_source(&format!("{prefix},").into(), SourceMaps::<Rope>::None)?;
     }
     match strict_directive {
-        None => builder.push_source(&src.into(), source_map(src_map_buf)?),
+        None => builder.push_source(&src.into(), maps)?,
         Some(directive) => {
             // The directive becomes its own unmapped section, so that a chunk can remove it
             // without rewriting any source map. The code in front of it is the factory's
             // synthetic head (`function(e){` or `e=>{`, unmapped in the unminified factory as
             // well), so it is emitted unmapped too. The mappings of the body move into a section
             // starting right after the directive.
-            let body_map = mappings_after(&src, src_map_buf, directive.end);
-            builder.push_source(&src[..directive.start].to_string().into(), None::<Rope>);
-            builder.push_strict_directive();
             builder.push_source(
-                &src[directive.end..].to_string().into(),
-                source_map(body_map)?,
-            );
+                &src[..directive.start].to_string().into(),
+                SourceMaps::<Rope>::None,
+            )?;
+            builder.push_strict_directive();
+            builder.push_source(&src[directive.end..].to_string().into(), maps)?;
         }
     }
     Ok(builder.build())
@@ -497,13 +512,22 @@ mod tests {
     use turbopack_core::{
         chunk::MangleType,
         code_builder::{CodeBuilder, STRICT_DIRECTIVE},
+        source_map::{SourceMap, SourceMapGenerationOptions, SourceMapType},
     };
 
     use super::*;
 
+    const BOTH: SourceMapGenerationOptions = SourceMapGenerationOptions {
+        full: true,
+        shallow: true,
+        shallow_sources_content: true,
+    };
+
     fn code(src: &str) -> Code {
-        let mut builder = CodeBuilder::new(false, false);
-        builder.push_source(&src.to_string().into(), None::<Rope>);
+        let mut builder = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
+        builder
+            .push_source(&src.to_string().into(), SourceMaps::<Rope>::None)
+            .unwrap();
         builder.build()
     }
 
@@ -525,12 +549,12 @@ mod tests {
     }
 
     fn compose_text(factory: &Code, without_directive: bool) -> String {
-        let mut code = CodeBuilder::new(false, false);
+        let mut code = CodeBuilder::new(false, factory.source_map_generation_options());
         code += "[1,";
         if without_directive {
-            code.push_code_without_strict_directive(factory);
+            code.push_code_without_strict_directive(factory).unwrap();
         } else {
-            code.push_code(factory);
+            code.push_code(factory).unwrap();
         }
         code += "]";
         code.build().source_code().to_str().unwrap().into_owned()
@@ -551,13 +575,15 @@ mod tests {
 
     #[test]
     fn source_map_is_generated() {
-        let mut builder = CodeBuilder::new(true, false);
-        builder.push_source(
-            &"function (ctx) { const value = 1; ctx.v(value); }"
-                .to_string()
-                .into(),
-            None::<Rope>,
-        );
+        let mut builder = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
+        builder
+            .push_source(
+                &"function (ctx) { const value = 1; ctx.v(value); }"
+                    .to_string()
+                    .into(),
+                SourceMaps::<Rope>::None,
+            )
+            .unwrap();
         let out = minify_chunk_item(&builder.build(), true, Some(MangleType::OptimalSize)).unwrap();
         assert!(out.has_source_map());
         assert!(
@@ -610,8 +636,13 @@ mod tests {
     /// `(generated line, generated column, original line, original column)` of every token
     /// mapped to an original source.
     fn tokens(code: &Code) -> Vec<(u32, u32, u32, u32)> {
-        let map = match swc_sourcemap::decode_slice(&code.generate_source_map_ref(None).to_bytes())
-            .unwrap()
+        let map = match swc_sourcemap::decode_slice(
+            &code
+                .generate_source_map_ref(None, SourceMapType::Full)
+                .unwrap()
+                .to_bytes(),
+        )
+        .unwrap()
         {
             DecodedMap::Regular(map) => map,
             DecodedMap::Index(index) => index.flatten().unwrap(),
@@ -652,19 +683,24 @@ mod tests {
         }
         let mut map_bytes = Vec::new();
         map.into_sourcemap().to_writer(&mut map_bytes).unwrap();
-        let mut builder = CodeBuilder::new(true, false);
-        builder.push_source(&src.to_string().into(), Some(Rope::from(map_bytes)));
+        let mut builder = CodeBuilder::new(false, BOTH);
+        builder
+            .push_source(
+                &src.to_string().into(),
+                SourceMaps::Shared(Rope::from(map_bytes)),
+            )
+            .unwrap();
         let factory =
             minify_chunk_item(&builder.build(), true, Some(MangleType::Deterministic)).unwrap();
         assert!(factory.strict_directive().is_some());
 
         let compose = |without_directive: bool| {
-            let mut code = CodeBuilder::new(true, false);
+            let mut code = CodeBuilder::new(false, factory.source_map_generation_options());
             code += "[1,";
             if without_directive {
-                code.push_code_without_strict_directive(&factory);
+                code.push_code_without_strict_directive(&factory).unwrap();
             } else {
-                code.push_code(&factory);
+                code.push_code(&factory).unwrap();
             }
             code += "]";
             code.build()
@@ -723,5 +759,17 @@ mod tests {
         .unwrap();
         let out = out.source_code().to_str().unwrap().into_owned();
         assert!(out.contains("globalThis.TURBOPACK"), "{out}");
+    }
+    #[test]
+    fn preserves_shared_maps() -> anyhow::Result<()> {
+        let mut code = CodeBuilder::new(false, BOTH);
+        code.push_source(
+            &Rope::from("console.log(1);"),
+            SourceMaps::Shared(SourceMap::empty_rope()),
+        )
+        .unwrap();
+        let minified = minify(code.build(), false, None)?;
+        assert!(matches!(minified.source_maps()?, SourceMaps::Shared(_)));
+        Ok(())
     }
 }

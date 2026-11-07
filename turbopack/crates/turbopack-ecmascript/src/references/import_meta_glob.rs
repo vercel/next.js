@@ -19,7 +19,7 @@ use turbopack_core::{
     reference_type::{InnerAssets, ReferenceType},
     resolve::{ImportUsage, ModulePart, origin::ResolveOrigin},
     source::Source,
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapType},
 };
 
 use crate::{
@@ -885,7 +885,7 @@ impl Asset for ImportMetaGlobSource {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for ImportMetaGlobSource {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<FileContent>> {
+    async fn generate_source_map(self: Vc<Self>, _ty: SourceMapType) -> Result<Vc<FileContent>> {
         let issue_source = self.await?.issue_source;
         call_site_source_map(issue_source, &code(self).await?).await
     }

@@ -227,25 +227,29 @@ pub enum WorkerReferenceSubType {
     Undefined,
 }
 
-// TODO(sokra) this was next.js specific values. We want to solve this in a
-// different way.
+/// Properties of a reference to an entry module.
 #[turbo_tasks::task_input]
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Hash, Encode, Decode)]
-pub enum EntryReferenceSubType {
-    Web,
-    Page,
-    // A development only type that is used in pages router to differentiate between server prop
-    // changes and template changes.
-    PageData,
-    PagesApi,
-    AppPage,
-    AppRoute,
-    AppClientComponent,
-    Middleware,
-    Instrumentation,
-    Runtime,
-    Custom(u8),
-    Undefined,
+#[derive(PartialEq, Eq, Debug, Default, Clone, Hash, Encode, Decode)]
+pub struct EntryReferenceSubType {
+    /// The entry module isn't also reached through ordinary imports, so it is kept whole: it isn't
+    /// split into a facade or into module fragments, and its reexports aren't followed. That way
+    /// its identity doesn't depend on whether it has reexports.
+    ///
+    /// Don't set this for a module that may also be imported: the import would get a split
+    /// module, and the module would be evaluated twice.
+    pub standalone: bool,
+    /// A label for this kind of entry, defined by the embedder. Turbopack doesn't interpret it,
+    /// but module rules can match it with [`ReferenceTypeCondition::Entry`].
+    pub tag: Option<RcStr>,
+}
+
+impl EntryReferenceSubType {
+    pub fn tagged(tag: RcStr) -> Self {
+        Self {
+            tag: Some(tag),
+            ..Default::default()
+        }
+    }
 }
 
 #[turbo_tasks::task_input]
@@ -321,7 +325,8 @@ pub enum ReferenceTypeCondition {
     Url(Option<UrlReferenceSubType>),
     TypeScript(Option<TypeScriptReferenceSubType>),
     Worker(Option<WorkerReferenceSubType>),
-    Entry(Option<EntryReferenceSubType>),
+    /// Matches entries with the given [`EntryReferenceSubType::tag`], or any entry if `None`.
+    Entry(Option<RcStr>),
     Runtime,
     Internal,
     Loader,
@@ -364,6 +369,13 @@ impl ReferenceTypeCondition {
                 $(,)?
             ) => {
                 match $self {
+                    // Only the tag is matched, so an entry's other properties don't affect which
+                    // rules apply to it.
+                    ReferenceTypeCondition::Entry(tag) => {
+                        if let ReferenceType::Entry(entry) = $other {
+                            return tag.is_none() || *tag == entry.tag;
+                        }
+                    }
                     $(
                         ReferenceTypeCondition::$opt(sub_type) => {
                             if let ReferenceType::$opt(other_sub_type) = $other {
@@ -388,7 +400,7 @@ impl ReferenceTypeCondition {
         }
         match_condition_includes!(
             self, other,
-            optional: [CommonJs, EcmaScriptModules, Css, Url, TypeScript, Worker, Entry],
+            optional: [CommonJs, EcmaScriptModules, Css, Url, TypeScript, Worker],
             unit: [Runtime, Loader, Internal],
             value: [Custom],
         );

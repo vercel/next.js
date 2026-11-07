@@ -81,7 +81,7 @@ impl MiddlewareEndpoint {
             .asset_context
             .process(
                 *self.source,
-                ReferenceType::Entry(EntryReferenceSubType::Middleware),
+                ReferenceType::Entry(EntryReferenceSubType::default()),
             )
             .module();
 
@@ -279,7 +279,7 @@ impl MiddlewareEndpoint {
         self.asset_context
             .process(
                 *self.source,
-                ReferenceType::Entry(EntryReferenceSubType::Middleware),
+                ReferenceType::Entry(EntryReferenceSubType::default()),
             )
             .module()
     }

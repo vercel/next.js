@@ -2,6 +2,7 @@ import {
   clearRequestInsightsForTest,
   getRequestInsightsSnapshot,
   registerRequestInsightsExporter,
+  startRequestInsight,
 } from './request-insights'
 import {
   isLocalSpanRecordingEnabled,
@@ -70,6 +71,7 @@ describe('span recording', () => {
   it('forwards request spans directly to request insights', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     registerRequestInsightsExporter()
+    startRequestInsight({ requestId: 'req_1' })
 
     recordSpan({
       name: 'render route (app) /dashboard',

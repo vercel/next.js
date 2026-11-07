@@ -26,7 +26,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
-        MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
+        MangleType, MinifyType, availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -44,6 +44,7 @@ use turbopack_core::{
         origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
     },
+    source_map::SourceMapType,
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -73,7 +74,7 @@ pub struct TurbopackBuildBuilder {
     log_level: IssueSeverity,
     show_all: bool,
     log_detail: bool,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
@@ -93,7 +94,7 @@ impl TurbopackBuildBuilder {
             log_level: IssueSeverity::Warning,
             show_all: false,
             log_detail: false,
-            source_maps_type: SourceMapsType::Full,
+            source_maps_type: Some(SourceMapType::Full),
             minify_type: MinifyType::Minify {
                 mangle: Some(MangleType::OptimalSize),
             },
@@ -128,7 +129,7 @@ impl TurbopackBuildBuilder {
         self
     }
 
-    pub fn source_maps_type(mut self, source_maps_type: SourceMapsType) -> Self {
+    pub fn source_maps_type(mut self, source_maps_type: Option<SourceMapType>) -> Self {
         self.source_maps_type = source_maps_type;
         self
     }
@@ -230,7 +231,7 @@ async fn build_internal(
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
     browserslist_query: RcStr,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
@@ -275,7 +276,7 @@ async fn build_assets(
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
     browserslist_query: RcStr,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
@@ -378,7 +379,7 @@ async fn build_assets(
             .map(|request_vc| {
                 let origin_path = origin_path.clone();
                 async move {
-                    let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
+                    let ty = ReferenceType::Entry(EntryReferenceSubType::default());
                     let request = request_vc.await?;
                     asset_context
                         .resolve_asset(origin_path, request_vc, resolve_options, ty)
@@ -460,7 +461,7 @@ async fn build_assets(
                 .await?,
                 runtime_type,
             )
-            .source_maps(source_maps_type)
+            .emitted_source_map_type(source_maps_type)
             .module_id_strategy(module_id_strategy)
             .export_usage(Some(binding_usage.connect().to_resolved().await?))
             .unused_references(unused_references)
@@ -511,7 +512,7 @@ async fn build_assets(
                 .await?,
                 runtime_type,
             )
-            .source_maps(source_maps_type)
+            .emitted_source_map_type(source_maps_type)
             .module_id_strategy(module_id_strategy)
             .export_usage(Some(binding_usage.connect().to_resolved().await?))
             .unused_references(unused_references)
@@ -704,12 +705,12 @@ pub async fn build(args: &BuildArguments, exit: &ExitHandler) -> Result<()> {
         .log_level(
             args.common
                 .log_level
-                .map_or_else(|| IssueSeverity::Warning, |l| l.0),
+                .map_or(IssueSeverity::Warning, |l| l.0),
         )
         .source_maps_type(if args.no_sourcemap {
-            SourceMapsType::None
+            None
         } else {
-            SourceMapsType::Full
+            Some(SourceMapType::Full)
         })
         .minify_type(if args.no_minify {
             MinifyType::NoMinify

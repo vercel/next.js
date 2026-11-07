@@ -124,6 +124,7 @@ import {
 import {
   importRequestInsightSpans,
   isRequestInsightsEnabled,
+  startRequestInsight,
 } from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -5066,27 +5067,27 @@ async function runInstantInsightsWithTracing<T>(
     return fn(runWithoutInstantInsightsSpan)
   }
 
-  return runWithRequestInsightsIdentity(
-    {
-      requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
-      kind: 'instant-insights',
-      htmlRequestId: ctx.htmlRequestId,
-      url: ctx.url.href,
-    },
-    () =>
-      traceLocalSpan(
-        {
-          name: 'Instant Insights',
-          parentSpan: null,
-          attributes: {
-            'next.span_category': 'nextjs',
-            'next.span_name': 'Instant Insights',
-            'next.span_type': AppRenderSpan.instantInsights,
-            'next.route': ctx.pagePath,
-          },
+  const identity = {
+    requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
+    kind: 'instant-insights' as const,
+    htmlRequestId: ctx.htmlRequestId,
+    url: ctx.url.href,
+  }
+  startRequestInsight(identity)
+  return runWithRequestInsightsIdentity(identity, () =>
+    traceLocalSpan(
+      {
+        name: 'Instant Insights',
+        parentSpan: null,
+        attributes: {
+          'next.span_category': 'nextjs',
+          'next.span_name': 'Instant Insights',
+          'next.span_type': AppRenderSpan.instantInsights,
+          'next.route': ctx.pagePath,
         },
-        () => fn(runInstantInsightsSpan)
-      )
+      },
+      () => fn(runInstantInsightsSpan)
+    )
   )
 }
 
@@ -9192,24 +9193,20 @@ async function prerenderToStream(
   let reactServerRenderChunks: Array<Uint8Array> | null = null
   let reactServerResumeDataCache: ResumeDataCache | null = null
   let reactServerPrerenderStore: null | PrerenderStore = null
-  const setMetadataHeader = (name: string) => {
-    metadata.headers ??= {}
-    metadata.headers[name] = res.getHeader(name)
-  }
+  // Record only the headers this prerender produces. The response may already
+  // carry headers from next.config.js `headers()`, or from the cache entry
+  // being revalidated, and the caller applies `metadata.headers` to it.
   const setHeader = (name: string, value: string | string[]) => {
-    res.setHeader(name, value)
-    setMetadataHeader(name)
-    return res
+    metadata.headers ??= {}
+    metadata.headers[name] = value
   }
-  const appendHeader = (name: string, value: string | string[]) => {
-    if (Array.isArray(value)) {
-      value.forEach((item) => {
-        res.appendHeader(name, item)
-      })
-    } else {
-      res.appendHeader(name, value)
-    }
-    setMetadataHeader(name)
+  const appendHeader = (name: string, value: string) => {
+    metadata.headers ??= {}
+    const existing = metadata.headers[name]
+    metadata.headers[name] =
+      existing === undefined
+        ? value
+        : [...(Array.isArray(existing) ? existing : [String(existing)]), value]
   }
 
   const selectStaleTime = createSelectStaleTime(experimental)
