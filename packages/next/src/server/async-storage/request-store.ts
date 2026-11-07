@@ -257,6 +257,10 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
 // A class, so that the accessors are functions on the prototype. Accessors in
 // an object literal are functions of that one object, and V8 does not free what
 // they capture (here the request) in minor garbage collections.
+//
+// What the accessors read and cache is in private fields, so that a store
+// that is printed or serialized shows neither the request headers nor the
+// preview keys.
 class RequestStoreImpl implements RequestStore {
   readonly type = 'request'
   phase: RequestStore['phase']
@@ -270,14 +274,14 @@ class RequestStoreImpl implements RequestStore {
   readonly stagedFallbackParams: ReadonlySet<string> | null | undefined
   usedDynamic = false
 
-  private readonly rawHeaders: Headers | IncomingHttpHeaders
-  private readonly onUpdateCookies: RequestStoreInputs['onUpdateCookies']
-  private readonly previewProps: RequestStoreInputs['previewProps']
-  private cachedHeaders: ReadonlyHeaders | undefined
-  private cachedCookies: ReadonlyRequestCookies | undefined
-  private cachedMutableCookies: ResponseCookies | undefined
-  private cachedUserspaceMutableCookies: ResponseCookies | undefined
-  private cachedDraftMode: DraftModeProvider | undefined
+  readonly #rawHeaders: Headers | IncomingHttpHeaders
+  readonly #onUpdateCookies: RequestStoreInputs['onUpdateCookies']
+  readonly #previewProps: RequestStoreInputs['previewProps']
+  #cachedHeaders: ReadonlyHeaders | undefined
+  #cachedCookies: ReadonlyRequestCookies | undefined
+  #cachedMutableCookies: ResponseCookies | undefined
+  #cachedUserspaceMutableCookies: ResponseCookies | undefined
+  #cachedDraftMode: DraftModeProvider | undefined
 
   constructor(inputs: RequestStoreInputs) {
     this.phase = inputs.phase
@@ -297,76 +301,76 @@ class RequestStoreImpl implements RequestStore {
       (globalThis as any).__serverComponentsHmrCache
     this.hmrRefreshHash = inputs.hmrRefreshHash
     this.stagedFallbackParams = inputs.stagedFallbackParams
-    this.rawHeaders = inputs.headers
-    this.onUpdateCookies = inputs.onUpdateCookies
-    this.previewProps = inputs.previewProps
+    this.#rawHeaders = inputs.headers
+    this.#onUpdateCookies = inputs.onUpdateCookies
+    this.#previewProps = inputs.previewProps
   }
 
   get headers(): ReadonlyHeaders {
-    if (!this.cachedHeaders) {
+    if (!this.#cachedHeaders) {
       // Seal the headers object that'll freeze out any methods that could
       // mutate the underlying data.
-      this.cachedHeaders = getHeaders(this.rawHeaders)
+      this.#cachedHeaders = getHeaders(this.#rawHeaders)
     }
 
-    return this.cachedHeaders
+    return this.#cachedHeaders
   }
 
   get cookies(): ReadonlyRequestCookies {
-    if (!this.cachedCookies) {
+    if (!this.#cachedCookies) {
       // if middleware is setting cookie(s), then include those in
       // the initial cached cookies so they can be read in render
       const requestCookies = new RequestCookies(
-        HeadersAdapter.from(this.rawHeaders)
+        HeadersAdapter.from(this.#rawHeaders)
       )
 
-      mergeMiddlewareCookies(this.rawHeaders, requestCookies)
+      mergeMiddlewareCookies(this.#rawHeaders, requestCookies)
 
       // Seal the cookies object that'll freeze out any methods that could
       // mutate the underlying data.
-      this.cachedCookies = RequestCookiesAdapter.seal(requestCookies)
+      this.#cachedCookies = RequestCookiesAdapter.seal(requestCookies)
     }
 
-    return this.cachedCookies
+    return this.#cachedCookies
   }
 
   set cookies(value: ReadonlyRequestCookies) {
-    this.cachedCookies = value
+    this.#cachedCookies = value
   }
 
   get mutableCookies(): ResponseCookies {
-    if (!this.cachedMutableCookies) {
+    if (!this.#cachedMutableCookies) {
       const mutableCookies = getMutableCookies(
-        this.rawHeaders,
-        this.onUpdateCookies
+        this.#rawHeaders,
+        this.#onUpdateCookies
       )
 
-      mergeMiddlewareCookies(this.rawHeaders, mutableCookies)
+      mergeMiddlewareCookies(this.#rawHeaders, mutableCookies)
 
-      this.cachedMutableCookies = mutableCookies
+      this.#cachedMutableCookies = mutableCookies
     }
-    return this.cachedMutableCookies
+    return this.#cachedMutableCookies
   }
 
   get userspaceMutableCookies(): ResponseCookies {
-    if (!this.cachedUserspaceMutableCookies) {
-      this.cachedUserspaceMutableCookies =
+    if (!this.#cachedUserspaceMutableCookies) {
+      this.#cachedUserspaceMutableCookies =
         createCookiesWithMutableAccessCheck(this)
     }
-    return this.cachedUserspaceMutableCookies
+    return this.#cachedUserspaceMutableCookies
   }
 
   get draftMode(): DraftModeProvider {
-    if (!this.cachedDraftMode) {
-      this.cachedDraftMode = new DraftModeProvider(
-        this.previewProps,
-        this.rawHeaders,
+    if (!this.#cachedDraftMode) {
+      this.#cachedDraftMode = new DraftModeProvider(
+        this.#previewProps,
+        this.#rawHeaders,
         this.cookies,
         this.mutableCookies
       )
     }
 
-    return this.cachedDraftMode
+    return this.#cachedDraftMode
   }
 }
 

@@ -24,4 +24,19 @@ describe('request-store-accessors', () => {
       userAgent: 'test',
     })
   })
+
+  // What the accessors read and keep (the request headers, the preview keys,
+  // the computed members) is internal: a store that is printed or serialized,
+  // before or after its members were used, must not show it.
+  it('should not show the request headers or the preview keys when a request store is printed', async () => {
+    const res = await next.fetch('/printed', {
+      headers: { cookie: 'session=5f2b7c1e', 'user-agent': 'test' },
+    })
+
+    expect(await res.json()).toEqual({
+      used: ['test', '5f2b7c1e', '5f2b7c1e', false],
+      printsRequestHeaders: false,
+      printsPreviewKeys: false,
+    })
+  })
 })
