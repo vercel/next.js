@@ -1,28 +1,15 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import type { SyncIOApiType } from '../app-render/sync-io-messages'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
-// The modules below are only needed once a prerender or a staged render
-// observes synchronous IO. They are loaded on demand so that servers which
-// never do (most requests in production) don't pay for them at startup.
-let dynamicRendering:
-  | typeof import('../app-render/dynamic-rendering')
-  | undefined
-function loadDynamicRendering() {
-  return (dynamicRendering ??=
-    require('../app-render/dynamic-rendering') as typeof import('../app-render/dynamic-rendering'))
-}
-let dynamicRenderingUtils:
-  | typeof import('../dynamic-rendering-utils')
-  | undefined
-function loadDynamicRenderingUtils() {
-  return (dynamicRenderingUtils ??=
-    require('../dynamic-rendering-utils') as typeof import('../dynamic-rendering-utils'))
-}
-let syncIOMessages: typeof import('../app-render/sync-io-messages') | undefined
-function loadSyncIOMessages() {
-  return (syncIOMessages ??=
-    require('../app-render/sync-io-messages') as typeof import('../app-render/sync-io-messages'))
+// Everything that reporting a synchronous IO access needs is behind
+// `./sync-io-reporting`. It is loaded the first time a prerender or a staged
+// render observes one, so that servers which never do don't load it at startup.
+let syncIOReporting: typeof import('./sync-io-reporting') | undefined
+function loadSyncIOReporting() {
+  return (syncIOReporting ??=
+    require('./sync-io-reporting') as typeof import('./sync-io-reporting'))
 }
 
 export function io(expression: string, type: SyncIOApiType) {
@@ -42,16 +29,15 @@ export function io(expression: string, type: SyncIOApiType) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
         // TODO: synchronize this with `stageController`
-        loadDynamicRendering().abortOnSynchronousPlatformIOAccess(
+        const {
+          abortOnSynchronousPlatformIOAccess,
+          applyOwnerStack,
+          createSyncIOError,
+        } = loadSyncIOReporting()
+        abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
-          loadDynamicRenderingUtils().applyOwnerStack(
-            loadSyncIOMessages().createSyncIOError(
-              workStore.route,
-              expression,
-              type
-            )
-          ),
+          applyOwnerStack(createSyncIOError(workStore.route, expression, type)),
           workUnitStore
         )
       }
@@ -63,15 +49,16 @@ export function io(expression: string, type: SyncIOApiType) {
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
-        loadDynamicRendering().abortOnSynchronousPlatformIOAccess(
+        const {
+          abortOnSynchronousPlatformIOAccess,
+          applyOwnerStack,
+          createSyncIOClientError,
+        } = loadSyncIOReporting()
+        abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
-          loadDynamicRenderingUtils().applyOwnerStack(
-            loadSyncIOMessages().createSyncIOClientError(
-              workStore.route,
-              expression,
-              type
-            )
+          applyOwnerStack(
+            createSyncIOClientError(workStore.route, expression, type)
           ),
           workUnitStore
         )
@@ -81,10 +68,12 @@ export function io(expression: string, type: SyncIOApiType) {
     case 'request': {
       const stageController = workUnitStore.stagedRendering
       if (stageController && stageController.shouldTrackSyncInterrupt()) {
-        const { RenderStage } =
-          require('../app-render/staged-rendering') as typeof import('../app-render/staged-rendering')
-        const { createSyncIOError, createSyncIORuntimeError } =
-          loadSyncIOMessages()
+        const {
+          RenderStage,
+          applyOwnerStack,
+          createSyncIOError,
+          createSyncIORuntimeError,
+        } = loadSyncIOReporting()
         let syncIOError: Error
         // NOTE: keep stages where we can interrupt in sync with
         // `shouldTrackSyncInterrupt`/`syncInterruptCurrentStageWithReason`
@@ -112,15 +101,13 @@ export function io(expression: string, type: SyncIOApiType) {
           case RenderStage.Before:
           case RenderStage.Dynamic:
           case RenderStage.Abandoned: {
-            const { InvariantError } =
-              require('../../shared/lib/invariant-error') as typeof import('../../shared/lib/invariant-error')
             throw new InvariantError(
               `shouldTrackSyncInterrupt allowed a sync IO interrupt in an unexpected stage: ${RenderStage[stageController.currentStage]}`
             )
           }
         }
 
-        syncIOError = loadDynamicRenderingUtils().applyOwnerStack(syncIOError)
+        syncIOError = applyOwnerStack(syncIOError)
         stageController.syncInterruptCurrentStageWithReason(syncIOError)
 
         // A validation render uses a 'request' store type, but may be abortable.
