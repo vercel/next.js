@@ -285,7 +285,7 @@ Use `preload` for a known [Largest Contentful Paint (LCP)](https://nextjs.org/le
 - When the `loading` property is used.
 - When the `fetchPriority` property is used.
 
-In most cases, use [`loading="eager"`](#loading) for an above-the-fold image to start loading it as soon as the browser discovers its `<img>` element. Add [`fetchPriority="high"`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority) if the browser should prioritize that request over other images. `fetchPriority` alone does not disable lazy loading.
+In most cases, use [`loading="eager"`](#loading) for an above-the-fold image to disable lazy loading. Add [`fetchPriority="high"`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority) to ask the browser to prioritize that request over other images. `fetchPriority` alone does not disable lazy loading.
 
 #### `priority`
 
