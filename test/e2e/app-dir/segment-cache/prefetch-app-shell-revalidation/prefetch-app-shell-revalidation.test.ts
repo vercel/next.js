@@ -5,8 +5,9 @@ import { retry } from 'next-test-utils'
 
 /**
  * When a page switches from static to partial during a revalidation,
- * it continues serving static prerender responses for navigations
- * and runtime prefetches even though it shouldn't.
+ * it continues serving static prerender responses for runtime prefetches
+ * even though it shouldn't, and navigations fall back to a document
+ * navigation.
  *
  * This variable enables failing assertions that demonstrate this.
  * We keep both codepaths to also demonstrate the current (incorrect) behavior.
@@ -212,34 +213,17 @@ describe('App Shell revalidation', () => {
         )
       } else {
         // Actual behavior: the static page upgrade is broken.
-        await act(async () => {
-          await browser.elementByCss(`a[href="${route}"]`).click()
-          // The server did not actually return a runtime shell, so we don't
-          // see cookies, just the static prerender result.
-          expect(
-            await browser.elementById('cookie-data-fallback').text()
-          ).toEqual('Loading cookie data...')
-          if (hasPrefetchData) {
-            // We do however show `prefetch()` data, because a static prerender includes those.
-            expect(await browser.elementById('prefetch-data').text()).toBe(
-              'Prefetch data'
-            )
-          }
-        }, [
-          // The navigation request *also* incorrectly returns the (partial) static prerender
-          // result, which does not contain cookies.
-          {
-            includes:
-              'Static page that conditionally uses cookies in the shell',
-          },
-          { includes: 'Cookie data', block: 'reject' },
-        ])
-
-        // The navigation response was partial, so decoding the payload errors with
-        // with "Connection Closed" and crashes the page.
-        expect(await browser.elementById('__next_error__').text()).toContain(
-          'This page couldn’t load'
-        )
+        // The navigation would receive the partial static prerender result, so
+        // the server responds with a 404 and the router falls back to a
+        // document navigation, which renders the cookies.
+        await browser.eval('window.__beforeNavigation = true')
+        await browser.elementByCss(`a[href="${route}"]`).click()
+        await retry(async () => {
+          expect(await browser.elementById('cookie-data').text()).toEqual(
+            'Cookie data'
+          )
+        })
+        expect(await browser.eval('window.__beforeNavigation')).toBeUndefined()
       }
     })
   })

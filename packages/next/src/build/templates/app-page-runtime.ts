@@ -371,6 +371,11 @@ export function createAppPageEntrypoint({
       getRequestMeta(req, 'isRSCRequest') ??
       isRSCRequestHeader(req.headers[RSC_HEADER])
 
+    const isNavigationRSCRequest =
+      isRSCRequest &&
+      !isPrefetchRSCRequest &&
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] === undefined
+
     const serverActionRequestMetadata = getServerActionRequestMetadata(req)
     const { isPossibleServerAction } = serverActionRequestMetadata
 
@@ -1320,10 +1325,16 @@ export function createAppPageEntrypoint({
             pageIsDynamic &&
             (isProduction || !isPrerendered)
           ) {
-            // Serve the fallback for document and static RSC requests. Dynamic
-            // RSC requests render separately and can reuse the RDC from cached
-            // postponed state.
-            if (isRoutePPREnabled && !isDynamicRSCRequest) {
+            // Serve fallback shells for document and prefetch requests.
+            // Static RSC navigations require complete Flight data. They block on a
+            // prerender of the concrete path when its cache entry is missing.
+            // Dynamic RSC requests render fresh Flight data and can reuse the RDC from
+            // cached postponed state.
+            if (
+              isRoutePPREnabled &&
+              !isDynamicRSCRequest &&
+              !isNavigationRSCRequest
+            ) {
               const cacheKey =
                 isProduction && typeof prerenderInfo?.fallback === 'string'
                   ? prerenderInfo.fallback
@@ -2277,6 +2288,24 @@ export function createAppPageEntrypoint({
         // generate both HTML and payloads in the same request so continue to just
         // return the generated payload
         if (isRSCRequest && !isDraftMode) {
+          const shouldFallbackToDocumentNavigation =
+            !isMinimalMode &&
+            isNavigationRSCRequest &&
+            staticPrefetchDataRoute &&
+            didPostpone
+
+          if (shouldFallbackToDocumentNavigation) {
+            res.statusCode = 404
+            return sendRenderResult({
+              req,
+              res,
+              generateEtags: nextConfig.generateEtags,
+              poweredByHeader: nextConfig.poweredByHeader,
+              result: RenderResult.EMPTY,
+              cacheControl: { revalidate: 0, expire: undefined },
+            })
+          }
+
           // If this is a dynamic RSC request, then stream the response.
           if (typeof cachedData.rscData === 'undefined') {
             // If the response is not an RSC response, then we can't serve it.
