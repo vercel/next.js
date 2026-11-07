@@ -372,6 +372,9 @@ describe('short-lived cache remedies', () => {
     expect(cards[0].snippets.map((s) => s.text).join('\n')).toContain(
       'expire: 300'
     )
+    for (const card of cards) {
+      expect(card.snippets.length).toBeLessThanOrEqual(3)
+    }
     expect(cards.some((c) => c.title === 'Cache the data')).toBe(false)
     if (kind.startsWith('static-')) {
       expect(cards.map((c) => c.group)).not.toContain('stream')

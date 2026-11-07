@@ -1081,21 +1081,14 @@ export function getCards(
   cause?: string
 ): FixCard[] {
   if (variant === 'short-cache') {
-    const fullyStatic = kind.startsWith('static-')
     const increase: FixCard = {
       id: 'prerendering-behavior',
       title: 'Increase the cache lifetime',
       group: 'cache',
       link: 'https://nextjs.org/docs/app/api-reference/functions/cacheLife#prerendering-behavior',
       snippets: [
-        { text: '"use cache"' },
-        {
-          text: 'cacheLife({',
-          highlight: true,
-        },
-        { text: `  stale: ${fullyStatic ? 30 : 300},`, highlight: true },
-        { text: '  revalidate: 60,', highlight: true },
-        { text: '  expire: 300,', highlight: true },
+        { text: 'cacheLife({', highlight: true },
+        { text: '  expire: 300, // …', highlight: true },
         { text: '})', highlight: true },
       ],
       copyable: true,
@@ -1111,11 +1104,8 @@ export function getCards(
             ? {
                 ...card,
                 snippets: [
-                  { text: 'async function Page() {' },
                   { text: '- const data = await getData()', highlight: true },
                   { text: "+ const data = 'Static data'", highlight: true },
-                  { text: '  return <Content data={data} />' },
-                  { text: '}' },
                 ],
               }
             : card
