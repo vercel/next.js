@@ -1,3 +1,4 @@
+const { readMappingFixture } = require('./mapping-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -34,9 +35,8 @@ function nodes(ast) {
 }
 function load(mode) {
   const root = path.join(__dirname, 'fixtures/jsx-fragment-owners', mode)
-  const data = JSON.parse(
-    fs.readFileSync(root + '/facts.json'),
-    (key, value) => (key === 'column' && value === null ? Infinity : value)
+  const data = readMappingFixture(root + '/facts.json', (key, value) =>
+    key === 'column' && value === null ? Infinity : value
   )
   data.mode = mode
   data.authored = parseAuthored(

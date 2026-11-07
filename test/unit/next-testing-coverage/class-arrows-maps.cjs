@@ -1,3 +1,4 @@
+const { readMappingFixture } = require('./mapping-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -20,8 +21,8 @@ const {
 const clone = (value) => v8.deserialize(v8.serialize(value))
 function load(mode) {
   const root = path.join(__dirname, 'fixtures/class-arrows/local-arrows')
-  const facts = JSON.parse(
-    fs.readFileSync(path.join(root, mode, 'facts.json')),
+  const facts = readMappingFixture(
+    path.join(root, mode, 'facts.json'),
     (key, value) => (key === 'column' && value === null ? Infinity : value)
   )
   facts.source = fs.readFileSync(path.join(root, 'subject.ts.txt'), 'utf8')

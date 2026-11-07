@@ -1,3 +1,4 @@
+const { readMappingFixture } = require('./mapping-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -23,8 +24,8 @@ function nodes(value) {
 }
 function load(mode) {
   const root = path.join(__dirname, 'fixtures/runtime-namespace')
-  const data = JSON.parse(
-    fs.readFileSync(path.join(root, mode, 'facts.json')),
+  const data = readMappingFixture(
+    path.join(root, mode, 'facts.json'),
     (key, value) => (key === 'column' && value === null ? Infinity : value)
   )
   data.source = fs.readFileSync(path.join(root, 'subject.ts.txt'), 'utf8')

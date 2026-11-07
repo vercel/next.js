@@ -1,3 +1,4 @@
+const { readMappingFixture } = require('./mapping-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -64,7 +65,7 @@ let controls = 0
 for (const mode of ['development', 'production']) {
   const dir = path.join(__dirname, 'fixtures/js-conditionals', mode)
   const d = {
-    ...JSON.parse(fs.readFileSync(dir + '/facts.json'), (key, value) =>
+    ...readMappingFixture(dir + '/facts.json', (key, value) =>
       key === 'column' && value === null ? Infinity : value
     ),
     authored: parse(

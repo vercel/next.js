@@ -1,3 +1,4 @@
+const { readMappingFixture } = require('./mapping-fixtures.cjs')
 const fs = require('node:fs'),
   path = require('node:path'),
   v8 = require('node:v8'),
@@ -16,8 +17,8 @@ const repo = path.resolve(__dirname, '../../..'),
   clone = (x) => v8.deserialize(v8.serialize(x))
 function load(kind, mode) {
   const dir = path.join(__dirname, 'fixtures/parameter-property-calls', kind),
-    facts = JSON.parse(
-      fs.readFileSync(path.join(dir, mode, 'facts.json')),
+    facts = readMappingFixture(
+      path.join(dir, mode, 'facts.json'),
       (key, value) => (key === 'column' && value === null ? Infinity : value)
     ),
     source = fs.readFileSync(path.join(dir, 'subject.ts.txt'), 'utf8'),

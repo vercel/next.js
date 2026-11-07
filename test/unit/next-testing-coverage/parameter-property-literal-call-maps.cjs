@@ -1,3 +1,4 @@
+const { readMappingFixture } = require('./mapping-fixtures.cjs')
 const fs = require('node:fs'),
   path = require('node:path'),
   v8 = require('node:v8'),
@@ -20,8 +21,8 @@ function load(kind, mode) {
       'fixtures/parameter-property-literal-calls',
       kind
     ),
-    facts = JSON.parse(
-      fs.readFileSync(path.join(dir, mode, 'facts.json')),
+    facts = readMappingFixture(
+      path.join(dir, mode, 'facts.json'),
       (key, value) => (key === 'column' && value === null ? Infinity : value)
     ),
     source = fs.readFileSync(path.join(dir, 'subject.ts.txt'), 'utf8'),

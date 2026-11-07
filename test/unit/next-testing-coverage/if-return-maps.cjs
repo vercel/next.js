@@ -1,3 +1,4 @@
+const { readMappingFixture } = require('./mapping-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -57,9 +58,8 @@ function editMap(d, edit) {
 }
 for (const mode of ['development', 'production']) {
   const dir = path.join(__dirname, 'fixtures/lcovonly/if-return', mode)
-  const facts = JSON.parse(
-    fs.readFileSync(dir + '/facts.json'),
-    (key, value) => (key === 'column' && value === null ? Infinity : value)
+  const facts = readMappingFixture(dir + '/facts.json', (key, value) =>
+    key === 'column' && value === null ? Infinity : value
   )
   const d = {
     ...facts,
