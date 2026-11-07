@@ -1,0 +1,15 @@
+[92;4msuggestion - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/url-default-argument/input/index.js:9:6  lint TP1201 new URL(???*0*, import.meta*1*["url"]) is very dynamic
+  
+       5 | }
+       6 | 
+       7 | globalThis.fallbackURL = (override) =>
+       8 |   override != null
+         +       v--------------------------------v
+       9 +     ? new URL(override, import.meta.url)
+         +       ^--------------------------------^
+      10 |     : new URL('./fallback.txt', import.meta.url)
+      11 | 
+  
+  - *0* arguments[0]
+    ⚠️  function calls are not analyzed yet
+  - *1* import.meta: The import.meta object
