@@ -1,5 +1,10 @@
 import { consoleAsyncStorage } from '../app-render/console-async-storage.external'
 
+// Only the development server writes logs to a file, so these two are loaded
+// in the development branch at the end of this file.
+let getFileLogger: typeof import('../dev/browser-logs/file-logger').getFileLogger
+let formatConsoleArgs: typeof import('../../client/lib/console').formatConsoleArgs
+
 type InterceptableConsoleMethod =
   | 'error'
   | 'assert'
@@ -16,11 +21,7 @@ type InterceptableConsoleMethod =
   | 'warn'
 
 // Based on https://github.com/facebook/react/blob/28dc0776be2e1370fe217549d32aee2519f0cf05/packages/react-server/src/ReactFlightServer.js#L248
-function patchConsoleMethodDEV(
-  methodName: InterceptableConsoleMethod,
-  getFileLogger: typeof import('../dev/browser-logs/file-logger').getFileLogger,
-  formatConsoleArgs: typeof import('../../client/lib/console').formatConsoleArgs
-): void {
+function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
   const descriptor = Object.getOwnPropertyDescriptor(console, methodName)
   if (
     descriptor &&
@@ -59,22 +60,23 @@ function patchConsoleMethodDEV(
 }
 
 if (process.env.NODE_ENV === 'development') {
-  // Loaded on demand: only the development server writes logs to a file.
-  const { getFileLogger } =
+  getFileLogger = (
     require('../dev/browser-logs/file-logger') as typeof import('../dev/browser-logs/file-logger')
-  const { formatConsoleArgs } =
+  ).getFileLogger
+  formatConsoleArgs = (
     require('../../client/lib/console') as typeof import('../../client/lib/console')
-  patchConsoleMethodDEV('error', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('assert', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('debug', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('dir', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('dirxml', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('group', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('groupCollapsed', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('groupEnd', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('info', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('log', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('table', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('trace', getFileLogger, formatConsoleArgs)
-  patchConsoleMethodDEV('warn', getFileLogger, formatConsoleArgs)
+  ).formatConsoleArgs
+  patchConsoleMethodDEV('error')
+  patchConsoleMethodDEV('assert')
+  patchConsoleMethodDEV('debug')
+  patchConsoleMethodDEV('dir')
+  patchConsoleMethodDEV('dirxml')
+  patchConsoleMethodDEV('group')
+  patchConsoleMethodDEV('groupCollapsed')
+  patchConsoleMethodDEV('groupEnd')
+  patchConsoleMethodDEV('info')
+  patchConsoleMethodDEV('log')
+  patchConsoleMethodDEV('table')
+  patchConsoleMethodDEV('trace')
+  patchConsoleMethodDEV('warn')
 }
