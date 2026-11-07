@@ -851,8 +851,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .context("Failed to read uncompressed length from blob file")?;
         let expected_checksum = reader.read_u32::<BE>()?;
 
-        // Verify checksum on the compressed on-disk data before decompression.
-        let actual_checksum = checksum_block(reader);
+        // Verify the checksum, which covers the length header and the compressed on-disk data,
+        // before the length is used to size the decompression buffer.
+        let actual_checksum = checksum_block(uncompressed_length, reader);
         if actual_checksum != expected_checksum {
             bail!(
                 "Cache corruption detected: checksum mismatch in blob file {:08}.blob (expected \
