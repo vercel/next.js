@@ -31,6 +31,8 @@ export function describe<P>(
         } catch (e) {
           iface = await import(ifaceName)
         }
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         iface = (iface && (iface as any).default) || iface
         if (typeof iface === 'function') {
           iface = await iface()

@@ -138,6 +138,8 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     ).toString()
     const isAppDir = pagesType === 'app'
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const buildInfo = getModuleBuildInfo(this._module as any)
     buildInfo.nextEdgeSSR = {
       isServerComponent,

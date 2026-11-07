@@ -16,7 +16,11 @@ window.next = {
   },
   emitter,
 }
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(self as any).__next_set_public_path__ = () => {}
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(self as any).__webpack_hash__ = ''
 
 // for the page loader
@@ -25,6 +29,8 @@ declare let __turbopack_load__: any
 initialize({})
   .then(() => {
     // for the page loader
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(self as any).__turbopack_load_page_chunks__ = (
       page: string,
       chunksData: any

@@ -4,6 +4,8 @@ import { parseRelativeUrl } from 'next/dist/shared/lib/router/utils/parse-relati
 // convenience function so tests can be aligned neatly
 // and easy to eyeball
 const check = (windowUrl, targetUrl, expected) => {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   window.location = new URL(windowUrl) as any
   if (typeof expected === 'string') {
     expect(() => parseRelativeUrl(targetUrl)).toThrow(expected)
@@ -17,12 +19,16 @@ const check = (windowUrl, targetUrl, expected) => {
 
 describe('parseRelativeUrl', () => {
   beforeAll(() => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(global as any).window = {
       location: {},
     }
   })
 
   afterAll(() => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     delete (global as any).window
   })
 

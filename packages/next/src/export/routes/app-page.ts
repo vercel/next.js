@@ -299,6 +299,8 @@ export async function exportAppPage(
     let fetchMetrics: FetchMetrics | undefined
 
     if (debugOutput) {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const store = (renderOpts as any).store as WorkStore
       const { dynamicUsageDescription, dynamicUsageStack } = store
       fetchMetrics = store.fetchMetrics

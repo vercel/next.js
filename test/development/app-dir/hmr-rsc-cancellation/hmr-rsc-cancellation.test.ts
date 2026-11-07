@@ -38,7 +38,11 @@ describe('hmr-rsc-cancellation', () => {
   async function instrumentBrowser(browser: Playwright) {
     await browser.eval(() => {
       const requests: Array<{ aborted: boolean; settled: boolean }> = []
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(window as any).__hmrRequests = requests
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(window as any).__reloadSentinel = true
       const originalFetch = window.fetch
       window.fetch = (input: any, init: any) => {
@@ -74,10 +78,14 @@ describe('hmr-rsc-cancellation', () => {
 
   function readResult(browser: Playwright) {
     return browser.eval(() => ({
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       requests: (window as any).__hmrRequests as Array<{
         aborted: boolean
         settled: boolean
       }>,
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       reloaded: (window as any).__reloadSentinel !== true,
     }))
   }
@@ -122,6 +130,8 @@ describe('hmr-rsc-cancellation', () => {
     )
     await retry(async () => {
       expect(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         await browser.eval(() => (window as any).__hmrRequests.length)
       ).toBe(1)
     })
@@ -230,6 +240,8 @@ describe('hmr-rsc-cancellation', () => {
     )
     await retry(async () => {
       expect(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         await browser.eval(() => (window as any).__hmrRequests.length)
       ).toBe(1)
     })
@@ -283,6 +295,8 @@ describe('hmr-rsc-cancellation', () => {
     )
     await retry(async () => {
       expect(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         await browser.eval(() => (window as any).__hmrRequests.length)
       ).toBe(1)
     })

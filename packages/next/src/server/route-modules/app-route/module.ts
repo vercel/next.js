@@ -657,6 +657,8 @@ export class AppRouteRouteModule extends RouteModule<
         if (
           typeof prospectiveResult === 'object' &&
           prospectiveResult !== null &&
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           typeof (prospectiveResult as any).then === 'function'
         ) {
           // The handler returned a Thenable. We'll listen for rejections to determine

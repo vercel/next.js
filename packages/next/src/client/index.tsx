@@ -209,6 +209,8 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   const prefix: string = initialData.assetPrefix || ''
   // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
   // So, this is how we do it in the client side at runtime
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(self as any).__next_set_public_path__(`${prefix}/_next/`)
 
   asPath = getURL()
@@ -250,6 +252,8 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
 
       // attempt detecting default locale based on hostname
       const detectedDomain = detectDomainLocale(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         process.env.__NEXT_I18N_DOMAINS as any,
         window.location.hostname
       )
@@ -278,6 +282,8 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
     window.__NEXT_P.map((p) => setTimeout(() => register(p), 0))
   }
   window.__NEXT_P = []
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(window.__NEXT_P as any).push = register
 
   headManager = initHeadManager()
@@ -320,7 +326,7 @@ function AppContainer({
                   <ImageConfigContext.Provider
                     value={
                       process.env
-                        .__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+                        .__NEXT_IMAGE_OPTS as any as ImageConfigComplete // eslint-disable-line @next/internal/no-as-any -- TODO(as-any): pre-existing cast, not yet reviewed
                     }
                   >
                     {children}

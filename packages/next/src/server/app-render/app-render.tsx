@@ -3676,6 +3676,8 @@ async function renderToStream(
   // during stream consumption, after a typical wrapped function would have ended the span.
   // Note: We pass the full span name as the first argument since startSpan uses it directly.
   const renderSpan = getTracer().startSpan(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     `render route (app) ${pagePath}` as any,
     {
       attributes: {
@@ -4511,6 +4513,8 @@ async function renderToStream(
             getErrorRSCPayload,
             tree,
             ctx,
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             reactServerErrorsByDigest.has((err as any).digest) ? null : err,
             errorType,
             // Normal error rendering should include the error payload head.
@@ -4605,6 +4609,8 @@ async function renderToStream(
             getErrorRSCPayload,
             tree,
             ctx,
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             reactServerErrorsByDigest.has((err as any).digest) ? null : err,
             errorType,
             // Normal error rendering should include the error payload head.
@@ -10066,9 +10072,10 @@ async function prerenderToStream(
                     isPrerenderInterruptedError(err) ||
                     finalClientReactController.signal.aborted
                   ) {
-                    const componentStack: string | undefined = (
-                      errorInfo as any
-                    ).componentStack
+                    const componentStack: string | undefined =
+                      // TODO(as-any): pre-existing cast, not yet reviewed
+                      // eslint-disable-next-line @next/internal/no-as-any
+                      (errorInfo as any).componentStack
                     if (typeof componentStack === 'string') {
                       if (ensureStaticLevel === EnsureStaticLevel.Navigation) {
                         trackDynamicAccessInStaticRoute(
@@ -10510,6 +10517,8 @@ async function prerenderToStream(
         (isBuildTimePrerendering ||
           reactServerPrerenderResultIsDynamic === null)
       ) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         throw reactServerErrorsByDigest.get((err as any)?.digest) ?? err
       }
     }
@@ -10612,6 +10621,8 @@ async function prerenderToStream(
         getErrorRSCPayload,
         tree,
         ctx,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         reactServerErrorsByDigest.has((err as any)?.digest) ? undefined : err,
         errorType,
         // The recovery shell only bootstraps the original Flight data. Avoid
@@ -10718,9 +10729,10 @@ async function prerenderToStream(
                     isPrerenderInterruptedError(clientError) ||
                     errorClientReactController.signal.aborted
                   ) {
-                    const componentStack: string | undefined = (
-                      errorInfo as any
-                    ).componentStack
+                    const componentStack: string | undefined =
+                      // TODO(as-any): pre-existing cast, not yet reviewed
+                      // eslint-disable-next-line @next/internal/no-as-any
+                      (errorInfo as any).componentStack
                     if (typeof componentStack === 'string') {
                       trackAllowedDynamicAccess(
                         clientError,
@@ -10928,6 +10940,8 @@ async function prerenderToStream(
       getErrorRSCPayload,
       tree,
       ctx,
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       reactServerErrorsByDigest.has((err as any)?.digest) ? undefined : err,
       errorType,
       // Legacy prerender recovery should include the error payload head.

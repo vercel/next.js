@@ -215,7 +215,11 @@ export class Telemetry {
         return res
       })
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(prom as any)._events = Array.isArray(_events) ? _events : [_events]
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(prom as any)._controller = (prom as any)._controller
     // Track this `Promise` so we can flush pending events
     this.queue.add(prom)

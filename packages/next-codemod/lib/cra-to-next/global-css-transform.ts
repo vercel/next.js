@@ -35,6 +35,8 @@ export default function transformer(
           }
           globalCssContext.cssImports.add(resolvedPath)
 
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           const { start, end } = path.node as any
 
           if (!path.parentPath.node.comments) {
@@ -48,6 +50,8 @@ export default function transformer(
           return true
         } else if (value.endsWith('.svg')) {
           const isComponentImport = path.node.specifiers.some((specifier) => {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             return (specifier as any).imported?.name === 'ReactComponent'
           })
 

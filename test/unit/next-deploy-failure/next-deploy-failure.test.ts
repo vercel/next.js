@@ -84,18 +84,28 @@ describe('deployment lifecycle', () => {
         this.emit('destroy', [])
       })
     jest
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       .spyOn(NextInstance.prototype as any, 'createTestDir')
       .mockResolvedValue(undefined)
     jest
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       .spyOn(NextDeployInstance.prototype as any, 'writeMirrorNpmrcIfNecessary')
       .mockResolvedValue(undefined)
     jest
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       .spyOn(NextDeployInstance.prototype as any, 'preparePnpmSettings')
       .mockReturnValue(undefined)
     jest
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       .spyOn(NextDeployInstance.prototype as any, 'pinNodeVersion')
       .mockReturnValue(undefined)
     jest
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       .spyOn(NextDeployInstance.prototype as any, 'configureProxyAddress')
       .mockResolvedValue(undefined)
 

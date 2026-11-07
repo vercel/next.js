@@ -1256,6 +1256,8 @@ export async function createHotReloaderTurbopack(
       previousRouteKeys = new Set(routes.keys())
 
       await handleEntrypoints({
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         entrypoints: entrypoints as any,
 
         currentEntrypoints,

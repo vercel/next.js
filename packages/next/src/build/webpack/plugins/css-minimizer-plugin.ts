@@ -32,6 +32,8 @@ export class CssMinimizerPlugin {
       // We don't actually add this parser to support Sass. It can also be used
       // for inline comment support. See the README:
       // https://github.com/postcss/postcss-scss/blob/master/README.md#2-inline-comments-for-postcss
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       parser: postcssScss as any as Parser,
     }
 

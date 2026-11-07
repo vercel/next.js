@@ -178,6 +178,8 @@ export const resolveOpenGraph: AsyncFieldResolverExtraArgs<
       if (key in og && key !== 'url') {
         const value = og[key]
         // TODO: improve typing inferring
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(target as any)[key] = value ? resolveArray(value) : null
       }
     }

@@ -539,6 +539,8 @@ async function exportAppImpl(
   }
 
   // We need this for server rendering the Link component.
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(globalThis as any).__NEXT_DATA__ = {
     nextExport: true,
   }

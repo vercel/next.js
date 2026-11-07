@@ -821,6 +821,8 @@ async function writeImagesManifest(
 ): Promise<void> {
   const images = { ...config.images }
   const { deviceSizes, imageSizes } = images
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
 
   // By default, remotePatterns will allow no remote images ([])

@@ -397,7 +397,11 @@ describe('runtime-error-events', () => {
       const browser = await next.browser('/navigation/next')
       await browser.loadPage(`${next.url}/navigation`)
       const marker = await browser.eval(() => {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(window as any).__navigationMarker = Math.random()
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         return (window as any).__navigationMarker
       })
       await browser.elementByCss('#log').click()
@@ -420,6 +424,8 @@ describe('runtime-error-events', () => {
           })
         )
       })
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect(await browser.eval(() => (window as any).__navigationMarker)).toBe(
         marker
       )

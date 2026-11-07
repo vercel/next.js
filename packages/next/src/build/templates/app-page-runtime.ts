@@ -242,8 +242,10 @@ export function createAppPageEntrypoint({
     // `BaseServer.handleRequest`, which records the target before normalization.
     const httpTarget = req.url
 
-    const multiZoneDraftMode = process.env
-      .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
+    const multiZoneDraftMode =
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
+      process.env.__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
     // Registering `instrumentation.ts` usually installs the tracer provider, so
     // do it before starting the request span. The span is started before
@@ -899,6 +901,8 @@ export function createAppPageEntrypoint({
         ))
 
       incrementalCache?.resetRequestCache()
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(globalThis as any).__incrementalCache = incrementalCache
 
       const doRender = async ({
@@ -1127,6 +1131,8 @@ export function createAppPageEntrypoint({
 
         // Keep recovery output separate from successful response cache entries.
         if ('error' in result) {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(req as any).fetchMetrics = result.result.metadata.fetchMetrics
           return result
         }
@@ -1163,6 +1169,8 @@ export function createAppPageEntrypoint({
         }
 
         // Pull any fetch metrics from the render onto the request.
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(req as any).fetchMetrics = fetchMetrics
 
         // we don't throw static to dynamic errors in dev as isSSG

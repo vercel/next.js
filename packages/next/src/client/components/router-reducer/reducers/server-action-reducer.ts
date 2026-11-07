@@ -594,6 +594,8 @@ function createRedirectErrorForAction(
   // again, as it's run within an effect.
   // We don't actually need the RedirectBoundary to do a router.push because we already
   // have all the necessary RSC data to render the new page within a single roundtrip.
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(redirectError as any).handled = true
   return redirectError
 }
