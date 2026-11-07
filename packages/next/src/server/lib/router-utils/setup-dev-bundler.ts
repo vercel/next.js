@@ -92,6 +92,7 @@ import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
+  JAVASCRIPT_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
   INSTRUMENTATION_HOOK_FILENAME,
   MIDDLEWARE_FILENAME,
@@ -1557,8 +1558,28 @@ async function startWatcher(
         pathname.includes(devTurbopackMiddlewareManifestPath))
     ) {
       res.statusCode = 200
-      res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
-      res.end(JSON.stringify(serverFields.middleware?.matchers || []))
+      const isTurbopackManifestRequest = pathname.includes(
+        devTurbopackMiddlewareManifestPath
+      )
+      res.setHeader(
+        'Content-Type',
+        isTurbopackManifestRequest
+          ? JAVASCRIPT_CONTENT_TYPE_HEADER
+          : JSON_CONTENT_TYPE_HEADER
+      )
+
+      const middlewareMatchers = JSON.stringify(
+        serverFields.middleware?.matchers || []
+      )
+      if (isTurbopackManifestRequest) {
+        res.end(
+          'self.__MIDDLEWARE_MATCHERS = ' +
+            middlewareMatchers +
+            ';self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()'
+        )
+      } else {
+        res.end(middlewareMatchers)
+      }
       return { finished: true }
     }
     return { finished: false }
