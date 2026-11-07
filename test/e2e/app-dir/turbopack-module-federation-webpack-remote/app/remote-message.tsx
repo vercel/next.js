@@ -1,6 +1,13 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
+
+const RemoteComponent = dynamic(
+  // @ts-expect-error -- provided by Module Federation at runtime
+  () => import('catalog/component'),
+  { ssr: false, loading: () => <p>loading remote component</p> }
+)
 
 export function RemoteMessage() {
   const [message, setMessage] = useState('loading')
@@ -44,6 +51,7 @@ export function RemoteMessage() {
   return (
     <>
       <p id="remote-message">{message}</p>
+      <RemoteComponent />
       <p id="worker-message">{workerMessage}</p>
       <p id="remote-script-count">{scriptCount}</p>
     </>
