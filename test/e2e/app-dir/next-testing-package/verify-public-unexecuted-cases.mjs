@@ -14,6 +14,10 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from './process-supervisor.mjs'
+import {
+  publicModeConfig,
+  publicModeExpectations,
+} from './public-mode-contracts.mjs'
 const [consumer, output, mode = 'development'] = process.argv.slice(2)
 assert(consumer && output && ['development', 'production'].includes(mode))
 const require = createRequire(join(consumer, 'package.json'))
@@ -28,6 +32,13 @@ const profiles = JSON.parse(
     ),
     'utf8'
   )
+)
+const reporter = readFileSync(
+  join(
+    dirname(fileURLToPath(import.meta.url)),
+    'fixtures/public-mode-reporter.mjs'
+  ),
+  'utf8'
 )
 assert(!existsSync(output))
 mkdirSync(output, { recursive: true })
@@ -54,9 +65,12 @@ const junitProjection = (xml) => {
   }
 }
 const checks = []
-for (const { profile, source, reporter, config, expected: byMode } of profiles)
+for (const { profile, source, expected: contract } of profiles)
   for (const variant of ['custom-json', 'json-only', 'junit-only']) {
-    const expected = byMode[mode][variant],
+    const expected = publicModeExpectations(contract, {
+        reporter: variant === 'custom-json',
+        junit: variant === 'junit-only',
+      }),
       out = join(output, profile + '-' + variant),
       fixture = join(consumer, '.next-test-unexecuted-' + randomUUID())
     mkdirSync(out)
@@ -70,7 +84,7 @@ for (const { profile, source, reporter, config, expected: byMode } of profiles)
     writeFileSync(
       join(fixture, 'vitest.config.mjs'),
       'export default ' +
-        JSON.stringify({ test: { ...config.test, mode } }) +
+        JSON.stringify({ test: { ...publicModeConfig.test, mode } }) +
         '\n'
     )
     const env = {

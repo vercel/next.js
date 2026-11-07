@@ -14,6 +14,10 @@ import {
   runOwnedNode,
   assertOwnedNodeCompleted,
 } from './process-supervisor.mjs'
+import {
+  publicModeConfig,
+  publicModeExpectations,
+} from './public-mode-contracts.mjs'
 const [consumer, output, mode = 'development'] = process.argv.slice(2)
 assert(consumer && output)
 assert(['development', 'production'].includes(mode))
@@ -30,10 +34,18 @@ const profiles = JSON.parse(
     'utf8'
   )
 )
+const reporter = readFileSync(
+  join(
+    dirname(fileURLToPath(import.meta.url)),
+    'fixtures/public-mode-reporter.mjs'
+  ),
+  'utf8'
+)
 assert(!existsSync(output))
 mkdirSync(output, { recursive: true })
 const checks = []
-for (const { profile, source, reporter, config, expected } of profiles) {
+for (const { profile, source, expected: contract } of profiles) {
+  const expected = publicModeExpectations(contract)
   const out = join(output, profile),
     fixture = join(consumer, '.next-test-file-modes-' + randomUUID())
   mkdirSync(out)
@@ -47,7 +59,7 @@ for (const { profile, source, reporter, config, expected } of profiles) {
   writeFileSync(
     join(fixture, 'vitest.config.mjs'),
     'export default ' +
-      JSON.stringify({ test: { ...config.test, mode } }) +
+      JSON.stringify({ test: { ...publicModeConfig.test, mode } }) +
       '\n'
   )
   const env = {
