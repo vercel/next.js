@@ -106,7 +106,7 @@ pub struct NextSegmentConfig {
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
     pub revalidate: Option<NextRevalidate>,
-    pub max_duration: Option<u32>,
+    pub max_duration: Option<u64>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<NextSegmentRegion>,
@@ -134,7 +134,7 @@ pub struct NextSegmentConfig {
 #[derive(Default)]
 struct LegacySegmentConfig {
     runtime: Option<NextRuntime>,
-    max_duration: Option<u32>,
+    max_duration: Option<u64>,
 }
 
 #[turbo_tasks::value_impl]
@@ -1179,17 +1179,18 @@ async fn parse_config_value(
     Ok(())
 }
 
-fn parse_max_duration(value: &JsValue<'_>) -> Result<Option<u32>, &'static str> {
+fn parse_max_duration(value: &JsValue<'_>) -> Result<Option<u64>, &'static str> {
     if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
         return Ok(None);
     }
     let JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) = value else {
         return Err("needs to be a static number.");
     };
-    if !val.is_finite() || *val < 0.0 || val.fract() != 0.0 || *val > u32::MAX as f64 {
-        return Err("needs to be a non-negative integer no greater than 4294967295.");
+    // u64::MAX rounds up to 2^64 as f64, so the upper bound must be exclusive.
+    if !val.is_finite() || *val < 0.0 || val.fract() != 0.0 || *val >= u64::MAX as f64 {
+        return Err("needs to be a non-negative integer less than 18446744073709551616.");
     }
-    Ok(Some(*val as u32))
+    Ok(Some(*val as u64))
 }
 
 async fn parse_preferred_region_from_js_value(
