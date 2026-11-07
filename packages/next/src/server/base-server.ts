@@ -1896,7 +1896,7 @@ export default abstract class Server<
     }
   }
 
-  private getRouteDefinitions(): RouteDefinition[] {
+  protected getRouteDefinitions(): RouteDefinition[] {
     // Route definitions are rebuilt from the manifests instead of being held
     // by route matcher providers. This keeps direct BaseServer entrypoints
     // working when requests do not pass through router-server's fsChecker.

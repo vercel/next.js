@@ -10,6 +10,7 @@ import type { AppPageRouteDefinition } from '../../route-definitions/app-page-ro
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppGoRouteRouteDefinition } from '../../route-definitions/app-go-route-route-definition'
 import type { LocaleRouteDefinition } from '../../route-definitions/locale-route-definition'
+import type { RouteDefinition } from '../../route-definitions/route-definition'
 
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
@@ -127,6 +128,7 @@ import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
+import { isBlockedPage } from '../../utils'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -163,6 +165,7 @@ export type ServerFields = {
   actualMiddlewareFile?: string | undefined
   actualInstrumentationHookFile?: string | undefined
   appPathRoutes?: Record<string, string | string[]>
+  devRouteDefinitions?: RouteDefinition[]
   middleware?:
     | {
         page: string
@@ -1258,8 +1261,22 @@ async function startWatcher(
       opts.fsChecker.setRouteDefinitions('pageFile', pageRouteDefinitions)
       opts.fsChecker.setRouteDefinitions('appFile', appRouteDefinitions)
 
+      const routeDefinitions = [...pageRouteDefinitions, ...appRouteDefinitions]
+
+      // A request that does not pass through fsChecker, such as on-demand
+      // revalidation, is matched by the render server. Give it the same
+      // routes, without the pages that no request can match.
+      serverFields.devRouteDefinitions = routeDefinitions.filter(
+        (definition) => !isBlockedPage(definition.pathname)
+      )
+      await propagateServerField(
+        opts,
+        'devRouteDefinitions',
+        serverFields.devRouteDefinitions
+      )
+
       const routeKinds = new Map(
-        [...pageRouteDefinitions, ...appRouteDefinitions].map((definition) => [
+        routeDefinitions.map((definition) => [
           definition.pathname,
           definition.kind,
         ])

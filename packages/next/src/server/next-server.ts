@@ -1082,6 +1082,18 @@ export default class NextNodeServer extends BaseServer<
         const routeMatch = this.getRouteMatch(pathname, localeAnalysisResult)
         if (routeMatch) {
           match = routeMatch
+
+          // In development fsChecker compiles the route that it matches. This
+          // match did not come from fsChecker, so compile the route here.
+          if (this.dev) {
+            await this.ensurePage({
+              page: match.definition.page,
+              definition: match.definition,
+              clientOnly: false,
+              appPaths: null,
+              url: req.url,
+            })
+          }
         }
       }
 

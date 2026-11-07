@@ -155,6 +155,11 @@ export default class DevServer extends Server {
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
   private readonly bundlerService: DevBundlerService
+  /**
+   * The routes on disk. The dev bundler assigns a new list whenever a route
+   * file is added or removed.
+   */
+  private devRouteDefinitions?: RouteDefinition[]
   private staticPathsCache: LRUCache<
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
@@ -639,6 +644,12 @@ export default class DevServer extends Server {
     return (
       requireManifest(pathJoin(this.serverDistDir, PAGES_MANIFEST)) ?? undefined
     )
+  }
+
+  protected getRouteDefinitions(): RouteDefinition[] {
+    // The manifests only list the routes that were compiled when the server
+    // started, so the routes come from the files on disk instead.
+    return this.devRouteDefinitions ?? []
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
