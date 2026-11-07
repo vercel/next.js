@@ -978,6 +978,7 @@ async function writeStandaloneDirectory(
 
 function getNumberOfWorkers(config: NextConfigComplete, maxTasks?: number) {
   let workers: number
+  let isUserOverride = false
 
   if (
     config.experimental.cpus &&
@@ -985,6 +986,7 @@ function getNumberOfWorkers(config: NextConfigComplete, maxTasks?: number) {
   ) {
     // If it's not set to the default, it's a user override
     workers = config.experimental.cpus
+    isUserOverride = true
   } else if (config.experimental.memoryBasedWorkersCount) {
     workers = Math.max(
       Math.min(config.experimental.cpus || 1, Math.floor(os.freemem() / 1e9)),
@@ -999,8 +1001,11 @@ function getNumberOfWorkers(config: NextConfigComplete, maxTasks?: number) {
   }
 
   // Cap workers to one more than the number of tasks.
-  // Tasks can be passed to avoid over-allocating workers.
-  if (maxTasks !== undefined && maxTasks > 0) {
+  // Tasks can be passed to avoid over-allocating workers. An explicit
+  // `experimental.cpus` is always honored, since the number of routes doesn't
+  // reflect the number of paths that will be prerendered (e.g. a single route
+  // with `generateStaticParams` can produce thousands of pages).
+  if (!isUserOverride && maxTasks !== undefined && maxTasks > 0) {
     workers = Math.min(workers, maxTasks + 1)
   }
 
