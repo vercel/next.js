@@ -1,4 +1,4 @@
-import { RuleTester } from 'eslint'
+import { Linter, RuleTester } from 'eslint'
 import { rules } from '@next/eslint-plugin-next'
 
 const NextESLintRule = rules['no-page-custom-font']
@@ -115,6 +115,37 @@ const tests = {
     }`,
       filename,
     },
+    {
+      code: `
+      export default function RootLayout({ children }) {
+        return (
+          <html lang="en">
+            <head>
+              <link
+                href="https://fonts.googleapis.com/css2?family=Inter"
+                rel="stylesheet"
+              />
+            </head>
+            <body>{children}</body>
+          </html>
+        )
+      }
+      `,
+      filename: 'packages/web/src/app/layout.tsx',
+    },
+    {
+      code: `
+      export default function Component() {
+        return (
+          <link
+            href="https://fonts.googleapis.com/css2?family=Inter"
+            rel="stylesheet"
+          />
+        )
+      }
+      `,
+      filename: 'webpages/index.tsx',
+    },
   ],
 
   invalid: [
@@ -136,6 +167,32 @@ const tests = {
       }
       `,
       filename: 'pages/index.tsx',
+      errors: [
+        {
+          message:
+            'Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
+          type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `
+      import Head from 'next/head'
+      export default function IndexPage() {
+        return (
+          <div>
+            <Head>
+              <link
+                href="https://fonts.googleapis.com/css2?family=Inter"
+                rel="stylesheet"
+              />
+            </Head>
+            <p>Hello world!</p>
+          </div>
+        )
+      }
+      `,
+      filename: 'packages/web/src/pages/index.tsx',
       errors: [
         {
           message:
@@ -203,4 +260,47 @@ describe('no-page-custom-font', () => {
       },
     },
   }).run('eslint', NextESLintRule, tests)
+
+  it('detects pages files when cwd is the pages directory', () => {
+    const linter = new Linter({
+      cwd: '/repo/pages',
+      configType: 'eslintrc',
+    })
+    linter.defineRule('no-page-custom-font', NextESLintRule)
+
+    const messages = linter.verify(
+      `
+      import Head from 'next/head'
+      export default function IndexPage() {
+        return (
+          <Head>
+            <link
+              href="https://fonts.googleapis.com/css2?family=Inter"
+              rel="stylesheet"
+            />
+          </Head>
+        )
+      }
+      `,
+      {
+        parserOptions: {
+          ecmaVersion: 2018,
+          sourceType: 'module',
+          ecmaFeatures: {
+            modules: true,
+            jsx: true,
+          },
+        },
+        rules: {
+          'no-page-custom-font': 2,
+        },
+      },
+      { filename: '/repo/pages/index.tsx' }
+    )
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0].message).toBe(
+      'Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font'
+    )
+  })
 })
