@@ -26,8 +26,8 @@ describe('next-server-user-agent', () => {
       headers: { 'user-agent': USER_AGENT },
     })
     expect(await res.json()).toEqual({
-      parserLoadedBefore: false,
-      parserLoadedAfter: true,
+      parserLoadedOnImport: false,
+      parserLoadedAfterCall: true,
       userAgent: PARSED_USER_AGENT,
     })
   })

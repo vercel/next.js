@@ -12,17 +12,21 @@ function isParserLoaded() {
   )
 }
 
+// `next/server` is loaded at this point and nothing has called `userAgent()`
+// yet. This is recorded once, when the route is loaded, so the answer is the
+// same for every request.
+const parserLoadedOnImport = isParserLoaded()
+
 // Responds with the parsed user agent, and with whether the server process had
 // loaded the parser before and after the call that needs it.
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const parserLoadedBefore = isParserLoaded()
   const parsed = userAgent({
     headers: new Headers({ 'user-agent': req.headers['user-agent'] ?? '' }),
   })
 
   res.status(200).json({
-    parserLoadedBefore,
-    parserLoadedAfter: isParserLoaded(),
+    parserLoadedOnImport,
+    parserLoadedAfterCall: isParserLoaded(),
     userAgent: parsed,
   })
 }
