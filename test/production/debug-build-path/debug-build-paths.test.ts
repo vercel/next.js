@@ -208,19 +208,15 @@ describe('debug-build-paths', () => {
 
       it('should exclude paths matching negation patterns', async () => {
         const buildResult = await next.build({
-          args: [
-            '--debug-build-paths',
-            'app/**/page.tsx,!app/with-type-error/**',
-          ],
+          args: ['--debug-build-paths', 'app/**/page.tsx,!app/dashboard/**'],
         })
         expect(buildResult.exitCode).toBe(0)
 
         expect(buildResult.cliOutput).toContain('Route (app)')
         expect(buildResult.cliOutput).toContain('○ /')
         expect(buildResult.cliOutput).toContain('○ /about')
-        expect(buildResult.cliOutput).toContain('○ /dashboard')
         expect(buildResult.cliOutput).toContain('/blog/[slug]')
-        expect(buildResult.cliOutput).not.toContain('/with-type-error')
+        expect(buildResult.cliOutput).not.toContain('/dashboard')
       })
 
       it('should exclude dynamic route paths with negation', async () => {
@@ -243,21 +239,21 @@ describe('debug-build-paths', () => {
         const buildResult = await next.build({
           args: [
             '--debug-build-paths',
-            'app/**/page.tsx,!app/with-type-error/**,!app/dashboard/**',
+            'app/**/page.tsx,!app/about/**,!app/dashboard/**',
           ],
         })
         expect(buildResult.exitCode).toBe(0)
 
         expect(buildResult.cliOutput).toContain('Route (app)')
         expect(buildResult.cliOutput).toContain('○ /')
-        expect(buildResult.cliOutput).toContain('○ /about')
-        expect(buildResult.cliOutput).not.toContain('/with-type-error')
-        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+        expect(buildResult.cliOutput).toContain('/blog/[slug]')
+        expect(buildResult.cliOutput).not.toContain('/about')
+        expect(buildResult.cliOutput).not.toContain('/dashboard')
       })
 
       it('should build everything except excluded paths when only negation patterns are provided', async () => {
         const buildResult = await next.build({
-          args: ['--debug-build-paths', '!app/with-type-error/**'],
+          args: ['--debug-build-paths', '!app/dashboard/**'],
         })
         expect(buildResult.exitCode).toBe(0)
 
@@ -266,7 +262,7 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toContain('○ /')
         expect(buildResult.cliOutput).toContain('○ /about')
         expect(buildResult.cliOutput).toContain('○ /foo')
-        expect(buildResult.cliOutput).not.toContain('/with-type-error')
+        expect(buildResult.cliOutput).not.toContain('/dashboard')
       })
 
       it('should build routes inside route groups', async () => {
@@ -296,22 +292,28 @@ describe('debug-build-paths', () => {
         `)
       })
     })
+  })
+
+  describe('with-type-error fixture', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures/with-type-error'),
+      skipStart: true,
+      env: {
+        __NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT: '1',
+      },
+    })
 
     describe('typechecking with debug-build-paths', () => {
-      it('should skip typechecking for excluded app routes', async () => {
-        // Build only pages routes, excluding app routes with type error
+      it('should typecheck excluded app routes through the generated route types', async () => {
+        // Build only a pages route. The app route with a type error is not
+        // compiled, but the generated route types (validator.ts) cover every
+        // route, so it is still type checked.
         const buildResult = await next.build({
           args: ['--debug-build-paths', 'pages/foo.tsx'],
         })
-        // Build should succeed because the file with type error is not checked
-        expect(buildResult.exitCode).toBe(0)
-        expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
-         "Route (pages)
-         ┌   /_app
-         ├ ○ /404
-         ├ ○ /500
-         └ ○ /foo"
-        `)
+        expect(buildResult.exitCode).toBe(1)
+        expect(buildResult.cliOutput).toContain('Type error')
+        expect(buildResult.cliOutput).toContain('with-type-error/page.tsx')
       })
 
       it('should fail typechecking when route with type error is included', async () => {

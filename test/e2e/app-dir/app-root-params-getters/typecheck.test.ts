@@ -21,8 +21,12 @@ describe.each([{ fixture: 'simple' }, { fixture: 'multiple-roots' }])(
     }
 
     it('should pass typecheck with generated root-params types', async () => {
+      // Route types are shared by all commands. `next dev` writes an empty
+      // placeholder first, so wait for the generated types.
       await retry(async () => {
-        await next.readFile(`${next.distDir}/types/root-params.d.ts`)
+        expect(
+          await next.readFile('.next/types/root-params.d.ts')
+        ).not.toContain('Types are being generated')
       })
 
       await next.stop()

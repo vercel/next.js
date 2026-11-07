@@ -143,6 +143,37 @@ describe('writeConfigurationDefaults()', () => {
       )
     })
 
+    it('includes the shared types directory when it differs from distDir', async () => {
+      await writeFile(
+        tsConfigPath,
+        JSON.stringify({ compilerOptions: {}, include: ['next-env.d.ts'] }),
+        { encoding: 'utf8' }
+      )
+
+      // `output: 'export'` with a custom distDir keeps the shared types in .next.
+      await writeConfigurationDefaults(
+        ts.version,
+        tsConfigPath,
+        isFirstTimeSetup,
+        hasAppDir,
+        'custom-out',
+        hasPagesDir,
+        false,
+        '.next'
+      )
+
+      const { include } = JSON.parse(
+        await readFile(tsConfigPath, { encoding: 'utf8' })
+      )
+      expect(include).toEqual(
+        expect.arrayContaining([
+          'custom-out/types/**/*.ts',
+          'custom-out/dev/types/**/*.ts',
+          '.next/types/**/*.ts',
+        ])
+      )
+    })
+
     it('uses bundler moduleResolution for TypeScript 6+', async () => {
       await writeFile(tsConfigPath, JSON.stringify({ compilerOptions: {} }), {
         encoding: 'utf8',

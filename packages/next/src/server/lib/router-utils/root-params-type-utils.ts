@@ -1,5 +1,3 @@
-import fs from 'fs'
-import path from 'path'
 import type { RouteTypesManifest } from './route-types-utils'
 
 export type RootParamValueType = 'string' | 'string[]' | 'undefined'
@@ -44,25 +42,18 @@ function getRootParamReturnType(valueTypes: RootParamInfo): string {
 }
 
 /**
- * Writes root-params type definitions to a file if root params were collected
- * from layouts.
+ * Returns the root-params type definitions for the root params collected from
+ * layouts. Without root params this is an empty declaration, so the import in
+ * next-env.d.ts still resolves.
  */
-export async function writeRootParamsTypes(
-  manifest: RouteTypesManifest,
-  filePath: string
-) {
+export function generateRootParamsFileContent(
+  manifest: RouteTypesManifest
+): string {
   const rootParams = manifest.rootParams
 
-  await fs.promises.mkdir(path.dirname(filePath), { recursive: true })
-
   if (!rootParams.size) {
-    // Write an empty declaration so the import in next-env.d.ts resolves.
-    await fs.promises.writeFile(
-      filePath,
-      `// Type definitions for Next.js root params (next/root-params)\n// No root params detected.\nexport {}\n`
-    )
-    return
+    return `// Type definitions for Next.js root params (next/root-params)\n// No root params detected.\nexport {}\n`
   }
 
-  await fs.promises.writeFile(filePath, generateRootParamsTypes(rootParams))
+  return generateRootParamsTypes(rootParams)
 }

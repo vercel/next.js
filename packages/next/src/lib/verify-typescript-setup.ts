@@ -54,6 +54,7 @@ const requiredTypePackages: MissingDependency[] = [
 export async function verifyAndRunTypeScript({
   dir,
   distDir,
+  typesDistDir = distDir,
   cacheDir,
   strictRouteTypes,
   tsconfigPath,
@@ -70,6 +71,12 @@ export async function verifyAndRunTypeScript({
 }: {
   dir: string
   distDir: string
+  /**
+   * The `distDir` whose `types` directory `next-env.d.ts` imports: the shared
+   * types directory (`{distDirRoot}/types`, see `getSharedTypesDir`). Defaults
+   * to `distDir`.
+   */
+  typesDistDir?: string
   cacheDir?: string
   strictRouteTypes: boolean
   tsconfigPath: string | undefined
@@ -151,7 +158,7 @@ export async function verifyAndRunTypeScript({
         // Still write type declarations since they don't require the typescript package
         await writeAppTypeDeclarations({
           baseDir: dir,
-          distDir,
+          distDir: typesDistDir,
           imageImportsEnabled: !disableStaticImages,
           hasPagesDir,
           hasAppDir,
@@ -236,13 +243,14 @@ export async function verifyAndRunTypeScript({
       hasAppDir,
       distDir,
       hasPagesDir,
-      strictRouteTypes
+      strictRouteTypes,
+      typesDistDir
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
     await writeAppTypeDeclarations({
       baseDir: dir,
-      distDir,
+      distDir: typesDistDir,
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       hasAppDir,

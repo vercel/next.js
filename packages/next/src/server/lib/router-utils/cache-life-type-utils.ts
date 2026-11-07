@@ -1,6 +1,4 @@
 import type { CacheLife } from '../../use-cache/cache-life'
-import fs from 'fs'
-import path from 'path'
 
 const MINUTE_IN_SECONDS = 60
 const HOUR_IN_SECONDS = MINUTE_IN_SECONDS * 60 // nevermind leap seconds
@@ -157,27 +155,4 @@ declare module 'next/cache' {
   ${overloads}
 }
 `
-}
-
-/**
- * Writes cache-life type definitions to a file if cacheLifeConfig exists.
- * This is used by both the CLI (next type-gen) and dev server to generate
- * cache-life.d.ts in the types directory.
- */
-export function writeCacheLifeTypes(
-  cacheLifeConfig: undefined | { [profile: string]: CacheLife },
-  filePath: string
-) {
-  if (!cacheLifeConfig || Object.keys(cacheLifeConfig).length === 0) {
-    return
-  }
-
-  const dirname = path.dirname(filePath)
-
-  if (!fs.existsSync(dirname)) {
-    fs.mkdirSync(dirname, { recursive: true })
-  }
-
-  const content = generateCacheLifeTypes(cacheLifeConfig)
-  fs.writeFileSync(filePath, content)
 }
