@@ -271,10 +271,19 @@ function flushInitializers(initializers: any, ids?: any): any {
   })
 }
 
-Loadable.preloadAll = () => {
-  return new Promise((resolveInitializers, reject) => {
-    flushInitializers(ALL_INITIALIZERS).then(resolveInitializers, reject)
-  })
+let preloadAllPromise: Promise<any> | null = null
+
+Loadable.preloadAll = async () => {
+  while (ALL_INITIALIZERS.length > 0 || preloadAllPromise) {
+    if (!preloadAllPromise) {
+      const promise = flushInitializers(ALL_INITIALIZERS).finally(() => {
+        preloadAllPromise = null
+      })
+      promise.catch(() => {})
+      preloadAllPromise = promise
+    }
+    await preloadAllPromise
+  }
 }
 
 Loadable.preloadReady = (ids: (string | number)[] = []): Promise<void> => {
