@@ -8,7 +8,8 @@ import { ApiError } from '../index'
 
 const BODY_HEADER = /^(content-length|transfer-encoding)$/i
 
-// Loaded for the first request that has a body.
+// Loaded for the first request that may have a body, or that names a
+// charset other than UTF-8.
 let getRawBody: typeof import('next/dist/compiled/raw-body') | undefined
 
 /**
