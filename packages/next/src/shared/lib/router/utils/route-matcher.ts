@@ -26,7 +26,12 @@ export function getRouteMatcher({
       try {
         return decodeURIComponent(param)
       } catch {
-        throw new DecodeError('failed to decode param')
+        const encodedParam = encodeURIComponent(param)
+        try {
+          return decodeURIComponent(encodedParam)
+        } catch {
+          throw new DecodeError('failed to decode param')
+        }
       }
     }
 
