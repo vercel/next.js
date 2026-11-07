@@ -95,18 +95,18 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
   )
 
   for (const [route, routeInfo] of sortedRoutes) {
-    const { groups } = routeInfo
+    const { routeParams } = routeInfo
 
     // For static routes (no dynamic segments), we can produce an empty parameter map.
-    if (!isDynamicRoute(route) || Object.keys(groups ?? {}).length === 0) {
+    if (!isDynamicRoute(route) || Object.keys(routeParams ?? {}).length === 0) {
       paramTypes += `  ${JSON.stringify(route)}: {}\n`
       continue
     }
 
     let paramType = '{'
 
-    // Process each group based on its properties
-    for (const [key, group] of Object.entries(groups)) {
+    // Process each param based on its properties
+    for (const [key, group] of Object.entries(routeParams)) {
       const escapedKey = JSON.stringify(key)
       if (group.repeat) {
         // Catch-all parameters
