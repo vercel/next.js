@@ -1490,7 +1490,12 @@ const forceStaticRequestHandlers: RequestHandlers = {
         return request.nextUrl.href
       case 'clone':
         return getClone(request, state, original)
-      default:
+      case 'body':
+      case 'blob':
+      case 'json':
+      case 'text':
+      case 'arrayBuffer':
+      case 'formData':
         // The methods that read the body run with the original properties of
         // the request: `formData()` needs the content type from its headers.
         return bindOriginal(request, state, original)
@@ -1592,7 +1597,15 @@ const trackingRequestHandlers: RequestHandlers = {
         )
       case 'clone':
         return getClone(request, state, original)
-      default: {
+      case 'headers':
+      case 'cookies':
+      case 'url':
+      case 'body':
+      case 'blob':
+      case 'json':
+      case 'text':
+      case 'arrayBuffer':
+      case 'formData': {
         const workUnitStore = workUnitAsyncStorage.getStore()
         trackDynamic(workStore, workUnitStore, `request.${prop}`)
         return bindOriginal(request, state, original)
@@ -1611,7 +1624,15 @@ const ensureStaticRequestHandlers: RequestHandlers = {
         )
       case 'clone':
         return getClone(request, state, original)
-      default:
+      case 'headers':
+      case 'cookies':
+      case 'url':
+      case 'body':
+      case 'blob':
+      case 'json':
+      case 'text':
+      case 'arrayBuffer':
+      case 'formData':
         throw new StaticGenBailoutError(
           `Route ${request.nextUrl.pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`request.${prop}\`.`
         )
