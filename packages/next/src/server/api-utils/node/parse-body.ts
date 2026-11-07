@@ -28,7 +28,11 @@ function mayHaveBody(req: IncomingMessage): boolean {
 
   // A proxy can replace `req.headers`. `rawHeaders` has what was received.
   for (let i = 0; i < req.rawHeaders.length; i += 2) {
-    if (BODY_HEADER.test(req.rawHeaders[i])) {
+    const name = req.rawHeaders[i]
+    // Only a name of 14 (`content-length`) or 17 (`transfer-encoding`)
+    // characters can match. Most names fail this test, which costs less than
+    // the regular expression.
+    if ((name.length === 14 || name.length === 17) && BODY_HEADER.test(name)) {
       return true
     }
   }
@@ -75,8 +79,10 @@ export async function parseBody(
   try {
     if (!mayHaveBody(req) && encoding.toLowerCase() === 'utf-8') {
       // No body in the default encoding is an empty string. This does not load
-      // the body reader, which bundles every encoding it can decode. The
-      // request is still read to its end, like the body reader leaves it.
+      // the body reader, which bundles every encoding it can decode. Any other
+      // charset still goes to the body reader: only it knows which charsets it
+      // supports, and it rejects a request that names another one. The request
+      // is still read to its end, like the body reader leaves it.
       await once(req.resume(), 'end')
       buffer = ''
     } else {
