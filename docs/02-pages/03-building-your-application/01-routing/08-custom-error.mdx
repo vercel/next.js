@@ -97,4 +97,6 @@ If you have a custom `Error` component be sure to import that one instead. `next
 ### Caveats
 
 - `Error` does not currently support Next.js [Data Fetching methods](/docs/pages/building-your-application/data-fetching) like [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) or [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props).
+  - **Note**: While `getStaticProps` might technically compile in `_error`, it is not part of the standard static generation flow and will not receive dynamic error context (like `statusCode`).
+  - **Recommendation**: If you need to fetch data for error pages during static export, use [`pages/404.js`](#customizing-the-404-page) or [`pages/500.js`](#customizing-the-500-page) instead.
 - `_error`, like `_app`, is a reserved pathname. `_error` is used to define the customized layouts and behaviors of the error pages. `/_error` will render 404 when accessed directly via [routing](/docs/pages/building-your-application/routing) or rendering in a [custom server](/docs/pages/guides/custom-server).
