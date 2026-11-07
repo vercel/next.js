@@ -94,6 +94,66 @@ export default function Image() {
 `,
       filename: `app/opengraph-image.tsx`,
     },
+    {
+      code: `\
+import { ImageResponse } from "next/og";
+
+export default function handler() {
+  return new ImageResponse(
+    (
+      <img
+        alt="avatar"
+        style={{ borderRadius: "100%" }}
+        width="100%"
+        height="100%"
+        src="https://example.com/image.png"
+      />
+    )
+  );
+}
+`,
+      filename: `app/api/og/route.tsx`,
+    },
+    {
+      code: `\
+import { ImageResponse } from "@vercel/og";
+
+export default function handler() {
+  return new ImageResponse(
+    (
+      <img
+        alt="avatar"
+        style={{ borderRadius: "100%" }}
+        width="100%"
+        height="100%"
+        src="https://example.com/image.png"
+      />
+    )
+  );
+}
+`,
+      filename: `app/api/og/route.tsx`,
+    },
+    {
+      code: `\
+import { ImageResponse } from "next/og";
+
+export default function Image() {
+return new ImageResponse(
+  (
+    <img
+      alt="avatar"
+      style={{ borderRadius: "100%" }}
+      width="100%"
+      height="100%"
+      src="https://example.com/image.png"
+    />
+  )
+);
+}
+`,
+      filename: `some/non-metadata-route-image.tsx`,
+    },
   ],
   invalid: [
     {
@@ -132,23 +192,18 @@ export default function Image() {
     },
     {
       code: `\
-import { ImageResponse } from "next/og";
-
-export default function Image() {
-return new ImageResponse(
-  (
+export default function handler() {
+  return (
     <img
       alt="avatar"
-      style={{ borderRadius: "100%" }}
       width="100%"
       height="100%"
       src="https://example.com/image.png"
     />
-  )
-);
+  );
 }
 `,
-      filename: `some/non-metadata-route-image.tsx`,
+      filename: `app/api/og/route.tsx`,
       errors: [{ message, type: 'JSXOpeningElement' }],
     },
   ],
