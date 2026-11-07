@@ -8,7 +8,7 @@ Images are discovered at build time via the `@vercel/blob` SDK's `list()` API, t
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-vercel-blob&project-name=nextjs-image-gallery&repository-name=with-vercel-blob&env=BLOB_READ_WRITE_TOKEN&envDescription=Read%2Fwrite%20token%20for%20your%20Vercel%20Blob%20store)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-vercel-blob&project-name=nextjs-image-gallery&repository-name=with-vercel-blob&stores=%5B%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22public%22%7D%5D)
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
 
