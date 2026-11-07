@@ -277,9 +277,7 @@ A boolean that indicates if the image should be preloaded.
 
 **When to use it:**
 
-- The image is the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element.
-- The image is above the fold, typically the hero image.
-- You want to begin loading the image in the `<head>`, before its discovered later in the `<body>`.
+Use `preload` for a known [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) image, such as a hero image, when you want the browser to start loading it before discovering its `<img>` element in the `<body>`.
 
 **When not to use it:**
 
@@ -287,11 +285,11 @@ A boolean that indicates if the image should be preloaded.
 - When the `loading` property is used.
 - When the `fetchPriority` property is used.
 
-In most cases, you should use `loading="eager"` or `fetchPriority="high"` instead of `preload`.
+In most cases, use [`loading="eager"`](#loading) for an above-the-fold image to start loading it as soon as the browser discovers its `<img>` element. Add [`fetchPriority="high"`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority) if the browser should prioritize that request over other images. `fetchPriority` alone does not disable lazy loading.
 
 #### `priority`
 
-Starting with Next.js 16, the `priority` property has been deprecated in favor of the [`preload`](#preload) property in order to make the behavior clear.
+Starting with Next.js 16, the `priority` property is deprecated. Use [`preload`](#preload) to preserve the same preloading behavior, or [`loading="eager"`](#loading) if you only need to disable lazy loading.
 
 #### `loading`
 
