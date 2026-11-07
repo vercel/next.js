@@ -2,6 +2,7 @@ import type { ServerResponse } from 'node:http'
 import type { Readable } from 'node:stream'
 
 import {
+  ResponseAborted,
   ResponseAbortedName,
   createAbortController,
 } from './web/spec-extension/adapters/next-request'
@@ -120,6 +121,89 @@ function createWriterFromResponse(
       return finished.promise
     },
   })
+}
+
+export async function streamToNodeResponse(
+  readable: ReadableStream<Uint8Array>,
+  res: ServerResponse
+): Promise<void> {
+  if (res.errored || res.destroyed) return
+
+  const reader = readable.getReader()
+  let resolveDrain: (() => void) | null = null
+  let closed = false
+  const waitForDrain = () =>
+    new Promise<void>((resolve) => {
+      resolveDrain = resolve
+    })
+
+  const onDrain = () => {
+    resolveDrain?.()
+    resolveDrain = null
+  }
+  const onClose = () => {
+    closed = true
+    onDrain()
+    if (!res.writableFinished) {
+      reader.cancel(new ResponseAborted()).catch(() => {})
+    }
+  }
+  res.on('drain', onDrain)
+  res.once('close', onClose)
+
+  try {
+    let chunk = await reader.read()
+    if (!chunk.done && !closed) {
+      // Node ignores body writes for these responses, so flush headers explicitly.
+      if (
+        res.req.method === 'HEAD' ||
+        res.statusCode < 200 ||
+        res.statusCode === 204 ||
+        res.statusCode === 304
+      ) {
+        res.flushHeaders()
+      }
+      getTracer().trace(
+        NextNodeServerSpan.startResponse,
+        { spanName: 'start response' },
+        () => undefined
+      )
+    }
+
+    while (!chunk.done && !closed) {
+      const ok = res.write(chunk.value)
+      // Flush partial compressed output.
+      if ('flush' in res && typeof res.flush === 'function') {
+        res.flush()
+      }
+      if (!ok && !closed) {
+        await waitForDrain()
+      }
+      chunk = await reader.read()
+    }
+
+    if (closed || res.writableFinished) return
+
+    const finished = new Promise<void>((resolve) => {
+      res.once('finish', resolve)
+      res.once('close', resolve)
+    })
+    // `compression` wraps res.end(), so don't pass a callback.
+    res.end()
+    await finished
+  } catch (err) {
+    // Let bytes that were already produced reach the client first.
+    res.socket?.uncork()
+    if (res.writableFinished) return
+    res.destroy(err as Error)
+    reader.cancel(err).catch(() => {})
+    if (isAbortError(err)) return
+    throw new Error('failed to pipe response', { cause: err })
+  } finally {
+    res.off('drain', onDrain)
+    res.off('close', onClose)
+    reader.releaseLock()
+  }
 }
 
 export async function pipeToNodeResponse(
