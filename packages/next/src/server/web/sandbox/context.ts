@@ -140,6 +140,9 @@ function createProcessPolyfill(env: Record<string, string>) {
 
   for (const key of Object.keys(process)) {
     if (key === 'env') continue
+    // Not available in the Edge Runtime. Libraries feature-detect it, so a
+    // throwing stub would break them instead of letting them fall back.
+    if (key === 'getBuiltinModule') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
         if (overriddenValue[key] !== undefined) {
