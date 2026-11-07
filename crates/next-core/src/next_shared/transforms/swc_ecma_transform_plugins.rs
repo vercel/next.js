@@ -156,11 +156,8 @@ pub async fn get_swc_ecma_transform_rule_impl(
     plugin_configs: &[(RcStr, serde_json::Value)],
     enable_mdx_rs: bool,
 ) -> Result<Option<ModuleRule>> {
-    use anyhow::bail;
     use turbo_tasks::TryFlatJoinIterExt;
-    use turbo_tasks_fs::FileContent;
     use turbopack_core::{
-        asset::Asset,
         module::Module,
         reference_type::{CommonJsReferenceSubType, ReferenceType},
         resolve::{ResolveErrorMode, error::handle_resolve_error, parse::Request, resolve},
@@ -223,21 +220,18 @@ pub async fn get_swc_ecma_transform_rule_impl(
                     return Ok(None);
                 };
 
-                let Some(plugin_source) = &*plugin_module.source().await? else {
+                let Some(plugin_source) = *plugin_module.source().await? else {
                     turbo_tasks::turbobail!(
                         "Expected source for plugin module: {}",
                         plugin_module.ident()
                     );
                 };
 
-                let content = &*plugin_source.content().file_content().await?;
-                let FileContent::Content(file) = content else {
-                    bail!("Expected file content for plugin module");
-                };
-
+                // One task per plugin keeps each module's cell stable across recomputations.
                 Ok(Some((
-                    SwcPluginModule::new(name.clone(), file.content().to_bytes().to_vec())
-                        .resolved_cell(),
+                    SwcPluginModule::from_source(name.clone(), *plugin_source)
+                        .to_resolved()
+                        .await?,
                     JsonValue(config.clone()),
                 )))
             }
