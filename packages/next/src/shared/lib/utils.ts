@@ -31,7 +31,9 @@ export type DocumentType = NextComponentType<
 export type AppType<P = {}> = NextComponentType<
   AppContextType,
   P,
-  AppPropsType<any, P>
+  P extends { pageProps: any }
+    ? Omit<P, 'pageProps'> & AppPropsType<NextRouter, P['pageProps']>
+    : P & AppPropsType<NextRouter>
 >
 
 export type AppTreeType = ComponentType<
