@@ -1,37 +1,25 @@
 import { connection } from 'next/server'
-import writeFailureState from '../../write-failure-state'
+import cacheControl from '../../cache-control'
 
 export async function GET() {
   await connection()
-  return Response.json({
-    requestedLanguages: writeFailureState.requestedLanguages,
-    generatedLanguages: writeFailureState.generatedLanguages,
-    failedWriteLanguages: writeFailureState.failedWriteLanguages,
-    writtenLanguages: writeFailureState.writtenLanguages,
-  })
+  return Response.json(cacheControl.read())
 }
 
 export async function POST(request: Request) {
-  switch (await request.text()) {
-    case 'hold-fill': {
-      const id = new URL(request.url).searchParams.get('id')
-      if (id === null) {
-        return new Response(null, { status: 400 })
-      }
-      writeFailureState.id = id
-      writeFailureState.requestedLanguages = []
-      writeFailureState.generatedLanguages = []
-      writeFailureState.failedWriteLanguages = []
-      writeFailureState.writtenLanguages = []
-      writeFailureState.pendingFill = new Promise((resolve) => {
-        writeFailureState.releaseFill = resolve
-      })
+  const command = await request.json()
+  switch (command.action) {
+    case 'configure':
+      cacheControl.configure(command.options)
       break
-    }
-    case 'release-fill':
-      writeFailureState.releaseFill?.()
-      writeFailureState.releaseFill = null
-      writeFailureState.pendingFill = null
+    case 'register':
+      cacheControl.register(command.rule)
+      break
+    case 'release':
+      cacheControl.release(command.id)
+      break
+    case 'release-all':
+      cacheControl.releaseAll()
       break
     default:
       return new Response(null, { status: 400 })
