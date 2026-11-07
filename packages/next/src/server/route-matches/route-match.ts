@@ -1,11 +1,11 @@
 import type { Params } from '../request/params'
-import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteIdentity } from '../route-definitions/route-definition'
 
 /**
  * RouteMatch is the resolved match for a given request. This will contain all
  * the dynamic parameters used for this route.
  */
-export interface RouteMatch<D extends RouteDefinition = RouteDefinition> {
+export interface RouteMatch<D extends RouteIdentity = RouteIdentity> {
   readonly definition: D
 
   /**

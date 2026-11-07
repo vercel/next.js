@@ -1,5 +1,6 @@
+import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { check, renderViaHTTP } from 'next-test-utils'
+import { check, renderViaHTTP, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('typescript-auto-install', () => {
@@ -57,5 +58,35 @@ describe('typescript-auto-install', () => {
       () => browser.eval('document.documentElement.innerHTML'),
       /hello again/
     )
+  })
+})
+
+describe('typescript setup from a private unimported App helper', () => {
+  const { next } = nextTestSetup({
+    files: path.join(__dirname, 'private-helper'),
+    dependencies: {
+      typescript: 'latest',
+      '@types/react': 'latest',
+      '@types/node': 'latest',
+    },
+  })
+
+  it('should enable TypeScript when a helper is added without changing any route', async () => {
+    expect(await next.hasFile('tsconfig.json')).toBe(false)
+    expect(await next.render('/')).toContain('JavaScript page')
+
+    await next.patchFile(
+      'app/_private/unimported.ts',
+      'export const value: string = "not imported by a route"'
+    )
+
+    await retry(async () => {
+      expect(await next.hasFile('tsconfig.json')).toBe(true)
+      expect(await next.readFile('next-env.d.ts')).toContain(
+        'reference types="next"'
+      )
+    })
+    expect(await next.render('/')).toContain('JavaScript page')
+    expect((await next.fetch('/_private/unimported')).status).toBe(404)
   })
 })

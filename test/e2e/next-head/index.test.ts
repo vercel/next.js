@@ -1,5 +1,5 @@
 import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
-import { renderViaHTTP } from 'next-test-utils'
+import { gate, renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
 
@@ -83,8 +83,16 @@ describe('next/head dev route discovery', () => {
 
     expect(response.status).toBe(200)
     expect(await response.text()).toContain('index page')
-    expect(next.cliOutput).toContain(
-      '[next-head] delaying initial Watchpack pages scan'
-    )
+    // The delay targets the webpack watcher's initial pages/ scan. Turbopack
+    // discovers routes natively and never scans pages/ with Watchpack.
+    if (await gate((conditions) => conditions.turbopack)) {
+      expect(next.cliOutput).not.toContain(
+        '[next-head] delaying initial Watchpack pages scan'
+      )
+    } else {
+      expect(next.cliOutput).toContain(
+        '[next-head] delaying initial Watchpack pages scan'
+      )
+    }
   })
 })

@@ -4,7 +4,7 @@ import { createHash } from 'crypto'
 import HotReloaderWebpack from './hot-reloader-webpack'
 import { BUILT, EntryTypes, getEntries } from './on-demand-entry-handler'
 import type { __ApiPreviewProps } from '../api-utils'
-import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteIdentity } from '../route-definitions/route-definition'
 import type { MultiCompiler } from 'webpack'
 import { COMPILER_NAMES } from '../../shared/lib/constants'
 
@@ -156,7 +156,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
-    definition?: RouteDefinition
+    definition?: RouteIdentity
     url?: string
   }): Promise<void> {
     await super.ensurePage({

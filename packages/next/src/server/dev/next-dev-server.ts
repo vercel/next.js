@@ -6,7 +6,7 @@ import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { MiddlewareRoutingItem } from '../base-server'
-import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteIdentity } from '../route-definitions/route-definition'
 
 import {
   addRequestMeta,
@@ -357,6 +357,11 @@ export default class DevServer extends Server {
       return false
     }
 
+    // Turbopack's effective inventory is authoritative, including a negative
+    // answer. Webpack continues using its existing filesystem lookup.
+    const nativeResult = this.bundlerService.hasPage(pathname)
+    if (nativeResult !== undefined) return nativeResult
+
     if (isMiddlewareFile(normalizedPath)) {
       return findPageFile(
         this.dir,
@@ -683,10 +688,22 @@ export default class DevServer extends Server {
   }
 
   protected async hasMiddleware(): Promise<boolean> {
+    const nativeResult = this.bundlerService.hasPage('/middleware')
+    if (nativeResult !== undefined) return nativeResult
     return this.hasPage(this.actualMiddlewareFile!)
   }
 
   protected async ensureMiddleware(url: string) {
+    const nativeResult = this.bundlerService.hasPage('/middleware')
+    if (nativeResult !== undefined) {
+      if (!(await nativeResult)) return
+      return this.ensurePage({
+        page: '/middleware',
+        clientOnly: false,
+        definition: undefined,
+        url,
+      })
+    }
     return this.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
@@ -968,7 +985,7 @@ export default class DevServer extends Server {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
-    definition?: RouteDefinition | undefined
+    definition?: RouteIdentity | undefined
     url?: string
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)
