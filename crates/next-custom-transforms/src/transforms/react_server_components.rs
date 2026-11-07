@@ -393,20 +393,12 @@ fn report_error(filepath: &str, error_kind: RSCErrorKind) {
             vec![span],
         ),
         RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => {
-            let guidance = match property {
-                NextConfigProperty::CacheComponents => {
-                    let replacement = match segment.as_str() {
-                        "runtime" => " Cache Components uses the Node.js runtime by default.",
-                        "dynamic" => " Use `connection()` for request-time rendering or \"use cache\" to cache data.",
-                        "revalidate" | "fetchCache" => " Use \"use cache\" and `cacheLife()` to configure caching.",
-                        _ => "",
-                    };
-                    format!("{replacement} Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components")
-                }
-                NextConfigProperty::UseCache => String::new(),
+            let documentation = match property {
+                NextConfigProperty::CacheComponents => " Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components",
+                NextConfigProperty::UseCache => "",
             };
             (
-                format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it.{guidance}"),
+                format!("Route segment config \"{segment}\" is not compatible with `nextConfig.{property}`. Please remove it.{documentation}"),
                 vec![span],
             )
         },

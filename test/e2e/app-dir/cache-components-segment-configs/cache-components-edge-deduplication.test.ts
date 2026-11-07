@@ -38,11 +38,11 @@ describe('cache-components-edge-deduplication', () => {
       waitForRedbox(browser)
       await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Use \`connection()\` for request-time rendering or "use cache" to cache data. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components",
+           "description": "Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/edge-with-layout/layout.tsx (1:14)
-         Error: Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Use \`connection()\` for request-time rendering or "use cache" to cache data. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+         Error: Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components
          > 1 | export const dynamic = 'force-dynamic'
              |              ^^^^^^^",
            "stack": [],
@@ -64,10 +64,10 @@ describe('cache-components-edge-deduplication', () => {
       expect(next.cliOutput).toContain('./app/edge-with-layout/layout.tsx')
       expect(next.cliOutput).toContain('./app/edge-with-layout/edge/page.tsx')
       expect(next.cliOutput).toContain(
-        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Use `connection()` for request-time rendering or "use cache" to cache data.'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
       expect(next.cliOutput).toContain(
-        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Cache Components uses the Node.js runtime by default.'
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
       // Count occurrences of the layout error at the specific location
       const layoutErrorMatches = next.cliOutput.match(

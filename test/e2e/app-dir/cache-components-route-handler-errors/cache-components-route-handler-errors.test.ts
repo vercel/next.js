@@ -25,19 +25,19 @@ describe('cache-components-route-handler-errors', () => {
 
       if (isTurbopack) {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Use \`connection()\` for request-time rendering or "use cache" to cache data. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
+          `"Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"  x Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Use \`connection()\` for request-time rendering or "use cache" to cache data. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
+          `"  x Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
         )
       }
       expect(redbox.source).toContain(
-        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Use `connection()` for request-time rendering or "use cache" to cache data.'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
       // Both invalid exports should be reported without fixing one first.
       expect(next.cliOutput).toContain(
-        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Cache Components uses the Node.js runtime by default.'
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
     } else {
       await expect(next.start()).rejects.toThrow()
@@ -45,20 +45,20 @@ describe('cache-components-route-handler-errors', () => {
       // In build mode, check every incompatible export, including both in one handler.
       expect(next.cliOutput).toContain('./app/route-with-dynamic/route.ts')
       expect(next.cliOutput).toContain(
-        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Cache Components uses the Node.js runtime by default.'
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
       expect(next.cliOutput).toContain(
-        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Use `connection()` for request-time rendering or "use cache" to cache data.'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
 
       expect(next.cliOutput).toContain('./app/route-with-revalidate/route.ts')
       expect(next.cliOutput).toContain(
-        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Use "use cache" and `cacheLife()` to configure caching.'
+        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
 
       expect(next.cliOutput).toContain('./app/route-with-fetchcache/route.ts')
       expect(next.cliOutput).toContain(
-        '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it. Use "use cache" and `cacheLife()` to configure caching.'
+        '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
     }
   }, 240_000)
