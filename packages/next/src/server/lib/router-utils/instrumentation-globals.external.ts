@@ -147,13 +147,15 @@ async function registerInstrumentation(
     throw err
   }
   if (instrumentation?.register) {
+    // Loaded on demand, and before the timed region so that the span below
+    // doesn't include it.
+    const { afterRegistration } =
+      require('./instrumentation-node-extensions') as typeof import('./instrumentation-node-extensions')
     const startTime = getInstrumentationTimestamp()
     let error: unknown
     let registered = false
     try {
       await instrumentation.register()
-      const { afterRegistration } =
-        require('./instrumentation-node-extensions') as typeof import('./instrumentation-node-extensions')
       afterRegistration()
       registered = true
     } catch (err: any) {
