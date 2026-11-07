@@ -303,7 +303,7 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-To use a local font, import your font from `next/font/local` and specify the [`src`](/docs/pages/api-reference/components/font#src) of your local font file. Fonts can be stored in the [`public`](/docs/pages/api-reference/file-conventions/public-folder) folder or inside the `pages` folder. For example:
+To use a local font, import the `localFont` function from `next/font/local` and specify the [`src`](/docs/pages/api-reference/components/font#src) of your local font file. Fonts can be stored in the [`public`](/docs/pages/api-reference/file-conventions/public-folder) folder or inside the `pages` folder. For example:
 
 ```tsx filename="pages/_app.tsx" switcher
 import localFont from 'next/font/local'
