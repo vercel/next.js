@@ -72,28 +72,48 @@ function getLocalSpanRecorder() {
   }
 }
 
+function requireApi(): OpenTelemetryApi {
+  // we want to allow users to use their own version of @opentelemetry/api if they
+  // want to, so we try to require it first, and if it fails we fall back to the
+  // version that is bundled with Next.js
+  // this is because @opentelemetry/api has to be synced with the version of
+  // @opentelemetry/tracing that is used, and we don't want to force users to use
+  // the version that is bundled with Next.js.
+  // the API is ~stable, so this should be fine
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return require('@opentelemetry/api') as typeof import('@opentelemetry/api')
+  } else {
+    try {
+      return require('@opentelemetry/api') as typeof import('@opentelemetry/api')
+    } catch (err) {
+      return require('next/dist/compiled/@opentelemetry/api') as typeof import('next/dist/compiled/@opentelemetry/api')
+    }
+  }
+}
+
+/**
+ * Loads the OpenTelemetry API without making the tracer use it: the tracer
+ * keeps returning its own no-op results until something is registered.
+ *
+ * For a caller that knows the API is about to be loaded and doesn't want that
+ * to happen inside the work it measures.
+ */
+export function preloadOpenTelemetryApi(): void {
+  requireApi()
+}
+
+/**
+ * Returns the OpenTelemetry API, loading it on the first call, whether or not
+ * something is registered with it.
+ *
+ * Used by `getContext()`, which returns an object of the API, by the private
+ * methods of the tracer, which only run after a public method got the API from
+ * `loadApiIfNeeded()`, and by the edge runtime. Everything else calls
+ * `loadApiIfNeeded()`.
+ */
 function loadApi(): LoadedApi {
   if (loadedApi === undefined) {
-    let api: OpenTelemetryApi
-
-    // we want to allow users to use their own version of @opentelemetry/api if they
-    // want to, so we try to require it first, and if it fails we fall back to the
-    // version that is bundled with Next.js
-    // this is because @opentelemetry/api has to be synced with the version of
-    // @opentelemetry/tracing that is used, and we don't want to force users to use
-    // the version that is bundled with Next.js.
-    // the API is ~stable, so this should be fine
-    if (process.env.NEXT_RUNTIME === 'edge') {
-      api = require('@opentelemetry/api') as typeof import('@opentelemetry/api')
-    } else {
-      try {
-        api =
-          require('@opentelemetry/api') as typeof import('@opentelemetry/api')
-      } catch (err) {
-        api =
-          require('next/dist/compiled/@opentelemetry/api') as typeof import('next/dist/compiled/@opentelemetry/api')
-      }
-    }
+    const api = requireApi()
 
     loadedApi = {
       context: api.context,
@@ -117,7 +137,8 @@ function loadApi(): LoadedApi {
  * doesn't use OpenTelemetry doesn't load the API.
  *
  * A provider can be registered at any time (`register()` of
- * `instrumentation.ts`, or later), so every tracer method calls this.
+ * `instrumentation.ts`, or later), so the public methods of the tracer call
+ * this every time. `getContext()` is the exception, see `loadApi()`.
  */
 function loadApiIfNeeded(): LoadedApi | undefined {
   if (

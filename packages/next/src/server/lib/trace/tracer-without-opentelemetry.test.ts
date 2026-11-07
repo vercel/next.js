@@ -19,8 +19,14 @@ jest.mock('next/dist/compiled/@opentelemetry/api', () => {
 import { AppRenderSpan, BaseServerSpan } from './constants'
 
 // Not an `import`: it would be evaluated before the lines above.
-const { getTracer, SpanKind, SpanStatusCode } =
+const { getTracer, preloadOpenTelemetryApi, SpanKind, SpanStatusCode } =
   require('./tracer') as typeof import('./tracer')
+
+// The API itself, without the record of the load.
+const requireActualApi = () =>
+  jest.requireActual(
+    '@opentelemetry/api'
+  ) as typeof import('@opentelemetry/api')
 
 describe('tracer without OpenTelemetry', () => {
   const tracer = getTracer()
@@ -95,13 +101,60 @@ describe('tracer without OpenTelemetry', () => {
     expect(mockApiLoads).toEqual([])
   })
 
+  // The tracer restates these values of the API so that it doesn't have to
+  // load it. Compared with the API here, so that they can't drift apart.
+  it('returns the enum values and the no-op span of the API', () => {
+    const api = requireActualApi()
+
+    // A TypeScript enum also maps each value back to its name.
+    const namedValues = (values: object) =>
+      Object.fromEntries(
+        Object.entries(values).filter(([key]) => isNaN(Number(key)))
+      )
+    expect(SpanKind).toEqual(namedValues(api.SpanKind))
+    expect(SpanStatusCode).toEqual(namedValues(api.SpanStatusCode))
+
+    // What the API starts while no tracer provider is registered.
+    const apiSpan = api.trace.getTracer('next.js').startSpan('span')
+    const span = tracer.startSpan(AppRenderSpan.getBodyResult)
+    expect(span.spanContext()).toEqual(api.INVALID_SPAN_CONTEXT)
+    expect(span.spanContext()).toEqual(apiSpan.spanContext())
+    expect(span.isRecording()).toBe(apiSpan.isRecording())
+
+    // The same methods, and the same ones return the span for chaining.
+    const methodsOf = (object: object) =>
+      Object.getOwnPropertyNames(object)
+        .filter((name) => name !== 'constructor')
+        .sort()
+    const methods = methodsOf(Object.getPrototypeOf(apiSpan))
+    expect(methodsOf(span)).toEqual(methods)
+    const chainable = (object: any) =>
+      methods.filter((method) => object[method]('name', 'value') === object)
+    expect(chainable(span)).toEqual(chainable(apiSpan))
+  })
+
+  it('keeps its own results after the API was loaded ahead of time', () => {
+    const span = tracer.startSpan(AppRenderSpan.getBodyResult)
+
+    preloadOpenTelemetryApi()
+
+    // The package of the app is loaded, as the tracer would load it.
+    expect(mockApiLoads).toEqual(['@opentelemetry/api'])
+    // Nothing is registered: the tracer still doesn't go through the API,
+    // which would start a new span for every call.
+    expect(tracer.isOpenTelemetryEnabled()).toBe(false)
+    expect(tracer.startSpan(AppRenderSpan.getBodyResult)).toBe(span)
+  })
+
   it('uses the API once a tracer provider is registered', () => {
-    const api = jest.requireActual(
-      '@opentelemetry/api'
-    ) as typeof import('@opentelemetry/api')
+    const api = requireActualApi()
     const started: string[] = []
     const span = api.trace.wrapSpanContext(api.INVALID_SPAN_CONTEXT)
 
+    // The tracer looks for the registry that the API creates on `globalThis`
+    // with its first registration, so a registration through the API has to
+    // be what makes the tracer use it.
+    expect(tracer.isOpenTelemetryEnabled()).toBe(false)
     api.trace.setGlobalTracerProvider({
       getTracer: () => ({
         startSpan(name: string) {
