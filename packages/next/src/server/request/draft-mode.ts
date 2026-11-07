@@ -3,7 +3,10 @@ import {
   throwForMissingRequestStore,
 } from '../app-render/work-unit-async-storage.external'
 
-import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
+import type {
+  DraftModeProvider,
+  EnableDraftModeOptions,
+} from '../async-storage/draft-mode-provider'
 
 import {
   workAsyncStorage,
@@ -160,12 +163,12 @@ class DraftMode {
     }
     return false
   }
-  public enable() {
+  public enable(options?: EnableDraftModeOptions) {
     // We have a store we want to track dynamic data access to ensure we
     // don't statically generate routes that manipulate draft mode.
     trackDynamicDraftMode('draftMode().enable()', this.enable)
     if (this._provider !== null) {
-      this._provider.enable()
+      this._provider.enable(options)
     }
   }
   public disable() {
