@@ -55,9 +55,9 @@ export function headers(): Promise<ReadonlyHeaders> {
 
     if (workStore.forceStatic) {
       // When using forceStatic we override all other logic and always just return an empty
-      // headers object without tracking
-      const underlyingHeaders = HeadersAdapter.seal(new Headers({}))
-      return makeUntrackedHeaders(workStore, underlyingHeaders)
+      // headers object without tracking. It is a new object for every call, so
+      // there is no promise to share between calls.
+      return Promise.resolve(HeadersAdapter.seal(new Headers({})))
     }
 
     if (workUnitStore) {

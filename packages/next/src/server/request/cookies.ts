@@ -48,9 +48,9 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
 
     if (workStore.forceStatic) {
       // When using forceStatic we override all other logic and always just return an empty
-      // cookies object without tracking
-      const underlyingCookies = createEmptyCookies()
-      return makeUntrackedCookies(workStore, underlyingCookies)
+      // cookies object without tracking. It is a new object for every call, so
+      // there is no promise to share between calls.
+      return Promise.resolve(createEmptyCookies())
     }
 
     if (workStore.dynamicShouldError) {
