@@ -7,6 +7,7 @@ pub(crate) mod batch_lookup;
 pub(crate) mod cell_fan_out;
 pub(crate) mod collectibles;
 pub(crate) mod gc;
+pub(crate) mod hot_read;
 pub(crate) mod overhead;
 pub(crate) mod scope_stress;
 pub(crate) mod state_fan_out;
@@ -17,6 +18,6 @@ criterion_group!(
     config = Criterion::default();
     targets = stress::fibonacci, scope_stress::scope_stress, overhead::overhead, gc::gc,
         cell_fan_out::cell_fan_out, state_fan_out::state_fan_out, collectibles::collectibles,
-        batch_lookup::batch_lookup
+        batch_lookup::batch_lookup, hot_read::hot_read
 );
 criterion_main!(turbo_tasks_backend_stress);
