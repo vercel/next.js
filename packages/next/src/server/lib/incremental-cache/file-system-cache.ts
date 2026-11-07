@@ -1,4 +1,8 @@
-import { getRouteCacheKey, ROUTE_CACHE_DIRECTORY } from '../route-cache-key'
+import {
+  getRouteCacheBuildDirectory,
+  getRouteCacheKey,
+  ROUTE_CACHE_DIRECTORY,
+} from '../route-cache-key'
 import type { RouteMetadata } from '../../../export/routes/types'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from '.'
 import type { CacheFs } from '../../../shared/lib/utils'
@@ -23,6 +27,7 @@ import {
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
 } from '../../../lib/constants'
+import { BUILD_ID_FILE } from '../../../shared/lib/constants'
 import { areTagsExpired, tagsManifest } from './tags-manifest.external'
 import { MultiFileWriter } from '../../../lib/multi-file-writer'
 import { getMemoryCache } from './memory-cache.external'
@@ -52,6 +57,7 @@ export default class FileSystemCache implements CacheHandler {
     string,
     { readers: number; version: number; promotion?: Promise<void> }
   >()
+  private static readonly routeCacheBuildDirectories = new Map<string, string>()
 
   constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
@@ -75,6 +81,65 @@ export default class FileSystemCache implements CacheHandler {
   }
 
   public resetRequestCache(): void {}
+
+  // A build copied over an existing `.next` keeps the previous build's runtime
+  // entries, so runtime entries live in the directory of the build that wrote
+  // them. Build artifacts, including the scoped files of adapter builds, keep
+  // their key and are read as seeds.
+  private getRuntimeKey(key: string): string {
+    if (!key.startsWith(`/${ROUTE_CACHE_DIRECTORY}/`)) return key
+    return `/${ROUTE_CACHE_DIRECTORY}/${this.getRouteCacheBuildDirectory()}${key.slice(ROUTE_CACHE_DIRECTORY.length + 1)}`
+  }
+
+  private getRouteCacheBuildDirectory(): string {
+    const cached = FileSystemCache.routeCacheBuildDirectories.get(
+      this.serverDistDir
+    )
+    if (cached) return cached
+
+    let buildId = ''
+    try {
+      buildId = this.fs
+        .readFileSync(
+          path.join(this.serverDistDir, '..', BUILD_ID_FILE),
+          'utf8'
+        )
+        .trim()
+    } catch {}
+    const directory = getRouteCacheBuildDirectory(
+      buildId,
+      process.env.NEXT_DEPLOYMENT_ID || ''
+    )
+    FileSystemCache.routeCacheBuildDirectories.set(
+      this.serverDistDir,
+      directory
+    )
+
+    // Directories written by other builds are never read again. Route kind
+    // directories hold build artifacts and are kept.
+    const { readdir, rm } = this.fs
+    const root = path.join(this.serverDistDir, ROUTE_CACHE_DIRECTORY)
+    if (this.flushToDisk && readdir && rm && this.fs.existsSync(root)) {
+      readdir
+        .call(this.fs, root)
+        .then((entries) =>
+          Promise.all(
+            entries
+              .filter(
+                (entry) => entry !== directory && /^[a-f0-9]{64}$/.test(entry)
+              )
+              .map((entry) => rm.call(this.fs, path.join(root, entry)))
+          )
+        )
+        .catch((error) => {
+          if (FileSystemCache.debug) {
+            console.log('FileSystemCache: failed to remove old builds', error)
+          }
+        })
+    }
+
+    return directory
+  }
 
   private getSeedReadState(key: string) {
     return FileSystemCache.seedReads.get(`${this.serverDistDir}:${key}`)
@@ -142,7 +207,8 @@ export default class FileSystemCache implements CacheHandler {
   public async get(...args: Parameters<CacheHandler['get']>) {
     const [key, ctx] = args
     const { kind } = ctx
-    let readKey = key
+    const runtimeKey = this.getRuntimeKey(key)
+    let readKey = runtimeKey
     let seedRead: ReturnType<FileSystemCache['beginSeedRead']> | undefined
 
     let data = FileSystemCache.memoryCache?.get(key)
@@ -173,40 +239,47 @@ export default class FileSystemCache implements CacheHandler {
       process.env.NEXT_RUNTIME !== 'edge'
     ) {
       const primaryPath = this.getFilePath(
-        kind === IncrementalCacheKind.APP_ROUTE ? `${key}.body` : `${key}.html`,
+        kind === IncrementalCacheKind.APP_ROUTE
+          ? `${runtimeKey}.body`
+          : `${runtimeKey}.html`,
         kind
       )
       if (!this.fs.existsSync(primaryPath)) {
         const marker = key.indexOf('/$/')
         if (marker !== -1) {
-          const legacyKey = key.slice(marker + 2)
-          const legacyMetaPath = this.getFilePath(
-            `${legacyKey}${NEXT_META_SUFFIX}`,
-            kind
-          )
-          try {
-            const meta = JSON.parse(
-              this.fs.readFileSync(legacyMetaPath, 'utf8')
-            ) as RouteMetadata
-            const namespaceEnd = key.indexOf('/$/')
-            const ownerKey = meta.routeCache
-              ? getRouteCacheKey('/', meta.routeCache.owner)
-              : undefined
-            if (
-              meta.routeCache?.key === key &&
-              (meta.routeCache.isFallback === Boolean(ctx.isFallback) ||
-                // PPR also reads fallback shells through ordinary response and
-                // navigation resume-data lookups, which set isFallback: false.
-                (kind === IncrementalCacheKind.APP_PAGE &&
-                  ctx.isRoutePPREnabled &&
-                  meta.postponed != null)) &&
-              ownerKey?.slice(0, ownerKey.indexOf('/$/')) ===
-                key.slice(0, namespaceEnd)
-            ) {
-              readKey = legacyKey
-              seedRead = this.beginSeedRead(key)
-            }
-          } catch {}
+          // A seed is either the prerendered file in its historical location
+          // or the scoped file an adapter build writes.
+          for (const seedKey of [key.slice(marker + 2), key]) {
+            const seedMetaPath = this.getFilePath(
+              `${seedKey}${NEXT_META_SUFFIX}`,
+              kind
+            )
+            try {
+              const meta = JSON.parse(
+                this.fs.readFileSync(seedMetaPath, 'utf8')
+              ) as RouteMetadata
+              const namespaceEnd = key.indexOf('/$/')
+              const ownerKey = meta.routeCache
+                ? getRouteCacheKey('/', meta.routeCache.owner)
+                : undefined
+              if (
+                meta.routeCache?.key === key &&
+                (meta.routeCache.isFallback === Boolean(ctx.isFallback) ||
+                  // PPR also reads fallback shells through ordinary response
+                  // and navigation resume-data lookups, which set
+                  // isFallback: false.
+                  (kind === IncrementalCacheKind.APP_PAGE &&
+                    ctx.isRoutePPREnabled &&
+                    meta.postponed != null)) &&
+                ownerKey?.slice(0, ownerKey.indexOf('/$/')) ===
+                  key.slice(0, namespaceEnd)
+              ) {
+                readKey = seedKey
+                seedRead = this.beginSeedRead(key)
+                break
+              }
+            } catch {}
+          }
         }
       }
     }
@@ -458,7 +531,7 @@ export default class FileSystemCache implements CacheHandler {
       try {
         if (state.version === version) {
           await this.promoteSeed(
-            key,
+            runtimeKey,
             readKey,
             data,
             ctx as GetIncrementalResponseCacheHandlerContext,
@@ -642,6 +715,7 @@ export default class FileSystemCache implements CacheHandler {
     if (!this.flushToDisk || !data) return
 
     await seedState?.promotion
+    const runtimeKey = this.getRuntimeKey(key)
 
     // Create a new writer that will prepare to write all the files to disk
     // after their containing directory is created.
@@ -649,7 +723,7 @@ export default class FileSystemCache implements CacheHandler {
 
     if (data.kind === CachedRouteKind.APP_ROUTE) {
       const filePath = this.getFilePath(
-        `${key}.body`,
+        `${runtimeKey}.body`,
         IncrementalCacheKind.APP_ROUTE
       )
 
@@ -675,7 +749,7 @@ export default class FileSystemCache implements CacheHandler {
     ) {
       const isAppPath = data.kind === CachedRouteKind.APP_PAGE
       const htmlPath = this.getFilePath(
-        `${key}.html`,
+        `${runtimeKey}.html`,
         isAppPath ? IncrementalCacheKind.APP_PAGE : IncrementalCacheKind.PAGES
       )
 
@@ -691,7 +765,7 @@ export default class FileSystemCache implements CacheHandler {
       ) {
         writer.append(
           this.getFilePath(
-            `${key}${isAppPath ? RSC_SUFFIX : NEXT_DATA_SUFFIX}`,
+            `${runtimeKey}${isAppPath ? RSC_SUFFIX : NEXT_DATA_SUFFIX}`,
             isAppPath
               ? IncrementalCacheKind.APP_PAGE
               : IncrementalCacheKind.PAGES
