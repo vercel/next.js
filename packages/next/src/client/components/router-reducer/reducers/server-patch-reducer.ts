@@ -48,7 +48,17 @@ export function serverPatchReducer(
   // (`HistoryTraversal`), since the data we received is correct.
   const retryCanonicalUrl = createHrefFromUrl(retryUrl)
   const retryNextUrl = action.nextUrl
-  const scrollBehavior = ScrollBehavior.Default
+  // A retry aimed at the URL that is already on screen is a refresh, and a
+  // refresh never scrolls. This matters after an external
+  // `history.replaceState` changed the search params: the restored state
+  // keeps the previous `renderedSearch`, so the next `router.refresh()`
+  // predicts a page segment key without the new params, the server answers
+  // with the real one, and the mismatch lands here. The original refresh was
+  // dispatched with `NoScroll`; the retry must not turn it into a scroll.
+  const scrollBehavior =
+    retryCanonicalUrl === state.canonicalUrl
+      ? ScrollBehavior.NoScroll
+      : ScrollBehavior.Default
   const navigationLock = getCurrentNavigationLock()
   const now = Date.now()
   return navigateToKnownRoute(
