@@ -9,14 +9,16 @@ process.env.NODE_ENV = 'production'
 require('next/dist/build/adapter/setup-node-env.external')
 
 // `NextRequest` extends the global `Request`, so this sees how it is
-// constructed. It has to be in place before the proxy module is loaded.
+// constructed. It has to be in place before the proxy module is loaded. It is
+// a `Proxy` and not a subclass, so that `instanceof Request` stays true for
+// the requests that the platform creates.
 const constructedWith = []
-globalThis.Request = class extends Request {
-  constructor(input, init) {
-    super(input, init)
-    constructedWith.push(init)
-  }
-}
+globalThis.Request = new Proxy(Request, {
+  construct(target, args, newTarget) {
+    constructedWith.push(args[1])
+    return Reflect.construct(target, args, newTarget)
+  },
+})
 
 async function main() {
   const { handler } = require(
