@@ -188,7 +188,8 @@ function trackFetchMetric(
 
   // Request Insights is a development feature. It imports the local span
   // recorder, which loads the OpenTelemetry API. Production builds remove this
-  // branch, which keeps all of that out of production bundles.
+  // branch, which keeps all of that out of the production bundles that only
+  // reach it through this module.
   if (process.env.__NEXT_DEV_SERVER) {
     const { isRequestInsightsEnabled, recordRequestInsightFetch } =
       require('./trace/request-insights') as typeof import('./trace/request-insights')
