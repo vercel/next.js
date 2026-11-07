@@ -32,27 +32,36 @@ import { formatUrl } from '../shared/lib/router/utils/format-url'
 /**
  * Compiled matchers for rewrite sources. Rewrites come from the routes
  * manifest, so every request checks the same sources: each one is compiled
- * once per process instead of on every request. The key is the source and the
- * case sensitivity, so rewrites that share a source share a matcher.
+ * once per process instead of on every request.
+ *
+ * A matcher is keyed by its source, so rewrites that share a source share a
+ * matcher. There is one map for each combination of the two options a source
+ * is compiled with, so that a lookup does not have to build a key for every
+ * rewrite of every request.
  */
-const rewriteMatchers = new Map<string, ReturnType<typeof getPathMatch>>()
+const rewriteMatchers = [0, 1, 2, 3].map(
+  () => new Map<string, ReturnType<typeof getPathMatch>>()
+)
 
 function getRewriteMatcher(
   rewrite: DeepReadonly<Rewrite>,
   trailingSlash: boolean,
   caseSensitive: boolean
 ) {
-  const source = trailingSlash ? `${rewrite.source}(/)?` : rewrite.source
-  const key = `${caseSensitive ? '1' : '0'}${source}`
+  const matchers =
+    rewriteMatchers[(trailingSlash ? 2 : 0) + (caseSensitive ? 1 : 0)]
 
-  let matcher = rewriteMatchers.get(key)
+  let matcher = matchers.get(rewrite.source)
   if (matcher === undefined) {
-    matcher = getPathMatch(source, {
-      removeUnnamedParams: true,
-      strict: true,
-      sensitive: caseSensitive,
-    })
-    rewriteMatchers.set(key, matcher)
+    matcher = getPathMatch(
+      trailingSlash ? `${rewrite.source}(/)?` : rewrite.source,
+      {
+        removeUnnamedParams: true,
+        strict: true,
+        sensitive: caseSensitive,
+      }
+    )
+    matchers.set(rewrite.source, matcher)
   }
   return matcher
 }
