@@ -1,15 +1,9 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
-const os = require('node:os')
 const path = require('node:path')
-const { createHash } = require('node:crypto')
-const ts = require('typescript')
-const repo = path.resolve(__dirname, '../../..')
+const { createTypeLab } = require('./type-programs.cjs')
 const packageDir = fs.realpathSync(
-  process.argv[2] ?? path.join(repo, 'packages/next')
-)
-const target = fs.realpathSync(
-  path.join(packageDir, 'experimental/testing/vitest.d.ts')
+  process.argv[2] ?? path.join(__dirname, '../../../packages/next')
 )
 const taskTypes = fs.realpathSync(
   path.join(
@@ -25,111 +19,47 @@ const groups = [
   { list: 'PROGRAMS.json', exactOptionalPropertyTypes: false },
   { list: 'EXACT-PROGRAMS.json', exactOptionalPropertyTypes: true },
 ]
-const temporary = fs.mkdtempSync(
-  path.join(os.tmpdir(), 'next-runner-task-types-')
-)
+const lab = createTypeLab({ name: 'runner-task-types', inputs, packageDir })
+const { ts, target } = lab
 try {
-  const config = ts.readConfigFile(
-    path.join(repo, 'tsconfig.json'),
-    ts.sys.readFile
-  )
-  assert.equal(config.error, undefined)
   const rows = []
   const emittedSources = []
   let firstProgram
   for (const group of groups) {
     const names = JSON.parse(fs.readFileSync(path.join(inputs, group.list)))
-    const sources = names.map((name) => {
-      const source = fs.readFileSync(path.join(inputs, name + '.txt'))
-      const row = expected.programs.find((row) => row.name === name)
-      assert(row, 'Missing genuine type program: ' + name)
-      assert.equal(
-        row.exactOptionalPropertyTypes,
-        group.exactOptionalPropertyTypes
-      )
-      assert.equal(
-        createHash('sha256').update(source).digest('hex'),
-        row.sourceSHA256
-      )
-      return source
-    })
-    const files = names.map((name, index) => {
-      const filename = path.join(temporary, name)
-      fs.writeFileSync(filename, sources[index])
-      return filename
-    })
-    const parsed = ts.parseJsonConfigFileContent(
-      {
-        ...config.config,
-        compilerOptions: {
-          ...config.config.compilerOptions,
-          strict: true,
-          exactOptionalPropertyTypes: group.exactOptionalPropertyTypes,
-          skipLibCheck: true,
-          types: ['node'],
-          typeRoots: [path.join(repo, 'node_modules/@types')],
-          paths: { vitest: [target] },
-        },
-        files: [...files, path.join(packageDir, 'types/global.d.ts')],
-        include: [],
-        exclude: [],
-      },
-      ts.sys,
-      repo
-    )
-    assert.deepEqual(parsed.errors, [])
-    const program = ts.createProgram(parsed.fileNames, parsed.options)
-    firstProgram ??= program
-    const diagnostics = ts.getPreEmitDiagnostics(program)
-    const foreign = diagnostics.filter(
-      (diagnostic) => !files.includes(diagnostic.file?.fileName)
-    )
-    assert.equal(
-      foreign.length,
-      0,
-      ts.formatDiagnostics(foreign, {
-        getCanonicalFileName: (name) => name,
-        getCurrentDirectory: () => repo,
-        getNewLine: () => '\n',
+    const { files, sources } = lab.writePrograms(
+      names.map((name) => {
+        const row = expected.programs.find((row) => row.name === name)
+        assert(row, 'Missing genuine type program: ' + name)
+        assert.equal(
+          row.exactOptionalPropertyTypes,
+          group.exactOptionalPropertyTypes
+        )
+        return { ...row, source: name + '.txt' }
       })
     )
+    const { program, diagnostics } = lab.compile(files, {
+      exactOptionalPropertyTypes: group.exactOptionalPropertyTypes,
+    })
+    firstProgram ??= program
     files.forEach((file, index) => {
       const errors = diagnostics.filter(
         (diagnostic) => diagnostic.file?.fileName === file
       )
       const row = {
         name: names[index],
-        sourceSHA256: createHash('sha256').update(sources[index]).digest('hex'),
+        sourceSHA256: lab.digest(sources[index]),
         exactOptionalPropertyTypes: group.exactOptionalPropertyTypes,
         accepted: errors.length === 0,
-        diagnostics: errors.map((diagnostic) => {
-          const location = diagnostic.file.getLineAndCharacterOfPosition(
-            diagnostic.start
-          )
-          return {
-            code: diagnostic.code,
-            category: diagnostic.category,
-            line: location.line + 1,
-            column: location.character + 1,
-            message: ts.flattenDiagnosticMessageText(
-              diagnostic.messageText,
-              '\n'
-            ),
-          }
-        }),
+        diagnostics: errors.map(lab.diagnosticRow),
       }
       rows.push(row)
       if (row.accepted)
         emittedSources.push({ name: names[index], source: sources[index] })
     })
-    assert(
-      !program
-        .getSourceFiles()
-        .some((file) =>
-          /node_modules\/(?:vitest|vite|tinybench|prettier|@vitest)(?:\/|$)/.test(
-            file.fileName.split(path.sep).join('/')
-          )
-        )
+    lab.assertNoDependencies(
+      program,
+      /node_modules\/(?:vitest|vite|tinybench|prettier|@vitest)(?:\/|$)/
     )
   }
   // Interface names in diagnostic text belong to their respective declaration
@@ -186,21 +116,11 @@ try {
     return { name, exported: true, hasValueFlag: false }
   })
   assert.deepEqual(symbols, expected.typeOnlySymbols)
-  emittedSources.forEach(({ name, source }) => {
-    const emitted = ts.transpileModule(source.toString(), {
-      fileName: name,
-      compilerOptions: {
-        module: ts.ModuleKind.ESNext,
-        target: ts.ScriptTarget.ES2022,
-        verbatimModuleSyntax: true,
-      },
-    }).outputText
-    assert(
-      !emitted.includes("from 'vitest'") &&
-        !emitted.includes('require("vitest")'),
-      'Accepted type-only programs must not import a runtime'
-    )
-  })
+  lab.assertTypeOnlyImports(
+    emittedSources.map(({ source }) => source),
+    emittedSources.map(({ name }) => name),
+    'Accepted type-only programs must not import a runtime'
+  )
   process.stdout.write(
     JSON.stringify({
       runtime: process.version,
@@ -221,5 +141,5 @@ try {
     }) + '\n'
   )
 } finally {
-  fs.rmSync(temporary, { recursive: true, force: true })
+  lab.dispose()
 }

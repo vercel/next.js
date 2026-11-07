@@ -1,10 +1,8 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
-const os = require('node:os')
 const path = require('node:path')
-const { createHash } = require('node:crypto')
+const { createTypeLab } = require('./type-programs.cjs')
 const repo = path.resolve(process.argv[5] ?? path.join(__dirname, '../../..'))
-const ts = require(path.join(repo, 'node_modules/typescript'))
 const packageDir = fs.realpathSync(
   process.argv[2] ?? path.join(repo, 'packages/next')
 )
@@ -22,10 +20,14 @@ const symbols = [
   'TestState',
   'TestSuiteState',
 ]
-const temporary = fs.realpathSync(
-  fs.mkdtempSync(path.join(os.tmpdir(), 'next-node-result-types-'))
-)
-const digest = (value) => createHash('sha256').update(value).digest('hex')
+const lab = createTypeLab({
+  name: 'node-result-types',
+  inputs,
+  packageDir,
+  repo,
+  realpathTemporary: true,
+})
+const { ts, temporary, digest } = lab
 
 function diagnosticRow(diagnostic) {
   const source = diagnostic.file
@@ -84,14 +86,10 @@ async function run() {
     )
   }
   fs.writeFileSync(path.join(temporary, 'package.json'), '{"private":true}\n')
-  const sources = names.map((name) =>
-    fs.readFileSync(path.join(inputs, name + '.txt'))
+  const { files, sources } = lab.writePrograms(
+    names.map((name) => ({ name, source: name + '.txt' })),
+    { verifyHashes: false }
   )
-  const files = names.map((name, index) => {
-    const file = path.join(temporary, name)
-    fs.writeFileSync(file, sources[index])
-    return file
-  })
   const configPath = path.join(temporary, 'tsconfig.json')
   const configuration = {
     extends: path.join(repo, 'tsconfig.json'),
@@ -121,20 +119,7 @@ async function run() {
   // the published package opt-in and TypeScript's normal package resolution.
   assert.equal(parsed.options.paths?.['vitest/node'], undefined)
   assert.equal(parsed.options.paths?.vitest, undefined)
-  const program = ts.createProgram(parsed.fileNames, parsed.options)
-  const diagnostics = ts.getPreEmitDiagnostics(program)
-  const foreign = diagnostics.filter(
-    (item) => !files.includes(item.file?.fileName)
-  )
-  assert.equal(
-    foreign.length,
-    0,
-    ts.formatDiagnosticsWithColorAndContext(foreign, {
-      getCanonicalFileName: (name) => name,
-      getCurrentDirectory: () => temporary,
-      getNewLine: () => '\n',
-    })
-  )
+  const { program, diagnostics } = lab.checkProgram(files, parsed, temporary)
   const programs = files.map((file, index) => {
     const errors = diagnostics.filter((item) => item.file?.fileName === file)
     return {
@@ -175,13 +160,9 @@ async function run() {
   )
   assert.deepEqual(evidence, expected)
   assert.deepEqual(exports.map((item) => item.name).sort(), symbols)
-  const dependencies = program.getSourceFiles().map((file) => file.fileName)
-  assert(
-    !dependencies.some((filename) =>
-      /node_modules\/(?:vitest|vite|@vitest)(?:\/|$)/.test(
-        filename.split(path.sep).join('/')
-      )
-    )
+  lab.assertNoDependencies(
+    program,
+    /node_modules\/(?:vitest|vite|@vitest)(?:\/|$)/
   )
   assert(
     fs.existsSync(
@@ -283,4 +264,4 @@ run()
     process.stderr.write(error.stack + '\n')
     process.exitCode = 1
   })
-  .finally(() => fs.rmSync(temporary, { recursive: true, force: true }))
+  .finally(() => lab.dispose())

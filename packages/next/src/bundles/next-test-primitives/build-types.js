@@ -7,25 +7,46 @@ const { createRequire } = require('node:module')
 
 async function build() {
   const output = join(__dirname, '../../compiled/next-test-primitives')
-  const bundle = await rollup({
-    input: join(__dirname, 'index.d.ts'),
-    plugins: [dts({ respectExternal: true })],
-    external: ['chai'],
-    onwarn(warning, warn) {
-      if (warning.code === 'UNRESOLVED_IMPORT') throw new Error(warning.message)
-      warn(warning)
-    },
-  })
-  try {
-    await bundle.write({ file: join(output, 'index.d.ts'), format: 'es' })
-  } finally {
-    await bundle.close()
-  }
-  for (const entry of ['browser', 'diff', 'error', 'timers']) {
-    const diffBundle = await rollup({
-      input: join(__dirname, entry, 'index.d.ts'),
-      plugins: [dts({ respectExternal: true })],
-      external: entry === 'browser' ? ['chai'] : undefined,
+  const expectTypeDirectory = dirname(require.resolve('expect-type'))
+  for (const entry of [
+    'expect-type-overloads',
+    '',
+    'browser',
+    'diff',
+    'error',
+    'timers',
+  ]) {
+    const declaration =
+      entry === 'expect-type-overloads'
+        ? 'expect-type-overloads.d.ts'
+        : join(entry, 'index.d.ts')
+    const assertions = entry === '' || entry === 'browser'
+    const bundle = await rollup({
+      input: join(__dirname, declaration),
+      plugins: [
+        {
+          name: 'shared-expect-type-overloads',
+          resolveId(source, importer) {
+            // Share structural helpers while retaining each entry's symbol brands.
+            if (
+              assertions &&
+              source === './overloads' &&
+              importer &&
+              dirname(importer) === expectTypeDirectory
+            ) {
+              return {
+                id:
+                  entry === 'browser'
+                    ? '../expect-type-overloads'
+                    : './expect-type-overloads',
+                external: true,
+              }
+            }
+          },
+        },
+        dts({ respectExternal: true }),
+      ],
+      external: assertions ? ['chai'] : undefined,
       onwarn(warning, warn) {
         if (warning.code === 'UNRESOLVED_IMPORT')
           throw new Error(warning.message)
@@ -33,12 +54,9 @@ async function build() {
       },
     })
     try {
-      await diffBundle.write({
-        file: join(output, entry, 'index.d.ts'),
-        format: 'es',
-      })
+      await bundle.write({ file: join(output, declaration), format: 'es' })
     } finally {
-      await diffBundle.close()
+      await bundle.close()
     }
   }
 

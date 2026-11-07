@@ -1,74 +1,32 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
-const os = require('node:os')
 const path = require('node:path')
-const { createHash } = require('node:crypto')
-const ts = require('typescript')
-const repo = path.resolve(__dirname, '../../..')
-const next = process.argv[2] || path.join(repo, 'packages/next')
-const target = fs.realpathSync(
-  path.join(next, 'experimental/testing/vitest.d.ts')
-)
+const { createTypeLab } = require('./type-programs.cjs')
+const inputs = path.join(__dirname, 'fixtures/expect-authoring-types')
+const next = process.argv[2] || path.join(__dirname, '../../../packages/next')
 const primitiveTarget = fs.realpathSync(
   path.join(next, 'dist/compiled/next-test-primitives/index.d.ts')
 )
 const assertionTarget = fs.realpathSync(
   path.join(next, 'dist/experimental/testing/assertions/index.d.ts')
 )
-const inputs = path.join(__dirname, 'fixtures/expect-authoring-types')
 const expected = JSON.parse(
   fs.readFileSync(path.join(inputs, 'reference.json'))
 )
-const temporary = fs.mkdtempSync(
-  path.join(os.tmpdir(), 'next-expect-authoring-types-')
-)
-const formatHost = {
-  getCanonicalFileName: (f) => f,
-  getCurrentDirectory: () => repo,
-  getNewLine: () => '\n',
-}
+const lab = createTypeLab({
+  name: 'expect-authoring-types',
+  inputs,
+  packageDir: next,
+})
+const { ts } = lab
 try {
-  const config = ts.readConfigFile(
-    path.join(repo, 'tsconfig.json'),
-    ts.sys.readFile
-  )
-  assert.equal(config.error, undefined)
   let primitiveGraphChecked = false
   for (const row of expected.programs) {
-    const source = fs.readFileSync(path.join(inputs, row.source))
-    assert.equal(
-      createHash('sha256').update(source).digest('hex'),
-      row.sourceSHA256
-    )
-    const file = path.join(temporary, row.name)
-    fs.writeFileSync(file, source)
-    const parsed = ts.parseJsonConfigFileContent(
-      {
-        ...config.config,
-        compilerOptions: {
-          ...config.config.compilerOptions,
-          strict: true,
-          skipLibCheck: true,
-          types: ['node'],
-          typeRoots: [path.join(repo, 'node_modules/@types')],
-          paths: { vitest: [target] },
-        },
-        files: [file, path.join(next, 'types/global.d.ts')],
-        include: [],
-        exclude: [],
-      },
-      ts.sys,
-      repo
-    )
-    assert.deepEqual(parsed.errors, [])
-    const program = ts.createProgram(parsed.fileNames, parsed.options)
-    const diagnostics = ts.getPreEmitDiagnostics(program)
-    const foreign = diagnostics.filter((d) => d.file?.fileName !== file)
-    assert.equal(
-      foreign.length,
-      0,
-      ts.formatDiagnosticsWithColorAndContext(foreign, formatHost)
-    )
+    const {
+      files: [file],
+      sources: [source],
+    } = lab.writePrograms([row])
+    const { program, diagnostics } = lab.compile([file])
     const actual = diagnostics
       .filter((d) => d.file?.fileName === file)
       .map((d) => ({
@@ -154,5 +112,5 @@ try {
     }) + '\n'
   )
 } finally {
-  fs.rmSync(temporary, { recursive: true, force: true })
+  lab.dispose()
 }
