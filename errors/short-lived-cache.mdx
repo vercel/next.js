@@ -24,8 +24,6 @@ During [prerendering](/docs/app/glossary#prerendering) or Instant Navigation val
 
 This can happen in route content, [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata), or [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport). A cached function can still require rendering at request time when its lifetime is too short.
 
-## Why this error occurs
-
 With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), a cache must meet these lifetime requirements to be included in prerendered output:
 
 | Setting      | Required value                                                                                            |
@@ -38,7 +36,18 @@ For example, the built-in `seconds` profile expires after one minute, so its res
 
 ## Ways to fix this
 
-The Cache card applies in every context. The other available fixes depend on where the cache is consumed and whether the route must be fully static.
+Choose the fix that matches where the cache is used and the freshness the data needs. These are the same fixes offered by the dev overlay, with availability determined by the context:
+
+| Context                    | Available fixes                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Route content              | [Cache](#increase-the-cache-lifetime), [Stream](#wrap-in-or-move-into-suspense), or [Block](#allow-blocking-route) |
+| Metadata                   | [Cache](#increase-the-cache-lifetime), [Static](#use-static-metadata), or [Dynamic](#mark-the-route-as-dynamic)    |
+| Viewport                   | [Cache](#increase-the-cache-lifetime), [Static](#use-static-viewport), or [Block](#allow-blocking-route)           |
+| Fully static route content | [Cache](#increase-the-cache-lifetime) or [Remove](#remove-the-data-access)                                         |
+| Fully static metadata      | [Cache](#increase-the-cache-lifetime) or [Static](#use-static-metadata)                                            |
+| Fully static viewport      | [Cache](#increase-the-cache-lifetime) or [Static](#use-static-viewport)                                            |
+
+A route with [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) must satisfy its static requirement even inside `<Suspense>`.
 
 <FixCardGrid>
   <FixCard
@@ -49,6 +58,63 @@ The Cache card applies in every context. The other available fixes depend on whe
       { text: 'cacheLife({' },
       { text: '  expire: 300,', highlight: true },
       { text: '  // ...' },
+    ]}
+  />
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="static"
+    title="Use static metadata"
+    href="#use-static-metadata"
+    snippets={[
+      { text: 'export const metadata = {', highlight: true },
+      { text: '  title: "My Page"' },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="dynamic"
+    title="Mark the route as dynamic"
+    href="#mark-the-route-as-dynamic"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'await connection()', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="static"
+    title="Use static viewport"
+    href="#use-static-viewport"
+    snippets={[
+      { text: 'export const viewport = {', highlight: true },
+      { text: '  themeColor: "#000"' },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="block"
+    title="Allow blocking route"
+    href="#allow-blocking-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="remove"
+    title="Remove the data access"
+    href="#remove-the-data-access"
+    snippets={[
+      { text: '- const data = await getData()', highlight: true },
+      { text: "+ const data = 'Static data'", highlight: true },
     ]}
   />
 </FixCardGrid>
@@ -95,29 +161,273 @@ Longer lifetimes allow the cached data to be included in prerendered output, but
 - Adding `use cache` again does not resolve this error. The function is already cached.
 - Wrapping the access in `<Suspense>` or setting `instant = false` does not satisfy [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation). A fully static route must increase the lifetime or remove the access.
 
-## Other options
+## Wrap in or move into Suspense
 
-If the short lifetime is intentional and the route does not require fully static output, choose the alternative for the location of the access:
+Choose this fix when route content should keep its short cache lifetime and can arrive after the rest of the page. Wrap the component that consumes the cached result in [`<Suspense>`](https://react.dev/reference/react/Suspense).
 
-| Location      | Other fixes                                                                                                                                                                                                 |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Route content | [Wrap in or move into Suspense](/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense), or [allow a blocking route](/docs/messages/blocking-prerender-runtime#allow-blocking-route)       |
-| Metadata      | [Use static metadata](/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata), or [mark the route as dynamic](/docs/messages/blocking-prerender-metadata-runtime#mark-the-route-as-dynamic) |
-| Viewport      | [Use static viewport](/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport), or [allow a blocking route](/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route)         |
+### Patterns
 
-For a fully static route, [remove the short-lived cache access](/docs/messages/static-route-runtime#remove-the-data-access) or replace it with a [static metadata](/docs/messages/static-metadata-runtime#use-static-metadata) or [static viewport](/docs/messages/static-viewport-runtime#use-static-viewport) export. The route's static requirement still applies when the access is behind `<Suspense>`.
+#### Keep the cached read inside the boundary
+
+Move the `await` into a child component so the surrounding page can prerender while the child waits for the cached data. Keep the cached `getData` helper's existing short lifetime.
+
+```tsx filename="app/page.tsx"
+import { Suspense } from 'react'
+import { getData } from './data'
+
+async function DataChild() {
+  const data = await getData()
+  return <pre>{JSON.stringify(data)}</pre>
+}
+
+export default function Page() {
+  return (
+    <>
+      <h1>Dashboard</h1>
+      <Suspense fallback={<p>Loading data...</p>}>
+        <DataChild />
+      </Suspense>
+    </>
+  )
+}
+```
+
+Learn more: [Wrap in or move into Suspense](/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense) for more boundary patterns.
+
+### Trade-off
+
+The surrounding content appears immediately, while the cached content waits for request-time rendering and shows the fallback until it arrives.
+
+### Gotchas
+
+- Put the cached read below the boundary. Awaiting `getData()` in the parent before returning `<Suspense>` still blocks that parent.
+- This fix does not satisfy `ensureStatic = 'navigation'`. The entire server-rendered route must be static.
+- Metadata and viewport exports are outside the page's component tree. Use their corresponding fixes below.
+
+## Use static metadata
+
+Choose this fix when the metadata can use values known at build time. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#the-metadata-object) export.
+
+### Patterns
+
+#### Replace the cached lookup with an object
+
+Remove the metadata function that consumes the short-lived cache and export the values directly.
+
+```tsx filename="app/page.tsx"
+export const metadata = {
+  title: 'My Page',
+}
+
+export default function Page() {
+  return <h1>My Page</h1>
+}
+```
+
+Learn more: [Use static metadata](/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata) for parameter-specific patterns.
+
+### Trade-off
+
+The metadata no longer reflects changes to the cached data between builds. Use this when a fixed title or description meets the route's needs.
+
+### Gotchas
+
+- Replace the export that consumes the short-lived cache. Adding a static object elsewhere does not remove an inherited metadata dependency.
+- This fix also applies when the route must be fully static.
+
+## Mark the route as dynamic
+
+Choose this fix when metadata needs the short-lived cached data and the route can include intentional request-time rendering. A dynamic marker inside `<Suspense>` lets the page retain prerendered content while the metadata resolves at request time.
+
+### Patterns
+
+#### Add a dynamic marker to the page
+
+Keep the cached metadata lookup and render a component that calls [`connection()`](/docs/app/api-reference/functions/connection) inside a boundary.
+
+```tsx filename="app/page.tsx"
+import { Suspense } from 'react'
+import { connection } from 'next/server'
+import { getData } from './data'
+
+export async function generateMetadata() {
+  const data = await getData()
+  return { title: data.title }
+}
+
+async function DynamicMarker() {
+  await connection()
+  return null
+}
+
+export default function Page() {
+  return (
+    <>
+      <h1>My Page</h1>
+      <Suspense fallback={null}>
+        <DynamicMarker />
+      </Suspense>
+    </>
+  )
+}
+```
+
+Learn more: [Mark the route as dynamic](/docs/messages/blocking-prerender-metadata-runtime#mark-the-route-as-dynamic).
+
+### Trade-off
+
+The metadata resolves at request time. The page can still show its prerendered content before the metadata arrives.
+
+### Gotchas
+
+- Wrap the marker in `<Suspense>` so it does not block the page body.
+- This fix applies to metadata on routes that allow request-time rendering. It does not satisfy `ensureStatic = 'navigation'`.
+- Framework-synthesized routes such as `/_not-found` may inherit root metadata without a page body where you can place a marker. Use [static metadata](#use-static-metadata) or [increase the cache lifetime](#increase-the-cache-lifetime) there.
+
+## Use static viewport
+
+Choose this fix when the viewport can use values known at build time. Replace [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) with a static [`viewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export.
+
+### Patterns
+
+#### Replace the cached lookup with an object
+
+Remove the viewport function that consumes the short-lived cache and export the values directly.
+
+```tsx filename="app/layout.tsx"
+import type { ReactNode } from 'react'
+
+export const viewport = {
+  themeColor: '#000',
+}
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+Learn more: [Use static viewport](/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport).
+
+### Trade-off
+
+The viewport no longer reflects changes to the cached data between builds. A static theme color applies to every request.
+
+### Gotchas
+
+- Changing a layout's viewport affects routes that inherit it.
+- This fix also applies when the route must be fully static.
+
+## Allow blocking route
+
+Choose this fix when the route needs the short-lived data before it can display useful content. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` allows the segment to wait for request-time rendering.
+
+### Patterns
+
+#### Opt the page out
+
+Set the export on the page that consumes the short-lived cache.
+
+```tsx filename="app/page.tsx"
+import { getData } from './data'
+
+export const instant = false
+
+export default async function Page() {
+  const data = await getData()
+  return <pre>{JSON.stringify(data)}</pre>
+}
+```
+
+Learn more: [Ensuring instant navigations](/docs/app/guides/instant-navigation).
+
+#### Opt the layout out
+
+Set the export on the layout when the layout itself must wait. Use the layout scope for viewport errors reported there.
+
+```tsx filename="app/layout.tsx"
+import type { ReactNode } from 'react'
+
+export const instant = false
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+Learn more: [Allow blocking route](/docs/messages/blocking-prerender-runtime#allow-blocking-route) for scope selection.
+
+Use either pattern when:
+
+- The short-lived data determines what the segment can display, so there is no meaningful content to show before it resolves.
+- You are migrating the route incrementally and intend to accept blocking navigation while deciding how to cache or stream the data.
+
+Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when useful content can appear before the cached result, or [Increase the cache lifetime](#increase-the-cache-lifetime) when the data can remain cached longer.
+
+### Trade-off
+
+Navigations to the segment wait for its server render. Choose this when waiting for the short-lived data is part of the intended experience.
+
+### Gotchas
+
+- Setting `instant` to `false` opts out only the segment that exports it. Descendant segments remain validated by their own config or the global default.
+- This export does not disable prerendering. The route still prerenders if it can. It only disables instant-navigation validation for the segment.
+- This fix does not satisfy `ensureStatic = 'navigation'`. Remove that requirement only if the route is allowed to render at request time.
+
+## Remove the data access
+
+Choose this fix when a fully static route does not need the short-lived cached value. Replace the read with data available during prerendering.
+
+### Patterns
+
+#### Replace the cached value with static data
+
+Remove the call to the cached helper and render a fixed value.
+
+```tsx filename="app/page.tsx"
+export const ensureStatic = 'navigation'
+
+export default function Page() {
+  const data = 'Static data'
+  return <p>{data}</p>
+}
+```
+
+Learn more: [Remove the data access](/docs/messages/static-route-runtime#remove-the-data-access).
+
+### Trade-off
+
+The route no longer displays updates from the cached source. Every visitor receives the static replacement.
+
+### Gotchas
+
+- Remove every excluded cache access needed by the fully static route. Leaving another short-lived read behind a boundary still violates the requirement.
+- For metadata or viewport, use the corresponding static export instead.
 
 ## Verifying the fix
 
-After changing the lifetime, reload the route and navigate to it from another page. Confirm the error clears and the page immediately displays meaningful content. If you chose streaming instead, check that the fallback covers only the region that streams in. Wrapping the whole page in a fallback can leave the page showing only that fallback while the content loads.
+After applying a fix, reload the route and navigate to it from another page. Confirm the error clears and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-Production builds may report a combined uncached/runtime diagnostic when they cannot identify the cause more precisely. Check the lifetimes of any cached functions consumed by the reported component. Run `next build --debug-prerender` for more detailed stack traces, and use [`--debug-build-paths`](/docs/app/api-reference/cli/next#debugging-prerender-errors) to focus on affected routes.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated and may combine uncached and runtime causes. Check the lifetimes of cached functions consumed by the reported component. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+
+## Don't want this validation?
+
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps.
+
+- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+
+These options do not relax `ensureStatic = 'navigation'`. A fully static route must increase the cache lifetime or replace the excluded access. To allow request-time rendering, first [remove the static requirement](/docs/messages/static-route-runtime#remove-the-static-requirement) wherever the route sets it.
+
+See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 
 ## Related validation errors
 
-- [Runtime data in route content](/docs/messages/blocking-prerender-runtime)
-- [Runtime data in metadata](/docs/messages/blocking-prerender-metadata-runtime)
-- [Runtime data in viewport](/docs/messages/blocking-prerender-viewport-runtime)
-- [Runtime data on a fully static route](/docs/messages/static-route-runtime)
-- [Runtime metadata on a fully static route](/docs/messages/static-metadata-runtime)
-- [Runtime viewport on a fully static route](/docs/messages/static-viewport-runtime)
+See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.
