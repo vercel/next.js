@@ -300,6 +300,15 @@ function AppContainer({
   const adaptedForAppRouter = React.useMemo(() => {
     return adaptForAppRouterInstance(router)
   }, [])
+
+  // Extract autoExport value to work around SWC minifier bug (swc_ecma_minifier)
+  // where nullish coalescing in JSX props creates incorrectly scoped variables
+  const isAutoExport =
+    self.__NEXT_DATA__.autoExport !== undefined &&
+    self.__NEXT_DATA__.autoExport !== null
+      ? self.__NEXT_DATA__.autoExport
+      : false
+
   return (
     <Container
       fn={(error) =>
@@ -312,7 +321,7 @@ function AppContainer({
         <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
           <PathnameContextProviderAdapter
             router={router}
-            isAutoExport={self.__NEXT_DATA__.autoExport ?? false}
+            isAutoExport={isAutoExport}
           >
             <PathParamsContext.Provider value={adaptForPathParams(router)}>
               <RouterContext.Provider value={makePublicRouterInstance(router)}>
