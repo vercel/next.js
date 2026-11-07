@@ -8,10 +8,12 @@ import {
 } from 'react'
 import type { ReactNode } from 'react'
 
+export type NotFoundMetadataBoundary = 'layout' | 'children'
+
 function createNotFoundMetadataStore(url: string) {
   // The head and the root access boundary are siblings. Publish the boundary's
   // committed state so metadata switches without updating a sibling in render.
-  let notFound = false
+  const boundaries = new Set<NotFoundMetadataBoundary>()
   const listeners = new Set<() => void>()
 
   function notify() {
@@ -20,16 +22,23 @@ function createNotFoundMetadataStore(url: string) {
 
   return {
     url,
-    getSnapshot: () => notFound,
+    getSnapshot: () => boundaries.size > 0,
     subscribe(listener: () => void) {
       listeners.add(listener)
       return () => {
         listeners.delete(listener)
       }
     },
-    setNotFound(value: boolean) {
-      if (notFound !== value) {
-        notFound = value
+    setNotFound(boundary: NotFoundMetadataBoundary, value: boolean) {
+      const wasNotFound = boundaries.size > 0
+      // A healthy root layout must not clear its children's fallback state.
+      if (value) {
+        boundaries.add(boundary)
+      } else {
+        boundaries.delete(boundary)
+      }
+      const isNotFound = boundaries.size > 0
+      if (wasNotFound !== isNotFound) {
         notify()
       }
     },

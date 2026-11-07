@@ -1014,6 +1014,7 @@ async function createComponentTreeInternal(
             {
               key: cacheNodeKey,
               notFound: notfoundClientSegment,
+              notFoundMetadataBoundary: 'layout',
               forbidden: forbiddenClientSegment,
               unauthorized: unauthorizedClientSegment,
             },
@@ -1102,6 +1103,7 @@ async function createComponentTreeInternal(
                   )
                 )
               : undefined,
+            notFoundMetadataBoundary: 'layout',
           },
           layerAssets,
           serverSegment

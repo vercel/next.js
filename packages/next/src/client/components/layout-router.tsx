@@ -689,11 +689,13 @@ export default function OuterLayoutRouter({
             loading={parentLoadingData}
           >
             <HTTPAccessFallbackBoundary
-              trackNotFoundMetadata={
+              notFoundMetadataBoundary={
                 isRootLayout &&
                 parallelRouterKey === 'children' &&
                 isActive &&
                 stateKey === activeStateKey
+                  ? 'children'
+                  : undefined
               }
               notFound={notFound}
               forbidden={forbidden}

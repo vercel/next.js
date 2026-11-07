@@ -22,6 +22,7 @@ import {
 import { MissingSlotContext } from '../../../shared/lib/app-router-context.shared-runtime'
 import {
   NotFoundMetadataContext,
+  type NotFoundMetadataBoundary,
   type NotFoundMetadataStore,
 } from './metadata-boundary'
 
@@ -32,7 +33,7 @@ interface HTTPAccessFallbackBoundaryProps {
   // TODO: Make this required once `React.createElement` understands that positional args go into children
   children?: React.ReactNode
   missingSlots?: Set<string>
-  trackNotFoundMetadata?: boolean
+  notFoundMetadataBoundary?: NotFoundMetadataBoundary
 }
 
 interface HTTPAccessFallbackErrorBoundaryProps
@@ -105,10 +106,13 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
   }
 
   syncMetadata() {
-    this.props.metadataStore?.setNotFound(
-      this.state.triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND &&
-        !!this.props.notFound
-    )
+    if (this.props.notFoundMetadataBoundary) {
+      this.props.metadataStore?.setNotFound(
+        this.props.notFoundMetadataBoundary,
+        this.state.triggeredStatus === HTTPAccessErrorStatus.NOT_FOUND &&
+          !!this.props.notFound
+      )
+    }
   }
 
   static getDerivedStateFromProps(
@@ -178,7 +182,7 @@ export function HTTPAccessFallbackBoundary({
   forbidden,
   unauthorized,
   children,
-  trackNotFoundMetadata,
+  notFoundMetadataBoundary,
 }: HTTPAccessFallbackBoundaryProps) {
   // When we're rendering the missing params shell, this will return null. This
   // is because we won't be rendering any not found boundaries or error
@@ -193,7 +197,8 @@ export function HTTPAccessFallbackBoundary({
     return (
       <HTTPAccessFallbackErrorBoundary
         pathname={pathname}
-        metadataStore={trackNotFoundMetadata ? metadataStore : null}
+        metadataStore={metadataStore}
+        notFoundMetadataBoundary={notFoundMetadataBoundary}
         notFound={notFound}
         forbidden={forbidden}
         unauthorized={unauthorized}
