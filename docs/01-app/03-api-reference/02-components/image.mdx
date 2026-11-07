@@ -287,6 +287,8 @@ Use `preload` for a known [Largest Contentful Paint (LCP)](https://nextjs.org/le
 
 In most cases, use [`loading="eager"`](#loading) for an above-the-fold image to disable lazy loading. Add [`fetchPriority="high"`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority) to ask the browser to prioritize that request over other images. `fetchPriority` alone does not disable lazy loading.
 
+React may also automatically preload eagerly loaded images during server rendering. Learn more about [React's image preloading behavior](https://react.dev/reference/react-dom/components/img#controlling-image-preloading-during-server-rendering).
+
 #### `priority`
 
 Starting with Next.js 16, the `priority` property is deprecated. Use [`preload`](#preload) to preserve the same preloading behavior, or [`loading="eager"`](#loading) if you only need to disable lazy loading.
