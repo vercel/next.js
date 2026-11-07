@@ -37,6 +37,40 @@ const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
+/**
+ * Attempt to read pageExtensions from the project's next.config.js so that
+ * files like `foo.page.tsx` (when pageExtensions includes 'page.tsx') are
+ * treated as pages by the rule. Falls back to the default set when the config
+ * cannot be read or does not declare pageExtensions.
+ */
+function getPageExtensions(rootDir: string): string[] {
+  const defaultExtensions = ['tsx', 'ts', 'jsx', 'js']
+  const configCandidates = [
+    'next.config.js',
+    'next.config.mjs',
+    'next.config.cjs',
+    'next.config.ts',
+  ]
+  for (const candidate of configCandidates) {
+    const configPath = path.join(rootDir, candidate)
+    if (!fs.existsSync(configPath)) continue
+    try {
+      // require() works for CJS configs; for ESM configs we fall back to defaults.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const config = require(configPath)
+      const cfg = config?.default ?? config
+      if (Array.isArray(cfg?.pageExtensions) && cfg.pageExtensions.length > 0) {
+        return cfg.pageExtensions as string[]
+      }
+    } catch {
+      // Config may be ESM-only or have side-effects we can't run at lint time;
+      // fall back to defaults rather than crashing the rule.
+    }
+    break
+  }
+  return defaultExtensions
+}
+
 export default defineRule({
   meta: {
     docs: {
@@ -107,7 +141,17 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
+    // Collect pageExtensions from the first root dir that has a next.config.
+    // Most projects have a single root, so this covers the common case.
+    const pageExtensions = rootDirs.length > 0
+      ? getPageExtensions(rootDirs[0])
+      : ['tsx', 'ts', 'jsx', 'js']
+
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions,
+    )
     const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
