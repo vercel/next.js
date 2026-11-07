@@ -23,7 +23,7 @@ function documentationText(quickInfo: ts.QuickInfo | undefined) {
   return quickInfo?.documentation?.map((part) => part.text) || []
 }
 
-const noNativeQuickInfoPosition = positionOf('true')
+const noNativeQuickInfoPosition = positionOf('false')
 
 describe('typescript-plugin', () => {
   let languageService: PluginLanguageService
@@ -114,7 +114,10 @@ describe('typescript-plugin', () => {
     expect(result?.kind).toBe(ts.ScriptElementKind.enumElement)
     expect(result?.canIncreaseVerbosityLevel).toBeUndefined()
     expect(documentationText(result).join(' ')).toContain(
-      'Allow rendering dynamic params'
+      'Disallow rendering dynamic params'
+    )
+    expect(documentationText(result).join(' ')).toContain(
+      'not available when Cache Components is enabled'
     )
   })
 
