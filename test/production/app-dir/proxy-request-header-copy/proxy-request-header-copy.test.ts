@@ -22,9 +22,11 @@ describe('proxy-request-header-copy', () => {
       stderr: 'inherit',
     })
 
+    // The proxy copies a `Headers` object of its own, which must be the only
+    // copy on record: it shows that the copies of this bundle are recorded.
     expect(JSON.parse(stdout.trim().split('\n').pop()!)).toEqual({
       status: 200,
-      body: { requestHeadersCopied: false, forwarded: '203.0.113.7' },
+      body: { copiedHeaders: ['control'], forwarded: '203.0.113.7' },
     })
   })
 })

@@ -11,11 +11,11 @@ require('next/dist/build/adapter/setup-node-env.external')
 
 // A `Proxy` and not a subclass, so that `instanceof Headers` stays true for
 // the headers that the platform creates.
-globalThis.copiedHeaders = new WeakSet()
+globalThis.copiedHeaders = []
 globalThis.Headers = new Proxy(Headers, {
   construct(target, args, newTarget) {
     if (args[0] instanceof target) {
-      globalThis.copiedHeaders.add(args[0])
+      globalThis.copiedHeaders.push(args[0])
     }
     return Reflect.construct(target, args, newTarget)
   },
