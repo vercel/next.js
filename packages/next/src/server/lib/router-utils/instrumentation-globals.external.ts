@@ -9,6 +9,14 @@ import type {
 import { getTracer, SpanStatusCode } from '../trace/tracer'
 import { InstrumentationSpan } from '../trace/constants'
 
+// Same value as in `lib/constants`. It is repeated here because importing
+// `lib/constants` would load that file in every server process.
+const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
+
+function interopDefault(mod: any) {
+  return mod.default || mod
+}
+
 let cachedInstrumentationModule: InstrumentationModule
 let instrumentationModuleLoadTiming: InstrumentationSpanTiming | undefined
 
@@ -89,13 +97,18 @@ export async function getInstrumentationModule(
   const startTime = getInstrumentationTimestamp()
   let error: unknown
   try {
-    // `instrumentation.js` is `INSTRUMENTATION_HOOK_FILENAME` plus `.js`. The
-    // constant isn't imported, because that would load `lib/constants` in
-    // every server process.
-    const mod = await require(
-      path.join(projectDir, distDir, 'server', 'instrumentation.js')
+    // Tools that patch the compiled file match this statement by its shape:
+    // an assignment of a call that names `INSTRUMENTATION_HOOK_FILENAME`.
+    cachedInstrumentationModule = interopDefault(
+      await require(
+        path.join(
+          projectDir,
+          distDir,
+          'server',
+          `${INSTRUMENTATION_HOOK_FILENAME}.js`
+        )
+      )
     )
-    cachedInstrumentationModule = mod.default || mod
     return cachedInstrumentationModule
   } catch (err: unknown) {
     if (
