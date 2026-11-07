@@ -138,7 +138,8 @@ function loadApi(): LoadedApi {
  *
  * A provider can be registered at any time (`register()` of
  * `instrumentation.ts`, or later), so the public methods of the tracer call
- * this every time. `getContext()` is the exception, see `loadApi()`.
+ * this every time. `getContext()` is the exception, see `loadApi()`. The
+ * module also calls it once when it is evaluated, see below.
  */
 function loadApiIfNeeded(): LoadedApi | undefined {
   if (
@@ -156,6 +157,13 @@ function loadApiIfNeeded(): LoadedApi | undefined {
 if (process.env.NEXT_RUNTIME === 'edge') {
   // The edge runtime bundles the API with the tracer.
   loadApi()
+} else {
+  // A server evaluates more than one copy of this module: the server entries
+  // of the routes bundle their own, and `next start` loads those entries
+  // after `register()` of `instrumentation.ts`. A copy that is evaluated when
+  // the API is already needed loads it now, with the entry, so that the first
+  // request to the route doesn't have to.
+  loadApiIfNeeded()
 }
 
 export class BubbledError extends Error {

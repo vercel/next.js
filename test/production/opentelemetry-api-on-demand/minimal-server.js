@@ -25,6 +25,18 @@ const entries = {
   '/route-handler': 'app/route-handler/route.js',
 }
 
+const requireEntry = (entry) =>
+  require(path.join(__dirname, '.next/server', entry))
+
+if (process.env.REGISTER_TRACER_PROVIDER) {
+  // What `next start` does for an app that sets up tracing in `register()` of
+  // its instrumentation file: a tracer provider is registered, then the server
+  // loads the entries of all routes, before the first request.
+  const { trace, ProxyTracerProvider } = require('@opentelemetry/api')
+  trace.setGlobalTracerProvider(new ProxyTracerProvider())
+  Object.values(entries).forEach(requireEntry)
+}
+
 const server = http.createServer((req, res) => {
   if (req.url === '/api-evaluations') {
     res.setHeader('content-type', 'application/json')
@@ -39,7 +51,7 @@ const server = http.createServer((req, res) => {
     return
   }
 
-  const route = require(path.join(__dirname, '.next/server', entry))
+  const route = requireEntry(entry)
   Promise.resolve(route.handler(req, res, { waitUntil() {} })).catch(
     (error) => {
       console.error(error)

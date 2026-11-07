@@ -107,3 +107,37 @@ describe.each([
     }
   })
 })
+
+// Once a tracer provider is registered, the API is going to be used. A route
+// entry that the server loads after that must load the API as it is loaded,
+// and not leave it to the first request to the route.
+describe('opentelemetry-api-on-demand (tracer provider registered before the route entries are loaded)', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    // With the package installed, the route entries bundle their own copies of
+    // the API.
+    dependencies: { '@opentelemetry/api': '^1.9.0' },
+    startCommand: 'node minimal-server.js',
+    serverReadyPattern: /minimal server ready/,
+    env: { REGISTER_TRACER_PROVIDER: '1' },
+  })
+
+  async function fetchApiEvaluations(): Promise<number> {
+    const res = await next.fetch('/api-evaluations')
+    expect(res.status).toBe(200)
+    return res.json()
+  }
+
+  it('should load the OpenTelemetry API with the route entries, not in the first request to a route', async () => {
+    const evaluations = await fetchApiEvaluations()
+    // The package that the server registered the tracer provider with, and
+    // the copies of the route entries.
+    expect(evaluations).toBeGreaterThan(1)
+
+    for (const [, path, content] of routes) {
+      expect(await next.render(path)).toContain(content)
+    }
+
+    expect(await fetchApiEvaluations()).toBe(evaluations)
+  })
+})

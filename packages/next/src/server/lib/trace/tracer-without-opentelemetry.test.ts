@@ -185,4 +185,24 @@ describe('tracer without OpenTelemetry', () => {
       api.trace.disable()
     }
   })
+
+  // A server loads more copies of the tracer after `register()` of the
+  // instrumentation file: the server entries of the routes bundle their own.
+  // Such a copy must not leave the load of the API to its first request.
+  it('loads the API when it is evaluated after something was registered', () => {
+    const api = requireActualApi()
+    api.trace.setGlobalTracerProvider(new api.ProxyTracerProvider())
+
+    try {
+      mockApiLoads.length = 0
+      // The next `require` evaluates a new copy of the tracer, and a load of
+      // the API is recorded again.
+      jest.resetModules()
+      const copy = require('./tracer') as typeof import('./tracer')
+      expect(copy.getTracer()).not.toBe(tracer)
+      expect(mockApiLoads).toEqual(['@opentelemetry/api'])
+    } finally {
+      api.trace.disable()
+    }
+  })
 })
