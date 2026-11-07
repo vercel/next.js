@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readCoverageFixture } from './coverage-fixtures.cjs'
 import { createHash } from 'node:crypto'
 import {
   readFileSync,
@@ -67,16 +68,13 @@ const req = createRequire(join(consumer, 'package.json')),
   bin = join(req.resolve('next/package.json'), '../dist/bin/next')
 if (!process.argv.includes('--source'))
   for (const name of ['vitest', 'vite']) assert.throws(() => req.resolve(name))
-const expected = JSON.parse(
-  readFileSync(
-    join(
-      here,
-      'fixtures/browser-production/public-' +
-        (mode === 'development' ? 'development-' : '') +
-        sourceKind +
-        '.expected.json'
-    ),
-    'utf8'
+const expected = readCoverageFixture(
+  join(
+    here,
+    'fixtures/browser-production/public-' +
+      (mode === 'development' ? 'development-' : '') +
+      sourceKind +
+      '.expected.json'
   )
 )
 assert(expected.sdks.includes(sdk))

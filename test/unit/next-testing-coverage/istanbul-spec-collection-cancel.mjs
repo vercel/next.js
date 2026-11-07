@@ -1,3 +1,4 @@
+import { readCoverageFixture } from './coverage-fixtures.cjs'
 import {
   assertCoverageCounters,
   assertCoverageReports,
@@ -35,12 +36,10 @@ const load = createRequire(join(consumer, 'package.json'))
 if (!source)
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
     assert.throws(() => load.resolve(name))
-const row = JSON.parse(
-  readFileSync(
-    join(
-      dirname(fileURLToPath(import.meta.url)),
-      'fixtures/istanbul-provider/spec-collection-pristine.json'
-    )
+const row = readCoverageFixture(
+  join(
+    dirname(fileURLToPath(import.meta.url)),
+    'fixtures/istanbul-provider/spec-collection-pristine.json'
   )
 ).cancellation
 assert(row)

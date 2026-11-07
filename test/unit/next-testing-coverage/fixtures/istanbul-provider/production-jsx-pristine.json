@@ -1,15 +1,19 @@
 {
+  "defaults": {
+    "entryExtension": "mjs",
+    "subjectExtension": "tsx",
+    "specFile": "suite.test.mjs",
+    "subjectFile": "subject.tsx",
+    "sourceFiles": {
+      "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('hit')\n})\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('miss')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
+      "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
+    },
+    "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
+    "caseNames": ["typed zero"]
+  },
   "rows": [
     {
       "name": "mjs-tsx-explicit-both-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
-      "sourceFiles": {
-        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('hit')\n})\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('miss')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
-        "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
-      },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.tsx\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx true", "jsx false"],
@@ -23,10 +27,6 @@
     },
     {
       "name": "mjs-tsx-explicit-false-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('miss')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
@@ -44,17 +44,12 @@
     },
     {
       "name": "mjs-tsx-explicit-imported-zero-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.tsx'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.tsx\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.tsx": {
           "statements": [0, 0, 0, 0],
@@ -65,10 +60,6 @@
     },
     {
       "name": "mjs-tsx-explicit-true-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('hit')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
@@ -86,17 +77,12 @@
     },
     {
       "name": "mjs-tsx-explicit-unimported-zero-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.tsx\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.tsx": {
           "statements": [0, 0, 0, 0],
@@ -107,15 +93,6 @@
     },
     {
       "name": "mjs-tsx-imported-both-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
-      "sourceFiles": {
-        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('hit')\n})\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('miss')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
-        "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
-      },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx true", "jsx false"],
       "coverageHits": {
@@ -128,15 +105,10 @@
     },
     {
       "name": "mjs-tsx-imported-false-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('miss')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx false"],
       "coverageHits": {
@@ -149,17 +121,11 @@
     },
     {
       "name": "mjs-tsx-imported-imported-zero-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.tsx'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.tsx": {
           "statements": [0, 0, 0, 0],
@@ -170,15 +136,10 @@
     },
     {
       "name": "mjs-tsx-imported-true-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('hit')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx true"],
       "coverageHits": {
@@ -191,24 +152,16 @@
     },
     {
       "name": "mjs-tsx-imported-unimported-zero-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {}
     },
     {
       "name": "mjs-jsx-explicit-both-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('hit')\n})\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('miss')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
@@ -227,9 +180,7 @@
     },
     {
       "name": "mjs-jsx-explicit-false-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('miss')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
@@ -248,9 +199,7 @@
     },
     {
       "name": "mjs-jsx-explicit-imported-zero-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.jsx'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
@@ -258,7 +207,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.jsx\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.jsx": {
           "statements": [0, 0, 0, 0],
@@ -269,9 +217,7 @@
     },
     {
       "name": "mjs-jsx-explicit-true-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('hit')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
@@ -290,9 +236,7 @@
     },
     {
       "name": "mjs-jsx-explicit-unimported-zero-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
@@ -300,7 +244,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.jsx\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.jsx": {
           "statements": [0, 0, 0, 0],
@@ -311,15 +254,12 @@
     },
     {
       "name": "mjs-jsx-imported-both-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('hit')\n})\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('miss')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.jsx": "export function choose(value) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx true", "jsx false"],
       "coverageHits": {
@@ -332,15 +272,12 @@
     },
     {
       "name": "mjs-jsx-imported-false-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('miss')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.jsx": "export function choose(value) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx false"],
       "coverageHits": {
@@ -353,17 +290,13 @@
     },
     {
       "name": "mjs-jsx-imported-imported-zero-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.jsx'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.jsx": "export function choose(value) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.jsx": {
           "statements": [0, 0, 0, 0],
@@ -374,15 +307,12 @@
     },
     {
       "name": "mjs-jsx-imported-true-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('span')\n  expect(actual.props.children).toBe('hit')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.jsx": "export function choose(value) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx true"],
       "coverageHits": {
@@ -395,25 +325,17 @@
     },
     {
       "name": "mjs-jsx-imported-unimported-zero-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.jsx": "export function choose(value) {\n  if (value) return <span>hit</span>\n  return <span>miss</span>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {}
     },
     {
       "name": "mjs-tsx-props-explicit-both-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('yes')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('hit')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('no')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('miss')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
@@ -434,10 +356,6 @@
     },
     {
       "name": "mjs-tsx-props-explicit-false-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('no')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('miss')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
@@ -458,17 +376,12 @@
     },
     {
       "name": "mjs-tsx-props-explicit-imported-zero-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.tsx'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.tsx\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.tsx": {
           "statements": [0, 0],
@@ -482,10 +395,6 @@
     },
     {
       "name": "mjs-tsx-props-explicit-true-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('yes')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('hit')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
@@ -506,17 +415,12 @@
     },
     {
       "name": "mjs-tsx-props-explicit-unimported-zero-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.tsx\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.tsx": {
           "statements": [0, 0],
@@ -530,15 +434,10 @@
     },
     {
       "name": "mjs-tsx-props-imported-both-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('yes')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('hit')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('no')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('miss')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx true", "jsx false"],
       "coverageHits": {
@@ -554,15 +453,10 @@
     },
     {
       "name": "mjs-tsx-props-imported-false-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('no')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('miss')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx false"],
       "coverageHits": {
@@ -578,17 +472,11 @@
     },
     {
       "name": "mjs-tsx-props-imported-imported-zero-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.tsx'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.tsx": {
           "statements": [0, 0],
@@ -602,15 +490,10 @@
     },
     {
       "name": "mjs-tsx-props-imported-true-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.tsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('yes')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('hit')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx true"],
       "coverageHits": {
@@ -626,24 +509,16 @@
     },
     {
       "name": "mjs-tsx-props-imported-unimported-zero-production",
-      "entryExtension": "mjs",
-      "subjectExtension": "tsx",
-      "specFile": "suite.test.mjs",
-      "subjectFile": "subject.tsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.tsx": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {}
     },
     {
       "name": "mjs-jsx-props-explicit-both-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('yes')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('hit')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('no')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('miss')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
@@ -665,9 +540,7 @@
     },
     {
       "name": "mjs-jsx-props-explicit-false-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('no')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('miss')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
@@ -689,9 +562,7 @@
     },
     {
       "name": "mjs-jsx-props-explicit-imported-zero-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.jsx'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
@@ -699,7 +570,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.jsx\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.jsx": {
           "statements": [0, 0],
@@ -713,9 +583,7 @@
     },
     {
       "name": "mjs-jsx-props-explicit-true-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('yes')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('hit')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
@@ -737,9 +605,7 @@
     },
     {
       "name": "mjs-jsx-props-explicit-unimported-zero-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
@@ -747,7 +613,6 @@
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.jsx\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.jsx": {
           "statements": [0, 0],
@@ -761,15 +626,12 @@
     },
     {
       "name": "mjs-jsx-props-imported-both-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('yes')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('hit')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('no')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('miss')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.jsx": "export function choose(value) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx true", "jsx false"],
       "coverageHits": {
@@ -785,15 +647,12 @@
     },
     {
       "name": "mjs-jsx-props-imported-false-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx false', () => {\n  const input = false\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('no')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('miss')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.jsx": "export function choose(value) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx false"],
       "coverageHits": {
@@ -809,17 +668,13 @@
     },
     {
       "name": "mjs-jsx-props-imported-imported-zero-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport './subject.jsx'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.jsx": "export function choose(value) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {
         "subject.jsx": {
           "statements": [0, 0],
@@ -833,15 +688,12 @@
     },
     {
       "name": "mjs-jsx-props-imported-true-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.jsx'\ntest('jsx true', () => {\n  const input = true\n  const actual = choose(input)\n  expect(actual.type).toBe('section')\n  expect(actual.props['data-state']).toBe('yes')\n  expect(actual.props.children[0].type).toBe('span')\n  expect(actual.props.children[0].props.children).toBe('hit')\n  expect(actual.props.children[1].type).toBe('span')\n  expect(actual.props.children[1].props.children).toBe('fixed')\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.jsx": "export function choose(value) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
       "caseNames": ["jsx true"],
       "coverageHits": {
@@ -857,17 +709,13 @@
     },
     {
       "name": "mjs-jsx-props-imported-unimported-zero-production",
-      "entryExtension": "mjs",
       "subjectExtension": "jsx",
-      "specFile": "suite.test.mjs",
       "subjectFile": "subject.jsx",
       "sourceFiles": {
         "suite.test.mjs": "import {test,expect} from 'vitest'\ntest('typed zero', () => {\n  const actual = 3\n  expect(actual).toBe(3)\n})\n\nif (process.env.NODE_ENV !== 'production') throw new Error('actual production JSX profile required')\n",
         "subject.jsx": "export function choose(value) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"projects\":[{\"test\":{\"name\":\"production\",\"mode\":\"production\",\"include\":[\"suite.test.mjs\"]}}]}}\n",
       "mode": "production",
-      "caseNames": ["typed zero"],
       "coverageHits": {}
     }
   ]

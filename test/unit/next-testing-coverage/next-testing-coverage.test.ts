@@ -1,3 +1,9 @@
+const { readCoverageFixture } = require('./coverage-fixtures.cjs')
+import {
+  runNodeHelper,
+  runNodeHelperSync,
+  withOutputDirectory,
+} from 'next-testing-node-helpers'
 import { EventEmitter } from 'node:events'
 import { promises as customFileSystem } from 'fs'
 import { mkdtemp, writeFile, rm, readFile, realpath } from 'fs/promises'
@@ -225,14 +231,12 @@ it('does not publish a percentage when a file or source revision is missing', as
 })
 
 it('collects actual V8 ranges and verifies loaded bytes in a fresh process', async () => {
-  const { execFile } = await import('child_process')
-  const { promisify } = await import('util')
   const f = await fixture()
   try {
     const artifactPath = join(f.root, 'artifact.json')
     const capturePath = join(f.root, 'capture.json')
     await writeFile(artifactPath, JSON.stringify(f.artifact))
-    await promisify(execFile)(process.execPath, [
+    await runNodeHelper([
       join(__dirname, 'collector-worker.cjs'),
       artifactPath,
       capturePath,
@@ -591,8 +595,6 @@ it('accepts Next indexed-map compatibility fields and explicit unmapped sentinel
 })
 
 it('derives standard statement, branch and function counts from actual V8 ranges', async () => {
-  const { execFile } = await import('child_process')
-  const { promisify } = await import('util')
   // The fixture consumes the vendored runtime; its public subpath has no types.
   const { SourceMapGenerator } = (await import(
     'next/dist/compiled/source-map'
@@ -662,7 +664,7 @@ it('derives standard statement, branch and function counts from actual V8 ranges
     const artifactPath = join(root, 'artifact.json')
     const capturePath = join(root, 'capture.json')
     await writeFile(artifactPath, JSON.stringify(artifact))
-    await promisify(execFile)(process.execPath, [
+    await runNodeHelper([
       join(__dirname, 'collector-worker.cjs'),
       artifactPath,
       capturePath,
@@ -695,8 +697,6 @@ it('derives standard statement, branch and function counts from actual V8 ranges
 it.each([false, true])(
   'restores authored statement spans from actual V8 ranges and rejects missing associations (generated semicolon: %s)',
   async (semicolon) => {
-    const { execFile } = await import('child_process')
-    const { promisify } = await import('util')
     const { SourceMapGenerator } = (await import(
       'next/dist/compiled/source-map'
     )) as unknown as {
@@ -782,7 +782,7 @@ it.each([false, true])(
       const artifactPath = join(root, 'artifact.json'),
         capturePath = join(root, 'capture.json')
       await writeFile(artifactPath, JSON.stringify(artifact))
-      await promisify(execFile)(process.execPath, [
+      await runNodeHelper([
         join(__dirname, 'collector-worker.cjs'),
         artifactPath,
         capturePath,
@@ -847,8 +847,6 @@ async function actualTypeScriptCapture(
   detailed = false,
   shiftedStart = false
 ) {
-  const { execFile } = await import('child_process')
-  const { promisify } = await import('util')
   const { SourceMapGenerator } = (await import(
     'next/dist/compiled/source-map'
   )) as unknown as {
@@ -932,7 +930,7 @@ async function actualTypeScriptCapture(
   const artifactPath = join(root, 'artifact.json'),
     capturePath = join(root, 'capture.json')
   await writeFile(artifactPath, JSON.stringify(artifact))
-  await promisify(execFile)(process.execPath, [
+  await runNodeHelper([
     join(__dirname, 'collector-worker.cjs'),
     artifactPath,
     capturePath,
@@ -4364,8 +4362,6 @@ it.each([
 ])(
   'keeps original V8 counts separate from certified generated proxies for %s with %s identities',
   async (mode, identity) => {
-    const { promisify } = await import('node:util')
-    const { execFile } = await import('node:child_process')
     const { SourceMapGenerator } = require('next/dist/compiled/source-map')
     const { remapStandardCoverage, createUncoveredJavaScript } = await import(
       'next/dist/experimental/testing/coverage/istanbul'
@@ -4488,7 +4484,7 @@ it.each([
       const artifactPath = join(root, 'artifact.json'),
         capturePath = join(root, 'capture.json')
       await writeFile(artifactPath, JSON.stringify(artifact))
-      await promisify(execFile)(process.execPath, [
+      await runNodeHelper([
         join(__dirname, 'collector-worker.cjs'),
         artifactPath,
         capturePath,
@@ -4864,9 +4860,7 @@ describe('mode-specific native Browser coverage certificates', () => {
     }
   })
   it('refuses development import requests without actual JSX value imports or the exact live plan', () => {
-    const { execFileSync } = require('node:child_process')
-    const stdout = execFileSync(
-      process.execPath,
+    const stdout = runNodeHelperSync(
       [join(__dirname, 'development-import-plan-controls.mjs')],
       {
         encoding: 'utf8',
@@ -11295,10 +11289,7 @@ it('preserves the reference Unknown text summary for an empty coverage map', asy
 })
 
 it('maps actual typed callback functions and statements to the complete reference reports', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'typescript-callbacks.cjs')],
     { timeout: 180000, maxBuffer: 1024 * 1024 }
   )
@@ -11310,10 +11301,7 @@ it('maps actual typed callback functions and statements to the complete referenc
 }, 190000)
 
 it('maps computed-member typed callbacks to complete reference reports in both Node profiles', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'computed-callbacks.cjs')],
     { timeout: 180000, maxBuffer: 1024 * 1024 }
   )
@@ -11325,13 +11313,9 @@ it('maps computed-member typed callbacks to complete reference reports in both N
 }, 190000)
 
 it('maps static object-property typed arrows to complete reference reports in both Node profiles', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const result = await promisify(execFile)(
-    process.execPath,
-    [join(__dirname, 'object-arrows.cjs')],
-    { timeout: 180_000 }
-  )
+  const result = await runNodeHelper([join(__dirname, 'object-arrows.cjs')], {
+    timeout: 180_000,
+  })
   expect(JSON.parse(result.stdout.trim())).toEqual({
     profiles: 4,
     cases: 4,
@@ -11340,10 +11324,7 @@ it('maps static object-property typed arrows to complete reference reports in bo
 }, 180_000)
 
 it('maps function-expression callback boundaries to complete reference reports in both Node profiles', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'function-callbacks.cjs')],
     { timeout: 180000, maxBuffer: 1024 * 1024 }
   )
@@ -11355,10 +11336,7 @@ it('maps function-expression callback boundaries to complete reference reports i
 }, 190000)
 
 it('publishes complete pristine JSX and TSX standard coverage through the ordinary Node CLI in both profiles', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-standard.cjs')],
     { timeout: 180000, maxBuffer: 1024 * 1024 }
   )
@@ -11370,10 +11348,7 @@ it('publishes complete pristine JSX and TSX standard coverage through the ordina
 }, 190000)
 
 it('keeps JSX report ownership bound to the current source/profile/entry/revision plans', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-ownership.cjs')],
     { timeout: 30000, maxBuffer: 1024 * 1024 }
   )
@@ -11381,10 +11356,7 @@ it('keeps JSX report ownership bound to the current source/profile/entry/revisio
 }, 40000)
 
 it('retains actual JSX initializer and logical-child ownership while rejecting ambiguous compiler roles', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-owner-maps.cjs')],
     { timeout: 30000, maxBuffer: 1024 * 1024 }
   )
@@ -11392,10 +11364,7 @@ it('retains actual JSX initializer and logical-child ownership while rejecting a
 }, 40000)
 
 it('publishes complete pristine nested, logical-child and typed-arrow JSX coverage in both Node profiles', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-owner-reports.cjs')],
     { timeout: 240000, maxBuffer: 1024 * 1024 }
   )
@@ -11407,10 +11376,7 @@ it('publishes complete pristine nested, logical-child and typed-arrow JSX covera
 }, 250000)
 
 it('retains logical branch counters across typed fragment arrow conversions in both Node profiles', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-fragment-reports.cjs')],
     { timeout: 180000, maxBuffer: 1024 * 1024 }
   )
@@ -11422,10 +11388,7 @@ it('retains logical branch counters across typed fragment arrow conversions in b
 }, 190000)
 
 it('keeps fragment endpoints bound to unique compiler owners and the actual JSX profile', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-fragment-maps.cjs')],
     { timeout: 30000, maxBuffer: 1024 * 1024 }
   )
@@ -11449,12 +11412,10 @@ it('accepts and deduplicates explicit lcovonly while preserving the existing def
 })
 
 it('matches complete genuine development/production LCOV-only bytes with and without JSON', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
-    [join(__dirname, 'lcovonly.cjs')],
-    { encoding: 'utf8', timeout: 180000 }
-  )
+  const result = runNodeHelperSync([join(__dirname, 'lcovonly.cjs')], {
+    encoding: 'utf8',
+    timeout: 180000,
+  })
   expect(JSON.parse(result)).toEqual({
     profiles: 2,
     flavors: 2,
@@ -11465,19 +11426,15 @@ it('matches complete genuine development/production LCOV-only bytes with and wit
 }, 190000)
 
 it('binds same-line if-return branch endpoints through actual compiler roles without changing counters', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
-    [join(__dirname, 'if-return-maps.cjs')],
-    { encoding: 'utf8', timeout: 30000 }
-  )
+  const result = runNodeHelperSync([join(__dirname, 'if-return-maps.cjs')], {
+    encoding: 'utf8',
+    timeout: 30000,
+  })
   expect(JSON.parse(result)).toEqual({ profiles: 2, controls: 44, passed: 44 })
 })
 
 it('binds conditional operands to unique authored and emitted roles without changing counters', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'conditional-operands.cjs')],
     { encoding: 'utf8', timeout: 30000 }
   )
@@ -11485,9 +11442,7 @@ it('binds conditional operands to unique authored and emitted roles without chan
 })
 
 it('matches complete genuine conditional coverage in development and production', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'conditional-reports.cjs')],
     { encoding: 'utf8', timeout: 90000 }
   )
@@ -11499,10 +11454,7 @@ it('matches complete genuine conditional coverage in development and production'
 }, 100000)
 
 it('associates multiline JSX arrow endpoints only with unique real compiler terminal facts', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-multiline-maps.cjs')],
     { timeout: 30000, maxBuffer: 1024 * 1024 }
   )
@@ -11510,10 +11462,7 @@ it('associates multiline JSX arrow endpoints only with unique real compiler term
 }, 40000)
 
 it('publishes complete pristine multiline typed-arrow JSX coverage in both Node profiles', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-multiline-reports.cjs')],
     { timeout: 180000, maxBuffer: 1024 * 1024 }
   )
@@ -11525,10 +11474,7 @@ it('publishes complete pristine multiline typed-arrow JSX coverage in both Node 
 }, 190000)
 
 it('binds parenthesized JSX return endpoints only through real unique compiler facts', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-return-maps.cjs')],
     { timeout: 30000, maxBuffer: 1024 * 1024 }
   )
@@ -11536,10 +11482,7 @@ it('binds parenthesized JSX return endpoints only through real unique compiler f
 }, 40000)
 
 it('publishes complete pristine parenthesized multiline JSX return coverage in both Node profiles', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-return-reports.cjs')],
     { timeout: 180000, maxBuffer: 1024 * 1024 }
   )
@@ -11551,10 +11494,7 @@ it('publishes complete pristine parenthesized multiline JSX return coverage in b
 }, 190000)
 
 it('binds multiline parenthesized logical JSX only through unique native compiler roles', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-multiline-logical-maps.cjs')],
     { timeout: 30000, maxBuffer: 1024 * 1024 }
   )
@@ -11562,10 +11502,7 @@ it('binds multiline parenthesized logical JSX only through unique native compile
 }, 40000)
 
 it('publishes complete pristine multiline logical JSX reports in both Node profiles', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-multiline-logical-reports.cjs')],
     { timeout: 180000, maxBuffer: 1024 * 1024 }
   )
@@ -11577,10 +11514,7 @@ it('publishes complete pristine multiline logical JSX reports in both Node profi
 }, 190000)
 
 it('retains prior multiline fragment coverage when the logical element repair is selected', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-multiline-fragment-reports.cjs')],
     { timeout: 180000, maxBuffer: 1024 * 1024 }
   )
@@ -11594,10 +11528,7 @@ it('retains prior multiline fragment coverage when the logical element repair is
 }, 190000)
 
 it('retains complete pristine ownerless multiline logical return reports', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-multiline-ownerless-reports.cjs')],
     { timeout: 180000, maxBuffer: 1024 * 1024 }
   )
@@ -11610,10 +11541,7 @@ it('retains complete pristine ownerless multiline logical return reports', async
 }, 190000)
 
 it('binds multiline Fragment coverage to actual native child and sibling mappings', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'jsx-multiline-fragment-maps.cjs')],
     { timeout: 30000, maxBuffer: 1024 * 1024 }
   )
@@ -11621,9 +11549,7 @@ it('binds multiline Fragment coverage to actual native child and sibling mapping
 }, 40000)
 
 it('retains actual parenthesis and owner map certificates for multiline JSX logical children', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'jsx-logical-shapes-maps.cjs')],
     { encoding: 'utf8', timeout: 30000 }
   )
@@ -11631,9 +11557,7 @@ it('retains actual parenthesis and owner map certificates for multiline JSX logi
 })
 
 it('matches complete original-source coverage for parenthesized Fragment and unparenthesized element children', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'jsx-logical-shapes-reports.cjs')],
     { encoding: 'utf8', timeout: 190000 }
   )
@@ -11647,9 +11571,7 @@ it('matches complete original-source coverage for parenthesized Fragment and unp
 }, 200000)
 
 it('binds constructor property descriptors only through actual compiler assignments and maps', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'parameter-property-maps.cjs')],
     { encoding: 'utf8', timeout: 30000 }
   )
@@ -11657,9 +11579,7 @@ it('binds constructor property descriptors only through actual compiler assignme
 })
 
 it('matches complete pristine coverage for constructor parameter properties in both Node profiles', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'parameter-property-reports.cjs')],
     { encoding: 'utf8', timeout: 420000 }
   )
@@ -11672,22 +11592,18 @@ it('matches complete pristine coverage for constructor parameter properties in b
 }, 430000)
 
 it('binds runtime namespace descriptors through actual compiler IIFEs and publication mappings', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
-    [join(__dirname, 'namespace-maps.cjs')],
-    { encoding: 'utf8', timeout: 30000 }
-  )
+  const result = runNodeHelperSync([join(__dirname, 'namespace-maps.cjs')], {
+    encoding: 'utf8',
+    timeout: 30000,
+  })
   expect(JSON.parse(result)).toEqual({ controls: 68, passed: 68 })
 })
 
 it('matches complete pristine runtime namespace coverage through the public CLI in both Node profiles', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
-    [join(__dirname, 'namespace-reports.cjs')],
-    { encoding: 'utf8', timeout: 120000 }
-  )
+  const result = runNodeHelperSync([join(__dirname, 'namespace-reports.cjs')], {
+    encoding: 'utf8',
+    timeout: 120000,
+  })
   expect(JSON.parse(result)).toEqual({
     profiles: 2,
     cases: 2,
@@ -11697,28 +11613,18 @@ it('matches complete pristine runtime namespace coverage through the public CLI 
 }, 130000)
 
 it('binds enum member counters only through actual compiler owners, literal writes and maps', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
-    [join(__dirname, 'enum-maps.cjs')],
-    {
-      encoding: 'utf8',
-      timeout: 30000,
-    }
-  )
+  const result = runNodeHelperSync([join(__dirname, 'enum-maps.cjs')], {
+    encoding: 'utf8',
+    timeout: 30000,
+  })
   expect(JSON.parse(result)).toEqual({ controls: 270, passed: 270 })
 })
 
 it('matches complete pristine enum coverage through the public CLI in both Node profiles', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
-    [join(__dirname, 'enum-reports.cjs')],
-    {
-      encoding: 'utf8',
-      timeout: 420000,
-    }
-  )
+  const result = runNodeHelperSync([join(__dirname, 'enum-reports.cjs')], {
+    encoding: 'utf8',
+    timeout: 420000,
+  })
   expect(JSON.parse(result)).toEqual({
     profiles: 10,
     cases: 10,
@@ -11728,19 +11634,15 @@ it('matches complete pristine enum coverage through the public CLI in both Node 
 }, 430000)
 
 it('binds typed class arrow fields only through actual class, key and terminal maps', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
-    [join(__dirname, 'class-arrows-maps.cjs')],
-    { encoding: 'utf8', timeout: 30000 }
-  )
+  const result = runNodeHelperSync([join(__dirname, 'class-arrows-maps.cjs')], {
+    encoding: 'utf8',
+    timeout: 30000,
+  })
   expect(JSON.parse(result)).toEqual({ controls: 60, passed: 60 })
 })
 
 it('matches complete pristine class arrow coverage and existing methods in both Node profiles', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'class-arrows-reports.cjs')],
     { encoding: 'utf8', timeout: 250000 }
   )
@@ -11753,10 +11655,7 @@ it('matches complete pristine class arrow coverage and existing methods in both 
 }, 260000)
 
 it('matches complete genuine imported and untouched TypeScript reports while preserving selected JavaScript and JSX plans', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'typescript-import-reports.cjs')],
     { timeout: 300000, maxBuffer: 1024 * 1024 }
   )
@@ -11784,10 +11683,7 @@ it('binds class function endpoints only through actual owner, function, body and
 })
 
 it('matches full genuine executed and untouched class function reports in both Node modes', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const { stdout } = await promisify(execFile)(
-    process.execPath,
+  const { stdout } = await runNodeHelper(
     [join(__dirname, 'class-functions-reports.cjs')],
     { timeout: 240000, maxBuffer: 1024 * 1024 }
   )
@@ -11800,9 +11696,7 @@ it('matches full genuine executed and untouched class function reports in both N
 }, 250000)
 
 it('binds constructor property call defaults only through unique real compiler roles', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'parameter-property-call-maps.cjs')],
     { encoding: 'utf8', timeout: 30000 }
   )
@@ -11810,9 +11704,7 @@ it('binds constructor property call defaults only through unique real compiler r
 })
 
 it('matches complete pristine constructor call-default coverage for executed and untouched sources', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'parameter-property-call-reports.cjs')],
     { encoding: 'utf8', timeout: 180000 }
   )
@@ -11825,9 +11717,7 @@ it('matches complete pristine constructor call-default coverage for executed and
 }, 190000)
 
 it('binds constructor property single-numeric-argument defaults through unique real compiler roles', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'parameter-property-literal-call-maps.cjs')],
     { encoding: 'utf8', timeout: 30000 }
   )
@@ -11835,9 +11725,7 @@ it('binds constructor property single-numeric-argument defaults through unique r
 })
 
 it('matches complete pristine numeric-call-default coverage for executed and untouched sources', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'parameter-property-literal-call-reports.cjs')],
     { encoding: 'utf8', timeout: 180000 }
   )
@@ -11851,9 +11739,7 @@ it('matches complete pristine numeric-call-default coverage for executed and unt
 
 describe('project-configured standard V8 coverage', () => {
   it('matches complete pristine configured reports and case rows through ordinary CLI execution', () => {
-    const { execFileSync } = require('node:child_process')
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [join(__dirname, 'project-configured-reports.cjs')],
       { encoding: 'utf8', timeout: 300000 }
     )
@@ -12163,9 +12049,7 @@ describe('explicitly disabled custom coverage', () => {
     }
   })
   it('matches pristine disabled cases and preserves the actual enabled provider trace and report', () => {
-    const { execFileSync } = require('node:child_process')
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [join(__dirname, 'custom-disable-reports.cjs')],
       { encoding: 'utf8', timeout: 150000 }
     )
@@ -12191,9 +12075,7 @@ describe('project-configured V8 coverage watch', () => {
   ])(
     'matches complete pristine development and production reports for %s',
     (scenario, expected) => {
-      const { execFileSync } = require('node:child_process')
-      const result = execFileSync(
-        process.execPath,
+      const result = runNodeHelperSync(
         [
           join(__dirname, 'configured-watch-reports.cjs'),
           `--scenario=${scenario}`,
@@ -12207,9 +12089,7 @@ describe('project-configured V8 coverage watch', () => {
 })
 
 it('captures fresh orderly-cancel coverage only after actual dev/prod worker closure', () => {
-  const { execFileSync } = require('node:child_process')
-  const result = execFileSync(
-    process.execPath,
+  const result = runNodeHelperSync(
     [join(__dirname, 'orderly-cancel-producer.cjs')],
     { encoding: 'utf8', timeout: 190000 }
   )
@@ -12232,9 +12112,7 @@ it.each([
 ])(
   'does not publish actual cancellation capture after %s',
   (control) => {
-    const { execFileSync } = require('node:child_process')
-    const result = execFileSync(
-      process.execPath,
+    const result = runNodeHelperSync(
       [
         join(__dirname, 'orderly-cancel-producer.cjs'),
         '--mode=development',
@@ -12428,9 +12306,7 @@ it('retains a never-launched file across only scheduling metadata revisions with
 })
 
 it('matches pristine cancelled coverage with actually empty interactive new-mode snapshot plans', () => {
-  const { execFileSync } = require('node:child_process')
-  const stdout = execFileSync(
-    process.execPath,
+  const stdout = runNodeHelperSync(
     [join(__dirname, 'orderly-cancel-producer.cjs'), '--snapshot-mode=new'],
     { encoding: 'utf8', timeout: 240000 }
   )
@@ -12452,9 +12328,7 @@ it.each(
 )(
   'vetoes cancelled coverage for an actual $intent snapshot writer in $mode',
   ({ mode, intent }) => {
-    const { execFileSync } = require('node:child_process')
-    const stdout = execFileSync(
-      process.execPath,
+    const stdout = runNodeHelperSync(
       [
         join(__dirname, 'orderly-cancel-producer.cjs'),
         `--mode=${mode}`,
@@ -12484,9 +12358,7 @@ it.each(
 it.each(['development', 'production'] as const)(
   'retains real read-only inline snapshot assertions during new-mode cancellation in %s',
   (mode) => {
-    const { execFileSync } = require('node:child_process')
-    const stdout = execFileSync(
-      process.execPath,
+    const stdout = runNodeHelperSync(
       [
         join(__dirname, 'orderly-cancel-producer.cjs'),
         `--mode=${mode}`,
@@ -12520,9 +12392,7 @@ it.each(
 )(
   'matches genuine public $mode watch $kind cancellation reports and recovery',
   ({ mode, kind }) => {
-    const { execFileSync } = require('node:child_process')
-    const stdout = execFileSync(
-      process.execPath,
+    const stdout = runNodeHelperSync(
       [
         join(__dirname, 'watch-user-cancel-reports.cjs'),
         `--mode=${mode}`,
@@ -12549,9 +12419,7 @@ it.each(
 it.each(['development', 'production'] as const)(
   'preserves genuine parallel watch cancellation case, map and selected-file order in %s',
   (mode) => {
-    const { execFileSync } = require('node:child_process')
-    const stdout = execFileSync(
-      process.execPath,
+    const stdout = runNodeHelperSync(
       [
         join(__dirname, 'watch-user-cancel-reports.cjs'),
         `--mode=${mode}`,
@@ -14008,36 +13876,35 @@ describe('configured development Browser coverage profile boundaries', () => {
 
 describe('configured coverage threshold 100 shorthand', () => {
   it('matches complete genuine shorthand CLI reports and exits in both modes', async () => {
-    const { execFileSync } = await import('node:child_process')
-    const root = await mkdtemp(join(tmpdir(), 'next-threshold-100-proof-'))
-    try {
-      for (const mode of ['development', 'production']) {
-        const output = join(root, mode)
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'threshold-100-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
+    await withOutputDirectory(
+      'next-threshold-100-proof-',
+      async (root) => {
+        for (const mode of ['development', 'production']) {
+          const output = join(root, mode)
+          runNodeHelperSync(
+            [
+              join(__dirname, 'threshold-100-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            { encoding: 'utf8', timeout: 180000 }
+          )
+          const profiles = mode === 'development' ? 12 : 8
+          expect(
+            JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
+          ).toMatchObject({
+            status: 'passed',
             mode,
-          ],
-          { encoding: 'utf8', timeout: 180000 }
-        )
-        const profiles = mode === 'development' ? 12 : 8
-        expect(
-          JSON.parse(await readFile(join(output, 'RESULTS.json'), 'utf8'))
-        ).toMatchObject({
-          status: 'passed',
-          mode,
-          profiles,
-          cases: profiles,
-          completeReports: profiles,
-          fullFileModels: profiles * 2,
-        })
-      }
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
+            profiles,
+            cases: profiles,
+            completeReports: profiles,
+            fullFileModels: profiles * 2,
+          })
+        }
+      },
+      { cleanup: 'always' }
+    )
   }, 370000)
 
   it('retains shorthand until ordinary overrides merge, and replaces configured groups only for explicit CLI 100', async () => {
@@ -14120,36 +13987,35 @@ describe('configured coverage threshold 100 shorthand', () => {
 
 describe('configured coverage threshold glob groups', () => {
   it('matches complete genuine development and production CLI reports, cases and threshold exits', async () => {
-    const { execFileSync } = await import('node:child_process')
-    const root = await mkdtemp(join(tmpdir(), 'next-threshold-glob-cli-proof-'))
-    try {
-      for (const mode of ['development', 'production']) {
-        const output = join(root, mode)
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'threshold-glob-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
+    await withOutputDirectory(
+      'next-threshold-glob-cli-proof-',
+      async (root) => {
+        for (const mode of ['development', 'production']) {
+          const output = join(root, mode)
+          runNodeHelperSync(
+            [
+              join(__dirname, 'threshold-glob-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            { encoding: 'utf8', timeout: 180000 }
+          )
+          const result = JSON.parse(
+            await readFile(join(output, 'RESULTS.json'), 'utf8')
+          )
+          expect(result).toMatchObject({
+            status: 'passed',
             mode,
-          ],
-          { encoding: 'utf8', timeout: 180000 }
-        )
-        const result = JSON.parse(
-          await readFile(join(output, 'RESULTS.json'), 'utf8')
-        )
-        expect(result).toMatchObject({
-          status: 'passed',
-          mode,
-          profiles: 12,
-          cases: 12,
-          completeReports: 12,
-          fullFileModels: 24,
-        })
-      }
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
+            profiles: 12,
+            cases: 12,
+            completeReports: 12,
+            fullFileModels: 24,
+          })
+        }
+      },
+      { cleanup: 'always' }
+    )
   }, 370000)
 
   const pristine = require('./fixtures/threshold-globs/pristine.json') as {
@@ -14308,74 +14174,72 @@ describe('configured coverage threshold glob groups', () => {
 })
 
 it('maps native development JSX generated import owners to complete genuine models and case rows', async () => {
-  const { execFileSync } = require('node:child_process')
   const { resolve } = await import('path')
-  const root = await mkdtemp(join(tmpdir(), 'next-development-jsx-models-'))
-  try {
-    for (const kind of ['tsx', 'jsx']) {
-      const output = join(root, kind)
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'development-browser-source-models.mjs'),
-          resolve(__dirname, '../../..'),
-          output,
-          kind,
-        ],
-        { encoding: 'utf8', timeout: 200000 }
-      )
-      const result = JSON.parse(
-        await readFile(join(output, 'RESULTS.json'), 'utf8')
-      )
-      expect(result.status).toBe(
-        'private whole declaration/runtime/published data equal'
-      )
-      expect(result.declarations).toBe(2)
-      expect(result.cases).toBe(kind === 'tsx' ? 2 : 1)
-      expect(result.nativeVersion).toBe(1)
-      expect(result.controls).toEqual(
-        kind === 'tsx'
-          ? [
-              'arity',
-              'namespace',
-              'fragment',
-              'duplicate-owner',
-              'source-owner',
-              'mode',
-              'filename',
-            ]
-          : ['arity', 'namespace', 'source-owner', 'mode', 'filename']
-      )
-    }
-  } finally {
-    await rm(root, { recursive: true, force: true })
-  }
+  await withOutputDirectory(
+    'next-development-jsx-models-',
+    async (root) => {
+      for (const kind of ['tsx', 'jsx']) {
+        const output = join(root, kind)
+        runNodeHelperSync(
+          [
+            join(__dirname, 'development-browser-source-models.mjs'),
+            resolve(__dirname, '../../..'),
+            output,
+            kind,
+          ],
+          { encoding: 'utf8', timeout: 200000 }
+        )
+        const result = JSON.parse(
+          await readFile(join(output, 'RESULTS.json'), 'utf8')
+        )
+        expect(result.status).toBe(
+          'private whole declaration/runtime/published data equal'
+        )
+        expect(result.declarations).toBe(2)
+        expect(result.cases).toBe(kind === 'tsx' ? 2 : 1)
+        expect(result.nativeVersion).toBe(1)
+        expect(result.controls).toEqual(
+          kind === 'tsx'
+            ? [
+                'arity',
+                'namespace',
+                'fragment',
+                'duplicate-owner',
+                'source-owner',
+                'mode',
+                'filename',
+              ]
+            : ['arity', 'namespace', 'source-owner', 'mode', 'filename']
+        )
+      }
+    },
+    { cleanup: 'always' }
+  )
 }, 420000)
 
 it('routes configured development Browser JSX coverage through the actual CLI', async () => {
-  const { execFileSync } = require('node:child_process')
   const { resolve } = await import('path')
   const project = resolve(__dirname, '../../..')
-  const root = await mkdtemp(join(tmpdir(), 'next-development-jsx-cli-'))
-  try {
-    for (const kind of ['tsx', 'jsx']) {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'browser-development-jsx-cli-reports.mjs'),
-          project,
-          project,
-          join(root, kind),
-          kind,
-          'development',
-          '--source',
-        ],
-        { encoding: 'utf8', timeout: 240000 }
-      )
-    }
-  } finally {
-    await rm(root, { recursive: true, force: true })
-  }
+  await withOutputDirectory(
+    'next-development-jsx-cli-',
+    async (root) => {
+      for (const kind of ['tsx', 'jsx']) {
+        runNodeHelperSync(
+          [
+            join(__dirname, 'browser-development-jsx-cli-reports.mjs'),
+            project,
+            project,
+            join(root, kind),
+            kind,
+            'development',
+            '--source',
+          ],
+          { encoding: 'utf8', timeout: 240000 }
+        )
+      }
+    },
+    { cleanup: 'always' }
+  )
 }, 600000)
 
 describe('configured coverage threshold autoUpdate', () => {
@@ -14413,13 +14277,11 @@ describe('configured coverage threshold autoUpdate', () => {
   )
 
   it('updates configured coverage thresholds and report publication through the development CLI', async () => {
-    const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(
       join(tmpdir(), 'next-coverage-autoupdate-cli-')
     )
     try {
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [
           join(__dirname, 'threshold-autoupdate-reports.mjs'),
           join(__dirname, '../../..'),
@@ -14704,11 +14566,9 @@ describe('explicit V8 provider and formatter CLI routes', () => {
   })
 
   it('selects V8 reporters and omits disabled coverage outputs', async () => {
-    const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(join(tmpdir(), 'next-provider-text-cli-'))
     try {
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [
           join(__dirname, 'provider-text-cli-reports.mjs'),
           join(__dirname, '../../..'),
@@ -15076,13 +14936,11 @@ describe('retained coverage threshold formatter closures', () => {
   })
 
   it('updates threshold configuration with exact formatter and setup/teardown ordering', async () => {
-    const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(
       join(tmpdir(), 'next-threshold-formatter-cli-')
     )
     try {
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [
           join(__dirname, 'threshold-formatter-reports.mjs'),
           join(__dirname, '../../..'),
@@ -15117,13 +14975,11 @@ describe('retained coverage threshold formatter closures', () => {
 
 describe('disabled formatter configuration cleanup before ordinary result cache publication', () => {
   it('retains the passing case and original teardown failure without publishing cached facts', async () => {
-    const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(
       join(tmpdir(), 'next-disabled-formatter-cache-')
     )
     try {
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [
           join(__dirname, 'threshold-formatter-cache-reports.mjs'),
           join(__dirname, '../../..'),
@@ -15318,11 +15174,9 @@ describe('explicit CLI V8 configured provider overrides', () => {
   )
 
   it('applies CLI provider overrides without loading ignored providers', async () => {
-    const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(join(tmpdir(), 'next-provider-override-cli-'))
     try {
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [
           join(__dirname, 'provider-override-cli-reports.mjs'),
           join(__dirname, '../../..'),
@@ -15357,13 +15211,11 @@ describe('explicit CLI V8 configured provider overrides', () => {
 
 describe('production retained coverage threshold formatter closures', () => {
   it('updates all eight production threshold formatter configurations and lifecycle traces', async () => {
-    const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(
       join(tmpdir(), 'next-production-threshold-formatter-cli-')
     )
     try {
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [
           join(__dirname, 'threshold-formatter-reports.mjs'),
           join(__dirname, '../../..'),
@@ -15445,11 +15297,9 @@ describe('dotted standard coverage flags configure collection without activating
     }
   )
   it('enables coverage only through configuration or explicit CLI flags', async () => {
-    const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(join(tmpdir(), 'next-coverage-enable-cli-'))
     try {
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [
           join(__dirname, 'coverage-enable-cli-reports.mjs'),
           join(__dirname, '../../..'),
@@ -15687,11 +15537,9 @@ describe('remaining built-in standard coverage reporters', () => {
   )
 
   it('checks reporter output, cleanup, disable, failure and config-update behavior', async () => {
-    const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(join(tmpdir(), 'next-standard-reporters-'))
     try {
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [
           join(__dirname, 'standard-reporter-reports.mjs'),
           join(__dirname, '../../..'),
@@ -15888,11 +15736,9 @@ describe('private Istanbul JavaScript producer', () => {
   })
 
   it('matches genuine complete models through the actual compiler and worker across selected, absent and selected requests', async () => {
-    const { execFileSync } = await import('node:child_process')
     const output = await mkdtemp(join(tmpdir(), 'next-istanbul-private-model-'))
     try {
-      execFileSync(
-        process.execPath,
+      runNodeHelperSync(
         [
           join(__dirname, 'istanbul-provider-private.cjs'),
           join(__dirname, '../../..'),
@@ -16097,11 +15943,9 @@ describe('private settled afterAll compiled producer', () => {
   ])(
     'retains actual completion and resource vetoes for %s',
     async (scenario) => {
-      const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-istanbul-afterall-'))
       try {
-        execFileSync(
-          process.execPath,
+        runNodeHelperSync(
           [
             join(__dirname, 'istanbul-afterall-completion.cjs'),
             'supervise',
@@ -16786,7 +16630,9 @@ describe('public Istanbul CommonJS sources', () => {
       )
     ).not.toThrow()
   })
-  const pristine = require('./fixtures/istanbul-provider/cjs-pristine.json')
+  const pristine = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/cjs-pristine.json')
+  )
   it.each(
     pristine.rows.filter(
       (row) => !Object.hasOwn(pristine.unqualifiedProfiles, row.name)
@@ -16794,11 +16640,9 @@ describe('public Istanbul CommonJS sources', () => {
   )(
     'checks CommonJS case outcomes, counters and reports for $name',
     async (row) => {
-      const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-istanbul-cjs-'))
       try {
-        execFileSync(
-          process.execPath,
+        runNodeHelperSync(
           [
             join(__dirname, 'istanbul-cjs-reports.mjs'),
             join(__dirname, '../../..'),
@@ -16840,7 +16684,9 @@ describe('public Istanbul CommonJS sources', () => {
 })
 
 describe('public Istanbul JavaScript coverage', () => {
-  const pristine = require('./fixtures/istanbul-provider/public-pristine.json')
+  const pristine = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/public-pristine.json')
+  )
   it.each(
     pristine.rows
       .filter((row) => !Object.hasOwn(pristine.unqualifiedProfiles, row.name))
@@ -16848,37 +16694,36 @@ describe('public Istanbul JavaScript coverage', () => {
   )(
     'checks case outcomes, coverage hits and report formats for %s',
     async (profile) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-public-istanbul-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-public-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
+      await withOutputDirectory(
+        'next-public-istanbul-',
+        async (output) => {
+          runNodeHelperSync(
+            [
+              join(__dirname, 'istanbul-public-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              encoding: 'utf8',
+              timeout: 125000,
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
             profile,
-            '--source',
-          ],
-          {
-            encoding: 'utf8',
-            timeout: 125000,
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          profile,
-          actualPublicCLI: true,
-          caseOutcomes: true,
-          coverageHitsSummariesAndAssetFormats: true,
-          actualThresholdsAndConfigBytes: true,
-          ownedProcessTreeClosed: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+            actualPublicCLI: true,
+            caseOutcomes: true,
+            coverageHitsSummariesAndAssetFormats: true,
+            actualThresholdsAndConfigBytes: true,
+            ownedProcessTreeClosed: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     130000
   )
@@ -16888,36 +16733,35 @@ describe('public Istanbul file workers', () => {
   it.each(['default', 'two-workers'])(
     'matches actual whole reports and worker ownership for %s',
     async (profile) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-workers-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-worker-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
+      await withOutputDirectory(
+        'next-istanbul-workers-',
+        async (output) => {
+          runNodeHelperSync(
+            [
+              join(__dirname, 'istanbul-worker-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              encoding: 'utf8',
+              timeout: 125000,
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toEqual({
             profile,
-            '--source',
-          ],
-          {
-            encoding: 'utf8',
-            timeout: 125000,
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toEqual({
-          profile,
-          completeCasesAndReports: true,
-          actualParallelBarrier: profile === 'two-workers',
-          defaultConfigurationReportEquality: true,
-          allOwnersClosed: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+            completeCasesAndReports: true,
+            actualParallelBarrier: profile === 'two-workers',
+            defaultConfigurationReportEquality: true,
+            allOwnersClosed: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     130000
   )
@@ -17141,7 +16985,9 @@ describe('Istanbul loaded-source metadata', () => {
 })
 
 describe('public Istanbul loaded sources', () => {
-  const pristine = require('./fixtures/istanbul-provider/loaded-pristine.json')
+  const pristine = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/loaded-pristine.json')
+  )
   it.each(
     pristine.rows
       .filter((row) => !Object.hasOwn(pristine.unqualifiedProfiles, row.name))
@@ -17149,37 +16995,36 @@ describe('public Istanbul loaded sources', () => {
   )(
     'matches actual loaded-source reports for %s',
     async (profile) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-loaded-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-loaded-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
+      await withOutputDirectory(
+        'next-istanbul-loaded-',
+        async (output) => {
+          runNodeHelperSync(
+            [
+              join(__dirname, 'istanbul-loaded-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              encoding: 'utf8',
+              timeout: 125000,
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toEqual({
             profile,
-            '--source',
-          ],
-          {
-            encoding: 'utf8',
-            timeout: 125000,
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toEqual({
-          profile,
-          completeCasesAndReports: true,
-          actualLoadedSourcesOnly: true,
-          actualParallelBarrier: profile === 'two-worker-loaded-only',
-          defaultConfigurationReportEquality: true,
-          allOwnersClosed: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+            completeCasesAndReports: true,
+            actualLoadedSourcesOnly: true,
+            actualParallelBarrier: profile === 'two-worker-loaded-only',
+            defaultConfigurationReportEquality: true,
+            allOwnersClosed: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     130000
   )
@@ -17295,15 +17140,15 @@ describe('owned configuration readiness before prepared coverage', () => {
 })
 
 describe('prepared JSON coverage maps', () => {
-  const pristine = require('./fixtures/istanbul-provider/json-map-pristine.json')
+  const pristine = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/json-map-pristine.json')
+  )
   it.each(pristine.rows.map((row: { name: string }) => row.name))(
     'includes the actual complete prepared coverage map for %s',
     async (profile: string) => {
-      const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-json-coverage-map-'))
       try {
-        execFileSync(
-          process.execPath,
+        runNodeHelperSync(
           [
             join(__dirname, 'json-coverage-map-reports.mjs'),
             join(__dirname, '../../..'),
@@ -17345,17 +17190,19 @@ describe('prepared JSON coverage maps', () => {
 })
 
 describe('coverage publication before authored global teardown', () => {
-  const expected = require('./fixtures/istanbul-provider/global-teardown.expected.json')
+  const expected = readCoverageFixture(
+    require.resolve(
+      './fixtures/istanbul-provider/global-teardown.expected.json'
+    )
+  )
   it.each(expected.rows.map((row: { profile: string }) => row.profile))(
     'publishes exact coverage before global teardown for %s',
     async (profile: string) => {
-      const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(
         join(tmpdir(), 'next-global-coverage-order-')
       )
       try {
-        execFileSync(
-          process.execPath,
+        runNodeHelperSync(
           [
             join(__dirname, 'global-teardown-coverage-reports.mjs'),
             join(__dirname, '../../..'),
@@ -17394,11 +17241,9 @@ describe('real configuration failure vetoes coverage publication', () => {
   it.each(['configuration'] as const)(
     'retains previous JSON and coverage after actual %s owner loss',
     async (profile) => {
-      const { execFileSync } = await import('node:child_process')
       const output = await mkdtemp(join(tmpdir(), 'next-coverage-owner-loss-'))
       try {
-        execFileSync(
-          process.execPath,
+        runNodeHelperSync(
           [
             join(__dirname, 'configuration-loss-coverage.mjs'),
             join(__dirname, '../../..'),
@@ -17585,35 +17430,37 @@ describe('settled Istanbul assertion and file-fixture continuation', () => {
     'verifies actual compiled %s without changing native error behavior',
     async (scenario) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-settled-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-afterall-finalization.cjs'),
-            'supervise',
-            join(__dirname, '../../..'),
-            output,
-            scenario,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        const observed = JSON.parse(
-          await readFile(join(output, 'OBSERVED.json'), 'utf8')
-        )
-        expect(observed.results[2].status).toBe('failed')
-        expect(observed.captures).toHaveLength(
-          scenario === 'scope-foreign' || scenario === 'scope-mixed-same-error'
-            ? 2
-            : 3
-        )
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      await withOutputDirectory(
+        'next-istanbul-settled-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-afterall-finalization.cjs'),
+              'supervise',
+              join(__dirname, '../../..'),
+              output,
+              scenario,
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          const observed = JSON.parse(
+            await readFile(join(output, 'OBSERVED.json'), 'utf8')
+          )
+          expect(observed.results[2].status).toBe('failed')
+          expect(observed.captures).toHaveLength(
+            scenario === 'scope-foreign' ||
+              scenario === 'scope-mixed-same-error'
+              ? 2
+              : 3
+          )
+        },
+        { cleanup: 'always' }
+      )
     },
     125000
   )
@@ -17621,35 +17468,34 @@ describe('settled Istanbul assertion and file-fixture continuation', () => {
     'publishes exact reports while the public %s file and run stay failed',
     async (scenario) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-istanbul-settled-public-')
+      await withOutputDirectory(
+        'next-istanbul-settled-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-afterall-finalization.cjs'),
+              'supervise',
+              join(__dirname, '../../..'),
+              output,
+              scenario,
+              'source-public',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          const report = JSON.parse(
+            await readFile(join(output, 'cases.json'), 'utf8')
+          )
+          expect(report.numPassedTests).toBe(3)
+          expect(report.numFailedTestSuites).toBe(1)
+          expect(report.success).toBe(false)
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-afterall-finalization.cjs'),
-            'supervise',
-            join(__dirname, '../../..'),
-            output,
-            scenario,
-            'source-public',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        const report = JSON.parse(
-          await readFile(join(output, 'cases.json'), 'utf8')
-        )
-        expect(report.numPassedTests).toBe(3)
-        expect(report.numFailedTestSuites).toBe(1)
-        expect(report.success).toBe(false)
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     125000
   )
@@ -17975,28 +17821,27 @@ describe('public Istanbul setup and snapshot serializers', () => {
     'checks coverage counters, case outcomes and snapshots for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-istanbul-setup-public-')
+      await withOutputDirectory(
+        'next-istanbul-setup-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-setup-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-setup-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            profile,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -18094,35 +17939,34 @@ describe('settled Istanbul beforeAll callback completion', () => {
     'checks cases, file messages and report policy for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-istanbul-beforeall-public-')
+      await withOutputDirectory(
+        'next-istanbul-beforeall-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-beforeall-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledBeforeAllFailure: true,
+            caseStatusesAndErrors: true,
+            coverageCountersAndReportFiles: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-beforeall-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            profile,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualSettledBeforeAllFailure: true,
-          caseStatusesAndErrors: true,
-          coverageCountersAndReportFiles: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -18317,36 +18161,35 @@ describe('settled Istanbul beforeEach callback completion', () => {
     'checks authored error headings, setup frames and report policy for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-istanbul-beforeeach-public-')
+      await withOutputDirectory(
+        'next-istanbul-beforeeach-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-beforeeach-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledBeforeEachFailure: true,
+            authoredErrorHeadings: true,
+            authoredFileAndLine: true,
+            rawFrameEqualityQualified: false,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-beforeeach-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualSettledBeforeEachFailure: true,
-          authoredErrorHeadings: true,
-          authoredFileAndLine: true,
-          rawFrameEqualityQualified: false,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -18472,66 +18315,63 @@ describe('settled Istanbul collection load completion', () => {
     'checks no-case results, file messages and report policy for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-istanbul-collection-public-')
+      await withOutputDirectory(
+        'next-istanbul-collection-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-collection-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledCollectionFailure: true,
+            noCaseStartsInvented: true,
+            coverageCountersAndReportFiles: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-collection-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualSettledCollectionFailure: true,
-          noCaseStartsInvented: true,
-          coverageCountersAndReportFiles: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
 })
 
 it('reports original-source V8 coverage after a failed asynchronous assertion', async () => {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const output = await mkdtemp(join(tmpdir(), 'next-pure-node-v8-'))
-  try {
-    const { stdout } = await promisify(execFile)(
-      process.execPath,
-      [
-        join(__dirname, 'pure-node-v8-preservation.mjs'),
-        join(__dirname, '../../..'),
-        output,
-        '--source',
-      ],
-      { timeout: 250000, maxBuffer: 8 * 1024 * 1024 }
-    )
-    expect(JSON.parse(stdout)).toEqual({
-      failedAsyncAssertionReported: true,
-      followingCasePassed: true,
-      exactOriginalSourceCoverage: true,
-      sourceFrameLine: 4,
-      reports: 3,
-      ownersJoined: true,
-    })
-  } finally {
-    await rm(output, { recursive: true, force: true })
-  }
+  await withOutputDirectory(
+    'next-pure-node-v8-',
+    async (output) => {
+      const { stdout } = await runNodeHelper(
+        [
+          join(__dirname, 'pure-node-v8-preservation.mjs'),
+          join(__dirname, '../../..'),
+          output,
+          '--source',
+        ],
+        { timeout: 250000, maxBuffer: 8 * 1024 * 1024 }
+      )
+      expect(JSON.parse(stdout)).toEqual({
+        failedAsyncAssertionReported: true,
+        followingCasePassed: true,
+        exactOriginalSourceCoverage: true,
+        sourceFrameLine: 4,
+        reports: 3,
+        ownersJoined: true,
+      })
+    },
+    { cleanup: 'always' }
+  )
 }, 260000)
 
 describe('settled Istanbul spec-module collection completion', () => {
@@ -18550,35 +18390,36 @@ describe('settled Istanbul spec-module collection completion', () => {
     'checks no-case spec outcomes, counters and failure policy for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-istanbul-spec-public-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-spec-collection-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualSettledCollectionFailure: true,
-          noCaseStartsInvented: true,
-          coverageCountersAndReportFiles: true,
-          exactExistingSnapshots: true,
-          configUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      await withOutputDirectory(
+        'next-istanbul-spec-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-spec-collection-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledCollectionFailure: true,
+            noCaseStartsInvented: true,
+            coverageCountersAndReportFiles: true,
+            exactExistingSnapshots: true,
+            configUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     130000
   )
@@ -18587,40 +18428,41 @@ describe('settled Istanbul spec-module collection completion', () => {
 describe('Istanbul spec-load cancellation and recovery', () => {
   it('preserves reports and snapshots during cancellation, then checks recovery outcomes and counters', async () => {
     const { execFileSync } = await import('node:child_process')
-    const output = await mkdtemp(join(tmpdir(), 'next-istanbul-spec-cancel-'))
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'istanbul-spec-collection-cancel.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          '--source',
-        ],
-        {
-          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-          stdio: 'pipe',
-          timeout: 245000,
-        }
-      )
-      expect(
-        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
-        actualPendingSpecLoad: true,
-        actualSIGINTAfterSpecGate: true,
-        cancelExit: 130,
-        noBodyOnCancellation: true,
-        noCancelledPublication: true,
-        priorReportUnchanged: true,
-        priorSnapshotUnchanged: true,
-        recoveryExit: 0,
-        recoveryCoverageCountersAndReports: true,
-        exactExistingSnapshot: true,
-        allOwnersClosed: true,
-      })
-    } finally {
-      await rm(output, { recursive: true, force: true })
-    }
+    await withOutputDirectory(
+      'next-istanbul-spec-cancel-',
+      async (output) => {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-spec-collection-cancel.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 245000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualPendingSpecLoad: true,
+          actualSIGINTAfterSpecGate: true,
+          cancelExit: 130,
+          noBodyOnCancellation: true,
+          noCancelledPublication: true,
+          priorReportUnchanged: true,
+          priorSnapshotUnchanged: true,
+          recoveryExit: 0,
+          recoveryCoverageCountersAndReports: true,
+          exactExistingSnapshot: true,
+          allOwnersClosed: true,
+        })
+      },
+      { cleanup: 'always' }
+    )
   }, 250000)
 })
 
@@ -18635,15 +18477,84 @@ describe('actual Node V8 setup and serializer source roles', () => {
     'checks V8 coverage counters, reports and snapshots for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-v8-harness-public-'))
-      try {
+      await withOutputDirectory(
+        'next-v8-harness-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-harness-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualPublicCLI: true,
+            actualJSONCoverageCounters: true,
+            coverageCountersAndReportFiles: true,
+            exactExistingSnapshots: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
+    },
+    130000
+  )
+})
+
+describe('actual V8 default-object initializer association', () => {
+  it('uses unique unchanged Native AST and map roles while retaining authored counters and strict refusals', async () => {
+    await withOutputDirectory(
+      'next-v8-default-object-',
+      async (output) => {
+        const stdout = runNodeHelperSync(
+          [
+            join(__dirname, 'v8-default-object-association.mjs'),
+            join(__dirname, '../../..'),
+            output,
+          ],
+          { encoding: 'utf8', stdio: 'pipe', timeout: 30000 }
+        )
+        expect(JSON.parse(stdout)).toEqual({
+          positive: 1,
+          controls: 10,
+          rawPreserved: true,
+        })
+        expect(
+          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+        ).toMatchObject({
+          uniqueActualSemanticSubtree: true,
+          exactObjectClosingKeysAndReturns: true,
+          rawDataUnchanged: true,
+          actualInitializerExcludedOnly: true,
+          authoredHitsUnchanged: true,
+          existingStrictCountChecksRetained: true,
+        })
+      },
+      { cleanup: 'always' }
+    )
+  }, 35000)
+  it('checks V8 counters with the imported serializer and its lowered default object', async () => {
+    const { execFileSync } = await import('node:child_process')
+    await withOutputDirectory(
+      'next-v8-default-object-public-',
+      async (output) => {
         execFileSync(
           process.execPath,
           [
             join(__dirname, 'v8-harness-reports.mjs'),
             join(__dirname, '../../..'),
             output,
-            profile,
+            'serializer-imported',
             '--source',
           ],
           {
@@ -18655,83 +18566,13 @@ describe('actual Node V8 setup and serializer source roles', () => {
         expect(
           JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
         ).toMatchObject({
-          actualPublicCLI: true,
           actualJSONCoverageCounters: true,
           coverageCountersAndReportFiles: true,
           exactExistingSnapshots: true,
         })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    130000
-  )
-})
-
-describe('actual V8 default-object initializer association', () => {
-  it('uses unique unchanged Native AST and map roles while retaining authored counters and strict refusals', async () => {
-    const { execFileSync } = await import('node:child_process')
-    const output = await mkdtemp(join(tmpdir(), 'next-v8-default-object-'))
-    try {
-      const stdout = execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'v8-default-object-association.mjs'),
-          join(__dirname, '../../..'),
-          output,
-        ],
-        { encoding: 'utf8', stdio: 'pipe', timeout: 30000 }
-      )
-      expect(JSON.parse(stdout)).toEqual({
-        positive: 1,
-        controls: 10,
-        rawPreserved: true,
-      })
-      expect(
-        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-      ).toMatchObject({
-        uniqueActualSemanticSubtree: true,
-        exactObjectClosingKeysAndReturns: true,
-        rawDataUnchanged: true,
-        actualInitializerExcludedOnly: true,
-        authoredHitsUnchanged: true,
-        existingStrictCountChecksRetained: true,
-      })
-    } finally {
-      await rm(output, { recursive: true, force: true })
-    }
-  }, 35000)
-  it('checks V8 counters with the imported serializer and its lowered default object', async () => {
-    const { execFileSync } = await import('node:child_process')
-    const output = await mkdtemp(
-      join(tmpdir(), 'next-v8-default-object-public-')
+      },
+      { cleanup: 'always' }
     )
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'v8-harness-reports.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          'serializer-imported',
-          '--source',
-        ],
-        {
-          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-          stdio: 'pipe',
-          timeout: 125000,
-        }
-      )
-      expect(
-        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
-        actualJSONCoverageCounters: true,
-        coverageCountersAndReportFiles: true,
-        exactExistingSnapshots: true,
-      })
-    } finally {
-      await rm(output, { recursive: true, force: true })
-    }
   }, 130000)
 })
 
@@ -18911,35 +18752,36 @@ describe('settled V8 collection-only completion', () => {
     'publishes exact genuine counters, report policy and no-case file fields for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-v8-load-public-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-collection-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualSettledCollectionFailure: true,
-          noCaseStartsInvented: true,
-          coverageCountersAndReportFiles: true,
-          exactExistingSnapshots: true,
-          configUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      await withOutputDirectory(
+        'next-v8-load-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-collection-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledCollectionFailure: true,
+            noCaseStartsInvented: true,
+            coverageCountersAndReportFiles: true,
+            exactExistingSnapshots: true,
+            configUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     130000
   )
@@ -18960,37 +18802,36 @@ describe('actual failed-collection snapshot statistics', () => {
     'preserves snapshot accounting and failed case selection for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-collection-statistics-')
+      await withOutputDirectory(
+        'next-collection-statistics-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'collection-snapshot-statistics.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            snapshotCountsAndUncheckedKeysExact: true,
+            selectedCaseAndFileStatesExact: true,
+            coverageMapsAndCountersExact: true,
+            originalSourceConfigSnapshotBytesExact: true,
+            allOwnersJoined: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'collection-snapshot-statistics.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          snapshotCountsAndUncheckedKeysExact: true,
-          selectedCaseAndFileStatesExact: true,
-          coverageMapsAndCountersExact: true,
-          originalSourceConfigSnapshotBytesExact: true,
-          allOwnersJoined: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -19005,33 +18846,32 @@ describe('actual failed-collection snapshot statistics', () => {
     'preserves actual finalization and snapshot policies for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-collection-finalization-')
+      await withOutputDirectory(
+        'next-collection-finalization-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'collection-snapshot-side-effects.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+            ],
+            { env: process.env, stdio: 'pipe', timeout: 35000 }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualPrimitiveFinalizerCalledOnce: true,
+            actualPrimitiveSummaryRetained: true,
+            privateReportingOptInOnly: true,
+            snapshotEligibilityUnchanged: true,
+            priorSnapshotBytesExact: true,
+            rawAuthoredErrorUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'collection-snapshot-side-effects.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          { env: process.env, stdio: 'pipe', timeout: 35000 }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualPrimitiveFinalizerCalledOnce: true,
-          actualPrimitiveSummaryRetained: true,
-          privateReportingOptInOnly: true,
-          snapshotEligibilityUnchanged: true,
-          priorSnapshotBytesExact: true,
-          rawAuthoredErrorUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     40000
   )
@@ -19042,31 +18882,32 @@ describe('owned development Node V8 SIGINT exit', () => {
     'preserves pending %s cancellation and recovery outcomes',
     async (extension) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-v8-signal-public-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-collection-cancel.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            extension,
-            '--source',
-          ],
-          { env: process.env, stdio: 'pipe', timeout: 125000 }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualSIGINTAfterSpecGate: true,
-          cancelExit: 130,
-          noCancelledPublication: true,
-          completeRecoveryMaps: true,
-          allOwnersClosed: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      await withOutputDirectory(
+        'next-v8-signal-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-collection-cancel.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              extension,
+              '--source',
+            ],
+            { env: process.env, stdio: 'pipe', timeout: 125000 }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSIGINTAfterSpecGate: true,
+            cancelExit: 130,
+            noCancelledPublication: true,
+            completeRecoveryMaps: true,
+            allOwnersClosed: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     130000
   )
@@ -19084,30 +18925,31 @@ describe('owned development Node V8 SIGINT exit', () => {
     'preserves actual CLI reason and cleanup ownership for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-v8-signal-owner-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-signal-ownership.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          { env: process.env, stdio: 'pipe', timeout: 35000 }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualCLIControllerAndFinally: true,
-          exactReasonIdentity: true,
-          independentFailuresPropagate: true,
-          listenersRemoved: true,
-          actualConfigAndLockJoined: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      await withOutputDirectory(
+        'next-v8-signal-owner-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-signal-ownership.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+            ],
+            { env: process.env, stdio: 'pipe', timeout: 35000 }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualCLIControllerAndFinally: true,
+            exactReasonIdentity: true,
+            independentFailuresPropagate: true,
+            listenersRemoved: true,
+            actualConfigAndLockJoined: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     40000
   )
@@ -19124,27 +18966,26 @@ describe('settled beforeEach Array carrier coverage', () => {
     'checks coverage counters and failure report policy for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-beforeeach-array-public-')
+      await withOutputDirectory(
+        'next-beforeeach-array-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-beforeeach-array-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            { env: process.env, stdio: 'pipe', timeout: 125000 }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({ coverageCountersAndReportFiles: true })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-beforeeach-array-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--source',
-          ],
-          { env: process.env, stdio: 'pipe', timeout: 125000 }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({ coverageCountersAndReportFiles: true })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -19162,34 +19003,33 @@ describe('settled beforeEach Array carrier coverage', () => {
     'preserves exact actual carrier and authored read ownership for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-beforeeach-array-carriers-')
+      await withOutputDirectory(
+        'next-beforeeach-array-carriers-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'beforeeach-array-carriers.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+            ],
+            { env: process.env, stdio: 'pipe', timeout: 35000 }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualAttemptCarrierOwnership: true,
+            noBodyInvocations: true,
+            exactlyOneAuthoredMapAndMemberReadPerInvocation: true,
+            rawErrorsUnchanged: true,
+            ...(name === 'substituted'
+              ? { privateWrapperDomain: true, snapshotPolicyTouched: false }
+              : { snapshotVetoUnchanged: true }),
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'beforeeach-array-carriers.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          { env: process.env, stdio: 'pipe', timeout: 35000 }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualAttemptCarrierOwnership: true,
-          noBodyInvocations: true,
-          exactlyOneAuthoredMapAndMemberReadPerInvocation: true,
-          rawErrorsUnchanged: true,
-          ...(name === 'substituted'
-            ? { privateWrapperDomain: true, snapshotPolicyTouched: false }
-            : { snapshotVetoUnchanged: true }),
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     40000
   )
@@ -19212,36 +19052,35 @@ describe('actual settled V8 declaration collection occurrences', () => {
     'preserves exact stage and requested-only ownership for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-v8-declaration-carrier-')
+      await withOutputDirectory(
+        'next-v8-declaration-carrier-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-declaration-carriers.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            mode: name,
+            actualDistinctOccurrences: true,
+            noInventedBodyObservation: true,
+            rawErrorFieldsUnchanged: true,
+            originalQueuesAndDisposalJoined: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-declaration-carriers.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 35000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          mode: name,
-          actualDistinctOccurrences: true,
-          noInventedBodyObservation: true,
-          rawErrorFieldsUnchanged: true,
-          originalQueuesAndDisposalJoined: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     40000
   )
@@ -19252,38 +19091,37 @@ describe('actual settled V8 declaration collection occurrences', () => {
     'publishes settled coverage counters with the report policy for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-v8-declaration-public-')
+      await withOutputDirectory(
+        'next-v8-declaration-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-declaration-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledDeclarationFailure: true,
+            actualJSONCoverageCounters: true,
+            noCaseStartsInvented: true,
+            coverageCountersAndReportFiles: true,
+            exactExistingSnapshots: true,
+            allOwnersJoined: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-declaration-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualSettledDeclarationFailure: true,
-          actualJSONCoverageCounters: true,
-          noCaseStartsInvented: true,
-          coverageCountersAndReportFiles: true,
-          exactExistingSnapshots: true,
-          allOwnersJoined: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -19294,34 +19132,35 @@ describe('actual private mock restoration primitive', () => {
     'preserves exact restoration calls and inactive public shape for %s',
     async (realm) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-restore-primitive-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'mock-restoration-primitive.mjs'),
-            join(__dirname, '../../..'),
-            output,
+      await withOutputDirectory(
+        'next-restore-primitive-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'mock-restoration-primitive.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              realm,
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({
             realm,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 35000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          realm,
-          passed: 10,
-          actualRestoreRegistry: true,
-          noFileDisposalAuthorization: true,
-          publicMockKeysUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+            passed: 10,
+            actualRestoreRegistry: true,
+            noFileDisposalAuthorization: true,
+            publicMockKeysUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     40000
   )
@@ -19353,28 +19192,29 @@ describe('actual assertion-finish restoration occurrences', () => {
     'preserves actual restoration and independent cleanup ownership: %s',
     async (mode) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-restoration-finish-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'mock-restoration-finish.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            mode,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 35000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({ mode, rawErrorFieldsUnchanged: true })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      await withOutputDirectory(
+        'next-restoration-finish-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'mock-restoration-finish.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({ mode, rawErrorFieldsUnchanged: true })
+        },
+        { cleanup: 'always' }
+      )
     },
     40000
   )
@@ -19461,40 +19301,39 @@ describe('actual one-shot V8 load and restoration publication', () => {
     'checks settled counters and no-case outcomes: %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-v8-restoration-public-')
+      await withOutputDirectory(
+        'next-v8-restoration-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'v8-restoration-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualPublicCLI: true,
+            actualSettledCollectionFailure: true,
+            actualSettledRestorationFailure: true,
+            actualJSONCoverageCounters: true,
+            noCaseStartsInvented: true,
+            coverageCountersAndReportFiles: true,
+            exactExistingSnapshots: true,
+            allOwnersJoined: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'v8-restoration-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            profile,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualPublicCLI: true,
-          actualSettledCollectionFailure: true,
-          actualSettledRestorationFailure: true,
-          actualJSONCoverageCounters: true,
-          noCaseStartsInvented: true,
-          coverageCountersAndReportFiles: true,
-          exactExistingSnapshots: true,
-          allOwnersJoined: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -19523,17 +19362,50 @@ describe('actual readonly snapshot completion after settled beforeEach', () => {
     'retains exact root and physical finish ownership for %s',
     async (mode) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-readonly-snapshot-finish-')
+      await withOutputDirectory(
+        'next-readonly-snapshot-finish-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'read-only-snapshot-finish.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({
+            actualFile: true,
+            actualSnapshotFinishOnce: true,
+            snapshotBytesUnchanged: true,
+            rawErrorFieldsUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
+    },
+    40000
+  )
+
+  it('excludes the deferred snapshot preparation role from early finish', async () => {
+    const { execFileSync } = await import('node:child_process')
+    await withOutputDirectory(
+      'next-readonly-snapshot-deferred-',
+      async (output) => {
         execFileSync(
           process.execPath,
           [
             join(__dirname, 'read-only-snapshot-finish.mjs'),
             join(__dirname, '../../..'),
             output,
-            mode,
+            'deferred-fence',
           ],
           {
             env: { ...process.env, CI: '1', NODE_ENV: 'development' },
@@ -19544,82 +19416,46 @@ describe('actual readonly snapshot completion after settled beforeEach', () => {
         expect(
           JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
         ).toMatchObject({
-          actualFile: true,
-          actualSnapshotFinishOnce: true,
-          snapshotBytesUnchanged: true,
-          rawErrorFieldsUnchanged: true,
+          syntheticDeferredExcluded: true,
+          newMethodFinishCalls: 0,
+          originalFinishCleanupInvoked: true,
         })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
-    },
-    40000
-  )
-
-  it('excludes the deferred snapshot preparation role from early finish', async () => {
-    const { execFileSync } = await import('node:child_process')
-    const output = await mkdtemp(
-      join(tmpdir(), 'next-readonly-snapshot-deferred-')
+      },
+      { cleanup: 'always' }
     )
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'read-only-snapshot-finish.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          'deferred-fence',
-        ],
-        {
-          env: { ...process.env, CI: '1', NODE_ENV: 'development' },
-          stdio: 'pipe',
-          timeout: 35000,
-        }
-      )
-      expect(
-        JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-      ).toMatchObject({
-        syntheticDeferredExcluded: true,
-        newMethodFinishCalls: 0,
-        originalFinishCleanupInvoked: true,
-      })
-    } finally {
-      await rm(output, { recursive: true, force: true })
-    }
   }, 40000)
 
   it('checks the obsolete-snapshot message and Istanbul coverage counters', async () => {
     const { execFileSync } = await import('node:child_process')
-    const output = await mkdtemp(
-      join(tmpdir(), 'next-readonly-snapshot-public-')
+    await withOutputDirectory(
+      'next-readonly-snapshot-public-',
+      async (output) => {
+        execFileSync(
+          process.execPath,
+          [
+            join(__dirname, 'istanbul-beforeeach-reports.mjs'),
+            join(__dirname, '../../..'),
+            output,
+            'beforeeach-async',
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 125000,
+          }
+        )
+        expect(
+          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+        ).toMatchObject({
+          actualSettledBeforeEachFailure: true,
+          authoredErrorHeadings: true,
+          authoredFileAndLine: true,
+          rawFrameEqualityQualified: false,
+        })
+      },
+      { cleanup: 'always' }
     )
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'istanbul-beforeeach-reports.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          'beforeeach-async',
-          '--source',
-        ],
-        {
-          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-          stdio: 'pipe',
-          timeout: 125000,
-        }
-      )
-      expect(
-        JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-      ).toMatchObject({
-        actualSettledBeforeEachFailure: true,
-        authoredErrorHeadings: true,
-        authoredFileAndLine: true,
-        rawFrameEqualityQualified: false,
-      })
-    } finally {
-      await rm(output, { recursive: true, force: true })
-    }
   }, 130000)
 })
 
@@ -19682,34 +19518,35 @@ describe('actual readonly snapshot completion after settled afterAll', () => {
     'retains actual afterAll/root/physical ownership for %s',
     async (mode) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-readonly-afterall-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'read-only-afterall-snapshot.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            mode,
-          ],
-          {
-            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
-            stdio: 'pipe',
-            timeout: 35000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          actualFile: true,
-          actualSnapshotFinishOnce: true,
-          rootEvents: 1,
-          snapshotBytesUnchanged: true,
-          rawErrorFieldsUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      await withOutputDirectory(
+        'next-readonly-afterall-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'read-only-afterall-snapshot.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({
+            actualFile: true,
+            actualSnapshotFinishOnce: true,
+            rootEvents: 1,
+            snapshotBytesUnchanged: true,
+            rawErrorFieldsUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     40000
   )
@@ -19727,36 +19564,35 @@ describe('actual readonly snapshot completion after settled afterAll', () => {
     'matches genuine whole reports and ordered errors for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-readonly-afterall-public-')
+      await withOutputDirectory(
+        'next-readonly-afterall-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'readonly-afterall-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualSettledAfterAll: true,
+            caseOutcomesAndSnapshotSummary: true,
+            selectedCoverageHitCounts: true,
+            snapshotBytesUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'readonly-afterall-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            profile,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualSettledAfterAll: true,
-          caseOutcomesAndSnapshotSummary: true,
-          selectedCoverageHitCounts: true,
-          snapshotBytesUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -19785,34 +19621,35 @@ describe('actual readonly snapshot completion for passed files', () => {
     'retains actual SDK/root/physical ownership for %s',
     async (mode) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-readonly-passing-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'read-only-passing-snapshot.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            mode,
-          ],
-          {
-            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
-            stdio: 'pipe',
-            timeout: 35000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          actualFile: true,
-          actualSnapshotFinishOnce: true,
-          rootEvents: 1,
-          snapshotBytesUnchanged: true,
-          rawErrorFieldsUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      await withOutputDirectory(
+        'next-readonly-passing-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'read-only-passing-snapshot.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({
+            actualFile: true,
+            actualSnapshotFinishOnce: true,
+            rootEvents: 1,
+            snapshotBytesUnchanged: true,
+            rawErrorFieldsUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     40000
   )
@@ -19829,37 +19666,36 @@ describe('actual readonly snapshot completion for passed files', () => {
     'checks snapshot accounting, root errors and coverage hit counts for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-readonly-passing-public-')
+      await withOutputDirectory(
+        'next-readonly-passing-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'readonly-passing-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualOrdinaryPassedCase: true,
+            actualOrderedRootErrors: true,
+            caseOutcomesAndSnapshotSummary: true,
+            selectedCoverageHitCounts: true,
+            snapshotBytesUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'readonly-passing-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            profile,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualOrdinaryPassedCase: true,
-          actualOrderedRootErrors: true,
-          caseOutcomesAndSnapshotSummary: true,
-          selectedCoverageHitCounts: true,
-          snapshotBytesUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -19891,34 +19727,35 @@ describe('actual one-shot V8 readonly snapshot completion for passed files', () 
     'retains actual SDK/root/physical ownership for %s',
     async (mode) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-readonly-passing-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'read-only-v8-passing-snapshot.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            mode,
-          ],
-          {
-            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
-            stdio: 'pipe',
-            timeout: 35000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          actualFile: true,
-          actualSnapshotFinishOnce: true,
-          rootEvents: 1,
-          snapshotBytesUnchanged: true,
-          rawErrorFieldsUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      await withOutputDirectory(
+        'next-readonly-passing-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'read-only-v8-passing-snapshot.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({
+            actualFile: true,
+            actualSnapshotFinishOnce: true,
+            rootEvents: 1,
+            snapshotBytesUnchanged: true,
+            rawErrorFieldsUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     40000
   )
@@ -19935,37 +19772,36 @@ describe('actual one-shot V8 readonly snapshot completion for passed files', () 
     'checks snapshot accounting, root errors and coverage hit counts for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-readonly-passing-public-')
+      await withOutputDirectory(
+        'next-readonly-passing-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'readonly-v8-passing-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualOrdinaryPassedCase: true,
+            actualOrderedRootErrors: true,
+            caseOutcomesAndSnapshotSummary: true,
+            selectedCoverageHitCounts: true,
+            snapshotBytesUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'readonly-v8-passing-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            profile,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualOrdinaryPassedCase: true,
-          actualOrderedRootErrors: true,
-          caseOutcomesAndSnapshotSummary: true,
-          selectedCoverageHitCounts: true,
-          snapshotBytesUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -20173,35 +20009,36 @@ describe('actual readonly snapshot completion for literal public empty files', (
     'retains actual empty/root/physical ownership for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-readonly-empty-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'read-only-empty-snapshot.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            profile,
-          ],
-          {
-            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
-            stdio: 'pipe',
-            timeout: 35000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
-        ).toMatchObject({
-          actualRootEvents: 1,
-          actualBodies: 0,
-          actualSDKFinishOnce: true,
-          freshCarrierOnly: true,
-          allPhysicalVetoesRetained: true,
-          snapshotBytesUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      await withOutputDirectory(
+        'next-readonly-empty-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'read-only-empty-snapshot.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'VERIFIED.json'), 'utf8'))
+          ).toMatchObject({
+            actualRootEvents: 1,
+            actualBodies: 0,
+            actualSDKFinishOnce: true,
+            freshCarrierOnly: true,
+            allPhysicalVetoesRetained: true,
+            snapshotBytesUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
+      )
     },
     40000
   )
@@ -20218,41 +20055,40 @@ describe('actual readonly snapshot completion for literal public empty files', (
     'matches unchanged genuine0case reports and root errors for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-readonly-empty-public-')
+      await withOutputDirectory(
+        'next-readonly-empty-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'readonly-empty-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: {
+                ...process.env,
+                CI: '1',
+                TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
+              },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualZeroCases: true,
+            actualOrderedRootErrors: true,
+            caseOutcomesAndSnapshotSummary: true,
+            selectedCoverageHitCounts: true,
+            snapshotBytesUnchanged: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'readonly-empty-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            profile,
-            '--source',
-          ],
-          {
-            env: {
-              ...process.env,
-              CI: '1',
-              TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
-            },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualZeroCases: true,
-          actualOrderedRootErrors: true,
-          caseOutcomesAndSnapshotSummary: true,
-          selectedCoverageHitCounts: true,
-          snapshotBytesUnchanged: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -20283,39 +20119,38 @@ describe('actual serial beforeAll Array coverage carriers', () => {
     'keeps exact current capture and physical completion for %s',
     async (mode) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-beforeall-array-carriers-')
+      await withOutputDirectory(
+        'next-beforeall-array-carriers-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'beforeall-array-carriers.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              mode,
+            ],
+            {
+              env: { ...process.env, CI: '1', NODE_ENV: 'development' },
+              stdio: 'pipe',
+              timeout: 35000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualCallbackCarrierOwnership: true,
+            noBodyInvocations: true,
+            noInventedStarts: true,
+            actualOperationJoins: mode !== 'deadline',
+            otherStageAndBorrowedVeto: true,
+            originalArrayReadsPreserved: true,
+            rawErrorsUnchanged: true,
+            snapshotPolicyTouched: false,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'beforeall-array-carriers.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            mode,
-          ],
-          {
-            env: { ...process.env, CI: '1', NODE_ENV: 'development' },
-            stdio: 'pipe',
-            timeout: 35000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualCallbackCarrierOwnership: true,
-          noBodyInvocations: true,
-          noInventedStarts: true,
-          actualOperationJoins: mode !== 'deadline',
-          otherStageAndBorrowedVeto: true,
-          originalArrayReadsPreserved: true,
-          rawErrorsUnchanged: true,
-          snapshotPolicyTouched: false,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     40000
   )
@@ -20331,42 +20166,41 @@ describe('actual serial beforeAll Array coverage carriers', () => {
     'checks beforeAll errors, skipped cases and exact coverage maps for %s',
     async (profile) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-beforeall-array-public-')
+      await withOutputDirectory(
+        'next-beforeall-array-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'istanbul-beforeall-array-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              profile,
+              '--source',
+            ],
+            {
+              env: {
+                ...process.env,
+                CI: '1',
+                TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
+              },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+          expect(
+            JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
+          ).toMatchObject({
+            actualBeforeAllArray: true,
+            actualOrderedRootErrors: true,
+            caseOutcomesAndSnapshotSummary: true,
+            exactCoverageMaps: true,
+            snapshotBytesUnchanged: true,
+            lifecycleOrder: true,
+          })
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'istanbul-beforeall-array-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            profile,
-            '--source',
-          ],
-          {
-            env: {
-              ...process.env,
-              CI: '1',
-              TURBO_TASKS_AVAILABLE_PARALLELISM: '4',
-            },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-        expect(
-          JSON.parse(await readFile(join(output, 'CHECKS.json'), 'utf8'))
-        ).toMatchObject({
-          actualBeforeAllArray: true,
-          actualOrderedRootErrors: true,
-          caseOutcomesAndSnapshotSummary: true,
-          exactCoverageMaps: true,
-          snapshotBytesUnchanged: true,
-          lifecycleOrder: true,
-        })
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -20395,14 +20229,11 @@ describe('actual skipped-file snapshot preparation', () => {
   )(
     'keeps actual SDK selection and cleanup ownership for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-skipped-preparation-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'skipped-snapshot-preparation.mjs'),
             join(__dirname, '../../..'),
@@ -20421,14 +20252,11 @@ describe('actual skipped-file snapshot preparation', () => {
   it.each(['v8-all-skipped-orphan', 'istanbul-all-skipped-orphan'])(
     'matches the complete genuine skipped report and counters for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-skipped-snapshot-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'readonly-skipped-reports.mjs'),
             join(__dirname, '../../..'),
@@ -20459,14 +20287,11 @@ describe('actual regex-selected snapshot preparation', () => {
   ])(
     'keeps actual task identity and finalized selection for %s',
     async (mode) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-task-selection-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'task-mode-selection.mjs'),
             join(__dirname, '../../..'),
@@ -20500,14 +20325,11 @@ describe('actual regex-selected snapshot preparation', () => {
   )(
     'keeps actual name-filter SDK preparation and physical vetoes for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-namefilter-preparation-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'namefilter-snapshot-preparation.mjs'),
             join(__dirname, '../../..'),
@@ -20531,14 +20353,11 @@ describe('actual regex-selected snapshot preparation', () => {
   ])(
     'matches the complete genuine selected report and counters for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-namefilter-snapshot-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'readonly-namefilter-reports.mjs'),
             join(__dirname, '../../..'),
@@ -20569,14 +20388,11 @@ describe('actual name-filter untouched excluded descendants', () => {
   )(
     'checks excluded descendant states and coverage hit counts for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-namefilter-excluded-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'namefilter-excluded-reports.mjs'),
             join(__dirname, '../../..'),
@@ -20606,14 +20422,11 @@ describe('actual compact conditional operand mapping', () => {
   ])(
     'executes selected compact-source cases with exact counters for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-compact-conditional-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'conditional-literal-reports.mjs'),
             join(__dirname, '../../..'),
@@ -20630,14 +20443,11 @@ describe('actual compact conditional operand mapping', () => {
     140000
   )
   it('binds only the exact actual literal roles and preserves all raw counters and inputs', async () => {
-    const { execFile } = require('node:child_process')
-    const { promisify } = require('node:util')
     const { mkdtempSync, rmSync } = require('node:fs')
     const { tmpdir } = require('node:os')
     const output = mkdtempSync(join(tmpdir(), 'next-compact-association-'))
     try {
-      await promisify(execFile)(
-        process.execPath,
+      await runNodeHelper(
         [
           join(__dirname, 'conditional-literal-association.mjs'),
           join(__dirname, '../../..'),
@@ -20653,20 +20463,19 @@ describe('actual compact conditional operand mapping', () => {
 
 describe('actual readonly focused task selection', () => {
   it.each(
-    require('./fixtures/istanbul-provider/readonly-focused-pristine.json').rows.map(
-      ({ name }: { name: string }) => name
-    )
+    readCoverageFixture(
+      require.resolve(
+        './fixtures/istanbul-provider/readonly-focused-pristine.json'
+      )
+    ).rows.map(({ name }: { name: string }) => name)
   )(
     'checks focused selection, snapshot accounting and coverage hit counts for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-focused-report-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'focused-snapshot-reports.mjs'),
             join(__dirname, '../../..'),
@@ -20701,14 +20510,11 @@ describe('actual readonly focused task selection', () => {
   )(
     'preserves real focused SDK lifetime and physical vetoes for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-focused-sdk-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'focused-snapshot-preparation.mjs'),
             join(__dirname, '../../..'),
@@ -20740,14 +20546,11 @@ describe('actual readonly focused task selection', () => {
   ])(
     'preserves actual private mode ownership and unstarted tasks for %s',
     async (mode) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-focused-owner-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'focused-mode-owner.mjs'),
             join(__dirname, '../../..'),
@@ -20766,14 +20569,11 @@ describe('actual readonly focused task selection', () => {
 
 describe('actual excluded only declaration options', () => {
   it('uses only actual no-result nodes and validated excluded suite parents', async () => {
-    const { execFile } = require('node:child_process')
-    const { promisify } = require('node:util')
     const { mkdtempSync, rmSync } = require('node:fs')
     const { tmpdir } = require('node:os')
     const output = mkdtempSync(join(tmpdir(), 'next-focused-live-options-'))
     try {
-      await promisify(execFile)(
-        process.execPath,
+      await runNodeHelper(
         [
           join(__dirname, 'focused-live-options.mjs'),
           join(__dirname, '../../..'),
@@ -20788,14 +20588,11 @@ describe('actual excluded only declaration options', () => {
   it.each(['focused-simple-active', 'focused-inactive-excluded-only'])(
     'preserves inactive focused declarations, outcomes and snapshot counts for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-focused-inactive-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'focused-inactive-reports.mjs'),
             join(__dirname, '../../..'),
@@ -20814,22 +20611,21 @@ describe('actual excluded only declaration options', () => {
 
 describe('actual inactive focused task selection', () => {
   it.each(
-    require('./fixtures/istanbul-provider/inactive-focused-pristine.json').rows.map(
-      ({ name }: { name: string }) => name
-    )
+    readCoverageFixture(
+      require.resolve(
+        './fixtures/istanbul-provider/inactive-focused-pristine.json'
+      )
+    ).rows.map(({ name }: { name: string }) => name)
   )(
     'checks inactive focus modes, task states and case outcomes for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(
         join(tmpdir(), 'next-inactive-focused-report-')
       )
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'inactive-focused-reports.mjs'),
             join(__dirname, '../../..'),
@@ -20849,20 +20645,17 @@ describe('actual inactive focused task selection', () => {
 
 describe('actual Istanbul typed test entries with JavaScript source coverage', () => {
   it.each(
-    require('./fixtures/istanbul-provider/typed-entry-pristine.json').rows.map(
-      ({ name }: { name: string }) => name
-    )
+    readCoverageFixture(
+      require.resolve('./fixtures/istanbul-provider/typed-entry-pristine.json')
+    ).rows.map(({ name }: { name: string }) => name)
   )(
     'runs typed entries with the selected JavaScript coverage hits for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-entry-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'typed-entry-reports.mjs'),
             join(__dirname, '../../..'),
@@ -20881,14 +20674,11 @@ describe('actual Istanbul typed test entries with JavaScript source coverage', (
 })
 
 it('retains actual Istanbul typed-entry metadata and unsupported-source boundaries', async () => {
-  const { execFile } = require('node:child_process')
-  const { promisify } = require('node:util')
   const { mkdtempSync, rmSync } = require('node:fs')
   const { tmpdir } = require('node:os')
   const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-artifacts-'))
   try {
-    await promisify(execFile)(
-      process.execPath,
+    await runNodeHelper(
       [
         join(__dirname, 'typed-entry-artifacts.cjs'),
         join(__dirname, '../../..'),
@@ -20980,14 +20770,11 @@ describe('Istanbul TypeScript function body map association', () => {
   it.each(['ts', 'mts'])(
     'matches the complete retained genuine zero model and refuses ambiguous %s roles',
     async (extension) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-map-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'istanbul-typescript-body-association.mjs'),
             join(__dirname, '../../..'),
@@ -21015,14 +20802,11 @@ describe('Istanbul typed subject compiler lowering', () => {
   it.each(profiles)(
     'collects the selected typed subject and branch hits for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-subject-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'typed-source-reports.mjs'),
             join(__dirname, '../../..'),
@@ -21039,14 +20823,11 @@ describe('Istanbul typed subject compiler lowering', () => {
     150000
   )
   it('keeps actual typed compiler declarations, runtime counters and config publication separate', async () => {
-    const { execFile } = require('node:child_process')
-    const { promisify } = require('node:util')
     const { mkdtempSync, rmSync } = require('node:fs')
     const { tmpdir } = require('node:os')
     const output = mkdtempSync(join(tmpdir(), 'next-istanbul-typed-owners-'))
     try {
-      await promisify(execFile)(
-        process.execPath,
+      await runNodeHelper(
         [
           join(__dirname, 'typed-source-declarations.cjs'),
           join(__dirname, '../../..'),
@@ -21074,10 +20855,7 @@ describe('Istanbul actual JSX and TSX source lowering', () => {
   ])(
     'retains exact report-only JSX child token ownership for %s',
     async (mutation) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
-      await promisify(execFile)(
-        process.execPath,
+      await runNodeHelper(
         [
           join(__dirname, 'istanbul-jsx-child-token.mjs'),
           join(__dirname, '../../..'),
@@ -21090,20 +20868,17 @@ describe('Istanbul actual JSX and TSX source lowering', () => {
   )
 
   it.each(
-    require('./fixtures/istanbul-provider/jsx-source-pristine.json').rows.map(
-      ({ name }: { name: string }) => name
-    )
+    readCoverageFixture(
+      require.resolve('./fixtures/istanbul-provider/jsx-source-pristine.json')
+    ).rows.map(({ name }: { name: string }) => name)
   )(
     'collects the selected JSX subject and branch hits for %s',
     async (profile) => {
-      const { execFile } = require('node:child_process')
-      const { promisify } = require('node:util')
       const { mkdtempSync, rmSync } = require('node:fs')
       const { tmpdir } = require('node:os')
       const output = mkdtempSync(join(tmpdir(), 'next-istanbul-jsx-source-'))
       try {
-        await promisify(execFile)(
-          process.execPath,
+        await runNodeHelper(
           [
             join(__dirname, 'jsx-source-reports.mjs'),
             join(__dirname, '../../..'),
@@ -21311,33 +21086,34 @@ describe('production ordinary JS/MJS Istanbul admission', () => {
 })
 
 describe('production ordinary JS/MJS Istanbul source coverage', () => {
-  const models = require('./fixtures/istanbul-provider/production-js-pristine.json')
+  const models = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/production-js-pristine.json')
+  )
   it.each(models.rows.map((row: { name: string }) => row.name))(
     'runs production cases and collects only selected source hits for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-production-istanbul-public-')
+      await withOutputDirectory(
+        'next-production-istanbul-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'production-istanbul-js-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'production-istanbul-js-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -21356,28 +21132,27 @@ describe('production ordinary Istanbul no-evaluation and cancellation', () => {
     'preserves coverage publication and process cleanup for %s',
     async (_name, helper, ...args) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-production-istanbul-boundary-public-')
+      await withOutputDirectory(
+        'next-production-istanbul-boundary-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, helper),
+              join(__dirname, '../../..'),
+              output,
+              ...args,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 245000,
+            }
+          )
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, helper),
-            join(__dirname, '../../..'),
-            output,
-            ...args,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 245000,
-          }
-        )
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     250000
   )
@@ -22600,117 +22375,122 @@ describe('native-qualified Browser Promise executor arrow coverage', () => {
 })
 
 describe('production intrinsic JSX/TSX Istanbul source coverage', () => {
-  const models = require('./fixtures/istanbul-provider/production-jsx-pristine.json')
+  const models = readCoverageFixture(
+    require.resolve('./fixtures/istanbul-provider/production-jsx-pristine.json')
+  )
   it.each(models.rows.map((row: { name: string }) => row.name))(
     'runs production cases and collects only selected source hits for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-production-intrinsic-istanbul-public-')
+      await withOutputDirectory(
+        'next-production-intrinsic-istanbul-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'production-istanbul-jsx-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'production-istanbul-jsx-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
 
   it('preserves actual spec-load SIGINT, no publication and recovery for production intrinsic JSX', async () => {
     const { execFileSync } = await import('node:child_process')
-    const output = await mkdtemp(
-      join(tmpdir(), 'next-production-intrinsic-istanbul-cancel-')
-    )
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'production-istanbul-jsx-cancel-recovery.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          '--source',
-        ],
-        {
-          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-          stdio: 'pipe',
-          timeout: 245000,
-        }
-      )
-    } finally {
-      await rm(output, { recursive: true, force: true })
-    }
-  }, 250000)
-})
-
-describe('production ordinary TypeScript/MTS Istanbul source coverage', () => {
-  const models = require('./fixtures/istanbul-provider/production-typescript-pristine.json')
-  it.each(models.rows.map((row: { name: string }) => row.name))(
-    'runs production cases and collects only selected source hits for %s',
-    async (name) => {
-      const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-production-typescript-public-')
-      )
-      try {
+    await withOutputDirectory(
+      'next-production-intrinsic-istanbul-cancel-',
+      async (output) => {
         execFileSync(
           process.execPath,
           [
-            join(__dirname, 'production-istanbul-typescript-reports.mjs'),
+            join(__dirname, 'production-istanbul-jsx-cancel-recovery.mjs'),
             join(__dirname, '../../..'),
             output,
-            name,
             '--source',
           ],
           {
             env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
             stdio: 'pipe',
-            timeout: 125000,
+            timeout: 245000,
           }
         )
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      },
+      { cleanup: 'always' }
+    )
+  }, 250000)
+})
+
+describe('production ordinary TypeScript/MTS Istanbul source coverage', () => {
+  const models = readCoverageFixture(
+    require.resolve(
+      './fixtures/istanbul-provider/production-typescript-pristine.json'
+    )
+  )
+  it.each(models.rows.map((row: { name: string }) => row.name))(
+    'runs production cases and collects only selected source hits for %s',
+    async (name) => {
+      const { execFileSync } = await import('node:child_process')
+      await withOutputDirectory(
+        'next-production-typescript-public-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'production-istanbul-typescript-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
+      )
     },
     130000
   )
   it('preserves actual spec-load SIGINT, no publication and recovery for production TypeScript', async () => {
     const { execFileSync } = await import('node:child_process')
-    const output = await mkdtemp(
-      join(tmpdir(), 'next-production-typescript-cancel-')
+    await withOutputDirectory(
+      'next-production-typescript-cancel-',
+      async (output) => {
+        execFileSync(
+          process.execPath,
+          [
+            join(
+              __dirname,
+              'production-istanbul-typescript-cancel-recovery.mjs'
+            ),
+            join(__dirname, '../../..'),
+            output,
+            '--source',
+          ],
+          {
+            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+            stdio: 'pipe',
+            timeout: 245000,
+          }
+        )
+      },
+      { cleanup: 'always' }
     )
-    try {
-      execFileSync(
-        process.execPath,
-        [
-          join(__dirname, 'production-istanbul-typescript-cancel-recovery.mjs'),
-          join(__dirname, '../../..'),
-          output,
-          '--source',
-        ],
-        {
-          env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-          stdio: 'pipe',
-          timeout: 245000,
-        }
-      )
-    } finally {
-      await rm(output, { recursive: true, force: true })
-    }
   }, 250000)
 })
 
@@ -22790,28 +22570,27 @@ describe('configured coverage text skipEmpty and maxCols', () => {
     'renders exact coverage text and counter totals for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-coverage-text-options-')
+      await withOutputDirectory(
+        'next-coverage-text-options-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'coverage-text-options-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'coverage-text-options-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -22942,28 +22721,27 @@ describe('root coverage formatter inherited by multiple inline projects', () => 
     'merges project coverage counts with exact root formatter callbacks and final config for %s',
     async (name) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-root-formatter-projects-')
+      await withOutputDirectory(
+        'next-root-formatter-projects-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'threshold-formatter-multiproject-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              name,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'threshold-formatter-multiproject-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            name,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -23126,27 +22904,26 @@ describe('root coverage formatter inherited by multiple inline projects actual C
     'retains %s refusal before any callback, report or edit',
     async (policy) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(
-        join(tmpdir(), 'next-root-formatter-refusal-')
+      await withOutputDirectory(
+        'next-root-formatter-refusal-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'threshold-formatter-multiproject-admission.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              policy,
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
       )
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'threshold-formatter-multiproject-admission.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            policy,
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
     },
     130000
   )
@@ -23377,26 +23154,27 @@ describe('formatter same-stack configuration publication', () => {
     'preserves coverage, formatter order and concurrent config edits for %s',
     async (variant) => {
       const { execFileSync } = await import('node:child_process')
-      const output = await mkdtemp(join(tmpdir(), 'next-formatter-user-edits-'))
-      try {
-        execFileSync(
-          process.execPath,
-          [
-            join(__dirname, 'threshold-user-edits-reports.mjs'),
-            join(__dirname, '../../..'),
-            output,
-            variant,
-            '--source',
-          ],
-          {
-            env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
-            stdio: 'pipe',
-            timeout: 125000,
-          }
-        )
-      } finally {
-        await rm(output, { recursive: true, force: true })
-      }
+      await withOutputDirectory(
+        'next-formatter-user-edits-',
+        async (output) => {
+          execFileSync(
+            process.execPath,
+            [
+              join(__dirname, 'threshold-user-edits-reports.mjs'),
+              join(__dirname, '../../..'),
+              output,
+              variant,
+              '--source',
+            ],
+            {
+              env: { ...process.env, TURBO_TASKS_AVAILABLE_PARALLELISM: '4' },
+              stdio: 'pipe',
+              timeout: 125000,
+            }
+          )
+        },
+        { cleanup: 'always' }
+      )
     },
     130000
   )

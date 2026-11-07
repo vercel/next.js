@@ -1,3 +1,4 @@
+const { readCoverageFixture } = require('./coverage-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -32,13 +33,8 @@ const {
 const { readIstanbulTypeScriptDeclarations } = require(
   path.join(root, 'coverage/istanbul-typescript-artifact')
 )
-const corpus = JSON.parse(
-  fs.readFileSync(
-    path.join(
-      __dirname,
-      'fixtures/istanbul-provider/typed-source-pristine.json'
-    )
-  )
+const corpus = readCoverageFixture(
+  path.join(__dirname, 'fixtures/istanbul-provider/typed-source-pristine.json')
 )
 const row = corpus.rows.find((row) => row.name === 'mjs-ts-explicit-true')
 const fixture = fs.mkdtempSync(

@@ -1,3 +1,4 @@
+import { readCoverageFixture } from './coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import {
@@ -31,12 +32,10 @@ const load = createRequire(join(consumer, 'package.json'))
 if (!source)
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
     assert.throws(() => load.resolve(name))
-const row = JSON.parse(
-  readFileSync(
-    join(
-      dirname(fileURLToPath(import.meta.url)),
-      'fixtures/istanbul-provider/v8-cancellation-pristine.json'
-    )
+const row = readCoverageFixture(
+  join(
+    dirname(fileURLToPath(import.meta.url)),
+    'fixtures/istanbul-provider/v8-cancellation-pristine.json'
   )
 ).rows.find((row) => row.name === extension)
 assert(row)

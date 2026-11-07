@@ -1,4 +1,41 @@
 {
+  "defaults": {
+    "sourceFiles": {
+      "subject.mjs": {
+        "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+        "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
+      },
+      "setup.mjs": {
+        "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nbeforeEach(async()=>{await Promise.resolve();choose(false);throw new Error('owned settled setup beforeEach failure')})\n",
+        "sha256": "f589409486a0130b4bc3b97cd5b1806389330d8a8106cb9cb8a5c7d4107240b6"
+      },
+      "serializer.mjs": {
+        "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+        "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
+      },
+      "suite.test.mjs": {
+        "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
+        "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
+      }
+    },
+    "snapshots": {},
+    "exitCode": 1,
+    "independentAfterEach": false,
+    "unqualifiedSnapshotDiagnostic": false,
+    "coverage": {
+      "subject.mjs": {
+        "statements": [2, 0, 2, 0],
+        "functions": [2, 0],
+        "branches": [[0, 2]]
+      }
+    },
+    "reportFiles": [
+      "coverage-final.json",
+      "coverage-summary.json",
+      "lcov.info"
+    ],
+    "setupErrorLines": [[3], [3]]
+  },
   "rows": [
     {
       "name": "beforeeach-sync-no-snapshots",
@@ -21,10 +58,6 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
-      "independentAfterEach": false,
-      "unqualifiedSnapshotDiagnostic": false,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -79,46 +112,11 @@
             ]
           }
         ]
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [2, 0, 2, 0],
-          "functions": [2, 0],
-          "branches": [[0, 2]]
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ],
-      "setupErrorLines": [[3], [3]]
+      }
     },
     {
       "name": "beforeeach-async-no-snapshots",
-      "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nbeforeEach(async()=>{await Promise.resolve();choose(false);throw new Error('owned settled setup beforeEach failure')})\n",
-          "sha256": "f589409486a0130b4bc3b97cd5b1806389330d8a8106cb9cb8a5c7d4107240b6"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
-          "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
-        }
-      },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
-      "independentAfterEach": false,
-      "unqualifiedSnapshotDiagnostic": false,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -173,20 +171,7 @@
             ]
           }
         ]
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [2, 0, 2, 0],
-          "functions": [2, 0],
-          "branches": [[0, 2]]
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ],
-      "setupErrorLines": [[3], [3]]
+      }
     },
     {
       "name": "beforeeach-sync-no-snapshots-report-false",
@@ -209,10 +194,6 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
-      "independentAfterEach": false,
-      "unqualifiedSnapshotDiagnostic": false,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -268,41 +249,11 @@
           }
         ]
       },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [2, 0, 2, 0],
-          "functions": [2, 0],
-          "branches": [[0, 2]]
-        }
-      },
-      "reportFiles": [],
-      "setupErrorLines": [[3], [3]]
+      "reportFiles": []
     },
     {
       "name": "beforeeach-async-no-snapshots-report-false",
-      "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nbeforeEach(async()=>{await Promise.resolve();choose(false);throw new Error('owned settled setup beforeEach failure')})\n",
-          "sha256": "f589409486a0130b4bc3b97cd5b1806389330d8a8106cb9cb8a5c7d4107240b6"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
-          "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
-        }
-      },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
-      "independentAfterEach": false,
-      "unqualifiedSnapshotDiagnostic": false,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -358,15 +309,7 @@
           }
         ]
       },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [2, 0, 2, 0],
-          "functions": [2, 0],
-          "branches": [[0, 2]]
-        }
-      },
-      "reportFiles": [],
-      "setupErrorLines": [[3], [3]]
+      "reportFiles": []
     },
     {
       "name": "beforeeach-mixed-stage-no-snapshots",
@@ -389,10 +332,7 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
       "independentAfterEach": true,
-      "unqualifiedSnapshotDiagnostic": false,
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 0,
@@ -450,18 +390,6 @@
           }
         ]
       },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [2, 0, 2, 0],
-          "functions": [2, 0],
-          "branches": [[0, 2]]
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ],
       "setupErrorLines": [
         [3, 3],
         [3, 3]
@@ -469,30 +397,10 @@
     },
     {
       "name": "beforeeach-async",
-      "sourceFiles": {
-        "subject.mjs": {
-          "source": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-          "sha256": "bb1ac145182d88270689813041320621c241552d6e57a09c5ed89a0bbe1005ff"
-        },
-        "setup.mjs": {
-          "source": "import {beforeEach} from 'vitest'\nimport {choose} from './subject.mjs'\nbeforeEach(async()=>{await Promise.resolve();choose(false);throw new Error('owned settled setup beforeEach failure')})\n",
-          "sha256": "f589409486a0130b4bc3b97cd5b1806389330d8a8106cb9cb8a5c7d4107240b6"
-        },
-        "serializer.mjs": {
-          "source": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-          "sha256": "9d862a46bbb5f5200a2e8ebd836b60cd24d5b71ef4bfb95ef3e64e5ad2f43b25"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body', () => {\n  expect(globalThis.setupValue).toBe(0)\n  expect(globalThis.hookValue).toBe(0)\n  const value = choose(true)\n  expect({kind:'special',value}).toMatchSnapshot()\n})\ntest('second owned body', () => { expect(choose(false)).toBe(0) })\n",
-          "sha256": "054e054db9e97ce68126a737c4d533b46529f7b96d5ef604894c61d5b5156b19"
-        }
-      },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "snapshots": {
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
-      "exitCode": 1,
-      "independentAfterEach": false,
       "unqualifiedSnapshotDiagnostic": true,
       "cases": {
         "numTotalTestSuites": 1,
@@ -530,7 +438,7 @@
           {
             "name": "/private/tmp/next-testing-run/work-3/reference/.next-istanbul-setup-failure-TZ3v2e/suite.test.mjs",
             "status": "failed",
-            "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n",
+            "message": "Obsolete snapshots found when no snapshot update is expected.\n· first owned body 1\n",
             "assertionResults": [
               {
                 "ancestorTitles": [],
@@ -553,20 +461,7 @@
             ]
           }
         ]
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [2, 0, 2, 0],
-          "functions": [2, 0],
-          "branches": [[0, 2]]
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ],
-      "setupErrorLines": [[3], [3]]
+      }
     }
   ]
 }

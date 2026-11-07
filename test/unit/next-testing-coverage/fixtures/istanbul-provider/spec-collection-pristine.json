@@ -1,29 +1,48 @@
 {
+  "coverageMaps": {
+    "js-partial-sync": {
+      "subject.mjs": {
+        "statements": [1, 0, 1, 0],
+        "functions": [1, 0],
+        "branches": [[0, 1]]
+      }
+    }
+  },
+  "defaults": {
+    "sourceFiles": {
+      "contract.test.js": {
+        "source": "import './failed-dependency.mjs'\n",
+        "sha256": "88f62a27c17f259cb049078de97306420a74b9ae9bc339cf1dc3583d87ee1f84"
+      },
+      "failed-dependency.mjs": {
+        "source": "throw new Error('actual spec dependency load failed')\n",
+        "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
+      },
+      "subject.mjs": {
+        "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
+        "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
+      },
+      "package.json": {
+        "source": "{\"type\":\"module\"}\n",
+        "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+      }
+    },
+    "snapshots": {},
+    "exitCode": 1,
+    "coverage": {
+      "subject.mjs": {
+        "statements": [0, 0, 0, 0],
+        "functions": [0, 0],
+        "branches": [[0, 0]]
+      }
+    },
+    "reportFiles": ["coverage-final.json", "coverage-summary.json", "lcov.info"]
+  },
   "rows": [
     {
       "name": "js-no-case-sync",
       "entryName": "contract.test.js",
-      "sourceFiles": {
-        "contract.test.js": {
-          "source": "import './failed-dependency.mjs'\n",
-          "sha256": "88f62a27c17f259cb049078de97306420a74b9ae9bc339cf1dc3583d87ee1f84"
-        },
-        "failed-dependency.mjs": {
-          "source": "throw new Error('actual spec dependency load failed')\n",
-          "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
-        },
-        "subject.mjs": {
-          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
-          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
-        },
-        "package.json": {
-          "source": "{\"type\":\"module\"}\n",
-          "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
-        }
-      },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
         {
@@ -139,44 +158,12 @@
             "assertionResults": []
           }
         ]
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ]
+      }
     },
     {
       "name": "js-no-case-sync-report-false",
       "entryName": "contract.test.js",
-      "sourceFiles": {
-        "contract.test.js": {
-          "source": "import './failed-dependency.mjs'\n",
-          "sha256": "88f62a27c17f259cb049078de97306420a74b9ae9bc339cf1dc3583d87ee1f84"
-        },
-        "failed-dependency.mjs": {
-          "source": "throw new Error('actual spec dependency load failed')\n",
-          "sha256": "5af49d0eb0a3083def037018e0274cd3bb4221bc43999e52b39fea10e2af439c"
-        },
-        "subject.mjs": {
-          "source": "export function choose(flag) {\n  if (flag) return 1\n  return 0\n}\nexport function unused() {\n  return 7\n}\n",
-          "sha256": "080ca8e12b1705b0a9e993d1c7956453465b4a31c42b2bc818d59d62da79c00c"
-        },
-        "package.json": {
-          "source": "{\"type\":\"module\"}\n",
-          "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
-        }
-      },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
         {
@@ -293,13 +280,6 @@
           }
         ]
       },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
       "reportFiles": []
     },
     {
@@ -324,8 +304,6 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84443}\n{\"event\":\"test-declared\",\"pid\":84443}\n",
       "reporterTrace": [
         {
@@ -442,18 +420,7 @@
           }
         ]
       },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [1, 0, 1, 0],
-          "functions": [1, 0],
-          "branches": [[0, 1]]
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ]
+      "coverage": "js-partial-sync"
     },
     {
       "name": "js-partial-sync-report-false",
@@ -477,8 +444,6 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84665}\n{\"event\":\"test-declared\",\"pid\":84665}\n",
       "reporterTrace": [
         {
@@ -595,13 +560,7 @@
           }
         ]
       },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [1, 0, 1, 0],
-          "functions": [1, 0],
-          "branches": [[0, 1]]
-        }
-      },
+      "coverage": "js-partial-sync",
       "reportFiles": []
     },
     {
@@ -626,8 +585,6 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
         {
@@ -743,19 +700,7 @@
             "assertionResults": []
           }
         ]
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ]
+      }
     },
     {
       "name": "mjs-no-case-sync-report-false",
@@ -779,8 +724,6 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
       "authoredTrace": "",
       "reporterTrace": [
         {
@@ -897,13 +840,6 @@
           }
         ]
       },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
       "reportFiles": []
     },
     {
@@ -928,8 +864,6 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84360}\n{\"event\":\"test-declared\",\"pid\":84360}\n",
       "reporterTrace": [
         {
@@ -1046,18 +980,7 @@
           }
         ]
       },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [1, 0, 1, 0],
-          "functions": [1, 0],
-          "branches": [[0, 1]]
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ]
+      "coverage": "js-partial-sync"
     },
     {
       "name": "mjs-partial-async-report-false",
@@ -1081,8 +1004,6 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":1000,\"coverage\":{\"provider\":\"istanbul\",\"enabled\":true,\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":true,\"reportOnFailure\":false}}}\n",
-      "snapshots": {},
-      "exitCode": 1,
       "authoredTrace": "{\"event\":\"module-enter\",\"pid\":84405}\n{\"event\":\"test-declared\",\"pid\":84405}\n",
       "reporterTrace": [
         {
@@ -1199,13 +1120,7 @@
           }
         ]
       },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [1, 0, 1, 0],
-          "functions": [1, 0],
-          "branches": [[0, 1]]
-        }
-      },
+      "coverage": "js-partial-sync",
       "reportFiles": []
     }
   ],

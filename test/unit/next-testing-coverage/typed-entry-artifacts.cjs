@@ -1,3 +1,4 @@
+const { readCoverageFixture } = require('./coverage-fixtures.cjs')
 if (!process.argv.includes('--owned-metadata-child')) {
   const fs = require('node:fs')
   const path = require('node:path')
@@ -64,12 +65,10 @@ if (!process.argv.includes('--owned-metadata-child')) {
     load = createRequire(path.join(consumer, 'package.json')),
     nextRoot = path.dirname(load.resolve('next/package.json')),
     runtime = path.join(nextRoot, 'dist/experimental/testing')
-  const pristine = JSON.parse(
-      fs.readFileSync(
-        path.join(
-          __dirname,
-          'fixtures/istanbul-provider/typed-entry-pristine.json'
-        )
+  const pristine = readCoverageFixture(
+      path.join(
+        __dirname,
+        'fixtures/istanbul-provider/typed-entry-pristine.json'
       )
     ),
     fixture = fs.mkdtempSync(path.join(consumer, '.next-typed-artifact-'))

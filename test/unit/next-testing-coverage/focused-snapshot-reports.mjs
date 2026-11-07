@@ -1,3 +1,4 @@
+import { readCoverageFixture } from './coverage-fixtures.cjs'
 import {
   assertSnapshotReport,
   assertSnapshotCoverage,
@@ -26,12 +27,10 @@ const [consumerArg, outputArg, profile] = process.argv.slice(2),
 if (!process.argv.includes('--source'))
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
     assert.throws(() => load.resolve(name))
-const row = JSON.parse(
-  readFileSync(
-    join(
-      dirname(fileURLToPath(import.meta.url)),
-      'fixtures/istanbul-provider/readonly-focused-pristine.json'
-    )
+const row = readCoverageFixture(
+  join(
+    dirname(fileURLToPath(import.meta.url)),
+    'fixtures/istanbul-provider/readonly-focused-pristine.json'
   )
 ).rows.find((r) => r.name === profile)
 assert(row, 'Unknown focused selection profile')

@@ -1,34 +1,63 @@
 {
+  "coverageMaps": {
+    "default-imported": {
+      "subject.cjs": {
+        "statements": [1, 2, 1, 1, 1, 0],
+        "functions": [2, 0],
+        "branches": [[1, 1]]
+      }
+    }
+  },
+  "defaults": {
+    "actualCLI": true,
+    "exitCode": 0,
+    "allOwnersJoined": true,
+    "wholeCasesAndCoverage": false,
+    "sourceFiles": {
+      "subject.cjs": {
+        "source": "exports.choose = function choose(value) {\n  if (value) return 1\n  return 0\n}\nexports.unused = function unused() { return 9 }\n",
+        "sha256": "c242c7e126212b84c5f9e2d837fc004fc9b60c0398f9b4ba2eb6bffc8430364f"
+      },
+      "dependency.cjs": {
+        "source": "exports.offset = function offset(value) { return value + 2 }\n",
+        "sha256": "02e261b15a5ecfa93b5ecf1cf2dbcd0b87bab4b31411ef681409c210a037eed8"
+      },
+      "unimported.cjs": {
+        "source": "throw new Error('selected CommonJS source must not execute')\nexports.never = function never() { return 8 }\n",
+        "sha256": "61a07765ef83eeea54907de94a3c022941a0b5c7283c12c71fb1ee70aad6627e"
+      },
+      "suite.test.mjs": {
+        "source": "import {test,expect} from 'vitest'\nimport subject from './subject.cjs'\nconst choose = subject.choose\ntest('CommonJS true branch', () => expect(choose(true)).toBe(1))\ntest('CommonJS false branch', () => expect(choose(false)).toBe(0))\n",
+        "sha256": "32f1c0d28dc7a33108df280b4467e882f21c04f2f6232f9bd0baaf7d231b9394"
+      }
+    },
+    "snapshots": {},
+    "coverage": {
+      "subject.cjs": {
+        "statements": [1, 2, 1, 1, 1, 0],
+        "functions": [2, 0],
+        "branches": [[1, 1]]
+      },
+      "dependency.cjs": {
+        "statements": [0, 0],
+        "functions": [0],
+        "branches": []
+      },
+      "unimported.cjs": {
+        "statements": [0, 0, 0],
+        "functions": [0],
+        "branches": []
+      }
+    },
+    "reportFiles": ["coverage-final.json", "coverage-summary.json", "lcov.info"]
+  },
   "rows": [
     {
       "name": "default-explicit",
       "explicit": true,
       "named": false,
       "nested": false,
-      "actualCLI": true,
-      "exitCode": 0,
-      "allOwnersJoined": true,
-      "wholeCasesAndCoverage": false,
-      "sourceFiles": {
-        "subject.cjs": {
-          "source": "exports.choose = function choose(value) {\n  if (value) return 1\n  return 0\n}\nexports.unused = function unused() { return 9 }\n",
-          "sha256": "c242c7e126212b84c5f9e2d837fc004fc9b60c0398f9b4ba2eb6bffc8430364f"
-        },
-        "dependency.cjs": {
-          "source": "exports.offset = function offset(value) { return value + 2 }\n",
-          "sha256": "02e261b15a5ecfa93b5ecf1cf2dbcd0b87bab4b31411ef681409c210a037eed8"
-        },
-        "unimported.cjs": {
-          "source": "throw new Error('selected CommonJS source must not execute')\nexports.never = function never() { return 8 }\n",
-          "sha256": "61a07765ef83eeea54907de94a3c022941a0b5c7283c12c71fb1ee70aad6627e"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport subject from './subject.cjs'\nconst choose = subject.choose\ntest('CommonJS true branch', () => expect(choose(true)).toBe(1))\ntest('CommonJS false branch', () => expect(choose(false)).toBe(0))\n",
-          "sha256": "32f1c0d28dc7a33108df280b4467e882f21c04f2f6232f9bd0baaf7d231b9394"
-        }
-      },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"*.cjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 1,
@@ -79,59 +108,14 @@
             ]
           }
         ]
-      },
-      "coverage": {
-        "subject.cjs": {
-          "statements": [1, 2, 1, 1, 1, 0],
-          "functions": [2, 0],
-          "branches": [[1, 1]]
-        },
-        "dependency.cjs": {
-          "statements": [0, 0],
-          "functions": [0],
-          "branches": []
-        },
-        "unimported.cjs": {
-          "statements": [0, 0, 0],
-          "functions": [0],
-          "branches": []
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ]
+      }
     },
     {
       "name": "default-imported",
       "explicit": false,
       "named": false,
       "nested": false,
-      "actualCLI": true,
-      "exitCode": 0,
-      "allOwnersJoined": true,
-      "wholeCasesAndCoverage": false,
-      "sourceFiles": {
-        "subject.cjs": {
-          "source": "exports.choose = function choose(value) {\n  if (value) return 1\n  return 0\n}\nexports.unused = function unused() { return 9 }\n",
-          "sha256": "c242c7e126212b84c5f9e2d837fc004fc9b60c0398f9b4ba2eb6bffc8430364f"
-        },
-        "dependency.cjs": {
-          "source": "exports.offset = function offset(value) { return value + 2 }\n",
-          "sha256": "02e261b15a5ecfa93b5ecf1cf2dbcd0b87bab4b31411ef681409c210a037eed8"
-        },
-        "unimported.cjs": {
-          "source": "throw new Error('selected CommonJS source must not execute')\nexports.never = function never() { return 8 }\n",
-          "sha256": "61a07765ef83eeea54907de94a3c022941a0b5c7283c12c71fb1ee70aad6627e"
-        },
-        "suite.test.mjs": {
-          "source": "import {test,expect} from 'vitest'\nimport subject from './subject.cjs'\nconst choose = subject.choose\ntest('CommonJS true branch', () => expect(choose(true)).toBe(1))\ntest('CommonJS false branch', () => expect(choose(false)).toBe(0))\n",
-          "sha256": "32f1c0d28dc7a33108df280b4467e882f21c04f2f6232f9bd0baaf7d231b9394"
-        }
-      },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 1,
@@ -183,28 +167,13 @@
           }
         ]
       },
-      "coverage": {
-        "subject.cjs": {
-          "statements": [1, 2, 1, 1, 1, 0],
-          "functions": [2, 0],
-          "branches": [[1, 1]]
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ]
+      "coverage": "default-imported"
     },
     {
       "name": "named-explicit",
       "explicit": true,
       "named": true,
       "nested": false,
-      "actualCLI": true,
-      "exitCode": 0,
-      "allOwnersJoined": true,
-      "wholeCasesAndCoverage": false,
       "sourceFiles": {
         "subject.cjs": {
           "source": "exports.choose = function choose(value) {\n  if (value) return 1\n  return 0\n}\nexports.unused = function unused() { return 9 }\n",
@@ -224,7 +193,6 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"*.cjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 1,
@@ -275,39 +243,13 @@
             ]
           }
         ]
-      },
-      "coverage": {
-        "subject.cjs": {
-          "statements": [1, 2, 1, 1, 1, 0],
-          "functions": [2, 0],
-          "branches": [[1, 1]]
-        },
-        "dependency.cjs": {
-          "statements": [0, 0],
-          "functions": [0],
-          "branches": []
-        },
-        "unimported.cjs": {
-          "statements": [0, 0, 0],
-          "functions": [0],
-          "branches": []
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ]
+      }
     },
     {
       "name": "nested-imported",
       "explicit": false,
       "named": false,
       "nested": true,
-      "actualCLI": true,
-      "exitCode": 0,
-      "allOwnersJoined": true,
-      "wholeCasesAndCoverage": false,
       "sourceFiles": {
         "subject.cjs": {
           "source": "const { offset } = require('./dependency.cjs')\nexports.choose = function choose(value) {\n  if (value) return offset(1)\n  return offset(0)\n}\nexports.unused = function unused() { return 9 }\n",
@@ -327,7 +269,6 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 1,
@@ -385,22 +326,13 @@
           "functions": [2, 0],
           "branches": [[1, 1]]
         }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ]
+      }
     },
     {
       "name": "malformed-imported",
       "explicit": false,
       "named": false,
       "nested": false,
-      "actualCLI": true,
-      "exitCode": 0,
-      "allOwnersJoined": true,
-      "wholeCasesAndCoverage": false,
       "sourceFiles": {
         "subject.cjs": {
           "source": "exports.choose = function choose(value) {\n  if (value) return 1\n  return 0\n}\nexports.unused = function unused() { return 9 }\n",
@@ -420,7 +352,6 @@
         }
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
       "cases": {
         "numTotalTestSuites": 1,
         "numPassedTestSuites": 1,
@@ -472,18 +403,7 @@
           }
         ]
       },
-      "coverage": {
-        "subject.cjs": {
-          "statements": [1, 2, 1, 1, 1, 0],
-          "functions": [2, 0],
-          "branches": [[1, 1]]
-        }
-      },
-      "reportFiles": [
-        "coverage-final.json",
-        "coverage-summary.json",
-        "lcov.info"
-      ]
+      "coverage": "default-imported"
     }
   ],
   "notQualified": [

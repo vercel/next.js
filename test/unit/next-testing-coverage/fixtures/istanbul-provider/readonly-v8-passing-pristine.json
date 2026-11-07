@@ -1,21 +1,81 @@
 {
+  "coverageMaps": {
+    "v8-passing-filtered-removed-formatted-report-true": {
+      "subject.mjs": {
+        "statements": [1, 0, 1, 0],
+        "functions": [1, 0],
+        "branches": [[0, 1]]
+      }
+    }
+  },
+  "defaults": {
+    "exitCode": 1,
+    "reportOnFailure": true,
+    "sourceFiles": {
+      "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+      "setup.mjs": "",
+      "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+      "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
+    },
+    "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+    "snapshots": {
+      "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n\nexports[`removed owned body 1`] = `true`;\n"
+    },
+    "flags": [],
+    "expected": {
+      "passed": 1,
+      "failed": 0,
+      "pending": 1,
+      "cases": [
+        ["first owned body", "skipped", []],
+        ["second owned body", "passed", []]
+      ],
+      "fileErrors": [
+        "Obsolete snapshots found when no snapshot update is expected."
+      ],
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 1,
+        "uncheckedKeysByFile": [
+          {
+            "filePath": "<fixture>/suite.test.mjs",
+            "keys": ["removed owned body 1"]
+          }
+        ],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      }
+    },
+    "rootErrors": [
+      {
+        "name": "Error",
+        "message": "Obsolete snapshots found when no snapshot update is expected.\n· removed owned body 1\n"
+      }
+    ],
+    "coverage": {
+      "subject.mjs": {
+        "statements": [2, 1, 1, 0],
+        "functions": [2, 0],
+        "branches": [[1, 1]]
+      }
+    }
+  },
   "rows": [
     {
       "name": "v8-passing-plain-original-report-true",
-      "exitCode": 1,
       "variant": "plain-original",
-      "reportOnFailure": true,
-      "sourceFiles": {
-        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-        "setup.mjs": "",
-        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
-      },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "snapshots": {
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
-      "flags": [],
       "expected": {
         "passed": 2,
         "failed": 0,
@@ -52,33 +112,18 @@
       "rootErrors": [
         {
           "name": "Error",
-          "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n"
+          "message": "Obsolete snapshots found when no snapshot update is expected.\n· first owned body 1\n"
         }
-      ],
-      "coverage": {
-        "subject.mjs": {
-          "statements": [2, 1, 1, 0],
-          "functions": [2, 0],
-          "branches": [[1, 1]]
-        }
-      }
+      ]
     },
     {
       "name": "v8-passing-plain-original-report-false",
-      "exitCode": 1,
       "variant": "plain-original",
       "reportOnFailure": false,
-      "sourceFiles": {
-        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-        "setup.mjs": "",
-        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
-      },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
       "snapshots": {
         "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n"
       },
-      "flags": [],
       "expected": {
         "passed": 2,
         "failed": 0,
@@ -115,27 +160,14 @@
       "rootErrors": [
         {
           "name": "Error",
-          "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n"
+          "message": "Obsolete snapshots found when no snapshot update is expected.\n· first owned body 1\n"
         }
       ],
       "coverage": null
     },
     {
       "name": "v8-passing-plain-removed-formatted-report-true",
-      "exitCode": 1,
       "variant": "plain-removed-formatted",
-      "reportOnFailure": true,
-      "sourceFiles": {
-        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-        "setup.mjs": "",
-        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
-      },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {
-        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n\nexports[`removed owned body 1`] = `true`;\n"
-      },
-      "flags": [],
       "expected": {
         "passed": 2,
         "failed": 0,
@@ -172,85 +204,19 @@
       "rootErrors": [
         {
           "name": "Error",
-          "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 first owned body 1\n\u00b7 removed owned body 1\n"
+          "message": "Obsolete snapshots found when no snapshot update is expected.\n· first owned body 1\n· removed owned body 1\n"
         }
-      ],
-      "coverage": {
-        "subject.mjs": {
-          "statements": [2, 1, 1, 0],
-          "functions": [2, 0],
-          "branches": [[1, 1]]
-        }
-      }
+      ]
     },
     {
       "name": "v8-passing-filtered-removed-formatted-report-true",
-      "exitCode": 1,
       "variant": "filtered-removed-formatted",
-      "reportOnFailure": true,
-      "sourceFiles": {
-        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-        "setup.mjs": "",
-        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
-      },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {
-        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n\nexports[`removed owned body 1`] = `true`;\n"
-      },
       "flags": ["-t", "second owned body"],
-      "expected": {
-        "passed": 1,
-        "failed": 0,
-        "pending": 1,
-        "cases": [
-          ["first owned body", "skipped", []],
-          ["second owned body", "passed", []]
-        ],
-        "fileErrors": [
-          "Obsolete snapshots found when no snapshot update is expected."
-        ],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 1,
-          "uncheckedKeysByFile": [
-            {
-              "filePath": "<fixture>/suite.test.mjs",
-              "keys": ["removed owned body 1"]
-            }
-          ],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "rootErrors": [
-        {
-          "name": "Error",
-          "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 removed owned body 1\n"
-        }
-      ],
-      "coverage": {
-        "subject.mjs": {
-          "statements": [1, 0, 1, 0],
-          "functions": [1, 0],
-          "branches": [[0, 1]]
-        }
-      }
+      "coverage": "v8-passing-filtered-removed-formatted-report-true"
     },
     {
       "name": "v8-passing-focused-removed-formatted-report-true",
-      "exitCode": 1,
       "variant": "focused-removed-formatted",
-      "reportOnFailure": true,
       "sourceFiles": {
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "setup.mjs": "",
@@ -258,134 +224,24 @@
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest.only('second owned body',()=>{choose(false)})\n"
       },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true},\"allowOnly\":true}}\n",
-      "snapshots": {
-        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n\nexports[`removed owned body 1`] = `true`;\n"
-      },
-      "flags": [],
-      "expected": {
-        "passed": 1,
-        "failed": 0,
-        "pending": 1,
-        "cases": [
-          ["first owned body", "skipped", []],
-          ["second owned body", "passed", []]
-        ],
-        "fileErrors": [
-          "Obsolete snapshots found when no snapshot update is expected."
-        ],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 1,
-          "uncheckedKeysByFile": [
-            {
-              "filePath": "<fixture>/suite.test.mjs",
-              "keys": ["removed owned body 1"]
-            }
-          ],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "rootErrors": [
-        {
-          "name": "Error",
-          "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 removed owned body 1\n"
-        }
-      ],
-      "coverage": {
-        "subject.mjs": {
-          "statements": [1, 0, 1, 0],
-          "functions": [1, 0],
-          "branches": [[0, 1]]
-        }
-      }
+      "coverage": "v8-passing-filtered-removed-formatted-report-true"
     },
     {
       "name": "v8-passing-skip-first-removed-formatted-report-true",
-      "exitCode": 1,
       "variant": "skip-first-removed-formatted",
-      "reportOnFailure": true,
       "sourceFiles": {
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "setup.mjs": "",
         "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.skip('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {
-        "suite.test.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`first owned body 1`] = `SPECIAL(1)`;\n\nexports[`removed owned body 1`] = `true`;\n"
-      },
-      "flags": [],
-      "expected": {
-        "passed": 1,
-        "failed": 0,
-        "pending": 1,
-        "cases": [
-          ["first owned body", "skipped", []],
-          ["second owned body", "passed", []]
-        ],
-        "fileErrors": [
-          "Obsolete snapshots found when no snapshot update is expected."
-        ],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 1,
-          "uncheckedKeysByFile": [
-            {
-              "filePath": "<fixture>/suite.test.mjs",
-              "keys": ["removed owned body 1"]
-            }
-          ],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "rootErrors": [
-        {
-          "name": "Error",
-          "message": "Obsolete snapshots found when no snapshot update is expected.\n\u00b7 removed owned body 1\n"
-        }
-      ],
-      "coverage": {
-        "subject.mjs": {
-          "statements": [1, 0, 1, 0],
-          "functions": [1, 0],
-          "branches": [[0, 1]]
-        }
-      }
+      "coverage": "v8-passing-filtered-removed-formatted-report-true"
     },
     {
       "name": "v8-passing-no-obsolete-report-true",
       "exitCode": 0,
       "variant": "no-obsolete",
-      "reportOnFailure": true,
-      "sourceFiles": {
-        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-        "setup.mjs": "",
-        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
-      },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "snapshots": {},
-      "flags": [],
       "expected": {
         "passed": 2,
         "failed": 0,
@@ -412,14 +268,7 @@
           "didUpdate": false
         }
       },
-      "rootErrors": [],
-      "coverage": {
-        "subject.mjs": {
-          "statements": [2, 1, 1, 0],
-          "functions": [2, 0],
-          "branches": [[1, 1]]
-        }
-      }
+      "rootErrors": []
     }
   ]
 }

@@ -1,3 +1,4 @@
+import { readCoverageFixture } from './coverage-fixtures.cjs'
 import { assertSnapshotReport } from './snapshot-coverage-assertions.mjs'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
@@ -20,12 +21,10 @@ const [consumerArg, outputArg, profile] = process.argv.slice(2),
   consumer = resolve(consumerArg),
   output = resolve(outputArg),
   load = createRequire(join(consumer, 'package.json')),
-  row = JSON.parse(
-    readFileSync(
-      join(
-        dirname(fileURLToPath(import.meta.url)),
-        'fixtures/istanbul-provider/inactive-focused-pristine.json'
-      )
+  row = readCoverageFixture(
+    join(
+      dirname(fileURLToPath(import.meta.url)),
+      'fixtures/istanbul-provider/inactive-focused-pristine.json'
     )
   ).rows.find((r) => r.name === profile)
 assert(row)

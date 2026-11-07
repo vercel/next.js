@@ -1,436 +1,215 @@
 {
+  "defaults": {
+    "exitCode": 1,
+    "reportOnFailure": true,
+    "sourceFiles": {
+      "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+      "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(async()=>{await Promise.resolve();choose(false);throw failures})\n",
+      "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+      "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
+    },
+    "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
+    "snapshots": {},
+    "flags": [],
+    "expected": {
+      "passed": 0,
+      "failed": 0,
+      "pending": 2,
+      "todo": 0,
+      "cases": [
+        ["first owned body", "skipped", []],
+        ["second owned body", "skipped", []]
+      ],
+      "fileErrors": ["actual beforeAll Array first"],
+      "fileStates": ["failed"],
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      }
+    },
+    "rootErrors": [
+      {
+        "name": "Error",
+        "message": "actual beforeAll Array first"
+      },
+      {
+        "name": "Error",
+        "message": "actual beforeAll Array second"
+      }
+    ],
+    "lifecycle": [
+      ["module-end", "failed"],
+      ["run-end", "failed"]
+    ],
+    "coverageMap": {
+      "<fixture>/subject.mjs": {
+        "path": "<fixture>/subject.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 2,
+              "column": 13
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 5,
+              "column": 27
+            },
+            "end": {
+              "line": 5,
+              "column": 35
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "choose",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 30
+              },
+              "end": {
+                "line": 4,
+                "column": null
+              }
+            }
+          },
+          "1": {
+            "name": "unused",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
+              },
+              "end": {
+                "line": 5,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 25
+              },
+              "end": {
+                "line": 5,
+                "column": null
+              }
+            }
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "type": "if",
+            "locations": [
+              {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              {
+                "start": {},
+                "end": {}
+              }
+            ]
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 0,
+          "2": 1,
+          "3": 0
+        },
+        "f": {
+          "0": 1,
+          "1": 0
+        },
+        "b": {
+          "0": [0, 1]
+        }
+      }
+    }
+  },
   "rows": [
     {
       "name": "istanbul-beforeall-array-async-report-false",
-      "exitCode": 1,
       "reportOnFailure": false,
-      "sourceFiles": {
-        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-        "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(async()=>{await Promise.resolve();choose(false);throw failures})\n",
-        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
-      },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
-      "snapshots": {},
-      "flags": [],
-      "expected": {
-        "passed": 0,
-        "failed": 0,
-        "pending": 2,
-        "todo": 0,
-        "cases": [
-          ["first owned body", "skipped", []],
-          ["second owned body", "skipped", []]
-        ],
-        "fileErrors": ["actual beforeAll Array first"],
-        "fileStates": ["failed"],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "rootErrors": [
-        {
-          "name": "Error",
-          "message": "actual beforeAll Array first"
-        },
-        {
-          "name": "Error",
-          "message": "actual beforeAll Array second"
-        }
-      ],
-      "lifecycle": [
-        ["module-end", "failed"],
-        ["run-end", "failed"]
-      ],
-      "coverageMap": {
-        "<fixture>/subject.mjs": {
-          "path": "<fixture>/subject.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 13
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 5,
-                "column": 27
-              },
-              "end": {
-                "line": 5,
-                "column": 35
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 5,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 0,
-            "2": 1,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 1]
-          }
-        }
-      }
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n"
     },
     {
-      "name": "istanbul-beforeall-array-async-report-true",
-      "exitCode": 1,
-      "reportOnFailure": true,
-      "sourceFiles": {
-        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-        "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(async()=>{await Promise.resolve();choose(false);throw failures})\n",
-        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
-      },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "flags": [],
-      "expected": {
-        "passed": 0,
-        "failed": 0,
-        "pending": 2,
-        "todo": 0,
-        "cases": [
-          ["first owned body", "skipped", []],
-          ["second owned body", "skipped", []]
-        ],
-        "fileErrors": ["actual beforeAll Array first"],
-        "fileStates": ["failed"],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "rootErrors": [
-        {
-          "name": "Error",
-          "message": "actual beforeAll Array first"
-        },
-        {
-          "name": "Error",
-          "message": "actual beforeAll Array second"
-        }
-      ],
-      "lifecycle": [
-        ["module-end", "failed"],
-        ["run-end", "failed"]
-      ],
-      "coverageMap": {
-        "<fixture>/subject.mjs": {
-          "path": "<fixture>/subject.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 13
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 5,
-                "column": 27
-              },
-              "end": {
-                "line": 5,
-                "column": 35
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 5,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 0,
-            "2": 1,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 1]
-          }
-        }
-      }
+      "name": "istanbul-beforeall-array-async-report-true"
     },
     {
       "name": "istanbul-beforeall-array-repeated-report-true",
-      "exitCode": 1,
-      "reportOnFailure": true,
       "sourceFiles": {
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=first\nconst failures=[first,second]\nbeforeAll(()=>{choose(false);throw failures})\n",
         "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "flags": [],
-      "expected": {
-        "passed": 0,
-        "failed": 0,
-        "pending": 2,
-        "todo": 0,
-        "cases": [
-          ["first owned body", "skipped", []],
-          ["second owned body", "skipped", []]
-        ],
-        "fileErrors": ["actual beforeAll Array first"],
-        "fileStates": ["failed"],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
       "rootErrors": [
         {
           "name": "Error",
@@ -440,154 +219,10 @@
           "name": "Error",
           "message": "actual beforeAll Array first"
         }
-      ],
-      "lifecycle": [
-        ["module-end", "failed"],
-        ["run-end", "failed"]
-      ],
-      "coverageMap": {
-        "<fixture>/subject.mjs": {
-          "path": "<fixture>/subject.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 13
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 5,
-                "column": 27
-              },
-              "end": {
-                "line": 5,
-                "column": 35
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 5,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 0,
-            "2": 1,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 1]
-          }
-        }
-      }
+      ]
     },
     {
       "name": "istanbul-beforeall-array-sync-report-false",
-      "exitCode": 1,
       "reportOnFailure": false,
       "sourceFiles": {
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
@@ -595,399 +230,25 @@
         "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n",
-      "snapshots": {},
-      "flags": [],
-      "expected": {
-        "passed": 0,
-        "failed": 0,
-        "pending": 2,
-        "todo": 0,
-        "cases": [
-          ["first owned body", "skipped", []],
-          ["second owned body", "skipped", []]
-        ],
-        "fileErrors": ["actual beforeAll Array first"],
-        "fileStates": ["failed"],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "rootErrors": [
-        {
-          "name": "Error",
-          "message": "actual beforeAll Array first"
-        },
-        {
-          "name": "Error",
-          "message": "actual beforeAll Array second"
-        }
-      ],
-      "lifecycle": [
-        ["module-end", "failed"],
-        ["run-end", "failed"]
-      ],
-      "coverageMap": {
-        "<fixture>/subject.mjs": {
-          "path": "<fixture>/subject.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 13
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 5,
-                "column": 27
-              },
-              "end": {
-                "line": 5,
-                "column": 35
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 5,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 0,
-            "2": 1,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 1]
-          }
-        }
-      }
+      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":false}}}\n"
     },
     {
       "name": "istanbul-beforeall-array-sync-report-true",
-      "exitCode": 1,
-      "reportOnFailure": true,
       "sourceFiles": {
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[first,second]\nbeforeAll(()=>{choose(false);throw failures})\n",
         "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
-      },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "flags": [],
-      "expected": {
-        "passed": 0,
-        "failed": 0,
-        "pending": 2,
-        "todo": 0,
-        "cases": [
-          ["first owned body", "skipped", []],
-          ["second owned body", "skipped", []]
-        ],
-        "fileErrors": ["actual beforeAll Array first"],
-        "fileStates": ["failed"],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "rootErrors": [
-        {
-          "name": "Error",
-          "message": "actual beforeAll Array first"
-        },
-        {
-          "name": "Error",
-          "message": "actual beforeAll Array second"
-        }
-      ],
-      "lifecycle": [
-        ["module-end", "failed"],
-        ["run-end", "failed"]
-      ],
-      "coverageMap": {
-        "<fixture>/subject.mjs": {
-          "path": "<fixture>/subject.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 13
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 5,
-                "column": 27
-              },
-              "end": {
-                "line": 5,
-                "column": 35
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 5,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 0,
-            "2": 1,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 1]
-          }
-        }
       }
     },
     {
       "name": "istanbul-beforeall-primitive-async-report-true",
-      "exitCode": 1,
-      "reportOnFailure": true,
       "sourceFiles": {
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[1,undefined]\nbeforeAll(async()=>{await Promise.resolve();choose(false);throw failures})\n",
         "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "flags": [],
       "expected": {
         "passed": 0,
         "failed": 0,
@@ -1023,164 +284,16 @@
         {
           "message": "undefined"
         }
-      ],
-      "lifecycle": [
-        ["module-end", "failed"],
-        ["run-end", "failed"]
-      ],
-      "coverageMap": {
-        "<fixture>/subject.mjs": {
-          "path": "<fixture>/subject.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 13
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 5,
-                "column": 27
-              },
-              "end": {
-                "line": 5,
-                "column": 35
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 5,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 0,
-            "2": 1,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 1]
-          }
-        }
-      }
+      ]
     },
     {
       "name": "istanbul-beforeall-primitive-sync-report-true",
-      "exitCode": 1,
-      "reportOnFailure": true,
       "sourceFiles": {
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "setup.mjs": "import {beforeAll} from 'vitest'\nimport {choose} from './subject.mjs'\nconst first=new Error('actual beforeAll Array first')\nconst second=new Error('actual beforeAll Array second')\nconst failures=[1,undefined]\nbeforeAll(()=>{choose(false);throw failures})\n",
         "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
         "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest('first owned body',()=>{choose(true)})\ntest('second owned body',()=>{choose(false)})\n"
       },
-      "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
-      "snapshots": {},
-      "flags": [],
       "expected": {
         "passed": 0,
         "failed": 0,
@@ -1216,150 +329,7 @@
         {
           "message": "undefined"
         }
-      ],
-      "lifecycle": [
-        ["module-end", "failed"],
-        ["run-end", "failed"]
-      ],
-      "coverageMap": {
-        "<fixture>/subject.mjs": {
-          "path": "<fixture>/subject.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 13
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 5,
-                "column": 27
-              },
-              "end": {
-                "line": 5,
-                "column": 35
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 5,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 0,
-            "2": 1,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 1]
-          }
-        }
-      }
+      ]
     }
   ]
 }

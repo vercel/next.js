@@ -13,769 +13,162 @@
   "unqualifiedProfiles": {
     "settled-cleanup-failure": "Coverage matches; shared JSON reporter file.message remains a separate implementation gap."
   },
-  "rows": [
-    {
-      "name": "baseline",
-      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
+  "defaults": {
+    "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+    "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
+    "flags": [],
+    "exitCode": 0,
+    "directoryExists": true,
+    "cases": [
+      {
+        "file": "contract.test.mjs",
+        "status": "passed",
+        "message": "",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "only true branch is executed",
+            "status": "passed",
+            "title": "only true branch is executed",
+            "failureMessages": []
           }
+        ]
+      },
+      {
+        "file": "full.test.mjs",
+        "status": "passed",
+        "message": "",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "fully covered control",
+            "status": "passed",
+            "title": "fully covered control",
+            "failureMessages": []
+          }
+        ]
+      }
+    ],
+    "coverageText": null,
+    "thresholdErrors": [],
+    "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+    "coverage": {
+      "fully.mjs": {
+        "statements": [1],
+        "functions": [1],
+        "branches": []
+      },
+      "subject.mjs": {
+        "statements": [1, 1, 0, 0],
+        "functions": [1, 0],
+        "branches": [[1, 0]]
+      },
+      "unimported.mjs": {
+        "statements": [0, 0, 0, 0],
+        "functions": [0, 0],
+        "branches": [[0, 0]]
+      }
+    },
+    "summary": {
+      "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
+      "total": {
+        "lines": {
+          "total": 7,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 28.57
+        },
+        "statements": {
+          "total": 9,
+          "covered": 3,
+          "skipped": 0,
+          "pct": 33.33
+        },
+        "functions": {
+          "total": 5,
+          "covered": 2,
+          "skipped": 0,
+          "pct": 40
+        },
+        "branches": {
+          "total": 4,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 25
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": "Unknown"
         }
       }
+    }
+  },
+  "rows": [
+    {
+      "name": "baseline"
     },
     {
       "name": "configured-disabled",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["retained-sentinel.txt"]
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "disabled-provider-only",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "flags": ["--coverage.provider=istanbul"],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["retained-sentinel.txt"]
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "disabled-coverage-true",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": ["--coverage"],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      "flags": ["--coverage"]
     },
     {
       "name": "enabled-coverage-false",
-      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "flags": ["--coverage=false"],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["retained-sentinel.txt"]
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "false-before-provider",
-      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "flags": ["--coverage=false", "--coverage.provider=istanbul"],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["retained-sentinel.txt"]
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "provider-before-false",
-      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "flags": ["--coverage.provider=istanbul", "--coverage=false"],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["retained-sentinel.txt"]
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "configured-v8-cli-istanbul",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"v8\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": ["--coverage.provider=istanbul"],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      "flags": ["--coverage.provider=istanbul"]
     },
     {
       "name": "configured-istanbul-cli-v8",
-      "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": ["--coverage.provider=v8"],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      "flags": ["--coverage.provider=v8"]
     },
     {
       "name": "configured-custom-cli-istanbul",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"custom\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"customProviderModule\": \"./does-not-exist.mjs\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"custom\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"customProviderModule\": \"./does-not-exist.mjs\"\n    }\n  }\n}\n",
-      "flags": ["--coverage.provider=istanbul"],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      "flags": ["--coverage.provider=istanbul"]
     },
     {
       "name": "absent-provider-istanbul-cli",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": ["--coverage.provider=istanbul"],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      "flags": ["--coverage.provider=istanbul"]
     },
     {
       "name": "no-config-provider-only",
@@ -790,82 +183,13 @@
         "--coverage.reporter=json-summary",
         "--coverage.reporter=lcovonly"
       ],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["retained-sentinel.txt"]
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "empty-include",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
       "coverage": {},
       "summary": {
         "files": ["total"],
@@ -907,42 +231,6 @@
       "name": "missing-include",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
       "coverage": {
         "fully.mjs": {
           "statements": [1],
@@ -995,42 +283,6 @@
       "name": "all-excluded",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [\n        \"*.mjs\"\n      ],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [\n        \"*.mjs\"\n      ],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
       "coverage": {},
       "summary": {
         "files": ["total"],
@@ -1072,42 +324,6 @@
       "name": "overlap-exclude",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"*.mjs\"\n      ],\n      \"exclude\": [\n        \"unimported.mjs\",\n        \"failed.case.mjs\"\n      ],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"*.mjs\"\n      ],\n      \"exclude\": [\n        \"unimported.mjs\",\n        \"failed.case.mjs\"\n      ],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
       "coverage": {
         "cleanup-failure.case.mjs": {
           "statements": [0, 0, 0],
@@ -1176,42 +392,6 @@
       "name": "unimported-throw",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"throw-unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"throw-unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
       "coverage": {
         "fully.mjs": {
           "statements": [1],
@@ -1269,41 +449,7 @@
       "name": "default-reporters",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
       "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   33.33 |       25 |      40 |   28.57 |                   \n subject.mjs    |      50 |       50 |      50 |   33.33 | 3-6               \n unimported.mjs |       0 |        0 |       0 |       0 | 2-6               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 33.33% ( 3/9 )\nBranches     : 25% ( 1/4 )\nFunctions    : 40% ( 2/5 )\nLines        : 28.57% ( 2/7 )\n================================================================================",
-      "thresholdErrors": [],
       "files": [
         "base.css",
         "block-navigation.js",
@@ -1319,683 +465,81 @@
         "subject.mjs.html",
         "unimported.mjs.html"
       ],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      }
+      "omit": ["summary"]
     },
     {
       "name": "stdout-none",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"none\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
       "directoryExists": false,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": []
+      "files": [],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "threshold-minimum",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 100\n      }\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 100\n      }\n    }\n  }\n}\n",
-      "flags": [],
       "exitCode": 1,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
       "thresholdErrors": [
         "Coverage for statements (33.33%) does not meet global threshold (100%)"
-      ],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      ]
     },
     {
       "name": "threshold-uncovered",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": -1\n      }\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": -1\n      }\n    }\n  }\n}\n",
-      "flags": [],
       "exitCode": 1,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
       "thresholdErrors": [
         "Uncovered statements (6) exceed global threshold (1)"
-      ],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      ]
     },
     {
       "name": "threshold-per-file",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 100,\n        \"perFile\": true\n      }\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 100,\n        \"perFile\": true\n      }\n    }\n  }\n}\n",
-      "flags": [],
       "exitCode": 1,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
       "thresholdErrors": [
         "Coverage for statements (50%) does not meet global threshold (100%) for subject.mjs",
         "Coverage for statements (0%) does not meet global threshold (100%) for unimported.mjs"
-      ],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      ]
     },
     {
       "name": "threshold-glob",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"**/subject.mjs\": {\n          \"statements\": 100\n        }\n      }\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"**/subject.mjs\": {\n          \"statements\": 100\n        }\n      }\n    }\n  }\n}\n",
-      "flags": [],
       "exitCode": 1,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
       "thresholdErrors": [
         "Coverage for statements (50%) does not meet \"**/subject.mjs\" threshold (100%)"
-      ],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      ]
     },
     {
       "name": "threshold-100",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"100\": true\n      }\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"100\": true\n      }\n    }\n  }\n}\n",
-      "flags": [],
       "exitCode": 1,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
       "thresholdErrors": [
         "Coverage for lines (28.57%) does not meet global threshold (100%)",
         "Coverage for functions (40%) does not meet global threshold (100%)",
         "Coverage for statements (33.33%) does not meet global threshold (100%)",
         "Coverage for branches (25%) does not meet global threshold (100%)"
-      ],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      ]
     },
     {
       "name": "threshold-auto-update",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 0,\n        \"functions\": 0,\n        \"branches\": 0,\n        \"lines\": 0,\n        \"autoUpdate\": true\n      }\n    }\n  }\n}\n",
-      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 33.33,\n        \"functions\": 40,\n        \"branches\": 25,\n        \"lines\": 28.57,\n        \"autoUpdate\": true\n      }\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 33.33,\n        \"functions\": 40,\n        \"branches\": 25,\n        \"lines\": 28.57,\n        \"autoUpdate\": true\n      }\n    }\n  }\n}\n"
     },
     {
       "name": "threshold-auto-update-disabled",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 0,\n        \"autoUpdate\": true\n      }\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"thresholds\": {\n        \"statements\": 0,\n        \"autoUpdate\": true\n      }\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["retained-sentinel.txt"]
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "failure-default",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\"\n    }\n  }\n}\n",
-      "flags": [],
       "exitCode": 1,
       "directoryExists": false,
       "cases": [
@@ -2044,17 +588,14 @@
           ]
         }
       ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": []
+      "files": [],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "failure-report-on-failure",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
-      "flags": [],
       "exitCode": 1,
-      "directoryExists": true,
       "cases": [
         {
           "file": "contract.test.mjs",
@@ -2100,68 +641,12 @@
             }
           ]
         }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      ]
     },
     {
       "name": "failure-clean-true",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n",
-      "flags": [],
       "exitCode": 1,
       "directoryExists": false,
       "cases": [
@@ -2210,17 +695,14 @@
           ]
         }
       ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": []
+      "files": [],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "failure-clean-false",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"failed.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
-      "flags": [],
       "exitCode": 1,
-      "directoryExists": true,
       "cases": [
         {
           "file": "contract.test.mjs",
@@ -2267,290 +749,44 @@
           ]
         }
       ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["retained-sentinel.txt"]
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "clean-true",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n",
-      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n"
     },
     {
       "name": "clean-false",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
       "files": [
         "coverage-final.json",
         "coverage-summary.json",
         "lcov.info",
         "retained-sentinel.txt"
-      ],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      ]
     },
     {
       "name": "disabled-clean-true",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": true\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["retained-sentinel.txt"]
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "disabled-clean-false",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": false,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"clean\": false\n    }\n  }\n}\n",
-      "flags": [],
-      "exitCode": 0,
-      "directoryExists": true,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "only true branch is executed",
-              "status": "passed",
-              "title": "only true branch is executed",
-              "failureMessages": []
-            }
-          ]
-        },
-        {
-          "file": "full.test.mjs",
-          "status": "passed",
-          "message": "",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "fully covered control",
-              "status": "passed",
-              "title": "fully covered control",
-              "failureMessages": []
-            }
-          ]
-        }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["retained-sentinel.txt"]
+      "files": ["retained-sentinel.txt"],
+      "omit": ["coverage", "summary"]
     },
     {
       "name": "settled-cleanup-failure",
       "before": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"cleanup-failure.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
       "after": "export default {\n  \"test\": {\n    \"include\": [\n      \"contract.test.mjs\",\n      \"full.test.mjs\",\n      \"cleanup-failure.case.mjs\"\n    ],\n    \"maxWorkers\": 1,\n    \"testTimeout\": 10000,\n    \"hookTimeout\": 1000,\n    \"coverage\": {\n      \"enabled\": true,\n      \"provider\": \"istanbul\",\n      \"include\": [\n        \"subject.mjs\",\n        \"fully.mjs\",\n        \"unimported.mjs\"\n      ],\n      \"exclude\": [],\n      \"reporter\": [\n        \"json\",\n        \"json-summary\",\n        \"lcovonly\"\n      ],\n      \"reportsDirectory\": \"coverage\",\n      \"reportOnFailure\": true\n    }\n  }\n}\n",
-      "flags": [],
       "exitCode": 1,
-      "directoryExists": true,
       "cases": [
         {
           "file": "cleanup-failure.case.mjs",
@@ -2594,62 +830,7 @@
             }
           ]
         }
-      ],
-      "coverageText": null,
-      "thresholdErrors": [],
-      "files": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "coverage": {
-        "fully.mjs": {
-          "statements": [1],
-          "functions": [1],
-          "branches": []
-        },
-        "subject.mjs": {
-          "statements": [1, 1, 0, 0],
-          "functions": [1, 0],
-          "branches": [[1, 0]]
-        },
-        "unimported.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      },
-      "summary": {
-        "files": ["fully.mjs", "subject.mjs", "total", "unimported.mjs"],
-        "total": {
-          "lines": {
-            "total": 7,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 28.57
-          },
-          "statements": {
-            "total": 9,
-            "covered": 3,
-            "skipped": 0,
-            "pct": 33.33
-          },
-          "functions": {
-            "total": 5,
-            "covered": 2,
-            "skipped": 0,
-            "pct": 40
-          },
-          "branches": {
-            "total": 4,
-            "covered": 1,
-            "skipped": 0,
-            "pct": 25
-          },
-          "branchesTrue": {
-            "total": 0,
-            "covered": 0,
-            "skipped": 0,
-            "pct": "Unknown"
-          }
-        }
-      }
+      ]
     }
   ]
 }

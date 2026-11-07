@@ -1,3 +1,4 @@
+import { readCoverageFixture } from './coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import {
@@ -20,10 +21,8 @@ assert(rootArg && outputArg && profile)
 const root = resolve(rootArg)
 const output = resolve(outputArg)
 const here = dirname(fileURLToPath(import.meta.url))
-const expected = JSON.parse(
-  readFileSync(
-    join(here, 'fixtures/istanbul-provider/global-teardown.expected.json')
-  )
+const expected = readCoverageFixture(
+  join(here, 'fixtures/istanbul-provider/global-teardown.expected.json')
 )
 const row = expected.rows.find((row) => row.profile === profile)
 assert(row, 'Unknown global teardown coverage profile')

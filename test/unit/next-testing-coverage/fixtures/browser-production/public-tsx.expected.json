@@ -22,6 +22,453 @@
       "fixture": "subject.tsx"
     }
   },
+  "defaults": {
+    "flags": [],
+    "exitCode": 0,
+    "numPassedTests": 2,
+    "cases": [
+      {
+        "file": "contract.test.mjs",
+        "status": "passed",
+        "cases": [
+          {
+            "ancestorTitles": [],
+            "fullName": "renders fragment logical child branches",
+            "status": "passed",
+            "title": "renders fragment logical child branches",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          },
+          {
+            "ancestorTitles": [],
+            "fullName": "renders parenthesized typed fragment arrow",
+            "status": "passed",
+            "title": "renders parenthesized typed fragment arrow",
+            "failureMessages": [],
+            "meta": {},
+            "tags": [],
+            "benchmarks": []
+          }
+        ]
+      }
+    ],
+    "coverage": {
+      "helper.js": {
+        "path": "helper.js",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 1,
+              "column": 31
+            },
+            "end": {
+              "line": 1,
+              "column": 49
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "label",
+            "decl": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 1,
+                "column": 21
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 29
+              },
+              "end": {
+                "line": 1,
+                "column": null
+              }
+            },
+            "line": 1
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 5
+        },
+        "f": {
+          "0": 5
+        },
+        "b": {},
+        "meta": {
+          "lastBranch": 0,
+          "lastFunction": 1,
+          "lastStatement": 1,
+          "seen": {
+            "f:1:16:1:21": 0,
+            "s:1:31:1:49": 0
+          },
+          "fnNames": {}
+        }
+      },
+      "subject.tsx": {
+        "path": "subject.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 1,
+              "column": 7
+            },
+            "end": {
+              "line": 1,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 1,
+              "column": 18
+            },
+            "end": {
+              "line": 1,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 5,
+              "column": 2
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "4": {
+            "start": {
+              "line": 8,
+              "column": 2
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Fragment",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 16
+              },
+              "end": {
+                "line": 4,
+                "column": 25
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 50
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 13
+              },
+              "end": {
+                "line": 7,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 2
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            },
+            "line": 8
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 12
+              },
+              "end": {
+                "line": 5,
+                "column": 49
+              }
+            },
+            "type": "binary-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 5,
+                  "column": 12
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              {
+                "start": {
+                  "line": 5,
+                  "column": 22
+                },
+                "end": {
+                  "line": 5,
+                  "column": 49
+                }
+              }
+            ],
+            "line": 5
+          }
+        },
+        "s": {
+          "0": 1,
+          "1": 1,
+          "2": 2,
+          "3": 1,
+          "4": 2
+        },
+        "f": {
+          "0": 2,
+          "1": 2
+        },
+        "b": {
+          "0": [2, 1]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 5,
+          "seen": {
+            "s:1:7:1:Infinity": 0,
+            "s:1:18:1:Infinity": 1,
+            "f:4:16:4:25": 0,
+            "s:5:2:5:Infinity": 2,
+            "b:5:12:5:22:5:22:5:49": 0,
+            "s:7:13:10:Infinity": 3,
+            "f:7:13:7:22": 1,
+            "s:8:2:10:Infinity": 4
+          },
+          "fnNames": {}
+        }
+      },
+      "unimported.tsx": {
+        "path": "unimported.tsx",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 1,
+              "column": 7
+            },
+            "end": {
+              "line": 1,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 1,
+              "column": 18
+            },
+            "end": {
+              "line": 1,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 5,
+              "column": 2
+            },
+            "end": {
+              "line": 5,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 7,
+              "column": 13
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          },
+          "4": {
+            "start": {
+              "line": 8,
+              "column": 2
+            },
+            "end": {
+              "line": 10,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "Fragment",
+            "decl": {
+              "start": {
+                "line": 4,
+                "column": 16
+              },
+              "end": {
+                "line": 4,
+                "column": 25
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 50
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            },
+            "line": 4
+          },
+          "1": {
+            "name": "(anonymous_1)",
+            "decl": {
+              "start": {
+                "line": 7,
+                "column": 13
+              },
+              "end": {
+                "line": 7,
+                "column": 22
+              }
+            },
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 2
+              },
+              "end": {
+                "line": 10,
+                "column": null
+              }
+            },
+            "line": 8
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 12
+              },
+              "end": {
+                "line": 5,
+                "column": 49
+              }
+            },
+            "type": "binary-expr",
+            "locations": [
+              {
+                "start": {
+                  "line": 5,
+                  "column": 12
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              {
+                "start": {
+                  "line": 5,
+                  "column": 22
+                },
+                "end": {
+                  "line": 5,
+                  "column": 49
+                }
+              }
+            ],
+            "line": 5
+          }
+        },
+        "s": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0
+        },
+        "f": {
+          "0": 0,
+          "1": 0
+        },
+        "b": {
+          "0": [0, 0]
+        },
+        "meta": {
+          "lastBranch": 1,
+          "lastFunction": 2,
+          "lastStatement": 5,
+          "seen": {
+            "s:1:7:1:Infinity": 0,
+            "s:1:18:1:Infinity": 1,
+            "f:4:16:4:25": 0,
+            "s:5:2:5:Infinity": 2,
+            "b:5:12:5:22:5:22:5:49": 0,
+            "s:7:13:10:Infinity": 3,
+            "f:7:13:7:22": 1,
+            "s:8:2:10:Infinity": 4
+          },
+          "fnNames": {}
+        }
+      }
+    },
+    "sentinelRetained": false,
+    "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
+    "assetHashes": {},
+    "thresholdDiagnostics": [],
+    "summary": null,
+    "lcov": null,
+    "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   54.54 |       50 |      60 |   55.55 |                   \n unimported.tsx |       0 |        0 |       0 |       0 | 1-8               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 54.54% ( 6/11 )\nBranches     : 50% ( 2/4 )\nFunctions    : 60% ( 3/5 )\nLines        : 55.55% ( 5/9 )\n================================================================================"
+  },
   "profiles": [
     {
       "name": "defaults",
@@ -31,446 +478,7 @@
         "include": ["subject.tsx", "unimported.tsx", "helper.js"],
         "exclude": []
       },
-      "flags": [],
       "directory": "coverage",
-      "exitCode": 0,
-      "numPassedTests": 2,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "renders fragment logical child branches",
-              "status": "passed",
-              "title": "renders fragment logical child branches",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            },
-            {
-              "ancestorTitles": [],
-              "fullName": "renders parenthesized typed fragment arrow",
-              "status": "passed",
-              "title": "renders parenthesized typed fragment arrow",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            }
-          ]
-        }
-      ],
-      "coverage": {
-        "helper.js": {
-          "path": "helper.js",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 31
-              },
-              "end": {
-                "line": 1,
-                "column": 49
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "label",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 21
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 1,
-                  "column": null
-                }
-              },
-              "line": 1
-            }
-          },
-          "branchMap": {},
-          "s": {
-            "0": 5
-          },
-          "f": {
-            "0": 5
-          },
-          "b": {},
-          "meta": {
-            "lastBranch": 0,
-            "lastFunction": 1,
-            "lastStatement": 1,
-            "seen": {
-              "f:1:16:1:21": 0,
-              "s:1:31:1:49": 0
-            },
-            "fnNames": {}
-          }
-        },
-        "subject.tsx": {
-          "path": "subject.tsx",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 7
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 1,
-                "column": 18
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 5,
-                "column": 2
-              },
-              "end": {
-                "line": 5,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 7,
-                "column": 13
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            },
-            "4": {
-              "start": {
-                "line": 8,
-                "column": 2
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "Fragment",
-              "decl": {
-                "start": {
-                  "line": 4,
-                  "column": 16
-                },
-                "end": {
-                  "line": 4,
-                  "column": 25
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 4,
-                  "column": 50
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              },
-              "line": 4
-            },
-            "1": {
-              "name": "(anonymous_1)",
-              "decl": {
-                "start": {
-                  "line": 7,
-                  "column": 13
-                },
-                "end": {
-                  "line": 7,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 8,
-                  "column": 2
-                },
-                "end": {
-                  "line": 10,
-                  "column": null
-                }
-              },
-              "line": 8
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 12
-                },
-                "end": {
-                  "line": 5,
-                  "column": 49
-                }
-              },
-              "type": "binary-expr",
-              "locations": [
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 12
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 22
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 49
-                  }
-                }
-              ],
-              "line": 5
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 1,
-            "2": 2,
-            "3": 1,
-            "4": 2
-          },
-          "f": {
-            "0": 2,
-            "1": 2
-          },
-          "b": {
-            "0": [2, 1]
-          },
-          "meta": {
-            "lastBranch": 1,
-            "lastFunction": 2,
-            "lastStatement": 5,
-            "seen": {
-              "s:1:7:1:Infinity": 0,
-              "s:1:18:1:Infinity": 1,
-              "f:4:16:4:25": 0,
-              "s:5:2:5:Infinity": 2,
-              "b:5:12:5:22:5:22:5:49": 0,
-              "s:7:13:10:Infinity": 3,
-              "f:7:13:7:22": 1,
-              "s:8:2:10:Infinity": 4
-            },
-            "fnNames": {}
-          }
-        },
-        "unimported.tsx": {
-          "path": "unimported.tsx",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 7
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 1,
-                "column": 18
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 5,
-                "column": 2
-              },
-              "end": {
-                "line": 5,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 7,
-                "column": 13
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            },
-            "4": {
-              "start": {
-                "line": 8,
-                "column": 2
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "Fragment",
-              "decl": {
-                "start": {
-                  "line": 4,
-                  "column": 16
-                },
-                "end": {
-                  "line": 4,
-                  "column": 25
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 4,
-                  "column": 50
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              },
-              "line": 4
-            },
-            "1": {
-              "name": "(anonymous_1)",
-              "decl": {
-                "start": {
-                  "line": 7,
-                  "column": 13
-                },
-                "end": {
-                  "line": 7,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 8,
-                  "column": 2
-                },
-                "end": {
-                  "line": 10,
-                  "column": null
-                }
-              },
-              "line": 8
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 12
-                },
-                "end": {
-                  "line": 5,
-                  "column": 49
-                }
-              },
-              "type": "binary-expr",
-              "locations": [
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 12
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 22
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 49
-                  }
-                }
-              ],
-              "line": 5
-            }
-          },
-          "s": {
-            "0": 0,
-            "1": 0,
-            "2": 0,
-            "3": 0,
-            "4": 0
-          },
-          "f": {
-            "0": 0,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 0]
-          },
-          "meta": {
-            "lastBranch": 1,
-            "lastFunction": 2,
-            "lastStatement": 5,
-            "seen": {
-              "s:1:7:1:Infinity": 0,
-              "s:1:18:1:Infinity": 1,
-              "f:4:16:4:25": 0,
-              "s:5:2:5:Infinity": 2,
-              "b:5:12:5:22:5:22:5:49": 0,
-              "s:7:13:10:Infinity": 3,
-              "f:7:13:7:22": 1,
-              "s:8:2:10:Infinity": 4
-            },
-            "fnNames": {}
-          }
-        }
-      },
-      "sentinelRetained": false,
       "reports": [
         "base.css",
         "block-navigation.js",
@@ -492,11 +500,7 @@
         "sorter.js": "e281b0b47445030f6e26cbf7ab1187498516694b8716ed1351c875129d567c0c",
         "prettify.css": "31c66a00ede9f0a6ac6dfc0c3819a6cb925ebb771cde59d8228ec8bc8595a91b",
         "prettify.js": "5b36332f32c5a4781348fb2c63f5f672c01497eb9508989ff1c8ac3795061386"
-      },
-      "thresholdDiagnostics": [],
-      "summary": null,
-      "lcov": null,
-      "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   54.54 |       50 |      60 |   55.55 |                   \n unimported.tsx |       0 |        0 |       0 |       0 | 1-8               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 54.54% ( 6/11 )\nBranches     : 50% ( 2/4 )\nFunctions    : 60% ( 3/5 )\nLines        : 55.55% ( 5/9 )\n================================================================================"
+      }
     },
     {
       "name": "explicit",
@@ -512,449 +516,7 @@
           "functions": -99
         }
       },
-      "flags": [],
       "directory": "configured-coverage",
-      "exitCode": 0,
-      "numPassedTests": 2,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "renders fragment logical child branches",
-              "status": "passed",
-              "title": "renders fragment logical child branches",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            },
-            {
-              "ancestorTitles": [],
-              "fullName": "renders parenthesized typed fragment arrow",
-              "status": "passed",
-              "title": "renders parenthesized typed fragment arrow",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            }
-          ]
-        }
-      ],
-      "coverage": {
-        "helper.js": {
-          "path": "helper.js",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 31
-              },
-              "end": {
-                "line": 1,
-                "column": 49
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "label",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 21
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 1,
-                  "column": null
-                }
-              },
-              "line": 1
-            }
-          },
-          "branchMap": {},
-          "s": {
-            "0": 5
-          },
-          "f": {
-            "0": 5
-          },
-          "b": {},
-          "meta": {
-            "lastBranch": 0,
-            "lastFunction": 1,
-            "lastStatement": 1,
-            "seen": {
-              "f:1:16:1:21": 0,
-              "s:1:31:1:49": 0
-            },
-            "fnNames": {}
-          }
-        },
-        "subject.tsx": {
-          "path": "subject.tsx",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 7
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 1,
-                "column": 18
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 5,
-                "column": 2
-              },
-              "end": {
-                "line": 5,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 7,
-                "column": 13
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            },
-            "4": {
-              "start": {
-                "line": 8,
-                "column": 2
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "Fragment",
-              "decl": {
-                "start": {
-                  "line": 4,
-                  "column": 16
-                },
-                "end": {
-                  "line": 4,
-                  "column": 25
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 4,
-                  "column": 50
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              },
-              "line": 4
-            },
-            "1": {
-              "name": "(anonymous_1)",
-              "decl": {
-                "start": {
-                  "line": 7,
-                  "column": 13
-                },
-                "end": {
-                  "line": 7,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 8,
-                  "column": 2
-                },
-                "end": {
-                  "line": 10,
-                  "column": null
-                }
-              },
-              "line": 8
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 12
-                },
-                "end": {
-                  "line": 5,
-                  "column": 49
-                }
-              },
-              "type": "binary-expr",
-              "locations": [
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 12
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 22
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 49
-                  }
-                }
-              ],
-              "line": 5
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 1,
-            "2": 2,
-            "3": 1,
-            "4": 2
-          },
-          "f": {
-            "0": 2,
-            "1": 2
-          },
-          "b": {
-            "0": [2, 1]
-          },
-          "meta": {
-            "lastBranch": 1,
-            "lastFunction": 2,
-            "lastStatement": 5,
-            "seen": {
-              "s:1:7:1:Infinity": 0,
-              "s:1:18:1:Infinity": 1,
-              "f:4:16:4:25": 0,
-              "s:5:2:5:Infinity": 2,
-              "b:5:12:5:22:5:22:5:49": 0,
-              "s:7:13:10:Infinity": 3,
-              "f:7:13:7:22": 1,
-              "s:8:2:10:Infinity": 4
-            },
-            "fnNames": {}
-          }
-        },
-        "unimported.tsx": {
-          "path": "unimported.tsx",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 7
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 1,
-                "column": 18
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 5,
-                "column": 2
-              },
-              "end": {
-                "line": 5,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 7,
-                "column": 13
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            },
-            "4": {
-              "start": {
-                "line": 8,
-                "column": 2
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "Fragment",
-              "decl": {
-                "start": {
-                  "line": 4,
-                  "column": 16
-                },
-                "end": {
-                  "line": 4,
-                  "column": 25
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 4,
-                  "column": 50
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              },
-              "line": 4
-            },
-            "1": {
-              "name": "(anonymous_1)",
-              "decl": {
-                "start": {
-                  "line": 7,
-                  "column": 13
-                },
-                "end": {
-                  "line": 7,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 8,
-                  "column": 2
-                },
-                "end": {
-                  "line": 10,
-                  "column": null
-                }
-              },
-              "line": 8
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 12
-                },
-                "end": {
-                  "line": 5,
-                  "column": 49
-                }
-              },
-              "type": "binary-expr",
-              "locations": [
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 12
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 22
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 49
-                  }
-                }
-              ],
-              "line": 5
-            }
-          },
-          "s": {
-            "0": 0,
-            "1": 0,
-            "2": 0,
-            "3": 0,
-            "4": 0
-          },
-          "f": {
-            "0": 0,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 0]
-          },
-          "meta": {
-            "lastBranch": 1,
-            "lastFunction": 2,
-            "lastStatement": 5,
-            "seen": {
-              "s:1:7:1:Infinity": 0,
-              "s:1:18:1:Infinity": 1,
-              "f:4:16:4:25": 0,
-              "s:5:2:5:Infinity": 2,
-              "b:5:12:5:22:5:22:5:49": 0,
-              "s:7:13:10:Infinity": 3,
-              "f:7:13:7:22": 1,
-              "s:8:2:10:Infinity": 4
-            },
-            "fnNames": {}
-          }
-        }
-      },
-      "sentinelRetained": false,
-      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "assetHashes": {},
-      "thresholdDiagnostics": [],
       "summary": {
         "total": {
           "lines": {
@@ -1067,8 +629,7 @@
           }
         }
       },
-      "lcov": "TN:\nSF:helper.js\nFN:1,label\nFNF:1\nFNH:1\nFNDA:5,label\nDA:1,5\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.tsx\nFN:4,Fragment\nFN:7,(anonymous_1)\nFNF:2\nFNH:2\nFNDA:2,Fragment\nFNDA:2,(anonymous_1)\nDA:1,1\nDA:5,2\nDA:7,1\nDA:8,2\nLF:4\nLH:4\nBRDA:5,0,0,2\nBRDA:5,0,1,1\nBRF:2\nBRH:2\nend_of_record\nTN:\nSF:unimported.tsx\nFN:4,Fragment\nFN:7,(anonymous_1)\nFNF:2\nFNH:0\nFNDA:0,Fragment\nFNDA:0,(anonymous_1)\nDA:1,0\nDA:5,0\nDA:7,0\nDA:8,0\nLF:4\nLH:0\nBRDA:5,0,0,0\nBRDA:5,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-      "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   54.54 |       50 |      60 |   55.55 |                   \n unimported.tsx |       0 |        0 |       0 |       0 | 1-8               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 54.54% ( 6/11 )\nBranches     : 50% ( 2/4 )\nFunctions    : 60% ( 3/5 )\nLines        : 55.55% ( 5/9 )\n================================================================================"
+      "lcov": "TN:\nSF:helper.js\nFN:1,label\nFNF:1\nFNH:1\nFNDA:5,label\nDA:1,5\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.tsx\nFN:4,Fragment\nFN:7,(anonymous_1)\nFNF:2\nFNH:2\nFNDA:2,Fragment\nFNDA:2,(anonymous_1)\nDA:1,1\nDA:5,2\nDA:7,1\nDA:8,2\nLF:4\nLH:4\nBRDA:5,0,0,2\nBRDA:5,0,1,1\nBRF:2\nBRH:2\nend_of_record\nTN:\nSF:unimported.tsx\nFN:4,Fragment\nFN:7,(anonymous_1)\nFNF:2\nFNH:0\nFNDA:0,Fragment\nFNDA:0,(anonymous_1)\nDA:1,0\nDA:5,0\nDA:7,0\nDA:8,0\nLF:4\nLH:0\nBRDA:5,0,0,0\nBRDA:5,0,1,0\nBRF:2\nBRH:0\nend_of_record\n"
     },
     {
       "name": "clean-false",
@@ -1081,451 +642,9 @@
         "reportsDirectory": "preserved-coverage",
         "clean": false
       },
-      "flags": [],
       "directory": "preserved-coverage",
-      "exitCode": 0,
-      "numPassedTests": 2,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "renders fragment logical child branches",
-              "status": "passed",
-              "title": "renders fragment logical child branches",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            },
-            {
-              "ancestorTitles": [],
-              "fullName": "renders parenthesized typed fragment arrow",
-              "status": "passed",
-              "title": "renders parenthesized typed fragment arrow",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            }
-          ]
-        }
-      ],
-      "coverage": {
-        "helper.js": {
-          "path": "helper.js",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 31
-              },
-              "end": {
-                "line": 1,
-                "column": 49
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "label",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 21
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 1,
-                  "column": null
-                }
-              },
-              "line": 1
-            }
-          },
-          "branchMap": {},
-          "s": {
-            "0": 5
-          },
-          "f": {
-            "0": 5
-          },
-          "b": {},
-          "meta": {
-            "lastBranch": 0,
-            "lastFunction": 1,
-            "lastStatement": 1,
-            "seen": {
-              "f:1:16:1:21": 0,
-              "s:1:31:1:49": 0
-            },
-            "fnNames": {}
-          }
-        },
-        "subject.tsx": {
-          "path": "subject.tsx",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 7
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 1,
-                "column": 18
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 5,
-                "column": 2
-              },
-              "end": {
-                "line": 5,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 7,
-                "column": 13
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            },
-            "4": {
-              "start": {
-                "line": 8,
-                "column": 2
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "Fragment",
-              "decl": {
-                "start": {
-                  "line": 4,
-                  "column": 16
-                },
-                "end": {
-                  "line": 4,
-                  "column": 25
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 4,
-                  "column": 50
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              },
-              "line": 4
-            },
-            "1": {
-              "name": "(anonymous_1)",
-              "decl": {
-                "start": {
-                  "line": 7,
-                  "column": 13
-                },
-                "end": {
-                  "line": 7,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 8,
-                  "column": 2
-                },
-                "end": {
-                  "line": 10,
-                  "column": null
-                }
-              },
-              "line": 8
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 12
-                },
-                "end": {
-                  "line": 5,
-                  "column": 49
-                }
-              },
-              "type": "binary-expr",
-              "locations": [
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 12
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 22
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 49
-                  }
-                }
-              ],
-              "line": 5
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 1,
-            "2": 2,
-            "3": 1,
-            "4": 2
-          },
-          "f": {
-            "0": 2,
-            "1": 2
-          },
-          "b": {
-            "0": [2, 1]
-          },
-          "meta": {
-            "lastBranch": 1,
-            "lastFunction": 2,
-            "lastStatement": 5,
-            "seen": {
-              "s:1:7:1:Infinity": 0,
-              "s:1:18:1:Infinity": 1,
-              "f:4:16:4:25": 0,
-              "s:5:2:5:Infinity": 2,
-              "b:5:12:5:22:5:22:5:49": 0,
-              "s:7:13:10:Infinity": 3,
-              "f:7:13:7:22": 1,
-              "s:8:2:10:Infinity": 4
-            },
-            "fnNames": {}
-          }
-        },
-        "unimported.tsx": {
-          "path": "unimported.tsx",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 7
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 1,
-                "column": 18
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 5,
-                "column": 2
-              },
-              "end": {
-                "line": 5,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 7,
-                "column": 13
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            },
-            "4": {
-              "start": {
-                "line": 8,
-                "column": 2
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "Fragment",
-              "decl": {
-                "start": {
-                  "line": 4,
-                  "column": 16
-                },
-                "end": {
-                  "line": 4,
-                  "column": 25
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 4,
-                  "column": 50
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              },
-              "line": 4
-            },
-            "1": {
-              "name": "(anonymous_1)",
-              "decl": {
-                "start": {
-                  "line": 7,
-                  "column": 13
-                },
-                "end": {
-                  "line": 7,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 8,
-                  "column": 2
-                },
-                "end": {
-                  "line": 10,
-                  "column": null
-                }
-              },
-              "line": 8
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 12
-                },
-                "end": {
-                  "line": 5,
-                  "column": 49
-                }
-              },
-              "type": "binary-expr",
-              "locations": [
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 12
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 22
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 49
-                  }
-                }
-              ],
-              "line": 5
-            }
-          },
-          "s": {
-            "0": 0,
-            "1": 0,
-            "2": 0,
-            "3": 0,
-            "4": 0
-          },
-          "f": {
-            "0": 0,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 0]
-          },
-          "meta": {
-            "lastBranch": 1,
-            "lastFunction": 2,
-            "lastStatement": 5,
-            "seen": {
-              "s:1:7:1:Infinity": 0,
-              "s:1:18:1:Infinity": 1,
-              "f:4:16:4:25": 0,
-              "s:5:2:5:Infinity": 2,
-              "b:5:12:5:22:5:22:5:49": 0,
-              "s:7:13:10:Infinity": 3,
-              "f:7:13:7:22": 1,
-              "s:8:2:10:Infinity": 4
-            },
-            "fnNames": {}
-          }
-        }
-      },
       "sentinelRetained": true,
       "reports": ["coverage-final.json", "sentinel.txt"],
-      "assetHashes": {},
-      "thresholdDiagnostics": [],
-      "summary": null,
-      "lcov": null,
       "coverageText": ""
     },
     {
@@ -1551,36 +670,6 @@
         "--coverage.thresholds.lines=0"
       ],
       "directory": "cli-coverage",
-      "exitCode": 0,
-      "numPassedTests": 2,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "renders fragment logical child branches",
-              "status": "passed",
-              "title": "renders fragment logical child branches",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            },
-            {
-              "ancestorTitles": [],
-              "fullName": "renders parenthesized typed fragment arrow",
-              "status": "passed",
-              "title": "renders parenthesized typed fragment arrow",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            }
-          ]
-        }
-      ],
       "coverage": {
         "subject.tsx": {
           "path": "subject.tsx",
@@ -1758,10 +847,6 @@
       },
       "sentinelRetained": true,
       "reports": ["coverage-final.json", "sentinel.txt"],
-      "assetHashes": {},
-      "thresholdDiagnostics": [],
-      "summary": null,
-      "lcov": null,
       "coverageText": ""
     },
     {
@@ -1776,43 +861,9 @@
       },
       "flags": ["--no-coverage"],
       "directory": "disabled-coverage",
-      "exitCode": 0,
-      "numPassedTests": 2,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "renders fragment logical child branches",
-              "status": "passed",
-              "title": "renders fragment logical child branches",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            },
-            {
-              "ancestorTitles": [],
-              "fullName": "renders parenthesized typed fragment arrow",
-              "status": "passed",
-              "title": "renders parenthesized typed fragment arrow",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            }
-          ]
-        }
-      ],
       "coverage": null,
       "sentinelRetained": true,
       "reports": ["sentinel.txt"],
-      "assetHashes": {},
-      "thresholdDiagnostics": [],
-      "summary": null,
-      "lcov": null,
       "coverageText": ""
     },
     {
@@ -1831,448 +882,8 @@
           "lines": 99
         }
       },
-      "flags": [],
       "directory": "failed-coverage",
       "exitCode": 1,
-      "numPassedTests": 2,
-      "cases": [
-        {
-          "file": "contract.test.mjs",
-          "status": "passed",
-          "cases": [
-            {
-              "ancestorTitles": [],
-              "fullName": "renders fragment logical child branches",
-              "status": "passed",
-              "title": "renders fragment logical child branches",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            },
-            {
-              "ancestorTitles": [],
-              "fullName": "renders parenthesized typed fragment arrow",
-              "status": "passed",
-              "title": "renders parenthesized typed fragment arrow",
-              "failureMessages": [],
-              "meta": {},
-              "tags": [],
-              "benchmarks": []
-            }
-          ]
-        }
-      ],
-      "coverage": {
-        "helper.js": {
-          "path": "helper.js",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 31
-              },
-              "end": {
-                "line": 1,
-                "column": 49
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "label",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 21
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 1,
-                  "column": null
-                }
-              },
-              "line": 1
-            }
-          },
-          "branchMap": {},
-          "s": {
-            "0": 5
-          },
-          "f": {
-            "0": 5
-          },
-          "b": {},
-          "meta": {
-            "lastBranch": 0,
-            "lastFunction": 1,
-            "lastStatement": 1,
-            "seen": {
-              "f:1:16:1:21": 0,
-              "s:1:31:1:49": 0
-            },
-            "fnNames": {}
-          }
-        },
-        "subject.tsx": {
-          "path": "subject.tsx",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 7
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 1,
-                "column": 18
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 5,
-                "column": 2
-              },
-              "end": {
-                "line": 5,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 7,
-                "column": 13
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            },
-            "4": {
-              "start": {
-                "line": 8,
-                "column": 2
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "Fragment",
-              "decl": {
-                "start": {
-                  "line": 4,
-                  "column": 16
-                },
-                "end": {
-                  "line": 4,
-                  "column": 25
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 4,
-                  "column": 50
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              },
-              "line": 4
-            },
-            "1": {
-              "name": "(anonymous_1)",
-              "decl": {
-                "start": {
-                  "line": 7,
-                  "column": 13
-                },
-                "end": {
-                  "line": 7,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 8,
-                  "column": 2
-                },
-                "end": {
-                  "line": 10,
-                  "column": null
-                }
-              },
-              "line": 8
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 12
-                },
-                "end": {
-                  "line": 5,
-                  "column": 49
-                }
-              },
-              "type": "binary-expr",
-              "locations": [
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 12
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 22
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 49
-                  }
-                }
-              ],
-              "line": 5
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 1,
-            "2": 2,
-            "3": 1,
-            "4": 2
-          },
-          "f": {
-            "0": 2,
-            "1": 2
-          },
-          "b": {
-            "0": [2, 1]
-          },
-          "meta": {
-            "lastBranch": 1,
-            "lastFunction": 2,
-            "lastStatement": 5,
-            "seen": {
-              "s:1:7:1:Infinity": 0,
-              "s:1:18:1:Infinity": 1,
-              "f:4:16:4:25": 0,
-              "s:5:2:5:Infinity": 2,
-              "b:5:12:5:22:5:22:5:49": 0,
-              "s:7:13:10:Infinity": 3,
-              "f:7:13:7:22": 1,
-              "s:8:2:10:Infinity": 4
-            },
-            "fnNames": {}
-          }
-        },
-        "unimported.tsx": {
-          "path": "unimported.tsx",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 7
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 1,
-                "column": 18
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 5,
-                "column": 2
-              },
-              "end": {
-                "line": 5,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 7,
-                "column": 13
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            },
-            "4": {
-              "start": {
-                "line": 8,
-                "column": 2
-              },
-              "end": {
-                "line": 10,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "Fragment",
-              "decl": {
-                "start": {
-                  "line": 4,
-                  "column": 16
-                },
-                "end": {
-                  "line": 4,
-                  "column": 25
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 4,
-                  "column": 50
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              },
-              "line": 4
-            },
-            "1": {
-              "name": "(anonymous_1)",
-              "decl": {
-                "start": {
-                  "line": 7,
-                  "column": 13
-                },
-                "end": {
-                  "line": 7,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 8,
-                  "column": 2
-                },
-                "end": {
-                  "line": 10,
-                  "column": null
-                }
-              },
-              "line": 8
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 12
-                },
-                "end": {
-                  "line": 5,
-                  "column": 49
-                }
-              },
-              "type": "binary-expr",
-              "locations": [
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 12
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                {
-                  "start": {
-                    "line": 5,
-                    "column": 22
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 49
-                  }
-                }
-              ],
-              "line": 5
-            }
-          },
-          "s": {
-            "0": 0,
-            "1": 0,
-            "2": 0,
-            "3": 0,
-            "4": 0
-          },
-          "f": {
-            "0": 0,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 0]
-          },
-          "meta": {
-            "lastBranch": 1,
-            "lastFunction": 2,
-            "lastStatement": 5,
-            "seen": {
-              "s:1:7:1:Infinity": 0,
-              "s:1:18:1:Infinity": 1,
-              "f:4:16:4:25": 0,
-              "s:5:2:5:Infinity": 2,
-              "b:5:12:5:22:5:22:5:49": 0,
-              "s:7:13:10:Infinity": 3,
-              "f:7:13:7:22": 1,
-              "s:8:2:10:Infinity": 4
-            },
-            "fnNames": {}
-          }
-        }
-      },
-      "sentinelRetained": false,
-      "reports": ["coverage-final.json", "coverage-summary.json", "lcov.info"],
-      "assetHashes": {},
       "thresholdDiagnostics": [
         "ERROR: Coverage for lines (55.55%) does not meet global threshold (99%)",
         "ERROR: Coverage for functions (60%) does not meet global threshold (99%)",
@@ -2391,8 +1002,7 @@
           }
         }
       },
-      "lcov": "TN:\nSF:helper.js\nFN:1,label\nFNF:1\nFNH:1\nFNDA:5,label\nDA:1,5\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.tsx\nFN:4,Fragment\nFN:7,(anonymous_1)\nFNF:2\nFNH:2\nFNDA:2,Fragment\nFNDA:2,(anonymous_1)\nDA:1,1\nDA:5,2\nDA:7,1\nDA:8,2\nLF:4\nLH:4\nBRDA:5,0,0,2\nBRDA:5,0,1,1\nBRF:2\nBRH:2\nend_of_record\nTN:\nSF:unimported.tsx\nFN:4,Fragment\nFN:7,(anonymous_1)\nFNF:2\nFNH:0\nFNDA:0,Fragment\nFNDA:0,(anonymous_1)\nDA:1,0\nDA:5,0\nDA:7,0\nDA:8,0\nLF:4\nLH:0\nBRDA:5,0,0,0\nBRDA:5,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
-      "coverageText": "----------------|---------|----------|---------|---------|-------------------\nFile            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s \n----------------|---------|----------|---------|---------|-------------------\nAll files       |   54.54 |       50 |      60 |   55.55 |                   \n unimported.tsx |       0 |        0 |       0 |       0 | 1-8               \n----------------|---------|----------|---------|---------|-------------------\n\n=============================== Coverage summary ===============================\nStatements   : 54.54% ( 6/11 )\nBranches     : 50% ( 2/4 )\nFunctions    : 60% ( 3/5 )\nLines        : 55.55% ( 5/9 )\n================================================================================"
+      "lcov": "TN:\nSF:helper.js\nFN:1,label\nFNF:1\nFNH:1\nFNDA:5,label\nDA:1,5\nLF:1\nLH:1\nBRF:0\nBRH:0\nend_of_record\nTN:\nSF:subject.tsx\nFN:4,Fragment\nFN:7,(anonymous_1)\nFNF:2\nFNH:2\nFNDA:2,Fragment\nFNDA:2,(anonymous_1)\nDA:1,1\nDA:5,2\nDA:7,1\nDA:8,2\nLF:4\nLH:4\nBRDA:5,0,0,2\nBRDA:5,0,1,1\nBRF:2\nBRH:2\nend_of_record\nTN:\nSF:unimported.tsx\nFN:4,Fragment\nFN:7,(anonymous_1)\nFNF:2\nFNH:0\nFNDA:0,Fragment\nFNDA:0,(anonymous_1)\nDA:1,0\nDA:5,0\nDA:7,0\nDA:8,0\nLF:4\nLH:0\nBRDA:5,0,0,0\nBRDA:5,0,1,0\nBRF:2\nBRH:0\nend_of_record\n"
     }
   ]
 }

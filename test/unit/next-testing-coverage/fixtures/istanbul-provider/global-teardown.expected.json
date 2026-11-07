@@ -128,27 +128,29 @@
       }
     }
   },
+  "defaults": {
+    "observations": {
+      "status": 1,
+      "trace": [
+        "global-setup",
+        {
+          "hook": "global-teardown",
+          "jsonExists": true,
+          "coverageExists": true
+        }
+      ],
+      "json": true,
+      "coverageMap": true,
+      "coverage": true,
+      "tests": 1,
+      "success": true
+    }
+  },
   "rows": [
     {
       "profile": "development-async-error",
       "mode": "development",
-      "name": "async-error",
-      "observations": {
-        "status": 1,
-        "trace": [
-          "global-setup",
-          {
-            "hook": "global-teardown",
-            "jsonExists": true,
-            "coverageExists": true
-          }
-        ],
-        "json": true,
-        "coverageMap": true,
-        "coverage": true,
-        "tests": 1,
-        "success": true
-      }
+      "name": "async-error"
     },
     {
       "profile": "development-json-and-teardown-error",
@@ -216,44 +218,12 @@
     {
       "profile": "development-sync-error",
       "mode": "development",
-      "name": "sync-error",
-      "observations": {
-        "status": 1,
-        "trace": [
-          "global-setup",
-          {
-            "hook": "global-teardown",
-            "jsonExists": true,
-            "coverageExists": true
-          }
-        ],
-        "json": true,
-        "coverageMap": true,
-        "coverage": true,
-        "tests": 1,
-        "success": true
-      }
+      "name": "sync-error"
     },
     {
       "profile": "production-async-error",
       "mode": "production",
-      "name": "async-error",
-      "observations": {
-        "status": 1,
-        "trace": [
-          "global-setup",
-          {
-            "hook": "global-teardown",
-            "jsonExists": true,
-            "coverageExists": true
-          }
-        ],
-        "json": true,
-        "coverageMap": true,
-        "coverage": true,
-        "tests": 1,
-        "success": true
-      }
+      "name": "async-error"
     },
     {
       "profile": "production-json-and-teardown-error",
@@ -321,23 +291,7 @@
     {
       "profile": "production-sync-error",
       "mode": "production",
-      "name": "sync-error",
-      "observations": {
-        "status": 1,
-        "trace": [
-          "global-setup",
-          {
-            "hook": "global-teardown",
-            "jsonExists": true,
-            "coverageExists": true
-          }
-        ],
-        "json": true,
-        "coverageMap": true,
-        "coverage": true,
-        "tests": 1,
-        "success": true
-      }
+      "name": "sync-error"
     }
   ]
 }

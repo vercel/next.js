@@ -1,14 +1,49 @@
 {
+  "defaults": {
+    "sourceFiles": {
+      "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+      "setup.mjs": "",
+      "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
+      "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.skip('first owned body',()=>{choose(true)})\ntest.skip('second owned body',()=>{choose(false)})\n"
+    },
+    "expected": {
+      "passed": 0,
+      "failed": 0,
+      "pending": 2,
+      "cases": [
+        ["first owned body", "skipped", []],
+        ["second owned body", "skipped", []]
+      ],
+      "fileErrors": [""],
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      }
+    },
+    "coverage": {
+      "subject.mjs": {
+        "statements": [0, 0, 0, 0],
+        "functions": [0, 0],
+        "branches": [[0, 0]]
+      }
+    }
+  },
   "rows": [
     {
       "name": "v8-all-skipped-orphan",
       "provider": "v8",
-      "sourceFiles": {
-        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-        "setup.mjs": "",
-        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.skip('first owned body',()=>{choose(true)})\ntest.skip('second owned body',()=>{choose(false)})\n"
-      },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "flags": [],
       "snapshots": {
@@ -16,50 +51,11 @@
       },
       "exitCode": 0,
       "reportOnFailure": true,
-      "expected": {
-        "passed": 0,
-        "failed": 0,
-        "pending": 2,
-        "cases": [
-          ["first owned body", "skipped", []],
-          ["second owned body", "skipped", []]
-        ],
-        "fileErrors": [""],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "rootErrors": [],
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      }
+      "rootErrors": []
     },
     {
       "name": "istanbul-all-skipped-orphan",
       "provider": "istanbul",
-      "sourceFiles": {
-        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-        "setup.mjs": "",
-        "serializer.mjs": "export default {\n  test(value) { return value?.kind === 'special' },\n  serialize(value) { return 'SPECIAL(' + value.value + ')' },\n}\n",
-        "suite.test.mjs": "import {test,expect} from 'vitest'\nimport {choose} from './subject.mjs'\ntest.skip('first owned body',()=>{choose(true)})\ntest.skip('second owned body',()=>{choose(false)})\n"
-      },
       "config": "export default {\"test\":{\"include\":[\"suite.test.mjs\"],\"maxWorkers\":1,\"setupFiles\":[\"./setup.mjs\"],\"snapshotSerializers\":[\"./serializer.mjs\"],\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\",\"reportOnFailure\":true}}}\n",
       "flags": [],
       "snapshots": {
@@ -67,40 +63,7 @@
       },
       "exitCode": 0,
       "reportOnFailure": true,
-      "expected": {
-        "passed": 0,
-        "failed": 0,
-        "pending": 2,
-        "cases": [
-          ["first owned body", "skipped", []],
-          ["second owned body", "skipped", []]
-        ],
-        "fileErrors": [""],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "rootErrors": [],
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      }
+      "rootErrors": []
     }
   ]
 }

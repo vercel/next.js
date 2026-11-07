@@ -1,3 +1,4 @@
+import { readCoverageFixture } from './coverage-fixtures.cjs'
 import { assertCoverageReports } from './settled-coverage-assertions.mjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
@@ -28,12 +29,10 @@ const load = createRequire(join(consumer, 'package.json'))
 if (!source)
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
     assert.throws(() => load.resolve(name))
-const pristine = JSON.parse(
-  readFileSync(
-    join(
-      dirname(fileURLToPath(import.meta.url)),
-      'fixtures/istanbul-provider/collection-pristine.json'
-    )
+const pristine = readCoverageFixture(
+  join(
+    dirname(fileURLToPath(import.meta.url)),
+    'fixtures/istanbul-provider/collection-pristine.json'
   )
 )
 const row = pristine.rows.find((value) => value.name === profile)

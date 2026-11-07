@@ -1,3 +1,4 @@
+import { readCoverageFixture } from './coverage-fixtures.cjs'
 import { assertCoverageCounters } from './snapshot-coverage-assertions.mjs'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
@@ -27,8 +28,8 @@ assert(consumerArg && outputArg && profile)
 if (!source)
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
     assert.throws(() => load.resolve(name))
-const pristine = JSON.parse(
-    readFileSync(join(here, 'fixtures/istanbul-provider/public-pristine.json'))
+const pristine = readCoverageFixture(
+    join(here, 'fixtures/istanbul-provider/public-pristine.json')
   ),
   row = pristine.rows.find((row) => row.name === profile)
 assert(

@@ -1,5 +1,254 @@
 {
   "scope": "Focused SIGINT no-publication, recovery outcomes and snapshot accounting; exact selected coverage map and report formatting. Full standard reports and task metadata are omitted.",
+  "defaults": {
+    "recovery": {
+      "exit": 0,
+      "passed": 1,
+      "failed": 0,
+      "pending": 1,
+      "cases": [
+        ["pending spec cannot start body", "skipped", []],
+        ["spec recovery", "passed", []]
+      ],
+      "fileErrors": [""],
+      "fileStates": ["passed"],
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 1,
+        "total": 1,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      },
+      "coverageMap": {
+        "subject.mjs": {
+          "path": "subject.mjs",
+          "statementMap": {
+            "0": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "1": {
+              "start": {
+                "line": 2,
+                "column": 12
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "2": {
+              "start": {
+                "line": 3,
+                "column": 2
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            },
+            "3": {
+              "start": {
+                "line": 6,
+                "column": 2
+              },
+              "end": {
+                "line": 6,
+                "column": null
+              }
+            }
+          },
+          "fnMap": {
+            "0": {
+              "name": "choose",
+              "decl": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 29
+                },
+                "end": {
+                  "line": 4,
+                  "column": null
+                }
+              },
+              "line": 1
+            },
+            "1": {
+              "name": "unused",
+              "decl": {
+                "start": {
+                  "line": 5,
+                  "column": 16
+                },
+                "end": {
+                  "line": 5,
+                  "column": 22
+                }
+              },
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 25
+                },
+                "end": {
+                  "line": 7,
+                  "column": null
+                }
+              },
+              "line": 5
+            }
+          },
+          "branchMap": {
+            "0": {
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": null
+                }
+              },
+              "type": "if",
+              "locations": [
+                {
+                  "start": {
+                    "line": 2,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": null
+                  }
+                },
+                {
+                  "start": {},
+                  "end": {}
+                }
+              ],
+              "line": 2
+            }
+          },
+          "s": {
+            "0": 1,
+            "1": 0,
+            "2": 1,
+            "3": 0
+          },
+          "f": {
+            "0": 1,
+            "1": 0
+          },
+          "b": {
+            "0": [0, 1]
+          },
+          "meta": {
+            "lastBranch": 1,
+            "lastFunction": 2,
+            "lastStatement": 4,
+            "seen": {
+              "f:1:16:1:22": 0,
+              "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
+              "s:2:2:2:Infinity": 0,
+              "s:2:12:2:Infinity": 1,
+              "s:3:2:3:Infinity": 2,
+              "f:5:16:5:22": 1,
+              "s:6:2:6:Infinity": 3
+            },
+            "fnNames": {}
+          }
+        }
+      },
+      "summary": {
+        "total": {
+          "lines": {
+            "total": 3,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 66.66
+          },
+          "statements": {
+            "total": 4,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 50
+          },
+          "functions": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branchesTrue": {
+            "total": 0,
+            "covered": 0,
+            "skipped": 0,
+            "pct": "Unknown"
+          }
+        },
+        "subject.mjs": {
+          "lines": {
+            "total": 3,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 66.66
+          },
+          "functions": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          },
+          "statements": {
+            "total": 4,
+            "covered": 2,
+            "skipped": 0,
+            "pct": 50
+          },
+          "branches": {
+            "total": 2,
+            "covered": 1,
+            "skipped": 0,
+            "pct": 50
+          }
+        }
+      },
+      "lcov": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:6,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
+      "trace": "{\"event\":\"RECOVERY_BODY\"}\n"
+    }
+  },
   "rows": [
     {
       "name": "mjs",
@@ -10,254 +259,7 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.mjs\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":5000,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":false,\"reportOnFailure\":true}}}\n",
       "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`spec recovery 1`] = `\"prior\"`;\n",
-      "sentinel": "prior actual report\n",
-      "recovery": {
-        "exit": 0,
-        "passed": 1,
-        "failed": 0,
-        "pending": 1,
-        "cases": [
-          ["pending spec cannot start body", "skipped", []],
-          ["spec recovery", "passed", []]
-        ],
-        "fileErrors": [""],
-        "fileStates": ["passed"],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 1,
-          "total": 1,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "coverageMap": {
-          "subject.mjs": {
-            "path": "subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:12:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:6:2:6:Infinity": 3
-              },
-              "fnNames": {}
-            }
-          }
-        },
-        "summary": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
-          },
-          "subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            }
-          }
-        },
-        "lcov": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:6,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "trace": "{\"event\":\"RECOVERY_BODY\"}\n"
-      }
+      "sentinel": "prior actual report\n"
     },
     {
       "name": "js",
@@ -268,254 +270,7 @@
       },
       "config": "export default {\"test\":{\"include\":[\"contract.test.js\"],\"maxWorkers\":1,\"testTimeout\":10000,\"hookTimeout\":5000,\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"exclude\":[],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"clean\":false,\"reportOnFailure\":true}}}\n",
       "snapshot": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`spec recovery 1`] = `\"prior\"`;\n",
-      "sentinel": "prior actual report\n",
-      "recovery": {
-        "exit": 0,
-        "passed": 1,
-        "failed": 0,
-        "pending": 1,
-        "cases": [
-          ["pending spec cannot start body", "skipped", []],
-          ["spec recovery", "passed", []]
-        ],
-        "fileErrors": [""],
-        "fileStates": ["passed"],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 1,
-          "total": 1,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        },
-        "coverageMap": {
-          "subject.mjs": {
-            "path": "subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
-            },
-            "fnMap": {
-              "0": {
-                "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                },
-                "line": 1
-              },
-              "1": {
-                "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                },
-                "line": 5
-              }
-            },
-            "branchMap": {
-              "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                "type": "if",
-                "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
-                  {
-                    "start": {},
-                    "end": {}
-                  }
-                ],
-                "line": 2
-              }
-            },
-            "s": {
-              "0": 1,
-              "1": 0,
-              "2": 1,
-              "3": 0
-            },
-            "f": {
-              "0": 1,
-              "1": 0
-            },
-            "b": {
-              "0": [0, 1]
-            },
-            "meta": {
-              "lastBranch": 1,
-              "lastFunction": 2,
-              "lastStatement": 4,
-              "seen": {
-                "f:1:16:1:22": 0,
-                "b:2:2:2:Infinity:undefined:undefined:undefined:undefined": 0,
-                "s:2:2:2:Infinity": 0,
-                "s:2:12:2:Infinity": 1,
-                "s:3:2:3:Infinity": 2,
-                "f:5:16:5:22": 1,
-                "s:6:2:6:Infinity": 3
-              },
-              "fnNames": {}
-            }
-          }
-        },
-        "summary": {
-          "total": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branchesTrue": {
-              "total": 0,
-              "covered": 0,
-              "skipped": 0,
-              "pct": "Unknown"
-            }
-          },
-          "subject.mjs": {
-            "lines": {
-              "total": 3,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 66.66
-            },
-            "functions": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            },
-            "statements": {
-              "total": 4,
-              "covered": 2,
-              "skipped": 0,
-              "pct": 50
-            },
-            "branches": {
-              "total": 2,
-              "covered": 1,
-              "skipped": 0,
-              "pct": 50
-            }
-          }
-        },
-        "lcov": "TN:\nSF:subject.mjs\nFN:1,choose\nFN:5,unused\nFNF:2\nFNH:1\nFNDA:1,choose\nFNDA:0,unused\nDA:2,1\nDA:3,1\nDA:6,0\nLF:3\nLH:2\nBRDA:2,0,0,0\nBRDA:2,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
-        "trace": "{\"event\":\"RECOVERY_BODY\"}\n"
-      }
+      "sentinel": "prior actual report\n"
     }
   ]
 }

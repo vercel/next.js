@@ -1,152 +1,162 @@
 {
-  "rows": [
-    {
-      "name": "baseline",
-      "coverageMapPresent": true,
-      "coverageMap": {
-        "<PROJECT_ROOT>/fully.mjs": {
-          "path": "<PROJECT_ROOT>/fully.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 31
-              },
-              "end": {
-                "line": 1,
-                "column": 47
-              }
+  "defaults": {
+    "coverageMapPresent": true,
+    "coverageMap": {
+      "<PROJECT_ROOT>/fully.mjs": {
+        "path": "<PROJECT_ROOT>/fully.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 1,
+              "column": 31
+            },
+            "end": {
+              "line": 1,
+              "column": 47
             }
-          },
-          "fnMap": {
-            "0": {
-              "name": "fully",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 21
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 1,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {},
-          "s": {
-            "0": 1
-          },
-          "f": {
-            "0": 1
-          },
-          "b": {}
+          }
         },
-        "<PROJECT_ROOT>/subject.mjs": {
-          "path": "<PROJECT_ROOT>/subject.mjs",
-          "statementMap": {
-            "0": {
+        "fnMap": {
+          "0": {
+            "name": "fully",
+            "decl": {
               "start": {
-                "line": 2,
-                "column": 2
+                "line": 1,
+                "column": 16
               },
               "end": {
-                "line": 2,
-                "column": null
+                "line": 1,
+                "column": 21
               }
             },
-            "1": {
+            "loc": {
               "start": {
-                "line": 2,
-                "column": 12
+                "line": 1,
+                "column": 29
               },
               "end": {
-                "line": 2,
+                "line": 1,
                 "column": null
               }
+            }
+          }
+        },
+        "branchMap": {},
+        "s": {
+          "0": 1
+        },
+        "f": {
+          "0": 1
+        },
+        "b": {}
+      },
+      "<PROJECT_ROOT>/subject.mjs": {
+        "path": "<PROJECT_ROOT>/subject.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
             },
-            "2": {
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 2,
+              "column": 12
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "choose",
+            "decl": {
               "start": {
-                "line": 3,
-                "column": 2
+                "line": 1,
+                "column": 16
               },
               "end": {
-                "line": 3,
-                "column": null
+                "line": 1,
+                "column": 22
               }
             },
-            "3": {
+            "loc": {
               "start": {
-                "line": 6,
-                "column": 2
+                "line": 1,
+                "column": 29
               },
               "end": {
-                "line": 6,
+                "line": 4,
                 "column": null
               }
             }
           },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
+          "1": {
+            "name": "unused",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
               },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
+              "end": {
+                "line": 5,
+                "column": 22
               }
             },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 25
               },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 7,
-                  "column": null
-                }
+              "end": {
+                "line": 7,
+                "column": null
               }
             }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "type": "if",
+            "locations": [
+              {
                 "start": {
                   "line": 2,
                   "column": 2
@@ -156,134 +166,134 @@
                   "column": null
                 }
               },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 1,
-            "2": 0,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [1, 0]
+              {
+                "start": {},
+                "end": {}
+              }
+            ]
           }
         },
-        "<PROJECT_ROOT>/unimported.mjs": {
-          "path": "<PROJECT_ROOT>/unimported.mjs",
-          "statementMap": {
-            "0": {
+        "s": {
+          "0": 1,
+          "1": 1,
+          "2": 0,
+          "3": 0
+        },
+        "f": {
+          "0": 1,
+          "1": 0
+        },
+        "b": {
+          "0": [1, 0]
+        }
+      },
+      "<PROJECT_ROOT>/unimported.mjs": {
+        "path": "<PROJECT_ROOT>/unimported.mjs",
+        "statementMap": {
+          "0": {
+            "start": {
+              "line": 2,
+              "column": 2
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "1": {
+            "start": {
+              "line": 2,
+              "column": 12
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "2": {
+            "start": {
+              "line": 3,
+              "column": 2
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "3": {
+            "start": {
+              "line": 6,
+              "column": 2
+            },
+            "end": {
+              "line": 6,
+              "column": null
+            }
+          }
+        },
+        "fnMap": {
+          "0": {
+            "name": "choose",
+            "decl": {
               "start": {
-                "line": 2,
-                "column": 2
+                "line": 1,
+                "column": 16
               },
               "end": {
-                "line": 2,
-                "column": null
+                "line": 1,
+                "column": 22
               }
             },
-            "1": {
+            "loc": {
               "start": {
-                "line": 2,
-                "column": 12
+                "line": 1,
+                "column": 29
               },
               "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 6,
-                "column": 2
-              },
-              "end": {
-                "line": 6,
+                "line": 4,
                 "column": null
               }
             }
           },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
+          "1": {
+            "name": "unused",
+            "decl": {
+              "start": {
+                "line": 5,
+                "column": 16
               },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
+              "end": {
+                "line": 5,
+                "column": 22
               }
             },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 25
               },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 7,
-                  "column": null
-                }
+              "end": {
+                "line": 7,
+                "column": null
               }
             }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
+          }
+        },
+        "branchMap": {
+          "0": {
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            },
+            "type": "if",
+            "locations": [
+              {
                 "start": {
                   "line": 2,
                   "column": 2
@@ -293,48 +303,40 @@
                   "column": null
                 }
               },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 0,
-            "1": 0,
-            "2": 0,
-            "3": 0
-          },
-          "f": {
-            "0": 0,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 0]
+              {
+                "start": {},
+                "end": {}
+              }
+            ]
           }
+        },
+        "s": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0
+        },
+        "f": {
+          "0": 0,
+          "1": 0
+        },
+        "b": {
+          "0": [0, 0]
         }
       }
+    }
+  },
+  "rows": [
+    {
+      "name": "baseline"
     },
     {
       "name": "configured-disabled",
-      "coverageMapPresent": false
+      "coverageMapPresent": false,
+      "omit": ["coverageMap"]
     },
     {
       "name": "configured-istanbul-cli-v8",
-      "coverageMapPresent": true,
       "coverageMap": {
         "<PROJECT_ROOT>/subject.mjs": {
           "path": "<PROJECT_ROOT>/subject.mjs",
@@ -709,997 +711,20 @@
     },
     {
       "name": "empty-include",
-      "coverageMapPresent": true,
       "coverageMap": {}
     },
     {
       "name": "all-excluded",
-      "coverageMapPresent": true,
       "coverageMap": {}
     },
     {
-      "name": "stdout-none",
-      "coverageMapPresent": true,
-      "coverageMap": {
-        "<PROJECT_ROOT>/fully.mjs": {
-          "path": "<PROJECT_ROOT>/fully.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 31
-              },
-              "end": {
-                "line": 1,
-                "column": 47
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "fully",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 21
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 1,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {},
-          "s": {
-            "0": 1
-          },
-          "f": {
-            "0": 1
-          },
-          "b": {}
-        },
-        "<PROJECT_ROOT>/subject.mjs": {
-          "path": "<PROJECT_ROOT>/subject.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 12
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 6,
-                "column": 2
-              },
-              "end": {
-                "line": 6,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 7,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 1,
-            "2": 0,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [1, 0]
-          }
-        },
-        "<PROJECT_ROOT>/unimported.mjs": {
-          "path": "<PROJECT_ROOT>/unimported.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 12
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 6,
-                "column": 2
-              },
-              "end": {
-                "line": 6,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 7,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 0,
-            "1": 0,
-            "2": 0,
-            "3": 0
-          },
-          "f": {
-            "0": 0,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 0]
-          }
-        }
-      }
+      "name": "stdout-none"
     },
     {
-      "name": "failure-default",
-      "coverageMapPresent": true,
-      "coverageMap": {
-        "<PROJECT_ROOT>/subject.mjs": {
-          "path": "<PROJECT_ROOT>/subject.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 12
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 6,
-                "column": 2
-              },
-              "end": {
-                "line": 6,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 7,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 1,
-            "2": 0,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [1, 0]
-          }
-        },
-        "<PROJECT_ROOT>/fully.mjs": {
-          "path": "<PROJECT_ROOT>/fully.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 31
-              },
-              "end": {
-                "line": 1,
-                "column": 47
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "fully",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 21
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 1,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {},
-          "s": {
-            "0": 1
-          },
-          "f": {
-            "0": 1
-          },
-          "b": {}
-        },
-        "<PROJECT_ROOT>/unimported.mjs": {
-          "path": "<PROJECT_ROOT>/unimported.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 12
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 6,
-                "column": 2
-              },
-              "end": {
-                "line": 6,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 7,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 0,
-            "1": 0,
-            "2": 0,
-            "3": 0
-          },
-          "f": {
-            "0": 0,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 0]
-          }
-        }
-      }
+      "name": "failure-default"
     },
     {
-      "name": "failure-report-on-failure",
-      "coverageMapPresent": true,
-      "coverageMap": {
-        "<PROJECT_ROOT>/fully.mjs": {
-          "path": "<PROJECT_ROOT>/fully.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 31
-              },
-              "end": {
-                "line": 1,
-                "column": 47
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "fully",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 21
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 1,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {},
-          "s": {
-            "0": 1
-          },
-          "f": {
-            "0": 1
-          },
-          "b": {}
-        },
-        "<PROJECT_ROOT>/subject.mjs": {
-          "path": "<PROJECT_ROOT>/subject.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 12
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 6,
-                "column": 2
-              },
-              "end": {
-                "line": 6,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 7,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 1,
-            "1": 1,
-            "2": 0,
-            "3": 0
-          },
-          "f": {
-            "0": 1,
-            "1": 0
-          },
-          "b": {
-            "0": [1, 0]
-          }
-        },
-        "<PROJECT_ROOT>/unimported.mjs": {
-          "path": "<PROJECT_ROOT>/unimported.mjs",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 2,
-                "column": 12
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 3,
-                "column": 2
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
-            "3": {
-              "start": {
-                "line": 6,
-                "column": 2
-              },
-              "end": {
-                "line": 6,
-                "column": null
-              }
-            }
-          },
-          "fnMap": {
-            "0": {
-              "name": "choose",
-              "decl": {
-                "start": {
-                  "line": 1,
-                  "column": 16
-                },
-                "end": {
-                  "line": 1,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 4,
-                  "column": null
-                }
-              }
-            },
-            "1": {
-              "name": "unused",
-              "decl": {
-                "start": {
-                  "line": 5,
-                  "column": 16
-                },
-                "end": {
-                  "line": 5,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 5,
-                  "column": 25
-                },
-                "end": {
-                  "line": 7,
-                  "column": null
-                }
-              }
-            }
-          },
-          "branchMap": {
-            "0": {
-              "loc": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "type": "if",
-              "locations": [
-                {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
-                {
-                  "start": {},
-                  "end": {}
-                }
-              ]
-            }
-          },
-          "s": {
-            "0": 0,
-            "1": 0,
-            "2": 0,
-            "3": 0
-          },
-          "f": {
-            "0": 0,
-            "1": 0
-          },
-          "b": {
-            "0": [0, 0]
-          }
-        }
-      }
+      "name": "failure-report-on-failure"
     }
   ]
 }

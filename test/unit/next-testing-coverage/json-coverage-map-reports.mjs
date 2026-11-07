@@ -1,3 +1,4 @@
+import { readCoverageFixture } from './coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -9,8 +10,8 @@ assert(consumerArg && outputArg && profile)
 const consumer = resolve(consumerArg)
 const output = resolve(outputArg)
 const here = dirname(fileURLToPath(import.meta.url))
-const pristine = JSON.parse(
-  readFileSync(join(here, 'fixtures/istanbul-provider/json-map-pristine.json'))
+const pristine = readCoverageFixture(
+  join(here, 'fixtures/istanbul-provider/json-map-pristine.json')
 )
 const row = pristine.rows.find((row) => row.name === profile)
 assert(row, 'Unknown prepared JSON coverage map profile')

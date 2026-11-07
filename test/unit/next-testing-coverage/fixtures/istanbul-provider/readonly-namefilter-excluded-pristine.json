@@ -1,132 +1,164 @@
 {
-  "rows": [
-    {
-      "name": "istanbul-skip-todo-body",
-      "sourceFiles": {
-        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-        "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
+  "defaults": {
+    "sourceFiles": {
+      "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
+      "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
+    },
+    "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
+    "flags": ["-t", ".*"],
+    "exitCode": 0,
+    "trace": [
+      {
+        "actor": "author",
+        "event": "module-enter"
       },
-      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
-      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
-      "flags": ["-t", ".*"],
-      "exitCode": 0,
-      "trace": [
-        {
-          "actor": "author",
-          "event": "module-enter"
-        },
-        {
-          "actor": "reporter",
-          "event": "case-result",
-          "tree": {
-            "type": "test",
-            "name": "body",
-            "state": "pending",
-            "mode": "run",
-            "errors": []
-          }
-        },
-        {
-          "actor": "reporter",
-          "event": "end",
-          "sameCollected": false,
-          "tree": {
-            "type": "module",
-            "name": "modes.case.mjs",
-            "state": "skipped",
-            "errors": [],
-            "children": [
-              {
-                "type": "suite",
-                "name": "outer",
-                "state": "skipped",
-                "mode": "skip",
-                "errors": [],
-                "children": [
-                  {
-                    "type": "suite",
-                    "name": "explicit todo",
-                    "state": "skipped",
-                    "mode": "todo",
-                    "errors": [],
-                    "children": [
-                      {
-                        "type": "suite",
-                        "name": "implicit body",
-                        "state": "pending",
-                        "mode": "run",
-                        "errors": [],
-                        "children": [
-                          {
-                            "type": "test",
-                            "name": "body",
-                            "state": "pending",
-                            "mode": "run",
-                            "errors": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "actor": "reporter",
-          "event": "run-end",
-          "reason": "passed",
+      {
+        "actor": "reporter",
+        "event": "case-result",
+        "tree": {
+          "type": "test",
+          "name": "body",
+          "state": "pending",
+          "mode": "run",
+          "errors": []
+        }
+      },
+      {
+        "actor": "reporter",
+        "event": "end",
+        "sameCollected": false,
+        "tree": {
+          "type": "module",
+          "name": "modes.case.mjs",
+          "state": "skipped",
           "errors": [],
-          "modules": [
+          "children": [
             {
-              "sameCollected": false,
-              "tree": {
-                "type": "module",
-                "name": "modes.case.mjs",
-                "state": "skipped",
-                "errors": [],
-                "children": [
-                  {
-                    "type": "suite",
-                    "name": "outer",
-                    "state": "skipped",
-                    "mode": "skip",
-                    "errors": [],
-                    "children": [
-                      {
-                        "type": "suite",
-                        "name": "explicit todo",
-                        "state": "skipped",
-                        "mode": "todo",
-                        "errors": [],
-                        "children": [
-                          {
-                            "type": "suite",
-                            "name": "implicit body",
-                            "state": "pending",
-                            "mode": "run",
-                            "errors": [],
-                            "children": [
-                              {
-                                "type": "test",
-                                "name": "body",
-                                "state": "pending",
-                                "mode": "run",
-                                "errors": []
-                              }
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
+              "type": "suite",
+              "name": "outer",
+              "state": "skipped",
+              "mode": "skip",
+              "errors": [],
+              "children": [
+                {
+                  "type": "suite",
+                  "name": "explicit todo",
+                  "state": "skipped",
+                  "mode": "todo",
+                  "errors": [],
+                  "children": [
+                    {
+                      "type": "suite",
+                      "name": "implicit body",
+                      "state": "pending",
+                      "mode": "run",
+                      "errors": [],
+                      "children": [
+                        {
+                          "type": "test",
+                          "name": "body",
+                          "state": "pending",
+                          "mode": "run",
+                          "errors": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
             }
           ]
         }
-      ],
+      },
+      {
+        "actor": "reporter",
+        "event": "run-end",
+        "reason": "passed",
+        "errors": [],
+        "modules": [
+          {
+            "sameCollected": false,
+            "tree": {
+              "type": "module",
+              "name": "modes.case.mjs",
+              "state": "skipped",
+              "errors": [],
+              "children": [
+                {
+                  "type": "suite",
+                  "name": "outer",
+                  "state": "skipped",
+                  "mode": "skip",
+                  "errors": [],
+                  "children": [
+                    {
+                      "type": "suite",
+                      "name": "explicit todo",
+                      "state": "skipped",
+                      "mode": "todo",
+                      "errors": [],
+                      "children": [
+                        {
+                          "type": "suite",
+                          "name": "implicit body",
+                          "state": "pending",
+                          "mode": "run",
+                          "errors": [],
+                          "children": [
+                            {
+                              "type": "test",
+                              "name": "body",
+                              "state": "pending",
+                              "mode": "run",
+                              "errors": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "passed": 0,
+      "failed": 0,
+      "pending": 0,
+      "cases": [],
+      "fileErrors": [""],
+      "snapshot": {
+        "added": 0,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0,
+        "didUpdate": false
+      }
+    },
+    "coverage": {
+      "subject.mjs": {
+        "statements": [0, 0, 0, 0],
+        "functions": [0, 0],
+        "branches": [[0, 0]]
+      }
+    }
+  },
+  "rows": [
+    {
+      "name": "istanbul-skip-todo-body",
+      "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
       "expected": {
         "passed": 0,
         "failed": 0,
@@ -148,13 +180,6 @@
           "unmatched": 0,
           "updated": 0,
           "didUpdate": false
-        }
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
         }
       }
     },
@@ -164,10 +189,7 @@
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit empty',()=>{})})})\n"
       },
-      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
-      "flags": ["-t", ".*"],
-      "exitCode": 0,
       "trace": [
         {
           "actor": "author",
@@ -257,37 +279,7 @@
             }
           ]
         }
-      ],
-      "expected": {
-        "passed": 0,
-        "failed": 0,
-        "pending": 0,
-        "cases": [],
-        "fileErrors": [""],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      }
+      ]
     },
     {
       "name": "istanbul-todo-skip-body",
@@ -295,10 +287,7 @@
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
       },
-      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
-      "flags": ["-t", ".*"],
-      "exitCode": 0,
       "trace": [
         {
           "actor": "author",
@@ -438,13 +427,6 @@
           "updated": 0,
           "didUpdate": false
         }
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
       }
     },
     {
@@ -453,10 +435,7 @@
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit empty',()=>{})})})\n"
       },
-      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"istanbul\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
-      "flags": ["-t", ".*"],
-      "exitCode": 0,
       "trace": [
         {
           "actor": "author",
@@ -546,165 +525,11 @@
             }
           ]
         }
-      ],
-      "expected": {
-        "passed": 0,
-        "failed": 0,
-        "pending": 0,
-        "cases": [],
-        "fileErrors": [""],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      }
+      ]
     },
     {
       "name": "v8-skip-todo-body",
-      "sourceFiles": {
-        "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
-        "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
-      },
-      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
-      "flags": ["-t", ".*"],
-      "exitCode": 0,
-      "trace": [
-        {
-          "actor": "author",
-          "event": "module-enter"
-        },
-        {
-          "actor": "reporter",
-          "event": "case-result",
-          "tree": {
-            "type": "test",
-            "name": "body",
-            "state": "pending",
-            "mode": "run",
-            "errors": []
-          }
-        },
-        {
-          "actor": "reporter",
-          "event": "end",
-          "sameCollected": false,
-          "tree": {
-            "type": "module",
-            "name": "modes.case.mjs",
-            "state": "skipped",
-            "errors": [],
-            "children": [
-              {
-                "type": "suite",
-                "name": "outer",
-                "state": "skipped",
-                "mode": "skip",
-                "errors": [],
-                "children": [
-                  {
-                    "type": "suite",
-                    "name": "explicit todo",
-                    "state": "skipped",
-                    "mode": "todo",
-                    "errors": [],
-                    "children": [
-                      {
-                        "type": "suite",
-                        "name": "implicit body",
-                        "state": "pending",
-                        "mode": "run",
-                        "errors": [],
-                        "children": [
-                          {
-                            "type": "test",
-                            "name": "body",
-                            "state": "pending",
-                            "mode": "run",
-                            "errors": []
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "actor": "reporter",
-          "event": "run-end",
-          "reason": "passed",
-          "errors": [],
-          "modules": [
-            {
-              "sameCollected": false,
-              "tree": {
-                "type": "module",
-                "name": "modes.case.mjs",
-                "state": "skipped",
-                "errors": [],
-                "children": [
-                  {
-                    "type": "suite",
-                    "name": "outer",
-                    "state": "skipped",
-                    "mode": "skip",
-                    "errors": [],
-                    "children": [
-                      {
-                        "type": "suite",
-                        "name": "explicit todo",
-                        "state": "skipped",
-                        "mode": "todo",
-                        "errors": [],
-                        "children": [
-                          {
-                            "type": "suite",
-                            "name": "implicit body",
-                            "state": "pending",
-                            "mode": "run",
-                            "errors": [],
-                            "children": [
-                              {
-                                "type": "test",
-                                "name": "body",
-                                "state": "pending",
-                                "mode": "run",
-                                "errors": []
-                              }
-                            ]
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      ],
       "expected": {
         "passed": 0,
         "failed": 0,
@@ -727,13 +552,6 @@
           "updated": 0,
           "didUpdate": false
         }
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
       }
     },
     {
@@ -742,10 +560,7 @@
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.skip('outer',()=>{describe.todo('explicit todo',()=>{describe('implicit empty',()=>{})})})\n"
       },
-      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
-      "flags": ["-t", ".*"],
-      "exitCode": 0,
       "trace": [
         {
           "actor": "author",
@@ -835,37 +650,7 @@
             }
           ]
         }
-      ],
-      "expected": {
-        "passed": 0,
-        "failed": 0,
-        "pending": 0,
-        "cases": [],
-        "fileErrors": [""],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      }
+      ]
     },
     {
       "name": "v8-todo-skip-body",
@@ -873,10 +658,7 @@
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit body',()=>{beforeAll(()=>record('BAD_BEFORE'));afterAll(()=>record('BAD_AFTER'));test('body',()=>record('BAD_BODY'))})})})\n"
       },
-      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
-      "flags": ["-t", ".*"],
-      "exitCode": 0,
       "trace": [
         {
           "actor": "author",
@@ -1016,13 +798,6 @@
           "updated": 0,
           "didUpdate": false
         }
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
       }
     },
     {
@@ -1031,10 +806,7 @@
         "subject.mjs": "export function choose(value) {\n  if (value) return 1\n  return 0\n}\nexport function unused() { return 9 }\n",
         "modes.case.mjs": "import{choose}from'./subject.mjs'\nimport{test,describe,beforeAll,afterAll}from'vitest'\nimport{appendFileSync}from'node:fs'\nconst record=event=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'author',event})+'\\n')\nrecord('module-enter');beforeAll(()=>record('before-all'));afterAll(()=>record('after-all'));\ndescribe.todo('outer',()=>{describe.skip('explicit skip',()=>{describe('implicit empty',()=>{})})})\n"
       },
-      "reporter": "import{appendFileSync}from'node:fs'\nimport{basename}from'node:path'\nconst roots=new Map();const write=value=>appendFileSync(process.env.MODE_TRACE,JSON.stringify({actor:'reporter',...value})+'\\n')\nconst tree=t=>({type:t.type,name:t.type==='module'?basename(t.moduleId):t.name,state:t.type==='test'?t.result().state:t.state(),...(t.type==='module'?{}:{mode:t.options.mode}),errors:t.type==='test'?[]:t.errors().map(e=>e.message),...(t.type==='test'?{}:{children:[...t.children].map(tree)})})\nexport default class{\n onTestCaseResult(t){write({event:'case-result',tree:tree(t)})}\n onTestModuleEnd(m){write({event:'end',sameCollected:m===roots.get(m.id),tree:tree(m)})}\n onTestRunEnd(modules,errors,reason){write({event:'run-end',reason,errors:errors.map(e=>e.message),modules:modules.map(m=>({sameCollected:m===roots.get(m.id),tree:tree(m)}))})}\n}",
       "config": "export default {\"test\":{\"include\":[\"*.case.mjs\"],\"maxWorkers\":1,\"passWithNoTests\":true,\"cache\":false,\"testTimeout\":10000,\"sequence\":{\"seed\":1},\"mode\":\"development\",\"environment\":\"node\",\"coverage\":{\"enabled\":true,\"provider\":\"v8\",\"include\":[\"subject.mjs\"],\"reporter\":[\"json\",\"json-summary\",\"lcovonly\"],\"reportsDirectory\":\"coverage\"}}}\n",
-      "flags": ["-t", ".*"],
-      "exitCode": 0,
       "trace": [
         {
           "actor": "author",
@@ -1124,37 +896,7 @@
             }
           ]
         }
-      ],
-      "expected": {
-        "passed": 0,
-        "failed": 0,
-        "pending": 0,
-        "cases": [],
-        "fileErrors": [""],
-        "snapshot": {
-          "added": 0,
-          "failure": false,
-          "filesAdded": 0,
-          "filesRemoved": 0,
-          "filesRemovedList": [],
-          "filesUnmatched": 0,
-          "filesUpdated": 0,
-          "matched": 0,
-          "total": 0,
-          "unchecked": 0,
-          "uncheckedKeysByFile": [],
-          "unmatched": 0,
-          "updated": 0,
-          "didUpdate": false
-        }
-      },
-      "coverage": {
-        "subject.mjs": {
-          "statements": [0, 0, 0, 0],
-          "functions": [0, 0],
-          "branches": [[0, 0]]
-        }
-      }
+      ]
     }
   ]
 }
