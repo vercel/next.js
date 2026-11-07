@@ -4,6 +4,8 @@ pub(crate) mod code_module_ids_and_paths;
 pub(crate) mod content;
 pub(crate) mod content_entry;
 pub(crate) mod data;
+#[cfg(test)]
+mod factory_content_tests;
 pub(crate) mod factory_group;
 pub(crate) mod item;
 pub(crate) mod placeable;
