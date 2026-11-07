@@ -1061,6 +1061,14 @@ function pingRootRouteTree(
       )
       let needsDynamicRequest = spawnedEntries.size > 0
       if (needsDynamicRequest) {
+        if (legacyStage === AppStage.Shell) {
+          // A navigation that starts during this prefetch requests these
+          // segments itself rather than waiting for it (see
+          // isLoadingBoundaryPrefetch).
+          for (const pendingEntry of spawnedEntries.values()) {
+            pendingEntry.isLoadingBoundaryPrefetch = true
+          }
+        }
         spawnPrefetchSubtask(
           fetchSegmentPrefetchesUsingRuntimeRequest(
             task,
