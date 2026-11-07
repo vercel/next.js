@@ -2,13 +2,13 @@ import { link } from "@/styled-system/recipes";
 
 /**
  * Link with config recipe
- * @see https://panda-css.com/docs/concepts/recipes#config-recipe
+ * @see https://panda-css.com/docs/recipes/config-recipe
  */
 export default function LinkWithConfigRecipe() {
   return (
     <a
       className={link({ size: "lg" })}
-      href="https://panda-css.com/docs/concepts/recipes#config-recipe"
+      href="https://panda-css.com/docs/recipes/config-recipe"
       target="_blank"
       rel="noreferrer"
     >
