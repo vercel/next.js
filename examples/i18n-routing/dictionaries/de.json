@@ -5,5 +5,14 @@
   "counter": {
     "increment": "Zuwachs",
     "decrement": "Dekrementieren"
+  },
+  "not-found": {
+    "title": "Seite nicht gefunden",
+    "description": "Die angeforderte Ressource konnte nicht gefunden werden.",
+    "back-home": "Zurück zur Startseite"
+  },
+  "error": {
+    "title": "Etwas ist schief gelaufen!",
+    "try-again": "Erneut versuchen"
   }
 }

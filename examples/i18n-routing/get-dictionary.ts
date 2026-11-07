@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import type { Locale } from "./i18n-config";
 
 // We enumerate all dictionaries here for better linting and typescript support
@@ -9,5 +10,7 @@ const dictionaries = {
   cs: () => import("./dictionaries/cs.json").then((module) => module.default),
 };
 
-export const getDictionary = async (locale: Locale) =>
-  dictionaries[locale]?.() ?? dictionaries.en();
+// cache() deduplicates dictionary loading within a single request
+export const getDictionary = cache(
+  async (locale: Locale) => dictionaries[locale]?.() ?? dictionaries.en(),
+);
