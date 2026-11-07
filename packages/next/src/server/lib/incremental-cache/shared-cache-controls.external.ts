@@ -7,5 +7,7 @@
  * `SharedCacheControls` from it to record the lifetime of an entry. A cache
  * handler can return `cacheControl` from `get()` instead, see
  * `CacheHandlerValue`. Remove this file when they no longer import it.
+ *
+ * @deprecated Return `cacheControl` from the cache handler's `get()` instead.
  */
 export { SharedCacheControls } from './shared-cache-controls'
