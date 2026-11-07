@@ -21,14 +21,14 @@ const Collections = ({ id_collection }: CollectionProps) => {
     <div className={styles.chips}>
       {data.map(({ id, title, slug }) =>
         id_collection ? (
-          <Link href="/" key={`collection_${slug}`} className={styles.chip}>
-            {title}
+          <div key={`collection_${slug}`} className={styles.chip}>
+            <Link href="/">{title}</Link>
             <Link
               href="/"
               className={styles.chip_remove}
               aria-label="Return to home"
             />
-          </Link>
+          </div>
         ) : (
           <Link
             href={{ pathname: "/collection/[slug]", query: { id: id } }}
