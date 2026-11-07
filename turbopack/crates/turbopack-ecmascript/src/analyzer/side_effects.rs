@@ -541,9 +541,9 @@ struct SideEffectVisitor<'a> {
     /// Member mutations rooted at these are not module-evaluation side effects.
     safe_assignment_constant_ids: HashSet<Id>,
     has_side_effects: bool,
-    will_invoke_fn_exprs: bool,
-    /// Keep callback analysis unchanged inside spread-bearing argument lists.
-    skip_opaque_callbacks: bool,
+    /// None uses explicit callback analysis. Some preserves the old argument
+    /// analysis inside spread-bearing calls, with the bool controlling function bodies.
+    legacy_fn_invocation: Option<bool>,
     has_imports: bool,
 }
 
@@ -562,8 +562,7 @@ impl<'a> SideEffectVisitor<'a> {
             module_exports_has_accessor,
             safe_assignment_constant_ids,
             has_side_effects: false,
-            will_invoke_fn_exprs: false,
-            skip_opaque_callbacks: false,
+            legacy_fn_invocation: None,
             has_imports: false,
         }
     }
@@ -573,19 +572,29 @@ impl<'a> SideEffectVisitor<'a> {
         self.has_side_effects = true;
     }
 
-    /// Temporarily set `will_invoke_fn_exprs` to the given value, execute the closure,
-    /// then restore the original value.
-    ///
-    /// This is useful when analyzing code that may invoke function expressions passed as
-    /// arguments (e.g., callbacks to pure functions like `array.map(fn)`).
-    fn with_will_invoke_fn_exprs<F>(&mut self, value: bool, f: F)
+    fn with_legacy_fn_invocation<F>(&mut self, value: bool, f: F)
     where
         F: FnOnce(&mut Self),
     {
-        let old_value = self.will_invoke_fn_exprs;
-        self.will_invoke_fn_exprs = value;
+        let old_value = self.legacy_fn_invocation;
+        self.legacy_fn_invocation = Some(value);
         f(self);
-        self.will_invoke_fn_exprs = old_value;
+        self.legacy_fn_invocation = old_value;
+    }
+
+    /// Evaluate arguments, preserving the old analysis for spread-bearing calls
+    /// and their argument subtrees. Returns whether that legacy path was used.
+    fn visit_builtin_args(&mut self, args: &[ExprOrSpread], is_pure_annotated: bool) -> bool {
+        let legacy =
+            self.legacy_fn_invocation.is_some() || args.iter().any(|arg| arg.spread.is_some());
+        if legacy {
+            self.with_legacy_fn_invocation(!is_pure_annotated, |this| {
+                args.visit_children_with(this);
+            });
+        } else {
+            args.visit_children_with(self);
+        }
+        legacy
     }
 
     /// Check if a span has a `/*#__PURE__*/` or `/*@__PURE__*/` annotation.
@@ -783,30 +792,25 @@ impl<'a> SideEffectVisitor<'a> {
         }
     }
 
-    /// Reading an opaque callback value is pure, but invoking it may not be.
-    /// Inline functions and other argument expressions retain their existing analysis.
-    fn has_opaque_callback(&self, args: &[ExprOrSpread], index: usize) -> bool {
-        if self.skip_opaque_callbacks || args.iter().any(|arg| arg.spread.is_some()) {
-            return false;
-        }
+    /// Analyze invocation of an actual callback, separately from evaluating its value.
+    fn visit_callback_arg(&mut self, args: &[ExprOrSpread], index: usize) {
         let Some(arg) = args.get(index) else {
-            return false;
+            return;
         };
-        match unparen(&arg.expr) {
-            Expr::Fn(_) | Expr::Arrow(_) | Expr::Lit(_) | Expr::Tpl(_) => false,
-            Expr::Ident(ident) if is_global(ident, "undefined", self.unresolved_mark) => false,
-            _ => true,
+        let callback = unparen(&arg.expr);
+        match callback {
+            Expr::Fn(function)
+                if !function.function.is_async && !function.function.is_generator =>
+            {
+                callback.visit_children_with(self);
+            }
+            Expr::Arrow(arrow) if !arrow.is_async && !arrow.is_generator => {
+                callback.visit_children_with(self);
+            }
+            Expr::Lit(_) | Expr::Tpl(_) => {}
+            Expr::Ident(ident) if is_global(ident, "undefined", self.unresolved_mark) => {}
+            _ => self.mark_side_effect(),
         }
-    }
-
-    fn visit_builtin_args(&mut self, args: &[ExprOrSpread], is_pure_annotated: bool) {
-        let old_skip = self.skip_opaque_callbacks;
-        // Do not change analysis of spread-bearing calls or their argument subtrees.
-        self.skip_opaque_callbacks |= args.iter().any(|arg| arg.spread.is_some());
-        self.with_will_invoke_fn_exprs(!is_pure_annotated, |this| {
-            args.visit_children_with(this);
-        });
-        self.skip_opaque_callbacks = old_skip;
     }
 
     /// Check if an expression is a known pure constructor.
@@ -1003,10 +1007,10 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // Reading identifiers is pure
             }
             Expr::Arrow(_) | Expr::Fn(_) => {
-                // Function expressions are pure (don't execute until called)
-                if self.will_invoke_fn_exprs {
-                    // assume that any nested function expressions will not be invoked.
-                    self.with_will_invoke_fn_exprs(false, |this| {
+                // Ordinary function-valued data is not invoked. Only the legacy
+                // spread path retains the previous blanket invocation behavior.
+                if self.legacy_fn_invocation == Some(true) {
+                    self.with_legacy_fn_invocation(false, |this| {
                         expr.visit_children_with(this);
                     });
                 }
@@ -1082,13 +1086,13 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                     // Check the receiver
                     call.callee.visit_with(self);
 
-                    self.visit_builtin_args(&call.args, is_pure_annotated);
-                    if !is_pure_annotated
+                    let legacy = self.visit_builtin_args(&call.args, is_pure_annotated);
+                    if !legacy
+                        && !is_pure_annotated
                         && let Callee::Expr(callee) = &call.callee
                         && let Some(index) = self.builtin_callback_index(callee)
-                        && self.has_opaque_callback(&call.args, index)
                     {
-                        self.mark_side_effect();
+                        self.visit_callback_arg(&call.args, index);
                     }
                 } else if self.is_require_or_import(&call.callee) {
                     self.has_imports = true;
@@ -1109,12 +1113,12 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                     // The annotation only covers invocation, not callee or argument evaluation.
                     new.callee.visit_with(self);
                     let args = new.args.as_deref().unwrap_or_default();
-                    self.visit_builtin_args(args, is_pure_annotated);
-                    if !is_pure_annotated
+                    let legacy = self.visit_builtin_args(args, is_pure_annotated);
+                    if !legacy
+                        && !is_pure_annotated
                         && matches!(&*new.callee, Expr::Ident(ident) if is_global(ident, "Promise", self.unresolved_mark))
-                        && self.has_opaque_callback(args, 0)
                     {
-                        self.mark_side_effect();
+                        self.visit_callback_arg(args, 0);
                     }
                 } else {
                     // Unknown constructor calls are considered to have side effects
@@ -1673,6 +1677,112 @@ mod tests {
                 );
             }
         }
+    }
+
+    mod callback_invocation_tests {
+        use super::*;
+
+        no_side_effects!(test_array_of_function_data, "Array.of(() => effect());");
+        no_side_effects!(
+            test_array_constructor_function_data,
+            "new Array(() => effect());"
+        );
+        no_side_effects!(
+            test_nested_object_function_data,
+            "Array.of({ run: () => effect() });"
+        );
+        no_side_effects!(
+            test_nested_array_function_data,
+            "Array.of([() => effect()]);"
+        );
+        no_side_effects!(
+            test_array_element_function_data,
+            "[() => effect()].map(x => x);"
+        );
+        no_side_effects!(
+            test_non_callback_this_arg,
+            "[1].map(x => x, () => effect());"
+        );
+        no_side_effects!(
+            test_non_callback_initial_value,
+            "[1].reduce((acc, x) => acc, () => effect());"
+        );
+        no_side_effects!(
+            test_callback_returns_arrow,
+            "[1].map(() => () => effect());"
+        );
+        no_side_effects!(
+            test_callback_returns_function,
+            "Array.from([1], () => function () { effect(); });"
+        );
+        no_side_effects!(
+            test_comparator_returns_function,
+            "[1].toSorted(() => () => effect());"
+        );
+        no_side_effects!(
+            test_replacer_returns_function,
+            "'x'.replace('x', () => () => effect());"
+        );
+        no_side_effects!(
+            test_promise_defers_function,
+            "new Promise(() => { const deferred = () => effect(); });"
+        );
+        no_side_effects!(
+            test_pure_call_callback,
+            "/*#__PURE__*/ [1].map(() => effect());"
+        );
+        no_side_effects!(
+            test_pure_constructor_callback,
+            "/*#__PURE__*/ new Promise(() => effect());"
+        );
+        no_side_effects!(
+            test_pure_callback_default,
+            "/*#__PURE__*/ [1].map((x = effect()) => x);"
+        );
+        no_side_effects!(
+            test_callback_default_function,
+            "[1].map((x = () => effect()) => x);"
+        );
+        no_side_effects!(
+            test_pure_callee_function_value,
+            "/*#__PURE__*/ (function () { effect(); })();"
+        );
+        side_effects!(test_actual_array_callback, "[1].map(() => effect());");
+        side_effects!(test_actual_mapper, "Array.from([1], () => effect());");
+        side_effects!(test_actual_comparator, "[1].toSorted(() => effect());");
+        side_effects!(test_actual_replacer, "'x'.replaceAll('x', () => effect());");
+        side_effects!(test_actual_executor, "new Promise(() => { effect(); });");
+        side_effects!(test_unknown_callback, "[1].map(callback);");
+        side_effects!(test_argument_evaluation, "Array.of(effect(), () => 1);");
+        side_effects!(
+            test_nested_argument_evaluation,
+            "Array.of({ value: effect(), run: () => 1 });"
+        );
+        side_effects!(
+            test_pure_argument_evaluation,
+            "/*#__PURE__*/ call(effect(), () => 1);"
+        );
+        side_effects!(
+            test_constructor_argument_evaluation,
+            "/*#__PURE__*/ new C(effect(), () => 1);"
+        );
+        side_effects!(
+            test_pure_callee_evaluation,
+            "/*#__PURE__*/ obj[getKey()](() => 1);"
+        );
+        side_effects!(
+            test_callback_default_evaluation,
+            "[1].map((x = effect()) => x);"
+        );
+        side_effects!(
+            test_template_replacement_evaluation,
+            "'x'.replace('x', `${effect()}`);"
+        );
+        side_effects!(test_async_callback, "[1].map(async () => effect());");
+        side_effects!(
+            test_generator_callback,
+            "[1].map(function* () { effect(); });"
+        );
     }
 
     mod spread_preservation_tests {
@@ -2396,9 +2506,7 @@ mod tests {
             r#"const result = [foo(), 2, 3].map(x => x * 2);"#
         );
 
-        // Array literal with callback that would have side effects when called
-        // However, callbacks are just function definitions at module load time
-        // They don't execute until runtime, so this is side-effect free at load time
+        // map invokes this callback during module evaluation, but its body is pure.
         no_side_effects!(
             test_array_literal_map_with_callback,
             r#"const result = [1, 2, 3].map(x => x * 2);"#
