@@ -11,11 +11,17 @@ type SingletonRouterBase = {
   ready(cb: () => any): void
 }
 
+// When importing and using only SingletonRouter, urlPropertyFields does not exist.
+type SingletonStaticRouter = Omit<
+  NextRouter,
+  (typeof urlPropertyFields)[number]
+>
+
 export { Router }
 
 export type { NextRouter }
 
-export type SingletonRouter = SingletonRouterBase & NextRouter
+export type SingletonRouter = SingletonRouterBase & SingletonStaticRouter
 
 const singletonRouter: SingletonRouterBase = {
   router: null, // holds the actual router instance
@@ -80,19 +86,6 @@ function getRouter(): Router {
   }
   return singletonRouter.router
 }
-
-urlPropertyFields.forEach((field) => {
-  // Here we need to use Object.defineProperty because we need to return
-  // the property assigned to the actual router
-  // The value might get changed as we change routes and this is the
-  // proper way to access it
-  Object.defineProperty(singletonRouter, field, {
-    get() {
-      const router = getRouter()
-      return router[field] as string
-    },
-  })
-})
 
 coreMethodFields.forEach((field) => {
   // We don't really know the types here, so we add them later instead
