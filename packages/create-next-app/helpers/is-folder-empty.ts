@@ -10,6 +10,7 @@ export function isFolderEmpty(root: string, name: string): boolean {
     '.DS_Store',
     '.git',
     '.gitattributes',
+    '.github',
     '.gitignore',
     '.gitlab-ci.yml',
     '.hg',
