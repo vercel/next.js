@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createRequire } from 'node:module'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { readFile, mkdtemp, rm } from 'node:fs/promises'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -11,6 +11,7 @@ describe('next-testing-package', () => {
     files: __dirname,
     skipStart: true,
     dependencies: {
+      '@next/playwright': `file:${dirname(require.resolve('@next/playwright/package.json'))}`,
       playwright: require('playwright/package.json').version,
       'vitest-browser-react': '2.3.0',
     },
@@ -879,5 +880,101 @@ describe('next-testing-package', () => {
         await rm(temporary, { recursive: true, force: true })
       }
     }, 630000)
+
+    // These authored route cases used to be driven only by manual qualifiers.
+    for (const mode of ['development', 'production'] as const) {
+      for (const kind of [
+        'auth',
+        'not-found',
+        'late-redirect',
+        'stream-redirect',
+        'stream-ownership',
+        'errors',
+      ] as const) {
+        const profiles =
+          kind === 'errors' ? (mode === 'development' ? 12 : 4) : 1
+        const cases =
+          kind === 'errors'
+            ? profiles * 2
+            : {
+                auth: 8,
+                'not-found': 4,
+                'late-redirect': 6,
+                'stream-redirect': 6,
+                'stream-ownership': 8,
+              }[kind]
+        it(
+          `preserves ${kind} route responses and ownership in ${mode}`,
+          async () => {
+            const temporary = await mkdtemp(
+              join(tmpdir(), 'next-route-regressions-')
+            )
+            try {
+              const evidence = join(temporary, 'evidence')
+              await promisify(execFile)(
+                process.execPath,
+                [
+                  join(__dirname, 'verify-route-regressions.mjs'),
+                  next.testDir,
+                  evidence,
+                  kind,
+                  mode,
+                ],
+                { timeout: profiles * 130000, maxBuffer: 2 * 1024 * 1024 }
+              )
+              expect(
+                JSON.parse(
+                  await readFile(join(evidence, 'VERIFIED.json'), 'utf8')
+                )
+              ).toEqual({ kind, mode, profiles, cases })
+            } finally {
+              await rm(temporary, { recursive: true, force: true })
+            }
+          },
+          profiles * 130000 + 10000
+        )
+      }
+    }
+    it.each(['node', 'component'] as const)(
+      'preserves production %s watch edits and active cancellation',
+      async (kind) => {
+        const temporary = await mkdtemp(
+          join(tmpdir(), 'next-production-watch-')
+        )
+        try {
+          const evidence = join(temporary, 'evidence')
+          await promisify(execFile)(
+            process.execPath,
+            [
+              join(__dirname, 'verify-production-watch.mjs'),
+              next.testDir,
+              evidence,
+              kind,
+            ],
+            { timeout: 630000, maxBuffer: 2 * 1024 * 1024 }
+          )
+          expect(
+            JSON.parse(await readFile(join(evidence, 'VERIFIED.json'), 'utf8'))
+          ).toEqual({
+            kind,
+            generations: kind === 'component' ? 3 : 5,
+            activeCancellation: true,
+            ...(kind === 'component'
+              ? { sourceAndCSSEdits: true }
+              : {
+                  sourceEdit: true,
+                  transitiveDependencyEdit: true,
+                  configReload: true,
+                  syntaxFailureCases: 0,
+                  recovery: true,
+                  failedHistoryPreserved: true,
+                }),
+          })
+        } finally {
+          await rm(temporary, { recursive: true, force: true })
+        }
+      },
+      650000
+    )
   }
 })

@@ -149,7 +149,7 @@ status and headers, request inputs, layouts and provider context, and waits for
 or Flight redirect digest.
 
 The [late redirect case](fixtures/late-streamed-redirect/late-redirect.case.jsx.txt)
-and its [maintained verifier](verify-late-streamed-redirect.mjs) cover development
+and its [maintained verifier](verify-route-regressions.mjs) cover development
 and production responses followed by a healthy request. This API returns a
 complete buffered result. Static/PPR routes and Server Action transport remain
 separate requirements.
@@ -199,7 +199,7 @@ the original cancellation reason. Real source, response and cleanup failures
 reject `completed` and remain visible at test cleanup, even when the authored
 case asserted the rejection.
 
-The [maintained verifier](verify-route-stream.mjs) compares real fallback and
+The [maintained verifier](verify-route-regressions.mjs) compares real fallback and
 late-redirect behavior, cancellation, held or failing `after()` work, and healthy
 following requests against ordinary AppPage responses in both modes. It retains
 the real cleanup failures as failed cases. Public types are checked with
