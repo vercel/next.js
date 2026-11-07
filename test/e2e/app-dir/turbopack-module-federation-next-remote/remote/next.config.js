@@ -3,7 +3,7 @@ const nextConfig = {
   experimental: {
     turbopackModuleFederation: {
       name: 'nextRemote',
-      filename: 'nextRemote.js',
+      filename: 'nested/nextRemote.js',
       exposes: {
         './message': './lib/message.js',
       },
