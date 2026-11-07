@@ -1037,7 +1037,6 @@ export function createStaticWorker(
       progress?.clear()
     },
     debuggerPortOffset,
-    enableSourceMaps: config.enablePrerenderSourceMaps,
     // remove --max-old-space-size flag as it can cause memory issues.
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
@@ -1051,6 +1050,10 @@ export function createStaticWorker(
               __NEXT_PRIVATE_CPU_PROFILE: 'build-static-worker',
             }
           : undefined),
+        // worker.ts reads source maps lazily if set
+        __NEXT_PRERENDER_SOURCE_MAPS: config.enablePrerenderSourceMaps
+          ? '1'
+          : '',
         // worker.ts copies this value into globalThis.NEXT_CLIENT_ASSET_SUFFIX
         __NEXT_PRERENDER_CLIENT_ASSET_SUFFIX:
           config.supportsImmutableAssets || !config.deploymentId
