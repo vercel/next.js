@@ -707,19 +707,18 @@ impl ModuleFederationConfig {
         {
             bail!("Module Federation exposes require a non-empty container name");
         }
-        if let Some(implementation) = &self.implementation {
-            if implementation.trim().is_empty()
+        if let Some(implementation) = &self.implementation
+            && (implementation.trim().is_empty()
                 || implementation.starts_with('/')
                 || implementation.contains('\\')
                 || implementation
                     .split('/')
-                    .any(|segment| segment.is_empty() || segment == "..")
-            {
-                bail!(
-                    "Module Federation implementation must be a package name or safe \
-                     project-relative directory"
-                );
-            }
+                    .any(|segment| segment.is_empty() || segment == ".."))
+        {
+            bail!(
+                "Module Federation implementation must be a package name or safe project-relative \
+                 directory"
+            );
         }
         if let Some(filename) = &self.filename {
             validate_output_filename(filename)?;
