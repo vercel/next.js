@@ -289,22 +289,6 @@ export default class NextNodeServer extends BaseServer<
       MIDDLEWARE_MANIFEST
     )
 
-    if (!options.dev && !this.minimalMode) {
-      const manifest = this.getMiddlewareManifest()
-      if (
-        manifest &&
-        (Object.keys(manifest.middleware).length > 0 ||
-          Object.keys(manifest.functions).length > 0)
-      ) {
-        // The edge runtime sandbox applies the error inspect patch to every
-        // context that it creates. Nothing else loads the patch when source
-        // maps are disabled, so a server that has edge code loads it now and
-        // not with its first edge request.
-        // eslint-disable-next-line @next/internal/typechecked-require
-        require('./patch-error-inspect')
-      }
-    }
-
     // This is just optimization to fire prepare as soon as possible. It will be
     // properly awaited later. We add the catch here to ensure that it does not
     // cause a unhandled promise rejection. The promise rejection will be
