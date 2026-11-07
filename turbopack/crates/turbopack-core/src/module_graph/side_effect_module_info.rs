@@ -22,15 +22,22 @@ pub struct SideEffectFreeModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 /// are used.  e.g. if there is a dynamic import with side effects in an event handler, we will mark
 /// the module as side effectful even though it isn't.  To fix this the module graph would need to
 /// record more information about the nature of the edges.
+///
+/// A module that is declared side effect free is in the result whatever it imports: when none of
+/// its exports are used, it is dropped together with the imports it would have evaluated. With
+/// `transitive`, such a module is only in the result when everything it imports is in the result
+/// too. That is the set of modules whose evaluation, including everything it triggers, has no
+/// side effect, which is what moving an evaluation to a later point in time requires.
 #[turbo_tasks::function]
 pub async fn compute_side_effect_free_module_info(
     graphs: ResolvedVc<ModuleGraph>,
+    transitive: bool,
 ) -> Result<Vc<SideEffectFreeModules>> {
     // Layout segment optimization, we can individually compute the side effect free modules for
     // each graph.
     let mut result: Vc<SideEffectFreeModules> = Vc::cell(Default::default());
     for graph in graphs.iter_graphs().await? {
-        result = compute_side_effect_free_module_info_single(graph.connect(), result);
+        result = compute_side_effect_free_module_info_single(graph.connect(), result, transitive);
     }
     Ok(result)
 }
@@ -39,6 +46,7 @@ pub async fn compute_side_effect_free_module_info(
 async fn compute_side_effect_free_module_info_single(
     graph: ResolvedVc<ModuleGraphLayer>,
     parent_side_effect_free_modules: Vc<SideEffectFreeModules>,
+    transitive: bool,
 ) -> Result<Vc<SideEffectFreeModules>> {
     let parent_side_effect_free_modules = parent_side_effect_free_modules.await?;
     let graph = graph.await?;
@@ -78,7 +86,7 @@ async fn compute_side_effect_free_module_info_single(
     // free. logically we want to start at all such modules are determine if their transitive
     // dependencies are side effect free.
 
-    let mut locally_side_effect_free_modules_that_have_side_effects = FxHashSet::default();
+    let mut side_effect_free_modules_that_have_side_effects = FxHashSet::default();
     graph.traverse_edges_reverse_dfs(
         // Start from all the side effectful nodes
         module_side_effects
@@ -90,14 +98,21 @@ async fn compute_side_effect_free_module_info_single(
         |child, parent, _s| {
             Ok(if child.is_some() {
                 match module_side_effects.get(&parent) {
-                    Some(ModuleSideEffects::SideEffectful | ModuleSideEffects::SideEffectFree) => {
-                        // We have either already seen this or don't want to follow it
+                    Some(ModuleSideEffects::SideEffectful) => {
+                        // We have already seen this
                         GraphTraversalAction::Exclude
                     }
-                    Some(ModuleSideEffects::ModuleEvaluationIsSideEffectFree) => {
+                    Some(ModuleSideEffects::SideEffectFree) if !transitive => {
+                        // We don't want to follow it
+                        GraphTraversalAction::Exclude
+                    }
+                    Some(
+                        ModuleSideEffects::ModuleEvaluationIsSideEffectFree
+                        | ModuleSideEffects::SideEffectFree,
+                    ) => {
                         // this module is side effect free locally but depends on `child` which is
                         // effectful so it too is effectful
-                        locally_side_effect_free_modules_that_have_side_effects.insert(parent);
+                        side_effect_free_modules_that_have_side_effects.insert(parent);
                         GraphTraversalAction::Continue
                     }
                     None => {
@@ -130,12 +145,18 @@ async fn compute_side_effect_free_module_info_single(
                     .iter()
                     .filter_map(|(m, e)| match e {
                         ModuleSideEffects::SideEffectful => None,
-                        ModuleSideEffects::SideEffectFree => Some((m, false)),
-                        ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
-                            if locally_side_effect_free_modules_that_have_side_effects.contains(m) {
+                        ModuleSideEffects::SideEffectFree
+                        | ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
+                            if side_effect_free_modules_that_have_side_effects.contains(m) {
                                 None
                             } else {
-                                Some((m, true))
+                                Some((
+                                    m,
+                                    matches!(
+                                        e,
+                                        ModuleSideEffects::ModuleEvaluationIsSideEffectFree
+                                    ),
+                                ))
                             }
                         }
                     })
@@ -157,9 +178,9 @@ async fn compute_side_effect_free_module_info_single(
         .into_iter()
         .filter_map(|(m, e)| match e {
             ModuleSideEffects::SideEffectful => None,
-            ModuleSideEffects::SideEffectFree => Some(m),
-            ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
-                if locally_side_effect_free_modules_that_have_side_effects.contains(&m) {
+            ModuleSideEffects::SideEffectFree
+            | ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
+                if side_effect_free_modules_that_have_side_effects.contains(&m) {
                     None
                 } else {
                     Some(m)
