@@ -77,11 +77,13 @@ describe('@next/third-parties basic usage', () => {
       ).toBe(true)
     })
 
-    const gaInlineScript = await browser.elementsByCss('#_next-ga-init')
+    const gaInlineScript = await browser.elementsByCss(
+      '#_next-ga-init[data-ga-script="pages"]'
+    )
     expect(gaInlineScript.length).toBe(1)
 
     const gaScript = await browser.elementsByCss(
-      '[src^="https://www.googletagmanager.com/gtag/js?id=GA-XYZ"]'
+      '[src^="https://www.googletagmanager.com/gtag/js?id=GA-XYZ"][data-ga-script="pages"]'
     )
 
     expect(gaScript.length).toBe(1)
