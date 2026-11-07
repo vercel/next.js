@@ -37,8 +37,11 @@ export function getDevTypesPath(
   baseDir: string,
   distDir: string
 ): string | null {
-  const isDev = process.env.NODE_ENV === 'development'
-  if (isDev) {
+  // Only skip filtering during the actual dev server (next dev), not during
+  // next build where NODE_ENV is also 'development' but __NEXT_DEV_SERVER is
+  // not set. This prevents stale .next/dev/types files from conflicting with
+  // freshly generated .next/types files.
+  if (process.env.__NEXT_DEV_SERVER) {
     // In dev mode, dev types are the main types, so no need to filter
     return null
   }
