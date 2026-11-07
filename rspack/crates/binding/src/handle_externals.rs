@@ -144,6 +144,16 @@ static NODE_BASE_ESM_RESOLVE_OPTIONS: LazyLock<ResolveOptionsWithDependencyType>
 static NODE_MODULES_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"node_modules[/\\].*\.[mc]?js$").unwrap());
 
+/// Whether a request is an absolute path.
+///
+/// `Path::is_absolute` alone is not enough: on Windows it requires a prefix such as `C:`, so a
+/// posix-style `/foo` would not be recognized. The bundler sometimes normalizes requests as posix
+/// even on Windows, so both shapes have to be accepted there.
+fn is_absolute_request(request: &str) -> bool {
+    request.starts_with('/')
+        || (cfg!(windows) && (request.starts_with('\\') || Path::new(request).is_absolute()))
+}
+
 fn is_resource_in_packages(
     resource: &str,
     package_names: &[String],
@@ -152,16 +162,16 @@ fn is_resource_in_packages(
     if package_names.is_empty() {
         return false;
     }
+    // Resolved paths keep the platform separator (backslashes on Windows), while package names are
+    // always written with forward slashes. Compare everything as posix so both agree.
+    let resource = normalize_path_sep(resource);
     package_names.iter().any(|pkg| {
         if let Some(dirs) = package_dir_mapping {
             if let Some(dir) = dirs.get(pkg) {
-                return resource.starts_with(&format!("{dir}/"));
+                return resource.starts_with(&format!("{}/", normalize_path_sep(dir)));
             }
         }
-        resource.contains(&format!(
-            "/node_modules/{}/",
-            pkg.replace('/', std::path::MAIN_SEPARATOR_STR)
-        ))
+        resource.contains(&format!("/node_modules/{pkg}/"))
     })
 }
 
@@ -240,7 +250,7 @@ impl ExternalHandler {
     {
         // We need to externalize internal requests for files intended to
         // not be bundled.
-        let is_local = request.starts_with('.') || Path::new(&request).is_absolute();
+        let is_local = request.starts_with('.') || is_absolute_request(&request);
 
         // make sure import "next" shows a warning when imported
         // in pages/components
@@ -644,4 +654,130 @@ where
         is_esm,
         local_res: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use rustc_hash::FxHashMap;
+
+    use super::{is_absolute_request, is_resource_in_packages};
+
+    fn packages(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| name.to_string()).collect()
+    }
+
+    #[test]
+    fn matches_posix_node_modules_path() {
+        assert!(is_resource_in_packages(
+            "/app/node_modules/demo-service/dist/index.js",
+            &packages(&["demo-service"]),
+            None,
+        ));
+    }
+
+    #[test]
+    fn matches_windows_node_modules_path() {
+        assert!(is_resource_in_packages(
+            r"C:\app\node_modules\demo-service\dist\index.js",
+            &packages(&["demo-service"]),
+            None,
+        ));
+    }
+
+    #[test]
+    fn matches_scoped_package_on_both_platforms() {
+        let names = packages(&["@acme/demo-service"]);
+        assert!(is_resource_in_packages(
+            "/app/node_modules/@acme/demo-service/dist/index.js",
+            &names,
+            None,
+        ));
+        assert!(is_resource_in_packages(
+            r"C:\app\node_modules\@acme\demo-service\dist\index.js",
+            &names,
+            None,
+        ));
+    }
+
+    #[test]
+    fn matches_resolved_package_dir_on_both_platforms() {
+        let names = packages(&["demo-service"]);
+
+        let mut posix_dirs = FxHashMap::default();
+        posix_dirs.insert(
+            "demo-service".to_string(),
+            "/app/packages/service".to_string(),
+        );
+        assert!(is_resource_in_packages(
+            "/app/packages/service/dist/index.js",
+            &names,
+            Some(&posix_dirs),
+        ));
+
+        let mut windows_dirs = FxHashMap::default();
+        windows_dirs.insert(
+            "demo-service".to_string(),
+            r"C:\app\packages\service".to_string(),
+        );
+        assert!(is_resource_in_packages(
+            r"C:\app\packages\service\dist\index.js",
+            &names,
+            Some(&windows_dirs),
+        ));
+    }
+
+    #[test]
+    fn does_not_match_sibling_directory_with_shared_prefix() {
+        let names = packages(&["demo-service"]);
+        let mut dirs = FxHashMap::default();
+        dirs.insert(
+            "demo-service".to_string(),
+            r"C:\app\packages\service".to_string(),
+        );
+        assert!(!is_resource_in_packages(
+            r"C:\app\packages\service-extra\dist\index.js",
+            &names,
+            Some(&dirs),
+        ));
+    }
+
+    #[test]
+    fn does_not_match_unrelated_package() {
+        assert!(!is_resource_in_packages(
+            r"C:\app\node_modules\other-service\dist\index.js",
+            &packages(&["demo-service"]),
+            None,
+        ));
+    }
+
+    #[test]
+    fn empty_package_list_never_matches() {
+        assert!(!is_resource_in_packages(
+            "/app/node_modules/demo-service/dist/index.js",
+            &[],
+            None,
+        ));
+    }
+
+    #[test]
+    fn posix_absolute_requests_are_absolute_on_every_platform() {
+        assert!(is_absolute_request("/app/pages/index.js"));
+        assert!(!is_absolute_request("demo-service"));
+        assert!(!is_absolute_request("@demo/service"));
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn windows_absolute_requests_are_absolute() {
+        assert!(is_absolute_request(r"C:\app\pages\index.js"));
+        assert!(is_absolute_request(r"\app\pages\index.js"));
+        assert!(!is_absolute_request(r"C:app\pages\index.js"));
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn windows_absolute_requests_are_not_absolute_off_windows() {
+        assert!(!is_absolute_request(r"C:\app\pages\index.js"));
+        assert!(!is_absolute_request(r"\app\pages\index.js"));
+    }
 }
