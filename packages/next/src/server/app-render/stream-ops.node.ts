@@ -770,7 +770,7 @@ export async function continueFizzStream(
   if (inlinedDataStream) {
     const flightInjection = createFlightDataInjectionTransform(
       webToReadable(inlinedDataStream),
-      true
+      isStaticGeneration
     )
     source.pipe(flightInjection)
     source = flightInjection
