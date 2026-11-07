@@ -1,11 +1,32 @@
-import * as inspector from 'node:inspector'
-import { dim } from '../../lib/picocolors'
 import {
   consoleAsyncStorage,
   type ConsoleStore,
 } from '../app-render/console-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { getServerReact, getClientReact } from '../runtime-reacts.external'
+
+// The inspector and the color helpers are only needed once a log is dimmed,
+// which most production servers never do. They are loaded on demand so that
+// those servers don't pay for them at startup.
+let inspector: typeof import('node:inspector') | undefined
+function loadInspector() {
+  return (inspector ??=
+    require('node:inspector') as typeof import('node:inspector'))
+}
+let colors:
+  | {
+      dim: typeof import('../../lib/picocolors').dim
+      isColorSupported: boolean
+    }
+  | undefined
+function loadColors() {
+  if (colors === undefined) {
+    const { dim } =
+      require('../../lib/picocolors') as typeof import('../../lib/picocolors')
+    colors = { dim, isColorSupported: dim('test') !== 'test' }
+  }
+  return colors
+}
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- we may use later and want parity with the HIDDEN_STYLE value
 const DIMMED_STYLE = 'dimmed'
@@ -33,13 +54,12 @@ type InterceptableConsoleMethod =
   | 'trace'
   | 'warn'
 
-const isColorSupported = dim('test') !== 'test'
-
 // 50% opacity for dimmed text
 const dimStyle = 'color: color(from currentColor xyz x y z / 0.5);'
 const reactBadgeFormat = '\x1b[0m\x1b[7m%c%s\x1b[0m%c '
 
 function dimmedConsoleArgs(...inputArgs: any[]): any[] {
+  const { dim, isColorSupported } = loadColors()
   if (!isColorSupported) {
     return inputArgs
   }
@@ -149,7 +169,7 @@ function convertToDimmedArgs(
   // traces. Ideally we would only skip dimming when a debugger frontend is
   // actually attached, but Node.js does not expose a synchronous API for that.
   // Detecting would require async polling of the /json/list HTTP endpoint.
-  if (inspector.url() !== undefined) {
+  if (loadInspector().url() !== undefined) {
     return args
   }
 
