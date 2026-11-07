@@ -41,21 +41,19 @@ describe('node-environment-startup-modules', () => {
 // The edge runtime sandbox applies the error inspect patch to every context
 // that it creates. A server that has edge code must have loaded the patch
 // before its first edge request, so that this request doesn't pay for it.
-describe('node-environment-startup-modules with edge middleware', () => {
+describe('node-environment-startup-modules with an edge route', () => {
   const { next } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
       'next.config.ts': new FileRef(join(__dirname, 'next.config.ts')),
-      'middleware.ts': `
-        import { NextResponse } from 'next/server'
+      // The test does not request this route, so the server has not run any
+      // edge code when it reports its modules.
+      'pages/api/edge.ts': `
+        export const config = { runtime: 'edge' }
 
-        export function middleware() {
-          return NextResponse.next()
+        export default function handler() {
+          return new Response('edge')
         }
-
-        // Does not match the route handler that the test requests, so the
-        // server has not run any edge code when it reports its modules.
-        export const config = { matcher: '/behind-middleware' }
       `,
     },
   })
