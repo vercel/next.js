@@ -8,6 +8,7 @@ import {
   normalizeURL,
   execOnce,
   getUrlFromAppDirectory,
+  normalizePageExtensions,
 } from '../utils/url'
 
 const pagesDirWarning = execOnce((pagesDirs) => {
@@ -60,6 +61,32 @@ export default defineRule({
               type: 'string',
             },
           },
+          {
+            type: 'object',
+            properties: {
+              pagesDir: {
+                oneOf: [
+                  {
+                    type: 'string',
+                  },
+                  {
+                    type: 'array',
+                    uniqueItems: true,
+                    items: {
+                      type: 'string',
+                    },
+                  },
+                ],
+              },
+              pageExtensions: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                },
+              },
+            },
+            additionalProperties: false,
+          },
         ],
       },
     ],
@@ -69,8 +96,33 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    const ruleOptions: (string | string[] | Record<string, unknown>)[] =
+      context.options
+    const [firstOption] = ruleOptions
+
+    let customPagesDirectory: string | string[] | undefined
+    let pageExtensionsFromOptions: unknown
+    if (
+      typeof firstOption === 'string' ||
+      (Array.isArray(firstOption) &&
+        firstOption.every((item) => typeof item === 'string'))
+    ) {
+      customPagesDirectory = firstOption as string | string[]
+    } else if (firstOption != null && typeof firstOption === 'object') {
+      const { pagesDir, pageExtensions } = firstOption as {
+        pagesDir?: string | string[]
+        pageExtensions?: unknown
+      }
+      customPagesDirectory = pagesDir
+      pageExtensionsFromOptions = pageExtensions
+    }
+
+    const nextSettings = (context.settings?.next ?? {}) as {
+      pageExtensions?: unknown
+    }
+    const pageExtensions = normalizePageExtensions(
+      pageExtensionsFromOptions ?? nextSettings.pageExtensions
+    )
 
     const rootDirs = getRootDirs(context)
 
@@ -107,8 +159,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
