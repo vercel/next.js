@@ -2,6 +2,12 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const { pathToFileURL } = require('node:url')
+const traceChecks = [
+  require('./declaration-fn-records/assert-declarations.cjs'),
+  require('./declaration-fn-records/assert-owned-context.cjs'),
+  require('./declaration-fn-records/assert-chai-context.cjs'),
+  require('./declaration-fn-records/assert-retained-context.cjs'),
+]
 
 async function main() {
   const repo = path.resolve(__dirname, '../../..')
@@ -399,17 +405,11 @@ async function main() {
           assert.equal(report.success, true)
           assert.equal(rows.length, 1)
           assert.deepEqual(rows[0].value, directChecks[group])
-        } else {
-          assert.deepEqual(
-            comparable,
-            JSON.parse(
-              await fs.readFile(
-                path.join(inputs, `pristine-${group}.json`),
-                'utf8'
-              )
-            )
+        } else
+          assert.ok(
+            traceChecks.some((check) => check(group, comparable)),
+            `Missing declaration trace contract: ${group}`
           )
-        }
         modeResults.push({
           mode,
           group,

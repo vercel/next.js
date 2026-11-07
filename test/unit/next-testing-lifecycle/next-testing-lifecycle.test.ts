@@ -7395,6 +7395,14 @@ describe('raw test declaration fn', () => {
   })
 })
 
+function declarationProfiles(
+  groups: Array<[group: string, cases: number, rows?: number]>
+) {
+  return ['development', 'production'].flatMap((mode) =>
+    groups.map(([group, cases, rows = 1]) => ({ mode, group, cases, rows }))
+  )
+}
+
 it('matches complete compiled raw fn declaration rows in both Node modes', async () => {
   const { stdout } = await promisify(execFile)(
     process.execPath,
@@ -7402,149 +7410,32 @@ it('matches complete compiled raw fn declaration rows in both Node modes', async
     { encoding: 'utf8', timeout: 125000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual([
-    { mode: 'development', group: 'contract', cases: 14, rows: 2 },
-    { mode: 'development', group: 'focus', cases: 3, rows: 1 },
-    { mode: 'development', group: 'retention', cases: 9, rows: 2 },
-    { mode: 'development', group: 'suite-collector', cases: 3, rows: 2 },
-    { mode: 'development', group: 'suite-queue', cases: 10, rows: 1 },
-    { mode: 'development', group: 'task-scope', cases: 8, rows: 1 },
-    { mode: 'development', group: 'task-publish', cases: 3, rows: 1 },
-    { mode: 'development', group: 'task-context', cases: 2, rows: 1 },
-    { mode: 'development', group: 'task-context-positive', cases: 2, rows: 1 },
-    { mode: 'development', group: 'task-context-signals', cases: 4, rows: 1 },
-    { mode: 'development', group: 'task-context-handled', cases: 2, rows: 1 },
-    {
-      mode: 'development',
-      group: 'task-context-late-active',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-late-closed',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-late-foreign',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-late-hard-chain',
-      cases: 1,
-      rows: 1,
-    },
-    { mode: 'development', group: 'task-context-late', cases: 2, rows: 1 },
-    {
-      mode: 'development',
-      group: 'task-context-precreated-chain',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-precreated-receivers',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-precreated-foreign',
-      cases: 2,
-      rows: 1,
-    },
-    { mode: 'development', group: 'task-context-late-deep', cases: 1, rows: 1 },
-    {
-      mode: 'development',
-      group: 'task-context-late-equality-testers',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-deep-foreign-receivers',
-      cases: 2,
-      rows: 1,
-    },
-    { mode: 'production', group: 'contract', cases: 14, rows: 2 },
-    { mode: 'production', group: 'focus', cases: 3, rows: 1 },
-    { mode: 'production', group: 'retention', cases: 9, rows: 2 },
-    { mode: 'production', group: 'suite-collector', cases: 3, rows: 2 },
-    { mode: 'production', group: 'suite-queue', cases: 10, rows: 1 },
-    { mode: 'production', group: 'task-scope', cases: 8, rows: 1 },
-    { mode: 'production', group: 'task-publish', cases: 3, rows: 1 },
-    { mode: 'production', group: 'task-context', cases: 2, rows: 1 },
-    { mode: 'production', group: 'task-context-positive', cases: 2, rows: 1 },
-    { mode: 'production', group: 'task-context-signals', cases: 4, rows: 1 },
-    { mode: 'production', group: 'task-context-handled', cases: 2, rows: 1 },
-    {
-      mode: 'production',
-      group: 'task-context-late-active',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-late-closed',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-late-foreign',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-late-hard-chain',
-      cases: 1,
-      rows: 1,
-    },
-    { mode: 'production', group: 'task-context-late', cases: 2, rows: 1 },
-    {
-      mode: 'production',
-      group: 'task-context-precreated-chain',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-precreated-receivers',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-precreated-foreign',
-      cases: 2,
-      rows: 1,
-    },
-    { mode: 'production', group: 'task-context-late-deep', cases: 1, rows: 1 },
-    {
-      mode: 'production',
-      group: 'task-context-late-equality-testers',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-deep-foreign-receivers',
-      cases: 2,
-      rows: 1,
-    },
-  ])
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['contract', 14, 2],
+      ['focus', 3],
+      ['retention', 9, 2],
+      ['suite-collector', 3, 2],
+      ['suite-queue', 10],
+      ['task-scope', 8],
+      ['task-publish', 3],
+      ['task-context', 2],
+      ['task-context-positive', 2],
+      ['task-context-signals', 4],
+      ['task-context-handled', 2],
+      ['task-context-late-active', 1],
+      ['task-context-late-closed', 1],
+      ['task-context-late-foreign', 2],
+      ['task-context-late-hard-chain', 1],
+      ['task-context-late', 2],
+      ['task-context-precreated-chain', 1],
+      ['task-context-precreated-receivers', 1],
+      ['task-context-precreated-foreign', 2],
+      ['task-context-late-deep', 1],
+      ['task-context-late-equality-testers', 1],
+      ['task-context-deep-foreign-receivers', 2],
+    ])
+  )
 }, 130000)
 
 it('matches custom matcher Task ownership and native assertion identity in both Node modes', async () => {
@@ -7554,99 +7445,17 @@ it('matches custom matcher Task ownership and native assertion identity in both 
     { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual([
-    {
-      mode: 'development',
-      group: 'task-context-late-builtin-overrides',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-custom-task-state',
-      cases: 3,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-custom-unawaited',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-custom-prepared',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-readonly-own-native-get',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-readonly-own-method',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-custom-assertion-view',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-late-builtin-overrides',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-custom-task-state',
-      cases: 3,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-custom-unawaited',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-custom-prepared',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-readonly-own-native-get',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-readonly-own-method',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-custom-assertion-view',
-      cases: 2,
-      rows: 1,
-    },
-  ])
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-late-builtin-overrides', 1],
+      ['task-context-custom-task-state', 3],
+      ['task-context-custom-unawaited', 1],
+      ['task-context-custom-prepared', 1],
+      ['task-context-readonly-own-native-get', 1],
+      ['task-context-readonly-own-method', 1],
+      ['task-context-custom-assertion-view', 2],
+    ])
+  )
 }, 70000)
 it('matches native own assertion functions and getter alias ownership in both Node modes', async () => {
   const { stdout } = await promisify(execFile)(
@@ -7655,75 +7464,15 @@ it('matches native own assertion functions and getter alias ownership in both No
     { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual([
-    {
-      mode: 'development',
-      group: 'task-context-owned-properties',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-owned-getter-view',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-owned-function-receivers',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-owned-getter-capture',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-owned-getter-returned-chain',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-owned-properties',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-owned-getter-view',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-owned-function-receivers',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-owned-getter-capture',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-owned-getter-returned-chain',
-      cases: 1,
-      rows: 1,
-    },
-  ])
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-owned-properties', 1],
+      ['task-context-owned-getter-view', 1],
+      ['task-context-owned-function-receivers', 1],
+      ['task-context-owned-getter-capture', 1],
+      ['task-context-owned-getter-returned-chain', 1],
+    ])
+  )
 }, 70000)
 
 it('matches native returned assertions and receiver Task lineage in both Node modes', async () => {
@@ -7733,51 +7482,13 @@ it('matches native returned assertions and receiver Task lineage in both Node mo
     { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual([
-    {
-      mode: 'development',
-      group: 'task-context-owned-getter-builtin-chain',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-owned-getter-native-calls',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-owned-getter-native-properties',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-owned-getter-builtin-chain',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-owned-getter-native-calls',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-owned-getter-native-properties',
-      cases: 1,
-      rows: 1,
-    },
-  ])
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-owned-getter-builtin-chain', 1],
+      ['task-context-owned-getter-native-calls', 2],
+      ['task-context-owned-getter-native-properties', 1],
+    ])
+  )
 }, 70000)
 
 it('matches actual transferred Task flags, partial setters and matcher invocation reads in both Node modes', async () => {
@@ -7787,63 +7498,14 @@ it('matches actual transferred Task flags, partial setters and matcher invocatio
     { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual([
-    {
-      mode: 'development',
-      group: 'task-context-transfer-effects',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-transfer-plain',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-transfer-setters',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-transfer-invocations',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-transfer-effects',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-transfer-plain',
-      cases: 1,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-transfer-setters',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-transfer-invocations',
-      cases: 1,
-      rows: 1,
-    },
-  ])
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-transfer-effects', 2],
+      ['task-context-transfer-plain', 1],
+      ['task-context-transfer-setters', 2],
+      ['task-context-transfer-invocations', 1],
+    ])
+  )
 }, 70000)
 
 it('publishes child Task IDs on the same objects after collection and keeps cleared tasks unpublished in both Node modes', async () => {
@@ -7853,29 +7515,12 @@ it('publishes child Task IDs on the same objects after collection and keeps clea
     { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual([
-    {
-      mode: 'development',
-      group: 'task-context-id-publication',
-      cases: 2,
-      rows: 1,
-    },
-    { mode: 'development', group: 'task-context-id-suite', cases: 2, rows: 1 },
-    {
-      mode: 'production',
-      group: 'task-context-id-publication',
-      cases: 2,
-      rows: 1,
-    },
-    { mode: 'production', group: 'task-context-id-suite', cases: 2, rows: 1 },
-  ])
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-id-publication', 2],
+      ['task-context-id-suite', 2],
+    ])
+  )
 }, 70000)
 
 it('retains actual Task assertion flags through foreign and afterAll transfers and native async bookkeeping in both Node modes', async () => {
@@ -7885,39 +7530,12 @@ it('retains actual Task assertion flags through foreign and afterAll transfers a
     { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual([
-    {
-      mode: 'development',
-      group: 'task-context-late-source-flags',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-actual-task-async',
-      cases: 3,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-late-source-flags',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-actual-task-async',
-      cases: 3,
-      rows: 1,
-    },
-  ])
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-late-source-flags', 2],
+      ['task-context-actual-task-async', 3],
+    ])
+  )
 }, 70000)
 
 it('retains the pinned public fn receiver and fixture type contract', async () => {
@@ -8358,39 +7976,12 @@ it('retains genuine hard builtins through foreign, bound and borrowed Task recei
     { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual([
-    {
-      mode: 'development',
-      group: 'task-context-late-hard-builtins',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-hard-builtin-receivers',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-late-hard-builtins',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-hard-builtin-receivers',
-      cases: 2,
-      rows: 1,
-    },
-  ])
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-late-hard-builtins', 2],
+      ['task-context-hard-builtin-receivers', 2],
+    ])
+  )
 }, 70000)
 
 it('retains genuine synchronous throw matcher callbacks, counters and borrowed receivers in both Node modes', async () => {
@@ -8400,51 +7991,13 @@ it('retains genuine synchronous throw matcher callbacks, counters and borrowed r
     { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual([
-    {
-      mode: 'development',
-      group: 'task-context-late-throw-builtins',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-throw-builtin-receivers',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-throw-callbacks',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-late-throw-builtins',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-throw-builtin-receivers',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-throw-callbacks',
-      cases: 2,
-      rows: 1,
-    },
-  ])
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-late-throw-builtins', 2],
+      ['task-context-throw-builtin-receivers', 2],
+      ['task-context-throw-callbacks', 2],
+    ])
+  )
 }, 70000)
 
 it('preserves fluent Chai hard callbacks, counters and borrowed receivers in both Node modes', async () => {
@@ -8454,51 +8007,13 @@ it('preserves fluent Chai hard callbacks, counters and borrowed receivers in bot
     { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual([
-    {
-      mode: 'development',
-      group: 'task-context-chai-hard-fluent',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-chai-fluent-receivers',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-chai-fluent-callbacks',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-chai-hard-fluent',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-chai-fluent-receivers',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-chai-fluent-callbacks',
-      cases: 2,
-      rows: 1,
-    },
-  ])
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-chai-hard-fluent', 2],
+      ['task-context-chai-fluent-receivers', 2],
+      ['task-context-chai-fluent-callbacks', 2],
+    ])
+  )
 }, 70000)
 
 it('retains genuine native Chai chainable functions, raw aliases and Task receivers in both Node modes', async () => {
@@ -8511,51 +8026,13 @@ it('retains genuine native Chai chainable functions, raw aliases and Task receiv
     { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual([
-    {
-      mode: 'development',
-      group: 'task-context-chai-chainable-functions',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-chai-chainable-function-receivers',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'development',
-      group: 'task-context-chai-chainable-raw-alias',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-chai-chainable-functions',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-chai-chainable-function-receivers',
-      cases: 2,
-      rows: 1,
-    },
-    {
-      mode: 'production',
-      group: 'task-context-chai-chainable-raw-alias',
-      cases: 2,
-      rows: 1,
-    },
-  ])
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-chai-chainable-functions', 2],
+      ['task-context-chai-chainable-function-receivers', 2],
+      ['task-context-chai-chainable-raw-alias', 2],
+    ])
+  )
 }, 70000)
 
 it('retains genuine nested native Chai callable receivers and raw aliases in both Node modes', async () => {
@@ -8568,23 +8045,11 @@ it('retains genuine nested native Chai callable receivers and raw aliases in bot
     { encoding: 'utf8', timeout: 65000, maxBuffer: 4 * 1024 * 1024 }
   )
   const actual = JSON.parse(stdout)
-  expect(
-    actual.profiles.map(({ mode, group, cases, rows }) => ({
-      mode,
-      group,
-      cases,
-      rows,
-    }))
-  ).toEqual(
-    ['development', 'production'].flatMap((mode) => [
-      { mode, group: 'task-context-chai-nested-chainables', cases: 2, rows: 1 },
-      {
-        mode,
-        group: 'task-context-chai-nested-function-receivers',
-        cases: 2,
-        rows: 1,
-      },
-      { mode, group: 'task-context-chai-nested-raw-alias', cases: 2, rows: 1 },
+  expect(actual.profiles).toEqual(
+    declarationProfiles([
+      ['task-context-chai-nested-chainables', 2],
+      ['task-context-chai-nested-function-receivers', 2],
+      ['task-context-chai-nested-raw-alias', 2],
     ])
   )
 }, 70000)
