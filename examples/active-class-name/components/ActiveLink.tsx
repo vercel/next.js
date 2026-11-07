@@ -1,60 +1,33 @@
 "use client";
 
 import Link, { LinkProps } from "next/link";
-import React, { PropsWithChildren, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-
-const getLinkUrl = (href: LinkProps["href"], as?: LinkProps["as"]): string => {
-  // Dynamic route will be matched via props.as
-  // Static route will be matched via props.href
-  if (as) return as.toString();
-  return href.toString();
-};
+import { PropsWithChildren } from "react";
 
 type ActiveLinkProps = LinkProps & {
   className?: string;
   activeClassName: string;
 };
 
-const ActiveLink = ({
-  children,
+export default function ActiveLink({
+  href,
+  className = "",
   activeClassName,
-  className,
+  children,
   ...props
-}: PropsWithChildren<ActiveLinkProps>) => {
-  const pathname = usePathname();
-  const [computedClassName, setComputedClassName] = useState(className);
-
-  useEffect(() => {
-    if (pathname) {
-      const linkUrl = getLinkUrl(props.href, props.as);
-
-      const linkPathname = new URL(linkUrl, location.href).pathname;
-      const activePathname = new URL(pathname, location.href).pathname;
-
-      const newClassName =
-        linkPathname === activePathname
-          ? `${className} ${activeClassName}`.trim()
-          : className;
-
-      if (newClassName !== computedClassName) {
-        setComputedClassName(newClassName);
-      }
-    }
-  }, [
-    pathname,
-    props.as,
-    props.href,
-    activeClassName,
-    className,
-    computedClassName,
-  ]);
-
+}: PropsWithChildren<ActiveLinkProps>) {
+  const currentPathname = usePathname();
+  const linkPathname = typeof href === "string" ? href : href.pathname;
   return (
-    <Link className={computedClassName} {...props}>
+    <Link
+      href={href}
+      className={
+        className +
+        (currentPathname === linkPathname ? " " + activeClassName : "")
+      }
+      {...props}
+    >
       {children}
     </Link>
   );
-};
-
-export default ActiveLink;
+}
