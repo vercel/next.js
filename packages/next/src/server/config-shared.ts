@@ -1157,6 +1157,17 @@ export interface ExperimentalConfig {
   turbopackCjsScopeHoisting?: boolean
 
   /**
+   * Evaluate a server module when one of its exports is first used, instead of when the
+   * module that imports it is evaluated. This only applies to imports for which the
+   * difference can't be observed: the imported module and everything it imports are free
+   * of side effects, and the importing module only reads the import inside functions.
+   * Applies to production builds of code that runs in the Node.js runtime.
+   *
+   * Defaults to `false`
+   */
+  turbopackDeferModuleEvaluation?: boolean
+
+  /**
    * Enable cross-module constant inlining in Turbopack. Constants exported from other
    * modules are inlined at their use sites, which enables dead code elimination.
    *

@@ -554,6 +554,10 @@ pub async fn get_server_module_options_context(
                 .await?,
             cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
             cross_module_constants: *next_config.turbopack_cross_module_constants().await?,
+            // Only code for the Node.js runtime: the chunking context of the edge runtime doesn't
+            // generate deferred imports.
+            defer_module_evaluation: matches!(next_runtime, NextRuntime::NodeJs)
+                && *next_config.turbopack_defer_module_evaluation().await?,
             ..Default::default()
         },
         execution_context: Some(execution_context),
