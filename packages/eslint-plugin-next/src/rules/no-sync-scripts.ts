@@ -21,9 +21,27 @@ export default defineRule({
         if (node.attributes.length === 0) {
           return
         }
-        const attributeNames = node.attributes
-          .filter((attr) => attr.type === 'JSXAttribute')
-          .map((attr) => attr.name.name)
+        const attributes = node.attributes.filter(
+          (attr) => attr.type === 'JSXAttribute'
+        )
+        const typeAttribute = attributes.find(
+          (attr) => attr.name.name === 'type'
+        )
+        const typeValue =
+          typeAttribute?.value?.type === 'JSXExpressionContainer'
+            ? typeAttribute.value.expression
+            : typeAttribute?.value
+
+        // Module scripts are deferred by default.
+        if (
+          typeValue?.type === 'Literal' &&
+          typeof typeValue.value === 'string' &&
+          typeValue.value.toLowerCase() === 'module'
+        ) {
+          return
+        }
+
+        const attributeNames = attributes.map((attr) => attr.name.name)
         if (
           attributeNames.includes('src') &&
           !attributeNames.includes('async') &&
