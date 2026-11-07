@@ -1,4 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
+import { join } from 'path'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 
 // The Node.js environment setup runs before anything else in every server
 // process, so everything it loads is paid for on every start. These modules
@@ -34,5 +35,41 @@ describe('node-environment-startup-modules', () => {
         MODULES_NOT_NEEDED_AT_STARTUP.some((unused) => id.startsWith(unused))
       )
     ).toEqual([])
+  })
+})
+
+// The edge runtime sandbox applies the error inspect patch to every context
+// that it creates. A server that has edge code must have loaded the patch
+// before its first edge request, so that this request doesn't pay for it.
+describe('node-environment-startup-modules with edge middleware', () => {
+  const { next } = nextTestSetup({
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+      'next.config.ts': new FileRef(join(__dirname, 'next.config.ts')),
+      'middleware.ts': `
+        import { NextResponse } from 'next/server'
+
+        export function middleware() {
+          return NextResponse.next()
+        }
+
+        // Does not match the route handler that the test requests, so the
+        // server has not run any edge code when it reports its modules.
+        export const config = { matcher: '/behind-middleware' }
+      `,
+    },
+  })
+
+  it('should load the error inspect patch at startup', async () => {
+    const res = await next.fetch('/api/loaded-modules')
+    expect(res.status).toBe(200)
+    const loaded: string[] = await res.json()
+
+    // The sandbox imports the patch as well. It must not be what loaded it.
+    expect(
+      loaded.filter((id) => id.startsWith('next/dist/server/web/sandbox/'))
+    ).toEqual([])
+
+    expect(loaded).toContain('next/dist/server/patch-error-inspect.js')
   })
 })

@@ -12,7 +12,8 @@ const sourceMappingEnabled =
 if (sourceMappingEnabled) {
   // Loaded on demand: the patch pulls in the source map consumer and the stack
   // parser. Without source maps only the edge runtime sandbox applies the
-  // patch, and it imports it itself.
+  // patch. It imports it itself, and a server that has edge code loads it at
+  // startup (see `next-server`).
   const patchErrorInspectNodeJS = (
     require('../patch-error-inspect') as typeof import('../patch-error-inspect')
   ).patchErrorInspectNodeJS
