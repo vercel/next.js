@@ -3,7 +3,7 @@ import {
   runNodeHelper,
   runNodeHelperSync,
   withOutputDirectory,
-} from 'next-testing-node-helpers'
+} from '../../lib/next-testing-node-helpers'
 import { EventEmitter } from 'node:events'
 import { promises as customFileSystem } from 'fs'
 import { mkdtemp, writeFile, rm, readFile, realpath } from 'fs/promises'
