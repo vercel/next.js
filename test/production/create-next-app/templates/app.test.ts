@@ -145,6 +145,7 @@ describe('create-next-app --app (App Router)', () => {
       await tryNextDev({
         cwd,
         projectName,
+        tailwind: true,
       })
     })
   })

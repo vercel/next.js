@@ -1,5 +1,8 @@
 export default function handler() {
-  return new Response('Hello from the edge!')
+  return new Response(
+    'API Edge instrumentationFinished=' +
+      (globalThis as any).instrumentationFinished
+  )
 }
 
 export const config = {

@@ -38,7 +38,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    environment: npm
+    environment: npm-release-next-rspack
     name: Release
     permissions:
       contents: write
@@ -48,6 +48,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Display release mode
         run: |
@@ -68,7 +70,9 @@ jobs:
           package-manager-cache: false
 
       - name: Enable corepack
-        run: corepack enable
+        run: |
+          npm i -g corepack@0.34.7
+          corepack enable
 
       - name: Setup pnpm
         run: corepack prepare

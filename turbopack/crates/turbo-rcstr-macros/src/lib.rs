@@ -15,7 +15,7 @@ use std::str::FromStr;
 use proc_macro::{Literal, TokenStream, TokenTree};
 
 /// `MAX_INLINE_LEN` for the active `turbo-rcstr` configuration. Mirrors
-/// [`turbo_rcstr::tagged_value::MAX_INLINE_LEN`]
+/// `turbo_rcstr::tagged_value::MAX_INLINE_LEN`.
 const MAX_INLINE_LEN: usize = if cfg!(feature = "atom_size_128") {
     15
 } else {
@@ -43,7 +43,7 @@ pub fn rcstr(input: TokenStream) -> TokenStream {
                     "{{ static RCSTR_STORAGE: ::turbo_rcstr::StaticPrehashedString = \
                      ::turbo_rcstr::make_const_prehashed_string({lit}); const RCSTR: \
                      ::turbo_rcstr::RcStr = ::turbo_rcstr::from_static(&RCSTR_STORAGE); \
-                     ::turbo_rcstr::__rcstr_inventory_submit!( \
+                     ::turbo_rcstr::__rcstr_static_submit!(
                      ::turbo_rcstr::StaticRcStr(&RCSTR_STORAGE) ); RCSTR }}",
                 )
             }
@@ -54,7 +54,7 @@ pub fn rcstr(input: TokenStream) -> TokenStream {
                  ::turbo_rcstr::StaticPrehashedString = \
                  ::turbo_rcstr::make_const_prehashed_string(TEXT); const RCSTR: \
                  ::turbo_rcstr::RcStr = ::turbo_rcstr::from_static(&RCSTR_STORAGE); \
-                 ::turbo_rcstr::__rcstr_inventory_submit!( \
+                 ::turbo_rcstr::__rcstr_static_submit!(
                  ::turbo_rcstr::StaticRcStr(&RCSTR_STORAGE) ); RCSTR }} }}",
             )
         };

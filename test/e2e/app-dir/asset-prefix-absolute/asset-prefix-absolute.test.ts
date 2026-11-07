@@ -17,9 +17,6 @@ describe('app-dir absolute assetPrefix', () => {
       if (
         src?.startsWith(
           'https://example.vercel.sh/custom-asset-prefix/_next/static'
-        ) ||
-        src?.startsWith(
-          'https://example.vercel.sh/custom-asset-prefix/_next/static/immutable'
         )
       ) {
         bundles.push(src)

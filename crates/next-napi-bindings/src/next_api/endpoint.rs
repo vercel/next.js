@@ -2,7 +2,10 @@ use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
 use futures_util::TryFutureExt;
-use napi::{JsFunction, bindgen_prelude::External};
+use napi::{
+    Env,
+    bindgen_prelude::{External, FunctionRef},
+};
 use napi_derive::napi;
 use next_api::{
     operation::OptionEndpoint,
@@ -10,16 +13,19 @@ use next_api::{
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
         endpoint_server_changed_operation, endpoint_write_to_disk_operation,
+        read_with_validated_endpoint,
     },
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
-use turbopack_core::issue::{IssueFilter, PlainIssue};
+use turbo_tasks::{
+    Completion, Effects, OperationVc, ReadRef, Vc, read_strongly_consistent_and_apply_effects,
+};
+use turbopack_core::issue::{IssueFilter, IssueSeverity, PlainIssue};
 
 use crate::next_api::utils::{
-    DetachedVc, NapiIssue, RootTask, TurbopackResult, strongly_consistent_catch_collectables,
-    subscribe,
+    DetachedVc, NapiIssue, SubscriptionTask, TurbopackResult, get_issues,
+    strongly_consistent_catch_collectables, subscribe,
 };
 
 #[napi(object)]
@@ -47,6 +53,7 @@ impl From<AssetPath> for NapiAssetPath {
 pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
+    pub server_hmr_entry_paths: Vec<String>,
     pub client_paths: Vec<String>,
     pub server_paths: Vec<NapiAssetPath>,
     pub config: NapiEndpointConfig,
@@ -55,13 +62,25 @@ pub struct NapiWrittenEndpoint {
 impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
     fn from(written_endpoint: Option<EndpointOutputPaths>) -> Self {
         match written_endpoint {
+            Some(EndpointOutputPaths::Native {
+                executable_path, ..
+            }) => Self {
+                r#type: "native".to_string(),
+                entry_path: Some(executable_path.into_owned()),
+                ..Default::default()
+            },
             Some(EndpointOutputPaths::NodeJs {
                 server_entry_path,
+                server_hmr_entry_paths,
                 server_paths,
                 client_paths,
             }) => Self {
                 r#type: "nodejs".to_string(),
                 entry_path: Some(server_entry_path.into_owned()),
+                server_hmr_entry_paths: server_hmr_entry_paths
+                    .into_iter()
+                    .map(String::from)
+                    .collect(),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
@@ -73,6 +92,10 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
                 r#type: "edge".to_string(),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
+                ..Default::default()
+            },
+            Some(EndpointOutputPaths::NativeFailed { .. }) => Self {
+                r#type: "native".to_string(),
                 ..Default::default()
             },
             Some(EndpointOutputPaths::NotFound) | None => Self {
@@ -107,16 +130,16 @@ impl Deref for ExternalEndpoint {
 /// `node_modules` reshuffle), this falls back to a default filter rather than
 /// propagating the error.  In this scenario we believe the caller will already be observing the
 /// same error
-async fn issue_filter_from_endpoint(endpoint_op: OperationVc<OptionEndpoint>) -> Vc<IssueFilter> {
-    match endpoint_op.connect().await {
-        Ok(endpoint_option) => {
-            if let Some(ep) = &*endpoint_option {
-                ep.project().issue_filter()
-            } else {
-                IssueFilter::warnings_and_foreign_errors().cell()
-            }
-        }
-        Err(_) => IssueFilter::warnings_and_foreign_errors().cell(),
+async fn issue_filter_from_endpoint(
+    endpoint_op: OperationVc<OptionEndpoint>,
+) -> ReadRef<IssueFilter> {
+    if let Ok(ep_option) = endpoint_op.connect().await
+        && let Some(ep) = &*ep_option
+        && let Ok(filter) = ep.project().issue_filter().await
+    {
+        filter
+    } else {
+        ReadRef::new_owned(IssueFilter::warnings_and_foreign_errors())
     }
 }
 
@@ -134,7 +157,7 @@ async fn get_written_endpoint_with_issues_operation(
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (written, issues, effects) =
-        strongly_consistent_catch_collectables(write_to_disk_op, filter).await?;
+        strongly_consistent_catch_collectables(write_to_disk_op, &filter).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -146,25 +169,28 @@ async fn get_written_endpoint_with_issues_operation(
 #[tracing::instrument(level = "info", name = "write endpoint to disk", skip_all)]
 #[napi]
 pub async fn endpoint_write_to_disk(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx();
-    let endpoint_op = ***endpoint;
-    let (written, issues) = endpoint
-        .turbopack_ctx()
+    let endpoint_op = ****endpoint;
+    let (written, issues) = ctx
         .turbo_tasks()
         .run(async move {
             let written_entrypoint_with_issues_op =
                 get_written_endpoint_with_issues_operation(endpoint_op);
+            let read = read_with_validated_endpoint(
+                || {
+                    read_strongly_consistent_and_apply_effects(
+                        written_entrypoint_with_issues_op,
+                        |v| &v.effects,
+                    )
+                },
+                |value| value.written.as_deref(),
+            )
+            .await?;
             let WrittenEndpointWithIssues {
-                written,
-                issues,
-                effects,
-            } = &*written_entrypoint_with_issues_op
-                .read_strongly_consistent()
-                .await?;
-            effects.apply().await?;
-
+                written, issues, ..
+            } = &*read;
             Ok((written.clone(), issues.clone()))
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
@@ -178,20 +204,24 @@ pub async fn endpoint_write_to_disk(
 #[tracing::instrument(level = "info", name = "get server-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_server_changed_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+    env: Env,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
     issues: bool,
-    func: JsFunction,
-) -> napi::Result<External<RootTask>> {
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<undefined>) => void")]
+    func: FunctionRef<TurbopackResult<()>, ()>,
+) -> napi::Result<External<SubscriptionTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
-    let endpoint = ***endpoint;
+    let endpoint = ****endpoint;
     subscribe(
         turbopack_ctx,
-        func,
+        &env,
+        &func,
         move || {
             async move {
                 let issues_and_diags_op = subscribe_issues_and_diags_operation(endpoint, issues);
-                let result = issues_and_diags_op.read_strongly_consistent().await?;
-                result.effects.apply().await?;
+                let result =
+                    read_strongly_consistent_and_apply_effects(issues_and_diags_op, |v| &v.effects)
+                        .await?;
                 Ok(result)
             }
             .instrument(tracing::info_span!("server changes subscription"))
@@ -203,10 +233,10 @@ pub fn endpoint_server_changed_subscribe(
                 effects: _,
             } = &*ctx.value;
 
-            Ok(vec![TurbopackResult {
+            Ok(TurbopackResult {
                 result: (),
                 issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-            }])
+            })
         },
     )
 }
@@ -244,7 +274,7 @@ async fn subscribe_issues_and_diags_operation(
     // payload, but we still need the catch path to avoid the FATAL.
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (changed_value, issues, effects) =
-        strongly_consistent_catch_collectables(changed_op, filter).await?;
+        strongly_consistent_catch_collectables(changed_op, &filter).await?;
     Ok(EndpointIssuesAndDiags {
         changed: changed_value,
         issues: if should_include_issues {
@@ -257,38 +287,61 @@ async fn subscribe_issues_and_diags_operation(
     .cell())
 }
 
+/// [`endpoint_client_changed_operation`] with the error handling of the client-changed
+/// subscription.
+///
+/// Transient build-graph errors (e.g. missing `node_modules/next` during a concurrent install) come
+/// with an Issue. The server subscription (`subscribe_issues_and_diags_operation`) already reports
+/// that Issue, so such an error is turned into a completion here instead of a
+/// `TurbopackInternalError`. Issues are only read on this failure path, so the success path keeps
+/// not depending on them: we don't want to be notified when they change.
+#[turbo_tasks::function(operation, root)]
+async fn endpoint_client_changed_with_issues_operation(
+    endpoint_op: OperationVc<OptionEndpoint>,
+) -> Result<Vc<Completion>> {
+    let changed_op = endpoint_client_changed_operation(endpoint_op);
+    let Err(err) = changed_op.connect().await else {
+        return Ok(changed_op.connect());
+    };
+    let filter = issue_filter_from_endpoint(endpoint_op).await;
+    let issues = get_issues(changed_op, &filter).await?;
+    if issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
+        Ok(Completion::new())
+    } else {
+        Err(err)
+    }
+}
+
 #[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_client_changed_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
-    func: JsFunction,
-) -> napi::Result<External<RootTask>> {
+    env: Env,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<undefined>) => void")]
+    func: FunctionRef<TurbopackResult<()>, ()>,
+) -> napi::Result<External<SubscriptionTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
-    let endpoint_op = ***endpoint;
+    let endpoint_op = ****endpoint;
     subscribe(
         turbopack_ctx,
-        func,
+        &env,
+        &func,
         move || {
             async move {
-                let changed_op = endpoint_client_changed_operation(endpoint_op);
-                // We don't capture issues and diagnostics here since we don't want to be
-                // notified when they change.  We also want errors to propagate so we don't use
-                // strongly_consistent_catch_collectibles either.
-                //
+                let changed_op = endpoint_client_changed_with_issues_operation(endpoint_op);
                 // This must be a *read*, not just a resolve, because we need the root task created
                 // by `subscribe` to re-run when the `Completion`'s value changes (via equality),
                 // even if the cell id doesn't change.
-                //
-                let _ = changed_op.read_strongly_consistent().await?;
+                changed_op.read_strongly_consistent().await?;
                 Ok(())
             }
             .instrument(tracing::info_span!("client changes subscription"))
         },
         |_| {
-            Ok(vec![TurbopackResult {
+            Ok(TurbopackResult {
                 result: (),
                 issues: vec![],
-            }])
+            })
         },
     )
 }

@@ -31,24 +31,40 @@ export const enum PrefetchPriority {
   Background = 0,
 }
 
-export const enum FetchStrategy {
-  // Deliberately ordered so we can easily compare two segments
-  // and determine if one segment is "more specific" than another
-  // (i.e. if it's likely that it contains more data)
-  LoadingBoundary = 0,
-  RuntimeShell = 1,
-  PPR = 2,
-  PPRRuntime = 3,
-  Full = 4,
+/**
+ * How far a render went, in the app's public stages (not the server's
+ * render stages). Each stage includes everything before it. A link asks for a
+ * stage; a cache entry records the stage its payload reached.
+ *
+ * Ordered, so two stages can be compared. Never compare a stage with a
+ * `Completeness`.
+ */
+export const enum AppStage {
+  // The app shell: shared by every link to the route, so param-dependent
+  // content is reduced to fallbacks.
+  Shell = 0,
+  // Up to where `prefetch()` resolves.
+  Prefetch = 1,
+  // Up to where `navigation()` resolves: what a navigation renders,
+  // minus dynamic holes.
+  Navigation = 2,
 }
 
 /**
- * A subset of fetch strategies used for prefetch tasks.
- * A prefetch task can't know if it should use `PPR` or `LoadingBoundary`
- * until we complete the initial tree prefetch request, so we use `PPR` to signal both cases
- * and adjust it based on the route when actually fetching.
- * */
-export type PrefetchTaskFetchStrategy =
-  | FetchStrategy.PPR
-  | FetchStrategy.PPRRuntime
-  | FetchStrategy.Full
+ * What's still missing at an entry's stage. Each level promises everything
+ * the previous one does.
+ *
+ * Ordered, so two values can be compared. Never compare it with an
+ * `AppStage`.
+ */
+export const enum Completeness {
+  // Static content only. A runtime prefetch at this stage could add content.
+  NeedsRuntime = 0,
+  // Everything cacheable up to this stage is present. Only dynamic holes are
+  // left, which prefetches never fill.
+  CacheComplete = 1,
+  // Nothing extra to request during a navigation: a segment with no holes, a
+  // legacy full or loading-boundary prefetch, or a back/forward cache entry.
+  // Implies the navigation stage.
+  FullyComplete = 2,
+}

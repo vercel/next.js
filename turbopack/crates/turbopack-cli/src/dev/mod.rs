@@ -1,6 +1,6 @@
 use std::{
     env::current_dir,
-    future::{Future, join},
+    future::Future,
     io::{Write, stdout},
     net::{IpAddr, SocketAddr},
     path::{MAIN_SEPARATOR, PathBuf},
@@ -9,18 +9,17 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use either::Either;
+use futures::FutureExt;
 use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Vc,
-    trace::TraceRawVcs,
     util::{FormatBytes, FormatDuration},
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, StorageMode,
-    TurboBackingStorage, TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
+    BackendOptions, BackingStorageOptions, GitVersionInfo, StartupCacheState, StorageMode,
+    TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -44,22 +43,24 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
 use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
+use turbopack_trace_utils::exit::ExitHandler;
 
 use self::web_entry_source::create_web_entry_source;
 use crate::{
     arguments::DevArguments,
+    build::TurbopackBuildBuilder,
     contexts::NodeEnv,
+    go::is_go_entry,
     util::{
         EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
+        register_shutdown,
     },
 };
 
 pub(crate) mod web_entry_source;
 
-type Backend = TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>;
-
 pub struct TurbopackDevServerBuilder {
-    turbo_tasks: Arc<TurboTasks<Backend>>,
+    turbo_tasks: Arc<TurboTasks<TurboTasksBackend>>,
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
@@ -76,7 +77,7 @@ pub struct TurbopackDevServerBuilder {
 
 impl TurbopackDevServerBuilder {
     pub fn new(
-        turbo_tasks: Arc<TurboTasks<Backend>>,
+        turbo_tasks: Arc<TurboTasks<TurboTasksBackend>>,
         project_dir: RcStr,
         root_dir: RcStr,
     ) -> TurbopackDevServerBuilder {
@@ -220,7 +221,7 @@ impl TurbopackDevServerBuilder {
             Box::new(move || Vc::upcast(ConsoleUi::new(log_args.clone())))
         });
 
-        #[derive(Clone, TraceRawVcs, NonLocalValue)]
+        #[derive(Clone, NonLocalValue)]
         struct ServerSourceProvider {
             root_dir: RcStr,
             project_dir: RcStr,
@@ -298,6 +299,9 @@ async fn source(
         node_build_environment().to_resolved().await?,
         RuntimeType::Development,
     )
+    // Shared by every build-time JS evaluation, each with its own module graph but all emitting
+    // the same runtime chunk.
+    .shared_runtime_chunk(true)
     .build();
 
     let node_backend = child_process_backend();
@@ -365,7 +369,8 @@ async fn source(
 }
 
 /// Start a devserver with the given args.
-pub async fn start_server(args: &DevArguments) -> Result<()> {
+pub async fn start_server(args: &DevArguments, exit: &ExitHandler) -> Result<()> {
+    let go_entries = crate::go::prepare(&args.common).await?;
     let start = Instant::now();
 
     #[cfg(feature = "tokio_console")]
@@ -390,8 +395,15 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
             .cache_dir
             .clone()
             .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
-        let (backing_storage, cache_state) =
-            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session, false)?;
+        let (backing_storage, cache_state) = turbo_backing_storage(
+            &cache_dir,
+            &version_info,
+            BackingStorageOptions {
+                is_ci,
+                is_short_session,
+                skip_compaction: false,
+            },
+        )?;
         let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
             StorageMode::ReadOnly
         } else if is_ci || is_short_session {
@@ -404,7 +416,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                 storage_mode: Some(storage_mode),
                 ..Default::default()
             },
-            Either::Left(backing_storage),
+            backing_storage,
         ));
         if let StartupCacheState::Invalidated { reason_code } = cache_state {
             eprintln!(
@@ -423,10 +435,60 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                 storage_mode: None,
                 ..Default::default()
             },
-            Either::Right(noop_backing_storage()),
+            noop_backing_storage(),
         ))
     };
 
+    let go_entries = match go_entries {
+        Some(entries) => Some(tt.run_once(async move { entries.connect().await }).await?),
+        None => None,
+    };
+
+    let entries = normalize_entries(&args.common.entries);
+    let build_task = if go_entries.is_some() {
+        let mut builder = TurbopackBuildBuilder::new(project_dir.clone(), root_dir.clone())
+            .go_entries(go_entries.clone())
+            .log_detail(args.common.log_detail)
+            .log_level(
+                args.common
+                    .log_level
+                    .map_or(IssueSeverity::Warning, |level| level.0),
+            )
+            .show_all(args.common.show_all);
+        if let Some(target) = args.common.target {
+            builder = builder.target(target);
+        }
+        for entry in &entries {
+            builder = builder.entry_request(EntryRequest::Relative(entry.clone()));
+        }
+        Some(builder.start(&tt, true))
+    } else {
+        None
+    };
+
+    let shutdown = register_shutdown(exit, tt.clone(), go_entries, build_task);
+
+    let result = if entries.iter().all(|entry| is_go_entry(entry)) {
+        // The shared build task owns Go watching. Keep it alive until the exit handler runs;
+        // there is no JavaScript application to serve over HTTP in this mode.
+        std::future::pending().await
+    } else {
+        serve(args, tt, project_dir, root_dir, entries, start).await
+    };
+    if result.is_err() {
+        shutdown.skip_persistence();
+    }
+    result
+}
+
+async fn serve(
+    args: &DevArguments,
+    tt: Arc<TurboTasks<TurboTasksBackend>>,
+    project_dir: RcStr,
+    root_dir: RcStr,
+    entries: Vec<RcStr>,
+    start: Instant,
+) -> Result<()> {
     let tt_clone = tt.clone();
 
     let mut server = TurbopackDevServerBuilder::new(tt, project_dir, root_dir)
@@ -438,10 +500,10 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         .log_level(
             args.common
                 .log_level
-                .map_or_else(|| IssueSeverity::Warning, |l| l.0),
+                .map_or(IssueSeverity::Warning, |l| l.0),
         );
 
-    for entry in normalize_entries(&args.common.entries) {
+    for entry in entries.into_iter().filter(|entry| !is_go_entry(entry)) {
         server = server.entry_request(EntryRequest::Relative(entry))
     }
 
@@ -560,15 +622,17 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         }
     };
 
-    join!(stats_future, async { server.future.await.unwrap() }).await;
-
+    futures::future::try_join(server.future, stats_future.map(Ok::<(), anyhow::Error>)).await?;
     Ok(())
 }
 
 #[cfg(feature = "profile")]
 // When profiling, exits the process when no new updates have been received for
 // a given timeout and there are no more tasks in progress.
-async fn profile_timeout<T>(tt: &TurboTasks<Backend>, future: impl Future<Output = T>) -> T {
+async fn profile_timeout<T>(
+    tt: &TurboTasks<TurboTasksBackend>,
+    future: impl Future<Output = T>,
+) -> T {
     /// How long to wait in between updates before force-exiting the process
     /// during profiling.
     const PROFILE_EXIT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -588,7 +652,7 @@ async fn profile_timeout<T>(tt: &TurboTasks<Backend>, future: impl Future<Output
 
 #[cfg(not(feature = "profile"))]
 fn profile_timeout<T>(
-    _tt: &TurboTasks<Backend>,
+    _tt: &TurboTasks<TurboTasksBackend>,
     future: impl Future<Output = T>,
 ) -> impl Future<Output = T> {
     future

@@ -14,7 +14,7 @@ function uniqueDir(tag: string) {
 // `experimental.instantInsights.validationLevel` to a concrete value in
 // one place so consumers don't each need to know the current framework default.
 describe('experimental.instantInsights validationLevel normalization', () => {
-  it('defaults to manual-warning when the instantInsights config is absent', async () => {
+  it('defaults to warning when the instantInsights config is absent', async () => {
     const config = await loadConfig(
       PHASE_PRODUCTION_SERVER,
       uniqueDir('absent'),
@@ -23,11 +23,11 @@ describe('experimental.instantInsights validationLevel normalization', () => {
       }
     )
     expect(config.experimental.instantInsights).toEqual({
-      validationLevel: 'manual-warning',
+      validationLevel: 'warning',
     })
   })
 
-  it('defaults to manual-warning when experimental.instantInsights is an empty object', async () => {
+  it('defaults to warning when experimental.instantInsights is an empty object', async () => {
     const config = await loadConfig(
       PHASE_PRODUCTION_SERVER,
       uniqueDir('empty'),
@@ -36,7 +36,7 @@ describe('experimental.instantInsights validationLevel normalization', () => {
       }
     )
     expect(config.experimental.instantInsights).toEqual({
-      validationLevel: 'manual-warning',
+      validationLevel: 'warning',
     })
   })
 

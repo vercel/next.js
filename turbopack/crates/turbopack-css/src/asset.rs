@@ -14,7 +14,7 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::{OptionSource, Source},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapGenerationOptions, SourceMapType},
 };
 
 use crate::{
@@ -43,28 +43,37 @@ pub struct CssModule {
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     lightningcss_features: LightningCssFeatureFlags,
+    module_css_debuggable_idents: bool,
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
+    source_map_generation_options: SourceMapGenerationOptions,
 }
 
 #[turbo_tasks::value_impl]
 impl CssModule {
     /// Creates a new CSS asset.
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        source_map_generation_options: SourceMapGenerationOptions,
         ty: CssModuleType,
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: LightningCssFeatureFlags,
-    ) -> Vc<Self> {
-        Self::cell(CssModule {
+        module_css_debuggable_idents: bool,
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(CssModule {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
+            source_map_generation_options,
             import_context,
             ty,
             environment,
             lightningcss_features,
-        })
+            module_css_debuggable_idents,
+        }))
     }
 
     /// Returns the asset ident of the source without the "css" modifier
@@ -87,6 +96,7 @@ impl ParseCss for CssModule {
             this.ty,
             this.environment.as_deref().copied(),
             this.lightningcss_features,
+            this.module_css_debuggable_idents,
         ))
     }
 }
@@ -116,7 +126,10 @@ impl ProcessCss for CssModule {
         let this = self.await?;
         let origin_source_map =
             match ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(this.source) {
-                Some(gsm) => gsm.generate_source_map(),
+                Some(gsm) if this.source_map_generation_options.full => {
+                    gsm.generate_source_map(SourceMapType::Full)
+                }
+                Some(_) => FileContent::NotFound.cell(),
                 None => FileContent::NotFound.cell(),
             };
         Ok(finalize_css(
@@ -124,6 +137,7 @@ impl ProcessCss for CssModule {
             chunking_context,
             minify_type,
             origin_source_map,
+            this.source_map_generation_options,
             this.environment.as_deref().copied(),
             this.lightningcss_features,
         ))
@@ -202,14 +216,12 @@ impl CssChunkPlaceable for CssModule {}
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for CssModule {
-    #[turbo_tasks::function]
-    async fn origin_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.source.ident().await?.path.clone().cell())
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }
 
@@ -339,14 +351,14 @@ impl CssChunkItem for CssModuleChunkItem {
 
         if let FinalCssResult::Ok {
             output_code,
-            source_map,
+            source_maps,
         } = &*result
         {
             Ok(CssChunkItemContent {
                 inner_code: output_code.to_owned().into(),
                 imports,
                 import_context: self.module.await?.import_context,
-                source_map: *source_map,
+                source_maps: source_maps.clone(),
             }
             .cell())
         } else {
@@ -357,7 +369,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     .into(),
                 imports: vec![],
                 import_context: None,
-                source_map: FileContent::NotFound.resolved_cell(),
+                source_maps: Default::default(),
             }
             .cell())
         }

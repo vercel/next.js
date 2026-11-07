@@ -12,16 +12,16 @@ import { isReact18, nextTestSetup, isNextDev } from 'e2e-utils'
 import { existsSync } from 'fs'
 import { join } from 'path'
 
+// Deploy mode exclusion: This suite reads local build artifacts that deployments do not expose.
+// Image URL assertions assume local-relative `/_next/image?url=...`
+// paths and access to `.next/static` on disk; deploy mode rewrites URLs
+// through the Vercel hostname and has no on-disk `.next/`.
+// @force-gate !deploy
 describe('Image Component Default Tests', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
-    // Image URL assertions assume local-relative `/_next/image?url=...`
-    // paths and access to `.next/static` on disk; deploy mode rewrites URLs
-    // through the Vercel hostname and has no on-disk `.next/`.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let dpl: string
   let assetDpl: string

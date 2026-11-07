@@ -1,7 +1,6 @@
 use std::{
     any::Any,
     fmt::Debug,
-    future::IntoFuture,
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
@@ -16,8 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
     RawVc, Upcast, UpcastStrict, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
-    trace::{TraceRawVcs, TraceRawVcsContext},
-    vc::Vc,
+    vc::{Vc, into_future},
 };
 
 /// A "subtype" (via [`Deref`]) of [`Vc`] that represents a specific [`Vc::cell`]/`.cell()` or
@@ -152,24 +150,9 @@ where
     }
 }
 
-macro_rules! into_future {
-    ($ty:ty) => {
-        impl<T> IntoFuture for $ty
-        where
-            T: VcValueType,
-        {
-            type Output = <Vc<T> as IntoFuture>::Output;
-            type IntoFuture = <Vc<T> as IntoFuture>::IntoFuture;
-            fn into_future(self) -> Self::IntoFuture {
-                (*self).into_future()
-            }
-        }
-    };
-}
-
-into_future!(ResolvedVc<T>);
-into_future!(&ResolvedVc<T>);
-into_future!(&mut ResolvedVc<T>);
+into_future!(ResolvedVc<T>, |this| (*this).into_future());
+into_future!(&ResolvedVc<T>, |this| (*this).into_future());
+into_future!(&mut ResolvedVc<T>, |this| (*this).into_future());
 
 impl<T> ResolvedVc<T>
 where
@@ -342,15 +325,6 @@ where
     }
 }
 
-impl<T> TraceRawVcs for ResolvedVc<T>
-where
-    T: ?Sized,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
-    }
-}
-
 #[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for ResolvedVc<T>
 where
@@ -368,7 +342,7 @@ where
     type Error = anyhow::Error;
 
     fn try_from(raw: RawVc) -> Result<Self> {
-        if !matches!(raw, RawVc::TaskCell(..)) {
+        if raw.as_task_cell().is_none() {
             anyhow::bail!("Given RawVc {raw:?} is not a TaskCell");
         }
         Ok(Self {

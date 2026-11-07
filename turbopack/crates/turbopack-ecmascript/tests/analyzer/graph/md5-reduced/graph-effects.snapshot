@@ -10,6 +10,46 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "module",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            3,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Assign,
+                    ),
+                    AssignExpr(
+                        Left,
+                    ),
+                    AssignTarget(
+                        Simple,
+                    ),
+                    SimpleAssignTarget(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 1622..1628,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -39,44 +79,7 @@
             ),
         ],
         span: 1622..1636,
-    },
-    FreeVar {
-        var: "module",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Left,
-            ),
-            AssignTarget(
-                Simple,
-            ),
-            SimpleAssignTarget(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 1622..1628,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "md5",
@@ -119,6 +122,7 @@
             reason: "unsupported expression",
             has_side_effects: true,
         },
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -140,7 +144,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -165,6 +169,7 @@
             ),
         ],
         span: 138..149,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -190,6 +195,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -211,7 +217,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -236,6 +242,7 @@
             ),
         ],
         span: 173..206,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -251,6 +258,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -272,7 +280,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -294,6 +302,7 @@
             ),
         ],
         span: 380..388,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -308,6 +317,7 @@
                 #3,
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -329,7 +339,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -376,6 +386,7 @@
             ),
         ],
         span: 484..488,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -474,7 +485,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -538,6 +549,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -559,7 +571,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -606,6 +618,7 @@
             ),
         ],
         span: 532..540,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -716,7 +729,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -780,6 +793,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -801,7 +815,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -848,6 +862,7 @@
             ),
         ],
         span: 585..593,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -958,7 +973,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -1022,6 +1037,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1043,7 +1059,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -1090,6 +1106,7 @@
             ),
         ],
         span: 637..645,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -1200,7 +1217,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -1264,6 +1281,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1285,7 +1303,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -1332,6 +1350,7 @@
             ),
         ],
         span: 691..699,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -1442,7 +1461,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -1506,6 +1525,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1527,7 +1547,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -1574,6 +1594,7 @@
             ),
         ],
         span: 743..751,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -1684,7 +1705,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -1748,6 +1769,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1769,7 +1791,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -1816,6 +1838,7 @@
             ),
         ],
         span: 796..804,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -1926,7 +1949,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -1990,6 +2013,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2011,7 +2035,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -2058,6 +2082,7 @@
             ),
         ],
         span: 850..858,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -2168,7 +2193,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -2232,6 +2257,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2253,7 +2279,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -2300,6 +2326,7 @@
             ),
         ],
         span: 902..910,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -2410,7 +2437,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -2474,6 +2501,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2495,7 +2523,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -2542,6 +2570,7 @@
             ),
         ],
         span: 954..962,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -2652,7 +2681,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -2716,6 +2745,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2737,7 +2767,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -2784,6 +2814,7 @@
             ),
         ],
         span: 1008..1017,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -2894,7 +2925,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -2958,6 +2989,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2979,7 +3011,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -3026,6 +3058,7 @@
             ),
         ],
         span: 1058..1067,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -3136,7 +3169,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -3200,6 +3233,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -3221,7 +3255,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -3268,6 +3302,7 @@
             ),
         ],
         span: 1113..1122,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -3378,7 +3413,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -3442,6 +3477,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -3463,7 +3499,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -3510,6 +3546,7 @@
             ),
         ],
         span: 1166..1175,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -3620,7 +3657,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -3684,6 +3721,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -3705,7 +3743,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -3752,6 +3790,7 @@
             ),
         ],
         span: 1219..1228,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -3862,7 +3901,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -3926,6 +3965,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -3947,7 +3987,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -3994,6 +4034,7 @@
             ),
         ],
         span: 1274..1283,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -4104,7 +4145,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     11,
                 ),
@@ -4165,7 +4206,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     12,
                 ),
@@ -4198,7 +4239,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4247,7 +4288,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4307,7 +4348,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4378,7 +4419,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4480,7 +4521,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4555,7 +4596,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4657,7 +4698,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4780,7 +4821,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4906,7 +4947,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5035,7 +5076,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5076,7 +5117,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5163,7 +5204,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5204,7 +5245,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),

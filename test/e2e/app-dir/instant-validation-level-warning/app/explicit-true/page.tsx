@@ -1,11 +1,11 @@
-// Same violation as `bare/page.tsx`, but with `unstable_instant = true`.
+// Same violation as `bare/page.tsx`, but with `instant = true`.
 // `true` is "opt in at the framework default level" — under 'warning',
 // this resolves to warning-level validation. Validation fires in dev
 // only. Same observable behavior as `bare/page.tsx`; this case proves the
 // override mechanism works at the same level as the configured one.
 import { connection } from 'next/server'
 
-export const unstable_instant = true
+export const instant = true
 
 export default async function Page() {
   await connection()

@@ -1,8 +1,12 @@
 pub(crate) mod cast;
 mod cell_mode;
 pub(crate) mod default;
+mod keyed_read_ref;
+mod lazy_read_ref;
 mod local;
 pub(crate) mod operation;
+mod ord;
+mod raw;
 mod read;
 pub(crate) mod resolved;
 mod traits;
@@ -10,7 +14,7 @@ mod traits;
 use std::{
     any::Any,
     fmt::Debug,
-    future::{Future, IntoFuture},
+    future::Future,
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
@@ -23,26 +27,31 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use shrink_to_fit::ShrinkToFit;
 
-pub use self::{
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
+pub use crate::vc::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
     cell_mode::{
         VcCellCompareMode, VcCellHashedCompareMode, VcCellKeyedCompareMode, VcCellMode,
         VcCellNewMode,
     },
     default::ValueDefault,
+    keyed_read_ref::KeyedReadRef,
+    lazy_read_ref::LazyReadRef,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
-    read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
+    ord::OrdResolvedVc,
+    raw::{CellId, RawVc, RawVcUnpacked, ReadRawVcFuture, ResolveRawVcFuture},
+    read::{
+        ReadKeyedReaderVcFuture, ReadLazyReaderVcFuture, ReadOwnedVcFuture, ReadVcFuture,
+        VcDefaultRead, VcRead, VcTransparentRead,
+    },
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
-#[cfg(debug_assertions)]
-use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
-    CellId, RawVc, ResolveRawVcFuture,
     keyed::{KeyedAccess, KeyedEq},
     registry,
-    trace::{TraceRawVcs, TraceRawVcsContext},
     vc::read::{ReadContainsKeyedVcFuture, ReadKeyedVcFuture},
 };
 
@@ -354,9 +363,12 @@ where
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.to_resolved().await?;
         let raw_vc: RawVc = resolved.node.node;
-        if let RawVc::TaskCell(task_id, CellId { type_id, index }) = raw_vc {
-            let value_ty = registry::get_value_type(type_id);
-            Ok(format!("{}#{}: {}", value_ty.ty.name, index, task_id))
+        if let Some((task_id, cell_id)) = raw_vc.as_task_cell() {
+            let value_name = registry::get_value_type(cell_id.type_id()).ty.name;
+            Ok(format!(
+                "{value_name}#{index}: {task_id}",
+                index = cell_id.index(),
+            ))
         } else {
             unreachable!()
         }
@@ -386,7 +398,7 @@ where
     /// usecases.
     ///
     /// # Example
-    /// ```rust
+    /// ```ignore
     /// // In generic code where T might be the same as K
     /// fn process_foo(vc: ResolvedVc<impl Upcast<Box<dyn MyTrait>>>) -> Vc<Foo> {
     ///    let my_trait: ResolvedVc<Box<dyn MyTrait>> = Vc::upcast_non_strict(vc);
@@ -434,8 +446,26 @@ where
         }
     }
 
+    /// Hint that the cell content this `Vc` points to is no longer needed, so it may be dropped to
+    /// free memory. Future reads might need to recompute the value.
+    ///
+    /// This resolves `self` like [`Vc::to_resolved`] does (tracking the dependencies on task
+    /// outputs, and waiting for them if needed), but unlike [`Vc::final_read_hint`] it never reads
+    /// the cell content. If the content isn't present (e.g. it was already dropped, or it was never
+    /// computed because its dependents were restored from a persistent cache), this does nothing,
+    /// and in particular doesn't recompute it.
+    ///
+    /// This does not track any dependency on the cell.
+    pub async fn drop_content_hint(self) -> Result<()> {
+        let RawVcUnpacked::TaskCell(task, index) = self.node.resolve().await?.unpack() else {
+            unreachable!("resolve always returns a TaskCell");
+        };
+        crate::turbo_tasks().drop_task_cell_content_hint(task, index);
+        Ok(())
+    }
+
     /// Returns `true` if the reference is resolved, meaning the underlying [`RawVc`] uses the
-    /// [`RawVc::TaskCell`] representation.
+    /// [`RawVcUnpacked::TaskCell`] representation.
     ///
     /// If you need resolved [`Vc`] value, it's typically better to use the [`ResolvedVc`] type to
     /// enforce your requirements statically instead of dynamically at runtime.
@@ -452,7 +482,7 @@ where
     /// local or non-local cells, so this function is mostly useful inside tests and internally in
     /// turbo-tasks.
     pub fn is_local(self) -> bool {
-        self.node.is_local()
+        self.node.is_local_output()
     }
 }
 
@@ -465,15 +495,6 @@ where
             node,
             _t: PhantomData,
         }
-    }
-}
-
-impl<T> TraceRawVcs for Vc<T>
-where
-    T: ?Sized,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
     }
 }
 
@@ -492,23 +513,25 @@ where
 }
 
 macro_rules! into_future {
-    ($ty:ty) => {
-        impl<T> IntoFuture for $ty
+    ($ty:ty, |$this:ident| $into_future:expr $(,)?) => {
+        impl<T> ::std::future::IntoFuture for $ty
         where
-            T: VcValueType,
+            T: $crate::VcValueType,
         {
-            type Output = <ReadVcFuture<T> as Future>::Output;
-            type IntoFuture = ReadVcFuture<T>;
+            type Output = <$crate::ReadVcFuture<T> as ::std::future::Future>::Output;
+            type IntoFuture = $crate::ReadVcFuture<T>;
             fn into_future(self) -> Self::IntoFuture {
-                self.node.into_read().into()
+                let $this = self;
+                $into_future
             }
         }
     };
 }
+pub(crate) use into_future;
 
-into_future!(Vc<T>);
-into_future!(&Vc<T>);
-into_future!(&mut Vc<T>);
+into_future!(Vc<T>, |this| this.node.into_read().into());
+into_future!(&Vc<T>, |this| this.node.into_read().into());
+into_future!(&mut Vc<T>, |this| this.node.into_read().into());
 
 impl<T> Vc<T>
 where
@@ -570,6 +593,36 @@ where
     {
         let future: ReadVcFuture<T> = self.node.into_read().into();
         future.contains_key(key)
+    }
+
+    /// Read the value once for many synchronous keyed accesses via the returned
+    /// [`KeyedReadRef`] (`vc.keyed_reader().await?.get(key)`). This is more efficient than many
+    /// [`Vc::get`] / [`Vc::contains_key`] reads of the same cell within a single task.
+    ///
+    /// Once the [`KeyedReadRef`] is dropped, the task only depends on the accessed keys instead of
+    /// the full value. The returned future and the [`KeyedReadRef`] must be dropped within the
+    /// task execution that called this method, otherwise completing that execution panics. See
+    /// [`KeyedReadRef`] for details.
+    pub fn keyed_reader(self) -> ReadKeyedReaderVcFuture<T> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.read_keyed_reader()
+    }
+}
+
+impl<T> Vc<T>
+where
+    T: VcValueType,
+{
+    /// Read the value via the returned [`LazyReadRef`] (`vc.lazy_reader().await?.get()`), as a
+    /// read that is canceled when the value is never accessed.
+    ///
+    /// When the [`LazyReadRef`] is dropped without [`LazyReadRef::get`] ever being called, the
+    /// task no longer depends on the value through this read. The returned future and the
+    /// [`LazyReadRef`] must be dropped within the task execution that called this method,
+    /// otherwise completing that execution panics. See [`LazyReadRef`] for details.
+    pub fn lazy_reader(self) -> ReadLazyReaderVcFuture<T> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.read_lazy_reader()
     }
 }
 

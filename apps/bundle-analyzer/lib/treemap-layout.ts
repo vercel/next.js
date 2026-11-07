@@ -15,6 +15,7 @@ export interface LayoutNodeInfo {
   size: number
   server?: boolean
   client?: boolean
+  traced?: boolean
 }
 
 export interface LayoutNode extends LayoutNodeInfo {
@@ -25,7 +26,6 @@ export interface LayoutNode extends LayoutNodeInfo {
   titleBarHeight?: number
   children?: LayoutNode[]
   itemCount?: number
-  traced?: boolean
   js?: boolean
   css?: boolean
   json?: boolean
@@ -42,6 +42,42 @@ interface SourceMetadata {
 export enum SizeMode {
   Compressed = 'compressed',
   Uncompressed = 'uncompressed',
+}
+
+/** One tree source for the canvas, whether it represents a build or a diff. */
+export interface TreemapSource {
+  rootIndex: SourceIndex
+  getParentSourceIndex(sourceIndex: SourceIndex): SourceIndex | null
+  getSourceName(sourceIndex: SourceIndex): string
+  computeLayout(
+    sourceIndex: SourceIndex,
+    rect: LayoutRect,
+    filterSource: ((sourceIndex: SourceIndex) => boolean) | undefined,
+    sizeMode: SizeMode
+  ): LayoutNode
+}
+
+export function createAnalyzeTreemapSource(
+  analyzeData: AnalyzeData
+): TreemapSource {
+  return {
+    rootIndex: analyzeData.sourceRoots()[0] ?? 0,
+    getParentSourceIndex(sourceIndex) {
+      return analyzeData.source(sourceIndex)?.parent_source_index ?? null
+    },
+    getSourceName(sourceIndex) {
+      return analyzeData.source(sourceIndex)?.path ?? ''
+    },
+    computeLayout(sourceIndex, rect, filterSource, sizeMode) {
+      return computeTreemapLayoutFromAnalyze(
+        analyzeData,
+        sourceIndex,
+        rect,
+        filterSource,
+        sizeMode
+      )
+    },
+  }
 }
 
 function precomputeSourceMetadata(
@@ -112,7 +148,6 @@ function computeTreemapLayoutFromAnalyzeInternal(
   foldedPath: string,
   rect: LayoutRect,
   metadata: SourceMetadata[],
-  filterSource: ((sourceIndex: SourceIndex) => boolean) | undefined,
   sizeMode: SizeMode
 ): LayoutNode {
   const source = analyzeData.source(sourceIndex)
@@ -139,7 +174,6 @@ function computeTreemapLayoutFromAnalyzeInternal(
         foldedPath + source.path,
         rect,
         metadata,
-        filterSource,
         sizeMode
       )
     }
@@ -253,7 +287,6 @@ function computeTreemapLayoutFromAnalyzeInternal(
       '',
       childRects[i],
       metadata,
-      filterSource,
       sizeMode
     )
   )
@@ -288,7 +321,6 @@ export function computeTreemapLayoutFromAnalyze(
     '',
     rect,
     metadata,
-    filterSource,
     sizeMode
   )
 }

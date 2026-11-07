@@ -1,25 +1,97 @@
 import findUp from 'find-up'
 import execa from 'execa'
-import { basename } from 'node:path'
+import { execSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+import { basename, join } from 'node:path'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
 
+/**
+ * Get the full version string for the given package manager.
+ *
+ * First tries to parse from `npm_config_user_agent` (e.g., "pnpm/9.13.2 npm/? ..."),
+ * then falls back to spawning `<packageManager> --version`.
+ *
+ * Returns null if unable to determine the version.
+ *
+ * Mirrors `packages/create-next-app/helpers/get-pkg-manager.ts`.
+ */
+export function getPackageManagerVersion(
+  packageManager: PackageManager
+): string | null {
+  const userAgent = process.env.npm_config_user_agent || ''
+  const userAgentMatch = userAgent.match(
+    new RegExp(`${packageManager}/([\\d.]+[\\w.-]*)`)
+  )
+  if (userAgentMatch) {
+    return userAgentMatch[1]
+  }
+
+  try {
+    const version = execSync(`${packageManager} --version`, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore'],
+    }).trim()
+    if (/^\d+\.\d+\.\d+/.test(version)) {
+      return version
+    }
+  } catch {
+    // package manager not available or failed to run
+  }
+
+  return null
+}
+
+/**
+ * Get the major version of pnpm being used.
+ * Returns null if unable to determine the version.
+ */
+export function getPnpmMajorVersion(): number | null {
+  const version = getPackageManagerVersion('pnpm')
+  if (!version) return null
+  const major = parseInt(version.split('.')[0], 10)
+  return Number.isNaN(major) ? null : major
+}
+
 export function getPkgManager(baseDir: string): PackageManager {
   try {
+    // The app's declared manager takes precedence over the command launcher.
+    const manifestPath = join(baseDir, 'package.json')
+    if (existsSync(manifestPath)) {
+      const { packageManager } = JSON.parse(readFileSync(manifestPath, 'utf8'))
+      const match =
+        typeof packageManager === 'string'
+          ? packageManager.match(/^(npm|pnpm|yarn|bun)@/)
+          : null
+      if (match) {
+        return match[1] as PackageManager
+      }
+    }
+
+    const userAgent = process.env.npm_config_user_agent
+    if (userAgent) {
+      if (userAgent.startsWith('yarn')) {
+        return 'yarn'
+      } else if (userAgent.startsWith('pnpm')) {
+        return 'pnpm'
+      } else if (userAgent.startsWith('bun')) {
+        return 'bun'
+      } else if (userAgent.startsWith('npm')) {
+        return 'npm'
+      }
+    }
     const lockFile = findUp.sync(
       [
-        'package-lock.json',
         'yarn.lock',
         'pnpm-lock.yaml',
         'bun.lock',
         'bun.lockb',
+        'package-lock.json',
       ],
       { cwd: baseDir }
     )
     if (lockFile) {
       switch (basename(lockFile)) {
-        case 'package-lock.json':
-          return 'npm'
         case 'yarn.lock':
           return 'yarn'
         case 'pnpm-lock.yaml':
@@ -27,6 +99,8 @@ export function getPkgManager(baseDir: string): PackageManager {
         case 'bun.lock':
         case 'bun.lockb':
           return 'bun'
+        case 'package-lock.json':
+          return 'npm'
         default:
           return 'npm'
       }

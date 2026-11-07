@@ -10,11 +10,9 @@ export type RevalidateFn = (config: {
   opts: { unstable_onlyGenerated?: boolean }
 }) => Promise<void>
 
-// The RouterServerContext contains instance specific
-// information that isn't available/relevant when
-// deployed in serverless environments, the key is
-// the relative project dir this allows separate contexts
-// when running multiple next instances in same process
+// Services and runtime state supplied by a running NextServer, keyed by the
+// relative project dir so multiple instances can share a process. Built route
+// handlers can also run without a NextServer or this context.
 export type RouterServerContext = Record<
   string,
   {
@@ -32,6 +30,8 @@ export type RouterServerContext = Record<
     ) => Promise<void>
     // exposing nextConfig for dev mode specifically
     nextConfig?: NextConfigRuntime
+    // Current server-owned prefix; absent when no NextServer owns this route.
+    getAssetPrefix?: () => string
     // whether running in custom server mode
     isCustomServer?: boolean
     // whether test proxy is enabled

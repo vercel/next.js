@@ -5,10 +5,12 @@ import { css } from '../../../../utils/css'
 interface DevToolsHeaderProps {
   title: React.ReactNode
   children?: React.ReactNode
+  onClose?: () => void
 }
 export function DevToolsHeader({
   title,
   children,
+  onClose,
   ref,
 }: DevToolsHeaderProps & { ref?: React.Ref<HTMLDivElement> }) {
   const { setPanel } = usePanelRouterContext()
@@ -41,6 +43,10 @@ export function DevToolsHeader({
         id="_next-devtools-panel-close"
         className="dev-tools-info-close-button"
         onClick={() => {
+          if (onClose) {
+            onClose()
+            return
+          }
           setPanel('panel-selector')
         }}
         aria-label="Close devtools panel"

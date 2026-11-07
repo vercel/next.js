@@ -1,4 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('app-dir assetPrefix handling', () => {
   const { next } = nextTestSetup({
@@ -32,16 +33,43 @@ describe('app-dir assetPrefix handling', () => {
     expect(await browser.waitForElementByCss('#a-page').text()).toBe('A page')
   })
 
+  if (isNextDev) {
+    it('should apply HMR updates', async () => {
+      // The HMR WebSocket connects to a URL derived from the asset prefix.
+      const webSocketUrls: string[] = []
+      const browser = await next.browser('/a', {
+        beforePageLoad(page) {
+          page.on('websocket', (ws) => webSocketUrls.push(ws.url()))
+        },
+      })
+      expect(await browser.waitForElementByCss('#a-page').text()).toBe('A page')
+      await retry(async () => {
+        expect(webSocketUrls).toContainEqual(
+          expect.stringContaining('/custom-asset-prefix/_next/hmr?')
+        )
+      })
+
+      await next.patchFile(
+        'app/a/page.js',
+        (content) => content.replace('A page', 'A page (updated)'),
+        async () => {
+          await retry(async () => {
+            expect(await browser.elementByCss('#a-page').text()).toBe(
+              'A page (updated)'
+            )
+          })
+        }
+      )
+    })
+  }
+
   it('bundles should return 200 on served assetPrefix', async () => {
     const $ = await next.render$('/')
 
     let bundles = []
     for (const script of $('script').toArray()) {
       const { src } = script.attribs
-      if (
-        src?.includes('/custom-asset-prefix/_next/static') ||
-        src?.includes('/custom-asset-prefix/_next/static/immutable')
-      ) {
+      if (src?.includes('/custom-asset-prefix/_next/static')) {
         bundles.push(src)
       }
     }

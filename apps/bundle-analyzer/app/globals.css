@@ -34,6 +34,8 @@
   --sidebar-ring: oklch(0.708 0 0);
   --polyfill: #5f707f;
   --polyfill-foreground: #ffffff;
+  --delta-increase: #2563eb;
+  --delta-decrease: #b45309;
 }
 
 .dark {
@@ -66,6 +68,8 @@
   --sidebar-ring: oklch(0.439 0 0);
   --polyfill: #5f707f;
   --polyfill-foreground: #ffffff;
+  --delta-increase: #60a5fa;
+  --delta-decrease: #fbbf24;
 }
 
 @theme inline {
@@ -104,6 +108,8 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-polyfill: var(--polyfill);
   --color-polyfill-foreground: var(--polyfill-foreground);
+  --color-delta-increase: var(--delta-increase);
+  --color-delta-decrease: var(--delta-decrease);
 }
 
 @layer base {

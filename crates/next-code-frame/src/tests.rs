@@ -1,8 +1,8 @@
 use insta::assert_snapshot;
 
 use crate::{
-    CodeFrameLocation, CodeFrameOptions, Location, highlight::tests::strip_ansi_codes,
-    render_code_frame,
+    CodeFrameColorMode, CodeFrameLocation, CodeFrameOptions, Location,
+    highlight::tests::strip_ansi_codes, render_code_frame,
 };
 
 /// Helper function to render code frame with highlighting enabled and ANSI codes stripped.
@@ -31,7 +31,6 @@ fn test_simple_single_line_error() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -56,7 +55,6 @@ fn test_empty_source() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -76,7 +74,6 @@ fn test_invalid_line_number() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -137,7 +134,6 @@ fn test_multiline_error() {
         }),
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -169,7 +165,6 @@ fn test_multiline_error_with_message() {
         }),
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         message: Some("Unexpected expression".to_string()),
         ..Default::default()
@@ -199,7 +194,6 @@ fn test_with_message() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         message: Some("Expected semicolon".to_string()),
         ..Default::default()
@@ -229,7 +223,6 @@ fn test_long_line_single_error() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         max_width: 100,
         ..Default::default()
@@ -261,7 +254,6 @@ fn test_long_line_at_start() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         max_width: 100,
         ..Default::default()
@@ -291,7 +283,6 @@ fn test_long_line_at_end() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         max_width: 100,
         ..Default::default()
@@ -323,7 +314,6 @@ fn test_long_line_multiline_aligned() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         max_width: 100,
         lines_above: 1,
@@ -353,7 +343,6 @@ fn test_context_lines() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         lines_above: 2,
         lines_below: 2,
@@ -387,7 +376,6 @@ fn test_gutter_width_alignment() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         lines_above: 2,
         lines_below: 1,
@@ -425,7 +413,6 @@ fn test_large_file() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         lines_above: 2,
         lines_below: 2,
@@ -463,7 +450,6 @@ fn test_long_error_span() {
         }), // 300 char span
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         max_width: 100,
         ..Default::default()
@@ -500,7 +486,6 @@ Another paragraph.
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -531,7 +516,6 @@ fn test_invalid_column_start_out_of_bounds() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -560,7 +544,6 @@ fn test_invalid_column_end_before_start() {
         }), // Before start - invalid
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -589,7 +572,6 @@ fn test_invalid_column_both_out_of_bounds() {
         }),
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -618,7 +600,6 @@ fn test_invalid_multiline_end_column_out_of_bounds() {
         }), // Way past end of "short"
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -653,7 +634,6 @@ fn test_column_semantics_explicit_end() {
         }), // Exclusive: marks [11, 12) = column 11 only
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -695,7 +675,6 @@ fn test_highlighting_doesnt_break_formatting() {
     // boundaries align correctly with char boundaries.
     fn assert_highlighting_roundtrips(source: &str, location: &CodeFrameLocation) {
         let options_plain = CodeFrameOptions {
-            color: false,
             highlight_code: false,
             ..Default::default()
         };
@@ -705,7 +684,6 @@ fn test_highlighting_doesnt_break_formatting() {
 
         // highlight_code=true with color=false should be identical to plain
         let options_highlighted = CodeFrameOptions {
-            color: false,
             highlight_code: true,
             ..Default::default()
         };
@@ -717,9 +695,9 @@ fn test_highlighting_doesnt_break_formatting() {
             "Highlighting with color=false should produce identical output"
         );
 
-        // color=true with ANSI stripped should also match plain
+        // color with ANSI stripped should also match plain
         let options_colored = CodeFrameOptions {
-            color: true,
+            color: CodeFrameColorMode::Error,
             highlight_code: true,
             ..Default::default()
         };
@@ -778,7 +756,6 @@ fn test_multibyte_cjk_no_truncation() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -809,7 +786,6 @@ fn test_multibyte_cjk_with_truncation() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         max_width: 80,
         ..Default::default()
@@ -840,7 +816,6 @@ fn test_multibyte_emoji() {
         }),
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         ..Default::default()
     };
@@ -872,7 +847,6 @@ fn test_multibyte_mixed_with_truncation() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: false,
         highlight_code: false,
         max_width: 80,
         ..Default::default()
@@ -902,7 +876,7 @@ fn test_multibyte_cjk_truncation_with_highlighting() {
         end: None,
     };
     let options = CodeFrameOptions {
-        color: true,
+        color: CodeFrameColorMode::Error,
         highlight_code: true,
         max_width: 80,
         ..Default::default()

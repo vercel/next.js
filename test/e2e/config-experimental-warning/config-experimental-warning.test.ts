@@ -37,7 +37,7 @@ describe('Config Experimental Warning', () => {
         nextConfig: {
           images: {},
           experimental: {
-            // We enable this by default in CI
+            // We enable this in some CI shards
             strictRouteTypes: false,
           },
         },
@@ -99,7 +99,7 @@ describe('Config Experimental Warning', () => {
             module.exports = (phase) => ({
               experimental: {
                 workerThreads: false,
-                // We enable this by default in CI
+                // We enable this in some CI shards
                 strictRouteTypes: false,
               }
             })

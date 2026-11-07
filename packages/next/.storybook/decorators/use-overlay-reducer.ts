@@ -28,10 +28,13 @@ import {
   ACTION_REFRESH,
   ACTION_RENDERING_INDICATOR_HIDE,
   ACTION_RENDERING_INDICATOR_SHOW,
+  ACTION_REQUEST_INSIGHTS_SNAPSHOT,
+  ACTION_REQUEST_INSIGHTS_UPDATE,
   ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
+  ACTION_VULNERABILITY_INSIGHT,
   INITIAL_OVERLAY_STATE,
 } from '../../src/next-devtools/dev-overlay/shared'
 
@@ -58,6 +61,12 @@ export function useStorybookOverlayReducer(initialState?: OverlayState) {
         }
         case ACTION_ERROR_OVERLAY_TOGGLE: {
           return { ...state, isErrorOverlayOpen: !state.isErrorOverlayOpen }
+        }
+        case ACTION_VULNERABILITY_INSIGHT: {
+          return {
+            ...state,
+            hasVulnerabilityInsight: action.hasVulnerabilityInsight,
+          }
         }
         case ACTION_DEVTOOLS_POSITION: {
           return { ...state, devToolsPosition: action.devToolsPosition }
@@ -88,6 +97,8 @@ export function useStorybookOverlayReducer(initialState?: OverlayState) {
         case ACTION_REFRESH:
         case ACTION_RENDERING_INDICATOR_HIDE:
         case ACTION_RENDERING_INDICATOR_SHOW:
+        case ACTION_REQUEST_INSIGHTS_SNAPSHOT:
+        case ACTION_REQUEST_INSIGHTS_UPDATE:
         case ACTION_CACHE_INDICATOR:
         case ACTION_INSTANT_ERRORS_CLEAR:
         case ACTION_INSTANT_NAVS_TOGGLE:

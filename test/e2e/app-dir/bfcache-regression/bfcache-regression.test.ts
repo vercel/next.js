@@ -6,6 +6,11 @@ describe('bfcache-regression', () => {
     files: __dirname,
   })
 
+  // Development documents are served with `no-store`, so a back navigation
+  // re-fetches the page instead of restoring it from the browser's HTTP cache.
+  // A restored document would re-execute the page scripts while React's debug
+  // channel has no data for its request id, which blocks hydration and leaves
+  // the page without interactivity.
   it('should preserve interactivity after navigating back from another page via MPA navigation', async () => {
     // In webpack dev, compiling a new route on demand while another page is
     // open triggers an HMR cycle that has no Fast Refresh boundary, surfacing
@@ -43,42 +48,6 @@ describe('bfcache-regression', () => {
     await retry(async () => {
       expect(await browser.elementById('count').text()).toBe('Count: 1')
     })
-
-    await assertNoConsoleErrors(browser)
-  })
-
-  // Regression test for an infinite refresh loop on the initial load of a
-  // streaming page. wasServedFromCache() in debug-channel.ts must not treat
-  // a still-in-flight streaming response as an HTTP cache restore, or it
-  // calls location.reload() and the next load hits the same condition. The
-  // bug only manifests in browsers where PerformanceNavigationTiming
-  // reports transferSize/encodedBodySize as 0 until the body finishes
-  // arriving — Firefox in practice. Chrome and Safari report non-zero
-  // values during streaming and aren't affected.
-  it('should not enter a refresh loop on initial load of a page with streaming dynamic content', async () => {
-    let loadCount = 0
-    const browser = await next.browser('/streaming', {
-      pushErrorAsConsoleLog: true,
-      beforePageLoad: async (page) => {
-        // Increments on every load event for /streaming (including any
-        // location.reload() triggered by the bug), so loadCount > 1 means a
-        // reload happened. URL-filtered to skip the about:blank load Firefox
-        // emits when Playwright creates the page.
-        page.on('load', () => {
-          if (page.url().endsWith('/streaming')) {
-            loadCount++
-          }
-        })
-      },
-    })
-
-    await retry(async () => {
-      expect(await browser.elementById('dynamic-content').text()).toBe(
-        'Dynamic content'
-      )
-    })
-
-    expect(loadCount).toBe(1)
 
     await assertNoConsoleErrors(browser)
   })

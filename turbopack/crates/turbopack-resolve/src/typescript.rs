@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, ValueDefault, Vc, fxindexset};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath, FileSystemPathOption};
 use turbopack_core::{
     asset::Asset,
@@ -112,7 +112,7 @@ pub async fn read_tsconfigs(
 }
 
 /// Resolves tsconfig files according to TS's implementation:
-/// https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326
+/// <https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326>
 #[tracing::instrument(skip_all)]
 async fn resolve_extends(
     tsconfig: Vc<Box<dyn Source>>,
@@ -246,7 +246,7 @@ pub async fn tsconfig_resolve_options(
     let configs = read_tsconfigs(
         tsconfig.read(),
         ResolvedVc::upcast(FileSource::new(tsconfig.clone()).to_resolved().await?),
-        node_cjs_resolve_options(tsconfig.root().owned().await?),
+        node_cjs_resolve_options(),
     )
     .await?;
 
@@ -368,7 +368,7 @@ pub async fn apply_tsconfig_resolve_options(
             ResolveModules::Path {
                 dir: base_url.clone(),
                 // tsconfig basepath doesn't apply to json requests
-                excluded_extensions: ResolvedVc::cell(fxindexset![rcstr!(".json")]),
+                excluded_extensions: ResolvedVc::cell(std::iter::once(rcstr!(".json")).collect()),
             },
         );
     }
@@ -394,8 +394,9 @@ pub async fn type_resolve(
     request: Vc<Request>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
-    let context_path = origin.origin_path().await?.parent();
-    let options = origin.resolve_options();
+    let origin_ref = origin.into_trait_ref().await?;
+    let context_path = origin_ref.origin_path().parent();
+    let options = origin_ref.resolve_options();
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,
@@ -446,14 +447,14 @@ pub async fn type_resolve(
         )
     };
     let result = as_typings_result(
-        origin
+        origin_ref
             .asset_context()
             .process_resolve_result(result, ty.clone()),
     );
     handle_resolve_error(
         result,
         ty,
-        origin,
+        origin_ref.origin_path(),
         request,
         options,
         ResolveErrorMode::Error,

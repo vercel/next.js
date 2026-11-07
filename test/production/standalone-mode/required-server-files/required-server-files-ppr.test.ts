@@ -14,7 +14,8 @@ import {
 import { ChildProcess } from 'node:child_process'
 
 // TODO(NAR-423): Migrate to Cache Components.
-describe.skip('required server files app router', () => {
+// @force-gate FIXME
+describe('required server files app router', () => {
   let server: ChildProcess
   let appPort: number | string
   let delayedPostpone: string
@@ -56,6 +57,9 @@ describe.skip('required server files app router', () => {
       cacheHandler: './cache-handler.js',
       cacheComponents: true,
       output: 'standalone',
+    },
+    dependencies: {
+      'is-even': '1.0.0',
     },
   })
 

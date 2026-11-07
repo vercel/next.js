@@ -5,7 +5,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use similar::TextDiff;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPath,
 };
@@ -20,7 +20,15 @@ use turbopack_core::{
 // e.g. `UPDATE=1 cargo test -p turbopack-tests -- test_my_pattern`
 pub static UPDATE: LazyLock<bool> = LazyLock::new(|| env::var("UPDATE").unwrap_or_default() == "1");
 
-static ANSI_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\x1b\[\d+m").unwrap());
+/// Matches an ANSI CSI escape sequence (ECMA-48): `ESC [`, parameter bytes (e.g. `92;4`, possibly
+/// empty), intermediate bytes, and a final byte (`m` for colors/styles).
+static ANSI_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\x1b\[[0-?]*[ -/]*[@-~]").unwrap());
+
+/// Removes ANSI escape sequences (colors, styles) so snapshots contain only the visible text.
+fn strip_ansi(s: &str) -> std::borrow::Cow<'_, str> {
+    ANSI_REGEX.replace_all(s, "")
+}
 
 pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     captured_issues: I,
@@ -64,10 +72,8 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
         // Annoyingly, the PlainIssue.source -> PlainIssueSource.asset ->
         // PlainSource.path -> Vc<FileSystemPath>.fs -> DiskFileSystem.root changes
         // for everyone.
-        let content: RcStr = formatted
-            .as_str()
-            .replace(workspace_root, "WORKSPACE_ROOT")
-            .replace(&*ANSI_REGEX, "")
+        let content = formatted.as_str().replace(workspace_root, "WORKSPACE_ROOT");
+        let content: RcStr = strip_ansi(&content)
             // Normalize syspaths from Windows. These appear in stack traces.
             .replace("\\\\", "/")
             .into();
@@ -169,9 +175,7 @@ async fn get_contents(file: Vc<AssetContent>) -> Result<Option<String>> {
                 }
             }
         },
-        AssetContent::Redirect { target, link_type } => Some(format!(
-            "Redirect {{ target: {target}, link_type: {link_type:?} }}"
-        )),
+        AssetContent::Redirect(content) => Some(format!("Redirect {content:?}")),
     })
 }
 
@@ -189,11 +193,7 @@ async fn diff_paths(
 ) -> Result<FxHashSet<FileSystemPath>> {
     let mut map = left
         .iter()
-        .map(|p| async move { Ok((p.path.clone(), p.clone())) })
-        .try_join()
-        .await?
-        .iter()
-        .cloned()
+        .map(|p| (p.path.clone(), p.clone()))
         .collect::<FxHashMap<_, _>>();
     for p in right {
         map.remove(&p.path);
@@ -225,5 +225,18 @@ fn styled_string_to_file_safe_string(styled_string: &StyledString) -> String {
         StyledString::Text(string) => string.to_string(),
         StyledString::Code(string) => format!("__c_{string}__"),
         StyledString::Strong(string) => format!("__{string}__"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_ansi;
+
+    #[test]
+    fn strips_sgr_escape_sequences() {
+        assert_eq!(
+            strip_ansi("\x1b[92;4msuggestion\x1b[0m - \x1b[1mtitle\x1b[m [project]/a.js array[0]"),
+            "suggestion - title [project]/a.js array[0]"
+        );
     }
 }

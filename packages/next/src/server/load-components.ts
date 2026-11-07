@@ -142,11 +142,26 @@ export async function evalManifestWithRetries<T extends object>(
   }
 }
 
-async function tryLoadClientReferenceManifest(
-  manifestPath: string,
-  entryName: string,
+/**
+ * Loads the client reference manifest that the bundler emitted for an app page,
+ * or returns undefined if there is none. Both the manifest file and the entry
+ * inside it are addressed by the page with `%5F` decoded back to `_`, so
+ * callers pass the page as-is and this resolves both.
+ */
+export async function loadClientReferenceManifestForPage(
+  distDir: string,
+  page: string,
   attempts?: number
 ): Promise<DeepReadonly<ClientReferenceManifest> | undefined> {
+  const entryName = page.replace(/%5F/g, '_')
+
+  const manifestPath = join(
+    /* turbopackIgnore: true */ distDir,
+    'server',
+    'app',
+    entryName + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
+  )
+
   try {
     const context = await evalManifestWithRetries<{
       __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
@@ -155,6 +170,14 @@ async function tryLoadClientReferenceManifest(
   } catch (err) {
     return undefined
   }
+}
+
+function loadRouteModule(page: string, distDir: string, isAppPath: boolean) {
+  return getTracer().trace(
+    LoadComponentsSpan.loadRouteModule,
+    { spanName: 'load route module' },
+    () => requirePage(page, distDir, isAppPath)
+  )
 }
 
 async function loadComponentsImpl<
@@ -252,17 +275,9 @@ async function loadComponentsImpl<
             manifestLoadAttempts
           ).catch(() => undefined),
       isAppPath && hasClientManifest
-        ? tryLoadClientReferenceManifest(
-            join(
-              /* turbopackIgnore: true */ distDir,
-              'server',
-              'app',
-              page.replace(/%5F/g, '_') +
-                '_' +
-                CLIENT_REFERENCE_MANIFEST +
-                '.js'
-            ),
-            page.replace(/%5F/g, '_'),
+        ? loadClientReferenceManifestForPage(
+            distDir,
+            page,
             manifestLoadAttempts
           )
         : undefined,
@@ -298,7 +313,7 @@ async function loadComponentsImpl<
       })
     }
 
-    const ComponentMod = await requirePage(page, distDir, isAppPath)
+    const ComponentMod = await loadRouteModule(page, distDir, isAppPath)
 
     const Component = interopDefault(ComponentMod)
     const Document = interopDefault(DocumentMod)
@@ -327,7 +342,7 @@ async function loadComponentsImpl<
       routeModule,
     }
   } else {
-    const ComponentMod = await requirePage(page, distDir, isAppPath)
+    const ComponentMod = await loadRouteModule(page, distDir, isAppPath)
 
     const Component = interopDefault(ComponentMod)
     const Document = interopDefault(DocumentMod)

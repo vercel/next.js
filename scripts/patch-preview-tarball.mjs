@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
+import yaml from 'js-yaml'
 
 const BASE_URL = 'https://vercel-packages.vercel.app/next/commits'
 
@@ -161,9 +162,8 @@ async function findWorkspaceRoot(projectPath) {
 
 async function patchPackageJson(projectPath, tarballUrls) {
   const root = await findWorkspaceRoot(projectPath)
-  const packageJsonPath = root
-    ? path.join(root, 'package.json')
-    : path.join(projectPath, 'package.json')
+  const workspaceRoot = root ?? projectPath
+  const packageJsonPath = path.join(workspaceRoot, 'package.json')
 
   if (!(await fileExists(packageJsonPath))) {
     console.error(`Error: package.json not found at ${packageJsonPath}`)
@@ -175,16 +175,25 @@ async function patchPackageJson(projectPath, tarballUrls) {
 
   const entries = Array.from(tarballUrls.entries())
 
-  // npm/pnpm overrides
+  // npm uses top-level `overrides`
   pkg.overrides = pkg.overrides || {}
   for (const [name, url] of entries) {
     pkg.overrides[name] = url
   }
 
-  // yarn resolutions
+  // yarn uses top-level `resolutions`
   pkg.resolutions = pkg.resolutions || {}
   for (const [name, url] of entries) {
     pkg.resolutions[name] = url
+  }
+
+  // pnpm v10 and below read `pnpm.overrides` from package.json.
+  // pnpm v11+ reads `pnpm-workspace.yaml#overrides` (handled below). See
+  // https://pnpm.io/settings and https://github.com/pnpm/pnpm/issues/11536.
+  pkg.pnpm = pkg.pnpm || {}
+  pkg.pnpm.overrides = pkg.pnpm.overrides || {}
+  for (const [name, url] of entries) {
+    pkg.pnpm.overrides[name] = url
   }
 
   // Add @next/swc-linux-x64-gnu to dependencies
@@ -195,6 +204,16 @@ async function patchPackageJson(projectPath, tarballUrls) {
 
   await fs.writeFile(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n')
 
+  // Only touch pnpm-workspace.yaml if it already exists (merge into it) or if
+  // a pnpm-lock.yaml indicates this is a pnpm project — avoids dropping a
+  // pnpm-workspace.yaml into non-pnpm projects.
+  if (await shouldWritePnpmWorkspace(workspaceRoot)) {
+    await mergePnpmWorkspaceOverrides(
+      workspaceRoot,
+      Object.fromEntries(entries)
+    )
+  }
+
   console.log(`Patched ${packageJsonPath}`)
   console.log('Packages overridden:')
   for (const [name, url] of entries) {
@@ -202,6 +221,29 @@ async function patchPackageJson(projectPath, tarballUrls) {
   }
 
   return packageJsonPath
+}
+
+async function shouldWritePnpmWorkspace(workspaceRoot) {
+  return (
+    (await fileExists(path.join(workspaceRoot, 'pnpm-workspace.yaml'))) ||
+    (await fileExists(path.join(workspaceRoot, 'pnpm-lock.yaml')))
+  )
+}
+
+async function mergePnpmWorkspaceOverrides(workspaceRoot, overrides) {
+  const filePath = path.join(workspaceRoot, 'pnpm-workspace.yaml')
+
+  let doc = {}
+  if (await fileExists(filePath)) {
+    const parsed = yaml.load(await fs.readFile(filePath, 'utf8'))
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      doc = parsed
+    }
+  }
+
+  doc.overrides = { ...(doc.overrides ?? {}), ...overrides }
+
+  await fs.writeFile(filePath, yaml.dump(doc))
 }
 
 // --- Main ---

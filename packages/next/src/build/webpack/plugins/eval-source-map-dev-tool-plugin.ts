@@ -187,9 +187,42 @@ export default class EvalSourceMapDevToolPlugin {
               }
             )
             sourceMap.sources = moduleFilenames
+            // The vendored `webpack-sources` drops the source map's
+            // `ignoreList` when it combines a module's input source map with
+            // the generated mappings, so we recompute it from
+            // `shouldIgnorePath` here. That matches on the emitted source path,
+            // which is fine while a source resolves back to its module. But a
+            // module that ships an input source map (Next's compiled files,
+            // whose `.js.map` marks every source ignore-listed) resolves its
+            // sources to the original files instead. For example, for the Proxy
+            // adapter, `modules[index]` is then the unresolved string
+            // `.../src/server/web/adapter.ts` while `moduleResource` (the
+            // module's own resource) is
+            // `.../node_modules/next/dist/.../adapter.js`. The emitted `src`
+            // path has lost the `node_modules`/`next/dist` marker, so for such
+            // unresolved sources we fall back to `moduleResource`.
+            //
+            // This is only sound for a `NormalModule`, whose sources all belong
+            // to that one module. A `ConcatenatedModule` merges several
+            // modules' sources under one map, so no single resource identifies
+            // them all; those are left to the path check alone. The dev
+            // `eval-source-map` devtool never concatenates (a production-only
+            // optimization), so this is not hit in practice.
+            const moduleResource =
+              m instanceof NormalModule ? m.resource : undefined
+            const moduleIsIgnored =
+              moduleResource !== undefined &&
+              this.shouldIgnorePath(moduleResource)
             sourceMap.ignoreList = []
             for (let index = 0; index < moduleFilenames.length; index++) {
-              if (this.shouldIgnorePath(moduleFilenames[index])) {
+              // A string entry in `modules` (built above) is a source that did
+              // not resolve back to a module, i.e. an original file such as the
+              // `.ts` above rather than the compiled `.js` module.
+              const sourceIsUnresolved = typeof modules[index] === 'string'
+              if (
+                this.shouldIgnorePath(moduleFilenames[index]) ||
+                (moduleIsIgnored && sourceIsUnresolved)
+              ) {
                 sourceMap.ignoreList.push(index)
               }
             }

@@ -227,6 +227,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -256,6 +257,7 @@
             ),
         ],
         span: 108..114,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(

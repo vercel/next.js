@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Page Config', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -18,9 +18,32 @@ describe('Page Config', () => {
 
     try {
       const { cliOutput } = await next.build()
-      expect(cliOutput).toContain(
-        "Next.js can't recognize the exported `config`"
-      )
+
+      // The two bundlers reject this config in different places, so each one
+      // reports a different error.
+      if (isTurbopack) {
+        // Turbopack rejects the config in its own transform, and the build
+        // stops there. It never reads the value with the segment config schema.
+        expect(cliOutput).toContain(
+          "Next.js can't recognize the exported `config` field"
+        )
+      } else {
+        // Webpack reads the value with the segment config schema, and the
+        // schema rejects the string. The build stops with that error.
+        //
+        // `getPageStaticInfo` also warns that it cannot recognize the field.
+        // Only the server compilation logs that warning, and the build can stop
+        // before the server compilation reaches this page. The warning
+        // therefore does not always reach the output, and this test does not
+        // assert it. The tests below do, because the build does not stop for
+        // the configs they use.
+        expect(cliOutput).toContain(
+          'Invalid segment configuration options detected for "/invalid/string-config"'
+        )
+        expect(cliOutput).toContain(
+          'Expected object, received string at "config"'
+        )
+      }
     } finally {
       await next.patchFile('pages/invalid/string-config.js', origContent)
     }

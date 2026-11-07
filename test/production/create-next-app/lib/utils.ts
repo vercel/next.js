@@ -5,8 +5,9 @@
  */
 
 import { execSync, spawn, SpawnOptions } from 'child_process'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { join, resolve } from 'path'
+import { fileURLToPath } from 'url'
 import glob from 'glob'
 import Conf from 'next/dist/compiled/conf'
 
@@ -25,6 +26,11 @@ import { serializeTestPkgPathsEnv } from './test-pkg-paths'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
+// Keep saved preferences inside each fixture so concurrent runs cannot reset
+// or overwrite one another's settings.
+export const getPreferencesDir = (cwd: string | URL = process.cwd()) =>
+  resolve(cwd instanceof URL ? fileURLToPath(cwd) : cwd, '.create-next-app')
+
 /**
  * Run the built version of `create-next-app` with the given arguments.
  */
@@ -34,7 +40,8 @@ export const createNextApp = (
   testVersion?: string,
   clearPreferences: boolean = true
 ) => {
-  const conf = new Conf({ projectName: 'create-next-app' })
+  const configDir = getPreferencesDir(options?.cwd)
+  const conf = new Conf({ projectName: 'create-next-app', cwd: configDir })
   if (clearPreferences) {
     conf.clear()
   }
@@ -64,7 +71,8 @@ export const createNextApp = (
     ...options,
     env: {
       ...cloneEnv,
-      ...options.env,
+      ...options?.env,
+      NEXT_PRIVATE_TEST_CONFIG_DIR: configDir,
     },
   })
 }
@@ -143,18 +151,21 @@ export const shouldBeTemplateProject = ({
   mode,
   srcDir,
 }: CustomTemplateOptions) => {
+  const isTailwindTemplate = [
+    'app-tw',
+    'app-tw-empty',
+    'default-tw',
+    'default-tw-empty',
+  ].includes(template)
+
   projectFilesShouldExist({
     cwd,
     projectName,
     files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
-  // Tailwind templates share the same files (tailwind.config.mjs, postcss.config.mjs)
-  if (
-    !['app-tw', 'app-tw-empty', 'default-tw', 'default-tw-empty'].includes(
-      template
-    )
-  ) {
+  // Tailwind templates share the same files across JavaScript and TypeScript.
+  if (!isTailwindTemplate) {
     projectFilesShouldNotExist({
       cwd,
       projectName,
@@ -163,6 +174,23 @@ export const shouldBeTemplateProject = ({
         srcDir
       ),
     })
+  }
+
+  const projectRoot = resolve(cwd, projectName)
+  const nextConfig = readFileSync(
+    resolve(projectRoot, mode === 'js' ? 'next.config.mjs' : 'next.config.ts'),
+    'utf8'
+  )
+
+  if (isTailwindTemplate && !process.env.NEXT_RSPACK) {
+    expect(nextConfig).toContain('loaders: ["@tailwindcss/turbopack"]')
+    projectFilesShouldNotExist({
+      cwd,
+      projectName,
+      files: ['postcss.config.mjs'],
+    })
+  } else {
+    expect(nextConfig).not.toContain('@tailwindcss/turbopack')
   }
 
   projectDepsShouldBe({

@@ -13,8 +13,11 @@ use crate::{
     RawVc, SharedReference, TaskPriority, VcValueType,
     dyn_task_inputs::any_as_encode,
     id::TraitTypeId,
-    macro_helpers::{CollectableTraitMethods, NativeFunction},
-    registry::{RegistryType, get_trait_type_id, trait_type_count, turbo_registry},
+    macro_helpers::{NativeFunction, TRAIT_IMPLS_SLICE},
+    registry::{
+        RegistryType, get_trait_type_id, get_value_type_id_unchecked, impl_ptr_identity,
+        trait_type_count,
+    },
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
 };
@@ -91,7 +94,7 @@ pub struct ValueType {
     pub evictability: Evictability,
 
     /// An implementation of
-    /// [`VcCellMode::raw_cell`][crate::vc::VcCellMode::raw_cell].
+    /// [`VcCellMode::raw_cell`].
     ///
     /// Allows dynamically constructing a cell using the type id. Used inside of
     /// [`TraitRef`][crate::TraitRef] where we have a type id, but not the concrete type `T` of
@@ -103,6 +106,7 @@ pub struct ValueType {
 
     traits: SyncUnsafeCell<ValueTypeTraits>,
 }
+impl_ptr_identity!(ValueType);
 
 impl Debug for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -142,7 +146,7 @@ impl ValueType {
     /// Construct a `ValueType` for a non-codec persistence mode
     /// ([`ValueTypePersistence::Skip`] / [`ValueTypePersistence::HashOnly`]).
     ///
-    /// Used by [`#[turbo_tasks::value]`][crate::value] for `serialization =
+    /// Used by [`#[turbo_tasks::value]`][macro@crate::value] for `serialization =
     /// "skip"` and `serialization = "hash"`. For `serialization = "auto" |
     /// "custom"` use [`ValueType::persistable`] instead — its codec functions
     /// inline at the call site.
@@ -157,7 +161,7 @@ impl ValueType {
     /// Construct a `ValueType` whose cells round-trip through the persistent
     /// cache via the auto-derived bincode `Encode` / `Decode` impls.
     ///
-    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
+    /// This is internally used by [`#[turbo_tasks::value]`][macro@crate::value] for
     /// `serialization = "auto"` and `serialization = "custom"`.
     pub const fn persistable<T: VcValueType + Encode + Decode<()>>(
         global_name: &'static str,
@@ -265,12 +269,10 @@ impl ValueType {
     }
 }
 
-turbo_registry!("Value", ValueType);
-
 // Called during ValueType registry post_init to register all trait methods.
 // Single-threaded during Lazy init.
-pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
-    for entry in inventory::iter::<CollectableTraitMethods> {
+pub(crate) fn register_all_trait_methods() {
+    for entry in TRAIT_IMPLS_SLICE.iter() {
         for (i, impl_method) in entry.methods.iter().enumerate() {
             let trait_method = &entry.trait_type.methods[i];
             if trait_method.is_root != impl_method.is_root {
@@ -289,11 +291,14 @@ pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
                 );
             }
         }
-        entry
-            .value_type
-            .register_trait(entry.trait_type, entry.methods);
-        // Reigster all the rust vtables to support into_trait_ref calling stryles
-        (entry.finalize_vtable_registry)();
+        let value_type = entry.value_type;
+        value_type.register_trait(entry.trait_type, entry.methods);
+        // SAFETY: We are inside the `VALUES` `LazyLock` init after `init_registry` assigned
+        // ids. Reading the id cell directly (rather than `get_value_type_id`)
+        // avoids re-entering `LazyLock::force` and deadlocking.
+        let id = unsafe { get_value_type_id_unchecked(value_type) };
+        // Register all the rust vtables to support into_trait_ref calling stryles
+        (entry.install_vtable)(id);
     }
 }
 
@@ -337,7 +342,8 @@ impl TraitMethod {
         // SAFETY: Written during single-threaded Lazy init. Lazy provides acquire barrier.
         let raw = unsafe { std::ptr::read(self.trait_type.ty.id.get()) };
         debug_assert!(raw != 0, "TraitMethod::trait_type_id not initialized");
-        unsafe { TraitTypeId::new_unchecked(raw) }
+        // The registry caps trait ids at `TraitTypeId::MAX`, so this cannot truncate.
+        unsafe { TraitTypeId::new_unchecked(raw as u8) }
     }
 
     pub(crate) fn resolve_span(&self, priority: TaskPriority) -> Span {
@@ -354,6 +360,7 @@ pub struct TraitType {
     pub methods: &'static [TraitMethod],
     pub default_methods: &'static [Option<&'static NativeFunction>],
 }
+impl_ptr_identity!(TraitType);
 
 impl Debug for TraitType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -394,8 +401,6 @@ impl TraitType {
             .expect("Method not found!")
     }
 }
-
-turbo_registry!("Trait", TraitType);
 
 pub trait TraitVtablePrototype {
     const LEN: usize;
@@ -463,13 +468,13 @@ mod tests {
     use crate::{self as turbo_tasks, VcValueType, registry};
 
     #[turbo_tasks::value(serialization = "skip")]
-    struct SkipValue(#[turbo_tasks(trace_ignore)] u32);
+    struct SkipValue(u32);
 
     #[turbo_tasks::value(serialization = "hash")]
     struct HashValue(u32);
 
     #[turbo_tasks::value(serialization = "skip", evict = "last")]
-    struct SkipExpensiveValue(#[turbo_tasks(trace_ignore)] u32);
+    struct SkipExpensiveValue(u32);
 
     #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
     struct SessionStatefulValue;

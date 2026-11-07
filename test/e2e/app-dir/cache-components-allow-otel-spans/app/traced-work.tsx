@@ -1,4 +1,4 @@
-import { type Span, trace, context } from '@opentelemetry/api'
+import { type Span, type Tracer, trace, context } from '@opentelemetry/api'
 import { Suspense } from 'react'
 
 async function asyncWork() {
@@ -172,6 +172,45 @@ export const TracedComponentActiveSpan = withActiveSpan(async function (
     </section>
   )
 })
+
+type TestGlobal = typeof globalThis & {
+  __nextTestEarlyTracer?: Tracer
+}
+
+export async function TracedComponentEarlyTracerSpan() {
+  const tracer = (globalThis as TestGlobal).__nextTestEarlyTracer
+  if (!tracer) {
+    throw new Error(
+      'Expected instrumentation to register the early tracer before rendering'
+    )
+  }
+
+  const span = tracer.startSpan('span-early-manual-span')
+  const ctx = trace.setSpan(context.active(), span)
+
+  return context.with(ctx, async () => {
+    async function Inner() {
+      const result = await asyncWork()
+      return <Result>{result}</Result>
+    }
+    return (
+      <section id="t9">
+        <h2>(Manual Span) Tracer acquired before provider registration</h2>
+        <div>
+          <p>
+            Span Representative{' '}
+            <span className="span" suppressHydrationWarning>
+              {parseInt(span.spanContext().spanId.slice(10), 16)}
+            </span>
+          </p>
+          <Suspense fallback={<Loading />}>
+            <Inner />
+          </Suspense>
+        </div>
+      </section>
+    )
+  })
+}
 
 function Loading() {
   return <span className="fallback">loading...</span>

@@ -18,6 +18,7 @@ import type {
   NextApiHandler,
 } from './shared/lib/utils'
 import type { GetStaticPathsFallback } from './lib/fallback'
+import type { ParamMatchingMode } from './build/segment-config/app/app-segments'
 
 import type { NextApiRequestCookies } from './server/api-utils'
 
@@ -42,7 +43,22 @@ export type {
 
 export type { Instant } from './build/segment-config/app/app-segment-config'
 
+/**
+ * Optional contextual typing for parameter matching exports. Use
+ * `satisfies ParamMatching` to check modes without widening the object's keys,
+ * or provide parameter names for an explicit type annotation.
+ */
+export type ParamMatching<ParamName extends string = string> = Partial<
+  Record<ParamName, ParamMatchingMode>
+>
+
 export type { Instrumentation } from './server/instrumentation/types'
+export type {
+  RouterTransitionType,
+  RouterTransitionPrefetchIntent,
+  RouterTransitionEvent,
+  RouterTransitionStartEvent,
+} from './client/router-transition-types'
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run

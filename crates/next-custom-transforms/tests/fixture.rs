@@ -10,6 +10,7 @@ use next_custom_transforms::transforms::{
     debug_fn_name::debug_fn_name,
     debug_instant_stack::DebugInstantStack,
     dynamic::{NextDynamicMode, next_dynamic},
+    empty_gsp::EmptyGenerateStaticParams,
     fonts::{Config as FontLoaderConfig, next_font_loaders},
     named_import_transform::named_import_transform,
     next_ssg::next_ssg,
@@ -42,6 +43,7 @@ use swc_core::{
 };
 use swc_relay::{RelayLanguageConfig, relay};
 use testing::fixture;
+use turbo_rcstr::RcStr;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsSyntax {
@@ -456,6 +458,7 @@ fn react_server_components_typescript(input: PathBuf) {
                     use_cache_enabled: false,
                     taint_enabled: true,
                     page_extensions: vec![],
+                    is_app_router: true,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -491,6 +494,7 @@ fn react_server_components_fixture(input: PathBuf) {
                         use_cache_enabled: false,
                         taint_enabled: true,
                         page_extensions: vec![],
+                        is_app_router: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -502,8 +506,8 @@ fn react_server_components_fixture(input: PathBuf) {
                         is_react_server_layer,
                         is_development: true,
                         use_cache_enabled: true,
-                        hash_salt: "".into(),
-                        cache_kinds: FxHashSet::default(),
+                        hash_salt: RcStr::default().into(),
+                        cache_kinds: FxHashSet::default().into(),
                     },
                     tr.comments.as_ref().clone(),
                     unresolved_mark,
@@ -576,8 +580,8 @@ fn server_actions_fixture(input: PathBuf) {
                         is_react_server_layer,
                         is_development,
                         use_cache_enabled: true,
-                        hash_salt: "".into(),
-                        cache_kinds: FxHashSet::from_iter(["x".into()]),
+                        hash_salt: RcStr::default().into(),
+                        cache_kinds: FxHashSet::from_iter(["x".into()]).into(),
                     },
                     tr.comments.as_ref().clone(),
                     unresolved_mark,
@@ -616,8 +620,8 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                         is_react_server_layer: true,
                         is_development: true,
                         use_cache_enabled: true,
-                        hash_salt: "".into(),
-                        cache_kinds: FxHashSet::default(),
+                        hash_salt: RcStr::default().into(),
+                        cache_kinds: FxHashSet::default().into(),
                     },
                     tr.comments.as_ref().clone(),
                     unresolved_mark,
@@ -888,6 +892,25 @@ fn test_debug_instant_stack(input: PathBuf) {
     );
 }
 
+#[fixture("tests/fixture/empty-gsp/**/input.js")]
+fn test_empty_gsp(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+
+    test_fixture(
+        syntax(),
+        &|_| {
+            EmptyGenerateStaticParams::new::<Vec<&str>, &str>(vec![])
+                .get_pass("app/page.js".to_string())
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            sourcemap: true,
+            ..Default::default()
+        },
+    );
+}
+
 #[fixture("tests/fixture/edge-assert/**/input.js")]
 fn test_edge_assert(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
@@ -947,8 +970,8 @@ fn test_source_maps(input: PathBuf) {
                         is_react_server_layer,
                         is_development,
                         use_cache_enabled: true,
-                        hash_salt: "".into(),
-                        cache_kinds: FxHashSet::from_iter([]),
+                        hash_salt: RcStr::default().into(),
+                        cache_kinds: FxHashSet::default().into(),
                     },
                     tr.comments.as_ref().clone(),
                     unresolved_mark,

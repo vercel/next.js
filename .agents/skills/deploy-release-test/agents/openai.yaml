@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Deploy Release Test'
+  short_description: 'Trigger the full deploy release test suite'
+  default_prompt: 'Use $deploy-release-test to validate the latest PR commit package and trigger the full Next.js deployment test suite.'

@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
+import { VulnerabilityInsight } from '../components/vulnerability-insight/vulnerability-insight'
 import type { DebugInfo } from '../../shared/types'
 import { Overlay, OverlayBackdrop } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
@@ -25,8 +26,7 @@ import type { ReadyRuntimeError } from '../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 import type { HydrationErrorState } from '../../shared/hydration-error'
 import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
-import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { generateErrorInfo as generateErrorInfoHelper } from '../utils/generate-error-info'
 import {
   InstantHeaderExplanation,
   InstantGuidance,
@@ -35,12 +35,18 @@ import {
   type GuidanceKind,
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
-import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
+import {
+  BLOCKING_ROUTE_IN_NAVIGATION_EXPLANATION,
+  BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION,
+  CACHE_STAGE_METADATA_EXPLANATION,
+  CACHE_STAGE_VIEWPORT_EXPLANATION,
+} from '../components/instant/instant-guidance-data'
 import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
 import { useFrames } from '../utils/get-error-by-type'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import type { ErrorOverlayPaginationControls } from '../components/errors/error-overlay-pagination/error-overlay-pagination'
 
 interface ErrorsProps extends ErrorBaseProps {
@@ -48,6 +54,7 @@ interface ErrorsProps extends ErrorBaseProps {
   runtimeErrors: ReadyRuntimeError[]
   debugInfo: DebugInfo
   onClose: () => void
+  hasVulnerabilityInsight: boolean
 }
 
 function matchLinkType(text: string): string | null {
@@ -96,10 +103,20 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'blocking-route') {
     return errorDetails.inNavigation ? `Instant` : `Blocking Route`
   }
-  if (errorDetails.type === 'dynamic-metadata') {
+  if (errorDetails.type === 'static-route') return 'Static Route'
+  if (errorDetails.type === 'client-hook') {
     return `Blocking Route`
   }
-  if (errorDetails.type === 'dynamic-viewport') {
+  if (
+    errorDetails.type === 'dynamic-metadata' ||
+    errorDetails.type === 'dynamic-viewport'
+  ) {
+    if (
+      errorDetails.variant === 'prefetch' ||
+      errorDetails.variant === 'navigation'
+    ) {
+      return `Instant`
+    }
     return `Blocking Route`
   }
   if (errorDetails.type === 'sync-io') {
@@ -109,6 +126,9 @@ export function getErrorTypeLabel(
     return `Blocking Route`
   }
   if (errorDetails.type === 'unrendered-segment') {
+    return `Instant`
+  }
+  if (errorDetails.type === 'link-prefetch-partial') {
     return `Instant`
   }
   if (type === 'recoverable') {
@@ -124,11 +144,14 @@ type ErrorDetails =
   | NoErrorDetails
   | HydrationErrorDetails
   | BlockingRouteErrorDetails
+  | StaticRouteErrorDetails
+  | ClientHookErrorDetails
   | DynamicMetadataErrorDetails
   | DynamicViewportErrorDetails
   | SyncIOErrorDetails
   | SyncIOClientErrorDetails
   | UnrenderedSegmentErrorDetails
+  | LinkPrefetchPartialErrorDetails
 
 type NoErrorDetails = {
   type: 'empty'
@@ -143,18 +166,32 @@ type HydrationErrorDetails = {
 
 type BlockingRouteErrorDetails = {
   type: 'blocking-route'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
   inNavigation: boolean
+}
+
+type StaticRouteErrorDetails = {
+  type: 'static-route'
+  kind: 'static-route' | 'static-metadata' | 'static-viewport'
+  variant: GuidanceVariant
+  headline: string
+}
+
+type ClientHookErrorDetails = {
+  type: 'client-hook'
+  expression: string
 }
 
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
+  explanation?: string
 }
 
 type DynamicViewportErrorDetails = {
   type: 'dynamic-viewport'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
+  explanation?: string
 }
 
 type SyncIOErrorDetails = {
@@ -171,6 +208,11 @@ type UnrenderedSegmentErrorDetails = {
   type: 'unrendered-segment'
   route: string
   files: string[]
+}
+
+type LinkPrefetchPartialErrorDetails = {
+  type: 'link-prefetch-partial'
+  pathname: string
 }
 
 const noErrorDetails: ErrorDetails = {
@@ -202,6 +244,11 @@ export function useErrorDetails(
     const unrenderedSegmentDetails = getUnrenderedSegmentErrorDetails(error)
     if (unrenderedSegmentDetails) {
       return unrenderedSegmentDetails
+    }
+
+    const linkPrefetchPartialDetails = getLinkPrefetchPartialErrorDetails(error)
+    if (linkPrefetchPartialDetails) {
+      return linkPrefetchPartialDetails
     }
 
     return noErrorDetails
@@ -240,6 +287,31 @@ function getHydrationErrorDetails(
   }
 }
 
+// Detect `connection()` as the trigger by sniffing the highlighted line of the code frame.
+export function deriveCauseFromCodeFrame(
+  kind: GuidanceKind,
+  variant: GuidanceVariant,
+  codeFrame: string | null | undefined
+): 'connection' | undefined {
+  if (variant !== 'dynamic') return undefined
+  if (
+    kind !== 'blocking-route' &&
+    kind !== 'metadata' &&
+    kind !== 'viewport' &&
+    kind !== 'static-route' &&
+    kind !== 'static-metadata' &&
+    kind !== 'static-viewport'
+  )
+    return undefined
+  if (!codeFrame) return undefined
+  for (const line of stripAnsi(codeFrame).split('\n')) {
+    if (/^\s*>/.test(line) && /\bconnection\s*\(/.test(line)) {
+      return 'connection'
+    }
+  }
+  return undefined
+}
+
 function InstantRuntimeError({
   error,
   variant,
@@ -248,6 +320,7 @@ function InstantRuntimeError({
   cause,
   showExplanation = true,
   dialogResizerRef,
+  generateErrorInfo,
 }: {
   error: ReadyRuntimeError
   variant: GuidanceVariant
@@ -256,6 +329,7 @@ function InstantRuntimeError({
   cause?: string
   showExplanation?: boolean
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
+  generateErrorInfo: () => Promise<string>
 }) {
   const frames = useFrames(error)
 
@@ -269,6 +343,10 @@ function InstantRuntimeError({
     return frames[idx] ?? null
   }, [frames])
 
+  const derivedCause =
+    cause ??
+    deriveCauseFromCodeFrame(kind, variant, firstFrame?.originalCodeFrame)
+
   return (
     <>
       {firstFrame && (
@@ -281,8 +359,9 @@ function InstantRuntimeError({
         variant={variant}
         kind={kind}
         explanation={explanation}
-        cause={cause}
+        cause={derivedCause}
         showExplanation={showExplanation}
+        generateErrorInfo={generateErrorInfo}
       />
       {frames.length > 0 && (
         <ErrorOverlayCallStack
@@ -301,12 +380,29 @@ function InstantRuntimeError({
   )
 }
 
-export function isRuntimeVariant(message: string): boolean {
-  // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
-  return (
+export function getGuidanceVariant(message: string): GuidanceVariant {
+  // Discriminates between `createNavigationBodyErrorInNavigation`,
+  // `createLinkBodyErrorInNavigation`, `createRuntimeBodyError`, and
+  // `createDynamicBodyError` (and their in-navigation variants).
+  if (message.includes('encountered `navigation()`')) {
+    return 'navigation'
+  }
+  if (message.includes('encountered `prefetch()`')) {
+    return 'prefetch'
+  }
+  if (
+    message.includes('encountered URL data') &&
+    !message.includes('encountered uncached data')
+  ) {
+    return 'link'
+  }
+  if (
     message.includes('encountered runtime data') &&
     !message.includes('encountered uncached data')
-  )
+  ) {
+    return 'runtime'
+  }
+  return 'dynamic'
 }
 
 const SYNC_IO_APIS = [
@@ -332,7 +428,7 @@ const SYNC_IO_APIS = [
 ]
 
 const SYNC_IO_DOCS_PATTERN =
-  /https:\/\/nextjs\.org\/docs\/messages\/next-prerender-(?:runtime-)?(random|current-time|crypto)(-client)?/
+  /https:\/\/nextjs\.org\/docs\/messages\/blocking-prerender-(random|current-time|crypto)(-client)?/
 
 // Discriminate sync IO errors via the docs URL embedded in the user-facing
 // message by `createSyncIOError`, `createSyncIORuntimeError`, and
@@ -346,15 +442,17 @@ export function isSyncIOClientError(message: string): boolean {
   return match !== null && match[2] === '-client'
 }
 
-// Detects errors emitted during navigation-phase instant validation: body
-// errors from `createRuntimeBodyErrorInNavigation` /
-// `createDynamicBodyErrorInNavigation` (SSR factories instead say "during
-// prerendering"), and validation errors from
-// `trackDynamicHoleInNavigation` / `getNavigationDisallowedDynamicReasons`.
+// Detects Instant Insights emitted during navigation validation. Body errors
+// identify the navigation in their message. `prefetch()` and
+// `navigation()` in metadata and viewport use dedicated docs URLs
+// because their messages describe the affected API instead of the validation
+// phase.
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes('Could not validate `unstable_instant`') ||
+    message.includes('/instant-navigation-stage-metadata') ||
+    message.includes('/instant-navigation-stage-viewport') ||
+    message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
     )
@@ -367,32 +465,74 @@ export function getBlockingRouteErrorDetails(
   const message = error.message
   const inNavigation = isBlockingRouteInNavError(message)
 
-  const isBlockingPageLoadError = message.includes('/blocking-route')
+  const staticRouteMatch =
+    /https:\/\/nextjs\.org\/docs\/messages\/static-(route|metadata|viewport)\b/.exec(
+      message
+    )
+  if (staticRouteMatch) {
+    return {
+      type: 'static-route',
+      kind: `static-${staticRouteMatch[1]}` as StaticRouteErrorDetails['kind'],
+      variant: getGuidanceVariant(message),
+      headline: message.split('\n')[0].replace(/^Route "[^"]*": /, ''),
+    }
+  }
+
+  const clientHookMatch =
+    /Next\.js encountered URL data `([^`]+)` in a Client Component outside of `<Suspense>`\./.exec(
+      message
+    )
+  if (clientHookMatch) {
+    return {
+      type: 'client-hook',
+      expression: clientHookMatch[1],
+    }
+  }
+
+  const isBlockingPageLoadError =
+    message.includes('/blocking-prerender-runtime') ||
+    message.includes('/blocking-prerender-dynamic') ||
+    message.includes('/instant-shell-url-data') ||
+    (message.includes('/instant-navigation-stage') &&
+      !message.includes('/instant-navigation-stage-metadata') &&
+      !message.includes('/instant-navigation-stage-viewport'))
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant: getGuidanceVariant(message),
       inNavigation,
     }
   }
 
-  const isDynamicMetadataError = message.includes(
-    '/next-prerender-dynamic-metadata'
-  )
+  const isDynamicMetadataError =
+    message.includes('/blocking-prerender-metadata-dynamic') ||
+    message.includes('/blocking-prerender-metadata-runtime') ||
+    message.includes('/instant-navigation-stage-metadata')
   if (isDynamicMetadataError) {
+    const variant = getGuidanceVariant(message)
     return {
       type: 'dynamic-metadata',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant,
+      explanation:
+        variant === 'prefetch' || variant === 'navigation'
+          ? CACHE_STAGE_METADATA_EXPLANATION
+          : undefined,
     }
   }
 
-  const isBlockingViewportError = message.includes(
-    '/next-prerender-dynamic-viewport'
-  )
+  const isBlockingViewportError =
+    message.includes('/blocking-prerender-viewport-dynamic') ||
+    message.includes('/blocking-prerender-viewport-runtime') ||
+    message.includes('/instant-navigation-stage-viewport')
   if (isBlockingViewportError) {
+    const variant = getGuidanceVariant(message)
     return {
       type: 'dynamic-viewport',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant,
+      explanation:
+        variant === 'prefetch' || variant === 'navigation'
+          ? CACHE_STAGE_VIEWPORT_EXPLANATION
+          : undefined,
     }
   }
 
@@ -447,11 +587,35 @@ export function getUnrenderedSegmentErrorDetails(
   }
 }
 
+export function getLinkPrefetchPartialErrorDetails(
+  error: Error
+): LinkPrefetchPartialErrorDetails | null {
+  const message = error.message
+  if (typeof message !== 'string') return null
+  const match =
+    /^Next\.js encountered dynamic data during prefetching for "([^"]+)"\./.exec(
+      message
+    )
+  if (!match) return null
+  return {
+    type: 'link-prefetch-partial',
+    pathname: match[1],
+  }
+}
+
 export function isInstantNavigationError(error: Error): boolean {
   // Unrendered-segment errors are always instant-only
   if (getUnrenderedSegmentErrorDetails(error)) return true
+  if (getLinkPrefetchPartialErrorDetails(error)) return true
   const details = getBlockingRouteErrorDetails(error)
-  return details?.type === 'blocking-route' && details.inNavigation
+  if (details?.type === 'blocking-route') return details.inNavigation
+  if (
+    details?.type === 'dynamic-metadata' ||
+    details?.type === 'dynamic-viewport'
+  ) {
+    return details.variant === 'prefetch' || details.variant === 'navigation'
+  }
+  return false
 }
 
 export type ErrorTab = 'errors' | 'instant'
@@ -489,31 +653,43 @@ export function ErrorTabBar({
         className="error-overlay-tab"
         data-active={activeTab === 'errors'}
         disabled={errorCount === 0}
+        aria-disabled={errorCount === 0}
         onClick={() => onTabChange('errors')}
       >
-        Issues
-        <span
-          className="error-overlay-tab-count"
-          data-active={activeTab === 'errors'}
-        >
-          {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
-        </span>
+        {errorCount === 0 ? (
+          'No issues'
+        ) : (
+          <>
+            Issues
+            <span
+              className="error-overlay-tab-count"
+              data-active={activeTab === 'errors'}
+            >
+              {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
+            </span>
+          </>
+        )}
       </button>
-      <button
-        type="button"
-        className="error-overlay-tab"
-        data-active={activeTab === 'instant'}
-        disabled={instantCount === 0}
-        onClick={() => onTabChange('instant')}
-      >
-        Insights
-        <span
-          className="error-overlay-tab-count"
+      {instantCount > 0 && (
+        <button
+          type="button"
+          className="error-overlay-tab"
           data-active={activeTab === 'instant'}
+          onClick={() => onTabChange('instant')}
         >
-          {createCount(instantActiveIdx, instantCount, activeTab === 'instant')}
-        </span>
-      </button>
+          Insights
+          <span
+            className="error-overlay-tab-count"
+            data-active={activeTab === 'instant'}
+          >
+            {createCount(
+              instantActiveIdx,
+              instantCount,
+              activeTab === 'instant'
+            )}
+          </span>
+        </button>
+      )}
       {nextButton}
     </div>
   )
@@ -524,6 +700,7 @@ export function Errors({
   runtimeErrors,
   debugInfo,
   onClose,
+  hasVulnerabilityInsight,
   ...props
 }: ErrorsProps) {
   const dialogResizerRef = useRef<HTMLDivElement | null>(null)
@@ -541,6 +718,8 @@ export function Errors({
     return { normalErrors: normal, instantErrors: instant }
   }, [runtimeErrors])
 
+  const insightCount = instantErrors.length + (hasVulnerabilityInsight ? 1 : 0)
+
   const [activeTab, setActiveTab] = useState<ErrorTab>(() =>
     normalErrors.length > 0 ? 'errors' : 'instant'
   )
@@ -553,7 +732,7 @@ export function Errors({
       ? normalErrors.length > 0
         ? 'errors'
         : 'instant'
-      : instantErrors.length > 0
+      : insightCount > 0
         ? 'instant'
         : 'errors'
   const activeErrors =
@@ -564,14 +743,13 @@ export function Errors({
   )
   const instantActiveIdx = Math.max(
     0,
-    Math.min(activeIndices.instant, Math.max(0, instantErrors.length - 1))
+    Math.min(activeIndices.instant, Math.max(0, insightCount - 1))
   )
   const activeIdxForTab =
     effectiveActiveTab === 'instant' ? instantActiveIdx : errorActiveIdx
 
   const {
     isLoading,
-    errorCode,
     errorType,
     activeIdx,
     errorDetails,
@@ -589,111 +767,22 @@ export function Errors({
     },
   })
 
-  const generateErrorInfo = useCallback(async () => {
-    if (!activeError) return ''
-
-    const parts: string[] = []
-
-    // 1. Error Type
-    if (errorType) {
-      parts.push(`## Error Type\n${errorType}`)
-    }
-
-    // 2. Error Message
-    const error = activeError.error
-    let message = error.message
-    if ('environmentName' in error && error.environmentName) {
-      const envPrefix = `[ ${error.environmentName} ] `
-      if (message.startsWith(envPrefix)) {
-        message = message.slice(envPrefix.length)
-      }
-    }
-    if (message) {
-      parts.push(`## Error Message\n${message}`)
-    }
-
-    const frames = await Promise.race([
-      activeError.frames(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
-    ])
-
-    // Append call stack
-    if (frames === null) {
-      parts.push(
-        'Unable to retrieve stack frames for this error. Falling back to unsourcemapped stack\n\n' +
-          error.stack
-      )
-    } else {
-      if (frames.length > 0) {
-        const visibleFrames = frames.filter((frame) => !frame.ignored)
-        if (visibleFrames.length > 0) {
-          const stackLines = visibleFrames
-            .map((frame) => {
-              if (frame.originalStackFrame) {
-                const { methodName, file, line1, column1 } =
-                  frame.originalStackFrame
-                return `    at ${methodName} (${file}:${line1}:${column1})`
-              } else if (frame.sourceStackFrame) {
-                const { methodName, file, line1, column1 } =
-                  frame.sourceStackFrame
-                return `    at ${methodName} (${file}:${line1}:${column1})`
-              }
-              return ''
-            })
-            .filter(Boolean)
-
-          if (stackLines.length > 0) {
-            parts.push(`\n${stackLines.join('\n')}`)
-          }
-        }
-      }
-
-      // 3. Code Frame (decoded)
-      const firstFirstPartyFrameIndex = frames.findIndex(
-        (entry) =>
-          !entry.ignored &&
-          Boolean(entry.originalCodeFrame) &&
-          Boolean(entry.originalStackFrame)
-      )
-
-      const firstFrame = frames[firstFirstPartyFrameIndex] ?? null
-      if (firstFrame?.originalCodeFrame) {
-        const decodedCodeFrame = stripAnsi(
-          formatCodeFrame(firstFrame.originalCodeFrame)
-        )
-        parts.push(`## Code Frame\n${decodedCodeFrame}`)
-      }
-    }
-
-    // Format as markdown error info
-    const errorInfo = `${parts.join('\n\n')}
-
-Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\n`
-
-    return errorInfo
-  }, [activeError, errorType, props.versionInfo])
-
-  if (isLoading) {
-    // TODO: better loading state
-    return (
-      <Overlay>
-        <OverlayBackdrop />
-      </Overlay>
-    )
-  }
-
-  if (!activeError) {
-    return null
-  }
-
-  const error = activeError.error
-  const isServerError = ['server', 'edge-server'].includes(
-    getErrorSource(error) || ''
+  const generateErrorInfo = useCallback(
+    () =>
+      generateErrorInfoHelper({
+        activeError,
+        errorType,
+        versionInfo: props.versionInfo.installed,
+        bundler: process.env.__NEXT_BUNDLER as string,
+      }),
+    [activeError, errorType, props.versionInfo]
   )
 
-  // Show the tab bar whenever there are instant errors so the user
-  // knows they're looking at an insight, even if the other tab is empty.
-  const showTabBar = instantErrors.length > 0
+  // Show the tab bar only when at least one Insight is present. When the only
+  // bucket with content is Issues, the red pill already conveys the count and a
+  // single-tab bar would be redundant. When Insights exist (alone or alongside
+  // Issues), the bar is shown so the user can switch between buckets.
+  const showTabBar = insightCount > 0
   const renderTabBar = showTabBar
     ? ({
         previousButton,
@@ -708,7 +797,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             })
           }}
           errorCount={normalErrors.length}
-          instantCount={instantErrors.length}
+          instantCount={insightCount}
           errorActiveIdx={errorActiveIdx}
           instantActiveIdx={instantActiveIdx}
           previousButton={previousButton}
@@ -725,8 +814,8 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
     : activeIdx > 0
   const canGoNext = showTabBar
     ? effectiveActiveTab === 'errors'
-      ? errorActiveIdx < normalErrors.length - 1 || instantErrors.length > 0
-      : instantActiveIdx < instantErrors.length - 1
+      ? errorActiveIdx < normalErrors.length - 1 || insightCount > 0
+      : instantActiveIdx < insightCount - 1
     : activeIdx < activeErrors.length - 1
 
   const handlePrevious = showTabBar
@@ -764,7 +853,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               return
             }
 
-            if (instantErrors.length > 0) {
+            if (insightCount > 0) {
               setActiveTab('instant')
               setActiveIndices((previous) => ({
                 ...previous,
@@ -774,12 +863,51 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             return
           }
 
-          if (instantActiveIdx < instantErrors.length - 1) {
+          if (instantActiveIdx < insightCount - 1) {
             setActiveIndex(instantActiveIdx + 1)
           }
         })
       }
     : undefined
+
+  if (
+    hasVulnerabilityInsight &&
+    effectiveActiveTab === 'instant' &&
+    instantActiveIdx === instantErrors.length
+  ) {
+    const hasServerError = runtimeErrors.some(({ error }) =>
+      ['server', 'edge-server'].includes(getErrorSource(error) || '')
+    )
+    return (
+      <VulnerabilityInsight
+        {...props}
+        renderTabBar={renderTabBar}
+        canGoPrevious={canGoPrevious}
+        canGoNext={canGoNext}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+        onClose={hasServerError ? undefined : onClose}
+      />
+    )
+  }
+
+  if (isLoading) {
+    // TODO: better loading state
+    return (
+      <Overlay>
+        <OverlayBackdrop />
+      </Overlay>
+    )
+  }
+
+  if (!activeError) {
+    return null
+  }
+
+  const error = activeError.error
+  const isServerError = ['server', 'edge-server'].includes(
+    getErrorSource(error) || ''
+  )
 
   let errorMessage: React.ReactNode
   let maybeNotes: React.ReactNode = null
@@ -825,27 +953,54 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
         )
       }
       break
-    case 'blocking-route':
+    case 'blocking-route': {
+      switch (errorDetails.variant) {
+        case 'runtime':
+          errorMessage = errorDetails.inNavigation
+            ? 'Next.js encountered runtime data during a navigation.'
+            : 'Next.js encountered runtime data during prerendering.'
+          break
+        case 'link':
+          errorMessage = 'Next.js encountered URL data outside of Suspense.'
+          break
+        case 'navigation':
+          errorMessage = (
+            <>
+              Next.js encountered <code>navigation()</code> outside of Suspense.
+            </>
+          )
+          break
+        case 'prefetch':
+          errorMessage = (
+            <>
+              Next.js encountered <code>prefetch()</code> outside of Suspense.
+            </>
+          )
+          break
+        case 'dynamic':
+          errorMessage = errorDetails.inNavigation
+            ? 'Next.js encountered uncached data during a navigation.'
+            : 'Next.js encountered uncached data during prerendering.'
+          break
+        default:
+          errorMessage = errorDetails.variant satisfies never
+      }
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
-          errorMessage={
-            errorDetails.variant === 'runtime'
-              ? errorDetails.inNavigation
-                ? 'Next.js encountered runtime data during a navigation.'
-                : 'Next.js encountered runtime data during prerendering.'
-              : errorDetails.inNavigation
-                ? 'Next.js encountered uncached data during a navigation.'
-                : 'Next.js encountered uncached data during prerendering.'
-          }
+          errorMessage={errorMessage}
           headerChildren={
             <InstantHeaderExplanation
               kind="blocking-route"
+              variant={errorDetails.variant}
               explanation={
-                errorDetails.inNavigation
-                  ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
-                  : undefined
+                errorDetails.variant === 'link' ||
+                errorDetails.variant === 'prefetch' ||
+                errorDetails.variant === 'navigation'
+                  ? BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION
+                  : errorDetails.inNavigation
+                    ? BLOCKING_ROUTE_IN_NAVIGATION_EXPLANATION
+                    : undefined
               }
             />
           }
@@ -871,29 +1026,153 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant={errorDetails.variant}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
       )
-    case 'dynamic-metadata':
+    }
+    case 'client-hook':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={
-            errorDetails.variant === 'runtime' ? (
-              <>
-                Next.js encountered runtime data in{' '}
-                <code>generateMetadata()</code>.
-              </>
-            ) : (
-              <>
-                Next.js encountered uncached data in{' '}
-                <code>generateMetadata()</code>.
-              </>
-            )
+            <>
+              Next.js encountered URL data{' '}
+              <code>{errorDetails.expression}</code> in a Client Component
+              outside of Suspense.
+            </>
           }
-          headerChildren={<InstantHeaderExplanation kind="metadata" />}
+          headerChildren={<InstantHeaderExplanation kind="client-hook" />}
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={activeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant="runtime"
+              kind="client-hook"
+              cause={errorDetails.expression}
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
+    case 'static-route': {
+      return (
+        <ErrorOverlayLayout
+          errorType={errorType}
+          errorMessage={
+            <HotlinkedText
+              text={errorDetails.headline}
+              matcher={matchLinkType}
+            />
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              kind={errorDetails.kind}
+              variant={errorDetails.variant}
+            />
+          }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={activeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant={errorDetails.variant}
+              kind={errorDetails.kind}
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
+    }
+    case 'dynamic-metadata': {
+      switch (errorDetails.variant) {
+        case 'runtime':
+          errorMessage = (
+            <>
+              Next.js encountered runtime data in{' '}
+              <code>generateMetadata()</code>.
+            </>
+          )
+          break
+        case 'link':
+          errorMessage = (
+            <>
+              Next.js encountered URL data in <code>generateMetadata()</code>.
+            </>
+          )
+          break
+        case 'navigation':
+          errorMessage = (
+            <>
+              Next.js encountered <code>navigation()</code> in{' '}
+              <code>generateMetadata()</code>.
+            </>
+          )
+          break
+        case 'prefetch':
+          errorMessage = (
+            <>
+              Next.js encountered <code>prefetch()</code> in{' '}
+              <code>generateMetadata()</code>.
+            </>
+          )
+          break
+        case 'dynamic':
+          errorMessage = (
+            <>
+              Next.js encountered uncached data in{' '}
+              <code>generateMetadata()</code>.
+            </>
+          )
+          break
+        default:
+          errorMessage = errorDetails.variant satisfies never
+      }
+      return (
+        <ErrorOverlayLayout
+          errorType={errorType}
+          errorMessage={errorMessage}
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="metadata"
+              variant={errorDetails.variant}
+              explanation={errorDetails.explanation}
+            />
+          }
           renderTabBar={renderTabBar}
           canGoPrevious={canGoPrevious}
           canGoNext={canGoNext}
@@ -917,29 +1196,68 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               kind="metadata"
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
       )
-    case 'dynamic-viewport':
+    }
+    case 'dynamic-viewport': {
+      switch (errorDetails.variant) {
+        case 'link':
+          errorMessage = (
+            <>
+              Next.js encountered URL data in <code>generateViewport()</code>.
+            </>
+          )
+          break
+        case 'runtime':
+          errorMessage = (
+            <>
+              Next.js encountered runtime data in{' '}
+              <code>generateViewport()</code>.
+            </>
+          )
+          break
+        case 'navigation':
+          errorMessage = (
+            <>
+              Next.js encountered <code>navigation()</code> in{' '}
+              <code>generateViewport()</code>.
+            </>
+          )
+          break
+        case 'prefetch':
+          errorMessage = (
+            <>
+              Next.js encountered <code>prefetch()</code> in{' '}
+              <code>generateViewport()</code>.
+            </>
+          )
+          break
+        case 'dynamic':
+          errorMessage = (
+            <>
+              Next.js encountered uncached data in{' '}
+              <code>generateViewport()</code>.
+            </>
+          )
+          break
+        default:
+          errorMessage = errorDetails.variant satisfies never
+      }
+
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
-          errorMessage={
-            errorDetails.variant === 'runtime' ? (
-              <>
-                Next.js encountered runtime data in{' '}
-                <code>generateViewport()</code>.
-              </>
-            ) : (
-              <>
-                Next.js encountered uncached data in{' '}
-                <code>generateViewport()</code>.
-              </>
-            )
+          errorMessage={errorMessage}
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="viewport"
+              variant={errorDetails.variant}
+              explanation={errorDetails.explanation}
+            />
           }
-          headerChildren={<InstantHeaderExplanation kind="viewport" />}
           renderTabBar={renderTabBar}
           canGoPrevious={canGoPrevious}
           canGoNext={canGoNext}
@@ -963,14 +1281,15 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               kind="viewport"
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
       )
+    }
     case 'sync-io':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={
             <>
@@ -1008,6 +1327,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               cause={errorDetails.cause}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -1015,7 +1335,6 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
     case 'sync-io-client':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage={
             <>
@@ -1053,6 +1372,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               cause={errorDetails.cause}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -1060,21 +1380,24 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
     case 'unrendered-segment':
       return (
         <ErrorOverlayLayout
-          errorCode={errorCode}
           errorType={errorType}
           errorMessage="Next.js could not validate that a segment in your UI has instant navigation."
           headerChildren={
             <InstantHeaderExplanation kind="unrendered-segment" />
           }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
-          renderTabBar={renderTabBar}
           {...props}
         >
           <UnrenderedSegmentInfo
@@ -1088,6 +1411,42 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           />
         </ErrorOverlayLayout>
       )
+    case 'link-prefetch-partial':
+      return (
+        <ErrorOverlayLayout
+          errorType={errorType}
+          errorMessage="Next.js encountered dynamic data during prefetching."
+          headerChildren={
+            <InstantHeaderExplanation kind="link-prefetch-partial" />
+          }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={activeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant="runtime"
+              kind="link-prefetch-partial"
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
     case 'empty':
       errorMessage = <GenericErrorDescription error={error} />
       break
@@ -1097,7 +1456,6 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
 
   return (
     <ErrorOverlayLayout
-      errorCode={errorCode}
       errorType={errorType}
       errorMessage={errorMessage}
       renderTabBar={renderTabBar}
@@ -1177,21 +1535,24 @@ export const styles = `
   }
   .nextjs__container_errors__error_title {
     display: flex;
-    align-items: start;
-    justify-content: space-between;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
     position: relative;
+  }
+  .nextjs__container_errors__error_title__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
   }
   .error-overlay-notes-container {
     margin: 8px 2px;
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;
-  }
-  @media (max-width: 767px) {
-    .nextjs__container_errors__error_title {
-      flex-direction: column-reverse;
-    }
   }
   .external-link, .external-link:hover {
     color:inherit;
@@ -1222,7 +1583,7 @@ export const styles = `
     transition: color 0.15s ease;
     border-radius: var(--rounded-md);
 
-    &:hover {
+    &:hover:not(:disabled) {
       color: var(--color-gray-1000);
     }
 

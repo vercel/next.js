@@ -1,0 +1,11 @@
+id: no-typeof-window-require
+valid:
+  - "const mod = require('./mod')"
+  - "const mod = cond ? require('./a') : require('./b')"
+  - "if (enabled) { doThing(require('./a')) }"
+  - "const x = typeof window === 'undefined' ? serverValue : browserValue"
+invalid:
+  - "const x = typeof window === 'undefined' ? require('./server').x : undefined"
+  - "const x = typeof window !== 'undefined' ? require('./browser') : null"
+  - "if (typeof window === 'undefined') { const s = require('./server') }"
+  - "const x = typeof window === 'undefined' && FLAG ? require('./server').x : {}"

@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import {
   command,
   DEFAULT_FILES,
@@ -91,7 +93,7 @@ describe('create-next-app with package manager pnpm', () => {
   // 1. We only need to verify the workspace file is created/not created
   // 2. The CI runs pnpm v9, but when testing v10 behavior, the workspace file
   //    created for v10 (without packages field) would fail with pnpm v9
-  it('should create pnpm-workspace.yaml for pnpm v10+', async () => {
+  it('should create pnpm-workspace.yaml with ignoredBuiltDependencies for pnpm v10', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'pnpm-v10-workspace'
       const res = await run(
@@ -120,6 +122,54 @@ describe('create-next-app with package manager pnpm', () => {
         projectName,
         files: ['package.json', 'pnpm-workspace.yaml'],
       })
+      const workspaceYaml = fs.readFileSync(
+        path.join(cwd, projectName, 'pnpm-workspace.yaml'),
+        'utf8'
+      )
+      expect(workspaceYaml).toContain('ignoredBuiltDependencies:')
+      expect(workspaceYaml).toContain('- sharp')
+      expect(workspaceYaml).toContain('- unrs-resolver')
+      expect(workspaceYaml).not.toContain('allowBuilds:')
+    })
+  })
+
+  it('should create pnpm-workspace.yaml with allowBuilds for pnpm v11+', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'pnpm-v11-workspace'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          '--skip-install',
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+          env: { npm_config_user_agent: 'pnpm/11.0.0 npm/? node/v20.0.0' },
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: ['package.json', 'pnpm-workspace.yaml'],
+      })
+      const workspaceYaml = fs.readFileSync(
+        path.join(cwd, projectName, 'pnpm-workspace.yaml'),
+        'utf8'
+      )
+      expect(workspaceYaml).toContain('allowBuilds:')
+      expect(workspaceYaml).toContain('sharp: false')
+      expect(workspaceYaml).toContain('unrs-resolver: false')
+      expect(workspaceYaml).not.toContain('ignoredBuiltDependencies:')
     })
   })
 

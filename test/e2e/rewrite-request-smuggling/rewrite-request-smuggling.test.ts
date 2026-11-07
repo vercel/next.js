@@ -3,12 +3,9 @@ import http from 'http'
 import { nextTestSetup } from 'e2e-utils'
 import { findPort, retry } from 'next-test-utils'
 
+// Deploy mode exclusion: This suite opens raw TCP connections to a local backend server.
+// @force-gate !deploy
 describe('rewrite-request-smuggling', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip deploy', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,

@@ -48,6 +48,18 @@ export class RequestCookiesAdapter {
       },
     })
   }
+
+  /**
+   * @param cookies
+   * @returns A fresh object identity backed by the original value
+   */
+  public static fresh(cookies: ReadonlyRequestCookies): ReadonlyRequestCookies {
+    return new Proxy(cookies, {
+      get(target, prop, receiver) {
+        return ReflectAdapter.get(target, prop, receiver)
+      },
+    })
+  }
 }
 
 const SYMBOL_MODIFY_COOKIE_VALUES = Symbol.for('next.mutated.cookies')

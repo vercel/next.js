@@ -5,7 +5,7 @@ use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, turbofmt};
-use turbo_tasks_fs::{FileSystemPath, rope::Rope};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
@@ -16,6 +16,7 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::{OptionSource, Source},
+    source_map::{SourceMapGenerationOptions, SourceMaps, structured::StructuredSourceMap},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -41,19 +42,25 @@ use crate::{
 pub struct EcmascriptCssModule {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
+    source_map_generation_options: SourceMapGenerationOptions,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptCssModule {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    ) -> Vc<Self> {
-        Self::cell(EcmascriptCssModule {
+        source_map_generation_options: SourceMapGenerationOptions,
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(EcmascriptCssModule {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
-        })
+            source_map_generation_options,
+        }))
     }
 }
 
@@ -326,20 +333,28 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             )?;
         }
         code += "});\n";
-        let source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(self))
-            .await?;
+        let generation = self.await?.source_map_generation_options;
+        let map = if generation.should_generate_any_source_maps() {
+            Some(generate_minimal_source_map(
+                turbofmt!("{}", self.ident()).await?.to_string(),
+                code.clone(),
+                generation.full || generation.shallow_sources_content,
+            )?)
+        } else {
+            None
+        };
         Ok(EcmascriptChunkItemContent {
-            inner_code: code.clone().into(),
-            // We generate a minimal map for runtime code so that the filename is
-            // displayed in dev tools.
-            source_map: if source_map {
-                Some(generate_minimal_source_map(
-                    turbofmt!("{}", self.ident()).await?.to_string(),
-                    code,
-                )?)
-            } else {
-                None
+            inner_code: code.into(),
+            source_maps: match (generation.full, generation.shallow, map) {
+                (true, true, Some(map)) if generation.shallow_sources_content => {
+                    SourceMaps::Shared(map)
+                }
+                (true, true, Some(map)) => {
+                    SourceMaps::new(Some(map.clone()), Some(map.without_sources_content()))
+                }
+                (true, false, Some(map)) => SourceMaps::Full(map),
+                (false, true, Some(map)) => SourceMaps::Shallow(map),
+                _ => SourceMaps::None,
             },
             options: EcmascriptChunkItemOptions {
                 supports_arrow_functions: *chunking_context
@@ -357,18 +372,20 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for EcmascriptCssModule {
-    #[turbo_tasks::function]
-    async fn origin_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.source.ident().await?.path.clone().cell())
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }
 
-fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope> {
+fn generate_minimal_source_map(
+    filename: String,
+    source: String,
+    inline_sources_content: bool,
+) -> Result<StructuredSourceMap> {
     let mut mappings = vec![];
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
@@ -384,6 +401,13 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(&*sm, mappings, None, true, true, Default::default())?;
+    let map = generate_js_source_map(
+        &*sm,
+        &mappings,
+        None,
+        true,
+        inline_sources_content,
+        &Default::default(),
+    )?;
     Ok(map)
 }

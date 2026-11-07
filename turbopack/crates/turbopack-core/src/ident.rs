@@ -4,29 +4,15 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, ValueToStringRef, Vc,
-    trace::TraceRawVcs, turbofmt,
-};
+use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, ValueToStringRef, Vc, turbofmt};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_xxh3_hash64};
 
 use crate::resolve::ModulePart;
 
 /// A layer identifies a distinct part of the module graph.
-#[derive(
-    Clone,
-    TaskInput,
-    Hash,
-    Debug,
-    DeterministicHash,
-    Eq,
-    PartialEq,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Hash, Debug, DeterministicHash, Eq, PartialEq, Encode, Decode)]
 pub struct Layer {
     name: RcStr,
     user_friendly_name: Option<RcStr>,
@@ -59,8 +45,8 @@ impl Layer {
     }
 }
 
-#[turbo_tasks::value]
-#[derive(Clone, Debug, Hash, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Clone, Debug, Hash)]
 pub struct AssetIdent {
     /// The primary path of the asset
     pub path: FileSystemPath,
@@ -263,30 +249,40 @@ impl AssetIdent {
                     2_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
+                ModulePart::PartialExport { export, member } => {
+                    3_u8.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
+                    member.deterministic_hash(&mut hasher);
+                }
                 ModulePart::RenamedExport {
                     original_export,
                     export,
                 } => {
-                    3_u8.deterministic_hash(&mut hasher);
+                    4_u8.deterministic_hash(&mut hasher);
                     original_export.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
                 ModulePart::RenamedNamespace { export } => {
-                    4_u8.deterministic_hash(&mut hasher);
+                    5_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
+                ModulePart::RenamedPartialNamespace { export, member } => {
+                    6_u8.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
+                    member.deterministic_hash(&mut hasher);
+                }
                 ModulePart::Internal(id) => {
-                    5_u8.deterministic_hash(&mut hasher);
+                    7_u8.deterministic_hash(&mut hasher);
                     id.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Locals => {
-                    6_u8.deterministic_hash(&mut hasher);
+                    8_u8.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Exports => {
-                    7_u8.deterministic_hash(&mut hasher);
+                    9_u8.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Facade => {
-                    8_u8.deterministic_hash(&mut hasher);
+                    10_u8.deterministic_hash(&mut hasher);
                 }
             }
 
@@ -305,9 +301,15 @@ impl AssetIdent {
 
         if has_hash {
             let hash = encode_base38(hasher.finish());
-            // 7 base38 chars ≈ 36 bits of collision resistance
-            let truncated_hash = &hash[..7];
-            write!(name, "_{truncated_hash}")?;
+            // Use the complete fixed-width base38 encoding of the 64-bit hash.
+            //
+            // This suffix is what distinguishes idents that share a readable
+            // name prefix, so truncating it makes distinct output paths collide
+            // for large module graphs, failing the build with "Two or more
+            // assets with different content were emitted to the same output
+            // path". Keeping all 64 bits removes that failure mode, at the cost
+            // of a slightly longer file name.
+            write!(name, "_{hash}")?;
         }
 
         // Location in "path" where hashed and named parts are split.
@@ -341,12 +343,26 @@ impl AssetIdent {
         name += &expected_extension;
         Ok(Vc::cell(name.into()))
     }
+
+    /// Like .to_string() but with `layer` overwritten to None.
+    #[turbo_tasks::function]
+    pub async fn to_string_without_layer(&self) -> Result<Vc<RcStr>> {
+        let mut ident_without_layer = self.clone();
+        ident_without_layer.layer = None;
+        Ok(Vc::cell(ident_without_layer.to_string_ref().await?))
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl ValueToString for AssetIdent {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(self.to_string_ref().await?))
+    }
+}
+
+impl ValueToStringRef for AssetIdent {
+    async fn to_string_ref(&self) -> Result<RcStr> {
         // The query string/fragment is either empty or non-empty starting with
         // `?` so we can just concat
         let mut s = turbofmt!("{}{}{}", self.path, self.query, self.fragment)
@@ -400,7 +416,7 @@ impl ValueToString for AssetIdent {
             }
         }
 
-        Ok(Vc::cell(s.into()))
+        Ok(s.into())
     }
 }
 

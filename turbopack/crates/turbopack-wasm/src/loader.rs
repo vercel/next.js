@@ -15,6 +15,7 @@ use crate::{analysis::analyze, source::WebAssemblySource, wasm_edge_var_name};
 #[turbo_tasks::function]
 pub(crate) async fn instantiating_loader_source(
     source: Vc<WebAssemblySource>,
+    is_edge: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     let analysis = analyze(source).await?;
 
@@ -37,19 +38,28 @@ pub(crate) async fn instantiating_loader_source(
     }
     writeln!(imports_obj, "}}")?;
 
+    writeln!(code, "import {{ instantiate }} from \"WASM_HELPER\";")?;
     writeln!(code, "import wasmPath from \"WASM_PATH\";")?;
 
     writeln!(code)?;
 
+    // Omitted entirely when `is_edge` is false. As the node and browser
+    // implementations do not use this parameter.
+    let edge_arg = if is_edge {
+        format!(", () => {}", wasm_edge_var_name(Vc::upcast(source)).await?)
+    } else {
+        String::new()
+    };
+
     writedoc!(
         code,
         r#"
-            const {{ {exports} }} = await __turbopack_wasm__(wasmPath, () => {edgeVariable}, {imports});
+            const {{ {exports} }} = await instantiate(wasmPath, {imports}{edge_arg});
 
             export {{ {exports} }};
         "#,
-        edgeVariable = wasm_edge_var_name(Vc::upcast(source)).await?,
         imports = imports_obj,
+        edge_arg = edge_arg,
         exports = analysis.exports.join(", "),
     )?;
 
@@ -66,16 +76,26 @@ pub(crate) async fn instantiating_loader_source(
 #[turbo_tasks::function]
 pub(crate) async fn compiling_loader_source(
     source: Vc<WebAssemblySource>,
+    is_edge: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
+    // Omitted entirely when `is_edge` is false. As the node and browser
+    // implementations do not use this parameter.
+    let edge_arg = if is_edge {
+        format!(", () => {}", wasm_edge_var_name(Vc::upcast(source)).await?)
+    } else {
+        String::new()
+    };
+
     let code: RcStr = formatdoc! {
         r#"
+            import {{ compileModule }} from "WASM_HELPER";
             import wasmPath from "WASM_PATH";
 
-            const mod = await __turbopack_wasm_module__(wasmPath, () => {edgeVariable});
+            const mod = await compileModule(wasmPath{edge_arg});
 
             export default mod;
         "#,
-        edgeVariable = wasm_edge_var_name(Vc::upcast(source)).await?
+        edge_arg = edge_arg,
     }
     .into();
 

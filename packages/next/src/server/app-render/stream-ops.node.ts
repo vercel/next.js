@@ -27,23 +27,38 @@ import {
   createDocumentClosingStream as webCreateDocumentClosingStream,
   createRuntimePrefetchTransformStream,
   CLOSE_TAG,
+  nodeToWebByteStream,
 } from '../stream-utils/node-web-streams-helper'
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
+import { createNodeBufferedTransformStream } from '../stream-utils/node-buffered-transform-stream'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
+import {
+  createFlightMarkup,
+  createInlinedDataReadableStream,
+  FLIGHT_DATA_ATTRIBUTE,
+} from './use-flight-response'
 import {
   htmlEscapeAttributeString,
   htmlEscapeJsonString,
 } from '../../shared/lib/htmlescape'
-import { createInlinedDataReadableStream } from './use-flight-response'
-import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
-import { DetachedPromise } from '../../lib/detached-promise'
+import {
+  ReplayableNodeStream,
+  type AnyStream as AnyStreamType,
+} from './app-render-prerender-utils'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import {
   atLeastOneTask,
   waitAtLeastOneReactRenderTask,
 } from '../../lib/scheduler'
+import { ResponseAborted } from '../web/spec-extension/adapters/next-request'
+import type {
+  FlightPayload,
+  FlightClientModules,
+  FlightRenderOptions,
+} from './stream-ops.web'
 
 // ---------------------------------------------------------------------------
 // Re-export shared types from the web module
@@ -102,9 +117,7 @@ function nodeReadableToWebReadableStream(
   if (stream instanceof ReadableStream) {
     return stream
   }
-  // Readable.toWeb returns stream/web ReadableStream which is structurally
-  // identical to the global ReadableStream<Uint8Array>.
-  return Readable.toWeb(stream) as unknown as ReadableStream<Uint8Array>
+  return nodeToWebByteStream(stream)
 }
 
 function webToReadable(
@@ -114,52 +127,6 @@ function webToReadable(
     return stream
   }
   return Readable.fromWeb(stream as WebReadableStream)
-}
-
-// ---------------------------------------------------------------------------
-// Buffered transform – Node.js Transform that coalesces chunks written in the
-// same microtask into a single Uint8Array before pushing downstream.
-// ---------------------------------------------------------------------------
-
-function createBufferedTransformStream(): Transform {
-  let bufferedChunks: Array<Uint8Array> = []
-  let bufferByteLength = 0
-  let flushScheduled = false
-
-  function flushBuffered(stream: Transform): void {
-    if (bufferedChunks.length === 0) return
-
-    const merged = new Uint8Array(bufferByteLength)
-    let copiedBytes = 0
-    for (let i = 0; i < bufferedChunks.length; i++) {
-      const bufferedChunk = bufferedChunks[i]
-      merged.set(bufferedChunk, copiedBytes)
-      copiedBytes += bufferedChunk.byteLength
-    }
-    bufferedChunks.length = 0
-    bufferByteLength = 0
-    stream.push(merged)
-  }
-
-  return new Transform({
-    transform(chunk, _encoding, callback) {
-      bufferedChunks.push(chunk)
-      bufferByteLength += chunk.byteLength
-
-      if (!flushScheduled) {
-        flushScheduled = true
-        queueMicrotask(() => {
-          flushScheduled = false
-          flushBuffered(this)
-        })
-      }
-      callback()
-    },
-    flush(callback) {
-      flushBuffered(this)
-      callback()
-    },
-  })
 }
 
 // ---------------------------------------------------------------------------
@@ -578,21 +545,58 @@ export { renderToWebFlightStream } from './stream-ops.web'
 
 export function renderToNodeFlightStream(
   ComponentMod: FlightComponentMod,
-  payload: any,
-  clientModules: any,
-  opts: any
+  payload: FlightPayload,
+  clientModules: FlightClientModules,
+  opts: FlightRenderOptions
 ): AnyStream {
   if (!ComponentMod.renderToPipeableStream) {
     throw new Error('renderToPipeableStream is not implemented')
   }
 
-  const pt = new PassThrough()
+  // `renderToPipeableStream` has no `signal` option (unlike the Web
+  // `renderToReadableStream`), so pull `signal` out of the options and abort
+  // the returned pipeable ourselves when it fires. We drop the listener when
+  // the passthrough closes so a finished render's `pipeable` isn't retained by
+  // the request signal, which can outlive it.
+  const { signal, ...renderOptions } = opts ?? {}
+
+  // React writes long rows as strings and its Node reader parses them as
+  // written. A byte-mode stream would encode them, so this one is object mode.
+  const pt = new Transform({
+    objectMode: true,
+    transform(chunk: string | Uint8Array, _encoding, callback) {
+      // TODO: We can remove this if React starts escaping lone surrogates.
+      callback(null, typeof chunk === 'string' ? chunk.toWellFormed() : chunk)
+    },
+  })
   const pipeable = ComponentMod.renderToPipeableStream!(
     payload,
     clientModules,
-    opts
+    renderOptions
   )
+
+  // If the destination is destroyed before the render ended, React aborts with a
+  // generic "The destination stream closed early." error that `onError` can't
+  // tell apart from a real render error. Abort first with the reason we already
+  // know; the listener is registered before piping so it runs before React's.
+  pt.once('close', () => {
+    if (!pt.writableEnded) {
+      pipeable.abort(new ResponseAborted())
+    }
+  })
+
   pipeable.pipe(pt)
+
+  if (signal) {
+    if (signal.aborted) {
+      pipeable.abort(signal.reason)
+    } else {
+      const onAbort = () => pipeable.abort(signal.reason)
+      signal.addEventListener('abort', onAbort, { once: true })
+      pt.on('close', () => signal.removeEventListener('abort', onAbort))
+    }
+  }
+
   return pt
 }
 
@@ -604,8 +608,8 @@ export async function renderToNodeFizzStream(
   options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
   const pt = new PassThrough()
-  const shellReady = new DetachedPromise<void>()
-  const allReady = new DetachedPromise<void>()
+  const shellReady = createPromiseWithResolvers<void>()
+  const allReady = createPromiseWithResolvers<void>()
   const deferPipe = options?.waitForAllReady === true
 
   const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
@@ -614,9 +618,6 @@ export async function renderToNodeFizzStream(
       onHeaders: streamOptions?.onHeaders,
       onShellReady() {
         streamOptions?.onShellReady?.()
-        if (!deferPipe) {
-          pipeable.pipe(pt)
-        }
         shellReady.resolve()
       },
       onShellError(error: unknown) {
@@ -634,7 +635,15 @@ export async function renderToNodeFizzStream(
     })
   )
 
-  await shellReady.promise
+  await getTracer().trace(
+    AppRenderSpan.waitShellReady,
+    () => shellReady.promise
+  )
+
+  if (!deferPipe) {
+    await waitAtLeastOneReactRenderTask()
+    pipeable.pipe(pt)
+  }
 
   return {
     stream: pt,
@@ -652,18 +661,29 @@ export async function resumeToFizzStream(
   const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
 
   const pt = new PassThrough()
-  const allReady = new DetachedPromise<void>()
+  const shellReady = createPromiseWithResolvers<void>()
+  const allReady = createPromiseWithResolvers<void>()
 
   const pipeable = await run(() =>
     resumeToPipeableStream(element, postponedState, {
       ...streamOptions,
+      onShellReady() {
+        streamOptions?.onShellReady?.()
+        shellReady.resolve()
+      },
+      onShellError(error: unknown) {
+        streamOptions?.onShellError?.(error)
+        shellReady.reject(error)
+      },
       onAllReady() {
         streamOptions?.onAllReady?.()
         allReady.resolve()
       },
     })
   )
+
   pipeable.pipe(pt)
+  await shellReady.promise
 
   return {
     stream: pt,
@@ -698,7 +718,7 @@ export async function continueFizzStream(
   {
     suffix,
     inlinedDataStream,
-    isStaticGeneration,
+    waitForAllReady,
     allReady,
     deploymentId,
     getServerInsertedHTML,
@@ -709,7 +729,7 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  if (isStaticGeneration) {
+  if (waitForAllReady) {
     if (allReady) {
       await allReady
     }
@@ -723,7 +743,7 @@ export async function continueFizzStream(
   // 1. Buffer – coalesces chunks written in the same microtask into one Uint8Array
   // 2. Flight data injection – interleaves RSC data chunks with the HTML stream
   // 3. Head insertion – inserts server-generated HTML before </head>
-  const buffered = createBufferedTransformStream()
+  const buffered = createNodeBufferedTransformStream()
   webToReadable(renderStream).pipe(buffered)
 
   let source: Readable = buffered
@@ -834,7 +854,7 @@ export async function continueDynamicHTMLResumeNode(
 ): Promise<AnyStream> {
   await waitAtLeastOneReactRenderTask()
 
-  const buffered = createBufferedTransformStream()
+  const buffered = createNodeBufferedTransformStream()
   webToReadable(renderStream).pipe(buffered)
 
   let source: Readable = buffered
@@ -927,52 +947,125 @@ export async function streamToString(stream: AnyStream): Promise<string> {
 export function createWebInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  externalBrowserRuntime: boolean = false
 ): AnyStream {
   const webSource = nodeReadableToWebReadableStream(source)
-  const webResult = createInlinedDataReadableStream(webSource, nonce, formState)
+  const webResult = createInlinedDataReadableStream(
+    webSource,
+    nonce,
+    formState,
+    externalBrowserRuntime
+  )
   return webToReadable(webResult)
 }
 
 export function createNodeInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  externalBrowserRuntime: boolean = false
 ): AnyStream {
-  const startScriptTag = nonce
-    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
-    : '<script>'
+  const markup = createFlightMarkup(nonce, externalBrowserRuntime)
 
   const dataStream = webToReadable(source)
   const pt = new PassThrough()
 
-  // Write initial bootstrap instructions
-  let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-    JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-  )})`
-  if (formState != null) {
-    scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-    )})`
-  }
-  pt.push(Buffer.from(`${startScriptTag}${scriptContents}</script>`))
+  pt.push(Buffer.from(markup.initial(formState)))
 
-  // Pull from the flight data stream and wrap each chunk in a <script> tag
-  pullFlightData(dataStream, pt, startScriptTag)
+  pullFlightData(dataStream, pt, nonce, externalBrowserRuntime)
 
   return pt
 }
 
-const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
 const INLINE_FLIGHT_PAYLOAD_DATA = 1
-const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
+const INLINE_FLIGHT_DATA_SCRIPT_END = Buffer.from('"])</script>')
+const INLINE_FLIGHT_DATA_TEMPLATE_END = Buffer.from('&quot;]"></template>')
+
+// Reads every chunk currently buffered so one script covers all of them.
+// Returns escaped JSON fragments for a batch of text, the raw bytes when any
+// byte run is not valid UTF-8, or null when nothing is buffered.
+function readInlineFlightData(stream: Readable): string[] | Buffer | null {
+  const first: string | Uint8Array | null = stream.read()
+  if (first === null || !stream.readableObjectMode) {
+    return first as Buffer | null
+  }
+
+  const chunks = [first]
+  while (stream.readableLength > 0) {
+    chunks.push(stream.read())
+  }
+
+  // JSON and HTML escaping act per code unit, so escaping each well-formed
+  // fragment on its own equals escaping their concatenation.
+  const fragments: string[] = []
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i]
+    let text: string
+    if (typeof chunk === 'string') {
+      text = chunk
+    } else {
+      const start = i
+      while (i + 1 < chunks.length && typeof chunks[i + 1] !== 'string') {
+        i++
+      }
+      const bytes =
+        start === i
+          ? Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+          : Buffer.concat(chunks.slice(start, i + 1) as Uint8Array[])
+      // A multibyte character may span adjacent byte chunks, so validate the
+      // run as a whole.
+      if (!isUtf8(bytes)) {
+        return Buffer.concat(
+          chunks.map((part) =>
+            typeof part === 'string' ? Buffer.from(part) : part
+          )
+        )
+      }
+      text = bytes.toString('utf8')
+    }
+    fragments.push(htmlEscapeJsonString(JSON.stringify(text).slice(1, -1)))
+  }
+  return fragments
+}
+
+function encodeInlineFlightData(
+  fragments: string[],
+  start: Buffer,
+  end: Buffer
+): Buffer {
+  let byteLength = start.length + end.length
+  for (const fragment of fragments) {
+    byteLength += Buffer.byteLength(fragment)
+  }
+
+  const buffer = Buffer.allocUnsafe(byteLength)
+  start.copy(buffer)
+  let offset = start.length
+  for (const fragment of fragments) {
+    offset += buffer.write(fragment, offset, buffer.length - offset, 'utf8')
+  }
+  end.copy(buffer, offset)
+  return buffer
+}
 
 async function pullFlightData(
   dataStream: Readable,
   output: PassThrough,
-  startScriptTag: string
+  nonce: string | undefined,
+  externalBrowserRuntime: boolean
 ): Promise<void> {
+  const start = externalBrowserRuntime
+    ? `<template ${FLIGHT_DATA_ATTRIBUTE}="[`
+    : `${nonce ? `<script nonce="${htmlEscapeAttributeString(nonce)}">` : '<script>'}self.__next_f.push([`
+  const quote = externalBrowserRuntime ? '&quot;' : '"'
+  const end = externalBrowserRuntime
+    ? INLINE_FLIGHT_DATA_TEMPLATE_END
+    : INLINE_FLIGHT_DATA_SCRIPT_END
+  let dataStart: Buffer | undefined
+  let binaryStart: Buffer | undefined
+
   function waitForReadableOrEnd(): Promise<void> {
     if (dataStream.readableLength > 0 || dataStream.readableEnded) {
       return Promise.resolve()
@@ -999,29 +1092,37 @@ async function pullFlightData(
 
   try {
     while (true) {
-      const chunk: Buffer | null = dataStream.read()
+      const chunk = readInlineFlightData(dataStream)
       if (chunk !== null) {
-        let htmlInlinedData: string
-        if (isUtf8(chunk)) {
-          const decodedString = chunk.toString('utf-8')
-          htmlInlinedData = htmlEscapeJsonString(
-            JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, decodedString])
-          )
+        let fragments: string[]
+        if (Array.isArray(chunk)) {
+          fragments = chunk
+        } else if (isUtf8(chunk)) {
+          fragments = [
+            htmlEscapeJsonString(
+              JSON.stringify(chunk.toString('utf8')).slice(1, -1)
+            ),
+          ]
         } else {
           const base64 = Buffer.from(
             chunk.buffer,
             chunk.byteOffset,
             chunk.byteLength
           ).toString('base64')
-          htmlInlinedData = htmlEscapeJsonString(
-            JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
+          binaryStart ??= Buffer.from(
+            `${start}${INLINE_FLIGHT_PAYLOAD_BINARY},${quote}`
           )
+          // Base64 contains no JSON or HTML special characters.
+          output.push(encodeInlineFlightData([base64], binaryStart, end))
+          continue
         }
-        output.push(
-          Buffer.from(
-            `${startScriptTag}self.__next_f.push(${htmlInlinedData})</script>`
-          )
+        dataStart ??= Buffer.from(
+          `${start}${INLINE_FLIGHT_PAYLOAD_DATA},${quote}`
         )
+        if (externalBrowserRuntime) {
+          fragments = fragments.map(htmlEscapeAttributeString)
+        }
+        output.push(encodeInlineFlightData(fragments, dataStart, end))
         continue
       }
 
@@ -1096,7 +1197,12 @@ export function getServerPrerender(ComponentMod: {
 export const getClientPrerender: typeof import('react-dom/static').prerender =
   prerender
 
+// Node counterpart of the web `teeStream`. Like the web version it assumes the
+// stream type matching its build — here a Node `Readable` — and fans out
+// through `ReplayableNodeStream`. Need three or more consumers from one source?
+// Use `ReplayableNodeStream` directly (N `createReplayStream()` calls) to avoid
+// nesting tees.
 export function teeStream(stream: AnyStream): [AnyStream, AnyStream] {
-  const [s1, s2] = nodeReadableToWebReadableStream(stream).tee()
-  return [webToReadable(s1), webToReadable(s2)]
+  const replayable = new ReplayableNodeStream(stream as Readable)
+  return [replayable.createReplayStream(), replayable.createReplayStream()]
 }

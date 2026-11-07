@@ -2,6 +2,11 @@
 #![feature(arbitrary_self_types_pointers)]
 
 pub(crate) mod chunking_context;
-pub(crate) mod ecmascript;
+pub mod ecmascript;
+pub mod fs;
+pub mod global_virtual_store;
 
 pub use chunking_context::{NodeJsChunkingContext, NodeJsChunkingContextBuilder};
+pub use ecmascript::node::{
+    chunk::EcmascriptBuildNodeChunk, entry::runtime::EcmascriptBuildNodeRuntimeChunk,
+};

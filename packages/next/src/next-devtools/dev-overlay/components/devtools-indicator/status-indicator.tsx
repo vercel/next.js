@@ -4,9 +4,9 @@ import { css } from '../../utils/css'
 export enum Status {
   None = 'none',
   Rendering = 'rendering',
+  RenderingColdCache = 'rendering-cold-cache',
+  RenderingCacheDisabled = 'rendering-cache-disabled',
   Compiling = 'compiling',
-  Prerendering = 'prerendering',
-  CacheBypassing = 'cache-bypassing',
 }
 
 export function getCurrentStatus(
@@ -14,17 +14,20 @@ export function getCurrentStatus(
   renderingIndicator: boolean,
   cacheIndicator: CacheIndicatorState
 ): Status {
-  const isCacheFilling = cacheIndicator === 'filling'
-
-  // Priority order: compiling > prerendering > rendering
-  // Note: cache bypassing is now handled as a badge, not a status indicator
+  // Priority order: compiling > rendering. While a client transition is
+  // pending, the cache state colors and labels the rendering status; once it
+  // settles, the cache state is shown as a persistent badge instead (handled in
+  // next-logo).
   if (buildingIndicator) {
     return Status.Compiling
   }
-  if (isCacheFilling) {
-    return Status.Prerendering
-  }
   if (renderingIndicator) {
+    if (cacheIndicator === 'cold') {
+      return Status.RenderingColdCache
+    }
+    if (cacheIndicator === 'bypass') {
+      return Status.RenderingCacheDisabled
+    }
     return Status.Rendering
   }
   return Status.None
@@ -32,25 +35,31 @@ export function getCurrentStatus(
 
 interface StatusIndicatorProps {
   status: Status
+  isError?: boolean
   onClick?: () => void
 }
 
-export function StatusIndicator({ status, onClick }: StatusIndicatorProps) {
+export function StatusIndicator({
+  status,
+  isError = false,
+  onClick,
+}: StatusIndicatorProps) {
   const statusText: Record<Status, string> = {
     [Status.None]: '',
-    [Status.CacheBypassing]: 'Cache disabled',
-    [Status.Prerendering]: 'Prerendering',
     [Status.Compiling]: 'Compiling',
     [Status.Rendering]: 'Rendering',
+    [Status.RenderingColdCache]: 'Rendering (cold cache)',
+    [Status.RenderingCacheDisabled]: 'Rendering (cache disabled)',
   }
 
-  // Status dot colors
+  // Status dot colors: teal while rendering normally, orange when the render
+  // hit a cold cache or bypassed caches.
   const statusDotColor: Record<Status, string> = {
     [Status.None]: '',
-    [Status.CacheBypassing]: '', // No dot for bypass, uses full pill color
-    [Status.Prerendering]: '#f5a623',
     [Status.Compiling]: '#f5a623',
     [Status.Rendering]: '#50e3c2',
+    [Status.RenderingColdCache]: '#f5a623',
+    [Status.RenderingCacheDisabled]: '#f5a623',
   }
 
   if (status === Status.None) {
@@ -166,14 +175,14 @@ export function StatusIndicator({ status, onClick }: StatusIndicatorProps) {
           <div
             data-status-dot
             style={{
-              backgroundColor: statusDotColor[status],
+              backgroundColor: isError ? '#fff' : statusDotColor[status],
             }}
           />
         )}
         <AnimateStatusText
           key={status} // Key here triggers re-mount and animation
           statusKey={status}
-          showEllipsis={status !== Status.CacheBypassing}
+          showEllipsis
         >
           {statusText[status]}
         </AnimateStatusText>

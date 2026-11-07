@@ -68,7 +68,7 @@ pub fn overhead(c: &mut Criterion) {
                     }
                     start.elapsed()
                 })
-                .then(|r| async { r.unwrap() })
+                .then(async |r| r.unwrap())
             });
         });
 
@@ -113,7 +113,7 @@ pub fn overhead(c: &mut Criterion) {
                         while futures.next().await.is_some() {}
                         start.elapsed()
                     })
-                    .then(|r| async { r.unwrap() })
+                    .then(async |r| r.unwrap())
                 });
             },
         );

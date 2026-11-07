@@ -3,6 +3,7 @@
 import { check } from 'next-test-utils'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
+import { expectScrolledTo } from './scroll-position.util'
 
 describe('Client navigation scroll', () => {
   const { next } = nextTestSetup({
@@ -22,8 +23,7 @@ describe('Client navigation scroll', () => {
         .elementByCss('#scroll-to-item-400')
         .click()
 
-      const scrollPosition = await browser.eval('window.pageYOffset')
-      expect(scrollPosition).toBe(7208)
+      await expectScrolledTo(browser, "document.getElementById('item-400')")
 
       // Go to snap scroll page
       await browser
@@ -46,8 +46,7 @@ describe('Client navigation scroll', () => {
         .elementByCss('#scroll-to-item-400')
         .click()
 
-      const scrollPosition = await browser.eval('window.pageYOffset')
-      expect(scrollPosition).toBe(7208)
+      await expectScrolledTo(browser, "document.getElementById('item-400')")
 
       // Go to snap scroll page
       await browser
@@ -70,8 +69,8 @@ describe('Client navigation scroll', () => {
         .elementByCss('#scroll-to-item-400')
         .click()
 
+      await expectScrolledTo(browser, "document.getElementById('item-400')")
       const scrollPosition = await browser.eval('window.pageYOffset')
-      expect(scrollPosition).toBe(7208)
 
       // Go to snap scroll page
       await browser
@@ -83,7 +82,9 @@ describe('Client navigation scroll', () => {
         'document.getElementById("scroll-pos-y").innerText'
       )
       expect(snappedScrollPosition).not.toBe('0')
-      expect(Number(snappedScrollPosition)).toBeGreaterThanOrEqual(7208)
+      expect(Number(snappedScrollPosition)).toBeGreaterThanOrEqual(
+        scrollPosition
+      )
     })
   })
 

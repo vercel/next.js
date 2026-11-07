@@ -4,7 +4,7 @@ use either::Either;
 
 use crate::analyzer::{JsValue, ModuleValue, ObjectPart};
 
-impl Display for ObjectPart {
+impl Display for ObjectPart<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ObjectPart::KeyValue(key, value) => write!(f, "{key}: {value}"),
@@ -13,7 +13,7 @@ impl Display for ObjectPart {
     }
 }
 
-impl Display for JsValue {
+impl Display for JsValue<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             JsValue::Constant(v) => write!(f, "{v}"),
@@ -28,10 +28,12 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            JsValue::Object { parts, mutable, .. } => write!(
+            JsValue::Object {
+                parts, mutability, ..
+            } => write!(
                 f,
                 "{}{{{}}}",
-                if *mutable { "" } else { "frozen " },
+                mutability,
                 parts
                     .iter()
                     .map(|v| v.to_string())
@@ -125,18 +127,26 @@ impl Display for JsValue {
                     .join(", ")
             ),
             JsValue::Member(_, obj, prop) => write!(f, "{obj}[{prop}]"),
+            JsValue::In(_, left, right) => write!(f, "{left} in {right}"),
             JsValue::Module(ModuleValue {
                 module: name,
                 annotations,
+                analyze_for_constants,
+                reference: _,
             }) => {
                 write!(
                     f,
-                    "Module({}, {})",
+                    "Module({}, {}{})",
                     name.to_string_lossy(),
                     if let Some(annotations) = annotations {
                         Either::Left(annotations)
                     } else {
                         Either::Right("{}")
+                    },
+                    if *analyze_for_constants {
+                        ", analyze for constants"
+                    } else {
+                        ""
                     }
                 )
             }

@@ -40,10 +40,7 @@ describe('app-dir assetPrefix with basePath handling', () => {
     let bundles = []
     for (const script of $('script').toArray()) {
       const { src } = script.attribs
-      if (
-        src?.includes('/custom-asset-prefix/_next/static') ||
-        src?.includes('/custom-asset-prefix/_next/static/immutable')
-      ) {
+      if (src?.includes('/custom-asset-prefix/_next/static')) {
         bundles.push(src)
       }
     }

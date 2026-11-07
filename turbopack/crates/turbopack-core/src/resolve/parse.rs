@@ -440,7 +440,7 @@ impl Request {
                     .copied()
                     .map(|v| *v)
                     .map(Request::as_relative)
-                    .map(|v| async move { v.to_resolved().await })
+                    .map(|v| v.to_resolved())
                     .try_join()
                     .await?;
                 Request::Alternatives { requests }.cell()
@@ -500,7 +500,7 @@ impl Request {
                     .iter()
                     .copied()
                     .map(|req| req.with_query(query.clone()))
-                    .map(|v| async move { v.to_resolved().await })
+                    .map(|v| v.to_resolved())
                     .try_join()
                     .await?;
                 Request::Alternatives { requests }.cell()
@@ -578,7 +578,7 @@ impl Request {
                     .iter()
                     .copied()
                     .map(|req| req.with_fragment(fragment.clone()))
-                    .map(|v| async move { v.to_resolved().await })
+                    .map(|v| v.to_resolved())
                     .try_join()
                     .await?;
                 Request::Alternatives { requests }.cell()
@@ -690,7 +690,7 @@ impl Request {
             Request::Alternatives { requests } => {
                 let requests = requests
                     .iter()
-                    .map(|req| async { req.append_path(suffix.clone()).to_resolved().await })
+                    .map(|req| req.append_path(suffix.clone()).to_resolved())
                     .try_join()
                     .await?;
                 Request::Alternatives { requests }.cell()
@@ -720,8 +720,8 @@ impl Request {
     /// Turns the request into a pattern, similar to [Request::request()] but
     /// more complete.
     #[turbo_tasks::function]
-    pub async fn request_pattern(self: Vc<Self>) -> Result<Vc<Pattern>> {
-        Ok(Pattern::new(match &*self.await? {
+    pub async fn request_pattern(&self) -> Result<Vc<Pattern>> {
+        Ok(Pattern::new(match self {
             Request::Raw { path, .. } => path.clone(),
             Request::Relative { path, .. } => path.clone(),
             Request::Module { module, path, .. } => {

@@ -1,7 +1,7 @@
 import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {
   scheduleImmediate,
   atLeastOneTask,
@@ -14,6 +14,7 @@ import {
   removeFromUint8Array,
 } from './uint8array-helpers'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
+import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -33,6 +34,54 @@ function voidCatch() {
 // Notably we cannot do the same for TextDecoder because it is stateful
 // when handling streaming data
 const encoder = new TextEncoder()
+
+/** Encode only when a consumer requires bytes; retain binary views as-is. */
+export function encodeTextChunk(chunk: string | Uint8Array): Uint8Array {
+  return typeof chunk === 'string' ? encoder.encode(chunk) : chunk
+}
+
+/** Adapt a Node stream to the byte contract used by Web response consumers. */
+export function nodeToWebByteStream(
+  stream: import('node:stream').Readable
+): ReadableStream<Uint8Array> {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      'Node.js Readable cannot be converted to a web stream in the edge runtime'
+    )
+  } else {
+    let Readable: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    } else {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    }
+
+    const webStream = Readable.toWeb(stream) as ReadableStream<
+      string | Uint8Array
+    >
+    // Readable.toWeb preserves object-mode strings; it does not encode them.
+    // Already-byte streams need no additional transform.
+    if (!stream.readableObjectMode && stream.readableEncoding === null) {
+      return webStream as ReadableStream<Uint8Array>
+    }
+    return webStream.pipeThrough(
+      new TransformStream<string | Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          controller.enqueue(encodeTextChunk(chunk))
+        },
+      })
+    )
+  }
+}
 
 export function chainStreams<T>(
   ...streams: ReadableStream<T>[]
@@ -87,6 +136,17 @@ export function streamFromString(str: string): ReadableStream<Uint8Array> {
   })
 }
 
+/**
+ * Creates a stream that delivers `chunk` and then closes.
+ *
+ * The stream is a default stream, and it has to stay one. A byte stream (`type:
+ * 'bytes'`) transfers the buffer of each chunk that it receives, which detaches
+ * `chunk`. A caller that keeps `chunk` to serve more than one read, such as an
+ * in-memory cache handler, loses the data on the first read.
+ *
+ * Every reader receives the same `chunk` instance. A reader that modifies it
+ * changes what later readers see.
+ */
 export function streamFromBuffer(chunk: Buffer): ReadableStream<Uint8Array> {
   return new ReadableStream({
     start(controller) {
@@ -141,7 +201,10 @@ function webToReadable(
     if (process.env.TURBOPACK) {
       Readable = (require('node:stream') as typeof import('node:stream'))
         .Readable
-    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
       Readable = (
         __non_webpack_require__('node:stream') as typeof import('node:stream')
       ).Readable
@@ -175,7 +238,10 @@ export async function streamToUint8Array(stream: AnyStream) {
     if (process.env.TURBOPACK) {
       Readable = (require('node:stream') as typeof import('node:stream'))
         .Readable
-    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
       Readable = (
         __non_webpack_require__('node:stream') as typeof import('node:stream')
       ).Readable
@@ -232,7 +298,7 @@ export function createBufferedTransformStream(
 
   let bufferedChunks: Array<Uint8Array> = []
   let bufferByteLength: number = 0
-  let pending: DetachedPromise<void> | undefined
+  let pending: PromiseWithResolvers<void> | undefined
 
   const flush = (controller: TransformStreamDefaultController) => {
     try {
@@ -265,7 +331,7 @@ export function createBufferedTransformStream(
       return
     }
 
-    const detached = new DetachedPromise<void>()
+    const detached = createPromiseWithResolvers<void>()
     pending = detached
 
     scheduleImmediate(() => {
@@ -579,102 +645,16 @@ async function createClientResumeScriptInsertionTransformStream(): Promise<
   })
 }
 
-/**
- * Creates a transform stream that injects an inline script as the first
- * element inside <head>. Used during instant navigation testing to set
- * self.__next_instant_test before any async bootstrap scripts execute.
- */
-export async function createInstantTestScriptInsertionTransformStream(
-  requestId: string | null
-): Promise<TransformStream<Uint8Array, Uint8Array>> {
-  // Kick off a fetch for the static RSC payload. This is the hydration
-  // source for the locked static shell — same as the __NEXT_CLIENT_RESUME
-  // fetch used for fallback routes. The instant test cookie is sent
-  // automatically with the same-origin fetch, so the server returns
-  // static-only data.
-  //
-  // The fetch promise is stored as self.__next_instant_test, which doubles
-  // as the feature flag (truthy = instant test mode). The client processes
-  // this as a fallback prerender payload for hydration.
-  const segmentPath = '/_full'
-  const cacheBustingHeader = await computeCacheBustingSearchParam(
-    '1',
-    segmentPath,
-    undefined,
-    undefined
-  )
-  const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
-  // In dev mode, inject self.__next_r (request ID) so that HMR WebSocket
-  // and debug channel initialization don't crash. The static shell
-  // bypasses renderToFizzStream which normally injects this via
-  // bootstrapScriptContent.
-  const requestIdScript =
-    requestId !== null ? `self.__next_r=${JSON.stringify(requestId)};` : ''
-  const INSTANT_TEST_SCRIPT = `<script>${requestIdScript}self.__next_instant_test=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}'}})</script>`
-
-  let didAlreadyInsert = false
-  return new TransformStream({
-    transform(chunk, controller) {
-      if (didAlreadyInsert) {
-        // Already inserted the script into the head. Pass through.
-        controller.enqueue(chunk)
-        return
-      }
-
-      // Find the opening <head tag (may have attributes like <head class="...">)
-      const headOpenIndex = indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HEAD)
-
-      if (headOpenIndex === -1) {
-        controller.enqueue(chunk)
-        return
-      }
-
-      // Find the closing > of the <head ...> tag
-      const headCloseAngle = chunk.indexOf(
-        62, // '>'
-        headOpenIndex + ENCODED_TAGS.OPENING.HEAD.length
-      )
-      if (headCloseAngle === -1) {
-        controller.enqueue(chunk)
-        return
-      }
-
-      const encodedInsertion = encoder.encode(INSTANT_TEST_SCRIPT)
-      const insertionPoint = headCloseAngle + 1
-      // e.g.
-      // chunk = <!DOCTYPE html><html><head><meta charset="utf-8">...
-      // insertion = <script>self.__next_instant_test=fetch(...)</script>
-      // output = <!DOCTYPE html><html><head> [ <script>...</script> ] <meta charset="utf-8">...
-      const insertedHeadContent = new Uint8Array(
-        chunk.length + encodedInsertion.length
-      )
-      insertedHeadContent.set(chunk.slice(0, insertionPoint))
-      insertedHeadContent.set(encodedInsertion, insertionPoint)
-      insertedHeadContent.set(
-        chunk.slice(insertionPoint),
-        insertionPoint + encodedInsertion.length
-      )
-
-      controller.enqueue(insertedHeadContent)
-      didAlreadyInsert = true
-    },
-    flush(controller) {
-      // Append closing tags so the browser can parse the full document.
-      controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
-    },
-  })
-}
-
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
 export function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let flushed = false
-  let pending: DetachedPromise<void> | undefined
+  let pending: PromiseWithResolvers<void> | undefined
 
   const flush = (controller: TransformStreamDefaultController) => {
-    const detached = new DetachedPromise<void>()
+    const detached = createPromiseWithResolvers<void>()
     pending = detached
 
     scheduleImmediate(() => {
@@ -990,7 +970,7 @@ export function chainTransformers<T>(
 
 export type ContinueStreamOptions = {
   inlinedDataStream: ReadableStream<Uint8Array> | undefined
-  isStaticGeneration: boolean
+  waitForAllReady: boolean
   deploymentId: string | undefined
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
@@ -1006,7 +986,7 @@ export async function continueFizzStream(
   {
     suffix,
     inlinedDataStream,
-    isStaticGeneration,
+    waitForAllReady,
     deploymentId,
     getServerInsertedHTML,
     getServerInsertedMetadata,
@@ -1016,8 +996,8 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  if (isStaticGeneration) {
-    // If we're generating static HTML we need to wait for it to resolve before continuing.
+  if (waitForAllReady) {
+    // Wait for all Suspense boundaries to resolve before continuing.
     await renderStream.allReady
   } else {
     // Otherwise, we want to make sure Fizz is done with all microtasky work

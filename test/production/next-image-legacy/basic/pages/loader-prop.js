@@ -11,9 +11,9 @@ const LoaderExample = () => {
         height={400}
         loader={({ config, src, width }) => {
           if (config) {
-            return 'https://example.vercel.sh/error-unexpected-config'
+            return 'https://next-data-api-endpoint.vercel.app/next-image-legacy/error-unexpected-config'
           }
-          return `https://example.vercel.sh/success/${src}?width=${width}`
+          return `https://next-data-api-endpoint.vercel.app/next-image-legacy/${src}?width=${width}`
         }}
       />
     </div>
