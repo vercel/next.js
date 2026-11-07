@@ -16,8 +16,11 @@ export default function Page() {
       <LinkAccordion href="/uncached-time" prefetch={false}>
         Target
       </LinkAccordion>
-      <LinkAccordion href="/uncached-time#full-prefetch" prefetch={true}>
+      <LinkAccordion href="/uncached-time#prefetch-true" prefetch={true}>
         Full prefetch
+      </LinkAccordion>
+      <LinkAccordion href="/partial-uncached-time" prefetch={false}>
+        Target with Partial Prefetching
       </LinkAccordion>
       <LinkAccordion href="/delayed-sync-io" prefetch={false}>
         Delayed sync IO

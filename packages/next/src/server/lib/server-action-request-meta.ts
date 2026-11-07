@@ -3,15 +3,17 @@ import type { BaseNextRequest } from '../base-http'
 import type { NextRequest } from '../web/exports'
 import { ACTION_HEADER } from '../../client/components/app-router-headers'
 
+export type ServerActionRequestMetadata = {
+  readonly actionId: string | null
+  readonly isURLEncodedAction: boolean
+  readonly isMultipartAction: boolean
+  readonly isFetchAction: boolean
+  readonly isPossibleServerAction: boolean
+}
+
 export function getServerActionRequestMetadata(
   req: IncomingMessage | BaseNextRequest | NextRequest
-): {
-  actionId: string | null
-  isURLEncodedAction: boolean
-  isMultipartAction: boolean
-  isFetchAction: boolean
-  isPossibleServerAction: boolean
-} {
+): ServerActionRequestMetadata {
   let actionId: string | null
   let contentType: string | null
 

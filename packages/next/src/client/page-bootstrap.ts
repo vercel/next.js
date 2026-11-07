@@ -34,11 +34,10 @@ export function pageBootstrap(assetPrefix: string) {
           error.stack = errorObject.stack
           throw error
         }
-        case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE: {
-          reloading = true
-          window.location.reload()
+        case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE:
+          // Already handled by hot-middleware-client's guarded listener, even
+          // before hydration. A second reload here can restart that navigation.
           break
-        }
         case HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
           fetch(
             `${assetPrefix}/_next/static/development/_devPagesManifest.json`

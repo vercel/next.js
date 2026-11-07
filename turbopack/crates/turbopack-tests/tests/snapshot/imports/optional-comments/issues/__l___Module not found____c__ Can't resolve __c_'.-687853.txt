@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/index.js:24:0  Module not found: Can't resolve './missing-should-error-default.mjs'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/index.js:24:1  Module not found: Can't resolve './missing-should-error-default.mjs'
   
       20 |   /* turbopackOptional: false */ './missing-should-error-optional-false.mjs'
       21 | )

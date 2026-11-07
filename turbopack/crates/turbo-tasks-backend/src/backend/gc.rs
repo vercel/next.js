@@ -29,36 +29,41 @@ use turbo_tasks::{TaskId, TurboTasks, scope_unbounded::scope_unbounded_with};
 
 use crate::{
     backend::{
-        AnyOperation, TurboTasksBackend,
+        TurboTasksBackend,
         operation::{
-            AggregationUpdateJob, AggregationUpdateQueue, CleanupOldEdgesOperation, ExecuteContext,
-            ExecuteContextImpl, TaskGuard, capture_all_edges,
+            AggregationUpdateQueue, ExecuteContext, capture_all_edges,
+            cleanup_old_edges_deletions_only,
         },
         snapshot_coordinator::SnapshotPhase,
-        storage::{SpecificTaskDataCategory, TaskDataCategory},
+        storage::TaskDataCategory,
         storage_schema::TaskStorageAccessors,
     },
     backing_storage::SnapshotItem,
 };
 
-/// How long a GC root may go un-anchored before it is collected.
+/// How long a recorded GC root may go without a session-only pin before it ages out.
 /// Default to 3 days so that a root that is at least occasionally used can survive a weekend.
 ///
-/// Aging out roots solves the problem of missing `gc_unpin` calls.  We can miss them for structural
-/// reasons, bugs or just shutdown races (drops from native threads race with turbopack shutdown).
-/// So using a TTL to track roots that haven't shown up in new sessions we can solve this leak.
+/// Most roots are parentless tasks that get an automatic, unbalanced session-only pin (e.g. a
+/// top-level operation connected from outside any task). That pin is never released within the
+/// session and is gone in the next one, so pins alone can't tell us when a root is no longer
+/// wanted. Without a TTL, a root that survived one session could survive indefinitely.
 ///
-/// The TTL counter is serving as a check for both new sessions and time.  To be aged out you get
-/// one session to start the clock and then eventually the timer expires.  This is intentionally
-/// course.
+/// So once a task is recorded as a root it stays a root, protected from collection, until it ages
+/// out: the first pass that finds it without a session-only pin starts its stale clock (this can
+/// be in the same session that released it), a later pin resets it, and the first pass after the
+/// TTL has elapsed removes it from the roots map and queues it for the normal collectibility check.
+/// A root that still has persistent parents then simply isn't collected. This is intentionally
+/// coarse.
 pub(crate) const DEFAULT_GC_ROOT_TTL: Duration = Duration::from_secs(3 * 24 * 60 * 60);
 
-/// How long a GC root has gone without being observed live, as stored in the persisted roots map.
+/// How long a recorded GC root has gone without a session-only pin, as stored in the persisted
+/// roots map.
 #[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TtlCounter {
-    /// Observed live (a durable, anchored root) in the most recent session.
+    /// Pinned, or found as a root, by the most recent pass.
     MostRecent,
-    /// System time millis at which a session's **first** GC pass first found this root not live.
+    /// System time millis at which a pass first found this root without a session-only pin.
     FirstStale(u64),
 }
 
@@ -73,7 +78,7 @@ enum GcJob {
 
 /// Decides when a GC pass should stop early because it is delaying real work.
 struct GcBudget<'a> {
-    phase: &'a SnapshotPhase<'a, AnyOperation>,
+    phase: &'a SnapshotPhase<'a>,
     started: Instant,
     /// The minimum quantum of work this pass does before any interrupt is honoured.
     min_progress: Duration,
@@ -106,7 +111,7 @@ impl GcBudget<'_> {
     }
 }
 
-/// Counters describing what one [`TurboTasksBackend::gc_collect`] pass did. Reported only; GC
+/// Counters describing what one `TurboTasksBackend::gc_collect` pass did. Reported only; GC
 /// never reads them back.
 #[derive(Default)]
 pub struct GcStats {
@@ -116,22 +121,17 @@ pub struct GcStats {
     pub collected: usize,
     /// Edges torn down across all collected tasks (children + forward-dependency reverse edges).
     pub edges_deleted: usize,
-    /// Cross-session roots that aged out past the TTL.
+    /// Recorded roots that aged out past the TTL.
     pub aged_out_roots: usize,
 }
 
-/// What one [`TurboTasksBackend::gc_collect`] pass produced, as opposed to the [`GcStats`] it
-/// reports. The two collections are consumed before `gc_collect` returns; `interrupted` outlives
-/// it, since the caller uses it to decide whether to abandon the persistence loop.
+/// What one `TurboTasksBackend::gc_collect` pass produced, as opposed to the [`GcStats`] it
+/// reports. `deferred_balance_edges` is consumed before `gc_collect` returns; `interrupted`
+/// outlives it, since the caller uses it to decide whether to abandon the persistence loop.
 #[derive(Default)]
 pub struct GcPassResult {
-    /// Persisted roots that this pass collected, to be dropped from the roots map.
-    deleted_roots: Vec<TaskId>,
     /// Aggregation rebalance requests that were deferred from the main GC loop.
     deferred_balance_edges: FxHashSet<(TaskId, TaskId)>,
-    /// Dependents of collected tasks whose forward edge was scrubbed, deferred from the main GC
-    /// loop. Dirtying propagates through the aggregation graph, so it must not race the cascade.
-    deferred_dirty_dependents: FxHashSet<TaskId>,
     /// The gc loop was interrupted by competing work.
     pub interrupted: bool,
 }
@@ -162,14 +162,6 @@ impl GcStats {
 
 impl GcPassResult {
     fn merge(mut self, mut other: Self) -> Self {
-        // Order doesn't matter, so keep the larger allocation and append the smaller one into it.
-        // One or both sides are usually empty.
-        if other.deleted_roots.len() > self.deleted_roots.len() {
-            other.deleted_roots.append(&mut self.deleted_roots);
-            self.deleted_roots = other.deleted_roots;
-        } else {
-            self.deleted_roots.append(&mut other.deleted_roots);
-        }
         // merge into the larger set and keep that one
         if other.deferred_balance_edges.len() > self.deferred_balance_edges.len() {
             std::mem::swap(
@@ -179,15 +171,6 @@ impl GcPassResult {
         }
         self.deferred_balance_edges
             .extend(other.deferred_balance_edges);
-        // merge into the larger set and keep that one
-        if other.deferred_dirty_dependents.len() > self.deferred_dirty_dependents.len() {
-            std::mem::swap(
-                &mut self.deferred_dirty_dependents,
-                &mut other.deferred_dirty_dependents,
-            );
-        }
-        self.deferred_dirty_dependents
-            .extend(other.deferred_dirty_dependents);
         self.interrupted |= other.interrupted;
         self
     }
@@ -208,7 +191,7 @@ impl TurboTasksBackend {
     pub(crate) fn gc_collect(
         &self,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-        phase: &SnapshotPhase<'_, AnyOperation>,
+        phase: &SnapshotPhase<'_>,
         interruptible: bool,
     ) -> (GcStats, GcPassResult, Option<Vec<(TaskId, TtlCounter)>>) {
         // Record the time at the beginning of the loop to have a consistent timestamp for the roots
@@ -241,7 +224,7 @@ impl TurboTasksBackend {
         };
 
         let (mut stats, mut result): (GcStats, GcPassResult) = scope_unbounded_with(
-            // Start by scanning all shards and collecting the aged out roots from prior sessions.
+            // Start by scanning all shards and collecting the roots that aged out.
             (0..self.storage.shard_count())
                 .map(GcJob::ScanShard)
                 .chain(aged_out.into_iter().map(GcJob::Collect)),
@@ -261,8 +244,16 @@ impl TurboTasksBackend {
                     }
                     GcJob::Collect(task_id) => task_id,
                 };
+                // A root in the map that has no pin is ambiguous: it may or may not be safe to
+                // delete. Under our model a root shouldn't gain a proper (persistent) parent
+                // anyway, so skip it: once a root, always a root, until it ages out (aged-out
+                // roots were removed from the map above). Skipping here rather than only in the
+                // shard scan also covers a root reached by a cascade.
+                if roots.contains_key(&task_id) {
+                    return ControlFlow::Continue(());
+                }
                 let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
-                let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &collector);
+                let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &collector);
                 // `All` restores Data so `capture_all_edges` below can read the
                 // Data-category dependency sets. The recheck itself only needs Meta.
                 let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -274,37 +265,35 @@ impl TurboTasksBackend {
                 }
 
                 let old_edges = capture_all_edges(&task);
-                // Clear `immutable` defensively so `resurrect_deleted` can mark the task dirty if
-                // it needs to
-                task.set_immutable(false);
                 // Drop the whole cell payload. This recovers most of the RAM while persistence
                 // writes the tombstone.
                 drop(task.take_cell_data());
                 task.set_deleted(true);
-                if task.new_task() {
-                    task.discard_modifications_for_gc_new_task();
-                } else {
-                    // Persisted ensure it is marked modified so the next snapshot tombstones it.
-                    // It is almost certainly already marked modified, so this is mostly a no-op.
-                    let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
+                let task_type = task.get_persistent_task_type().cloned();
+                drop(task); // drop the lock so edge cleanup can run
+                // Remove the task_cache mapping now, so this deleted task cannot be found via a
+                // task launch.
+                // This must run after dropping the task lock: `get_or_create_task` takes
+                // `task_cache` before `storage.map`.
+                if let Some(task_type) = task_type {
+                    let removed_id = self
+                        .storage
+                        .task_cache
+                        .remove(task_type.as_ref())
+                        .map(|(_, id)| id);
+                    debug_assert!(
+                        removed_id.is_none_or(|id| id == task_id),
+                        "task_cache mapped the type of collected task {task_id} to another task: \
+                         {removed_id:?}"
+                    );
                 }
-                drop(task); // drop the lock so CleanupOldEdgesOperation can run
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();
-                // If we happened to delete a known root at this point record it so we can reconcile
-                // later.
-                if roots.contains_key(&task_id) {
-                    result.deleted_roots.push(task_id);
-                }
                 // Delete outgoing edges but don't update the aggregation graph yet.
                 // To avoid accidentally rebalancing on deleted tasks due to racing deletions,
                 // we defer all rebalancing to the end
-                let deferred =
-                    CleanupOldEdgesOperation::run_edge_deletions_only(task_id, old_edges, &mut ctx);
+                let deferred = cleanup_old_edges_deletions_only(task_id, old_edges, &mut ctx);
                 result.deferred_balance_edges.extend(deferred.balance_edges);
-                result
-                    .deferred_dirty_dependents
-                    .extend(deferred.dirty_dependents);
                 ControlFlow::Continue(())
             },
             |(stats, result), (other_stats, other_result)| {
@@ -312,35 +301,15 @@ impl TurboTasksBackend {
             },
         );
 
-        // Drop the entries for the roots this pass collected, recorded as they were deleted.
-        for id in &result.deleted_roots {
-            roots.remove(id);
-        }
-
         // Process the rebalance requests now that deletion work is done
         // Do this before computing roots so all uppers are settled
         let deferred = std::mem::take(&mut result.deferred_balance_edges);
         if !deferred.is_empty() {
             let noop_collector = |_task_id| {};
-            let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &noop_collector);
+            let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
             let mut queue = AggregationUpdateQueue::new();
             queue.extend_balance_edges(deferred, &mut ctx);
-            while !queue.process(&mut ctx) {}
-        }
-
-        // Dirty the dependents whose edges were scrubbed. After the rebalance above so the
-        // aggregation graph is settled, and before the root scan below because dirtying can change
-        // activeness and therefore rootness.
-        let dirty_dependents = std::mem::take(&mut result.deferred_dirty_dependents);
-        if !dirty_dependents.is_empty() {
-            let noop_collector = |_task_id| {};
-            let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &noop_collector);
-            let mut queue = AggregationUpdateQueue::new();
-            // A dependent collected by this same pass is skipped: the job is weak by construction.
-            queue.push(AggregationUpdateJob::InvalidateDueToDependencyTornDown {
-                task_ids: dirty_dependents.into_iter().collect(),
-            });
-            while !queue.process(&mut ctx) {}
+            queue.execute(&mut ctx);
         }
 
         // Collect all active roots
@@ -363,10 +332,15 @@ impl TurboTasksBackend {
         (stats, result, roots_to_persist)
     }
 
-    /// Compute which persisted roots have expired their TTL
-    /// Also
-    /// - start the staleness clock for roots that are no longer resident
-    /// - drop roots that are resident (the GC pass will pass judgement)
+    /// Refreshes the persisted roots map and returns the roots whose TTL has expired, removing
+    /// them from `map`. Every entry left in `map` is protected from collection for this pass (see
+    /// the check at the top of the `Collect` job in [`Self::gc_collect`]).
+    ///
+    /// A resident root with a session-only pin is kept as [`TtlCounter::MostRecent`]. This is
+    /// decided here rather than left to `gc_scan_roots`, which cannot see a task whose `Meta` has
+    /// been evicted. Every other entry (not resident, or resident without a pin) advances its TTL
+    /// clock. Only pins refresh a root: one that gained a persistent parent may age out, and is
+    /// then simply not collectible while that parent holds it.
     fn gc_roots_refresh_and_age_out(
         &self,
         map: &mut FxHashMap<TaskId, TtlCounter>,
@@ -376,9 +350,13 @@ impl TurboTasksBackend {
 
         let mut aged_out = Vec::new();
         map.retain(|id, counter| {
-            if self.storage.with_task(*id, |_| ()).is_some() {
-                // Resident: `gc_scan_roots` decides. Drop it either way.
-                return false;
+            let pinned = self
+                .storage
+                .with_task(*id, |task| task.gc_transient_ref_count() > 0)
+                .unwrap_or(false);
+            if pinned {
+                *counter = TtlCounter::MostRecent;
+                return true;
             }
             match *counter {
                 TtlCounter::MostRecent => {
@@ -389,7 +367,7 @@ impl TurboTasksBackend {
                 TtlCounter::FirstStale(since) => {
                     if now.saturating_sub(since) > ttl_ms {
                         // Enqueue for collection, which restores it from disk and attempts the
-                        // delete. Dropped from the map: see the note above.
+                        // delete. Dropped from the map so the pass does not protect it.
                         aged_out.push(*id);
                         false
                     } else {
@@ -451,18 +429,18 @@ impl TurboTasksBackend {
             "gc_for_testing requires a GC-enabled backend: set `BackendOptions::gc = Some(true)`"
         );
         let _serialize = self.snapshot_in_progress.lock();
-        let phase = self.snapshot_coord.begin_snapshot();
+        let phase = self
+            .snapshot_coord
+            .begin_snapshot(|slow| Self::report_slow_settle_for_snapshot(turbo_tasks, slow));
         let (stats, _result, roots) =
             self.gc_collect(turbo_tasks, &phase, /* interruptible= */ false);
 
         // Persist the roots map this pass produced. Some tests query the roots set and GC itself
         // does as well, this ensures it is available to the next cycle.
         if let Some(roots) = roots
-            && let Err(err) = self.backing_storage.save_snapshot(
-                Vec::new(),
-                Some(roots),
-                Vec::<Vec<SnapshotItem>>::new(),
-            )
+            && let Err(err) = self
+                .backing_storage
+                .save_snapshot(Some(roots), Vec::<Vec<SnapshotItem>>::new())
         {
             panic!("gc_for_testing: failed to persist GC roots: {err:?}");
         }

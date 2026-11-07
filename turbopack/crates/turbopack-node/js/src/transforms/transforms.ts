@@ -13,6 +13,7 @@ export type IpcInfoMessage =
       directories?: Array<[string, string]>
       filePaths?: string[]
       buildFilePaths?: string[]
+      buildDependencyRequests?: Array<[string, boolean]>
     }
   | {
       type: 'emittedError'
@@ -38,6 +39,10 @@ export type IpcRequestMessage =
     }
   | {
       type: 'trackFileRead'
+      file: string
+    }
+  | {
+      type: 'trackFileStat'
       file: string
     }
   | {

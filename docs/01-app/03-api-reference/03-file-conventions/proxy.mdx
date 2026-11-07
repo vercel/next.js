@@ -18,6 +18,8 @@ Proxy executes before routes are rendered. It's particularly useful for implemen
 >
 > Proxy is meant to be invoked separately of your render code and in optimized cases deployed to your CDN for fast redirect/rewrite handling, you should not attempt relying on shared modules or globals.
 >
+> See [Proxy limitations](/docs/app/getting-started/proxy#limitations) for unsupported directive and caching behavior.
+>
 > To pass information from Proxy to your application, use [headers](#setting-headers), [cookies](#using-cookies), [rewrites](/docs/app/api-reference/functions/next-response#rewrite), [redirects](/docs/app/api-reference/functions/next-response#redirect), or the URL.
 
 Create a `proxy.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
@@ -729,13 +731,13 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
 
 Starting in Next.js 15.1, the `next/experimental/testing/server` package contains utilities to help unit test proxy files. Unit testing proxy can help ensure that it's only run on desired paths and that custom routing logic works as intended before code reaches production.
 
-The `unstable_doesProxyMatch` function can be used to assert whether proxy will run for the provided URL, headers, and cookies.
+The `unstable_doesMiddlewareMatch` function can be used to assert whether proxy will run for the provided URL, headers, and cookies.
 
 ```js
-import { unstable_doesProxyMatch } from 'next/experimental/testing/server'
+import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server'
 
 expect(
-  unstable_doesProxyMatch({
+  unstable_doesMiddlewareMatch({
     config,
     nextConfig,
     url: '/test',

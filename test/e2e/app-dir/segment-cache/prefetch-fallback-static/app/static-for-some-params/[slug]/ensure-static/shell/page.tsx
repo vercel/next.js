@@ -1,3 +1,3 @@
-export const unstable_ensureStatic = 'shell'
+export const ensureStatic = 'shell'
 
 export { default, generateStaticParams } from '../../page'

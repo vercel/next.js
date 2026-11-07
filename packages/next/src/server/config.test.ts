@@ -1,4 +1,11 @@
-import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
+import { mkdtemp, rm, writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
+import {
+  PHASE_INFO,
+  PHASE_PRODUCTION_BUILD,
+  PHASE_PRODUCTION_SERVER,
+} from '../api/constants'
 import {
   getStrictRouteMatchingDefaultWarning,
   STRICT_ROUTE_MATCHING_DEFAULT_WARNING,
@@ -17,6 +24,35 @@ describe('loadConfig', () => {
     const configModule = await import('./config')
     loadConfig = configModule.default
   })
+  it.each([true, false])(
+    'links removed experimental.dynamicIO=%s to the migration guide',
+    async (dynamicIO) => {
+      const dir = await mkdtemp(join(tmpdir(), 'next-config-dynamic-io-'))
+      const previousMode = process.env.__NEXT_TEST_MODE
+      process.env.__NEXT_TEST_MODE = 'jest'
+
+      try {
+        await writeFile(
+          join(dir, 'next.config.js'),
+          `module.exports = ${JSON.stringify({ experimental: { dynamicIO } })}`
+        )
+
+        await expect(
+          loadConfig(PHASE_PRODUCTION_BUILD, dir, { silent: false })
+        ).rejects.toThrow(
+          'Learn more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
+        )
+      } finally {
+        if (previousMode === undefined) {
+          delete process.env.__NEXT_TEST_MODE
+        } else {
+          process.env.__NEXT_TEST_MODE = previousMode
+        }
+        await rm(dir, { recursive: true, force: true })
+      }
+    }
+  )
+
   describe('nextConfig.images defaults', () => {
     it('should assign a `images.remotePatterns` when using assetPrefix', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
@@ -292,6 +328,55 @@ describe('loadConfig', () => {
     })
   })
 
+  describe('partialPrefetching validation', () => {
+    const warning = [
+      '⚠ `cacheComponents` is enabled without a corresponding `partialPrefetching` option. Set `partialPrefetching` to either `true` or `false`.',
+      "The only reason to set `partialPrefetching` to `false` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.",
+      'Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.',
+      'Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching',
+    ].join('\n\n')
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('warns when cacheComponents is enabled without partialPrefetching', async () => {
+      const consoleWarn = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {})
+
+      await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          cacheComponents: true,
+        },
+        silent: false,
+      })
+
+      expect(consoleWarn).toHaveBeenCalledWith(warning)
+    })
+
+    it.each([true, false])(
+      'does not warn when partialPrefetching is explicitly set to %s',
+      async (partialPrefetching) => {
+        const consoleWarn = jest
+          .spyOn(console, 'warn')
+          .mockImplementation(() => {})
+
+        await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            cacheComponents: true,
+            partialPrefetching,
+          },
+          silent: false,
+        })
+
+        expect(consoleWarn).not.toHaveBeenCalledWith(
+          expect.stringContaining(warning)
+        )
+      }
+    )
+  })
+
   describe('experimental.cssChunking bundler validation', () => {
     it('should not validate `cssChunking` during `next info`', async () => {
       const result = await loadConfig(PHASE_INFO, __dirname, {
@@ -334,6 +419,41 @@ describe('loadConfig', () => {
       })
 
       expect(result.experimental.durableUseCacheEntries).toBe(true)
+    })
+  })
+
+  describe('instrumentationInject', () => {
+    it('defaults to an empty array, so modifyConfig can push to it', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+      expect(result.instrumentationInject).toEqual([])
+    })
+
+    it('gives each load its own array, so a push does not leak into later loads', async () => {
+      const first = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+      first.instrumentationInject.push('./x.js')
+      first.instrumentationClientInject.push('./y.js')
+
+      const second = await loadConfig(PHASE_PRODUCTION_SERVER, __dirname, {
+        customConfig: {},
+      })
+      expect(second).toMatchObject({
+        instrumentationInject: [],
+        instrumentationClientInject: [],
+      })
+    })
+
+    it('is accepted by the config schema', () => {
+      expect(
+        configSchema.safeParse({ instrumentationInject: ['./script.js'] })
+          .success
+      ).toBe(true)
+      expect(
+        configSchema.safeParse({ instrumentationInject: 'script.js' }).success
+      ).toBe(false)
     })
   })
 })

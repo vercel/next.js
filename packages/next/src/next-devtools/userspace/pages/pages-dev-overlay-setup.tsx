@@ -32,6 +32,9 @@ const usePagesDevOverlayBridge = () => {
     const { handleStaticIndicator } =
       require('../../../client/dev/hot-reloader/pages/hot-reloader-pages') as typeof import('../../../client/dev/hot-reloader/pages/hot-reloader-pages')
 
+    // The router exists by now, so compute the indicator for the initial page
+    // in case the ISR manifest arrived before the router was created.
+    handleStaticIndicator()
     Router.events.on('routeChangeComplete', handleStaticIndicator)
 
     return function () {

@@ -9,8 +9,11 @@ it('should keep a CommonJS consumer of an ESM module working', () => {
 })
 
 it('should keep a CommonJS consumer working with original export names', () => {
-  // The `esm.someLongExportName` accesses in `cjs-consumer.js` are user source, so the unsplit
-  // module must keep the original keys on its namespace object.
-  expect(exportsInfo.someLongExportName.canMangle).toBe(false)
+  // The public facade keeps the original names for user-source `esm.someLongExportName` reads,
+  // even though the backing module can mangle its local export keys.
+  expect(exportsInfo.someLongExportName.canMangle).toBe(true)
+  expect(exportsInfo.someLongExportName.mangledName).not.toBe(
+    'someLongExportName'
+  )
   expect(keys()).toContain('someLongExportName')
 })

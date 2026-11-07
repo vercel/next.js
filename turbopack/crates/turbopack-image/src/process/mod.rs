@@ -13,6 +13,7 @@ use image::{
         ico::IcoEncoder,
         jpeg::JpegEncoder,
         png::{CompressionType, PngEncoder},
+        webp::WebPEncoder,
     },
     imageops::FilterType,
 };
@@ -176,23 +177,6 @@ fn load_image_internal(
         return Ok((ImageBuffer::Raw(bytes.to_vec()), format));
     }
 
-    #[cfg(not(feature = "webp"))]
-    if matches!(format, Some(ImageFormat::WebP)) {
-        ImageProcessingIssue {
-            source: IssueSource::from_source_only(image),
-            message: StyledString::Text(rcstr!(
-                "This version of Turbopack does not support WEBP images, will emit without \
-                 optimization or encoding"
-            ))
-            .resolved_cell(),
-            title: Some(StyledString::Text(rcstr!("WEBP image not supported")).resolved_cell()),
-            issue_severity: Some(IssueSeverity::Warning),
-        }
-        .resolved_cell()
-        .emit();
-        return Ok((ImageBuffer::Raw(bytes.to_vec()), format));
-    }
-
     let image = reader.decode().context("unable to decode image data")?;
     Ok((ImageBuffer::Decoded(image), format))
 }
@@ -264,9 +248,7 @@ fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result
             )?;
             (buf, mime::IMAGE_BMP)
         }
-        #[cfg(feature = "webp")]
         ImageFormat::WebP => {
-            use image::codecs::webp::WebPEncoder;
             let encoder = WebPEncoder::new_lossless(&mut buf);
             encoder.encode(image.as_bytes(), width, height, image.color().into())?;
 
@@ -374,8 +356,34 @@ pub async fn get_meta_data(
         return Ok(ImageMetaData::fallback_value(None).cell());
     };
 
+    let mime_type = if let Some(format) = format {
+        image_format_to_mime_type(format)?
+    } else {
+        None
+    };
+
     match image_buffer {
-        ImageBuffer::Raw(..) => Ok(ImageMetaData::fallback_value(None).cell()),
+        ImageBuffer::Raw(..) => {
+            // We can't decode this format, but can still read the dimensions from its headers.
+            // There's no way to compute a real blur placeholder without decoding.
+            let size = result_to_issue(
+                image,
+                imagesize::blob_size(&bytes)
+                    .map_err(anyhow::Error::from)
+                    .and_then(|size| Ok((u32::try_from(size.width)?, u32::try_from(size.height)?)))
+                    .context("unable to determine image dimensions"),
+            );
+            let Some((width, height)) = size else {
+                return Ok(ImageMetaData::fallback_value(mime_type).cell());
+            };
+            Ok(ImageMetaData {
+                width,
+                height,
+                mime_type,
+                blur_placeholder: Some(BlurPlaceholder::fallback()),
+            }
+            .cell())
+        }
         ImageBuffer::Decoded(image_data) => {
             let (width, height) = image_data.dimensions();
             let blur_placeholder = if let Some(blur_placeholder) = blur_placeholder {
@@ -403,11 +411,7 @@ pub async fn get_meta_data(
             Ok(ImageMetaData {
                 width,
                 height,
-                mime_type: if let Some(format) = format {
-                    image_format_to_mime_type(format)?
-                } else {
-                    None
-                },
+                mime_type,
                 blur_placeholder,
             }
             .cell())
@@ -439,14 +443,6 @@ pub async fn optimize(
             if matches!(format, Some(ImageFormat::Avif)) {
                 return Ok(FileContent::Content(
                     File::from(buffer).with_content_type(Mime::from_str("image/avif")?),
-                )
-                .cell());
-            }
-
-            #[cfg(not(feature = "webp"))]
-            if matches!(format, Some(ImageFormat::WebP)) {
-                return Ok(FileContent::Content(
-                    File::from(buffer).with_content_type(Mime::from_str("image/webp")?),
                 )
                 .cell());
             }

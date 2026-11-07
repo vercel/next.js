@@ -2,7 +2,7 @@ export async function generateStaticParams() {
   return [{ slug: '123' }]
 }
 
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 type Params = { slug: string; snail: string }
 

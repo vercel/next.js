@@ -16,6 +16,8 @@ import {
 } from './webpack-loaders-runtime'
 import fs from 'fs'
 import path from 'path'
+import { absolutify, contextify, createHash } from './webpack-loaders-utils'
+import { fileURLToPath } from 'url'
 
 export type IpcInfoMessage =
   | {
@@ -24,6 +26,7 @@ export type IpcInfoMessage =
       directories?: Array<[string, string]>
       filePaths?: string[]
       buildFilePaths?: string[]
+      buildDependencyRequests?: Array<[string, boolean]>
     }
   | {
       type: 'emittedError'
@@ -192,6 +195,7 @@ const transform = (
           target,
           mode,
           sourceMap,
+          utils: { absolutify, contextify, createHash },
           getOptions() {
             const entry = this.loaders[this.loaderIndex]
             return entry.options && typeof entry.options === 'object'
@@ -199,14 +203,45 @@ const transform = (
               : {}
           },
           addBuildDependency(dependency: string) {
-            buildDependencies.add(pathResolve(contextDir, dependency))
+            buildDependencies.add(dependency)
           },
           fs: {
+            stat(
+              p: fs.PathLike,
+              optionsOrCallback:
+                | fs.StatOptions
+                | undefined
+                | ((
+                    err: NodeJS.ErrnoException | null,
+                    stats: fs.Stats | fs.BigIntStats
+                  ) => void),
+              callback?: (
+                err: NodeJS.ErrnoException | null,
+                stats: fs.Stats | fs.BigIntStats
+              ) => void
+            ) {
+              const file = p instanceof URL ? fileURLToPath(p) : p.toString()
+              ipc
+                .sendRequest({
+                  type: 'trackFileStat',
+                  file,
+                })
+                .then(
+                  () => {
+                    if (typeof optionsOrCallback === 'function') {
+                      fs.stat(p, optionsOrCallback)
+                    } else {
+                      fs.stat(p, optionsOrCallback, callback!)
+                    }
+                  },
+                  (err) => ipc.sendError(err)
+                )
+            },
             readFile(p: string, optionsOrCb: any, maybeCb: any) {
               ipc
                 .sendRequest({
                   type: 'trackFileRead',
-                  file: pathResolve(p),
+                  file: p,
                 })
                 .then(
                   () => {
@@ -558,7 +593,26 @@ const transform = (
             ...result.missingDependencies,
           ],
           directories: result.contextDependencies.map((dep) => [dep, '**']),
-          buildFilePaths: [...buildDependencies].sort(),
+          buildDependencyRequests: [...buildDependencies]
+            .map((dependency) => {
+              // Webpack uses a trailing slash or backslash to identify directory build dependencies:
+              // https://github.com/webpack/webpack/blob/v5.98.0/lib/FileSystemInfo.js#L1741-L1748
+              const isDirectory = /[\\/]$/.test(dependency)
+              let request = isDirectory ? dependency.slice(0, -1) : dependency
+              if (path.isAbsolute(request)) {
+                request = path.relative(contextDir, request)
+                if (
+                  !path.isAbsolute(request) &&
+                  request.split(path.sep)[0] !== '..'
+                ) {
+                  request = `./${request}`
+                }
+              }
+              request =
+                path.sep === '/' ? request : request.replaceAll(path.sep, '/')
+              return [request, isDirectory] as [string, boolean]
+            })
+            .sort(([a], [b]) => a.localeCompare(b)),
         })
         if (err) {
           // Resolve loader paths to include in the error message using
