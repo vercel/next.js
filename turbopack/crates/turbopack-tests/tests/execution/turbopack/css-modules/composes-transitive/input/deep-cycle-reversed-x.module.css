@@ -1,0 +1,13 @@
+.a {
+  composes: b from './deep-cycle-reversed-y.module.css';
+  color: red;
+}
+
+.c {
+  composes: d;
+  color: green;
+}
+
+.d {
+  color: blue;
+}

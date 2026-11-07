@@ -8,7 +8,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 
 __turbopack_context__.v({
   "className": "H6xp9G_className",
-  "subClass": "H6xp9G_subClass" + " " + "H6xp9G_className",
+  "subClass": "H6xp9G_subClass H6xp9G_className",
 });
 })]);
 

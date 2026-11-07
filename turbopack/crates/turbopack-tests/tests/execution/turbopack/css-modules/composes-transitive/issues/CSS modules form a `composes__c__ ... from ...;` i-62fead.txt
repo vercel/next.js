@@ -1,0 +1,12 @@
+warning - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/css-modules/composes-transitive/input/deep-cycle-x.module.css  CSS modules form a `composes: ... from ...;` import cycle
+  
+  These CSS modules compose classes from each other:
+  [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/css-modules/composes-transitive/input/deep-cycle-x.module.css
+  [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/css-modules/composes-transitive/input/deep-cycle-y.module.css
+  Composed class names are linearized by skipping classes that are already being expanded. Remove the cycle to get a well-defined set of class names.
+  
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/css-modules/composes-transitive/input/deep-cycle-x.module.css
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/css-modules/composes-transitive/input/index.js

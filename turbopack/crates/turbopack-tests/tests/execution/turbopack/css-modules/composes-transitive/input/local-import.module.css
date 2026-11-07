@@ -1,0 +1,9 @@
+.middle {
+  composes: imported from './other.module.css';
+  margin: 0;
+}
+
+.outer {
+  composes: middle;
+  padding: 0;
+}

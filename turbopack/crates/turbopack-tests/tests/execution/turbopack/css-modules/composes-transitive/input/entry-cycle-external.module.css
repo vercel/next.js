@@ -1,0 +1,8 @@
+.ext {
+  composes: extbase;
+  color: yellow;
+}
+
+.extbase {
+  color: purple;
+}

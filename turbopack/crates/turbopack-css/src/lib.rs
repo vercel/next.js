@@ -8,6 +8,7 @@ mod code_gen;
 pub mod embed;
 mod lifetime_util;
 mod module_asset;
+mod module_composes;
 pub(crate) mod process;
 pub(crate) mod references;
 
