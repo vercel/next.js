@@ -1,0 +1,7 @@
+{
+    "exports": [
+        ["fromResponseCacheEntry"],
+        ["routeKindToIncrementalCacheKind"],
+        ["fromResponseCacheEntry", "toResponseCacheEntry"]
+    ]
+}
