@@ -246,7 +246,7 @@ impl ExternalHandler {
         // in pages/components
         if request == "next" {
             return Ok(Some(
-                "commonjs next/dist/lib/import-next-warning".to_string(),
+                "var require(\"next/dist/lib/import-next-warning\").warn(__filename)".to_string(),
             ));
         }
 

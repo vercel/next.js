@@ -170,7 +170,7 @@ export function makeExternalHandler({
     // make sure import "next" shows a warning when imported
     // in pages/components
     if (request === 'next') {
-      return `commonjs next/dist/lib/import-next-warning`
+      return `var require("next/dist/lib/import-next-warning").warn(__filename)`
     }
 
     const isAppLayer = isWebpackBundledLayer(layer)
