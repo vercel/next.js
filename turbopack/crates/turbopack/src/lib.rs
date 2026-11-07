@@ -6,6 +6,7 @@
 
 pub mod evaluate_context;
 pub mod global_module_ids;
+mod inline_loaders;
 pub mod module_options;
 pub mod runtime_asset_context;
 pub mod transition;
@@ -447,7 +448,12 @@ impl ModuleAssetContext {
         source: ResolvedVc<Box<dyn Source>>,
         reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
-        process_default(self, source, reference_type, Vec::new()).await
+        if let Some(inline) =
+            ResolvedVc::try_downcast_type::<inline_loaders::InlineLoaderSource>(source)
+        {
+            return Ok(inline.process(self, reference_type));
+        }
+        process_default(self, source, reference_type, Vec::new(), false).await
     }
 }
 
@@ -456,6 +462,7 @@ async fn process_default(
     source: ResolvedVc<Box<dyn Source>>,
     reference_type: ReferenceType,
     processed_rules: Vec<usize>,
+    skip_configured_loaders: bool,
 ) -> Result<Vc<ProcessResult>> {
     let span = tracing::info_span!(
         "process module",
@@ -473,6 +480,7 @@ async fn process_default(
         source,
         reference_type,
         processed_rules,
+        skip_configured_loaders,
     )
     .instrument(span)
     .await
@@ -621,6 +629,7 @@ async fn process_default_internal(
     source: ResolvedVc<Box<dyn Source>>,
     reference_type: ReferenceType,
     processed_rules: Vec<usize>,
+    skip_configured_loaders: bool,
 ) -> Result<Vc<ProcessResult>> {
     let ident = source.ident().to_resolved().await?;
     let ident_ref = ident.await?;
@@ -785,6 +794,7 @@ async fn process_default_internal(
                     current_source,
                     plain_reference_type,
                     processed_rules,
+                    skip_configured_loaders,
                 ))
                 .await;
             }
@@ -809,6 +819,21 @@ async fn process_default_internal(
                         return Ok(ProcessResult::Ignore.cell());
                     }
                     ModuleRuleEffect::SourceTransforms(transforms) => {
+                        let transforms = if skip_configured_loaders {
+                            Vc::<SourceTransforms>::cell(
+                                transforms
+                                    .await?
+                                    .iter()
+                                    .copied()
+                                    .filter(|transform| {
+                                        ResolvedVc::try_downcast_type::<WebpackLoaders>(*transform)
+                                            .is_none()
+                                    })
+                                    .collect(),
+                            )
+                        } else {
+                            **transforms
+                        };
                         current_source = transforms
                             .transform(*current_source, Vc::upcast(module_asset_context))
                             .to_resolved()
@@ -835,6 +860,7 @@ async fn process_default_internal(
                                     current_source,
                                     reference_type,
                                     processed_rules,
+                                    skip_configured_loaders,
                                 ))
                                 .await;
                             }
@@ -1010,12 +1036,24 @@ impl AssetContext for ModuleAssetContext {
     ) -> Result<Vc<ModuleResolveResult>> {
         let context_path = origin_path.parent();
 
-        let result = resolve(
-            context_path,
-            reference_type.clone(),
+        let result = if let Some(result) = inline_loaders::resolve_inline_request(
+            self,
+            origin_path.clone(),
             request,
             resolve_options,
-        );
+            &reference_type,
+        )
+        .await?
+        {
+            result
+        } else {
+            resolve(
+                context_path,
+                reference_type.clone(),
+                request,
+                resolve_options,
+            )
+        };
 
         let mut result = self.process_resolve_result(*result.to_resolved().await?, reference_type);
         let this = self.await?;
