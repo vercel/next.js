@@ -7,8 +7,8 @@ import {
 } from 'next-test-utils'
 import { join } from 'path'
 
-// The output of a `proxy` file is `.next/server/middleware.js`, also while the
-// build runs: a build step that looks for it under another name fails.
+// The build output of a `proxy` file is `.next/server/middleware.js`. File
+// traces and the passes of a split build refer to it by that name.
 describe('proxy-output-file', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
