@@ -11,3 +11,13 @@
 #cover {
   object-fit: cover;
 }
+
+.natural-ratio {
+  width: 100%;
+  height: auto;
+}
+
+.natural-width {
+  width: auto;
+  height: 75px;
+}

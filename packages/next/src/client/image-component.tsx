@@ -144,19 +144,29 @@ function handleLoading(
         }
       }
 
-      const heightModified =
-        img.height.toString() !== img.getAttribute('height')
-      const widthModified = img.width.toString() !== img.getAttribute('width')
+      const { width, height, naturalWidth, naturalHeight } = img
       if (
-        ((heightModified && !widthModified) ||
-          (!heightModified && widthModified)) &&
-        // Other object-fit values preserve the image's aspect ratio even when
-        // the image element's dimensions have a different aspect ratio.
-        window.getComputedStyle(img).objectFit === 'fill'
+        img.getAttribute('data-nimg') !== 'fill' &&
+        width > 0 &&
+        height > 0 &&
+        naturalWidth > 0 &&
+        naturalHeight > 0
       ) {
-        warnOnce(
-          `Image with src "${origSrc}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`
-        )
+        const intrinsicRatio = naturalWidth / naturalHeight
+        // The DOM rounds rendered dimensions and truncates density-corrected
+        // natural dimensions. Account for both, including when scaled up.
+        const widthTolerance = 1 + height / naturalHeight
+        const heightTolerance = 1 + width / naturalWidth
+        if (
+          Math.abs(width - height * intrinsicRatio) > widthTolerance &&
+          Math.abs(height - width / intrinsicRatio) > heightTolerance &&
+          // Other object-fit values preserve the source image's aspect ratio.
+          window.getComputedStyle(img).objectFit === 'fill'
+        ) {
+          warnOnce(
+            `Image with src "${origSrc}" is rendered with a different aspect ratio than its intrinsic dimensions. Adjust the width and height props, or use CSS 'width: "auto"' or 'height: "auto"' to preserve the aspect ratio. Read more: https://nextjs.org/docs/app/api-reference/components/image#style`
+          )
+        }
       }
     }
   })

@@ -4,14 +4,14 @@ import { retry } from 'next-test-utils'
 describe('image-sizing-warning', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
-  it('only warns when a modified dimension can stretch the image', async () => {
+  it('warns about distortion while allowing cropping, source mismatches and rounding', async () => {
     const browser = await next.browser('/')
 
     await retry(async () => {
       expect(
         await browser.eval(
           () =>
-            document.images.length === 8 &&
+            document.images.length === 17 &&
             Array.from(document.images).every(
               (img) => img.dataset.loaded === 'true'
             )
@@ -48,17 +48,65 @@ describe('image-sizing-warning', () => {
       })
     ).toEqual([681, 721])
 
+    expect(
+      await browser.eval(() => {
+        const img = document.getElementById(
+          'source-mismatch'
+        ) as HTMLImageElement
+        return [
+          img.width,
+          img.height,
+          img.naturalWidth,
+          img.naturalHeight,
+          img.getAttribute('height'),
+        ]
+      })
+    ).toEqual([820, 720, 820, 720, '700'])
+
+    expect(
+      await browser.eval(() => {
+        const img = document.getElementById('fractional') as HTMLImageElement
+        return [img.width, img.height, getComputedStyle(img).height]
+      })
+    ).toEqual([75, 38, '37.5px'])
+
+    // Rounding can produce more than one pixel of error on the longer axis.
+    expect(
+      await browser.eval(() =>
+        ['fractional-wide', 'fractional-tall'].map((id) => {
+          const img = document.getElementById(id) as HTMLImageElement
+          return [img.width, img.height]
+        })
+      )
+    ).toEqual([
+      [75, 8],
+      [8, 75],
+    ])
+
+    const densityRounded = await browser.eval(() => {
+      const img = document.getElementById('density-rounded') as HTMLImageElement
+      return {
+        width: img.width,
+        height: img.height,
+        naturalRatio: img.naturalWidth / img.naturalHeight,
+      }
+    })
+    expect([densityRounded.width, densityRounded.height]).toEqual([1640, 1440])
+    // Width descriptors density-correct and truncate the natural dimensions.
+    expect(densityRounded.naturalRatio).not.toBeCloseTo(820 / 720, 5)
+
     const warnings = (await browser.log())
       .map((log) => log.message)
-      .filter((message) =>
-        message.includes('has either width or height modified')
-      )
+      .filter((message) => message.includes('aspect ratio'))
 
-    expect(warnings).toHaveLength(3)
-    for (const id of ['fill', 'default', 'height-only']) {
-      expect(
-        warnings.some((message) => message.includes(`/sample.png?case=${id}`))
-      ).toBe(true)
-    }
+    expect(
+      warnings.map((message) => message.match(/\?case=([^"&\s]+)/)?.[1]).sort()
+    ).toEqual([
+      'default',
+      'fill',
+      'fill-neighbor',
+      'height-only',
+      'props-stretched',
+    ])
   })
 })
