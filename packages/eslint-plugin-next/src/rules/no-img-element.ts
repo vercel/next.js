@@ -18,8 +18,8 @@ export default defineRule({
   create(context) {
     // Get relative path of the file
     const relativePath = context.filename
-      .replace(path.sep, '/')
-      .replace(context.cwd, '')
+      .replace(/\\/g, '/')
+      .replace(context.cwd.replace(/\\/g, '/'), '')
       .replace(/^\//, '')
 
     const isAppDir = /^(src\/)?app\//.test(relativePath)
