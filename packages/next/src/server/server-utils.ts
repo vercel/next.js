@@ -29,6 +29,38 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { parseReqUrl } from '../lib/url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 
+/**
+ * Compiled matchers for rewrite sources, keyed by the source. Rewrites come
+ * from the routes manifest, so every request checks the same sources; they're
+ * compiled once instead of on every request, and rewrites that share a source
+ * share a matcher. The cap keeps the cache bounded regardless of the input.
+ */
+const MAX_REWRITE_MATCHERS = 1000
+const rewriteMatchers = new Map<string, ReturnType<typeof getPathMatch>>()
+
+function getRewriteMatcher(
+  rewrite: DeepReadonly<Rewrite>,
+  trailingSlash: boolean | undefined,
+  caseSensitive: boolean
+) {
+  const source = trailingSlash ? `${rewrite.source}(/)?` : rewrite.source
+  const key = `${caseSensitive ? '1' : '0'}${source}`
+
+  let matcher = rewriteMatchers.get(key)
+  if (matcher === undefined) {
+    matcher = getPathMatch(source, {
+      removeUnnamedParams: true,
+      strict: true,
+      sensitive: caseSensitive,
+    })
+    if (rewriteMatchers.size >= MAX_REWRITE_MATCHERS) {
+      rewriteMatchers.clear()
+    }
+    rewriteMatchers.set(key, matcher)
+  }
+  return matcher
+}
+
 function filterInternalQuery(
   query: Record<string, undefined | string | string[]>,
   paramKeys: string[]
@@ -268,32 +300,30 @@ export function getServerUtils({
     }
 
     const checkRewrite = (rewrite: DeepReadonly<Rewrite>): boolean => {
-      const matcher = getPathMatch(
-        rewrite.source + (trailingSlash ? '(/)?' : ''),
-        {
-          removeUnnamedParams: true,
-          strict: true,
-          sensitive: !!caseSensitive,
-        }
-      )
-
       if (!rewrittenParsedUrl.pathname) return false
 
-      let params = matcher(rewrittenParsedUrl.pathname)
-
-      if ((rewrite.has || rewrite.missing) && params) {
-        const hasParams = matchHas(
+      // Check `has` and `missing` before the source: they're header, cookie
+      // and query lookups, while the source can be a large regex. Both have
+      // to match either way.
+      let hasParams: ReturnType<typeof matchHas> | undefined
+      if (rewrite.has || rewrite.missing) {
+        hasParams = matchHas(
           req,
           rewrittenParsedUrl.query,
           rewrite.has as Rewrite['has'],
           rewrite.missing as Rewrite['missing']
         )
+        if (!hasParams) return false
+      }
 
-        if (hasParams) {
-          Object.assign(params, hasParams)
-        } else {
-          params = false
-        }
+      const params = getRewriteMatcher(
+        rewrite,
+        trailingSlash,
+        !!caseSensitive
+      )(rewrittenParsedUrl.pathname)
+
+      if (params && hasParams) {
+        Object.assign(params, hasParams)
       }
 
       if (params) {
