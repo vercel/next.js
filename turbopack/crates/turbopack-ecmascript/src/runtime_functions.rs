@@ -77,7 +77,6 @@ pub const TURBOPACK_EXPORT_URL: &TurbopackRuntimeFunctionShortcut = make_shortcu
 pub const TURBOPACK_EXPORT_NAMESPACE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("n");
 pub const TURBOPACK_CACHE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("c");
 pub const TURBOPACK_MODULES: &TurbopackRuntimeFunctionShortcut = make_shortcut!("M");
-pub const TURBOPACK_MODULE_FEDERATION: &TurbopackRuntimeFunctionShortcut = make_shortcut!("R");
 pub const TURBOPACK_LOAD: &TurbopackRuntimeFunctionShortcut = make_shortcut!("l");
 pub const TURBOPACK_LOAD_BY_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("L");
 pub const TURBOPACK_CLEAR_CHUNK_CACHE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("C");
@@ -108,10 +107,6 @@ pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctio
     ("__turbopack_export_url__", TURBOPACK_EXPORT_URL),
     ("__turbopack_export_namespace__", TURBOPACK_EXPORT_NAMESPACE),
     ("__turbopack_modules__", TURBOPACK_MODULES),
-    (
-        "__turbopack_module_federation__",
-        TURBOPACK_MODULE_FEDERATION,
-    ),
     ("__turbopack_load__", TURBOPACK_LOAD),
     ("__turbopack_load_by_url__", TURBOPACK_LOAD_BY_URL),
     ("__turbopack_dynamic__", TURBOPACK_DYNAMIC),

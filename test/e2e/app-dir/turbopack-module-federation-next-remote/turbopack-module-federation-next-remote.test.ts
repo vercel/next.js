@@ -1,6 +1,6 @@
 import type { ChildProcess } from 'child_process'
 import type { Server } from 'http'
-import { symlink, writeFile } from 'fs/promises'
+import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import execa from 'execa'
 import { isNextDeploy, nextTestSetup } from 'e2e-utils'
@@ -69,6 +69,7 @@ const describeTurbopack =
 describeTurbopack('turbopack module federation between Next.js apps', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@module-federation/runtime-tools': '2.9.0' },
     skipStart: true,
     // A second local Next.js server is not reachable from a deployed fixture.
     skipDeployment: true,
@@ -82,10 +83,8 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
     const remotePort = await findPort()
     remoteOrigin = `http://localhost:${remotePort}`
     const remoteDir = join(next.testDir, 'remote')
-    await symlink(
-      join(next.testDir, 'node_modules'),
-      join(remoteDir, 'node_modules')
-    )
+    // Deliberately resolve Next, React, and the optional federation peer from the parent
+    // workspace instead of installing a node_modules directory in this nested app.
     if (isNextDev) {
       remoteServer = await launchApp(remoteDir, remotePort)
     } else {
@@ -131,10 +130,12 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
   })
 
   afterAll(async () => {
-    await new Promise<void>((resolve, reject) => {
-      webpackHostServer.close((error) => (error ? reject(error) : resolve()))
-    })
-    await killApp(remoteServer)
+    if (webpackHostServer) {
+      await new Promise<void>((resolve, reject) => {
+        webpackHostServer.close((error) => (error ? reject(error) : resolve()))
+      })
+    }
+    if (remoteServer) await killApp(remoteServer)
     delete process.env.MF_REMOTE_URL
   })
 
@@ -165,6 +166,78 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
       )
       expect(federationOutput).not.toContain('remote/lib/message.js')
     }
+  })
+
+  it('accepts named share scopes and concurrent enhanced initialization', async () => {
+    const browser = await next.browser('/')
+    await retry(async () => {
+      expect(await browser.elementByCss('#remote-message').text()).toBe(
+        'hello from Next.js'
+      )
+    }, 15_000)
+    const result = await browser.eval(`(async () => {
+      const container = globalThis.nextRemote;
+      const feature = Object.create(null);
+      const secondary = Object.create(null);
+      const options = {
+        shareScopeKeys: ['feature', 'secondary'],
+        shareScopeMap: { feature, secondary },
+        version: '2.9.0'
+      };
+      const initScope = [];
+      await Promise.all([
+        container.init(feature, initScope, options),
+        container.init(feature, initScope, options)
+      ]);
+      const factory = await container.get('./message', initScope);
+      const sparse = { sparse: Object.create(null) };
+      await container.init(sparse.sparse, [], { shareScopeKeys: ['sparse', 'missing'], shareScopeMap: sparse });
+      let rejectedDifferentScope = false;
+      try {
+        await container.init(Object.create(null), [], { shareScopeKeys: 'feature' });
+      } catch (error) {
+        rejectedDifferentScope = error.message.includes('different share scope');
+      }
+      return { message: factory().message, rejectedDifferentScope, createdMissingScope: !!sparse.missing && sparse.missing !== sparse.sparse };
+    })()`)
+    expect(result).toEqual({
+      message: 'hello from Next.js',
+      rejectedDifferentScope: true,
+      createdMissingScope: true,
+    })
+  })
+
+  it('does not deadlock when a remote reenters its own init scope', async () => {
+    const browser = await next.browser('/')
+    await retry(async () => {
+      expect(await browser.elementByCss('#remote-message').text()).toBe(
+        'hello from Next.js'
+      )
+    }, 15_000)
+    await browser.eval(`(() => {
+      const container = globalThis.nextRemote;
+      const instance = globalThis.__FEDERATION__.__INSTANCES__.find((item) => item.name === 'nextRemote');
+      const scope = Object.create(null);
+      const initScope = [];
+      const original = instance.initializeSharing;
+      instance.initializeSharing = function (name, options) {
+        instance.initializeSharing = original;
+        return [
+          ...original.call(this, name, options),
+          container.init(scope, initScope, { shareScopeKeys: 'cyclic' })
+        ];
+      };
+      globalThis.__cyclicInitStatus = 'pending';
+      container.init(scope, initScope, { shareScopeKeys: 'cyclic' }).then(
+        () => { globalThis.__cyclicInitStatus = 'resolved'; },
+        (error) => { globalThis.__cyclicInitStatus = error.message; }
+      );
+    })()`)
+    await retry(async () => {
+      expect(await browser.eval(`globalThis.__cyclicInitStatus`)).toBe(
+        'resolved'
+      )
+    }, 5_000)
   })
 
   it('exposes the module to a webpack host', async () => {

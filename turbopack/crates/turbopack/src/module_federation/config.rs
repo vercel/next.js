@@ -2,9 +2,11 @@ use std::collections::BTreeMap;
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
+use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, OperationValue};
+use turbo_tasks_fs::{FileContent, FileSystemPath};
 
 #[derive(
     Clone,
@@ -297,6 +299,27 @@ pub enum ModuleFederationRemoteType {
 
 #[derive(
     Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum ModuleFederationShareStrategy {
+    #[default]
+    VersionFirst,
+    LoadedFirst,
+}
+
+#[derive(
+    Clone,
     Debug,
     Default,
     PartialEq,
@@ -317,6 +340,10 @@ pub struct UnnormalizedModuleFederationConfig {
     pub shared: Option<UnnormalizedModuleFederationSharedEntries>,
     pub share_scope: Option<RcStr>,
     pub remote_type: Option<ModuleFederationRemoteType>,
+    pub share_strategy: Option<ModuleFederationShareStrategy>,
+    pub implementation: Option<RcStr>,
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
+    pub runtime_plugins: Option<Vec<serde_json::Value>>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -328,6 +355,9 @@ pub struct ModuleFederationConfig {
     pub exposes: Vec<ModuleFederationExpose>,
     pub shared: Vec<ModuleFederationShared>,
     pub share_scope: RcStr,
+    pub share_strategy: ModuleFederationShareStrategy,
+    pub implementation: Option<RcStr>,
+    pub runtime_plugins: Vec<ModuleFederationRuntimePlugin>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
@@ -341,6 +371,12 @@ pub struct ModuleFederationRemote {
 pub struct ModuleFederationRemoteExternal {
     pub global: RcStr,
     pub url: RcStr,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
+pub struct ModuleFederationRuntimePlugin {
+    pub request: RcStr,
+    pub params: RcStr,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
@@ -428,10 +464,39 @@ impl UnnormalizedModuleFederationSharedEntries {
 impl UnnormalizedModuleFederationConfig {
     pub fn normalize(self) -> Result<ModuleFederationConfig> {
         let share_scope = self.share_scope.unwrap_or_else(|| "default".into());
+        let runtime_plugins = self
+            .runtime_plugins
+            .unwrap_or_default()
+            .into_iter()
+            .map(|value| {
+                let (request, params) = match value {
+                    serde_json::Value::String(request) => (request, serde_json::json!({})),
+                    serde_json::Value::Array(mut values) if values.len() == 2 => {
+                        let params = values.pop().unwrap();
+                        let request = values.pop().unwrap();
+                        let Some(request) = request.as_str() else {
+                            bail!("Module Federation runtime plugin request must be a string");
+                        };
+                        (request.to_string(), params)
+                    }
+                    _ => bail!("Invalid Module Federation runtime plugin entry"),
+                };
+                if request.trim().is_empty() {
+                    bail!("Module Federation runtime plugin request must not be empty");
+                }
+                Ok(ModuleFederationRuntimePlugin {
+                    request: request.into(),
+                    params: params.to_string().into(),
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
         let mut config = ModuleFederationConfig {
             name: self.name,
             filename: self.filename,
             share_scope: share_scope.clone(),
+            share_strategy: self.share_strategy.unwrap_or_default(),
+            implementation: self.implementation,
+            runtime_plugins,
             ..Default::default()
         };
 
@@ -525,10 +590,136 @@ impl UnnormalizedModuleFederationConfig {
     }
 }
 
+/// Match Node's parent-directory lookup for a package, including hoisted workspace installs.
+/// Follow pnpm's node_modules symlinks before checking the installed package metadata.
+async fn installed_package_path(
+    project_path: &FileSystemPath,
+    package_name: &str,
+) -> Result<Option<FileSystemPath>> {
+    let mut current = project_path.clone();
+    loop {
+        let candidate = current.join("node_modules")?.join(package_name)?;
+        if let Ok(path) = candidate.realpath().await? {
+            return Ok(Some(path));
+        }
+        let parent = current.parent();
+        if parent == current {
+            return Ok(None);
+        }
+        current = parent;
+    }
+}
+
 impl ModuleFederationConfig {
+    pub fn is_enabled(&self) -> bool {
+        !self.remotes.is_empty() || !self.exposes.is_empty() || !self.shared.is_empty()
+    }
+
+    pub async fn host_name(&self, project_path: &FileSystemPath) -> Result<RcStr> {
+        if let Some(name) = &self.name
+            && !name.trim().is_empty()
+        {
+            return Ok(name.clone());
+        }
+        let path = project_path.join("package.json")?;
+        if let FileContent::Content(file) = &*path.read().await? {
+            let package: serde_json::Value = serde_json::from_reader(file.read())?;
+            if let Some(name) = package.get("name").and_then(serde_json::Value::as_str)
+                && !name.trim().is_empty()
+            {
+                return Ok(name.into());
+            }
+        }
+        bail!("Module Federation requires a name or a non-empty app package.json name");
+    }
+
+    pub async fn validate_runtime(&self, project_path: &FileSystemPath) -> Result<()> {
+        if !self.is_enabled() {
+            return Ok(());
+        }
+        self.host_name(project_path).await?;
+        if let Some(implementation) = &self.implementation {
+            let path = if implementation.starts_with("./") {
+                project_path.join(implementation)?.realpath().await?.ok()
+            } else {
+                installed_package_path(project_path, implementation).await?
+            };
+            let Some(path) = path else {
+                bail!(
+                    "Module Federation implementation '{implementation}' could not be resolved \
+                     from the project"
+                );
+            };
+            let FileContent::Content(file) = &*path.join("package.json")?.read().await? else {
+                bail!(
+                    "Module Federation implementation '{implementation}' must have a package.json"
+                );
+            };
+            let package: serde_json::Value = serde_json::from_reader(file.read())?;
+            let exports = package
+                .get("exports")
+                .and_then(serde_json::Value::as_object);
+            if !exports.is_some_and(|exports| {
+                exports.contains_key("./runtime")
+                    && exports.contains_key("./webpack-bundler-runtime")
+            }) {
+                bail!(
+                    "Module Federation implementation '{implementation}' must export ./runtime \
+                     and ./webpack-bundler-runtime"
+                );
+            }
+            return Ok(());
+        }
+        let missing_peer = "Module Federation requires @module-federation/runtime-tools@^2.9.0 in \
+                            the project. Install it or provide an implementation override";
+        let Some(package_dir) =
+            installed_package_path(project_path, "@module-federation/runtime-tools").await?
+        else {
+            bail!("{missing_peer}");
+        };
+        let path = package_dir.join("package.json")?;
+        let FileContent::Content(file) = &*path.read().await? else {
+            bail!("{missing_peer}");
+        };
+        let package: serde_json::Value = serde_json::from_reader(file.read())?;
+        let version = package
+            .get("version")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|version| Version::parse(version).ok());
+        if !version
+            .as_ref()
+            .is_some_and(|version| VersionReq::parse("^2.9.0").unwrap().matches(version))
+        {
+            bail!(
+                "Module Federation requires @module-federation/runtime-tools@^2.9.0 in the \
+                 project. Install a compatible version or provide an implementation override"
+            );
+        }
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<()> {
-        if !self.exposes.is_empty() && self.name.as_deref().is_none_or(str::is_empty) {
+        if !self.exposes.is_empty()
+            && self
+                .name
+                .as_deref()
+                .is_none_or(|name| name.trim().is_empty())
+        {
             bail!("Module Federation exposes require a non-empty container name");
+        }
+        if let Some(implementation) = &self.implementation {
+            if implementation.trim().is_empty()
+                || implementation.starts_with('/')
+                || implementation.contains('\\')
+                || implementation
+                    .split('/')
+                    .any(|segment| segment.is_empty() || segment == "..")
+            {
+                bail!(
+                    "Module Federation implementation must be a package name or safe \
+                     project-relative directory"
+                );
+            }
         }
         if let Some(filename) = &self.filename {
             validate_output_filename(filename)?;
@@ -664,6 +855,46 @@ mod tests {
         .normalize()
         .unwrap();
         assert!(disabled.shared[0].required_version_disabled);
+    }
+
+    #[test]
+    fn normalizes_enhanced_runtime_options() {
+        let config = serde_json::from_str::<UnnormalizedModuleFederationConfig>(
+            r#"{
+                "name":"host",
+                "implementation":"custom-runtime",
+                "shareStrategy":"loaded-first",
+                "runtimePlugins":["./first.js",["./second.js",{"marker":"loaded"}],["./third.js",[1,"two",null]],["./fourth.js",false]]
+            }"#,
+        )
+        .unwrap()
+        .normalize()
+        .unwrap();
+        assert!(matches!(
+            config.share_strategy,
+            crate::module_federation::ModuleFederationShareStrategy::LoadedFirst
+        ));
+        assert_eq!(config.implementation.as_deref(), Some("custom-runtime"));
+        assert_eq!(config.runtime_plugins[0].request, "./first.js");
+        assert_eq!(config.runtime_plugins[0].params, "{}");
+        assert_eq!(config.runtime_plugins[1].params, r#"{"marker":"loaded"}"#);
+        assert_eq!(config.runtime_plugins[2].params, r#"[1,"two",null]"#);
+        assert_eq!(config.runtime_plugins[3].params, "false");
+    }
+
+    #[test]
+    fn rejects_invalid_enhanced_runtime_options() {
+        for json in [
+            r#"{"runtimePlugins":[["./plugin.js",1,2]]}"#,
+            r#"{"runtimePlugins":[[123,{}]]}"#,
+            r#"{"runtimePlugins":[""]}"#,
+            r#"{"shareStrategy":"auto"}"#,
+            r#"{"implementation":"  "}"#,
+        ] {
+            let result = serde_json::from_str::<UnnormalizedModuleFederationConfig>(json)
+                .and_then(|config| config.normalize().map_err(serde::de::Error::custom));
+            assert!(result.is_err(), "{json}");
+        }
     }
 
     #[test]
