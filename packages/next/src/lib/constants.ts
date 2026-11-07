@@ -3,10 +3,16 @@ import type { ServerRuntime } from '../types'
 export const TEXT_PLAIN_CONTENT_TYPE_HEADER = 'text/plain'
 export const HTML_CONTENT_TYPE_HEADER = 'text/html; charset=utf-8'
 export const JSON_CONTENT_TYPE_HEADER = 'application/json; charset=utf-8'
-export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
-export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
-export const MATCHED_PATH_HEADER = 'x-matched-path'
+// The constants that client code needs live in their own module, to keep this
+// one out of the browser bundles.
+export {
+  NEXT_QUERY_PARAM_PREFIX,
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  MATCHED_PATH_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
+} from '../shared/lib/router/constants'
+
 export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
@@ -18,8 +24,6 @@ export const ACTION_SUFFIX = '.action'
 export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
-
-export const NEXT_NAV_DEPLOYMENT_ID_HEADER = 'x-nextjs-deployment-id'
 
 // Distributed tracing headers must not affect fetch caching or deduplication.
 export const FETCH_CACHE_KEY_EXCLUDED_HEADERS = new Set([

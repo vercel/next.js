@@ -334,6 +334,15 @@ describe('Production Usage', () => {
     }
   )
 
+  it('should not contain the server and build constants in client chunks', async () => {
+    const chunks = await listClientChunks(join(next.testDir, '.next'))
+    for (const chunk of chunks.filter((file) => file.endsWith('.js'))) {
+      const content = await next.readFile(join('.next', chunk))
+      // A value that only `lib/constants` has.
+      expect(content).not.toContain('x-prerender-revalidate-if-generated')
+    }
+  })
+
   // This test checks webpack chunks in particular
   ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     'should not contain rsc APIs in main chunk',

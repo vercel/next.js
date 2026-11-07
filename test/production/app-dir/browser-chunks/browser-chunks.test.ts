@@ -64,6 +64,20 @@ describe('browser-chunks', () => {
     expect(serverSources).toEqual([])
   })
 
+  it('must not bundle the server and build constants into browser chunks', () => {
+    const constantsSources = Array.from(
+      new Set(
+        sources
+          .map(normalizeSource)
+          .filter((source) =>
+            /^(?:src|dist|dist\/esm)\/lib\/constants\.[jt]s$/.test(source)
+          )
+      )
+    ).sort()
+
+    expect(constantsSources).toMatchInlineSnapshot(`[]`)
+  })
+
   it('must not bundle any dev overlay into browser chunks', () => {
     const devOverlaySources = Array.from(
       new Set(
