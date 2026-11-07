@@ -356,6 +356,15 @@ describe('Production Usage', () => {
     }
   )
 
+  it('should not contain the names of the development manifests in client chunks', async () => {
+    const chunks = await listClientChunks(join(next.testDir, '.next'))
+    for (const chunk of chunks.filter((file) => file.endsWith('.js'))) {
+      const content = await next.readFile(join('.next', chunk))
+      expect(content).not.toContain('_devPagesManifest.json')
+      expect(content).not.toContain('_devMiddlewareManifest.json')
+    }
+  })
+
   describe('With basic usage', () => {
     it('should render the page', async () => {
       const html = await renderViaHTTP(next.appPort, '/')

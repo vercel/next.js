@@ -88,6 +88,22 @@ describe('browser-chunks', () => {
     expect(hmrReducerSources).toMatchInlineSnapshot(`[]`)
   })
 
+  it('must not bundle the Instant validation messages into browser chunks', () => {
+    const instantMessagesSources = Array.from(
+      new Set(
+        sources
+          .map(normalizeSource)
+          .filter((source) =>
+            /^(?:src|dist|dist\/esm)\/shared\/lib\/instant-messages\.[jt]s$/.test(
+              source
+            )
+          )
+      )
+    ).sort()
+
+    expect(instantMessagesSources).toMatchInlineSnapshot(`[]`)
+  })
+
   it('must not include heavy dependencies into browser chunks', () => {
     const heavyDependencies = Array.from(
       new Set(

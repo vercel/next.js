@@ -13,10 +13,6 @@ import {
   getClientBuildManifest,
   markAssetError,
 } from './route-loader'
-import {
-  DEV_CLIENT_PAGES_MANIFEST,
-  DEV_CLIENT_MIDDLEWARE_MANIFEST,
-} from '../shared/lib/constants'
 import { resolvePromiseWithTimeout } from './lib/promise'
 
 declare global {
@@ -68,6 +64,8 @@ export default class PageLoader {
       if (window.__DEV_PAGES_MANIFEST) {
         return window.__DEV_PAGES_MANIFEST.pages
       } else {
+        const { DEV_CLIENT_PAGES_MANIFEST } =
+          require('../shared/lib/constants') as typeof import('../shared/lib/constants')
         this.promisedDevPagesManifest ||= fetch(
           `${this.assetPrefix}/_next/static/development/${DEV_CLIENT_PAGES_MANIFEST}`,
           { credentials: 'same-origin' }
@@ -130,6 +128,8 @@ export default class PageLoader {
         return window.__DEV_MIDDLEWARE_MATCHERS
       } else {
         if (!this.promisedMiddlewareMatchers) {
+          const { DEV_CLIENT_MIDDLEWARE_MANIFEST } =
+            require('../shared/lib/constants') as typeof import('../shared/lib/constants')
           // TODO: Decide what should happen when fetching fails instead of asserting
           // @ts-ignore
           this.promisedMiddlewareMatchers = fetch(
