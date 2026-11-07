@@ -283,6 +283,9 @@ export class AppRouteRouteModule extends RouteModule<
   // Whether `handle` intercepts the request. Not known before the route is
   // loaded.
   private _interceptsRequest: boolean | undefined
+  // The last result of `getRequestClass`, and the class that it extends.
+  private _requestClass: typeof NextRequest | undefined
+  private _requestClassBase: typeof NextRequest | undefined
 
   override get userland(): AppRouteUserlandModule {
     return this._lazyUserland.assertLoaded()
@@ -1149,7 +1152,16 @@ export class AppRouteRouteModule extends RouteModule<
    * request that it gets without these properties.
    */
   public getRequestClass(Base: typeof NextRequest): typeof NextRequest {
-    return this._interceptsRequest ? getInterceptedRequestClass(Base) : Base
+    if (!this._interceptsRequest) {
+      return Base
+    }
+
+    if (this._requestClassBase !== Base) {
+      this._requestClassBase = Base
+      this._requestClass = getInterceptedRequestClass(Base)
+    }
+
+    return this._requestClass!
   }
 
   public async handle(
