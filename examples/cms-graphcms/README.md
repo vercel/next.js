@@ -110,7 +110,7 @@ In GraphCMS, go to one of the posts in your project and:
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
 - After you edit the document save the article as a draft, but **DO NOT** click **Publish**. By doing this, the post will be in the draft stage.
 
-Now, if you go to the post page on localhost, you won't see the updated title. However, if you use **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
+Now, if you go to the post page on localhost, you won't see the updated title. However, if you use **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/pages/guides/preview-mode)).
 
 To view the preview, transform the url to the following format: `http://localhost:3000/api/preview?secret=<YOUR_SECRET_TOKEN>&slug=<SLUG_TO_PREVIEW>` where `<YOUR_SECRET_TOKEN>` is the same secret you defined in the `.env.local` file and `<SLUG_TO_PREVIEW>` is the slug of one of the posts you want to preview.
 
