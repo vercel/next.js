@@ -200,6 +200,12 @@ export function makeExternalHandler({
       }
     }
 
+    // `new URL('pkg/file', import.meta.url)` asks for the file as an asset, not
+    // as a module, so it is never external.
+    if (dependencyType === 'url') {
+      return
+    }
+
     // @swc/helpers should not be external as it would
     // require hoisting the package which we can't rely on
     if (request.includes('@swc/helpers')) {
