@@ -3,17 +3,22 @@ import Module from 'node:module'
 import { readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
-const oldJSHook = require.extensions['.js']
+// Node.js v24.15+ with Yarn PnP ESM loader may expose a `require` function
+// that does not carry the deprecated `.extensions` property (DEP0007).
+// Guard all accesses so next build does not crash in that environment.
+const oldJSHook = require.extensions?.['.js']
 const extensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']
 
 export function registerHook(swcOptions: SWCOptions) {
+  if (!require.extensions) return
+
   // lazy require swc since it loads React before even setting NODE_ENV
   // resulting loading Development React on Production
   const { transformSync } = require('../swc') as typeof import('../swc')
 
   require.extensions['.js'] = function (mod: any, oldFilename) {
     try {
-      return oldJSHook(mod, oldFilename)
+      return oldJSHook!(mod, oldFilename)
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ERR_REQUIRE_ESM') {
         throw error
@@ -37,13 +42,16 @@ export function registerHook(swcOptions: SWCOptions) {
         return _compile.call(this, swc.code, filename)
       }
 
-      return oldHook(mod, oldFilename)
+      return oldHook!(mod, oldFilename)
     }
   }
 }
 
 export function deregisterHook() {
-  require.extensions['.js'] = oldJSHook
+  if (!require.extensions) return
+  if (oldJSHook !== undefined) {
+    require.extensions['.js'] = oldJSHook
+  }
   extensions.forEach((ext) => delete require.extensions[ext])
 }
 
