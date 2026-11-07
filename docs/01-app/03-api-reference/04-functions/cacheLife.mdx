@@ -255,7 +255,11 @@ The `stale` property controls the [Client Cache](/docs/app/glossary#client-cache
 
 This 30-second minimum prevents prefetched data from expiring before users can click on links. It only applies to time-based expiration.
 
-When you call revalidation functions from a Server Action ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag), [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath), [`updateTag`](/docs/app/api-reference/functions/updateTag), or [`refresh`](/docs/app/api-reference/functions/refresh)), the entire client cache is immediately cleared, bypassing the stale time.
+Calling a revalidation function from a Server Action can clear client cache entries before the `stale` time is reached:
+
+- [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath), [`updateTag`](/docs/app/api-reference/functions/updateTag), and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) with `{ expire: 0 }` clear prefetched routes and the pages kept for back/forward navigation.
+- [`refresh`](/docs/app/api-reference/functions/refresh) clears the pages kept for back/forward navigation, and keeps prefetched routes.
+- `revalidateTag` with a profile such as `'max'` leaves the client cache unchanged.
 
 > **Good to know**: The `stale` property in `cacheLife` differs from [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes). While `staleTimes` is a global setting affecting all routes, `cacheLife` allows per-function or per-route configuration. Updating `staleTimes.static` also updates the `stale` value of the `default` cache profile.
 
