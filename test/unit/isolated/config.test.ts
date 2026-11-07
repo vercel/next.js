@@ -129,6 +129,55 @@ describe('config', () => {
     expect(loadedIgnore.test('/healthz')).toBe(true)
   })
 
+  describe('shared defaults outside test mode', () => {
+    // The built `next` has a canary version, so without test mode these load
+    // the defaults the way a canary user does.
+    const originalEnv = {
+      __NEXT_TEST_MODE: process.env.__NEXT_TEST_MODE,
+      NEXT_DISABLE_DEFAULT_CONFIG_FREEZE:
+        process.env.NEXT_DISABLE_DEFAULT_CONFIG_FREEZE,
+    }
+
+    beforeEach(() => {
+      delete process.env.__NEXT_TEST_MODE
+      delete process.env.NEXT_DISABLE_DEFAULT_CONFIG_FREEZE
+    })
+
+    afterEach(() => {
+      for (const [key, value] of Object.entries(originalEnv)) {
+        if (value === undefined) delete process.env[key]
+        else process.env[key] = value
+      }
+    })
+
+    // The defaults are frozen when `config-shared.ts` is first loaded, so load
+    // a fresh copy after the environment is set.
+    async function areDefaultsFrozen(): Promise<boolean> {
+      jest.resetModules()
+      const { defaultConfig } = await import('next/dist/server/config-shared')
+      const { imageConfigDefault } = await import(
+        'next/dist/shared/lib/image-config'
+      )
+      const frozen = [
+        defaultConfig.experimental,
+        imageConfigDefault,
+        imageConfigDefault.deviceSizes,
+      ].map((value) => Object.isFrozen(value))
+      // Either everything is frozen or nothing is.
+      expect(new Set(frozen).size).toBe(1)
+      return frozen[0]
+    }
+
+    it('Should freeze them in canary releases', async () => {
+      expect(await areDefaultsFrozen()).toBe(true)
+    })
+
+    it('Should not freeze them when NEXT_DISABLE_DEFAULT_CONFIG_FREEZE is set', async () => {
+      process.env.NEXT_DISABLE_DEFAULT_CONFIG_FREEZE = '1'
+      expect(await areDefaultsFrozen()).toBe(false)
+    })
+  })
+
   it('Should deeply freeze the shared defaults in test mode without loading config', async () => {
     // `beforeEach` imports `config.ts`; reset so only `config-shared.ts` loads.
     jest.resetModules()
