@@ -1090,9 +1090,13 @@ export function getCards(
       snippets: [
         { text: '"use cache"' },
         {
-          text: `cacheLife({ stale: ${fullyStatic ? 30 : 300}, revalidate: 60, expire: 300 })`,
+          text: 'cacheLife({',
           highlight: true,
         },
+        { text: `  stale: ${fullyStatic ? 30 : 300},`, highlight: true },
+        { text: '  revalidate: 60,', highlight: true },
+        { text: '  expire: 300,', highlight: true },
+        { text: '})', highlight: true },
       ],
       copyable: true,
     }

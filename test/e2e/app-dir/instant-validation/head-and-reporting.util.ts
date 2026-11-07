@@ -957,15 +957,16 @@ export function registerHeadAndReportingTests(
               const result = await prerender(routeInBuild)
               expect(extractBuildValidationError(result.cliOutput))
                 .toMatchInlineSnapshot(`
-                  "Error: Route "/shells/invalid-non-shell-cache": Next.js encountered URL data during prerendering or a navigation.
+                  "Error: Route "/shells/invalid-non-shell-cache": Next.js encountered a short-lived cache during prerendering or a navigation.
 
-                  \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+                  This \`"use cache"\` entry is excluded from the required prerendered output because of its \`cacheLife\`. For prerendering, \`expire\` must be at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0. The App Shell additionally requires \`stale\` of at least 300 seconds.
 
                   Ways to fix this:
-                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                    - [cache] Increase the relevant \`cacheLife\` value
+                    - [stream] Wrap the short-lived cache access in \`<Suspense fallback={...}>\`
                     - [block] Set \`export const instant = false\` to allow a blocking route
 
-                  Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+                  Learn more: https://nextjs.org/docs/app/api-reference/functions/cacheLife#prerendering-behavior
                       at main (<anonymous>)
                       at body (<anonymous>)
                       at html (<anonymous>)
@@ -2327,7 +2328,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered runtime data during a navigation.",
+                 "description": "Next.js encountered a short-lived cache outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9) @ SessionContent
@@ -2343,15 +2344,16 @@ export function registerHeadAndReportingTests(
               const result = await prerender(route)
               expect(extractBuildValidationError(result.cliOutput))
                 .toMatchInlineSnapshot(`
-               "Error: Route "/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache": Next.js encountered runtime data during prerendering or a navigation.
+               "Error: Route "/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache": Next.js encountered a short-lived cache during prerendering or a navigation.
 
-               \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+               This \`"use cache"\` entry is excluded from the required prerendered output because of its \`cacheLife\`. For prerendering, \`expire\` must be at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0. The App Shell additionally requires \`stale\` of at least 300 seconds.
 
                Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [cache] Increase the relevant \`cacheLife\` value
+                 - [stream] Wrap the short-lived cache access in \`<Suspense fallback={...}>\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
-               Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime
+               Learn more: https://nextjs.org/docs/app/api-reference/functions/cacheLife#prerendering-behavior
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -2383,7 +2385,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered runtime data during a navigation.",
+                 "description": "Next.js encountered a short-lived cache outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9) @ SessionContent

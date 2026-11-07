@@ -58,7 +58,7 @@ const ERROR_PATTERNS = {
   metadata: {
     uncachedData: {
       dev: literalError(
-        `Next.js encountered uncached data in \`generateMetadata()\` on a route that must be fully static`
+        `Next.js encountered uncached data in generateMetadata() on a route that must be fully static`
       ),
       build: literalError(
         `Next.js encountered uncached or runtime data in \`generateMetadata()\` on a route that must be fully static`
@@ -68,7 +68,7 @@ const ERROR_PATTERNS = {
   viewport: {
     uncachedData: {
       dev: literalError(
-        `Next.js encountered uncached data in \`generateViewport()\` on a route that must be fully static`
+        `Next.js encountered uncached data in generateViewport() on a route that must be fully static`
       ),
       build: literalError(
         `Next.js encountered uncached or runtime data in \`generateViewport()\` on a route that must be fully static`
@@ -540,7 +540,8 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Page "/default/fallback-params/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "description": "Page "/default/fallback-params/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -581,7 +582,8 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Page "/default/fallback-params-passed-to-client/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "description": "Page "/default/fallback-params-passed-to-client/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -619,7 +621,8 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Page "/default/fallback-params-client-segment/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "description": "Page "/default/fallback-params-client-segment/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -658,7 +661,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Next.js encountered uncached data in \`generateMetadata()\` on a route that must be fully static.",
+           "description": "Next.js encountered uncached data in generateMetadata() on a route that must be fully static.",
            "environmentLabel": "Server",
            "label": "Static Route",
            "source": "app/default/dynamic-metadata/page.tsx (7:19) @ Module.generateMetadata
@@ -712,7 +715,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Next.js encountered uncached data in \`generateViewport()\` on a route that must be fully static.",
+           "description": "Next.js encountered uncached data in generateViewport() on a route that must be fully static.",
            "environmentLabel": "Server",
            "label": "Static Route",
            "source": "app/default/dynamic-viewport/page.tsx (7:19) @ Module.generateViewport
@@ -858,7 +861,8 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "description": "Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -895,7 +899,8 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+           "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,

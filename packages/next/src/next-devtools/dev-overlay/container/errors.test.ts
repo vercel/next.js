@@ -1,3 +1,4 @@
+import { renderToStaticMarkup } from 'react-dom/server'
 import {
   createShortLivedCacheError,
   createRuntimeBodyErrorInStaticRoute,
@@ -45,6 +46,7 @@ import {
 } from '../components/instant/instant-guidance-data'
 import {
   deriveCauseFromCodeFrame,
+  formatErrorHeadline,
   getBlockingRouteErrorDetails,
   getErrorTypeLabel,
   getLinkPrefetchPartialErrorDetails,
@@ -1072,6 +1074,22 @@ describe('fully static route errors', () => {
 })
 
 describe('short-lived cache diagnostics', () => {
+  it.each(['metadata', 'viewport'] as const)(
+    'preserves inline code in %s headlines',
+    (scope) => {
+      for (const fullyStatic of [false, true]) {
+        const error = createShortLivedCacheError(ROUTE, scope, fullyStatic)
+        const html = renderToStaticMarkup(
+          formatErrorHeadline(error.message.split('\n')[0])
+        )
+        expect(html).toContain(
+          `<code>generate${scope === 'metadata' ? 'Metadata' : 'Viewport'}()</code>`
+        )
+        expect(html).not.toContain('`')
+      }
+    }
+  )
+
   it.each(['body', 'metadata', 'viewport'] as const)(
     'selects cache guidance for %s with and without ensureStatic',
     (scope) => {

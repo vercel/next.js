@@ -67,6 +67,18 @@ function matchLinkType(text: string): string | null {
   return null
 }
 
+export function formatErrorHeadline(text: string) {
+  return text
+    .split(/`([^`]+)`/g)
+    .map((part, index) =>
+      index % 2 === 1 ? (
+        <code key={index}>{part}</code>
+      ) : (
+        <HotlinkedText key={index} text={part} matcher={matchLinkType} />
+      )
+    )
+}
+
 function HydrationErrorDescription({ message }: { message: string }) {
   return <HotlinkedText text={message} matcher={matchLinkType} />
 }
@@ -1109,12 +1121,7 @@ export function Errors({
       return (
         <ErrorOverlayLayout
           errorType={errorType}
-          errorMessage={
-            <HotlinkedText
-              text={errorDetails.headline}
-              matcher={matchLinkType}
-            />
-          }
+          errorMessage={formatErrorHeadline(errorDetails.headline)}
           headerChildren={
             <InstantHeaderExplanation
               kind={errorDetails.kind}
@@ -1153,8 +1160,9 @@ export function Errors({
     case 'dynamic-metadata': {
       switch (errorDetails.variant) {
         case 'short-cache':
-          errorMessage =
+          errorMessage = formatErrorHeadline(
             'Next.js encountered a short-lived cache in `generateMetadata()`.'
+          )
           break
         case 'runtime':
           errorMessage = (
@@ -1241,8 +1249,9 @@ export function Errors({
     case 'dynamic-viewport': {
       switch (errorDetails.variant) {
         case 'short-cache':
-          errorMessage =
+          errorMessage = formatErrorHeadline(
             'Next.js encountered a short-lived cache in `generateViewport()`.'
+          )
           break
         case 'link':
           errorMessage = (

@@ -939,11 +939,6 @@ export function registerSuspenseBoundariesTests(
     // Non-prefetchable caches (`stale < MIN_PREFETCHABLE_STALE`) are not allowed
     // without suspense regardless of Partial Prefetching.
 
-    // TODO(app-shells): We currently report these caches as uncached data.
-    // The suggested fixes might be confusing, because they don't mention
-    // that increasing `stale` would help.
-    // Also, a cache being uncached sounds like a contradiction.
-
     describe('invalid - unguarded non-prefetchable cache (with short stale)', () => {
       beforeEach(async () => {
         await restartDevServerToEnsureColdCaches()
@@ -969,7 +964,7 @@ export function registerSuspenseBoundariesTests(
                  ],
                },
              ],
-             "description": "Next.js encountered uncached data during a navigation.",
+             "description": "Next.js encountered a short-lived cache outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (21:9) @ DynamicContent
@@ -985,16 +980,16 @@ export function registerSuspenseBoundariesTests(
           const result = await prerender(route)
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache": Next.js encountered uncached data during prerendering or a navigation.
+           "Error: Route "/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache": Next.js encountered a short-lived cache during prerendering or a navigation.
 
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           This \`"use cache"\` entry is excluded from the required prerendered output because of its \`cacheLife\`. For prerendering, \`expire\` must be at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0. The App Shell additionally requires \`stale\` of at least 300 seconds.
 
            Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+             - [cache] Increase the relevant \`cacheLife\` value
+             - [stream] Wrap the short-lived cache access in \`<Suspense fallback={...}>\`
              - [block] Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
+           Learn more: https://nextjs.org/docs/app/api-reference/functions/cacheLife#prerendering-behavior
                at main (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -1026,7 +1021,7 @@ export function registerSuspenseBoundariesTests(
                  ],
                },
              ],
-             "description": "Next.js encountered uncached data during a navigation.",
+             "description": "Next.js encountered a short-lived cache outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (21:9) @ DynamicContent
