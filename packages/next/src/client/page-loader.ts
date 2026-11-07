@@ -61,29 +61,36 @@ export default class PageLoader {
     })
   }
 
-  getPageList() {
+  getPageList(refresh = false) {
     if (process.env.NODE_ENV === 'production') {
       return getClientBuildManifest().then((manifest) => manifest.sortedPages)
     } else {
-      if (window.__DEV_PAGES_MANIFEST) {
+      // Reuse the current dev page list unless the caller explicitly refreshes it.
+      if (window.__DEV_PAGES_MANIFEST && !refresh) {
         return window.__DEV_PAGES_MANIFEST.pages
       } else {
-        this.promisedDevPagesManifest ||= fetch(
-          `${this.assetPrefix}/_next/static/development/${DEV_CLIENT_PAGES_MANIFEST}`,
-          { credentials: 'same-origin' }
-        )
-          .then((res) => res.json())
-          .then((manifest: { pages: string[] }) => {
-            window.__DEV_PAGES_MANIFEST = manifest
-            return manifest.pages
-          })
-          .catch((err) => {
-            console.log(`Failed to fetch devPagesManifest:`, err)
-            throw new Error(
-              `Failed to fetch _devPagesManifest.json. Is something blocking that network request?\n` +
-                'Read more: https://nextjs.org/docs/messages/failed-to-fetch-devpagesmanifest'
-            )
-          })
+        // A refresh should not reuse the cached manifest or an existing fetch promise.
+        if (!this.promisedDevPagesManifest || refresh) {
+          this.promisedDevPagesManifest = fetch(
+            `${this.assetPrefix}/_next/static/development/${DEV_CLIENT_PAGES_MANIFEST}`,
+            // A refresh should fetch the latest dev manifest instead of a cached response.
+            refresh
+              ? { credentials: 'same-origin', cache: 'no-store' }
+              : { credentials: 'same-origin' }
+          )
+            .then((res) => res.json())
+            .then((manifest: { pages: string[] }) => {
+              window.__DEV_PAGES_MANIFEST = manifest
+              return manifest.pages
+            })
+            .catch((err) => {
+              console.log(`Failed to fetch devPagesManifest:`, err)
+              throw new Error(
+                `Failed to fetch _devPagesManifest.json. Is something blocking that network request?\n` +
+                  'Read more: https://nextjs.org/docs/messages/failed-to-fetch-devpagesmanifest'
+              )
+            })
+        }
         return this.promisedDevPagesManifest
       }
     }
