@@ -250,6 +250,13 @@ export default class NextNodeServer extends BaseServer<
       })
     }
 
+    if (!options.dev) {
+      // Read the routes manifest while the server starts, so that a missing
+      // or invalid manifest fails here and the first request does not pay
+      // for the read.
+      this.getRoutesManifest()
+    }
+
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
 
