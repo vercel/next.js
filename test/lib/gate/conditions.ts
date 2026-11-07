@@ -119,6 +119,10 @@ export const conditions: Record<string, Condition> = {
     'links prefetch — disabled in dev, the usual reason a suite skips it',
     () => getGateTestContext().mode !== 'dev'
   ),
+  prerelease: staticCondition(
+    'the installed Next.js version is a prerelease',
+    () => require('next/package.json').version.includes('-')
+  ),
 
   bundler: staticCondition(
     "the bundler under test: 'turbopack' | 'rspack' | 'webpack'",
@@ -193,6 +197,10 @@ export const conditions: Record<string, Condition> = {
     'Cache Components are enabled for the fixture',
     (config) => config.cacheComponents
   ),
+  strictRouteTypes: lazyCondition(
+    'strict route type validation is enabled for the fixture',
+    (config) => config.experimental?.strictRouteTypes
+  ),
   partialPrefetchingGlobal: lazyCondition(
     'Partial Prefetching is enabled globally for the fixture (does not check `export const prefetch = "partial"`)',
     (config) => config.partialPrefetching
@@ -216,6 +224,10 @@ export const conditions: Record<string, Condition> = {
   dynamicOnHover: lazyCondition(
     'dynamic prefetches are triggered on hover',
     (config) => config.experimental?.dynamicOnHover
+  ),
+  prepareNavigation: lazyCondition(
+    '`router.experimental_prepare()` is enabled for the fixture',
+    (config) => config.experimental?.prepareNavigation
   ),
   useOffline: lazyCondition(
     'the `useOffline()` hook is enabled for the fixture',

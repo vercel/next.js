@@ -86,7 +86,7 @@
 0 -> 27 call = require*0*("os")
 - *0* require: The require method from CommonJS
 
-0 -> 29 free var = FreeVar(process)
+28 -> 29 free var = FreeVar(process)
 
 0 -> 31 member call = os*0*["arch"]()
 - *0* os: The Node.js os module: https://nodejs.org/api/os.html
@@ -144,7 +144,7 @@
 
 44 -> 49 call = (...) => {"pkg": pkg, "subpath": subpath}()
 
-44 -> 51 free var = FreeVar(require)
+50 -> 51 free var = FreeVar(require)
 
 44 -> 52 member call = require*0*["resolve"](
     `${(???*1* | undefined | ???*2* | "esbuild-linux-64")}/${(???*3* | "esbuild.exe" | "bin/esbuild" | ???*4*)}`
@@ -177,7 +177,7 @@
 - *4* unknown mutation
   ⚠️  This value might have side effects
 
-44 -> 56 free var = FreeVar(fs)
+55 -> 56 free var = FreeVar(fs)
 
 44 -> 57 member call = ???*0*["existsSync"]((???*1* | ???*2* | ???*8*))
 - *0* FreeVar(fs)
@@ -214,7 +214,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-58 -> 60 free var = FreeVar(require)
+59 -> 60 free var = FreeVar(require)
 
 58 -> 61 member call = require*0*["resolve"]((???*1* | undefined | ???*2* | "esbuild-linux-64"))
 - *0* require: The require method from CommonJS
@@ -247,7 +247,7 @@ by esbuild to install the correct binary executable for your current platform.`
 
 44 -> 66 conditional = (false | true)
 
-66 -> 69 free var = FreeVar(require)
+68 -> 69 free var = FreeVar(require)
 
 66 -> 70 member call = require*0*["resolve"]("esbuild")
 - *0* require: The require method from CommonJS
@@ -283,7 +283,7 @@ by esbuild to install the correct binary executable for your current platform.`
 - *7* unknown mutation
   ⚠️  This value might have side effects
 
-66 -> 77 free var = FreeVar(fs)
+76 -> 77 free var = FreeVar(fs)
 
 66 -> 78 member call = ???*0*["existsSync"](
     `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | undefined | ???*2* | "esbuild-linux-64")}-${???*3*}`
@@ -315,7 +315,7 @@ by esbuild to install the correct binary executable for your current platform.`
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-79 -> 81 free var = FreeVar(fs)
+80 -> 81 free var = FreeVar(fs)
 
 79 -> 82 member call = ???*0*["copyFileSync"](
     (???*1* | ???*2* | ???*8*),
@@ -364,7 +364,7 @@ by esbuild to install the correct binary executable for your current platform.`
 - *16* unknown mutation
   ⚠️  This value might have side effects
 
-79 -> 84 free var = FreeVar(fs)
+83 -> 84 free var = FreeVar(fs)
 
 79 -> 85 member call = ???*0*["chmodSync"](
     `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | undefined | ???*2* | "esbuild-linux-64")}-${???*3*}`,

@@ -95,6 +95,37 @@ import {
   createRouteHandlerRequestInUnstableCacheError,
 } from '../../use-cache/use-cache-messages'
 
+type AppRouteRequestInsightsRuntime = {
+  getRequestInsightsIdentity: typeof import('../../lib/trace/request-insights-identity').getRequestInsightsIdentity
+  recordRequestInsightSource: typeof import('../../lib/trace/request-insights').recordRequestInsightSource
+}
+
+let appRouteRequestInsightsRuntime: AppRouteRequestInsightsRuntime | undefined
+
+function markAppRouteRequestSource(): void {
+  if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS) {
+    if (!appRouteRequestInsightsRuntime) {
+      const { getRequestInsightsIdentity } =
+        require('../../lib/trace/request-insights-identity') as typeof import('../../lib/trace/request-insights-identity')
+      const { recordRequestInsightSource } =
+        require('../../lib/trace/request-insights') as typeof import('../../lib/trace/request-insights')
+
+      appRouteRequestInsightsRuntime = {
+        getRequestInsightsIdentity,
+        recordRequestInsightSource,
+      }
+    }
+
+    const identity = appRouteRequestInsightsRuntime.getRequestInsightsIdentity()
+    if (identity) {
+      appRouteRequestInsightsRuntime.recordRequestInsightSource(
+        identity,
+        'app-route'
+      )
+    }
+  }
+}
+
 export class WrappedNextRouterError {
   constructor(
     public readonly error: RedirectError,
@@ -719,20 +750,32 @@ export class AppRouteRouteModule extends RouteModule<
 
               responseHandled = true
 
-              let bodyHandled = false
-              result.arrayBuffer().then((body) => {
-                if (!bodyHandled) {
-                  bodyHandled = true
+              const init: ResponseInit = {
+                headers: result.headers,
+                status: result.status,
+                statusText: result.statusText,
+              }
 
-                  resolve(
-                    new Response(body, {
-                      headers: result.headers,
-                      status: result.status,
-                      statusText: result.statusText,
-                    })
-                  )
-                }
-              }, reject)
+              // There's nothing to buffer, and rebuilding with the empty buffer
+              // from `arrayBuffer()` would throw for null body statuses (e.g.
+              // the 204 from an auto-implemented OPTIONS handler).
+              if (result.body === null) {
+                resolve(new Response(null, init))
+                return
+              }
+
+              let bodyHandled = false
+              result
+                .arrayBuffer()
+                .then((body) => {
+                  if (!bodyHandled) {
+                    bodyHandled = true
+                    resolve(new Response(body, init))
+                  }
+                })
+                // Ensure anything thrown above rejects instead of becoming an
+                // unhandled rejection that leaves the prerender hanging.
+                .catch(reject)
               scheduleImmediate(() => {
                 if (!bodyHandled) {
                   bodyHandled = true
@@ -852,6 +895,8 @@ export class AppRouteRouteModule extends RouteModule<
     req: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<PreparedAppRouteExecution> {
+    markAppRouteRequestSource()
+
     // Ensure userland is fully loaded (handles async modules with top-level
     // await, where require() returns a Promise instead of the module).
     await this.ensureUserland()

@@ -227,6 +227,28 @@ function trackFetchMetric(
   workStore.fetchMetrics.push(metric)
 }
 
+type BufferedResponse = {
+  body: ArrayBuffer | null
+  headers: Headers
+  status: number
+  statusText: string
+}
+
+/**
+ * Buffers a response so it can be shared with deduped fetches through
+ * `workStore.pendingRevalidates`. Responses without a body (e.g. 204) are kept
+ * without one, as the Response constructor rejects even an empty buffer for
+ * them.
+ */
+async function bufferResponse(response: Response): Promise<BufferedResponse> {
+  return {
+    body: response.body === null ? null : await response.arrayBuffer(),
+    headers: response.headers,
+    status: response.status,
+    statusText: response.statusText,
+  }
+}
+
 async function createCachedPrerenderResponse(
   res: Response,
   cacheKey: string,
@@ -1062,16 +1084,14 @@ export function createPatchedFetcher(
 
           if (isCacheableRevalidate && !cachedFetchData) {
             handleUnlock = await incrementalCache.lock(cacheKey)
-            const entry = workStore.isOnDemandRevalidate
-              ? null
-              : await incrementalCache.get(cacheKey, {
-                  kind: IncrementalCacheKind.FETCH,
-                  revalidate: finalRevalidate,
-                  fetchUrl,
-                  fetchIdx,
-                  tags,
-                  softTags: implicitTags?.tags,
-                })
+            const entry = await incrementalCache.get(cacheKey, {
+              kind: IncrementalCacheKind.FETCH,
+              revalidate: finalRevalidate,
+              fetchUrl,
+              fetchIdx,
+              tags,
+              softTags: implicitTags?.tags,
+            })
 
             if (hasNoExplicitCacheConfig && workUnitStore) {
               switch (workUnitStore.type) {
@@ -1125,12 +1145,7 @@ export function createPatchedFetcher(
                   workStore.pendingRevalidates ??= {}
                   if (!workStore.pendingRevalidates[cacheKey]) {
                     const pendingRevalidate = doOriginalFetch(true)
-                      .then(async (response) => ({
-                        body: await response.arrayBuffer(),
-                        headers: response.headers,
-                        status: response.status,
-                        statusText: response.statusText,
-                      }))
+                      .then(bufferResponse)
                       .finally(() => {
                         workStore.pendingRevalidates ??= {}
                         delete workStore.pendingRevalidates[cacheKey || '']
@@ -1300,12 +1315,7 @@ export function createPatchedFetcher(
             workStore.pendingRevalidates[pendingRevalidateKey]
 
           if (pendingRevalidate) {
-            const revalidatedResult: {
-              body: ArrayBuffer
-              headers: Headers
-              status: number
-              statusText: string
-            } = await pendingRevalidate
+            const revalidatedResult: BufferedResponse = await pendingRevalidate
             return new Response(revalidatedResult.body, {
               headers: revalidatedResult.headers,
               status: revalidatedResult.status,
@@ -1329,15 +1339,7 @@ export function createPatchedFetcher(
             .then(cloneResponse)
 
           pendingRevalidate = pendingResponse
-            .then(async (responses) => {
-              const response = responses[0]
-              return {
-                body: await response.arrayBuffer(),
-                headers: response.headers,
-                status: response.status,
-                statusText: response.statusText,
-              }
-            })
+            .then((responses) => bufferResponse(responses[0]))
             .finally(() => {
               // If the pending revalidate is not present in the store, then
               // we have nothing to delete.

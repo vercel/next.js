@@ -147,6 +147,7 @@ import {
   pageToRoute,
 } from './utils'
 import type { DynamicManifestRoute, PageInfo, PageInfos } from './utils'
+import { INSTRUMENTATION_INJECT_STUB_PATH } from './next-dir-paths'
 import type {
   FallbackRouteParam,
   PrerenderRouteMatcher,
@@ -1363,14 +1364,12 @@ export default async function build(
         )
       }
 
-      if (config.experimental.lockDistDir) {
-        // This leaks the lock file descriptor. That's okay, it'll be cleaned up by the OS upon
-        // process exit.
-        await Lockfile.acquireWithRetriesOrExit(
-          path.join(distDir, 'lock'),
-          'next build'
-        )
-      }
+      // This leaks the lock file descriptor. That's okay, it'll be cleaned up by the OS upon
+      // process exit.
+      await Lockfile.acquireWithRetriesOrExit(
+        path.join(distDir, 'lock'),
+        'next build'
+      )
 
       if (config.cleanDistDir && !isGenerateMode) {
         await nextBuildSpan
@@ -1535,7 +1534,10 @@ export default async function build(
         )
       }
 
-      const hasInstrumentationHook = Boolean(instrumentationHookFilePath)
+      const hasInstrumentationInject =
+        (config.instrumentationInject?.length ?? 0) > 0
+      const hasInstrumentationHook =
+        Boolean(instrumentationHookFilePath) || hasInstrumentationInject
       const hasMiddlewareFile = Boolean(middlewareFilePath)
       const hasProxyFile = Boolean(proxyFilePath)
 
@@ -1577,13 +1579,28 @@ export default async function build(
           createPagesMapping({
             isDev: false,
             pageExtensions: config.pageExtensions,
-            pagePaths: rootPaths,
+            // The stub loads the project's instrumentation file, so don't
+            // create a separate entry for it when instrumentation is injected.
+            pagePaths: hasInstrumentationInject
+              ? rootPaths.filter(
+                  (rootPath) =>
+                    !instrumentationHookDetectionRegExp.test(
+                      path.basename(rootPath)
+                    )
+                )
+              : rootPaths,
             pagesType: PAGE_TYPES.ROOT,
             pagesDir,
             appDir,
             appDirOnly,
           })
         )
+      if (hasInstrumentationInject) {
+        // The stub chains the project's instrumentation file after the
+        // injected entries, so it replaces that file as the entry.
+        NextBuildContext.mappedRootPaths[`/${INSTRUMENTATION_HOOK_FILENAME}`] =
+          INSTRUMENTATION_INJECT_STUB_PATH
+      }
 
       const {
         pageRoutes,
@@ -2280,6 +2297,7 @@ export default async function build(
       const buildManifest = await readManifest<BuildManifest>(buildManifestPath)
 
       const appPathRoutes: Record<string, string> = {}
+      const nativeAppPaths = new Set<string>()
 
       if (appDir) {
         const appPathsManifest = await readManifest<Record<string, string>>(
@@ -2296,6 +2314,12 @@ export default async function build(
 
         const appPathsByPathname = new Map<string, string[]>()
         for (const key in appPathsManifest) {
+          if (
+            config.experimental.goRoutes &&
+            appPathsManifest[key].endsWith('.native.json')
+          ) {
+            nativeAppPaths.add(key)
+          }
           const pathname = normalizeAppPath(key)
           const routeAppPaths = appPathsByPathname.get(pathname)
           if (routeAppPaths) {
@@ -2468,6 +2492,23 @@ export default async function build(
           }
         }
 
+        // Reverse index of `appPathRoutes`: normalized pathname -> original app
+        // paths that have an entry in `mappedAppPages`. Built once up front so
+        // the per-page check below doesn't scan every route for every page.
+        const originalAppPathsByPage = new Map<string, string[]>()
+        if (mappedAppPages) {
+          for (const originalPath in appPathRoutes) {
+            if (!mappedAppPages[originalPath]) continue
+            const normalizedPath = appPathRoutes[originalPath]
+            const originalAppPaths = originalAppPathsByPage.get(normalizedPath)
+            if (originalAppPaths) {
+              originalAppPaths.push(originalPath)
+            } else {
+              originalAppPathsByPage.set(normalizedPath, [originalPath])
+            }
+          }
+        }
+
         await Promise.all(
           Object.entries(pageKeys)
             .reduce<Array<{ pageType: keyof typeof pageKeys; page: string }>>(
@@ -2513,19 +2554,9 @@ export default async function build(
                 let originalAppPath: string | undefined
 
                 if (pageType === 'app' && mappedAppPages) {
-                  const originalAppPaths: string[] = []
-                  for (const [originalPath, normalizedPath] of Object.entries(
-                    appPathRoutes
-                  )) {
-                    if (
-                      normalizedPath === page &&
-                      mappedAppPages[originalPath]
-                    ) {
-                      originalAppPaths.push(originalPath)
-                    }
-                  }
+                  const originalAppPaths = originalAppPathsByPage.get(page)
 
-                  if (originalAppPaths.length > 0) {
+                  if (originalAppPaths) {
                     originalAppPath = selectAppPageEntry(page, originalAppPaths)
                     pagePath = mappedAppPages[originalAppPath].replace(
                       /^private-next-app-dir/,
@@ -2612,6 +2643,9 @@ export default async function build(
                             dir,
                             page,
                             originalAppPath,
+                            isNativeRoute: nativeAppPaths.has(
+                              originalAppPath || page
+                            ),
                             distDir,
                             configFileName,
                             httpAgentOptions: config.httpAgentOptions,

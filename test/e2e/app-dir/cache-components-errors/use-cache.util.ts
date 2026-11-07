@@ -1453,7 +1453,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             expect(output).toMatchInlineSnapshot(`
              "⨯ Error: Kaputt!
                  at a (<next-dist-dir>)
-                 at b (<next-dist-dir>) {
+                 at b (<next-dist-dir>)
+                 at <next-internal> {
                digest: '<error-digest>'
              }"
             `)
@@ -1522,7 +1523,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             expect(output).toMatchInlineSnapshot(`
              "⨯ Error: Kaputt!
                  at a (<next-dist-dir>)
-                 at b (<next-dist-dir>) {
+                 at b (<next-dist-dir>)
+                 at <next-internal> {
                digest: '<error-digest>'
              }
              [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {

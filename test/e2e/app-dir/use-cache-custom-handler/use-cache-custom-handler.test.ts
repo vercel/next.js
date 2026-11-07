@@ -11,6 +11,7 @@ const isoDateRegExp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 describe('use-cache-custom-handler', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
+    env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
   })
 
   let outputIndex: number
@@ -102,7 +103,7 @@ describe('use-cache-custom-handler', () => {
 
     await retry(async () => {
       expect(next.cliOutput.slice(outputIndex)).toContain(
-        'ModernCustomCacheHandler::updateTags ["modern"]'
+        'ModernCustomCacheHandler::updateTags ["use-cache-custom-handler:modern"]'
       )
 
       const data = await browser.elementById('data').text()
@@ -148,10 +149,10 @@ describe('use-cache-custom-handler', () => {
     await retry(async () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
       expect(cliOutput).toInclude(
-        'ModernCustomCacheHandler::updateTags ["modern"]'
+        'ModernCustomCacheHandler::updateTags ["use-cache-custom-handler:modern"]'
       )
       expect(cliOutput).toInclude(
-        'ModernCustomCacheHandler::updateTags ["other"]'
+        'ModernCustomCacheHandler::updateTags ["use-cache-custom-handler:other"]'
       )
     })
   })
@@ -282,6 +283,63 @@ describe('use-cache-custom-handler', () => {
     } finally {
       await control('release-entry-lookup')
       await Promise.allSettled([routeARendering, routeBRendering])
+    }
+  })
+
+  // The configured handler validates implicit tags before the test pauses it.
+  // Development's front cache can serve the entry without that handler read.
+  // @force-gate start
+  it('currently shares a handler lookup between equal routes separated by path revalidation', async () => {
+    const id = `same-route-${randomUUID()}`
+    const pathname = `/path-revalidation/a?id=${id}`
+    const control = (action: string) =>
+      next.fetch(`/path-revalidation?id=${id}`, {
+        method: 'POST',
+        body: action,
+      })
+    const readState = () =>
+      next.fetch(`/path-revalidation?id=${id}`).then(
+        (response) =>
+          response.json() as Promise<{
+            selectedEntrySoftTags: string[][]
+            startedRoutes: string[]
+            writes: string[]
+          }>
+      )
+    const initial = (await next.render$(pathname))('#data').text()
+    await retry(async () => {
+      expect((await readState()).writes).toHaveLength(1)
+    })
+    await control('hold-selected-entry')
+    const beforeRevalidation = next.render$(pathname)
+    let afterRevalidation: ReturnType<typeof next.render$> | undefined
+    try {
+      await retry(async () => {
+        expect((await readState()).selectedEntrySoftTags).toHaveLength(1)
+      })
+      await control('revalidate-route-a')
+      const outputIndex = next.cliOutput.length
+      afterRevalidation = next.render$(pathname)
+      await retry(() => {
+        expect(
+          next.cliOutput
+            .slice(outputIndex)
+            .split('\n')
+            .some(
+              (line) =>
+                line.includes('joining pending cross-request invocation') &&
+                line.includes(id)
+            )
+        ).toBe(true)
+      })
+      await control('release-selected-entry')
+      const freshPage = await afterRevalidation
+      expect(freshPage('#data').text()).toBe(initial)
+      expect(freshPage('#data').text()).not.toBe('')
+      expect((await beforeRevalidation)('#data').text()).toBe(initial)
+    } finally {
+      await control('release-selected-entry')
+      await Promise.allSettled([beforeRevalidation, afterRevalidation])
     }
   })
 

@@ -121,9 +121,12 @@ export class StagedRenderingController {
    * Schedules a callback that will execute synchronously when the controller is advanced
    * to `stage` or past it, before any promises for that stage are resolved.
    * If the controller is already past `stage`, the callback is executed immediately.
+   * If the controller is already aborted, the listener won't run.
+   *
+   * @returns Whether or not the listener was added.
    * */
-  onStage(stage: AdvanceableRenderStage, callback: () => void) {
-    addSyncTriggerListener(this.triggers[stage], callback)
+  onStage(stage: AdvanceableRenderStage, callback: () => void): boolean {
+    return addSyncTriggerListener(this.triggers[stage], callback)
   }
 
   shouldTrackSyncInterrupt(): boolean {
@@ -352,11 +355,28 @@ type StageTrigger = {
   _rejectPromise: (reason: unknown) => void
 }
 
-function addSyncTriggerListener(trigger: StageTrigger, listener: () => void) {
-  if (trigger.state === 'pending') {
-    trigger._listeners.push(listener)
-  } else {
-    listener()
+/**
+ * @returns Whether or not the listener was added (if the trigger is cancelled, we skip adding it)
+ * */
+function addSyncTriggerListener(
+  trigger: StageTrigger,
+  listener: () => void
+): boolean {
+  switch (trigger.state) {
+    case 'pending': {
+      // Queue the listener until the trigger fires.
+      trigger._listeners.push(listener)
+      return true
+    }
+    case 'triggered': {
+      // Trigger already fired, run listener immediately.
+      listener()
+      return true
+    }
+    case 'cancelled': {
+      // The trigger was cancelled and will never fire, so we ignore the listener.
+      return false
+    }
   }
 }
 

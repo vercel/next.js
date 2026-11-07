@@ -12,7 +12,7 @@
 
 0 -> 8 member call = ["../lib/a.js", "../lib/b.js"]["map"]((...) => FreeVar(require)["resolve"](file))
 
-8 -> 10 free var = FreeVar(require)
+9 -> 10 free var = FreeVar(require)
 
 8 -> 11 member call = require*0*["resolve"](???*1*)
 - *0* require: The require method from CommonJS
@@ -23,7 +23,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 14 free var = FreeVar(require)
+13 -> 14 free var = FreeVar(require)
 
 0 -> 15 member call = require*0*["resolve"](???*1*)
 - *0* require: The require method from CommonJS
