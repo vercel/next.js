@@ -12,7 +12,7 @@ use crate::{
     bottom_up::build_bottom_up_graph,
     span::{SpanGraph, SpanGraphEvent},
     span_bottom_up_ref::SpanBottomUpRef,
-    span_ref::{GroupNameToDirectAndRecusiveSpans, SpanRef},
+    span_ref::{GroupNameToDirectAndRecursiveSpans, SpanRef},
     store::{SpanId, Store},
     timestamp::Timestamp,
 };
@@ -88,7 +88,7 @@ impl<'a> SpanGraphRef<'a> {
                 self.first_span().extra().graph.get().unwrap().clone()
             } else {
                 let self_group = self.first_span().group_name();
-                let mut map: GroupNameToDirectAndRecusiveSpans = FxIndexMap::default();
+                let mut map: GroupNameToDirectAndRecursiveSpans = FxIndexMap::default();
                 let mut queue = VecDeque::with_capacity(8);
                 for span in self.recursive_spans() {
                     for span in span.children() {
@@ -303,7 +303,7 @@ impl<'a> SpanGraphRef<'a> {
     }
 }
 
-pub fn event_map_to_list(map: GroupNameToDirectAndRecusiveSpans) -> Vec<SpanGraphEvent> {
+pub fn event_map_to_list(map: GroupNameToDirectAndRecursiveSpans) -> Vec<SpanGraphEvent> {
     map.into_iter()
         .map(|(_, (root_spans, recursive_spans))| {
             let graph = SpanGraph {
