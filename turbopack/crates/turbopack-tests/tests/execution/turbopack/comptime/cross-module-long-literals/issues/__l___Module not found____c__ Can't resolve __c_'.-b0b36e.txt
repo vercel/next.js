@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/comptime/cross-module-long-literals/input/index.js:28:12  Module not found: Can't resolve './dead-code'
+  
+      24 |   // TODO ideally would inline NaN and Infinity, but currently doesn't
+      25 |   if (NAN != undefined && INFINITY) {
+      26 |     return 'ok'
+      27 |   } else {
+         +            v--------------------v
+      28 +     return require('./dead-code')
+         +            ^--------------------^
+      29 |   }
+      30 | }
+      31 | 
+      32 | it('does not inline long literals', () => {
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './dead-code'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/comptime/cross-module-long-literals/input/index.js
+  | Type of request: commonjs request
+  |
