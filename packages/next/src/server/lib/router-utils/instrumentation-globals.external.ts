@@ -1,12 +1,11 @@
+// Every server process loads this module, also when the app has no
+// instrumentation file. Only import what that case needs.
 import path from 'node:path'
 import isError from '../../../lib/is-error'
-import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
 import type {
   InstrumentationModule,
   InstrumentationOnRequestError,
 } from '../../instrumentation/types'
-import { interopDefault } from '../../../lib/interop-default'
-import { afterRegistration as extendInstrumentationAfterRegistration } from './instrumentation-node-extensions'
 import { getTracer, SpanStatusCode } from '../trace/tracer'
 import { InstrumentationSpan } from '../trace/constants'
 
@@ -90,16 +89,10 @@ export async function getInstrumentationModule(
   const startTime = getInstrumentationTimestamp()
   let error: unknown
   try {
-    cachedInstrumentationModule = interopDefault(
-      await require(
-        path.join(
-          projectDir,
-          distDir,
-          'server',
-          `${INSTRUMENTATION_HOOK_FILENAME}.js`
-        )
-      )
+    const mod = await require(
+      path.join(projectDir, distDir, 'server', 'instrumentation.js')
     )
+    cachedInstrumentationModule = mod.default || mod
     return cachedInstrumentationModule
   } catch (err: unknown) {
     if (
@@ -159,7 +152,9 @@ async function registerInstrumentation(
     let registered = false
     try {
       await instrumentation.register()
-      extendInstrumentationAfterRegistration()
+      const { afterRegistration } =
+        require('./instrumentation-node-extensions') as typeof import('./instrumentation-node-extensions')
+      afterRegistration()
       registered = true
     } catch (err: any) {
       error = err
