@@ -2931,8 +2931,9 @@ async function getSharedNodeAssets({
     // add to shared node assets
     const filePath = path.join(dir, file)
     if (filePath === path.join(distDir, PRERENDER_MANIFEST)) {
-      // Ignore, this is not needed at runtime and we already pass all of this information via the
-      // adapter API instead.
+      // No function needs the complete prerender manifest: every route's file
+      // trace lists the route's own manifest, and the adapter gets the
+      // prerender data through `outputs.prerenders`.
       continue
     }
     const fileOutputPath = path.relative(repoRoot, filePath)

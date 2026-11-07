@@ -1,3 +1,5 @@
 module.exports = {
-  // cacheComponents: true,
+  experimental: {
+    appDir: true,
+  },
 }

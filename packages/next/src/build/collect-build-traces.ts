@@ -498,34 +498,19 @@ export async function collectBuildTraces({
               curTracedFiles.add(file)
             }
 
-            // Every route loads its own prerender manifest at runtime via a
-            // computed path, so the tracer can't discover it. It's written
-            // after tracing completes, so add it here.
+            // Every route reads its own prerender manifest at runtime through
+            // a computed path, so the tracer does not find it, and the build
+            // writes it after tracing. It sits in the directory named after
+            // the entry file: see `getRoutePrerenderManifestPath`.
             //
-            // Only app and pages routes load one, and `/_app` and `/_document`
-            // are not real routes.
+            // `/_app` and `/_document` are not routes.
             if (
               (isApp || isPages) &&
               entryName !== 'pages/_app' &&
               entryName !== 'pages/_document'
             ) {
-              // For app routes the manifest lives at the normalized route path,
-              // which is shared by all the app paths serving it (a page and its
-              // parallel slots). That isn't always this chunk's own directory,
-              // so resolve it relative to the trace file.
-              //
-              // Pages routes get one each, in their own directory. `entryName`
-              // is already the normalized page path, so it must not be run
-              // through `normalizePagePath` again -- that isn't idempotent and
-              // would turn `pages/index` into `pages/index/index`.
-              const manifestPath = path.join(
-                distDir,
-                'server',
-                isApp ? path.join('app', route) : entryName,
-                PRERENDER_MANIFEST
-              )
               curTracedFiles.add(
-                path.relative(traceOutputDir, manifestPath).replace(/\\/g, '/')
+                `${path.posix.basename(entryName)}/${PRERENDER_MANIFEST}`
               )
             }
 

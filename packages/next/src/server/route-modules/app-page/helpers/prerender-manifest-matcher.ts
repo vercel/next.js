@@ -1,5 +1,5 @@
 import type {
-  DynamicPrerenderManifestRouteRuntime,
+  DynamicPrerenderManifestRoute,
   PrerenderManifestRuntime,
 } from '../../../../build'
 import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
@@ -23,12 +23,12 @@ type Matcher = {
   /**
    * The route that matches the source.
    */
-  route: DeepReadonly<DynamicPrerenderManifestRouteRuntime>
+  route: DeepReadonly<DynamicPrerenderManifestRoute>
 }
 
 export type PrerenderManifestMatch = {
   source: string
-  route: DeepReadonly<DynamicPrerenderManifestRouteRuntime>
+  route: DeepReadonly<DynamicPrerenderManifestRoute>
 }
 
 /**

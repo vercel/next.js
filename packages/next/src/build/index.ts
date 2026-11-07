@@ -1,5 +1,6 @@
 import {
   getRouteCacheKey,
+  getRoutePrerenderManifestPath,
   ROUTE_CACHE_DIRECTORY,
 } from '../server/lib/route-cache-key'
 import { RouteKind } from '../server/route-kind'
@@ -468,6 +469,44 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
+/**
+ * The fields of a prerendered route that Next.js reads while it serves a
+ * request. The other fields of `PrerenderManifestRoute` are for the builder.
+ */
+const RUNTIME_PRERENDER_ROUTE_FIELDS = [
+  'dataRoute',
+  'srcRoute',
+  'renderingMode',
+  'initialRevalidateSeconds',
+  'initialExpireSeconds',
+  // Only checked for existence.
+  'prefetchDataRoute',
+] as const satisfies readonly (keyof PrerenderManifestRoute)[]
+
+export type PrerenderManifestRouteRuntime = Pick<
+  PrerenderManifestRoute,
+  (typeof RUNTIME_PRERENDER_ROUTE_FIELDS)[number]
+>
+
+/**
+ * The prerender data that Next.js reads at runtime. A route's own manifest
+ * (`getRoutePrerenderManifestPath`) has exactly this shape and only that
+ * route's entries. The complete `PrerenderManifest`, which stays the source for
+ * builders, is also assignable to it.
+ *
+ * Only `routes` is reduced to the fields that are read: it has an entry per
+ * prerendered path. A route has few `dynamicRoutes` entries, and they are
+ * handed to helpers that read optional fields.
+ */
+export type PrerenderManifestRuntime = {
+  version: 4
+  routes: { [route: string]: PrerenderManifestRouteRuntime }
+  dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
+  notFoundRoutes: string[]
+}
+
+type RoutePrerenderData = Pick<PrerenderManifest, 'routes' | 'dynamicRoutes'>
+
 function getPprAppPageClassification(
   route: string,
   result:
@@ -559,39 +598,6 @@ function getPagesFallbackClassification(
 
 export type SubresourceIntegrityManifest = Record<string, string>
 export type PreviewPropsManifest = __ApiPreviewProps
-
-export type PrerenderManifestRouteRuntime = Pick<
-  PrerenderManifestRoute,
-  | 'renderingMode'
-  | 'initialRevalidateSeconds'
-  | 'initialExpireSeconds'
-  // prefetchDataRoute is only checked for existence, in packages/next/src/build/templates/app-page.ts
-  | 'prefetchDataRoute'
->
-
-export type DynamicPrerenderManifestRouteRuntime = Pick<
-  DynamicPrerenderManifestRoute,
-  | 'renderingMode'
-  | 'fallback'
-  | 'fallbackRevalidate'
-  | 'fallbackExpire'
-  | 'fallbackSourceRoute'
-  | 'fallbackRouteParams'
-  | 'fallbackRootParams'
-  | 'remainingPrerenderableParams'
->
-
-// A version of PrerenderManifest that is only used internally at runtime, not for a builder.
-export type PrerenderManifestRuntime = {
-  version: 4
-  routes: {
-    [route: string]: PrerenderManifestRouteRuntime
-  }
-  dynamicRoutes: {
-    [route: string]: DynamicPrerenderManifestRouteRuntime
-  }
-  notFoundRoutes: string[]
-}
 
 type ManifestBuiltRoute = {
   /**
@@ -745,17 +751,74 @@ async function readManifest<T extends object>(filePath: string): Promise<T> {
   return JSON.parse(await readFileUtf8(filePath))
 }
 
-async function writePrerenderManifest<
-  T extends Pick<
-    PrerenderManifest | PrerenderManifestRuntime,
-    'routes' | 'dynamicRoutes'
-  >,
->(distDir: string, manifest: T): Promise<void> {
+async function writePrerenderManifest(
+  distDir: string,
+  manifest: PrerenderManifest
+): Promise<void> {
   // Sort for deterministic outputs
   manifest.routes = sortPagesObject(manifest.routes)
   manifest.dynamicRoutes = sortPagesObject(manifest.dynamicRoutes)
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
 }
+function pickFields<T extends object, K extends keyof T>(
+  value: T,
+  fields: readonly K[]
+): Pick<T, K> {
+  const picked = {} as Pick<T, K>
+  for (const field of fields) {
+    picked[field] = value[field]
+  }
+  return picked
+}
+
+/**
+ * Writes one prerender manifest per route with only the entries and fields that
+ * the route reads at runtime, so that a server process does not have to parse
+ * the prerender data of every other route. Every route gets one, also when it
+ * has no prerender data: a route that finds no manifest of its own reads the
+ * complete one.
+ */
+async function writeRoutePrerenderManifests(
+  distDir: string,
+  routes: Iterable<
+    [manifestPath: string, data: RoutePrerenderData | undefined]
+  >,
+  notFoundRoutes: readonly string[]
+): Promise<void> {
+  const writes: Promise<void>[] = []
+  for (const [manifestPath, data] of routes) {
+    const manifest: PrerenderManifestRuntime = {
+      version: 4,
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+    }
+    if (data) {
+      const sortedRoutes = sortPagesObject(data.routes)
+      for (const route in sortedRoutes) {
+        manifest.routes[route] = pickFields(
+          sortedRoutes[route],
+          RUNTIME_PRERENDER_ROUTE_FIELDS
+        )
+      }
+      manifest.dynamicRoutes = sortPagesObject(data.dynamicRoutes)
+      // A prerendered path that returned `notFound` still has an entry in
+      // `routes`, so this is the part of the list that the route can ask for.
+      manifest.notFoundRoutes = notFoundRoutes.filter(
+        (route) => route in data.routes
+      )
+    }
+
+    const filePath = path.join(distDir, manifestPath)
+    writes.push(
+      fs
+        .mkdir(path.dirname(filePath), { recursive: true })
+        .then(() => writeFileUtf8(filePath, JSON.stringify(manifest)))
+    )
+  }
+  await Promise.all(writes)
+}
+
 async function writeClientSsgManifest(
   prerenderManifest: DeepReadonly<PrerenderManifest>,
   {
@@ -2329,6 +2392,8 @@ export default async function build(
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
       let pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
+      // Static pages are replaced by their HTML file in the manifest below.
+      const emittedPages = Object.keys(pagesManifest)
       const buildManifest = await readManifest<BuildManifest>(buildManifestPath)
 
       const appPathRoutes: Record<string, string> = {}
@@ -3199,42 +3264,51 @@ export default async function build(
         path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
       )
 
-      let notFoundRoutes: string[] = []
-      let prerenderRoutes = new Map<
-        string,
-        {
-          routes: { [route: string]: PrerenderManifestRoute }
-          dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
+      const prerenderManifest: PrerenderManifest = {
+        version: 4,
+        // Record evaluated exports, including empty fragments, rather than
+        // inferring API usage from the resulting fallback modes.
+        __private_unstable_hasParamMatching:
+          [...paramMatchingByRoute.values()].some(
+            (paramMatching) => paramMatching !== undefined
+          ) || undefined,
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: previewProps,
+      }
+
+      // The same entries again, grouped by the route that owns them, for the
+      // manifest that each route reads at runtime. An entry is added here
+      // right after it is added to the complete manifest.
+      const routePrerenderData = new Map<string, RoutePrerenderData>()
+      const getRoutePrerenderData = (
+        kind: RouteKind.APP_PAGE | RouteKind.PAGES,
+        page: string
+      ) => {
+        const key = getRoutePrerenderManifestPath(kind, page)
+        let data = routePrerenderData.get(key)
+        if (!data) {
+          data = { routes: {}, dynamicRoutes: {} }
+          routePrerenderData.set(key, data)
         }
-      >()
-      // Keyed by the route's output path, so that the manifest sits next to the
-      // route's other output and is reachable from its `.nft.json`.
-      //
-      // `outputPath` must already be the route's output path, not its route
-      // path: for pages that means it has been through `normalizePagePath`,
-      // which is not idempotent (`/` -> `/index` -> `/index/index`).
-      function getPrerenderRoutesEntry(
-        pageType: 'app' | 'pages',
-        outputPath: string
-      ) {
-        if (pageType === 'app') {
-          // Several app paths can serve the same route: a page and its parallel
-          // slots (`/foo/page` and `/foo/@slot/page`) both serve `/foo`. They
-          // share a single manifest at the normalized path, so that the data
-          // doesn't get split across variants that each only see part of it.
-          outputPath = path.posix.join(
-            'app',
-            normalizeAppPath(outputPath).replace(/%5F/g, '_')
-          )
-        } else {
-          outputPath = path.posix.join('pages', outputPath)
-        }
-        let entry = prerenderRoutes.get(outputPath)
-        if (!entry) {
-          entry = { routes: {}, dynamicRoutes: {} }
-          prerenderRoutes.set(outputPath, entry)
-        }
-        return entry
+        return data
+      }
+      const addRoutePrerender = (
+        kind: RouteKind.APP_PAGE | RouteKind.PAGES,
+        page: string,
+        pathname: string
+      ) => {
+        getRoutePrerenderData(kind, page).routes[pathname] =
+          prerenderManifest.routes[pathname]
+      }
+      const addRouteDynamicPrerender = (
+        kind: RouteKind.APP_PAGE | RouteKind.PAGES,
+        page: string,
+        pathname: string
+      ) => {
+        getRoutePrerenderData(kind, page).dynamicRoutes[pathname] =
+          prerenderManifest.dynamicRoutes[pathname]
       }
 
       // Accumulate per-route segment inlining decisions for
@@ -3560,7 +3634,9 @@ export default async function build(
             ],
           })
 
-          notFoundRoutes = Array.from(exportResult.ssgNotFoundPaths)
+          prerenderManifest.notFoundRoutes = Array.from(
+            exportResult.ssgNotFoundPaths
+          )
 
           // remove server bundles that were exported
           for (const page of staticPages) {
@@ -3794,7 +3870,8 @@ export default async function build(
                   route.pathname === UNDERSCORE_NOT_FOUND_ROUTE
                     ? 404
                     : meta.status
-                const isNotFoundTrue = notFoundRoutes.includes(route.pathname)
+                const isNotFoundTrue =
+                  prerenderManifest.notFoundRoutes.includes(route.pathname)
                 let classification: PrerenderManifestClassification = {}
                 if (!isNotFoundTrue) {
                   if (isAppRouteHandler) {
@@ -3819,9 +3896,7 @@ export default async function build(
                   }
                 }
 
-                getPrerenderRoutesEntry('app', originalAppPath).routes[
-                  route.pathname
-                ] = {
+                prerenderManifest.routes[route.pathname] = {
                   initialStatus: status,
                   initialHeaders: meta.headers,
                   renderingMode: isAppPPREnabled
@@ -3840,6 +3915,11 @@ export default async function build(
                   prefetchDataRoute,
                   allowHeader: ALLOWED_HEADERS,
                 }
+                addRoutePrerender(
+                  RouteKind.APP_PAGE,
+                  originalAppPath,
+                  route.pathname
+                )
               } else {
                 hasRevalidateZero = true
 
@@ -4135,9 +4215,7 @@ export default async function build(
                   }
                 }
 
-                getPrerenderRoutesEntry('app', originalAppPath).dynamicRoutes[
-                  prerenderOutputPathname
-                ] = {
+                prerenderManifest.dynamicRoutes[prerenderOutputPathname] = {
                   notFoundParams,
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
@@ -4209,6 +4287,11 @@ export default async function build(
                       ),
                   allowHeader: ALLOWED_HEADERS,
                 }
+                addRouteDynamicPrerender(
+                  RouteKind.APP_PAGE,
+                  originalAppPath,
+                  prerenderOutputPathname
+                )
               }
             }
           })
@@ -4232,7 +4315,7 @@ export default async function build(
               delete pagesManifest[page]
               for (const locale of i18n.locales) {
                 const curPath = `/${locale}${page === '/' ? '' : page}`
-                if (notFoundRoutes.includes(curPath)) continue
+                if (prerenderManifest.notFoundRoutes.includes(curPath)) continue
                 const relativeDest =
                   page === '/'
                     ? `pages/${locale}.html`
@@ -4434,7 +4517,8 @@ export default async function build(
                   // TODO: do we want to show all locale variants in build output
                   for (const locale of i18n.locales) {
                     const localePage = `/${locale}${page === '/' ? '' : page}`
-                    const isNotFoundTrue = notFoundRoutes.includes(localePage)
+                    const isNotFoundTrue =
+                      prerenderManifest.notFoundRoutes.includes(localePage)
 
                     if (isNotFoundTrue) {
                       await deleteNotFoundPagesRouterFiles(localePage, page)
@@ -4442,36 +4526,37 @@ export default async function build(
 
                     const cacheControl = getCacheControl(localePage)
 
-                    getPrerenderRoutesEntry('pages', file).routes[localePage] =
-                      {
-                        ...(!isNotFoundTrue && {
-                          routeType: 'page' as const,
-                          response: 'complete' as const,
-                          compute: 'static' as const,
-                        }),
-                        initialRevalidateSeconds: cacheControl.revalidate,
-                        initialExpireSeconds: cacheControl.expire,
-                        experimentalPPR: undefined,
-                        renderingMode: undefined,
-                        srcRoute: null,
-                        dataRoute: path.posix.join(
-                          '/_next/data',
-                          buildId,
-                          `${localePage}.json`
-                        ),
-                        prefetchDataRoute: undefined,
-                        allowHeader: ALLOWED_HEADERS,
-                      }
+                    prerenderManifest.routes[localePage] = {
+                      ...(!isNotFoundTrue && {
+                        routeType: 'page' as const,
+                        response: 'complete' as const,
+                        compute: 'static' as const,
+                      }),
+                      initialRevalidateSeconds: cacheControl.revalidate,
+                      initialExpireSeconds: cacheControl.expire,
+                      experimentalPPR: undefined,
+                      renderingMode: undefined,
+                      srcRoute: null,
+                      dataRoute: path.posix.join(
+                        '/_next/data',
+                        buildId,
+                        `${localePage}.json`
+                      ),
+                      prefetchDataRoute: undefined,
+                      allowHeader: ALLOWED_HEADERS,
+                    }
+                    addRoutePrerender(RouteKind.PAGES, page, localePage)
                   }
                 } else {
-                  const isNotFoundTrue = notFoundRoutes.includes(page)
+                  const isNotFoundTrue =
+                    prerenderManifest.notFoundRoutes.includes(page)
                   if (isNotFoundTrue) {
                     await deleteNotFoundPagesRouterFiles(page, page)
                   }
 
                   const cacheControl = getCacheControl(page)
 
-                  getPrerenderRoutesEntry('pages', file).routes[page] = {
+                  prerenderManifest.routes[page] = {
                     ...(!isNotFoundTrue && {
                       routeType: 'page' as const,
                       response: 'complete' as const,
@@ -4491,6 +4576,7 @@ export default async function build(
                     prefetchDataRoute: undefined,
                     allowHeader: ALLOWED_HEADERS,
                   }
+                  addRoutePrerender(RouteKind.PAGES, page, page)
                 }
                 if (pageInfo) {
                   pageInfo.initialCacheControl = getCacheControl(page)
@@ -4500,16 +4586,15 @@ export default async function build(
                 // the HTML/JSON files directly to their final location.
                 // We only need to update the prerender manifest.
                 for (const route of additionalPaths.get(page) ?? []) {
-                  const isNotFoundTrue = notFoundRoutes.includes(route.pathname)
+                  const isNotFoundTrue =
+                    prerenderManifest.notFoundRoutes.includes(route.pathname)
                   if (isNotFoundTrue) {
                     await deleteNotFoundPagesRouterFiles(route.pathname, page)
                   }
 
                   const cacheControl = getCacheControl(route.pathname)
 
-                  getPrerenderRoutesEntry('pages', file).routes[
-                    route.pathname
-                  ] = {
+                  prerenderManifest.routes[route.pathname] = {
                     ...(!isNotFoundTrue && {
                       routeType: 'page' as const,
                       response: 'complete' as const,
@@ -4529,6 +4614,7 @@ export default async function build(
                     prefetchDataRoute: undefined,
                     allowHeader: ALLOWED_HEADERS,
                   }
+                  addRoutePrerender(RouteKind.PAGES, page, route.pathname)
 
                   if (pageInfo) {
                     pageInfo.initialCacheControl = cacheControl
@@ -4645,9 +4731,7 @@ export default async function build(
             fallback = `${normalizedRoute}.html`
           }
 
-          getPrerenderRoutesEntry('pages', normalizedRoute).dynamicRoutes[
-            tbdRoute
-          ] = {
+          prerenderManifest.dynamicRoutes[tbdRoute] = {
             routeRegex: normalizeRouteRegex(
               getNamedRouteRegex(tbdRoute, {
                 prefixRouteKeys: false,
@@ -4675,33 +4759,9 @@ export default async function build(
             prefetchDataRouteRegex: undefined,
             allowHeader: ALLOWED_HEADERS,
           }
+          addRouteDynamicPrerender(RouteKind.PAGES, tbdRoute, tbdRoute)
         })
-      }
 
-      // The "legacy" prerender manifest for builder/adapter
-      const prerenderManifest: PrerenderManifest = {
-        version: 4,
-        // Record evaluated exports, including empty fragments, rather than
-        // inferring API usage from the resulting fallback modes.
-        __private_unstable_hasParamMatching:
-          [...paramMatchingByRoute.values()].some(
-            (paramMatching) => paramMatching !== undefined
-          ) || undefined,
-        routes: Object.fromEntries(
-          [...prerenderRoutes.values()].flatMap((route) =>
-            Object.entries(route.routes)
-          )
-        ),
-        dynamicRoutes: Object.fromEntries(
-          [...prerenderRoutes.values()].flatMap((route) =>
-            Object.entries(route.dynamicRoutes)
-          )
-        ),
-        notFoundRoutes,
-        preview: previewProps,
-      }
-
-      if (ssgPages.size > 0 || appDir) {
         NextBuildContext.previewModeId = previewProps.previewModeId
         NextBuildContext.fetchCacheKeyPrefix =
           config.experimental.fetchCacheKeyPrefix
@@ -4716,9 +4776,14 @@ export default async function build(
         // adapter would later look for a parent app output that doesn't
         // exist and throw an invariant error. Strip those entries before the
         // manifest is written.
-        for (const route of Object.keys(prerenderManifest.dynamicRoutes)) {
-          if (isStaticMetadataFile(route)) {
-            delete prerenderManifest.dynamicRoutes[route]
+        for (const prerenderData of [
+          prerenderManifest,
+          ...routePrerenderData.values(),
+        ]) {
+          for (const route of Object.keys(prerenderData.dynamicRoutes)) {
+            if (isStaticMetadataFile(route)) {
+              delete prerenderData.dynamicRoutes[route]
+            }
           }
         }
 
@@ -4742,61 +4807,50 @@ export default async function build(
         })
       }
 
-      // Every route loads its own prerender manifest at runtime, so make sure one
-      // exists for each of them. Routes that didn't record any prerender data get
-      // an empty manifest rather than no file at all.
-      for (const page of Object.keys(pagesManifest)) {
-        // `/_app` and `/_document` are not route modules and never load one.
+      // The complete manifest above is for builders. At runtime every route
+      // reads its own, which its file trace lists next to its entry.
+      const routePrerenderManifests = new Map<
+        string,
+        RoutePrerenderData | undefined
+      >()
+      for (const page of emittedPages) {
+        // `/_app` and `/_document` are not routes.
         if (page === '/_app' || page === '/_document') continue
-        getPrerenderRoutesEntry('pages', normalizePagePath(page))
-      }
-      for (const originalAppPath of Object.keys(appPathRoutes)) {
-        getPrerenderRoutesEntry('app', originalAppPath)
-      }
-
-      // Write the per-route prerender manifests which are used by the Next.js runtime.
-      for (const [page, manifest] of prerenderRoutes) {
-        await mkdir(path.join(distDir, SERVER_DIRECTORY, page), {
-          recursive: true,
-        })
-        await writePrerenderManifest(
-          path.join(distDir, SERVER_DIRECTORY, page),
-          {
-            version: 4,
-            routes: Object.entries(manifest.routes).reduce(
-              (acc, [key, value]) => {
-                acc[key] = {
-                  renderingMode: value.renderingMode,
-                  initialRevalidateSeconds: value.initialRevalidateSeconds,
-                  initialExpireSeconds: value.initialExpireSeconds,
-                  prefetchDataRoute: value.prefetchDataRoute,
-                }
-                return acc
-              },
-              {} as Record<string, PrerenderManifestRouteRuntime>
-            ),
-            dynamicRoutes: Object.entries(manifest.dynamicRoutes).reduce(
-              (acc, [key, value]) => {
-                acc[key] = {
-                  renderingMode: value.renderingMode,
-                  fallback: value.fallback,
-                  fallbackRevalidate: value.fallbackRevalidate,
-                  fallbackExpire: value.fallbackExpire,
-                  fallbackSourceRoute: value.fallbackSourceRoute,
-                  fallbackRouteParams: value.fallbackRouteParams,
-                  fallbackRootParams: value.fallbackRootParams,
-                  remainingPrerenderableParams:
-                    value.remainingPrerenderableParams,
-                }
-                return acc
-              },
-              {} as Record<string, DynamicPrerenderManifestRouteRuntime>
-            ),
-            // Populate with the global list of not-found routes.
-            notFoundRoutes,
-          }
+        routePrerenderManifests.set(
+          getRoutePrerenderManifestPath(RouteKind.PAGES, page),
+          undefined
         )
       }
+      // The prerender data of a pathname is recorded for the app path that
+      // `selectAppPageEntry` picked. Parallel routes can emit more entries for
+      // the same pathname, which get the same data.
+      const appPrerenderDataByPathname = new Map<string, RoutePrerenderData>()
+      for (const appPath in appPathRoutes) {
+        const data = routePrerenderData.get(
+          getRoutePrerenderManifestPath(RouteKind.APP_PAGE, appPath)
+        )
+        if (data) {
+          appPrerenderDataByPathname.set(appPathRoutes[appPath], data)
+        }
+      }
+      for (const appPath in appPathRoutes) {
+        routePrerenderManifests.set(
+          getRoutePrerenderManifestPath(RouteKind.APP_PAGE, appPath),
+          appPrerenderDataByPathname.get(appPathRoutes[appPath])
+        )
+      }
+      for (const [manifestPath, data] of routePrerenderData) {
+        routePrerenderManifests.set(manifestPath, data)
+      }
+      await nextBuildSpan
+        .traceChild('write-route-prerender-manifests')
+        .traceAsyncFn(() =>
+          writeRoutePrerenderManifests(
+            distDir,
+            routePrerenderManifests,
+            prerenderManifest.notFoundRoutes
+          )
+        )
 
       await writeManifest(
         path.join(distDir, 'server', PREVIEW_PROPS_MANIFEST),

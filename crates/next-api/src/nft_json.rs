@@ -190,27 +190,27 @@ impl Asset for NftJsonAsset {
                 nft_json.add(file_path.clone(), hash, &content)?;
             }
 
-            // The prerender manifests are written after Turbopack runs, so it is not part of the
-            // module graph and can't be discovered by tracing. It is also written after the build
-            // has finished tracing, so there is no content to hash yet.
+            // Every route reads its own prerender manifest at runtime. Next.js writes it after
+            // Turbopack ran, so it is not part of the module graph and there is no content to hash
+            // yet. It sits in the directory named after the entry file (`getRoutePrerenderManifestPath`
+            // in `packages/next/src/server/lib/route-cache-key.ts`), so derive it from the chunk
+            // path: a page name is not the output path for a Pages Router `index` file in a
+            // subdirectory.
             //
-            if let Some(page_name) = this.page_name.as_deref() {
-                let last_segment = if page_name.starts_with("app") {
-                    // This is /page or /route
-                    page_name.rsplit('/').next()
-                } else if matches!(page_name, "pages/_app" | "pages/_document") {
-                    None
-                } else if page_name.starts_with("pages/") {
-                    // This is /{name of last segment}
-                    page_name.rsplit('/').next()
-                } else {
-                    None
-                };
-                if let Some(last_segment) = last_segment {
+            // Middleware and instrumentation have no page name, and `/_app` and `/_document` are
+            // not routes.
+            if let Some(page_name) = this.page_name.as_deref()
+                && (page_name.starts_with("app/") || page_name.starts_with("pages/"))
+                && !matches!(page_name, "pages/_app" | "pages/_document")
+            {
+                let chunk_path = chunk.path().await?;
+                if let Some(entry) = chunk_path.path.strip_suffix(".js") {
                     nft_json.add_unhashed(
-                        nft_path
-                            .parent()
-                            .join(&format!("{last_segment}/prerender-manifest.json"))?,
+                        chunk_path
+                            .fs
+                            .root()
+                            .await?
+                            .join(&format!("{entry}/prerender-manifest.json"))?,
                     )?;
                 }
             }

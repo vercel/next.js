@@ -45,11 +45,7 @@ import { FILES } from './files'
             if (output.runtime !== 'go') expect(assets).not.toBeEmpty()
             expect(assetsHashes).toBeObject()
             for (const file in assets) {
-              if (assetsHashes[file] == null) {
-                throw new Error(
-                  `Missing hash for file ${file} in output ${filePath}`
-                )
-              }
+              expect(assetsHashes[file]).toBeString()
             }
 
             expect(filePath).toBeString()

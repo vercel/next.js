@@ -36,6 +36,25 @@ export function getResponseCacheOwner(
 }
 
 /**
+ * The prerender manifest of one route, relative to the build output directory.
+ * It holds only that route's entries of the complete prerender manifest, and
+ * sits in the directory named after the route's entry file
+ * (`server/app/blog/[slug]/page.js` has `server/app/blog/[slug]/page/`), where
+ * the route's file trace lists it.
+ *
+ * @param page the App module name including groups and slots, or the Pages
+ * pathname
+ */
+export function getRoutePrerenderManifestPath(
+  kind: RouteKind,
+  page: string
+): string {
+  return kind === RouteKind.PAGES || kind === RouteKind.PAGES_API
+    ? `server/pages${normalizePagePath(page)}/prerender-manifest.json`
+    : `server/app${page.replace(/%5F/g, '_')}/prerender-manifest.json`
+}
+
+/**
  * Prerender metadata already identifies its source route. Compare that source
  * with the selected module before using its metadata, including negative
  * entries and partially specialized fallback shells. Cache storage continues

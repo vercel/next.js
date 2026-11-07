@@ -65,6 +65,7 @@ import { interopDefault } from '../app-render/interop-default'
 import { RouteKind } from '../route-kind'
 import {
   getResponseCacheOwner,
+  getRoutePrerenderManifestPath,
   type ResponseCacheOwner,
 } from '../lib/route-cache-key'
 import type { BaseNextRequest } from '../base-http'
@@ -360,18 +361,31 @@ export abstract class RouteModule<
           manifest: ROUTES_MANIFEST,
           shouldCache: !this.isDev,
         }),
-        loadManifestFromRelativePath<
-          PrerenderManifest | PrerenderManifestRuntime
-        >({
-          projectDir,
-          distDir: this.distDir,
-          manifest: this.isDev
-            ? PRERENDER_MANIFEST
-            : router === 'app'
-              ? `server/app${normalizeAppPath(srcPage).replace(/%5F/g, '_')}/${PRERENDER_MANIFEST}`
-              : `server/pages${normalizedPagePath}/${PRERENDER_MANIFEST}`,
-          shouldCache: !this.isDev,
-        }),
+        // A production build writes a manifest for every route with only that
+        // route's entries. The complete manifest is the fallback for an output
+        // that has none: development, or a route's files copied without it.
+        (this.isDev
+          ? undefined
+          : loadManifestFromRelativePath<PrerenderManifestRuntime>({
+              projectDir,
+              distDir: this.distDir,
+              manifest: getRoutePrerenderManifestPath(
+                this.definition.kind,
+                // A Pages module name can end in `/index` with Turbopack. The
+                // pathname names the entry file with both bundlers.
+                router === 'pages'
+                  ? this.definition.pathname
+                  : this.definition.page
+              ),
+              shouldCache: true,
+              handleMissing: true,
+            })) ??
+          loadManifestFromRelativePath<PrerenderManifest>({
+            projectDir,
+            distDir: this.distDir,
+            manifest: PRERENDER_MANIFEST,
+            shouldCache: !this.isDev,
+          }),
         loadManifestFromRelativePath<PreviewPropsManifest>({
           projectDir,
           distDir: this.distDir,
@@ -476,8 +490,7 @@ export abstract class RouteModule<
         fallbackBuildManifest,
         routesManifest,
         nextFontManifest,
-        prerenderManifest:
-          prerenderManifest satisfies DeepReadonly<PrerenderManifestRuntime>,
+        prerenderManifest,
         previewProps,
         serverFilesManifest,
         reactLoadableManifest,
