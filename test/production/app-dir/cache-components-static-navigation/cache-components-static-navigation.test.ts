@@ -268,6 +268,36 @@ describe('Cache Components static navigation', () => {
     }
   })
 
+  it('renders a generated path after tag revalidation expires its entry', async () => {
+    const path = pathname('suspended', 'built')
+    const { value } = await warm(path)
+    const response = await next.fetch(
+      '/cache-components-static-navigation/revalidate',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          tag: 'cache-components-static-navigation:suspended:built',
+          state: 'expired',
+        }),
+      }
+    )
+    expect(response.status).toBe(204)
+
+    const navigation = await navigate(path)
+    let freshValue: string
+    try {
+      freshValue = await navigation.browser.elementById('value').text()
+      expect(freshValue).not.toBe(value)
+      for (const response of navigation.responses) {
+        expect(response.headers['x-nextjs-postponed']).toBeUndefined()
+      }
+    } finally {
+      await navigation.browser.close()
+    }
+    expect((await warm(path)).value).toBe(freshValue)
+  })
+
   for (const state of ['stale', 'expired'] as const) {
     it(
       'renders dynamic RSC after tag revalidation marks the cached value ' +
