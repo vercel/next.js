@@ -39,17 +39,6 @@ import type { Span } from './trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
-// Request Insights is a development feature. It imports the local span
-// recorder, which loads the OpenTelemetry API. Requiring it in a branch that
-// production builds remove keeps all of that out of production bundles.
-function getRequestInsights() {
-  if (process.env.__NEXT_DEV_SERVER) {
-    return require('./trace/request-insights') as typeof import('./trace/request-insights')
-  } else {
-    return undefined
-  }
-}
-
 /**
  * Whether fetch cache configuration needs to be processed for the current work
  * unit before an origin fetch. Static prerender stores use it for dynamic
@@ -197,33 +186,42 @@ function trackFetchMetric(
     span.setAttribute('error.type', String(metric.status))
   }
 
-  const requestInsights = getRequestInsights()
-  if (requestInsights?.isRequestInsightsEnabled()) {
-    const requestInsightsIdentity = getRequestInsightsIdentity()
-    const requestInsightsRequestId =
-      requestInsightsIdentity?.requestId ?? workStore.requestId
+  // Request Insights is a development feature. It imports the local span
+  // recorder, which loads the OpenTelemetry API. Production builds remove this
+  // branch, which keeps all of that out of production bundles.
+  if (process.env.__NEXT_DEV_SERVER) {
+    const { isRequestInsightsEnabled, recordRequestInsightFetch } =
+      require('./trace/request-insights') as typeof import('./trace/request-insights')
 
-    if (requestInsightsRequestId) {
-      requestInsights.recordRequestInsightFetch(
-        {
-          requestId: requestInsightsRequestId,
-          kind: requestInsightsIdentity?.kind,
-          htmlRequestId:
-            requestInsightsIdentity?.htmlRequestId ?? workStore.htmlRequestId,
-          route: workStore.route,
-        },
-        {
-          url: metric.url,
-          method: metric.method,
-          statusCode: metric.status,
-          startTime: metric.start,
-          durationMs: metric.end - metric.start,
-          cacheStatus: metric.cacheStatus,
-          cacheReason: metric.cacheReason,
-          index: metric.idx,
-        }
-      )
+    if (isRequestInsightsEnabled()) {
+      const requestInsightsIdentity = getRequestInsightsIdentity()
+      const requestInsightsRequestId =
+        requestInsightsIdentity?.requestId ?? workStore.requestId
+
+      if (requestInsightsRequestId) {
+        recordRequestInsightFetch(
+          {
+            requestId: requestInsightsRequestId,
+            kind: requestInsightsIdentity?.kind,
+            htmlRequestId:
+              requestInsightsIdentity?.htmlRequestId ?? workStore.htmlRequestId,
+            route: workStore.route,
+          },
+          {
+            url: metric.url,
+            method: metric.method,
+            statusCode: metric.status,
+            startTime: metric.start,
+            durationMs: metric.end - metric.start,
+            cacheStatus: metric.cacheStatus,
+            cacheReason: metric.cacheReason,
+            index: metric.idx,
+          }
+        )
+      }
     }
+  } else {
+    // Request Insights only records in the development server.
   }
 
   if (!workStore.shouldTrackFetchMetrics) {
