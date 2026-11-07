@@ -213,23 +213,27 @@ describe('instrumentation lifecycle spans', () => {
     ])
   })
 
-  // `register()` and the extensions after it load the OpenTelemetry API. The
-  // register span must not include that load.
-  it('loads the OpenTelemetry API before the register span starts', async () => {
-    writeInstrumentation('exports.register = () => {}')
-    const globals = loadGlobals()
-
-    await globals.ensureInstrumentationRegistered(projectDir, '.next')
-
-    expect(mockApiPreloads).toHaveLength(1)
-    expect(mockSpanStartTimes.get(REGISTER)).toBeGreaterThan(mockApiPreloads[0])
-  })
-
+  // The instrumentation file, `register()` and the extensions after it can
+  // load the OpenTelemetry API. The lifecycle spans must not include that load.
   it.each([
-    ['a register export', 'exports.onRequestError = () => {}'],
-    ['an instrumentation file', undefined],
-  ])('does not load the OpenTelemetry API without %s', async (_, source) => {
-    if (source) writeInstrumentation(source)
+    ['a register export', 'exports.register = () => {}', [LOAD, REGISTER]],
+    ['only onRequestError', 'exports.onRequestError = () => {}', [LOAD]],
+  ])(
+    'loads the OpenTelemetry API before the spans start with %s',
+    async (_, source, spans) => {
+      writeInstrumentation(source)
+      const globals = loadGlobals()
+
+      await globals.ensureInstrumentationRegistered(projectDir, '.next')
+
+      expect(mockApiPreloads).toHaveLength(1)
+      for (const span of spans) {
+        expect(mockSpanStartTimes.get(span)).toBeGreaterThan(mockApiPreloads[0])
+      }
+    }
+  )
+
+  it('does not load the OpenTelemetry API without an instrumentation file', async () => {
     const globals = loadGlobals()
 
     await globals.ensureInstrumentationRegistered(projectDir, '.next')
