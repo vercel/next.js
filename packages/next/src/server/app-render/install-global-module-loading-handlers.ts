@@ -6,9 +6,14 @@ import {
   trackPendingImport,
 } from './module-loading/track-module-loading.external'
 
+type InstrumentedLoader = ReturnType<typeof wrapClientComponentLoader>
+
 /**
- * Keep these closures in their own scope so the globals only retain the loader
- * and cacheComponents, rather than request-specific rendering data.
+ * The globals only retain the loader and cacheComponents, rather than
+ * request-specific rendering data. They are bound functions, not function
+ * expressions: V8 allocates a function expression that is assigned to a
+ * property in the old generation, where every replaced handler would keep its
+ * loader alive until the next major garbage collection.
  */
 export function installGlobalModuleLoadingHandlers(
   ComponentMod: AppPageModule,
@@ -16,57 +21,73 @@ export function installGlobalModuleLoadingHandlers(
 ) {
   const instrumented = wrapClientComponentLoader(ComponentMod)
 
-  // Track module loading like cache reads so prerendering doesn't abort early.
-  const shouldTrackModuleLoading = () => {
-    if (!cacheComponents) {
-      return false
-    }
-    if (process.env.__NEXT_DEV_SERVER) {
+  // @ts-expect-error
+  globalThis.__next_require__ = requireModule.bind(
+    null,
+    instrumented,
+    cacheComponents
+  )
+
+  // @ts-expect-error
+  globalThis.__next_chunk_load__ = loadChunk.bind(
+    null,
+    instrumented,
+    cacheComponents
+  )
+}
+
+// Track module loading like cache reads so prerendering doesn't abort early.
+function shouldTrackModuleLoading(cacheComponents: boolean) {
+  if (!cacheComponents) {
+    return false
+  }
+  if (process.env.__NEXT_DEV_SERVER) {
+    return true
+  }
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  if (!workUnitStore) {
+    return false
+  }
+
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'prerender-runtime':
+    case 'cache':
+    case 'private-cache':
       return true
-    }
-    const workUnitStore = workUnitAsyncStorage.getStore()
-
-    if (!workUnitStore) {
+    case 'prerender-legacy':
+    case 'request':
+    case 'unstable-cache':
+    case 'build-time-generator':
       return false
-    }
-
-    switch (workUnitStore.type) {
-      case 'prerender':
-      case 'prerender-client':
-      case 'validation-client':
-      case 'prerender-runtime':
-      case 'cache':
-      case 'private-cache':
-        return true
-      case 'prerender-legacy':
-      case 'request':
-      case 'unstable-cache':
-      case 'build-time-generator':
-        return false
-      default:
-        workUnitStore satisfies never
-    }
+    default:
+      workUnitStore satisfies never
   }
+}
 
-  // @ts-expect-error
-  globalThis.__next_require__ = (
-    ...args: Parameters<typeof instrumented.require>
-  ) => {
-    const exportsOrPromise = instrumented.require(...args)
-    if (shouldTrackModuleLoading()) {
-      trackPendingImport(exportsOrPromise)
-    }
-    return exportsOrPromise
+function requireModule(
+  instrumented: InstrumentedLoader,
+  cacheComponents: boolean,
+  ...args: Parameters<InstrumentedLoader['require']>
+) {
+  const exportsOrPromise = instrumented.require(...args)
+  if (shouldTrackModuleLoading(cacheComponents)) {
+    trackPendingImport(exportsOrPromise)
   }
+  return exportsOrPromise
+}
 
-  // @ts-expect-error
-  globalThis.__next_chunk_load__ = (
-    ...args: Parameters<typeof instrumented.loadChunk>
-  ) => {
-    const loadingChunk = instrumented.loadChunk(...args)
-    if (shouldTrackModuleLoading()) {
-      trackPendingChunkLoad(loadingChunk)
-    }
-    return loadingChunk
+function loadChunk(
+  instrumented: InstrumentedLoader,
+  cacheComponents: boolean,
+  ...args: Parameters<InstrumentedLoader['loadChunk']>
+) {
+  const loadingChunk = instrumented.loadChunk(...args)
+  if (shouldTrackModuleLoading(cacheComponents)) {
+    trackPendingChunkLoad(loadingChunk)
   }
+  return loadingChunk
 }

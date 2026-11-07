@@ -52,6 +52,13 @@ class CatchError<P extends UserProps> extends React.Component<
       error: null,
       previousPathname: this.props.pathname,
     }
+    // Bound methods, not arrow functions in class fields. A class field is an
+    // assignment in the constructor, and V8 allocates a function expression
+    // that is assigned to a property in the old generation. During server
+    // rendering it would keep this instance and its children alive until the
+    // next major garbage collection.
+    this.reset = this.reset.bind(this)
+    this.retry = this.retry.bind(this)
   }
 
   static getDerivedStateFromError(
@@ -104,11 +111,11 @@ class CatchError<P extends UserProps> extends React.Component<
     }
   }
 
-  reset = () => {
+  reset() {
     this.setState({ error: null })
   }
 
-  retry = () => {
+  retry() {
     if (this.props.isPagesRouter) {
       throw new Error(
         '`retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
