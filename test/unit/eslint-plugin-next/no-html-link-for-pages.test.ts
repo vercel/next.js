@@ -10,6 +10,10 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withCustomExtensionsDir = path.join(
+  __dirname,
+  'with-custom-extensions'
+)
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +30,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withCustomExtensions: new Linter({
+    cwd: withCustomExtensionsDir,
     configType: 'eslintrc',
   }),
 }
@@ -72,12 +80,39 @@ const linterConfigWithNestedContentRootDirDirectory = {
     },
   },
 }
+const linterConfigWithCustomExtensionsAndCustomDir = {
+  ...linterConfig,
+  rules: {
+    'no-html-link-for-pages': [
+      2,
+      path.join(withCustomExtensionsDir, 'app'),
+      {
+        pageExtensions: ['page.tsx', 'page.jsx'],
+      },
+    ],
+  },
+}
 
 for (const linter of Object.values(linters)) {
   linter.defineRules({
     'no-html-link-for-pages': NextESLintRule,
   })
 }
+
+const invalidCodeWithCustomExtensions = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/'>Homepage</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
 
 const validCode = `
 import Link from 'next/link';
@@ -493,6 +528,19 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
+  it('invalid link element with custom pageExtensions', function () {
+    const [report] = linters.withCustomExtensions.verify(
+      invalidCodeWithCustomExtensions,
+      linterConfigWithCustomExtensionsAndCustomDir,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })
