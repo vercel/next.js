@@ -1,10 +1,3 @@
-declare global {
-  interface Window {
-    dataLayer?: Object[]
-    [key: string]: any
-  }
-}
-
 type JSONValue =
   | string
   | number
