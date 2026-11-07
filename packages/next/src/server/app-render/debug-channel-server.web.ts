@@ -23,10 +23,18 @@ type DebugChannelClient = {
  */
 export function createWebDebugChannel(): DebugChannelPair {
   let readableController: ReadableStreamDefaultController | undefined
+  // The client side might be cancelled while React is still writing to the
+  // debug channel, e.g. when nobody claimed it in time (see
+  // `releaseParkedStream`). In that case, we drop the remaining chunks instead
+  // of erroring the server side, which React doesn't expect.
+  let isCancelled = false
 
   const clientSideReadable = new ReadableStream<Uint8Array>({
     start(controller) {
       readableController = controller
+    },
+    cancel() {
+      isCancelled = true
     },
   })
 
@@ -34,13 +42,19 @@ export function createWebDebugChannel(): DebugChannelPair {
     serverSide: {
       writable: new WritableStream<Uint8Array>({
         write(chunk) {
-          readableController?.enqueue(chunk)
+          if (!isCancelled) {
+            readableController?.enqueue(chunk)
+          }
         },
         close() {
-          readableController?.close()
+          if (!isCancelled) {
+            readableController?.close()
+          }
         },
         abort(err) {
-          readableController?.error(err)
+          if (!isCancelled) {
+            readableController?.error(err)
+          }
         },
       }),
     },
