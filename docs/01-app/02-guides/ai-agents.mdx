@@ -72,7 +72,7 @@ npx @next/codemod@canary agents-md
 
 ### Docs over the network
 
-The Next.js documentation is also available as Markdown over the network for agents that fetch pages instead of reading `node_modules`. Every page on [nextjs.org/docs](https://nextjs.org/docs) has a plain Markdown version at its `.md` URL, and clients that send an `Accept: text/markdown` header receive Markdown. This includes the per-error pages under `/docs/messages`, which are not bundled.
+The Next.js documentation is also available as Markdown over the network for agents that fetch pages instead of reading `node_modules`. Every page on [nextjs.org/docs](https://nextjs.org/docs) has a plain Markdown version at its `.md` URL, and clients that send an `Accept: text/markdown` header receive Markdown.
 
 The index at [`/docs/llms.txt`](https://nextjs.org/docs/llms.txt) and the single-file [`/docs/llms-full.txt`](https://nextjs.org/docs/llms-full.txt) follow the [`llms.txt` convention](https://llmstxt.org/), so agents that already read `llms.txt` for other tools can discover the Next.js docs the same way.
 
