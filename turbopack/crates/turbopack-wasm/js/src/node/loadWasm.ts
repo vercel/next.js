@@ -22,7 +22,11 @@ function readWebAssemblyAsResponse(filePath: string): Response {
 
 function resolvePath(chunkPath: string): string {
   const { resolve } = require('path') as typeof import('path')
-  return resolve(__turbopack_runtime_root__, chunkPath)
+  // The emitted wasm asset is tracked separately; this path is only known at runtime.
+  return resolve(
+    /* turbopackIgnore: true */ __turbopack_runtime_root__,
+    chunkPath
+  )
 }
 
 export async function instantiate(
