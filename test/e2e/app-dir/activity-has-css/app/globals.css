@@ -1,0 +1,10 @@
+.status-banner {
+  padding: 8px 12px;
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+body:has([data-page='a']):not(:has([hidden] [data-page='a'])) .status-banner {
+  background: #b91c1c;
+  color: #fff7ed;
+}
