@@ -10,10 +10,11 @@ const sourceMappingEnabled =
       process.execArgv.includes('--enable-source-maps')
 
 if (sourceMappingEnabled) {
-  // Loaded on demand: the patch pulls in the source map consumer and stack
+  // Loaded on demand: the patch pulls in the source map consumer and the stack
   // parser, which a server without source maps never uses.
-  const { patchErrorInspectNodeJS } =
+  const patchErrorInspectNodeJS = (
     require('../patch-error-inspect') as typeof import('../patch-error-inspect')
+  ).patchErrorInspectNodeJS
   patchErrorInspectNodeJS(globalThis.Error)
 } else {
   // leave Errors untouched if source maps are disabled.
