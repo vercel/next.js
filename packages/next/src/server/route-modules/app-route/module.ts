@@ -280,6 +280,9 @@ export class AppRouteRouteModule extends RouteModule<
   private _methods!: Record<HTTP_METHOD, AppRouteHandlerFn>
   private _hasNonStaticMethods!: boolean
   private _dynamic!: AppRouteUserlandModule['dynamic']
+  // Whether `handle` intercepts the request. Not known before the route is
+  // loaded.
+  private _interceptsRequest: boolean | undefined
 
   override get userland(): AppRouteUserlandModule {
     return this._lazyUserland.assertLoaded()
@@ -360,6 +363,9 @@ export class AppRouteRouteModule extends RouteModule<
         this._dynamic = 'error'
       }
     }
+
+    this._interceptsRequest =
+      this._dynamic !== 'force-dynamic' && this._dynamic !== 'error'
 
     // We only warn in development after here, so return if we're not in
     // development.
@@ -1137,12 +1143,13 @@ export class AppRouteRouteModule extends RouteModule<
 
   /**
    * Returns the class to construct the request for `handle` and `prerender`
-   * with: `Base`, extended with the properties that the route module
-   * intercepts. A request of another class works too, but the route module
-   * then has to change its prototype.
+   * with. If `handle` intercepts the request, that is `Base` extended with the
+   * intercepted properties. Otherwise it is `Base`. The route module can
+   * intercept a request of any class, but it has to change the prototype of a
+   * request that it gets without these properties.
    */
   public getRequestClass(Base: typeof NextRequest): typeof NextRequest {
-    return getInterceptedRequestClass(Base)
+    return this._interceptsRequest ? getInterceptedRequestClass(Base) : Base
   }
 
   public async handle(
@@ -1371,11 +1378,12 @@ function interceptRequest<T extends Request>(
   request[requestStateSymbol] = new RequestState(handlers, workStore)
 
   if (!isIntercepted) {
-    // The request was not constructed with a class from `getRequestClass`: it
-    // is a request in the edge runtime, or a clone, which is a `Request`. It
-    // becomes an instance of the class for its own class. Its prototype
-    // changes after it has its state: in Node.js 20 and 22, a property that
-    // is added to an object after that makes every later access to it slow.
+    // The request was not constructed with the intercepted properties: it is
+    // a request in the edge runtime, a clone, which is a `Request`, or a
+    // request from before the route was loaded. It becomes an instance of
+    // the class for its own class. Its prototype changes after it has its
+    // state: in Node.js 20 and 22, a property that is added to an object
+    // after that makes every later access to it slow.
     Object.setPrototypeOf(
       request,
       getInterceptedRequestClass(request.constructor as typeof NextRequest)

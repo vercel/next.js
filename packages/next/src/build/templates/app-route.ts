@@ -89,9 +89,6 @@ const routeModule = new AppRouteRouteModule({
 // are used to hook into the route.
 const { workAsyncStorage, workUnitAsyncStorage, serverHooks } = routeModule
 
-// The class of the request that the route module handles as it is.
-const RouteHandlerRequest = routeModule.getRequestClass(NextRequest)
-
 function patchFetch() {
   return _patchFetch({
     workAsyncStorage,
@@ -322,7 +319,7 @@ async function handleRequest(
   const nextReq = NextRequestAdapter.fromNodeNextRequest(
     nodeNextReq,
     signalFromNodeResponse(res),
-    RouteHandlerRequest
+    routeModule.getRequestClass(NextRequest)
   )
 
   const responseGenerator: ResponseGenerator = async ({
