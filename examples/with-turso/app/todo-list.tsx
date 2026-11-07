@@ -23,9 +23,9 @@ export async function TodoList() {
 
   if (!result || result?.rows?.length === 0) return null;
 
-  return rows.map((row, index) => (
+  return rows.map((row) => (
     <Todo
-      key={index}
+      key={row.id}
       item={{
         id: row.id,
         description: row.description,
