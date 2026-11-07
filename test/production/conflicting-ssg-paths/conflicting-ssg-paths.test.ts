@@ -66,7 +66,7 @@ describe('Conflicting SSG paths', () => {
 
       await next.build()
       expect(next.cliOutput).toContain(
-        'Conflicting paths returned from getStaticPaths, paths must be unique per page'
+        'Conflicting paths returned from `getStaticPaths`, paths must be unique per page'
       )
       expect(next.cliOutput).toContain(
         'https://nextjs.org/docs/messages/conflicting-ssg-paths'
@@ -116,7 +116,7 @@ describe('Conflicting SSG paths', () => {
 
       await next.build()
       expect(next.cliOutput).toContain(
-        'Conflicting paths returned from getStaticPaths, paths must be unique per page'
+        'Conflicting paths returned from `getStaticPaths`, paths must be unique per page'
       )
       expect(next.cliOutput).toContain(
         'https://nextjs.org/docs/messages/conflicting-ssg-paths'
@@ -165,7 +165,7 @@ describe('Conflicting SSG paths', () => {
 
       await next.build()
       expect(next.cliOutput).toContain(
-        'Conflicting paths returned from getStaticPaths, paths must be unique per page'
+        'Conflicting paths returned from `getStaticPaths`, paths must be unique per page'
       )
       expect(next.cliOutput).toContain(
         'https://nextjs.org/docs/messages/conflicting-ssg-paths'
