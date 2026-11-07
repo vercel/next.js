@@ -32,6 +32,14 @@ describe('minimal-mode-route-definitions', () => {
     expect(res.status).toBe(200)
   }
 
+  // How often the server has listed the routes of the app, which it does to
+  // build its route definitions.
+  async function getRouteEnumerations() {
+    const res = await next.fetch('/_test/route-enumerations')
+    expect(res.status).toBe(200)
+    return Number(await res.text())
+  }
+
   // The server keeps its route definitions between requests, so every kind of
   // route is requested more than once and with different params.
   it.each(['first', 'second'])(
@@ -73,8 +81,25 @@ describe('minimal-mode-route-definitions', () => {
     }
   )
 
+  it('builds the route definitions once', async () => {
+    expect((await fetchPage('/items/third')).route).toBe('app page third')
+    const enumerations = await getRouteEnumerations()
+    expect(enumerations).toBeGreaterThan(0)
+
+    for (const id of ['fourth', 'fifth']) {
+      expect((await fetchPage(`/items/${id}`)).route).toBe(`app page ${id}`)
+      expect((await fetchMatched(`/api/items/${id}`)).status).toBe(200)
+      expect((await fetchMatched(`/api/legacy/${id}`)).status).toBe(200)
+      expect((await fetchPage(`/legacy/${id}`)).status).toBe(200)
+      expect((await fetchPage('/items/featured')).status).toBe(200)
+    }
+
+    expect(await getRouteEnumerations()).toBe(enumerations)
+  })
+
   it('follows a replaced appPathRoutes', async () => {
     expect((await fetchPage('/items/featured')).route).toBe('featured app page')
+    const enumerations = await getRouteEnumerations()
 
     try {
       // Without the static page, its pathname belongs to `/items/[id]`.
@@ -90,6 +115,10 @@ describe('minimal-mode-route-definitions', () => {
     } finally {
       await replaceAppPathRoutes()
     }
+
+    // Each of the two replacements made the server build them once more.
+    // The third one is picked up by the next request.
+    expect(await getRouteEnumerations()).toBe(enumerations + 2)
 
     expect(await fetchPage('/items/first')).toEqual({
       status: 200,

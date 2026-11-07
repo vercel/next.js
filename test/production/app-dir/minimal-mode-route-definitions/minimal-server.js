@@ -16,6 +16,19 @@ const nextServer = new NextServer({
 const handler = nextServer.getRequestHandler()
 const appPathRoutes = nextServer.appPathRoutes
 
+// The server lists the keys of `appPathRoutes` each time it builds its route
+// definitions. Count how often it does.
+let routeEnumerations = 0
+function countEnumerations(routes) {
+  return new Proxy(routes, {
+    ownKeys(target) {
+      routeEnumerations++
+      return Reflect.ownKeys(target)
+    },
+  })
+}
+nextServer.appPathRoutes = countEnumerations(appPathRoutes)
+
 http
   .createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost')
@@ -24,12 +37,19 @@ http
     // are added or removed. Do the same here, leaving out `without`.
     if (url.pathname === '/_test/app-path-routes') {
       const without = url.searchParams.get('without')
-      nextServer.appPathRoutes = Object.fromEntries(
-        Object.entries(appPathRoutes).filter(
-          ([pathname]) => pathname !== without
+      nextServer.appPathRoutes = countEnumerations(
+        Object.fromEntries(
+          Object.entries(appPathRoutes).filter(
+            ([pathname]) => pathname !== without
+          )
         )
       )
       res.end('ok')
+      return
+    }
+
+    if (url.pathname === '/_test/route-enumerations') {
+      res.end(String(routeEnumerations))
       return
     }
 
