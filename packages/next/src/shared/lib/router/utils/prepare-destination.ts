@@ -89,10 +89,22 @@ export function matchHas(
       }
     }
 
-    if (!hasItem.value && value) {
+    if (
+      // Aligning this logic with the Vercel router, we consider empty strings
+      // as valid values.
+      typeof hasItem.value !== 'string' &&
+      (typeof value === 'string' || Array.isArray(value))
+    ) {
       params[getSafeParamName(key!)] = value
       return true
-    } else if (value) {
+    } else if (
+      // Aligning this logic with the Vercel router, we consider empty strings
+      // as valid values.
+      typeof value === 'string' ||
+      // The code below uses slice, grabbing the last item in the array. This
+      // check prevents a runtime error that would occur with an empty array.
+      (Array.isArray(value) && value.length > 0)
+    ) {
       const matcher = new RegExp(`^${hasItem.value}$`)
       const matches = Array.isArray(value)
         ? value.slice(-1)[0].match(matcher)
