@@ -7,7 +7,8 @@ describe('revalidate-only-generated', () => {
 
   // With `unstable_onlyGenerated` a path without a cache entry answers 404
   // instead of rendering, and `res.revalidate()` resolves. The 404 renders the
-  // not-found page, which has no cache entry in this app either.
+  // not-found page, which has no cache entry in this app either. With Cache
+  // Components it has a prerendered shell instead.
   it('answers when the path and the not-found page have no cache entry', async () => {
     // A request that never answers fails the test instead of the run.
     const withTimeout = () => ({ signal: AbortSignal.timeout(30_000) })

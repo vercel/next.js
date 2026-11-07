@@ -2,7 +2,8 @@ import { type ReactNode, Suspense } from 'react'
 import { cookies } from 'next/headers'
 
 // Reading a cookie in the root layout makes every page of the app dynamic,
-// the not-found page included: none of them has a cache entry.
+// the not-found page included: none of them has a cache entry. With Cache
+// Components the pages keep a prerendered shell instead.
 async function Theme() {
   const theme = (await cookies()).get('theme')?.value ?? 'light'
 
