@@ -1,15 +1,16 @@
-// Serves the routes without `next start`: like a deployment adapter, it loads
-// the server entry of a route on the first request for it and calls its
-// handler.
+// Serves the routes without `next start`: it loads the server entry of a route
+// on the first request for it and calls its handler.
 const http = require('node:http')
 const path = require('node:path')
 
 require('next/dist/build/adapter/setup-node-env.external')
 
 const entries = {
-  '/': 'index.js',
-  '/api/loaded-modules': 'api/loaded-modules.js',
-  '/api/tracing': 'api/tracing.js',
+  '/': 'pages/index.js',
+  '/api/loaded-modules': 'pages/api/loaded-modules.js',
+  '/api/tracing': 'pages/api/tracing.js',
+  '/dynamic-page': 'app/dynamic-page/page.js',
+  '/route-handler': 'app/route-handler/route.js',
 }
 
 const server = http.createServer((req, res) => {
@@ -20,22 +21,16 @@ const server = http.createServer((req, res) => {
     return
   }
 
-  const route = require(path.join(__dirname, '.next/server/pages', entry))
-  Promise.resolve(
-    route.handler(req, res, {
-      requestMeta: {
-        minimalMode: true,
-        relativeProjectDir: '.',
-        initURL: `http://localhost${req.url}`,
-      },
-    })
-  ).catch((error) => {
-    console.error(error)
-    if (!res.writableEnded) {
-      res.statusCode = 500
-      res.end('Internal Server Error')
+  const route = require(path.join(__dirname, '.next/server', entry))
+  Promise.resolve(route.handler(req, res, { waitUntil() {} })).catch(
+    (error) => {
+      console.error(error)
+      if (!res.writableEnded) {
+        res.statusCode = 500
+        res.end('Internal Server Error')
+      }
     }
-  })
+  )
 })
 
 server.listen(Number(process.env.PORT), () => {

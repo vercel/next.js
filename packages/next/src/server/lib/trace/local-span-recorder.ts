@@ -3,8 +3,8 @@ import type {
   Span,
   SpanContext,
   SpanOptions,
+  SpanStatusCode,
 } from 'next/dist/compiled/@opentelemetry/api'
-import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
 import {
   isLocalSpanRecordingEnabled,
   isLocalSpanSinkActive,
@@ -26,6 +26,18 @@ export { isLocalSpanRecordingEnabled } from './span-store'
 
 const TRACE_ID_HEX_LENGTH = 32
 const SPAN_ID_HEX_LENGTH = 16
+
+// Production servers and route bundles import this module without recording
+// spans. To keep the OpenTelemetry API out of those processes, the one enum
+// value that is used is a constant, and the API is loaded where a span context
+// is wrapped.
+const SPAN_STATUS_CODE_ERROR: SpanStatusCode.ERROR = 2
+
+function wrapSpanContext(spanContext: SpanContext): Span {
+  const { trace } =
+    require('next/dist/compiled/@opentelemetry/api') as typeof import('next/dist/compiled/@opentelemetry/api')
+  return trace.wrapSpanContext(spanContext)
+}
 
 type LocalSpanAttributes = Partial<Record<string, AttributeValue | undefined>>
 
@@ -193,7 +205,7 @@ export async function traceLocalSpan<T>(
       return await fn()
     } catch (err) {
       span.recordException(err as Error)
-      span.setStatus({ code: SpanStatusCode.ERROR })
+      span.setStatus({ code: SPAN_STATUS_CODE_ERROR })
       throw err
     } finally {
       span.end()
@@ -357,7 +369,7 @@ class LocalRecordingSpan implements Span {
     return (
       this.openTelemetrySpan ??
       (this.openTelemetrySpanContext
-        ? trace.wrapSpanContext(this.openTelemetrySpanContext)
+        ? wrapSpanContext(this.openTelemetrySpanContext)
         : undefined)
     )
   }
@@ -482,7 +494,7 @@ class LocalRecordingSpan implements Span {
         name: this.name,
         startTime: this.startTime,
         durationMs: Math.max(0, getTimestamp(endTime) - this.startTime),
-        status: this.statusCode === SpanStatusCode.ERROR ? 'error' : 'ok',
+        status: this.statusCode === SPAN_STATUS_CODE_ERROR ? 'error' : 'ok',
         traceId: this.spanContextValue.traceId,
         spanId: this.spanContextValue.spanId,
         parentSpanId: this.parentSpanId,
@@ -533,7 +545,7 @@ class LocalRecordingSpan implements Span {
       return this.exception
     }
 
-    if (this.statusCode === SpanStatusCode.ERROR && this.statusMessage) {
+    if (this.statusCode === SPAN_STATUS_CODE_ERROR && this.statusMessage) {
       return {
         message: this.statusMessage,
       }
