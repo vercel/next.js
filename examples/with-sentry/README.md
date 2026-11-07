@@ -2,9 +2,10 @@
 
 This is an example showing how to use [Sentry](https://sentry.io) to catch and report errors and monitor the performance of both the front and back ends, using the [official Sentry SDK for Next.js](https://docs.sentry.io/platforms/javascript/guides/nextjs/). This example contains the following:
 
-- `sentry.server.config.js` and `sentry.client.config.js` are used to configure and initialize Sentry
-- `next.config.js` automatically injects Sentry into your app using `withSentryConfig`
-- `_error.js` (which is rendered by Next.js when handling certain types of exceptions) is overridden so those exceptions can be passed along to Sentry
+- `instrumentation.ts`, `sentry.server.config.ts` and `sentry.edge.config.ts` are used to configure and initialize Sentry on the server and edge.
+- `instrumentation-client.ts` is used to configure and initialize Sentry on the client.
+- `next.config.ts` automatically injects Sentry into your app using `withSentryConfig`
+- `global-error.tsx` (which is rendered by Next.js when handling certain types of exceptions) is overridden so those exceptions can be passed along to Sentry
 
 ## Deploy your own
 
@@ -22,7 +23,7 @@ Alternatively, you can create a copy of this example app locally so you can conf
 
 #### Create and configure your app
 
-To begin, execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npx](https://www.npmjs.com/package/npx) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), to create the app and install dependencies:
+To begin, execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npx](https://docs.npmjs.com/cli/v8/commands/npx) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), to create the app and install dependencies:
 
 ```bash
 npx create-next-app --example with-sentry nextjs-sentry-example
@@ -44,7 +45,7 @@ npx @sentry/wizard -i nextjs
 
 _Beware that above command creates files extended with `.wizardcopy.js` as the example already contains the config files. Thus after running the wizard, replace example files with those newly created._
 
-Once the files are created, you can further configure your app by adding [SDK settings](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/) to `sentry.server.config.js` and `sentry.client.config.js`, and [`SentryWebpackPlugin` settings](https://github.com/getsentry/sentry-webpack-plugin#options) to `next.config.js`.
+Once the files are created, you can further configure your app by adding [SDK settings](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/) to `sentry.server.config.ts` and `instrumentation-client.ts`, and [`SentryWebpackPlugin` settings](https://github.com/getsentry/sentry-webpack-plugin#options) to `next.config.ts`.
 
 (If you'd rather do the SDK set-up manually, [you can do that, too](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/).)
 
@@ -60,7 +61,7 @@ git remote add origin https://github.com/<org>/<repo>.git
 
 Next, [create a project in Vercel](https://vercel.com/docs/projects/overview#creating-a-project) and [link it to your GitHub repo](https://vercel.com/docs/git#deploying-a-git-repository).
 
-In order for Vercel to upload source maps to Sentry when building your app, it needs a Sentry auth token. The wizard automatically sets up your personal token locally; to use that token on Vercel, add an [environment variable](https://vercel.com/docs/projects/environment-variables) to your Vercel project with the key `SENTRY_AUTH_TOKEN` and the value you'll find in `.sentryclirc` at the root level of your project. To use an org-wide token instead, set up the Vercel Sentry Integration. (You can read more about the integration [on Vercel](https://vercel.com/integrations/sentry) and in [the Sentry docs](https://docs.sentry.io/product/integrations/deployment/vercel/).)
+In order for Vercel to upload source maps to Sentry when building your app, it needs a Sentry auth token. The wizard automatically sets up your personal token locally; to use that token on Vercel, add an [environment variable](https://vercel.com/docs/projects/environment-variables) to your Vercel project with the key `SENTRY_AUTH_TOKEN` and the value you'll find in `.env.sentry-build-plugin` at the root level of your project. To use an org-wide token instead, set up the Vercel Sentry Integration. (You can read more about the integration [on Vercel](https://vercel.com/integrations/sentry) and in [the Sentry docs](https://docs.sentry.io/product/integrations/deployment/vercel/).)
 
 Finally, commit your app and push it to GitHub:
 
@@ -72,4 +73,4 @@ git push
 
 This will trigger a deployment in Vercel. Head over to your [Vercel dashboard](https://vercel.com/dashboard), click on your project, and then click "Visit" to see the results!
 
-_Note: The `@sentry/nextjs` SDK is only intended to be used with Next.js versions 10.0.8 and higher_
+_Note: The `@sentry/nextjs` SDK is only intended to be used with Next.js versions `13.2.0` and higher_
