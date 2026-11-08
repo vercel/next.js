@@ -38,6 +38,7 @@ import {
   deflateResumeDataCache,
   stringifyResumeDataCache,
 } from '../../server/resume-data-cache/resume-data-cache'
+import { getSerializedResumeDataCacheFromPostponedState } from '../../server/app-render/postponed-state'
 import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
@@ -257,14 +258,25 @@ export async function exportAppPage(
 
     let serializedRenderResumeDataCache: string | undefined
     if (renderResumeDataCache) {
-      serializedRenderResumeDataCache = await stringifyResumeDataCache(
-        renderResumeDataCache,
-        renderOpts.cacheComponents
-      )
-      if (!renderOpts.experimental.disableResumeDataCacheCompression) {
-        serializedRenderResumeDataCache = deflateResumeDataCache(
-          serializedRenderResumeDataCache
+      if (postponed) {
+        // The postponed state was created from this resume data cache, and
+        // ends with its serialized form, compressed in the same way. Reuse
+        // that instead of reading, encoding and compressing every cache
+        // entry a second time.
+        serializedRenderResumeDataCache =
+          getSerializedResumeDataCacheFromPostponedState(postponed)
+      }
+
+      if (serializedRenderResumeDataCache === undefined) {
+        serializedRenderResumeDataCache = await stringifyResumeDataCache(
+          renderResumeDataCache,
+          renderOpts.cacheComponents
         )
+        if (!renderOpts.experimental.disableResumeDataCacheCompression) {
+          serializedRenderResumeDataCache = deflateResumeDataCache(
+            serializedRenderResumeDataCache
+          )
+        }
       }
     }
 

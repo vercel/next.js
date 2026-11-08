@@ -222,6 +222,26 @@ function parsePostponedStateParts(
   }
 }
 
+/**
+ * Returns the serialized resume data cache that a postponed state ends with,
+ * exactly as `serializePostponedState` appended it: the JSON string of the
+ * cache, deflated and base64 encoded unless compression was disabled. Unlike
+ * `parseResumeDataCacheFromPostponedState` this doesn't inflate or parse the
+ * cache. Returns `undefined` if the state has no length prefix.
+ */
+export function getSerializedResumeDataCacheFromPostponedState(
+  state: string
+): string | undefined {
+  const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
+  if (!postponedStringLengthMatch) {
+    return undefined
+  }
+
+  return state.slice(
+    postponedStringLengthMatch.length + parseInt(postponedStringLengthMatch) + 1
+  )
+}
+
 export function parseResumeDataCacheFromPostponedState(
   state: string,
   maxPostponedStateSizeBytes: number | undefined,
