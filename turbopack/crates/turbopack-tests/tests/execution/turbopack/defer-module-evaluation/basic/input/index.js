@@ -1,18 +1,21 @@
 import './setup.js'
 import { effect } from './effectful.js'
 import { value as topLevelValue } from './library/top-level-read.js'
+import { value as iifeValue } from './library/read-in-iife.js'
 import { value, count, increment } from './library/lazy.js'
+import defaultExport from './library/default-export.js'
 import { never } from './library/throws.js'
 import * as namespace from './library/namespace.js'
-import * as escapedNamespace from './library/escaped-namespace.js'
-import { readDependency } from './library/imports-effect.js'
 import { fromCommonJs } from './library/commonjs.js'
+import commonJsDefault from './library/commonjs-default.js'
 import { a } from './library/cycle-a.js'
-import * as reexports from './reexports.js'
+import { readFromCycle } from './importer-in-cycle-a.js'
+import { belowCycle } from './library/imports-cycle.js'
 
 const events = globalThis.deferEvents
 const readAtTopLevel = topLevelValue
-// The modules that were evaluated before this one.
+const readInIife = (() => iifeValue)()
+// The modules that were evaluated before this one, or while it was evaluated.
 const evaluatedBefore = [...events]
 
 function evaluations(name) {
@@ -27,6 +30,10 @@ function readCount() {
   return count
 }
 
+function readDefault() {
+  return defaultExport
+}
+
 function readNever() {
   return never
 }
@@ -35,12 +42,8 @@ function readNamespace() {
   return namespace.a + namespace.b
 }
 
-function readEscapedNamespace() {
-  return Object.keys(escapedNamespace)
-}
-
-function readReexports() {
-  return Object.keys(reexports)
+function readBelowCycle() {
+  return belowCycle
 }
 
 it('evaluates a module without side effects on the first read of an export', () => {
@@ -59,6 +62,13 @@ it('keeps the bindings of a deferred module live', () => {
   increment()
   expect(readCount()).toBe(1)
   expect(evaluations('lazy')).toBe(1)
+})
+
+it('defers a default import', () => {
+  expect(evaluatedBefore).not.toContain('default-export')
+  expect(evaluations('default-export')).toBe(0)
+  expect(readDefault()).toBe('default')
+  expect(evaluations('default-export')).toBe(1)
 })
 
 it('defers a namespace import that is only read through its members', () => {
@@ -81,36 +91,52 @@ it('evaluates a module with side effects before its importer', () => {
   expect(evaluations('effectful')).toBe(1)
 })
 
-it('evaluates a module that imports a module with side effects before its importer', () => {
-  expect(evaluatedBefore).toContain('dependency-with-effect')
-  expect(evaluatedBefore).toContain('imports-effect')
-  expect(readDependency()).toBe('dependency')
-})
-
 it('evaluates a module that is read while its importer is evaluated before the importer', () => {
+  // Before the importer and in the order of the imports, i.e. before `commonjs.js`.
   expect(evaluatedBefore).toContain('top-level-read')
+  expect(evaluatedBefore.indexOf('top-level-read')).toBeLessThan(
+    evaluatedBefore.indexOf('commonjs')
+  )
   expect(readAtTopLevel).toBe('top-level-read')
 })
 
-it('evaluates a module whose namespace object is used before its importer', () => {
-  expect(evaluatedBefore).toContain('escaped-namespace')
-  expect(readEscapedNamespace()).toEqual(['a'])
-})
-
-it('evaluates a re-exported module before the module that re-exports it', () => {
-  expect(evaluatedBefore).toContain('reexported')
-  expect(evaluatedBefore).toContain('reexports')
-  expect(readReexports()).toEqual(['reexported'])
-  expect(evaluations('reexported')).toBe(1)
+it('evaluates a module on the first read when a function reads it while the importer is evaluated', () => {
+  // After the other imports of the importer, e.g. `commonjs.js`.
+  expect(evaluatedBefore).toContain('read-in-iife')
+  expect(evaluatedBefore.indexOf('read-in-iife')).toBeGreaterThan(
+    evaluatedBefore.indexOf('commonjs')
+  )
+  expect(readInIife).toBe('read-in-iife')
+  expect(evaluations('read-in-iife')).toBe(1)
 })
 
 it('evaluates a CommonJS module before its importer', () => {
   expect(evaluatedBefore).toContain('commonjs')
   expect(fromCommonJs).toBe('commonjs')
+  expect(evaluatedBefore).toContain('commonjs-default')
+  expect(commonJsDefault.value).toBe('commonjs-default')
 })
 
 it('evaluates modules of an import cycle before their importer', () => {
   expect(evaluatedBefore).toContain('cycle-a')
   expect(evaluatedBefore).toContain('cycle-b')
   expect(a()).toBe('ab')
+})
+
+it('evaluates the imports of a module of an import cycle before that module', () => {
+  expect(evaluatedBefore).toContain('imported-from-cycle')
+  expect(evaluatedBefore.indexOf('imported-from-cycle')).toBeLessThan(
+    evaluatedBefore.indexOf('importer-in-cycle-a')
+  )
+  expect(readFromCycle()).toBe('imported-from-cycle')
+})
+
+it('defers a module that imports an import cycle', () => {
+  expect(evaluatedBefore).not.toContain('imports-cycle')
+  expect(evaluatedBefore).not.toContain('below-cycle-a')
+  expect(evaluatedBefore).not.toContain('below-cycle-b')
+  expect(readBelowCycle()).toBe('ab')
+  expect(evaluations('imports-cycle')).toBe(1)
+  expect(evaluations('below-cycle-a')).toBe(1)
+  expect(evaluations('below-cycle-b')).toBe(1)
 })

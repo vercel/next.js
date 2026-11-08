@@ -302,8 +302,8 @@ pub struct EcmascriptOptionsContext {
     pub cross_module_constants: bool,
     /// Whether dynamic import targets are compiled after their runtime proxy is activated.
     pub lazy_compilation: bool,
-    /// Whether an imported module may be evaluated when the importing module first reads one of
-    /// the imported bindings, where that can't be observed. Defaults to false.
+    /// Whether an imported module that is side effect free for tree shaking may be evaluated when
+    /// the importing module first reads one of the imported bindings. Defaults to false.
     pub defer_module_evaluation: bool,
 
     /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).

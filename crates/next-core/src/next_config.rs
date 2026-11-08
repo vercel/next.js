@@ -1252,8 +1252,8 @@ pub struct ExperimentalConfig {
     turbopack_mangle_via_materialized_namespace_object: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,
-    /// Evaluate a server module when one of its exports is first used, where that can't be
-    /// observed. Defaults to false.
+    /// Evaluate a server module that is side effect free for tree shaking when one of its exports
+    /// is first used. Defaults to false.
     turbopack_defer_module_evaluation: Option<bool>,
     /// Enable cross-module constant inlining. Defaults to false.
     turbopack_cross_module_constants: Option<bool>,

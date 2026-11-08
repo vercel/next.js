@@ -1,3 +1,9 @@
-import { value } from './library/shared.js'
+import { value, increment } from './library/shared.js'
+
+increment()
 
 export const readNow = value
+
+export function incrementNow() {
+  increment()
+}

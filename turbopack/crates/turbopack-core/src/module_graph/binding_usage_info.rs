@@ -121,9 +121,9 @@ impl BindingUsageInfo {
     /// of the imported bindings, instead of before the importing module is evaluated.
     ///
     /// A reference is in this set when the importing module asked for it
-    /// ([`BindingUsage::deferrable`][crate::resolve::BindingUsage::deferrable]) and nothing can
-    /// observe the later evaluation:
-    /// - evaluating the target, including everything that triggers, has no side effect,
+    /// ([`BindingUsage::deferrable`][crate::resolve::BindingUsage::deferrable]) and
+    /// - the target is side effect free in the sense of [`compute_side_effect_free_module_info`],
+    ///   i.e. an import of it that is not used is removed,
     /// - the target is not an async module (the read is synchronous),
     /// - neither module is part of an import cycle, and
     /// - every other used reference between the two modules is in this set too (they share one
@@ -172,7 +172,6 @@ pub async fn compute_binding_usage_info(
         let mut unused_references =
             FxHashMap::<_, FxHashSet<ResolvedVc<Box<dyn Module>>>>::default();
 
-        let graph_op = graph;
         let graph = graph.connect();
         let graph_ref = graph.await?;
         if graph_ref.unused_references_edges.is_some() {
@@ -193,8 +192,7 @@ pub async fn compute_binding_usage_info(
             );
         }
         let side_effect_free_modules = if remove_unused_imports {
-            let side_effect_free_modules =
-                compute_side_effect_free_module_info(graph, false).await?;
+            let side_effect_free_modules = compute_side_effect_free_module_info(graph).await?;
             span.record("side_effect_free_modules", side_effect_free_modules.len());
             Some(side_effect_free_modules)
         } else {
@@ -413,16 +411,18 @@ pub async fn compute_binding_usage_info(
 
         // Deferring needs the unused evaluation references to be gone: an import's evaluation
         // reference to a module without side effects is what would evaluate it eagerly.
-        let deferred_references = if has_deferrable_references && remove_unused_imports {
-            compute_deferred_references(
-                graph_op,
-                &graph_ref,
-                &unused_references,
-                &export_circuit_breakers,
-            )
-            .await?
-        } else {
-            FxHashSet::default()
+        let deferred_references = match &side_effect_free_modules {
+            Some(side_effect_free_modules) if has_deferrable_references => {
+                compute_deferred_references(
+                    graph,
+                    &graph_ref,
+                    side_effect_free_modules,
+                    &unused_references,
+                    &export_circuit_breakers,
+                )
+                .await?
+            }
+            _ => FxHashSet::default(),
         };
 
         span.record("visit_count", visit_count);
@@ -503,8 +503,9 @@ pub async fn compute_binding_usage_info(
 /// Selects the references of [`BindingUsageInfo::deferred_references`].
 #[allow(clippy::type_complexity)]
 async fn compute_deferred_references(
-    graph: OperationVc<ModuleGraph>,
+    graph: Vc<ModuleGraph>,
     graph_ref: &ModuleGraph,
+    side_effect_free_modules: &FxHashSet<ResolvedVc<Box<dyn Module>>>,
     unused_references: &FxHashMap<
         ResolvedVc<Box<dyn ModuleReference>>,
         FxHashSet<ResolvedVc<Box<dyn Module>>>,
@@ -561,16 +562,14 @@ async fn compute_deferred_references(
         return Ok(FxHashSet::default());
     }
 
-    // Moving the evaluation of a module is only unobservable when nothing it evaluates has a side
-    // effect, so this needs the transitive variant.
-    let graph = graph.connect();
-    let side_effect_free_modules = compute_side_effect_free_module_info(graph, true);
     // This graph still has the unused references, so it has at least the async modules of the
     // final graph.
-    let async_modules = graph.async_module_info();
-    let side_effect_free_modules = side_effect_free_modules.await?;
-    let async_modules = async_modules.await?;
+    let async_modules = graph.async_module_info().await?;
 
+    // `side_effect_free_modules` is the set that removes an unused import. A module that is
+    // declared side effect free is in it whatever it imports, so a side effect of a module that
+    // it imports now happens at the first read, or never, instead of before the importing
+    // module. An unused import of the declared module already drops that side effect.
     Ok(pairs
         .into_iter()
         .filter(|((_, target), _)| {
