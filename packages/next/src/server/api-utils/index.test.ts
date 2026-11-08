@@ -1,8 +1,15 @@
 import type { IncomingMessage } from 'http'
-import { setLazyProp } from './index'
+import { setLazyProp, setLazyProps } from './index'
 
 function setLazy(req: object, prop: string, getter: () => unknown): void {
   setLazyProp({ req: req as IncomingMessage }, prop, getter)
+}
+
+function setLazyAll(
+  req: object,
+  getters: { [prop: string]: () => unknown }
+): void {
+  setLazyProps(req as IncomingMessage, getters)
 }
 
 const plainProperty = { configurable: true, enumerable: true, writable: true }
@@ -74,5 +81,52 @@ describe('setLazyProp', () => {
       ...plainProperty,
       value: 'request',
     })
+  })
+})
+
+describe('setLazyProps', () => {
+  it('should define a lazy property for each getter', () => {
+    const req: Record<string, unknown> = {}
+    const cookies = jest.fn(() => 'cookies')
+    const preview = jest.fn(() => 'preview')
+    setLazyAll(req, { cookies, preview })
+
+    expect(Object.keys(req)).toEqual(['cookies', 'preview'])
+    expect(cookies).not.toHaveBeenCalled()
+    expect(preview).not.toHaveBeenCalled()
+    expect(req.preview).toBe('preview')
+    expect(req.preview).toBe('preview')
+    expect(preview).toHaveBeenCalledTimes(1)
+    expect(cookies).not.toHaveBeenCalled()
+    expect(req.cookies).toBe('cookies')
+    expect(Object.getOwnPropertyDescriptor(req, 'cookies')).toEqual({
+      ...plainProperty,
+      value: 'cookies',
+    })
+  })
+
+  it('should keep the lazy properties that an object already has', () => {
+    const req: Record<string, unknown> = {}
+    setLazyAll(req, { cookies: () => 'cookies', preview: () => 'preview' })
+    setLazyAll(req, {
+      preview: () => 'second preview',
+      draftMode: () => 'draftMode',
+    })
+
+    expect(req.cookies).toBe('cookies')
+    expect(req.preview).toBe('second preview')
+    expect(req.draftMode).toBe('draftMode')
+  })
+
+  it('should keep the lazy properties of an object that inherits from a request apart from those of the request', () => {
+    const req: Record<string, unknown> = {}
+    setLazyAll(req, { cookies: () => 'request', preview: () => 'preview' })
+    const child: Record<string, unknown> = Object.create(req)
+    setLazyAll(child, { cookies: () => 'child' })
+
+    expect(child.cookies).toBe('child')
+    expect(req.cookies).toBe('request')
+    expect(req.preview).toBe('preview')
+    expect(Object.keys(child)).toEqual(['cookies'])
   })
 })

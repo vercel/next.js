@@ -251,6 +251,35 @@ function getLazyPropDescriptor(prop: string): PropertyDescriptor {
 }
 
 /**
+ * Execute getter functions only if they are needed
+ * @param req request object
+ * @param getters functions to get data, by name of property. The request
+ * keeps this object.
+ */
+export function setLazyProps(
+  req: IncomingMessage,
+  getters: LazyPropsGetters
+): void {
+  const lazyReq = req as LazyPropsRequest
+  const lazyProps = lazyReq[LAZY_PROPS]
+  // Each object has a record of its own, so that an object that inherits
+  // from a request with lazy properties keeps its getters apart from those
+  // of the request. A record names its object: the own-property check is
+  // only needed when the record that was found names another object.
+  if (
+    lazyProps === undefined ||
+    (lazyProps.req !== lazyReq && !Object.hasOwn(lazyReq, LAZY_PROPS))
+  ) {
+    lazyReq[LAZY_PROPS] = { req: lazyReq, getters }
+  } else {
+    Object.assign(lazyProps.getters, getters)
+  }
+  for (const prop in getters) {
+    Object.defineProperty(req, prop, getLazyPropDescriptor(prop))
+  }
+}
+
+/**
  * Execute getter function only if its needed
  * @param LazyProps `req` and `params` for lazyProp
  * @param prop name of property
@@ -261,12 +290,5 @@ export function setLazyProp<T>(
   prop: string,
   getter: () => T
 ): void {
-  const lazyReq = req as LazyPropsRequest
-  // An own property: an object that inherits from a request with lazy
-  // properties keeps its getters apart from those of the request.
-  const lazyProps = Object.hasOwn(lazyReq, LAZY_PROPS)
-    ? lazyReq[LAZY_PROPS]!
-    : (lazyReq[LAZY_PROPS] = { req: lazyReq, getters: {} })
-  lazyProps.getters[prop] = getter
-  Object.defineProperty(req, prop, getLazyPropDescriptor(prop))
+  setLazyProps(req, { [prop]: getter })
 }

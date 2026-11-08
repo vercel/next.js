@@ -20,7 +20,7 @@ import type { Redirect } from '../lib/load-custom-routes'
 import {
   type NextApiRequestCookies,
   type __ApiPreviewProps,
-  setLazyProp,
+  setLazyProps,
 } from './api-utils'
 import { getCookieParser } from './api-utils/get-cookie-parser'
 import type { LoadComponentsReturnType } from './load-components'
@@ -465,7 +465,7 @@ export async function renderToHTMLImpl(
   renderContext: PagesRenderContext
 ): Promise<RenderResult> {
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
-  setLazyProp({ req: req }, 'cookies', getCookieParser(req.headers))
+  setLazyProps(req, { cookies: getCookieParser(req.headers) })
 
   // cssCacheBuster is a workaround for a Safari bug
   // (https://bugs.webkit.org/show_bug.cgi?id=187726) where preloaded CSS

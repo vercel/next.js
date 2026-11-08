@@ -12,7 +12,7 @@ import isError from '../../../lib/is-error'
 import { isResSent } from '../../../shared/lib/utils'
 import { interopDefault } from '../../../lib/interop-default'
 import {
-  setLazyProp,
+  setLazyProps,
   sendStatusCode,
   redirect,
   clearPreviewData,
@@ -396,8 +396,6 @@ export async function apiResolver(
     const responseLimit = config.api?.responseLimit ?? true
     const externalResolver = config.api?.externalResolver || false
 
-    // Parsing of cookies
-    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req.headers))
     // Ensure req.query is a writable, enumerable property by using Object.defineProperty.
     // This addresses Express 5.x, which defines query as a getter only (read-only).
     Object.defineProperty(apiReq, 'query', {
@@ -406,16 +404,22 @@ export async function apiResolver(
       enumerable: true,
       configurable: true,
     })
-    // Parsing preview data
-    setLazyProp({ req: apiReq }, 'previewData', () =>
-      tryGetPreviewData(req, res, apiContext, !!apiContext.multiZoneDraftMode)
-    )
-    // Checking if preview mode is enabled
-    setLazyProp({ req: apiReq }, 'preview', () =>
-      apiReq.previewData !== false ? true : undefined
-    )
-    // Set draftMode to the same value as preview
-    setLazyProp({ req: apiReq }, 'draftMode', () => apiReq.preview)
+    setLazyProps(apiReq, {
+      // Parsing of cookies
+      cookies: getCookieParser(req.headers),
+      // Parsing preview data
+      previewData: () =>
+        tryGetPreviewData(
+          req,
+          res,
+          apiContext,
+          !!apiContext.multiZoneDraftMode
+        ),
+      // Checking if preview mode is enabled
+      preview: () => (apiReq.previewData !== false ? true : undefined),
+      // Set draftMode to the same value as preview
+      draftMode: () => apiReq.preview,
+    })
 
     // Parsing of body
     if (bodyParser && !apiReq.body) {
