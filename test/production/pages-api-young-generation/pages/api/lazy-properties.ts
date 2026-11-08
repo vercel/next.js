@@ -5,6 +5,11 @@ const lazyProperties = ['cookies', 'previewData', 'preview', 'draftMode']
 
 let previousAccessors: (PropertyDescriptor | undefined)[] | undefined
 
+type LazyProps = {
+  req?: unknown
+  getters?: { [name: string]: () => unknown }
+}
+
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const accessors = lazyProperties.map((name) =>
     Object.getOwnPropertyDescriptor(req, name)
@@ -22,13 +27,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     )
   previousAccessors = accessors
 
-  // The object that holds the getters of the lazy properties is the value of
+  // The getters of the lazy properties are in an object that is the value of
   // a symbol-keyed property of the request and refers back to the request.
   const record = Object.getOwnPropertySymbols(req)
-    .map(
-      (symbol) => (req as unknown as Record<symbol, { req?: unknown }>)[symbol]
-    )
+    .map((symbol) => (req as unknown as Record<symbol, LazyProps>)[symbol])
     .find((value) => value?.req === req)
+  const lazyObjects: object[] = record?.getters
+    ? [record, record.getters, ...Object.values(record.getters)]
+    : []
 
   // Reading a lazy property and assigning to one both turn it into a plain
   // property of this request.
@@ -42,6 +48,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     cookiesAfterRead: Object.getOwnPropertyDescriptor(req, 'cookies'),
     draftModeAfterAssignment: Object.getOwnPropertyDescriptor(req, 'draftMode'),
     preview: req.preview ?? null,
-    recordInYoungGeneration: record ? inYoungGeneration(record) : null,
+    gettersInYoungGeneration:
+      lazyObjects.length === 2 + lazyProperties.length &&
+      lazyObjects.every(inYoungGeneration),
   })
 }
