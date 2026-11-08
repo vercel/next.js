@@ -28,3 +28,12 @@ export function createLinkPrefetchPartialError(pathname: string): Error {
       `Learn more: https://nextjs.org/docs/messages/instant-link-prefetch-partial`
   )
 }
+
+export function getShortLivedCacheDocsUrl(
+  scope: 'body' | 'metadata' | 'viewport',
+  fullyStatic: boolean
+): string {
+  const page = fullyStatic ? 'static-short-lived-cache' : 'short-lived-cache'
+  const section = scope === 'body' ? 'route-content' : scope
+  return `https://nextjs.org/docs/messages/${page}#${section}`
+}

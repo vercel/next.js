@@ -269,7 +269,7 @@ A short cache lifetime changes where the cached content can be delivered from:
 
 Of the presets, only `seconds` falls under any of these thresholds: its `expire` of 1 minute excludes it from prerenders.
 
-If a short lifetime blocks required prerendered output, see [Next.js encountered a short-lived cache](/docs/messages/short-lived-cache) for troubleshooting.
+For troubleshooting, see [Instant Navigation validation errors](/docs/messages/instant-navigation-validation).
 
 This behavior allows you to mix static and dynamic content within the same page. Static parts are prerendered, while short-lived caches create boundaries where data is fetched at request time rather than build time. Use a `<Suspense>` boundary around dynamic caches to provide a fallback while content loads.
 

@@ -966,7 +966,7 @@ export function registerHeadAndReportingTests(
                     - [stream] Wrap the short-lived cache access in \`<Suspense fallback={...}>\`
                     - [block] Set \`export const instant = false\` to allow a blocking route
 
-                  Learn more: https://nextjs.org/docs/messages/short-lived-cache
+                  Learn more: https://nextjs.org/docs/messages/short-lived-cache#route-content
                       at main (<anonymous>)
                       at body (<anonymous>)
                       at html (<anonymous>)
@@ -2353,7 +2353,7 @@ export function registerHeadAndReportingTests(
                  - [stream] Wrap the short-lived cache access in \`<Suspense fallback={...}>\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
-               Learn more: https://nextjs.org/docs/messages/short-lived-cache
+               Learn more: https://nextjs.org/docs/messages/short-lived-cache#route-content
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)

@@ -24,7 +24,7 @@ kind: error
 
 During [prerendering](/docs/app/glossary#prerendering), a [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) request, database call, [`await connection()`](/docs/app/api-reference/functions/connection), or other asynchronous IO ran outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't prerender the part of the tree that depends on this data, so navigations to this route block instead of being [instant](/docs/app/guides/instant-navigation).
 
-If a production build reports this error for short-lived cached data, see [Next.js encountered a short-lived cache](/docs/messages/short-lived-cache).
+If a production build reports this error for short-lived cached data, see [Next.js encountered a short-lived cache](/docs/messages/short-lived-cache#route-content).
 
 Request-bound reads ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)) have different fixes. See [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
 

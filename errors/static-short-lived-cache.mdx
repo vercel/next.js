@@ -1,0 +1,264 @@
+---
+title: Next.js encountered a short-lived cache on a route that must be fully static
+kind: error
+---
+
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This error is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant navigations](/docs/app/guides/instant-navigation) guide.
+</div>
+
+This route exports [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation), requiring all server-rendered work to complete during prerendering.
+
+During [prerendering](/docs/app/glossary#prerendering), the route consumed a cached result whose [`cacheLife`](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) settings excluded it from required prerendered output.
+
+A short-lived cache can require rendering at request time even though it uses the [`use cache`](/docs/app/api-reference/directives/use-cache) directive. Wrapping the access in `<Suspense>` or setting `instant = false` does not satisfy the static requirement.
+
+## Ways to fix this
+
+Choose the group for where the cached result is consumed. Each group shows the available fixes, with the full patterns below.
+
+### Route content
+
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Increase the cache lifetime"
+    href="#increase-the-cache-lifetime"
+    snippets={[
+      { text: 'cacheLife({' },
+      { text: '  expire: 300,', highlight: true },
+      { text: '  // ...' },
+    ]}
+  />
+  <FixCard
+    group="remove"
+    title="Remove the data access"
+    href="#remove-the-data-access"
+    snippets={[
+      { text: '- const data = await getData()', highlight: true },
+      { text: "+ const data = 'Static data'", highlight: true },
+    ]}
+  />
+</FixCardGrid>
+
+### Metadata
+
+Use these fixes when [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) consumes the short-lived cache.
+
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Increase the cache lifetime"
+    href="#increase-the-cache-lifetime"
+    snippets={[
+      { text: 'cacheLife({' },
+      { text: '  expire: 300,', highlight: true },
+      { text: '  // ...' },
+    ]}
+  />
+  <FixCard
+    group="static"
+    title="Use static metadata"
+    href="#use-static-metadata"
+    snippets={[
+      { text: 'export const metadata = {', highlight: true },
+      { text: "  title: 'My page'" },
+      { text: '}' },
+    ]}
+  />
+</FixCardGrid>
+
+### Viewport
+
+Use these fixes when [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) consumes the short-lived cache.
+
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Increase the cache lifetime"
+    href="#increase-the-cache-lifetime"
+    snippets={[
+      { text: 'cacheLife({' },
+      { text: '  expire: 300,', highlight: true },
+      { text: '  // ...' },
+    ]}
+  />
+  <FixCard
+    group="static"
+    title="Use static viewport"
+    href="#use-static-viewport"
+    snippets={[
+      { text: 'export const viewport = {', highlight: true },
+      { text: "  themeColor: 'black'" },
+      { text: '}' },
+    ]}
+  />
+</FixCardGrid>
+
+## Increase the cache lifetime
+
+Choose this fix when the data can remain cached long enough to meet the [`cacheLife` prerendering requirements](/docs/app/api-reference/functions/cacheLife#prerendering-behavior). Update the settings inside the cached function that produces the data.
+
+### Patterns
+
+#### Increase the relevant lifetime values
+
+Update each setting that excludes the cached result, following the [`cacheLife` reference](/docs/app/api-reference/functions/cacheLife#prerendering-behavior). This example uses values that qualify for prerendering:
+
+```ts filename="app/data.ts"
+import { cacheLife } from 'next/cache'
+
+export async function getData() {
+  'use cache'
+
+  cacheLife({
+    stale: 300,
+    revalidate: 60,
+    expire: 300,
+  })
+
+  const response = await fetch('https://api.example.com/data')
+  return response.json()
+}
+```
+
+The card shows only `expire` as an abbreviated example. Increasing `expire` alone does not fix a cache excluded by a short `stale` value or by `revalidate: 0`.
+
+Learn more: [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
+
+### Trade-off
+
+Longer lifetimes allow the cached data to be included in prerendered output, but may serve older data. Choose values that match the freshness your data requires.
+
+### Gotchas
+
+- Set `cacheLife` in the cached function, which may be a helper called by the highlighted `await`. The dev overlay points to where the route consumes the cached result.
+- When both are set, `expire` must be longer than `revalidate`.
+- Adding `use cache` again does not resolve this error. The function is already cached.
+- Wrapping the access in `<Suspense>` or setting `instant = false` does not satisfy [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation). A fully static route must increase the lifetime or remove the access.
+
+## Remove the data access
+
+Choose this fix when a fully static route does not need the short-lived cached value. Replace the read with data available during prerendering.
+
+### Patterns
+
+#### Replace the cached value with static data
+
+Remove the call to the cached helper and render a fixed value.
+
+```tsx filename="app/page.tsx"
+export const ensureStatic = 'navigation'
+
+export default function Page() {
+  const data = 'Static data'
+  return <p>{data}</p>
+}
+```
+
+Learn more: [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic).
+
+### Trade-off
+
+The route no longer displays updates from the cached source. Every visitor receives the static replacement.
+
+### Gotchas
+
+- Remove every excluded cache access needed by the fully static route. Leaving another short-lived read behind a boundary still violates the requirement.
+
+## Use static metadata
+
+Choose this fix when the fully static route can use metadata values known at build time. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#the-metadata-object) export.
+
+### Patterns
+
+#### Replace the cached lookup with an object
+
+Remove the metadata function that consumes the short-lived cache and export the values directly.
+
+```tsx filename="app/page.tsx"
+export const metadata = {
+  title: 'My Page',
+}
+
+export default function Page() {
+  return <h1>My Page</h1>
+}
+```
+
+Learn more: [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata#the-metadata-object).
+
+### Trade-off
+
+The metadata no longer reflects changes to the cached data between builds. Use this when a fixed title or description meets the route's needs.
+
+### Gotchas
+
+- Replace the export that consumes the short-lived cache. Adding a static object elsewhere does not remove an inherited metadata dependency.
+
+## Use static viewport
+
+Choose this fix when the fully static route can use viewport values known at build time. Replace [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) with a static [`viewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export.
+
+### Patterns
+
+#### Replace the cached lookup with an object
+
+Remove the viewport function that consumes the short-lived cache and export the values directly.
+
+```tsx filename="app/layout.tsx"
+import type { ReactNode } from 'react'
+
+export const viewport = {
+  themeColor: '#000',
+}
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+Learn more: [`generateViewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object).
+
+### Trade-off
+
+The viewport no longer reflects changes to the cached data between builds. A static theme color applies to every request.
+
+### Gotchas
+
+- Changing a layout's viewport affects routes that inherit it.
+
+## Verifying the fix
+
+After applying a fix, rerun [`next build`](/docs/app/api-reference/cli/next#next-build-options) and confirm that the route completes prerendering. If the error also appeared in [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), reload the route and confirm that the overlay clears. Wrapping the access in Suspense or setting `instant = false` does not relax this static requirement.
+
+In `next dev`, the error overlay points at the failing component with file paths and line numbers. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+
+## Remove the static requirement
+
+The `'navigation'` value is usually set deliberately to guarantee static output for the entire server-rendered route. Removing it relaxes that requirement for every segment, not only the code that triggered this error.
+
+If request-time rendering is intentional for this route, remove `ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
+
+Learn more: [Combining `ensureStatic` levels across layouts and pages](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#combining-levels-across-layouts-and-pages).
+
+## Related validation errors
+
+See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.

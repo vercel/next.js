@@ -20,6 +20,9 @@ import {
 } from '../../../../server/app-render/blocking-route-messages'
 import { createLinkPrefetchPartialError } from '../../../../shared/lib/instant-messages'
 import {
+  BLOCKING_ROUTE_DOCS_URLS,
+  BLOCKING_METADATA_DOCS_URLS,
+  BLOCKING_VIEWPORT_DOCS_URLS,
   EXPLANATIONS,
   FIX_CARD_GROUPS,
   SYNC_IO_DOCS,
@@ -358,23 +361,46 @@ describe('short-lived cache remedies', () => {
   })
 
   it.each([
-    'static-route',
-    'static-metadata',
-    'static-viewport',
-    'blocking-route',
-    'metadata',
-    'viewport',
-  ] as const)('offers a lifetime adjustment for %s', (kind) => {
+    ['static-route', 'static-short-lived-cache'],
+    ['static-metadata', 'static-short-lived-cache'],
+    ['static-viewport', 'static-short-lived-cache'],
+    ['blocking-route', 'short-lived-cache'],
+    ['metadata', 'short-lived-cache'],
+    ['viewport', 'short-lived-cache'],
+  ] as const)('links %s to its short-cache page and context', (kind, slug) => {
+    const docsUrl = `https://nextjs.org/docs/messages/${slug}`
     const cards = getCards(kind, 'short-cache')
     expect(cards[0].id).toBe('increase-the-cache-lifetime')
-    expect(cards[0].link).toBe(
-      'https://nextjs.org/docs/messages/short-lived-cache#increase-the-cache-lifetime'
-    )
+    expect(cards[0].link).toBe(`${docsUrl}#increase-the-cache-lifetime`)
     expect(cards[0].snippets.map((s) => s.text).join('\n')).toContain(
       'expire: 300'
     )
     for (const card of cards) {
       expect(card.snippets.length).toBeLessThanOrEqual(3)
+      expect(card.link).toBe(`${docsUrl}#${card.id}`)
+    }
+    const learnMore = kind.startsWith('static-')
+      ? getStaticRouteDocsUrl(kind, 'short-cache')
+      : kind === 'metadata'
+        ? BLOCKING_METADATA_DOCS_URLS['short-cache']
+        : kind === 'viewport'
+          ? BLOCKING_VIEWPORT_DOCS_URLS['short-cache']
+          : BLOCKING_ROUTE_DOCS_URLS['short-cache']
+    const scope = kind.endsWith('metadata')
+      ? 'metadata'
+      : kind.endsWith('viewport')
+        ? 'viewport'
+        : 'body'
+    const section = scope === 'body' ? 'route-content' : scope
+    expect(learnMore).toBe(`${docsUrl}#${section}`)
+    for (const inNavigation of [false, true]) {
+      const error = createShortLivedCacheError(
+        '/example',
+        scope,
+        kind.startsWith('static-'),
+        inNavigation
+      )
+      expect(error.message).toContain(`Learn more: ${docsUrl}#${section}`)
     }
     expect(cards.some((c) => c.title === 'Cache the data')).toBe(false)
     if (kind.startsWith('static-')) {

@@ -51,7 +51,7 @@ Canonical API references and guides own API behavior, requirements, limits, nume
 
 ## Page structure (mandatory)
 
-Follow this structure. Include context-specific constraints where needed, especially when one error page covers both ordinary validation and fully static routes. Do not give all fixes to every context without checking the framework card sets.
+Follow this structure. Separate ordinary validation from fully static routes because their constraints and fixes differ. Route content, metadata, and viewport can share a page when their behavior is compatible: give each a clearly labeled fix group, link the diagnostic directly to that group's anchor, and share each full fix explanation once per page.
 
 ```
 ---
@@ -65,8 +65,7 @@ kind: error
 
 ## Ways to fix this
 
-<Context/applicability guidance when the card set varies by route body, metadata, viewport, or static requirement>
-<FixCardGrid> wrapping the framework fixes as peers, in an order consistent with each applicable card set
+<FixCardGrid> wrapping this context's framework fixes as peers, in framework order. When compatible locations share a page, repeat this grid under clearly labeled ### Route content / Metadata / Viewport headings.
 
 ## <Card 1 title>
   Choose this fix when ...
@@ -85,7 +84,7 @@ kind: error
 ## Verifying the fix
   (canonical two paragraphs — see "Verifying the fix" rule below)
 
-<Closing section matching the constraint: ordinary validation opt-out, sync-IO explanation, or static-requirement removal. Shared pages qualify opt-out advice by context.>
+<Closing section matching the constraint: ordinary validation opt-out, sync-IO explanation, or static-requirement removal.>
 
 ## Related validation errors
   See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.
@@ -96,6 +95,7 @@ kind: error
 ### Frontmatter
 
 - `title` = the dev-overlay display headline, no period. That is the string the overlay shows (see the headline strings in `errors.tsx` / the factory in e.g. `sync-io-messages.ts`), with the `Route "..."` prefix stripped and any inline expression genericized (the client-hook overlay shows `` `useSearchParams()` `` inline; its docs title says "in a Client Component" instead).
+- When compatible locations share a page, use their common headline. Keep the location distinctions in labeled card groups and diagnostic anchor links.
 - `kind: error` — match the canonical validation error pages. Non-blocking navigation insight pages may have different frontmatter; inspect the matching page family first.
 
 ### Verifying the fix
@@ -109,9 +109,9 @@ State the check as what the reader sees in the browser, not as framework artifac
 
 ### `<FixCard>` cards
 
-- Wrap all cards in a single `<FixCardGrid>` (the same component used in `docs/01-app/02-guides/instant-navigation.mdx`).
+- Use `<FixCardGrid>` (the same component used in `docs/01-app/02-guides/instant-navigation.mdx`). Use one grid for a single context, or one per labeled context group when compatible locations share a page. Share the full fix sections below those grids.
 - Every framework fix is a peer under `## Ways to fix this`, with its own card and `## <Fix>` section. Never demote a card fix to "Other options" or omit it because a sibling page documents it.
-- For a page covering multiple framework card sets, show their unique fixes in one grid. Preserve the relative order within each applicable set, and explain availability by context. Do not suggest streaming, blocking, or dynamic markers for a route that must remain fully static.
+- Keep incompatible requirements on separate pages, especially ordinary validation versus fully static routes. Within a shared page, each labeled group must match exactly the cards for that context. Do not show one unqualified grid of every possible fix. Fully static errors must not show streaming, blocking, or dynamic-marker cards.
 - `title` = card title from framework, **verbatim**. If it reads awkward as a heading, change the framework first — never the docs.
 - `href` = `#` + the auto-slug of the title (e.g. "Generate on every request" → `#generate-on-every-request`). This must match what the heading auto-generates.
 - `group` = card group from framework (`dynamic`, `cache`, `client`, `stream`, `defer`, `measure`, `block`, `render`, `ignore`, `upgrade`, `disable`, `static`).
@@ -186,7 +186,7 @@ After the pattern snippets, include a "Use either pattern when:" bulleted list (
 
 ### Don't want this validation?
 
-Use `## Don't want this validation?` before `## Related validation errors` when instant-navigation validation is the constraint. Sync-IO pages instead explain why opting out does not clear the prerender error. Fully static pages explain how to remove the static requirement. A shared page covering multiple contexts must scope opt-out advice to ordinary validation and explicitly say it does not relax `ensureStatic = 'navigation'`. Use the ordinary-validation block below where applicable:
+Use `## Don't want this validation?` before `## Related validation errors` when instant-navigation validation is the constraint. Sync-IO pages instead explain why opting out does not clear the prerender error. Fully static pages explain how to remove the static requirement. Use the ordinary-validation block below where applicable:
 
 ```mdx
 ## Don't want this validation?
@@ -220,8 +220,8 @@ When auditing an existing page, check every item:
 - [ ] `title` = overlay display headline, no period, inline expressions genericized
 - [ ] `kind: error` in frontmatter
 - [ ] No top-level Good to know; `## Verifying the fix` present with the two canonical paragraphs (observable check + `--debug-prerender` tooling)
-- [ ] All cards wrapped in a single `<FixCardGrid>`
-- [ ] All applicable framework fixes are peers, with cards and matching fix sections; shared pages state context restrictions and preserve each set's relative order
+- [ ] Cards are grouped by context, with each `<FixCardGrid>` matching its framework card set
+- [ ] Ordinary and fully static constraints are on separate pages; compatible locations share clearly labeled fix groups and diagnostic deep links, with full fix sections written once
 - [ ] Every `<FixCard />` `title` = card title verbatim
 - [ ] Every `<FixCard />` `href` = `#` + auto-slug of the heading
 - [ ] Every `<FixCard />` `group` matches framework card group
@@ -237,7 +237,7 @@ When auditing an existing page, check every item:
 - [ ] `useState(() => Math.random())` warned against in Gotchas
 - [ ] All API references inline-linked throughout
 - [ ] Sibling pages cross-linked in framing paragraph (inline body links carry the bulk of API references)
-- [ ] Closing validation guidance matches the constraint: ordinary opt-out, sync-IO explanation, or static-requirement removal; shared pages qualify opt-outs so they do not appear to bypass fully static requirements
+- [ ] Closing validation guidance matches the constraint: ordinary opt-out, sync-IO explanation, or static-requirement removal; fully static pages explain the static requirement instead of offering validation opt-outs
 - [ ] `## Related validation errors` links to the shared index, and the index includes the new page
 - [ ] Useful existing content preserved in the appropriate fix or Gotchas; Other options contains no framework card fixes
 - [ ] Requirements, numeric thresholds, limits, defaults, and behavior are documented in the canonical API reference or guide; the error page summarizes and links to that source
