@@ -122,7 +122,7 @@ impl BindingUsageInfo {
     ///
     /// A reference is in this set when the importing module asked for it
     /// ([`BindingUsage::deferrable`][crate::resolve::BindingUsage::deferrable]) and
-    /// - the target is side effect free in the sense of [`compute_side_effect_free_module_info`],
+    /// - the target is side effect free in the sense of `compute_side_effect_free_module_info`,
     ///   i.e. an import of it that is not used is removed,
     /// - the target is not an async module (the read is synchronous),
     /// - neither module is part of an import cycle, and
