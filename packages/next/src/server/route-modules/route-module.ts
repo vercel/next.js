@@ -134,14 +134,6 @@ const dynamicImportEsmDefault = (id: string) =>
     (mod) => mod.default || mod
   )
 
-/** The prerender data of a route that prerendered nothing. */
-const EMPTY_PRERENDER_MANIFEST: DeepReadonly<PrerenderManifestRuntime> = {
-  version: 4,
-  routes: {},
-  dynamicRoutes: {},
-  notFoundRoutes: [],
-}
-
 /**
  * RouteModule is the base class for all route modules. This class should be
  * extended by all route modules.
@@ -381,10 +373,9 @@ export abstract class RouteModule<
             })
           : // A production build writes a manifest for every route with only
             // that route's entries, and the route's file trace lists it. An
-            // output without it has the complete manifest instead. With
-            // neither, the route serves without prerender data: it must not
-            // fail for a file that it may not need. A manifest that is there
-            // but cannot be parsed fails the request, like any other manifest.
+            // output without it has the complete manifest instead. A route
+            // does not serve without its prerender data: with neither file
+            // the load throws, and so does a manifest that cannot be parsed.
             (this.prerenderManifest ??=
               loadManifestFromRelativePath<PrerenderManifestRuntime>({
                 projectDir,
@@ -405,9 +396,7 @@ export abstract class RouteModule<
                 distDir: this.distDir,
                 manifest: PRERENDER_MANIFEST,
                 shouldCache: true,
-                handleMissing: true,
-              }) ??
-              EMPTY_PRERENDER_MANIFEST),
+              })),
         loadManifestFromRelativePath<PreviewPropsManifest>({
           projectDir,
           distDir: this.distDir,

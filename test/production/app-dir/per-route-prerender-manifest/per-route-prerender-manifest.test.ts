@@ -153,24 +153,30 @@ describe('per-route-prerender-manifest', () => {
     }
   }
 
-  /**
-   * Runs every probe against the project while it only has the given kind of
-   * prerender manifest: the per-route ones (`route`), or the complete one, like
-   * an output that predates the per-route manifests (`complete`).
-   */
-  async function runProbes(manifests: 'route' | 'complete') {
-    const hidden =
-      manifests === 'route' ? [completeManifestPath] : routeManifestPaths
+  /** Runs `run` while the project lacks the given prerender manifests. */
+  async function withoutManifests<T>(hidden: string[], run: () => Promise<T>) {
     for (const file of hidden) {
       fs.renameSync(file, `${file}.hidden`)
     }
     try {
-      return await runLauncher(next.testDir, probes)
+      return await run()
     } finally {
       for (const file of hidden) {
         fs.renameSync(`${file}.hidden`, file)
       }
     }
+  }
+
+  /**
+   * Runs every probe against the project while it only has the given kind of
+   * prerender manifest: the per-route ones (`route`), or the complete one, like
+   * an output that predates the per-route manifests (`complete`).
+   */
+  function runProbes(manifests: 'route' | 'complete') {
+    return withoutManifests(
+      manifests === 'route' ? [completeManifestPath] : routeManifestPaths,
+      () => runLauncher(next.testDir, probes)
+    )
   }
 
   function getOutput(pathname: string) {
@@ -703,6 +709,30 @@ describe('per-route-prerender-manifest', () => {
     expect(result.missingManifests).toEqual([])
   })
 
+  it('fails a route in a server that has no prerender manifest', async () => {
+    // Neither the manifests of the routes nor the complete one. A route does
+    // not serve without its prerender data: the server answers 500 and logs
+    // the complete manifest that it could not open.
+    const requests = ['/ssg', '/api/hello', '/isr/a', '/api/static'].map(
+      (url) => ({ name: url, entry: '', url, matchedPath: url })
+    )
+
+    const result = await withoutManifests(
+      [completeManifestPath, ...routeManifestPaths],
+      () => runLauncher(next.testDir, requests, { server: true })
+    )
+
+    expect(
+      Object.fromEntries(
+        requests.map(({ name }) => [name, result.responses[name].status])
+      )
+    ).toEqual(Object.fromEntries(requests.map(({ name }) => [name, 500])))
+    expect(result.output).toContain(
+      `ENOENT: no such file or directory, open '${completeManifestPath}'`
+    )
+    expect(result.manifestReads).toEqual([])
+  })
+
   describe('in a function that an adapter assembles from the outputs', () => {
     it('finds the manifest of every route of the function', async () => {
       // Every output has the manifest of its entry among its assets, and not
@@ -820,19 +850,20 @@ describe('per-route-prerender-manifest', () => {
       }
     })
 
-    it('serves a route that finds no manifest as one without prerender data', async () => {
-      // Neither the route's manifest nor the complete one: the function has no
-      // prerender data, and still answers.
+    it('fails a route that finds no prerender manifest', async () => {
+      // Neither the route's manifest nor the complete one. The route does not
+      // serve without its prerender data: every request fails on the complete
+      // manifest that it could not open.
       const gone = assembleFunction('gone-no-manifest', '/gone/[slug]')
       for (const file of gone.manifests) {
         fs.rmSync(path.join(gone.functionDir, file))
       }
       const result = await runLauncher(gone.functionDir, [
         {
-          name: 'notFound from getStaticProps',
+          name: 'prerendered path',
           entry: gone.entry,
-          url: '/gone/also-missing?nxtPslug=also-missing',
-          matchedPath: '/gone/[slug]',
+          url: '/gone/a',
+          matchedPath: '/gone/a',
         },
         {
           name: 'new path',
@@ -841,17 +872,24 @@ describe('per-route-prerender-manifest', () => {
           matchedPath: '/gone/[slug]',
         },
       ])
-      expect(result.responses).toMatchObject({
-        'notFound from getStaticProps': {
-          status: 404,
-          text: 'pages not-found page',
-        },
-        'new path': { status: 200, text: 'pages gone page b' },
+      expect(result.responses).toEqual({
+        'prerendered path': { status: 500, headers: {} },
+        'new path': { status: 500, headers: {} },
       })
-      expect(result.manifestReads).toEqual([])
-      expect(result.missingManifests.sort()).toEqual(
-        [...gone.manifests, '.next/prerender-manifest.json'].sort()
+      expect(result.output).toContain(
+        `ENOENT: no such file or directory, open '${path.join(
+          gone.functionDir,
+          '.next',
+          'prerender-manifest.json'
+        )}'`
       )
+      expect(result.manifestReads).toEqual([])
+      // Each request looks for the complete manifest again.
+      expect(
+        result.missingManifests.filter(
+          (file) => file === '.next/prerender-manifest.json'
+        )
+      ).toHaveLength(2)
     })
 
     it('fails a route whose manifest cannot be parsed', async () => {
