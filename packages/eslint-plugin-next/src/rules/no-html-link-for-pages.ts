@@ -2,7 +2,6 @@ import { defineRule } from '../utils/define-rule'
 import * as path from 'path'
 import * as fs from 'fs'
 import { getRootDirs } from '../utils/get-root-dirs'
-
 import {
   getUrlFromPagesDirectories,
   normalizeURL,
@@ -17,10 +16,7 @@ const pagesDirWarning = execOnce((pagesDirs) => {
   )
 })
 
-// Cache for fs.existsSync lookup.
-// Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
-
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
   const cache = {}
   return (...args: any[]): T => {
@@ -34,8 +30,20 @@ const memoize = <T = any>(fn: (...args: any[]) => T) => {
 
 const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
 const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
-
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
+
+// ✅ Inline helper (instead of new file)
+function getNextConfig(rootDir: string): any {
+  try {
+    const configPath = path.join(rootDir, 'next.config.js')
+    if (fs.existsSync(configPath)) {
+      return require(configPath)
+    }
+  } catch {
+    // ignore errors
+  }
+  return {}
+}
 
 export default defineRule({
   meta: {
@@ -50,29 +58,28 @@ export default defineRule({
     schema: [
       {
         oneOf: [
-          {
-            type: 'string',
-          },
+          { type: 'string' },
           {
             type: 'array',
             uniqueItems: true,
-            items: {
-              type: 'string',
-            },
+            items: { type: 'string' },
           },
         ],
       },
     ],
   },
 
-  /**
-   * Creates an ESLint rule listener.
-   */
   create(context) {
     const ruleOptions: (string | string[])[] = context.options
     const [customPagesDirectory] = ruleOptions
-
     const rootDirs = getRootDirs(context)
+
+    // ✅ load pageExtensions from next.config.js (no new file)
+    const nextConfigs = rootDirs.map(getNextConfig)
+    const pageExtensions = nextConfigs
+      .map((cfg) => cfg.pageExtensions)
+      .filter(Boolean)
+      .flat()
 
     const pagesDirs = (
       customPagesDirectory
@@ -101,56 +108,42 @@ export default defineRule({
       return fsExistsSyncCache[dir]
     })
 
-    // warn if there are no pages and app directories
     if (foundPagesDirs.length === 0 && foundAppDirs.length === 0) {
       pagesDirWarning(pagesDirs)
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
     const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
       JSXOpeningElement(node) {
-        if (node.name.name !== 'a') {
-          return
-        }
-
-        if (node.attributes.length === 0) {
-          return
-        }
+        if (node.name.name !== 'a') return
+        if (node.attributes.length === 0) return
 
         const target = node.attributes.find(
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'target'
         )
-
-        if (target && target.value.value === '_blank') {
-          return
-        }
+        if (target && target.value?.value === '_blank') return
 
         const href = node.attributes.find(
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'href'
         )
-
-        if (!href || (href.value && href.value.type !== 'Literal')) {
-          return
-        }
+        if (!href || (href.value && href.value.type !== 'Literal')) return
 
         const hasDownloadAttr = node.attributes.find(
           (attr) =>
             attr.type === 'JSXAttribute' && attr.name.name === 'download'
         )
-
-        if (hasDownloadAttr) {
-          return
-        }
+        if (hasDownloadAttr) return
 
         const hrefPath = normalizeURL(href.value.value)
-        // Outgoing links are ignored
-        if (/^(https?:\/\/|\/\/)/.test(hrefPath)) {
-          return
-        }
+        if (/^(https?:\/\/|\/\/)/.test(hrefPath)) return
 
         allUrlRegex.forEach((foundUrl) => {
           if (foundUrl.test(normalizeURL(hrefPath))) {
