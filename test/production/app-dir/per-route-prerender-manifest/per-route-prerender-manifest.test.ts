@@ -49,6 +49,8 @@ describe('per-route-prerender-manifest', () => {
   let completeManifestPath: string
   let routeManifestPaths: string[]
   let probes: Probe[]
+  // The entry of each page below `.next/server`, without the extension.
+  let entries: Record<string, string>
   let outputs: AdapterOutputs
   let nodeOutputs: NodeOutput[]
 
@@ -56,12 +58,13 @@ describe('per-route-prerender-manifest', () => {
     return JSON.parse(fs.readFileSync(file, 'utf8'))
   }
 
+  /** The files below `dir` that are named `name` or end in `.<name>`. */
   function findFiles(dir: string, name: string, found: string[] = []) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const file = path.join(dir, entry.name)
       if (entry.isDirectory()) {
         findFiles(file, name, found)
-      } else if (entry.name === name) {
+      } else if (entry.name === name || entry.name.endsWith(`.${name}`)) {
         found.push(file)
       }
     }
@@ -189,11 +192,40 @@ describe('per-route-prerender-manifest', () => {
     return output
   }
 
-  /** The entry file that a route manifest belongs to. */
-  const entryOf = (manifest: string) =>
-    manifest.endsWith(`/${ROUTE_MANIFEST}`)
-      ? `${manifest.slice(0, -ROUTE_MANIFEST.length - 1)}.js`
-      : 'no entry: not a route manifest'
+  // The manifest of a route is in the directory named after its entry file,
+  // except for some routes below a directory named `index`. The bundlers name
+  // the entry of such a route differently (`pages/index/[slug].js` or
+  // `pages/index/index/[slug].js`), and the manifest is in the same place with
+  // each of them. Page to that directory below `.next/server`.
+  const INDEX_ROUTES: Record<string, string> = {
+    '/index': 'pages/index/index',
+    '/index/foo': 'pages/index/index/foo',
+    '/index/[slug]': 'pages/index/index/[slug]',
+    '/index/[slug]/[id]': 'pages/index/index/[slug]/[id]',
+    '/index/[...all]': 'pages/index/index/[...all]',
+    '/index/handler/route': 'app/index/handler/route',
+    '/index/[slug]/data/route': 'app/index/[slug]/data/route',
+  }
+
+  /** The manifest of an entry below `.next/server`, relative to `.next`. */
+  function manifestOf(entry: string) {
+    const page = Object.keys(INDEX_ROUTES).find(
+      (candidate) => entries[candidate] === entry
+    )
+    return `server/${page ? INDEX_ROUTES[page] : entry}/${ROUTE_MANIFEST}`
+  }
+
+  /** The entry file that a route manifest belongs to, relative to `.next`. */
+  function entryOf(manifest: string) {
+    const directory = manifest.slice(
+      'server/'.length,
+      -ROUTE_MANIFEST.length - 1
+    )
+    const page = Object.keys(INDEX_ROUTES).find(
+      (candidate) => INDEX_ROUTES[candidate] === directory
+    )
+    return `server/${page ? entries[page] : directory}.js`
+  }
 
   /** The entry of an output below `.next/server`, without the extension. */
   function getEntry(output: NodeOutput) {
@@ -244,6 +276,12 @@ describe('per-route-prerender-manifest', () => {
     distDir = path.join(next.testDir, '.next')
     completeManifestPath = path.join(distDir, 'prerender-manifest.json')
     routeManifestPaths = findFiles(path.join(distDir, 'server'), ROUTE_MANIFEST)
+    entries = Object.fromEntries(
+      Object.entries<string>({
+        ...readJSON(path.join(distDir, 'server/pages-manifest.json')),
+        ...readJSON(path.join(distDir, 'server/app-paths-manifest.json')),
+      }).map(([page, file]) => [page, file.replace(/\.js$/, '')])
+    )
 
     outputs = readJSON(path.join(next.testDir, 'build-complete.json')).outputs
     nodeOutputs = [
@@ -439,6 +477,30 @@ describe('per-route-prerender-manifest', () => {
         url: '/api/hello',
         matchedPath: '/api/hello',
       },
+      {
+        name: 'pages dynamic page in a directory named index, prerendered path',
+        entry: entries['/index/[slug]'],
+        url: '/index/a',
+        matchedPath: '/index/a',
+      },
+      {
+        name: 'pages dynamic page in a directory named index, new path',
+        entry: entries['/index/[slug]'],
+        url: '/index/b?nxtPslug=b',
+        matchedPath: '/index/[slug]',
+      },
+      {
+        name: 'pages static page in a directory named index',
+        entry: entries['/index/foo'],
+        url: '/index/foo',
+        matchedPath: '/index/foo',
+      },
+      {
+        name: 'app route handler in a directory named index',
+        entry: entries['/index/handler/route'],
+        url: '/index/handler',
+        matchedPath: '/index/handler',
+      },
     ]
   })
 
@@ -507,6 +569,14 @@ describe('per-route-prerender-manifest', () => {
         `server/pages/404/${ROUTE_MANIFEST}`,
         `server/pages/500/${ROUTE_MANIFEST}`,
         `server/pages/_error/${ROUTE_MANIFEST}`,
+        // Below a directory named `index`.
+        ...Object.values(INDEX_ROUTES).map(
+          (directory) => `server/${directory}/${ROUTE_MANIFEST}`
+        ),
+        `server/pages/indexes/[id]/${ROUTE_MANIFEST}`,
+        `server/pages/api/${ROUTE_MANIFEST}`,
+        `server/pages/api/index/[id]/${ROUTE_MANIFEST}`,
+        `server/app/(group)/index/in-group/page/${ROUTE_MANIFEST}`,
       ])
     )
     // No other file of the build output has the name of the complete manifest.
@@ -537,41 +607,64 @@ describe('per-route-prerender-manifest', () => {
   })
 
   it("lists a route's manifest in its file trace, and not the complete one", async () => {
-    const traces = findFiles(path.join(distDir, 'server'), 'page.js.nft.json')
-      .concat(findFiles(path.join(distDir, 'server'), 'route.js.nft.json'))
-      .concat(
-        [
-          'ssg',
-          'nested',
-          'blog/[slug]',
-          'ssr',
-          'api/hello',
-          '_error',
-          // Automatically static pages: their entries are still outputs.
-          '404',
-          '500',
-        ].map((page) =>
-          path.join(distDir, 'server/pages', `${page}.js.nft.json`)
+    const traces = findFiles(
+      path.join(distDir, 'server/app'),
+      'js.nft.json'
+    ).concat(
+      [
+        'ssg',
+        'nested',
+        'blog/[slug]',
+        'ssr',
+        'api/hello',
+        '_error',
+        // Automatically static pages: their entries are still outputs.
+        '404',
+        '500',
+      ]
+        .map((entry) => `pages/${entry}`)
+        .concat(
+          ['/index/[slug]', '/index/[slug]/[id]', '/index/[...all]'].map(
+            (page) => entries[page]
+          )
         )
-      )
-    expect(traces.length).toBeGreaterThan(10)
+        .map((entry) => path.join(distDir, 'server', `${entry}.js.nft.json`))
+    )
+    expect(traces.length).toBeGreaterThan(15)
 
     for (const trace of traces) {
-      const files: string[] = readJSON(trace).files
-      const manifests = files.filter((file) =>
-        file.endsWith('prerender-manifest.json')
+      const entry = relativeToDist(trace).slice(
+        'server/'.length,
+        -'.js.nft.json'.length
       )
+      const manifests = (readJSON(trace).files as string[])
+        .filter((file) => file.endsWith('prerender-manifest.json'))
+        .map((file) => relativeToDist(path.join(path.dirname(trace), file)))
       // `page.js.nft.json` lists `page/route-prerender-manifest.json`.
-      expect({ trace, manifests }).toEqual({
-        trace,
-        manifests: [
-          `${path.basename(trace, '.js.nft.json')}/${ROUTE_MANIFEST}`,
-        ],
+      expect({ entry, manifests }).toEqual({
+        entry,
+        manifests: [manifestOf(entry)],
       })
-      expect(fs.existsSync(path.join(path.dirname(trace), manifests[0]))).toBe(
-        true
-      )
+      expect(fs.existsSync(path.join(distDir, manifests[0]))).toBe(true)
     }
+  })
+
+  it('writes every prerender manifest that a file trace lists', async () => {
+    const listed = new Set<string>()
+    for (const trace of findFiles(distDir, 'nft.json')) {
+      for (const file of readJSON(trace).files as string[]) {
+        if (path.basename(file) === ROUTE_MANIFEST) {
+          listed.add(relativeToDist(path.join(path.dirname(trace), file)))
+        }
+      }
+    }
+
+    // Every manifest that a trace lists was written, and every manifest that
+    // was written is listed by the trace of its route.
+    expect(listed.size).toBeGreaterThan(20)
+    expect([...listed].sort()).toEqual(
+      routeManifestPaths.map(relativeToDist).sort()
+    )
   })
 
   it('serves every route from its own manifest', async () => {
@@ -583,7 +676,7 @@ describe('per-route-prerender-manifest', () => {
       ...new Set(probes.map((probe) => probe.entry)),
       'app/_not-found/page',
     ]
-      .map((entry) => `.next/server/${entry}/${ROUTE_MANIFEST}`)
+      .map((entry) => `.next/${manifestOf(entry)}`)
       .sort()
 
     // The complete manifest was not there to be read.
@@ -646,6 +739,22 @@ describe('per-route-prerender-manifest', () => {
         },
       },
       'pages api route': { status: 200, text: 'pages api route' },
+      'pages dynamic page in a directory named index, prerendered path': {
+        status: 200,
+        text: 'pages index slug page a',
+      },
+      'pages dynamic page in a directory named index, new path': {
+        status: 200,
+        text: 'pages index slug page b',
+      },
+      'pages static page in a directory named index': {
+        status: 200,
+        text: 'pages index foo page',
+      },
+      'app route handler in a directory named index': {
+        status: 200,
+        text: 'app index handler route',
+      },
     })
     if (!isCacheComponents) {
       expect(own.responses).toMatchObject({
@@ -672,6 +781,16 @@ describe('per-route-prerender-manifest', () => {
       { url: '/blog/b', entry: 'pages/blog/[slug]', text: 'pages blog page b' },
       { url: '/ssr', entry: 'pages/ssr', text: 'pages ssr page' },
       { url: '/api/hello', entry: 'pages/api/hello', text: 'pages api route' },
+      {
+        url: '/index/a',
+        entry: entries['/index/[slug]'],
+        text: 'pages index slug page a',
+      },
+      {
+        url: '/index/handler',
+        entry: entries['/index/handler/route'],
+        text: 'app index handler route',
+      },
       { url: '/', entry: 'app/page', text: 'app static page' },
       { url: '/isr/a', entry: 'app/isr/[slug]/page', text: 'app isr page a' },
       // The parameter of a new path streams in after the shell.
@@ -703,7 +822,7 @@ describe('per-route-prerender-manifest', () => {
 
     const routeManifests = requests
       .filter(({ entry }) => entry)
-      .map(({ entry }) => `.next/server/${entry}/${ROUTE_MANIFEST}`)
+      .map(({ entry }) => `.next/${manifestOf(entry)}`)
     expect(result.manifestReads).toEqual(expect.arrayContaining(routeManifests))
     expect(result.manifestReads).not.toContain('.next/prerender-manifest.json')
     expect(result.missingManifests).toEqual([])
@@ -743,6 +862,19 @@ describe('per-route-prerender-manifest', () => {
       )
       for (const output of nodeOutputs) {
         const { pathname } = output
+        if (!fs.existsSync(output.filePath)) {
+          // Where a bundler names an entry differently below a directory named
+          // `index`, the output names an entry file that does not exist, and
+          // has no assets. That is so without the per-route manifests too.
+          expect([
+            'pages/index/[slug]',
+            'pages/index/[slug]/[id]',
+            'pages/index/[...all]',
+            'app/index/handler/route',
+          ]).toContain(getEntry(output))
+          expect(output.assets).toEqual({})
+          continue
+        }
         const files = [...Object.values(output.assets), output.filePath].map(
           relativeToDist
         )
@@ -751,9 +883,7 @@ describe('per-route-prerender-manifest', () => {
         )
         expect({ pathname, manifests }).toEqual({
           pathname,
-          manifests: expect.arrayContaining([
-            `server/${getEntry(output)}/${ROUTE_MANIFEST}`,
-          ]),
+          manifests: expect.arrayContaining([manifestOf(getEntry(output))]),
         })
         // An output can hold more entries (the slots of a parallel route),
         // each with its manifest. It holds no manifest of another route.
@@ -844,7 +974,7 @@ describe('per-route-prerender-manifest', () => {
         }
         expect({ pathname, reads: result.manifestReads }).toEqual({
           pathname,
-          reads: [`.next/server/${fn.entry}/${ROUTE_MANIFEST}`],
+          reads: [`.next/${manifestOf(fn.entry)}`],
         })
         expect(result.missingManifests).toEqual([])
       }
