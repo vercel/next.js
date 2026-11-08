@@ -1558,6 +1558,7 @@ impl PageEndpoint {
                     node_root: node_root.clone(),
                     dir: this.pages_project.pages_dir().owned().await?,
                     original_name: this.original_name.clone(),
+                    app_entry_path: None,
                     manifest_path_prefix: manifest_path_prefix.clone().into(),
                     pathname: this.pathname.clone(),
                     client_assets,

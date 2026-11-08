@@ -41,8 +41,8 @@ use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    fxindexset,
+    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString,
+    ValueToStringRef, Vc, fxindexset,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
 use turbo_tasks_hash::HashAlgorithm;
@@ -81,7 +81,7 @@ use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::Resolv
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
-    font::FontManifest,
+    font::{FontManifest, app_font_assets},
     loadable_manifest::create_react_loadable_manifest,
     module_graph::{ClientReferencesGraphs, NextDynamicGraphs, ServerActionsGraphs},
     nft::{EndpointTraceResult, trace_endpoint},
@@ -1999,15 +1999,37 @@ impl AppEndpoint {
             client_reference_manifest = Some(entry_manifest);
         }
         if emit_manifests == EmitManifests::Full {
+            let mut app_entry_path = None;
+            let mut font_assets = client_assets;
+            if let AppEndpointType::Page { loader_tree, .. } = &this.ty {
+                let modules = &loader_tree.await?.modules;
+                if let Some(global_not_found) = &modules.global_not_found {
+                    let is_global_not_found_entry =
+                        modules.layout.as_ref() == Some(global_not_found);
+                    font_assets = app_font_assets(
+                        &*client_references.await?,
+                        &*module_graphs.full.await?,
+                        *client_chunking_context,
+                        global_not_found,
+                        is_global_not_found_entry,
+                    )
+                    .await?;
+                    if is_global_not_found_entry {
+                        app_entry_path =
+                            Some(global_not_found.with_extension("").to_string_ref().await?);
+                    }
+                }
+            }
             let next_font_manifest_output = ResolvedVc::upcast(
                 FontManifest {
                     client_root: project.client_root().owned().await?,
                     node_root: node_root.clone(),
                     dir: this.app_project.app_dir().owned().await?,
                     original_name: app_entry.original_name.clone(),
+                    app_entry_path,
                     manifest_path_prefix: app_entry.original_name.clone(),
                     pathname: app_entry.original_name.clone(),
-                    client_assets,
+                    client_assets: font_assets,
                     app_dir: true,
                 }
                 .resolved_cell(),
