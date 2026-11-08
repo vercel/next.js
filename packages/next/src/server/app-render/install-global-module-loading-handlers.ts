@@ -6,16 +6,9 @@ import {
   trackPendingImport,
 } from './module-loading/track-module-loading.external'
 
-type InstrumentedLoader = ReturnType<typeof wrapClientComponentLoader>
-
 /**
- * The globals only retain the loader and cacheComponents, rather than
- * request-specific rendering data. They are bound functions, not function
- * expressions: V8 allocates a function expression that is assigned to a
- * property in the old generation until TurboFan has optimized the function
- * that creates it, which takes thousands of renders. There every replaced
- * handler would keep its loader alive until the next major garbage
- * collection.
+ * Keep these closures in their own scope so the globals only retain the loader
+ * and cacheComponents, rather than request-specific rendering data.
  */
 export function installGlobalModuleLoadingHandlers(
   ComponentMod: AppPageModule,
@@ -23,73 +16,71 @@ export function installGlobalModuleLoadingHandlers(
 ) {
   const instrumented = wrapClientComponentLoader(ComponentMod)
 
-  // @ts-expect-error
-  globalThis.__next_require__ = requireModule.bind(
-    null,
-    instrumented,
-    cacheComponents
-  )
-
-  // @ts-expect-error
-  globalThis.__next_chunk_load__ = loadChunk.bind(
-    null,
-    instrumented,
-    cacheComponents
-  )
-}
-
-// Track module loading like cache reads so prerendering doesn't abort early.
-function shouldTrackModuleLoading(cacheComponents: boolean) {
-  if (!cacheComponents) {
-    return false
-  }
-  if (process.env.__NEXT_DEV_SERVER) {
-    return true
-  }
-  const workUnitStore = workUnitAsyncStorage.getStore()
-
-  if (!workUnitStore) {
-    return false
-  }
-
-  switch (workUnitStore.type) {
-    case 'prerender':
-    case 'prerender-client':
-    case 'validation-client':
-    case 'prerender-runtime':
-    case 'cache':
-    case 'private-cache':
-      return true
-    case 'prerender-legacy':
-    case 'request':
-    case 'unstable-cache':
-    case 'build-time-generator':
+  // Track module loading like cache reads so prerendering doesn't abort early.
+  const shouldTrackModuleLoading = () => {
+    if (!cacheComponents) {
       return false
-    default:
-      workUnitStore satisfies never
+    }
+    if (process.env.__NEXT_DEV_SERVER) {
+      return true
+    }
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (!workUnitStore) {
+      return false
+    }
+
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-client':
+      case 'validation-client':
+      case 'prerender-runtime':
+      case 'cache':
+      case 'private-cache':
+        return true
+      case 'prerender-legacy':
+      case 'request':
+      case 'unstable-cache':
+      case 'build-time-generator':
+        return false
+      default:
+        workUnitStore satisfies never
+    }
   }
+
+  setGlobalHandler(true, (...args: Parameters<typeof instrumented.require>) => {
+    const exportsOrPromise = instrumented.require(...args)
+    if (shouldTrackModuleLoading()) {
+      trackPendingImport(exportsOrPromise)
+    }
+    return exportsOrPromise
+  })
+
+  setGlobalHandler(
+    false,
+    (...args: Parameters<typeof instrumented.loadChunk>) => {
+      const loadingChunk = instrumented.loadChunk(...args)
+      if (shouldTrackModuleLoading()) {
+        trackPendingChunkLoad(loadingChunk)
+      }
+      return loadingChunk
+    }
+  )
 }
 
-function requireModule(
-  instrumented: InstrumentedLoader,
-  cacheComponents: boolean,
-  ...args: Parameters<InstrumentedLoader['require']>
+// Called twice, because the minifier inlines a function with one caller: V8
+// allocates a function expression that is assigned to a property in the old
+// generation until it optimizes the function around the assignment, and there
+// a replaced handler keeps its loader alive.
+function setGlobalHandler(
+  isRequire: boolean,
+  handler: (...args: any[]) => unknown
 ) {
-  const exportsOrPromise = instrumented.require(...args)
-  if (shouldTrackModuleLoading(cacheComponents)) {
-    trackPendingImport(exportsOrPromise)
+  if (isRequire) {
+    // @ts-expect-error
+    globalThis.__next_require__ = handler
+  } else {
+    // @ts-expect-error
+    globalThis.__next_chunk_load__ = handler
   }
-  return exportsOrPromise
-}
-
-function loadChunk(
-  instrumented: InstrumentedLoader,
-  cacheComponents: boolean,
-  ...args: Parameters<InstrumentedLoader['loadChunk']>
-) {
-  const loadingChunk = instrumented.loadChunk(...args)
-  if (shouldTrackModuleLoading(cacheComponents)) {
-    trackPendingChunkLoad(loadingChunk)
-  }
-  return loadingChunk
 }

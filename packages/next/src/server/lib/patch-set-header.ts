@@ -5,7 +5,7 @@ const PATCHED_SET_HEADER = Symbol('next.patchSetHeaderWithCookieSupport')
 type PatchableResponse = {
   setHeader(key: string, value: string | string[]): PatchableResponse
   headersSent?: boolean
-  [PATCHED_SET_HEADER]?: true
+  [PATCHED_SET_HEADER]?: PatchableResponse['setHeader']
 }
 
 /**
@@ -23,52 +23,49 @@ export function patchSetHeaderWithCookieSupport(
     return
   }
 
+  const setHeader = res.setHeader.bind(res)
+
+  // Used twice, because the minifier inlines a single use: V8 allocates a
+  // function expression that is assigned to a property in the old generation
+  // until it optimizes this function, where it keeps `req` and `res` alive.
+  const setHeaderWithCookieSupport = (
+    name: string,
+    value: string | string[]
+  ): PatchableResponse => {
+    // When renders /_error after page is failed, it could attempt to set
+    // headers after headers.
+    if ('headersSent' in res && res.headersSent) {
+      return res
+    }
+
+    if (name.toLowerCase() === 'set-cookie') {
+      const middlewareValue = getRequestMeta(req, 'middlewareCookie')
+
+      if (
+        !middlewareValue ||
+        !Array.isArray(value) ||
+        !value.every((item, idx) => item === middlewareValue[idx])
+      ) {
+        value = [
+          // TODO: (wyattjoh) find out why this is called multiple times resulting in duplicate cookies being added
+          ...new Set([
+            ...(middlewareValue || []),
+            ...(typeof value === 'string'
+              ? [value]
+              : Array.isArray(value)
+                ? value
+                : []),
+          ]),
+        ]
+      }
+    }
+
+    return setHeader(name, value)
+  }
+
   Object.defineProperty(res, PATCHED_SET_HEADER, {
-    value: true,
+    value: setHeaderWithCookieSupport,
   })
 
-  // A bound function, not a function expression. V8 allocates a function
-  // expression that is assigned to a property in the old generation until
-  // TurboFan has optimized the function that creates it, which takes thousands
-  // of requests. There it would keep `req` and `res` alive until the next
-  // major garbage collection.
-  res.setHeader = setHeaderWithCookieSupport.bind(res, req, res.setHeader)
-}
-
-function setHeaderWithCookieSupport(
-  this: PatchableResponse,
-  req: NextIncomingMessage,
-  setHeader: PatchableResponse['setHeader'],
-  name: string,
-  value: string | string[]
-): PatchableResponse {
-  // When renders /_error after page is failed, it could attempt to set
-  // headers after headers.
-  if ('headersSent' in this && this.headersSent) {
-    return this
-  }
-
-  if (name.toLowerCase() === 'set-cookie') {
-    const middlewareValue = getRequestMeta(req, 'middlewareCookie')
-
-    if (
-      !middlewareValue ||
-      !Array.isArray(value) ||
-      !value.every((item, idx) => item === middlewareValue[idx])
-    ) {
-      value = [
-        // TODO: (wyattjoh) find out why this is called multiple times resulting in duplicate cookies being added
-        ...new Set([
-          ...(middlewareValue || []),
-          ...(typeof value === 'string'
-            ? [value]
-            : Array.isArray(value)
-              ? value
-              : []),
-        ]),
-      ]
-    }
-  }
-
-  return setHeader.call(this, name, value)
+  res.setHeader = setHeaderWithCookieSupport
 }
