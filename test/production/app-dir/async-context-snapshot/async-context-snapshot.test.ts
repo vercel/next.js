@@ -6,13 +6,13 @@ import { retry } from 'next-test-utils'
 
 // Next.js restores the async context of a request in two places: every work
 // store has `runInCleanSnapshot`, and the revalidations that are pending when
-// the response closes run in the context of the request. In Node.js,
-// `AsyncLocalStorage.snapshot()` and `AsyncLocalStorage.bind()` return a
+// the response closes run in the context of the request. In Node.js 20 to
+// 24, `AsyncLocalStorage.snapshot()` and `AsyncLocalStorage.bind()` return a
 // function from `AsyncResource.prototype.bind()`, which defines the deprecated
-// `asyncResource` accessor on it. V8 keeps accessors in the old generation, so
-// a minor garbage collection cannot free what the function captured: every
-// async local store of the request. `instrumentation.ts` counts the calls of
-// `AsyncResource.prototype.bind()`.
+// `asyncResource` accessor on it (Node.js 26 no longer does). V8 keeps
+// accessors in the old generation, so a minor garbage collection cannot free
+// what the function captured: every async local store of the request.
+// `instrumentation.ts` counts the calls of `AsyncResource.prototype.bind()`.
 describe('async-context-snapshot', () => {
   const { next } = nextTestSetup({
     files: __dirname,

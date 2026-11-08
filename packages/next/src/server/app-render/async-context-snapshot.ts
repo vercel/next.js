@@ -8,12 +8,14 @@ import {
 // a browser bundle cannot resolve. `./async-local-storage` is also part of
 // browser bundles, so the code that needs `AsyncResource` must not move there.
 
-// In Node.js, `AsyncLocalStorage.bind()` and `AsyncLocalStorage.snapshot()`
-// return a function made by `AsyncResource.prototype.bind()`, which defines the
-// deprecated `asyncResource` accessor on it. V8 keeps accessors in the old
-// generation, so a minor garbage collection cannot free what such a function
-// captured: the async context, with every store of the request. Entering an
-// `AsyncResource` ourselves restores the same context without that accessor.
+// In Node.js 20 to 24, `AsyncLocalStorage.bind()` and
+// `AsyncLocalStorage.snapshot()` return a function made by
+// `AsyncResource.prototype.bind()`, which defines the deprecated
+// `asyncResource` accessor on it (Node.js 26 no longer does). V8 keeps
+// accessors in the old generation, so a minor garbage collection cannot free
+// what such a function captured: the async context, with every store of the
+// request. Entering an `AsyncResource` ourselves restores the same context
+// without that accessor.
 
 // What binds a function and what takes a snapshot in Node.js, in place of
 // `AsyncLocalStorage`. Both are created inside the `else` branch, which is
