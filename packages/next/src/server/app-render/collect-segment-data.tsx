@@ -609,11 +609,19 @@ async function collectPrefetchHintsImpl(
   const isStaticPrefetchDisabled =
     ((node.h ?? 0) & StaticPrefetchDisabled) !== 0
 
+  const children = node.c
+
   // Render current segment and measure its gzip size. Skip measurement for
   // segments with static prefetching disabled since they contribute nothing.
+  //
+  // Also skip it for a leaf segment. A segment's size is only ever used to
+  // offer the segment to its children for inlining (see sizeToInline below),
+  // and a leaf has no children to offer it to. The leaf is the page, usually
+  // the largest segment of the route, so this avoids rendering and
+  // compressing most of the page data for a number nothing reads.
   const nodeRsc = node.d.r
   let currentGzipSize: number | null = null
-  if (!isStaticPrefetchDisabled && nodeRsc !== null) {
+  if (!isStaticPrefetchDisabled && nodeRsc !== null && children !== undefined) {
     const [, buffer] = await renderSegmentPrefetch(
       buildId,
       staleTimeIterable,
@@ -648,8 +656,6 @@ async function collectPrefetchHintsImpl(
   // accepts, we stop offering to remaining siblings — the parent is only
   // inlined into one child. In parallel routes, this avoids duplicating the
   // parent's data across multiple sibling responses.
-  const children = node.c
-
   let slots: Record<string, PrefetchHints> | null = null
   let didInlineIntoChild = false
   let acceptingChildInlinedBytes = 0
