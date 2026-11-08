@@ -20,6 +20,24 @@ describe('revalidate-only-generated', () => {
     expect($('#route').text()).toBe('item 1')
   })
 
+  // With Cache Components the path belongs to a route that has cache entries,
+  // and the not-found page has a prerendered shell. The 404 is still the whole
+  // answer: no error follows it.
+  it('answers when a path of a route with generateStaticParams was never generated', async () => {
+    const logStart = next.cliOutput.length
+
+    const res = await next.fetch(
+      '/api/revalidate?path=/generated/2',
+      withTimeout()
+    )
+    expect(await res.json()).toEqual({ revalidated: true })
+
+    const $ = await next.render$('/generated/2', undefined, withTimeout())
+    expect($('#route').text()).toBe('generated 2')
+
+    expect(next.cliOutput.slice(logStart)).not.toMatch(/invariant/i)
+  })
+
   // A generated Pages Router path has a cache entry, so it is rendered. When
   // its `getStaticProps` returns `notFound: true` now, the answer is the same
   // not-found page.
