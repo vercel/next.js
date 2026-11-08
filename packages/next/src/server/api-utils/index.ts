@@ -204,11 +204,14 @@ interface LazyProps {
 
 const LAZY_PROPS = Symbol('next.lazyProps')
 
+type LazyPropsGetters = { [prop: string]: () => unknown }
+
 type LazyPropsRequest = IncomingMessage & {
   [LAZY_PROPS]?: {
-    req: IncomingMessage
-    getters: { [prop: string]: () => unknown }
+    req: LazyPropsRequest
+    getters: LazyPropsGetters
   }
+  [prop: string]: unknown
 }
 
 // One pair of accessors per property name, for all requests. V8 allocates the
@@ -228,15 +231,18 @@ function getLazyPropDescriptor(prop: string): PropertyDescriptor {
         const { req, getters } = this[LAZY_PROPS]!
         const getter = getters[prop]
         const value = getter()
-        // we set the property on the object to avoid recalculating it
+        // we set the property on the object to avoid recalculating it. The
+        // accessors are deleted first: while an object has fast properties,
+        // V8 takes far longer to turn an accessor into a data property than
+        // to delete the accessor and add the property.
+        delete req[prop]
         Object.defineProperty(req, prop, { ...optsReset, value })
         return value
       },
       set(this: LazyPropsRequest, value: unknown) {
-        Object.defineProperty(this[LAZY_PROPS]!.req, prop, {
-          ...optsReset,
-          value,
-        })
+        const { req } = this[LAZY_PROPS]!
+        delete req[prop]
+        Object.defineProperty(req, prop, { ...optsReset, value })
       },
     }
     lazyPropDescriptors.set(prop, descriptor)
@@ -255,12 +261,12 @@ export function setLazyProp<T>(
   prop: string,
   getter: () => T
 ): void {
-  const lazyReq: LazyPropsRequest = req
+  const lazyReq = req as LazyPropsRequest
   // An own property: an object that inherits from a request with lazy
   // properties keeps its getters apart from those of the request.
   const lazyProps = Object.hasOwn(lazyReq, LAZY_PROPS)
     ? lazyReq[LAZY_PROPS]!
-    : (lazyReq[LAZY_PROPS] = { req, getters: {} })
+    : (lazyReq[LAZY_PROPS] = { req: lazyReq, getters: {} })
   lazyProps.getters[prop] = getter
   Object.defineProperty(req, prop, getLazyPropDescriptor(prop))
 }

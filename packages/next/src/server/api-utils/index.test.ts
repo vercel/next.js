@@ -23,6 +23,41 @@ describe('setLazyProp', () => {
     })
   })
 
+  it('should replace the accessors with a plain property at the end of the own keys when a lazy property is read or assigned', () => {
+    const req: Record<string, unknown> = {}
+    setLazy(req, 'cookies', () => 'cookies')
+    req.query = 'query'
+    setLazy(req, 'preview', () => 'preview')
+    setLazy(req, 'draftMode', () => 'draftMode')
+    expect(Object.keys(req)).toEqual([
+      'cookies',
+      'query',
+      'preview',
+      'draftMode',
+    ])
+
+    expect(req.cookies).toBe('cookies')
+    expect(Object.keys(req)).toEqual([
+      'query',
+      'preview',
+      'draftMode',
+      'cookies',
+    ])
+
+    req.preview = 'assigned'
+    expect(Object.keys(req)).toEqual([
+      'query',
+      'draftMode',
+      'cookies',
+      'preview',
+    ])
+    expect(Object.getOwnPropertyDescriptor(req, 'preview')).toEqual({
+      ...plainProperty,
+      value: 'assigned',
+    })
+    expect(req.draftMode).toBe('draftMode')
+  })
+
   it('should keep the lazy properties of an object that inherits from a request apart from those of the request', () => {
     const req: Record<string, unknown> = {}
     setLazy(req, 'cookies', () => 'request')
