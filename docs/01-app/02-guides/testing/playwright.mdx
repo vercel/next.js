@@ -164,3 +164,116 @@ You can learn more about Playwright and Continuous Integration from these resour
 - [Next.js with Playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright)
 - [Playwright on your CI provider](https://playwright.dev/docs/ci)
 - [Playwright Discord](https://discord.com/invite/playwright-807756831384403968)
+
+## Mocking external requests with experimental test mode
+
+Enable [`experimental.testProxy`](/docs/app/api-reference/config/next-config-js/testProxy) to mock external `fetch` requests from your Next.js server and browser in Playwright tests. The `next/experimental/testmode/playwright` integration ships with `next` and provides a `next` fixture with an `onFetch` handler.
+
+This integration is experimental and its API may change. It is separate from [`@next/playwright`'s `instant()` helper](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests), which pauses dynamic navigation content for assertions on the immediately available UI.
+
+### Set up test mode
+
+Install `@playwright/test` using the [manual setup](#manual-setup), then enable the test proxy in your Next.js configuration:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    testProxy: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    testProxy: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+Import `defineConfig` from `next/experimental/testmode/playwright`. The following configuration starts a development server and discovers tests in `tests/`:
+
+```ts filename="playwright.config.ts" switcher
+import { defineConfig } from 'next/experimental/testmode/playwright'
+
+export default defineConfig({
+  testMatch: 'tests/**/*.spec.{ts,js}',
+  use: {
+    baseURL: 'http://127.0.0.1:3000',
+  },
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://127.0.0.1:3000',
+  },
+})
+```
+
+```js filename="playwright.config.js" switcher
+import { defineConfig } from 'next/experimental/testmode/playwright'
+
+export default defineConfig({
+  testMatch: 'tests/**/*.spec.{ts,js}',
+  use: {
+    baseURL: 'http://127.0.0.1:3000',
+  },
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://127.0.0.1:3000',
+  },
+})
+```
+
+Without a `testMatch` override, this wrapper discovers `*.spec.ts` and `*.spec.js` files inside `app/` and `pages/`.
+
+### Mock a request
+
+Import `test` and `expect` from the same integration and register `next.onFetch` before navigating. For a `/products/1` page that fetches `https://api.example.com/products/1`, return a mock response:
+
+```ts filename="tests/product.spec.ts" switcher
+import { test, expect } from 'next/experimental/testmode/playwright'
+
+test('shows a mocked product', async ({ page, next }) => {
+  next.onFetch((request) => {
+    if (request.url === 'https://api.example.com/products/1') {
+      return Response.json({ title: 'A shoe' })
+    }
+    return 'abort'
+  })
+
+  await page.goto('/products/1')
+  await expect(page.getByRole('heading', { name: 'A shoe' })).toBeVisible()
+})
+```
+
+```js filename="tests/product.spec.js" switcher
+import { test, expect } from 'next/experimental/testmode/playwright'
+
+test('shows a mocked product', async ({ page, next }) => {
+  next.onFetch((request) => {
+    if (request.url === 'https://api.example.com/products/1') {
+      return Response.json({ title: 'A shoe' })
+    }
+    return 'abort'
+  })
+
+  await page.goto('/products/1')
+  await expect(page.getByRole('heading', { name: 'A shoe' })).toBeVisible()
+})
+```
+
+Run `npx playwright test`. The test passes when the page renders the mocked product title.
+
+### Interception and unhandled requests
+
+- `next.onFetch` handles external browser `fetch` requests and server requests associated with the test. Same-origin browser requests, such as `fetch('/api/products')`, reach your Next.js application normally. External fetches made by that Route Handler can then be mocked.
+- Return a `Response` to mock a request, `'continue'` to send it to the real service, or `'abort'` to cancel it.
+- Handlers run in reverse registration order. Returning `undefined` lets an earlier handler try the request. By default, if no handler returns a result, the request is aborted. An unhandled server fetch throws `Proxy request aborted [METHOD URL]`.
+
+For optional MSW integration and `fetchLoopback` setup, see the [testmode README](https://github.com/vercel/next.js/blob/canary/packages/next/src/experimental/testmode/playwright/README.md).

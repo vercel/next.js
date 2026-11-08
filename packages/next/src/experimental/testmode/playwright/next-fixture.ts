@@ -6,6 +6,14 @@ import { handleRoute } from './page-route'
 import { reportFetch } from './report'
 
 export interface NextFixture {
+  /**
+   * Registers a handler for external browser fetches and server requests associated
+   * with this test. Same-origin browser requests reach the Next.js app normally.
+   * Return a Response to mock, 'continue' to pass through, or 'abort' to cancel.
+   * Handlers run newest first; undefined falls back to earlier handlers.
+   * Unhandled requests are aborted unless fetchLoopback is enabled.
+   * @see https://nextjs.org/docs/app/guides/testing/playwright#mocking-external-requests-with-experimental-test-mode
+   */
   onFetch: (handler: FetchHandler) => void
 }
 

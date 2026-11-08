@@ -1,0 +1,16 @@
+---
+title: testProxy
+description: Enable experimental test mode to mock external requests in Playwright tests.
+version: experimental
+related:
+  title: Next Steps
+  description: Configure Playwright and mock requests in your tests.
+  links:
+    - app/guides/testing/playwright
+---
+
+`experimental.testProxy` enables the experimental test proxy for intercepting server requests during tests. It is disabled by default.
+
+Set `experimental.testProxy` to `true` and use `next/experimental/testmode/playwright` to mock external server and browser `fetch` requests with `next.onFetch`. See [Mocking external requests with experimental test mode](/docs/app/guides/testing/playwright#mocking-external-requests-with-experimental-test-mode) for configuration, examples, and unhandled-request behavior.
+
+The integration is separate from [`@next/playwright`'s `instant()` helper](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) for testing instant navigation.

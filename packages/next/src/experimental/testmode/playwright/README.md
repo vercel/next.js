@@ -1,5 +1,8 @@
 # Experimental test mode for Playwright
 
+For setup and request handling behavior, see [Mocking external requests with experimental test mode](https://nextjs.org/docs/app/guides/testing/playwright#mocking-external-requests-with-experimental-test-mode).
+This fetch-mocking integration is separate from `@next/playwright`'s `instant()` helper for testing instant navigation.
+
 ### Prerequisites
 
 You have a Next.js project.
@@ -50,10 +53,9 @@ export default defineConfig({
 import { test, expect } from 'next/experimental/testmode/playwright'
 
 test('/product/shoe', async ({ page, next }) => {
-  // NOTE: `next.onFetch` only intercepts external `fetch` requests (for both client and server).
-  // For example, if you `fetch` a relative URL (e.g. `/api/hello`) from the client
-  // that's handled by a Next.js route handler (e.g. `app/api/hello/route.ts`),
-  // it won't be intercepted.
+  // `next.onFetch` intercepts external browser fetches and server requests
+  // associated with this test. A same-origin browser fetch (e.g. `/api/hello`)
+  // reaches the Next.js Route Handler normally; its external fetches can be mocked.
   next.onFetch((request) => {
     if (request.url === 'http://my-db/product/shoe') {
       return new Response(
@@ -75,6 +77,8 @@ test('/product/shoe', async ({ page, next }) => {
   await expect(page.locator('body')).toHaveText(/Shoe/)
 })
 ```
+
+Handlers run newest first. Return a `Response` to mock, `'continue'` to pass through, or `'abort'` to cancel a request. Returning `undefined` tries earlier handlers. By default, unhandled requests are aborted; an unhandled server fetch throws `Proxy request aborted [METHOD URL]`. With `fetchLoopback` enabled, unhandled requests use the test worker's `fetch` instead.
 
 ### Or use the `next/experimental/testmode/playwright/msw`
 

@@ -1439,7 +1439,9 @@ export interface ExperimentalConfig {
   lightningCssFeatures?: LightningCssFeatures
 
   /**
-   * Enables `fetch` requests to be proxied to the experimental test proxy server
+   * Enables the experimental test proxy for mocking server requests with
+   * `next/experimental/testmode/playwright`. Disabled by default.
+   * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/testProxy
    */
   testProxy?: boolean
 
