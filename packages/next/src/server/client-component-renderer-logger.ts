@@ -8,6 +8,14 @@ export type ClientComponentLoaderMetrics = {
   clientComponentLoadCount: number
 }
 
+// Trackers that still accept loads. Lets hot callers skip the per-call
+// AsyncLocalStorage lookup when no render is measuring client component loads.
+let unsealedTrackers = 0
+
+export function hasUnsealedClientComponentLoadTracker(): boolean {
+  return unsealedTrackers > 0
+}
+
 /** Metrics owned by one render, including chunks that settle after rendering. */
 export class ClientComponentLoadTracker {
   private clientComponentLoadStart = 0
@@ -25,7 +33,9 @@ export class ClientComponentLoadTracker {
     private readonly report: (
       metrics: ClientComponentLoaderMetrics | undefined
     ) => void = () => {}
-  ) {}
+  ) {
+    unsealedTrackers++
+  }
 
   isSealed(): boolean {
     return this.sealed
@@ -67,6 +77,7 @@ export class ClientComponentLoadTracker {
   finish(): void {
     if (this.sealed) return
     this.sealed = true
+    unsealedTrackers--
     let completion: Promise<ClientComponentLoaderMetrics | undefined>
     if (this.pending === 0) {
       completion = Promise.resolve(this.snapshot())
