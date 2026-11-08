@@ -40,8 +40,8 @@ use crate::{
     util::NextRuntime,
 };
 
-/// The client reference manifest of one entry. Written as JavaScript by [`Self::write_js`], with
-/// chunk lists interned in [`ChunkTables`].
+/// The client reference manifest of one entry. Written as JavaScript by `Self::write_js`, with
+/// chunk lists interned in `ChunkTables`.
 #[derive(Default)]
 pub struct SerializedClientReferenceManifest {
     pub module_loading: ModuleLoading,
