@@ -13,7 +13,7 @@ describe('proxy-nfc-traced', () => {
 
   // 'middleware.js' won't be traced because Turbopack doesn't bundle all code to .next/server/middleware.js
   if (isNextStart && !isTurbopack) {
-    it('should have renamed trace file as middleware instead of proxy', async () => {
+    it('should list the trace file as middleware and not as proxy', async () => {
       const nfc = JSON.parse(
         fs.readFileSync(
           path.join(next.testDir, '.next/server/middleware.js.nft.json'),
