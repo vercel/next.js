@@ -72,7 +72,7 @@ export function getRoutePrerenderManifestPath(
           : page
     return `server/pages${assetPath}/${ROUTE_PRERENDER_MANIFEST}`
   }
-  return `server/app${page.replace(/%5F/g, '_')}/${ROUTE_PRERENDER_MANIFEST}`
+  return `server/app${page}/${ROUTE_PRERENDER_MANIFEST}`
 }
 
 /**
