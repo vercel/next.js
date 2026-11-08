@@ -16,7 +16,10 @@ use crate::{
         MergeableModulesExposed,
     },
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph, RefData, SingleModuleGraphNode},
+    module_graph::{
+        GraphTraversalAction, ModuleGraph, RefData, SingleModuleGraphNode,
+        evaluation_order::{EvaluationOrder, EvaluationTrace, Referrers},
+    },
     resolve::ExportUsage,
 };
 
@@ -221,9 +224,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // all modules with the same bitmap.
         let mut module_merged_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, Bitset> =
             FxHashMap::with_capacity_and_hasher(module_count, Default::default());
-        // Entries that started a new merge group for some deopt reason
+        // Entries that started a new merge group for some deopt reason, with the index of the
+        // group in the bitmaps.
         let mut entry_modules =
-            FxHashSet::with_capacity_and_hasher(module_count, Default::default());
+            FxHashMap::with_capacity_and_hasher(module_count, Default::default());
 
         let inner_span = tracing::info_span!("collect mergeable modules");
         let mergeable = module_graph
@@ -332,10 +336,11 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 } else {
                     // Either a non-hoisted reference or an incompatible parent or child module
 
-                    if entry_modules.insert(module) {
+                    if let Entry::Vacant(entry) = entry_modules.entry(module) {
                         // Not assigned a new group before, create a new one.
                         let idx = next_index;
                         next_index += 1;
+                        entry.insert(idx);
 
                         if module_merged_groups.entry(module).or_default().insert(idx) {
                             // Mark and continue traversal because modified (or first visit)
@@ -419,13 +424,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             ResolvedVc<Box<dyn Module>>,
             FxIndexSet<ResolvedVc<Box<dyn Module>>>,
         > = FxIndexMap::default();
-        // A map of all references between modules with the same bitmap. These are only the
-        // references relevant for execution (ignoring cycles), to find the entries of a group.
-        #[allow(clippy::type_complexity)]
-        let intra_group_references_rev: FxIndexMap<
-            ResolvedVc<Box<dyn Module>>,
-            FxIndexSet<ResolvedVc<Box<dyn Module>>>,
-        >;
 
         {
             struct ChunkGroupResult {
@@ -434,11 +432,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 list_lists: Vec<Vec<Vec<ResolvedVc<Box<dyn MergeableModule>>>>>,
                 lists_reverse_indices:
                     FxIndexMap<ResolvedVc<Box<dyn MergeableModule>>, FxIndexSet<ListOccurrence>>,
-                #[allow(clippy::type_complexity)]
-                intra_group_references_rev: FxIndexMap<
-                    ResolvedVc<Box<dyn Module>>,
-                    FxIndexSet<ResolvedVc<Box<dyn Module>>>,
-                >,
             }
             let span = tracing::info_span!("map chunk groups").entered();
 
@@ -450,11 +443,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     let mut lists_reverse_indices: FxIndexMap<
                         ResolvedVc<Box<dyn MergeableModule>>,
                         FxIndexSet<ListOccurrence>,
-                    > = FxIndexMap::default();
-                    #[allow(clippy::type_complexity)]
-                    let mut intra_group_references_rev: FxIndexMap<
-                        ResolvedVc<Box<dyn Module>>,
-                        FxIndexSet<ResolvedVc<Box<dyn Module>>>,
                     > = FxIndexMap::default();
 
                     let mut chunk = chunk.peekable();
@@ -490,7 +478,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                     Ok(GraphTraversalAction::Exclude)
                                 }
                             },
-                            |parent_info, node, _| {
+                            |_, node, _| {
                                 let module = node;
                                 let bitmap = bitmap_id(module)?;
 
@@ -532,17 +520,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                         }
                                     }
                                 }
-
-                                if let Some((parent, _)) = parent_info {
-                                    let same_bitmap = bitmap_id(parent)? == bitmap;
-
-                                    if same_bitmap {
-                                        intra_group_references_rev
-                                            .entry(module)
-                                            .or_default()
-                                            .insert(parent);
-                                    }
-                                }
                                 Ok(())
                             },
                             false,
@@ -555,7 +532,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         first_chunk_group_idx,
                         list_lists,
                         lists_reverse_indices,
-                        intra_group_references_rev,
                     })
                 },
             )?;
@@ -566,12 +542,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             lists = vec![Default::default(); chunk_group_info.chunk_groups.len() + 1];
             LISTS_COMMON_IDX = result.len();
             let mut reverse_index_parts = Vec::with_capacity(result.len());
-            let mut intra_group_references_rev_parts = Vec::with_capacity(result.len());
             for ChunkGroupResult {
                 first_chunk_group_idx,
                 list_lists: result_lists,
                 lists_reverse_indices: result_lists_reverse_indices,
-                intra_group_references_rev: result_intra_group_references_rev,
             } in result
             {
                 lists.splice(
@@ -579,12 +553,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     result_lists,
                 );
                 reverse_index_parts.push(result_lists_reverse_indices);
-                intra_group_references_rev_parts.push(result_intra_group_references_rev);
             }
             let shard_count = turbo_tasks::parallel::available_parallelism().map_or(1, |n| n.get());
             lists_reverse_indices = merge_index_maps_of_sets(reverse_index_parts, shard_count);
-            intra_group_references_rev =
-                merge_index_maps_of_sets(intra_group_references_rev_parts, shard_count);
         }
 
         drop(inner_span);
@@ -806,34 +777,189 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             }
         }
 
-        // Dedupe the lists
-        let lists = lists.into_iter().flatten().collect::<FxHashSet<_>>();
+        // Dedupe the lists. A list of one module has nothing to merge.
+        let lists = lists
+            .into_iter()
+            .flatten()
+            .filter(|list| list.len() > 1)
+            .collect::<FxHashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        drop(inner_span);
+        let inner_span = tracing::info_span!("evaluation order").entered();
+
+        // Every list holds modules that the same merge group entries import, in an order that all
+        // chunk groups agree on. One module factory for a list evaluates all of its modules as
+        // soon as one of them is imported. That is only the order without merging if nothing else
+        // is evaluated between them, whichever merge group entry is loaded first. The traversal
+        // above can't tell: it lists a module at the first reference to it, also when that
+        // reference is a `require()` that runs later, and it collects the modules of a bitmap
+        // even when modules with another bitmap are evaluated between them.
+        //
+        // So evaluate from every merge group entry on its own, along the references that inherit
+        // the bitmaps (the ones that are evaluated before the importing module), and keep only
+        // the parts of each list that every one of these traces evaluates in one piece.
+        let mut order = EvaluationOrder::new(lists.iter().map(|list| {
+            list.iter()
+                .map(|&m| ResolvedVc::upcast::<Box<dyn Module>>(m))
+        }));
+        // Whether the imports of a module are evaluated before it in the same trace: the modules
+        // that inherit bitmaps.
+        let is_evaluated_in_place = |module: &ResolvedVc<Box<dyn Module>>| {
+            mergeable.contains(module) && !async_modules.contains(module)
+        };
+        if !lists.is_empty() {
+            let traced = turbo_tasks::parallel::map_collect_chunked_owned::<_, _, Result<Vec<_>>>(
+                entry_modules
+                    .keys()
+                    .copied()
+                    // Nothing inherits the bitmap of the other entries.
+                    .filter(is_evaluated_in_place)
+                    .collect(),
+                |roots| {
+                    let mut order = order.clone();
+                    let mut trace = EvaluationTrace::new();
+                    for root in roots {
+                        trace.clear();
+                        module_graph.traverse_edges_dfs(
+                            [root],
+                            &mut trace,
+                            |parent_info, module, trace| {
+                                let importer = match parent_info {
+                                    None => None,
+                                    Some((parent, RefData { chunking_type, .. })) => {
+                                        if parent == module
+                                            || !matches!(
+                                                chunking_type,
+                                                ChunkingType::Parallel { hoisted: true, .. }
+                                            )
+                                        {
+                                            return Ok(GraphTraversalAction::Exclude);
+                                        }
+                                        Some(parent)
+                                    }
+                                };
+                                Ok(if !trace.enter(importer, module) {
+                                    GraphTraversalAction::Exclude
+                                } else if is_evaluated_in_place(&module) {
+                                    GraphTraversalAction::Continue
+                                } else {
+                                    // The module is evaluated here, between the modules around
+                                    // it. What it evaluates itself is part of the traces of other
+                                    // merge group entries.
+                                    GraphTraversalAction::Skip
+                                })
+                            },
+                            |_, module, trace| {
+                                trace.leave(module);
+                                Ok(())
+                            },
+                            false,
+                            false,
+                        )?;
+                        order.add_trace(&trace);
+                    }
+                    Ok(order)
+                },
+            )?;
+            for traced in &traced {
+                order.merge(traced);
+            }
+        }
+
+        // A merge group entry that is part of an import cycle can be loaded while a module that it
+        // imports is being evaluated (by a `require()` that runs during the evaluation of a
+        // module, or by an import of a module that is not merged and requires it). It then skips
+        // that module, and imports the rest in another order than in its trace above.
+        // `import()` is not part of this: it never evaluates a module synchronously.
+        let mut reentrant_entries = Bitset::new();
+        if !lists.is_empty() {
+            module_graph.traverse_cycles(
+                |r| r.chunking_type.is_parallel(),
+                |cycle| {
+                    if cycle.len() > 1 {
+                        reentrant_entries.extend(
+                            cycle
+                                .iter()
+                                .filter(|m| is_evaluated_in_place(m))
+                                .filter_map(|m| entry_modules.get(*m).copied()),
+                        );
+                    }
+                    Ok(())
+                },
+            )?;
+        }
+
+        // The modules of each group, and its entry points.
+        let mut groups = Vec::with_capacity(lists.len());
+        for (list_idx, list) in lists.iter().enumerate() {
+            let module = |position: usize| ResolvedVc::upcast::<Box<dyn Module>>(list[position]);
+            // The positions of the modules of this list that `position` references.
+            let references = |position: usize| {
+                intra_group_references
+                    .get(&module(position))
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|&m| order.position(m))
+                    .filter(|&(l, referenced)| l == list_idx && referenced != position)
+                    .map(|(_, referenced)| referenced)
+                    .collect::<Vec<_>>()
+            };
+
+            let bitmap = module_merged_groups
+                .get(&module(0))
+                .context("every module should have a bitmap")?;
+            let referrers = (!bitmap.is_disjoint(&reentrant_entries)).then(|| {
+                let mut referrers = (0..list.len())
+                    .map(|position| Referrers {
+                        outside: exposed_modules_imported.contains(&module(position))
+                            || entry_modules.contains_key(&module(position)),
+                        ..Default::default()
+                    })
+                    .collect::<Vec<_>>();
+                for position in 0..list.len() {
+                    for referenced in references(position) {
+                        let referrers = &mut referrers[referenced];
+                        referrers.first = referrers.first.min(position as u32);
+                        referrers.last = referrers.last.max(position as u32);
+                    }
+                }
+                referrers
+            });
+
+            let list_groups = order.groups(list_idx, referrers.as_deref());
+            if list_groups.len() > 1 {
+                // The modules that are now referenced from another group have to be exposed.
+                let mut group_of = vec![0; list.len()];
+                for (group_idx, group) in list_groups.iter().enumerate() {
+                    group_of[group.clone()].fill(group_idx);
+                }
+                for position in 0..list.len() {
+                    for referenced in references(position) {
+                        if group_of[referenced] != group_of[position] {
+                            exposed_modules_imported.insert(module(referenced));
+                        }
+                    }
+                }
+            }
+            for group in list_groups {
+                if group.len() > 1 {
+                    let entry_points = order
+                        .entry_points(list_idx, group.clone())
+                        .map(|position| *list[position])
+                        .collect::<Vec<_>>();
+                    groups.push((&list[group], entry_points));
+                }
+            }
+        }
 
         drop(inner_span);
         let inner_span = tracing::info_span!("merging");
         // Call MergeableModule impl to merge the modules.
-        let result = lists
+        let result = groups
             .into_iter()
-            .map(async |list| {
-                if list.len() < 2 {
-                    // Nothing to merge
-                    return Ok(None);
-                }
-
-                let list_set = list
-                    .iter()
-                    .map(|&m| ResolvedVc::upcast::<Box<dyn Module>>(m))
-                    .collect::<FxIndexSet<_>>();
-
-                let entry_points = list
-                    .iter()
-                    .filter(|m| {
-                        intra_group_references_rev
-                            .get(&ResolvedVc::upcast(**m))
-                            .is_none_or(|refs| refs.is_disjoint(&list_set))
-                    })
-                    .map(|m| **m)
-                    .collect::<Vec<_>>();
+            .map(async |(list, entry_points)| {
                 debug_assert_ne!(entry_points.len(), 0);
 
                 let list_exposed = list
@@ -861,15 +987,14 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     .to_resolved()
                     .await?;
 
-                let list_len = list.len();
-                Ok(Some((
+                Ok((
                     ResolvedVc::upcast::<Box<dyn Module>>(entry),
                     result,
-                    list.into_iter()
-                        .take(list_len - 1)
-                        .map(ResolvedVc::upcast::<Box<dyn Module>>)
+                    list[..list.len() - 1]
+                        .iter()
+                        .map(|&m| ResolvedVc::upcast::<Box<dyn Module>>(m))
                         .collect::<Vec<_>>(),
-                )))
+                ))
             })
             .try_join()
             .instrument(inner_span)
@@ -888,7 +1013,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut merged_groups = 0;
         let mut included_modules = 0;
 
-        for (original, replacement, replacement_included) in result.into_iter().flatten() {
+        for (original, replacement, replacement_included) in result {
             replacements.insert(original, Some(replacement));
             replacements_to_original.insert(ResolvedVc::upcast(replacement), original);
             merged_groups += 1;
