@@ -82,14 +82,12 @@ describe('segment cache - vary params base dynamic', () => {
       }))
   }
 
-  const collectSegmentPrefetchResponses = async (
-    href: string,
-    startPath: string = '/'
-  ) => {
+  const collectSegmentPrefetchResponses = async (href: string) => {
     let act: ReturnType<typeof createRouterAct>
     const segmentPrefetchResponses: Array<Promise<SegmentPrefetchResponse>> = []
 
-    const browser = await next.browser(startPath, {
+    // The home page's visible navigation links can prefetch before act starts.
+    const browser = await next.browser('/prefetch', {
       beforePageLoad(p: Playwright.Page) {
         act = createRouterAct(p)
         p.on('response', (response) => {
