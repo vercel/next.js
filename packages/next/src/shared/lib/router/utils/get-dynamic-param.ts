@@ -107,15 +107,12 @@ export function interpolateParallelRouteParams(
 }
 
 /**
+ * Creates the dynamic param value of a segment for the App Router render.
  *
- * Shared logic on client and server for creating a dynamic param value.
+ * Only the server calls this. No browser bundle contains this module, so keep
+ * helpers that the client router needs out of it.
  *
- * This code needs to be shared with the client so it can extract dynamic route
- * params from the URL without a server request.
- *
- * Because everything in this module is sent to the client, we should aim to
- * keep this code as simple as possible. The special case handling for catchall
- * and optional is, alas, unfortunate.
+ * The special case handling for catchall and optional is, alas, unfortunate.
  */
 export function getDynamicParam(
   interpolatedParams: Params,
