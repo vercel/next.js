@@ -25,6 +25,7 @@ describe('browser-chunks', () => {
   })
 
   let sources: string[] = []
+  let jsFiles: string[] = []
   let jsContents: string[] = []
   beforeAll(async () => {
     const chunksDir = join(next.testDir, '.next')
@@ -38,10 +39,9 @@ describe('browser-chunks', () => {
     )
     sources = sourcemaps.flatMap((sourcemap) => JSON.parse(sourcemap).sources)
 
+    jsFiles = chunks.filter((filename) => filename.endsWith('.js'))
     jsContents = await Promise.all(
-      chunks
-        .filter((filename) => filename.endsWith('.js'))
-        .map((f) => readFile(join(chunksDir, f), 'utf8'))
+      jsFiles.map((f) => readFile(join(chunksDir, f), 'utf8'))
     )
   })
 
@@ -81,10 +81,10 @@ describe('browser-chunks', () => {
     // their sources in another way. This header name is one of the constants
     // that only the server uses, so no chunk may contain it either.
     expect(
-      jsContents.some((content) =>
-        content.includes('x-prerender-revalidate-if-generated')
+      jsFiles.filter((_, i) =>
+        jsContents[i].includes('x-prerender-revalidate-if-generated')
       )
-    ).toBe(false)
+    ).toEqual([])
   })
 
   it('must not bundle any dev overlay into browser chunks', () => {
