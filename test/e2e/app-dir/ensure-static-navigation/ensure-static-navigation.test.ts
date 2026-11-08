@@ -237,7 +237,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -292,7 +292,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -347,7 +347,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -402,7 +402,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -457,7 +457,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -672,7 +672,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the metadata (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the metadata or increase the cache lifetime (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateMetadata()\` with static data
 
          Learn more: https://nextjs.org/docs/messages/static-metadata-dynamic
@@ -724,7 +724,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the viewport data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the viewport data or increase the cache lifetime (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateViewport()\` with static data
 
          Learn more: https://nextjs.org/docs/messages/static-viewport-dynamic
@@ -945,7 +945,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -1160,7 +1160,7 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
            - [block] Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -1216,7 +1216,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -1272,7 +1272,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -1354,7 +1354,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
 
@@ -1374,7 +1374,7 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+           - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
 

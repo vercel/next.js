@@ -92,7 +92,7 @@ export function registerDynamicRootAndBoundaryTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -113,7 +113,7 @@ export function registerDynamicRootAndBoundaryTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -141,7 +141,7 @@ export function registerDynamicRootAndBoundaryTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -165,7 +165,7 @@ export function registerDynamicRootAndBoundaryTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -188,7 +188,7 @@ export function registerDynamicRootAndBoundaryTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -209,7 +209,7 @@ export function registerDynamicRootAndBoundaryTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -237,7 +237,7 @@ export function registerDynamicRootAndBoundaryTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -275,7 +275,7 @@ export function registerDynamicRootAndBoundaryTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
+               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic

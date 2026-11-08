@@ -1156,6 +1156,7 @@ it('keeps combined build fixes aligned with the cards and qualifies the cache op
     expect(cacheOptions[0]).toMatch(
       /^ {2}- \[cache\] For uncached data or short-lived caches: cache the /
     )
+    expect(cacheOptions[0]).toContain('or increase the cache lifetime')
     expect(cacheOptions[0]).toContain('(does not apply to `connection()`)')
     expect(cacheOptions[0]).not.toContain('cacheLife')
     expect(message).not.toContain('300 seconds')
