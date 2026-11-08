@@ -85,6 +85,7 @@ import {
   isHTTPAccessFallbackError,
 } from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
+import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { INFINITE_CACHE } from '../../../lib/constants'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
@@ -142,6 +143,7 @@ export type AppRouteModule = typeof import('../../../build/templates/app-route')
 export type AppRouteSharedContext = {
   buildId: string
   deploymentId: string
+  basePath: string
 }
 
 /**
@@ -455,8 +457,11 @@ export class AppRouteRouteModule extends RouteModule<
         throw new Error('Invariant: Unexpected redirect url format')
       }
 
-      // We need to capture any headers that should be sent on the response.
-      const headers = new Headers({ Location: url })
+      // Relative redirect URLs are app-relative, so the `basePath` is added
+      // like it is for `redirect()` in pages and Server Actions.
+      const headers = new Headers({
+        Location: addPathPrefix(url, context.sharedContext.basePath),
+      })
 
       // Let's append any cookies that were added by the cookie API.
       // TODO leaving the gate here b/c it indicates that we might not actually
