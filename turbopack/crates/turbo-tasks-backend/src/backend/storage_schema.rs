@@ -681,33 +681,30 @@ impl TaskStorage {
         extract(self.remove_lazy_at(idx))
     }
 
-    /// Removes the lazy field matched by `matches` if it is an empty collection.
-    ///
-    /// Called by the generated mutators of lazy collection fields once a removal left the
-    /// collection empty, so an emptied field does not keep its `LazyField` slot (or the Vec's
-    /// buffer) for the rest of the task's life.
-    fn remove_lazy_if_empty(&mut self, matches: impl Fn(&LazyField) -> bool) {
-        if let Some(idx) = self.lazy.iter().position(matches)
-            && self.lazy[idx].is_empty()
-        {
-            self.remove_lazy_at(idx);
-        }
-    }
-
-    /// Removes the lazy field at `idx` via swap_remove, shrinking the Vec once at most half of it
-    /// is used.
+    /// Removes the lazy field at `idx` via swap_remove.
     ///
     /// Fields are removed from finished tasks (e.g. `dirty` once a task is clean) long after
-    /// `cleanup_after_execution` last shrank the Vec. Shrinking by a slot or two would not release
-    /// memory (`realloc` keeps a block that is still at least half used in place) but costs a call
-    /// on every removal and another when the field comes back, so only shrink at
-    /// `capacity > 2 * len`, which includes freeing the buffer when the last field goes.
+    /// `cleanup_after_execution` last shrank the Vec, so shrink it once it is mostly empty. Not on
+    /// every removal: a slightly smaller `realloc` keeps the block in place and releases nothing,
+    /// but costs a call each time a field comes and goes.
     fn remove_lazy_at(&mut self, idx: usize) -> LazyField {
         let field = self.lazy.swap_remove(idx);
-        if self.lazy.capacity() > 2 * self.lazy.len() {
-            self.lazy.shrink_to_fit();
-        }
+        self.lazy.shrink_amortized();
         field
+    }
+
+    /// The index of the lazy field matched by `matches`, creating it with `create` if absent.
+    fn get_or_create_lazy_index(
+        &mut self,
+        matches: impl Fn(&LazyField) -> bool,
+        create: impl FnOnce() -> LazyField,
+    ) -> usize {
+        if let Some(idx) = self.lazy.iter().position(matches) {
+            idx
+        } else {
+            self.lazy.push_exact(create());
+            self.lazy.len() - 1
+        }
     }
 
     /// Get or create a lazy field, returning a mutable reference.
@@ -733,14 +730,8 @@ impl TaskStorage {
         extract: impl for<'a> FnOnce(&'a mut LazyField) -> &'a mut T,
         create: impl FnOnce() -> LazyField,
     ) -> &mut T {
-        // Find the index of matching field (immutable borrow)
-        let idx = self.lazy.iter().position(matches);
-        if let Some(idx) = idx {
-            extract(&mut self.lazy[idx])
-        } else {
-            self.lazy.push_exact(create());
-            extract(self.lazy.last_mut().unwrap())
-        }
+        let idx = self.get_or_create_lazy_index(matches, create);
+        extract(&mut self.lazy[idx])
     }
 
     /// Take a lazy field by predicate, removing it from the Vec.

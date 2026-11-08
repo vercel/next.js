@@ -2463,24 +2463,32 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     // no-op so no undo is needed.
     let remove_outcome = field.track_modification_outcome_expr_guarded(quote! { key });
     let remove_undo = field.track_modification_undo_expr(quote! { _track_outcome });
-    // For lazy fields, drop the `LazyField` variant once a mutation left the map empty. Expects
-    // the mutated map bound to `map`; `is_empty` is O(1), the lazy Vec is only rescanned when the
-    // map actually became empty.
-    let drop_if_empty = if is_option {
+    // Binds the map to mutate to `map`. For lazy fields it is located (or created) by index, so
+    // `drop_if_empty` can remove the `LazyField` variant by that index once a mutation left the
+    // map empty (`is_empty` is O(1)).
+    let (bind_map, drop_if_empty) = if is_option {
         let matches = field.lazy_matches_closure();
-        quote! {
-            if map.is_empty() {
-                self.typed_mut().remove_lazy_if_empty(#matches);
-            }
-        }
+        let extractor = field.lazy_extractor_closure();
+        let constructor = field.lazy_constructor(quote! { Default::default() });
+        (
+            quote! {
+                let idx = self.typed_mut().get_or_create_lazy_index(#matches, || #constructor);
+                let map = self.typed_mut().lazy_at_mut(idx, #extractor);
+            },
+            quote! {
+                if map.is_empty() {
+                    self.typed_mut().remove_lazy_at(idx);
+                }
+            },
+        )
     } else {
-        quote! {}
+        (quote! { let map = #mut_expr; }, quote! {})
     };
 
     let remove_body = if field.is_transient() {
         quote! {
             #track_modification
-            let map = #mut_expr;
+            #bind_map
             let removed = map.remove(key);
             #drop_if_empty
             removed
@@ -2536,7 +2544,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
         let update_positive_crossing_body = if field.is_transient() {
             quote! {
-                let map = #mut_expr;
+                #bind_map
                 let crossed = map.update_positive_crossing(key, delta);
                 #drop_if_empty
                 crossed
@@ -2547,7 +2555,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                     return false;
                 }
                 #track_modification_key
-                let map = #mut_expr;
+                #bind_map
                 let crossed = map.update_positive_crossing(key, delta);
                 #drop_if_empty
                 crossed
@@ -2569,7 +2577,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     let update_count_body = if field.is_transient() {
         quote! {
-            let map = #mut_expr;
+            #bind_map
             let crossed = map.update_count(key, delta);
             #drop_if_empty
             crossed
@@ -2580,7 +2588,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return false;
             }
             #track_modification_key
-            let map = #mut_expr;
+            #bind_map
             let crossed = map.update_count(key, delta);
             #drop_if_empty
             crossed
@@ -2589,7 +2597,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     let update_counts_body = if field.is_transient() {
         quote! {
-            let map = #mut_expr;
+            #bind_map
             for key in keys {
                 map.update_count(key, delta);
             }
@@ -2612,7 +2620,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             if keys.iter().any(|key| !key.is_transient()) {
                 #track_modification
             }
-            let map = #mut_expr;
+            #bind_map
             for key in keys {
                 map.update_count(key, delta);
             }
@@ -2624,7 +2632,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return;
             }
             #track_modification
-            let map = #mut_expr;
+            #bind_map
             for key in keys {
                 map.update_count(key, delta);
             }
@@ -2634,7 +2642,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     let update_and_get_body = if field.is_transient() {
         quote! {
-            let map = #mut_expr;
+            #bind_map
             let value = map.update_and_get(key, delta);
             #drop_if_empty
             value
@@ -2645,7 +2653,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return self.#get_name(&key).copied().unwrap_or_default();
             }
             #track_modification_key
-            let map = #mut_expr;
+            #bind_map
             let value = map.update_and_get(key, delta);
             #drop_if_empty
             value

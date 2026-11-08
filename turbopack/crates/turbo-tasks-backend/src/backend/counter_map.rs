@@ -21,6 +21,11 @@ type InnerMap<K, V, const I: usize> = AutoMap<K, V, BuildHasherDefault<FxHasher>
 ///
 /// The `I` const generic forwards the inline capacity to the backing `AutoMap`
 /// — see the schema field-by-field sizing for the chosen values.
+///
+/// Removing entries calls [`AutoMap::shrink_amortized`]: aggregation edges (`upper`,
+/// `followers`, the aggregated counters) are moved around constantly while the aggregation
+/// graph rebalances, and neither hash tables nor spilled lists shrink on their own, so they would
+/// otherwise keep their peak capacity.
 #[derive(Debug, Clone)]
 pub struct CounterMap<K, V, const I: usize>(InnerMap<K, V, I>);
 
@@ -104,20 +109,6 @@ impl<K, V, const I: usize> CounterMap<K, V, I> {
         self.0.len()
     }
 
-    /// Releases memory after entries were removed, once the map is mostly empty.
-    ///
-    /// Aggregation edges (`upper`, `followers`, the aggregated dirty and collectible counters) are
-    /// moved around constantly while the aggregation graph rebalances, and neither hash tables nor
-    /// spilled lists shrink on their own, so without this they keep their peak capacity: up to ~5x
-    /// the bytes of their entries on a large build. The check is two loads; the shrink only runs
-    /// at `capacity > 3 * len`, which leaves room for the doubling growth so it does not thrash.
-    fn shrink_after_remove(&mut self)
-    where
-        K: Eq + Hash,
-    {
-        self.0.shrink_amortized();
-    }
-
     pub fn get(&self, key: &K) -> Option<&V>
     where
         K: Eq + Hash,
@@ -135,7 +126,7 @@ impl<K, V, const I: usize> CounterMap<K, V, I> {
     {
         let removed = self.0.remove(key);
         if removed.is_some() {
-            self.shrink_after_remove();
+            self.0.shrink_amortized();
         }
         removed
     }
@@ -147,7 +138,7 @@ impl<K, V, const I: usize> CounterMap<K, V, I> {
         K: Eq + Hash,
     {
         self.0.retain(|k, v| f(k, v));
-        self.shrink_after_remove();
+        self.0.shrink_amortized();
     }
 
     /// Extend this map with the entries from an iterator. Used by restore paths
@@ -198,7 +189,7 @@ impl<K: Hash + Eq, V: CounterValue, const I: usize> CounterMap<K, V, I> {
                 let new = old + delta;
                 if new.is_zero() {
                     e.remove();
-                    self.shrink_after_remove();
+                    self.0.shrink_amortized();
                     true // crossed from non-zero to zero
                 } else {
                     *e.get_mut() = new;
@@ -229,7 +220,7 @@ impl<K: Hash + Eq, V: CounterValue, const I: usize> CounterMap<K, V, I> {
                 let new_value = old + delta;
                 if new_value.is_zero() {
                     e.remove();
-                    self.shrink_after_remove();
+                    self.0.shrink_amortized();
                 } else {
                     *e.get_mut() = new_value;
                 }
@@ -271,7 +262,7 @@ impl<K: Hash + Eq, V: CounterValue, const I: usize> CounterMap<K, V, I> {
                     }
                     None => {
                         e.remove();
-                        self.shrink_after_remove();
+                        self.0.shrink_amortized();
                     }
                 }
             }
@@ -307,7 +298,7 @@ impl<K: Hash + Eq, V: CounterValue, const I: usize> CounterMap<K, V, I> {
                 let state_change = old.is_positive() != new.is_positive();
                 if new.is_zero() {
                     e.remove();
-                    self.shrink_after_remove();
+                    self.0.shrink_amortized();
                 } else {
                     *e.get_mut() = new;
                 }

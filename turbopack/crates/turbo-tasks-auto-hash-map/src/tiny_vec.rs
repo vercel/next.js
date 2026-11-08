@@ -367,6 +367,16 @@ impl<T, const INLINE: usize, const MAX: usize> TinyVec<T, INLINE, MAX> {
         }
     }
 
+    /// Shrinks the buffer (see [`Self::shrink_to_fit`]) once at most a third of it is used.
+    ///
+    /// Meant to follow removals: the threshold leaves room for the doubling growth, so
+    /// alternating pushes and removals around a capacity boundary do not reallocate every time.
+    pub fn shrink_amortized(&mut self) {
+        if self.capacity() > self.len() * 3 {
+            self.shrink_to_fit();
+        }
+    }
+
     /// Shrink a spilled buffer back to inline storage when it fits, or to a
     /// tighter heap allocation. No-op when already inline.
     pub fn shrink_to_fit(&mut self) {
