@@ -68,10 +68,10 @@ export function installGlobalModuleLoadingHandlers(
   )
 }
 
-// Called twice, because the minifier inlines a function with one caller: V8
-// allocates a function expression that is assigned to a property in the old
-// generation until it optimizes the function around the assignment, and there
-// a replaced handler keeps its loader alive.
+// Gets the handler as an argument, because the minifier puts a variable with
+// one use back into the assignment: V8 allocates a function expression that is
+// assigned to a property in the old generation until it optimizes the function
+// around the assignment, and there a replaced handler keeps its loader alive.
 function setGlobalHandler(
   isRequire: boolean,
   handler: (...args: any[]) => unknown
