@@ -501,12 +501,11 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
+                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at Page (app/use-cache-low-expire/fast/page.tsx:3:16)
@@ -529,12 +528,11 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
+                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at main (<anonymous>)
@@ -557,12 +555,11 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
   - [block] Set \`export const instant = false\` to allow a blocking route
+  - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
@@ -572,12 +569,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
   - [block] Set \`export const instant = false\` to allow a blocking route
+  - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
@@ -626,12 +622,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
+                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at Page (app/use-cache-low-expire/slow/page.tsx:3:16)
@@ -654,12 +649,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
+                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at main (<anonymous>)
@@ -682,12 +676,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
   - [block] Set \`export const instant = false\` to allow a blocking route
+  - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
@@ -697,12 +690,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
   - [block] Set \`export const instant = false\` to allow a blocking route
+  - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
@@ -914,12 +906,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
+                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at Page (app/use-cache-revalidate-0/fast/page.tsx:3:16)
@@ -942,12 +933,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
+                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at main (<anonymous>)
@@ -970,12 +960,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
   - [block] Set \`export const instant = false\` to allow a blocking route
+  - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
@@ -985,12 +974,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
   - [block] Set \`export const instant = false\` to allow a blocking route
+  - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
@@ -1039,12 +1027,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
+                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at Page (app/use-cache-revalidate-0/slow/page.tsx:3:16)
@@ -1067,12 +1054,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-                 For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
+                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at main (<anonymous>)
@@ -1095,12 +1081,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
   - [block] Set \`export const instant = false\` to allow a blocking route
+  - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
@@ -1110,12 +1095,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
   - [block] Set \`export const instant = false\` to allow a blocking route
+  - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
 Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 )
@@ -1367,12 +1351,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-               For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
+                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at Page (app/use-cache-params/[slug]/page.tsx:1:16)
@@ -1393,12 +1376,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-               For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
+                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at main (<anonymous>)

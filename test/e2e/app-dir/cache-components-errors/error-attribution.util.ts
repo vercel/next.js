@@ -224,12 +224,11 @@ export function registerErrorAttributionTests(
 
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-               For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
+                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
@@ -253,12 +252,11 @@ export function registerErrorAttributionTests(
 
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-               For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
+                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at a (<anonymous>)
@@ -280,12 +278,11 @@ export function registerErrorAttributionTests(
 
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
-               For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
+                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)

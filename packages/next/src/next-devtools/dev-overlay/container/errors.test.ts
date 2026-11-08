@@ -1046,7 +1046,10 @@ describe('fully static route errors', () => {
     expect(cards.map((card) => card.group)).not.toContain('block')
     expect(cards.map((card) => card.group)).toEqual(
       Array.from(
-        error.message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm),
+        // Build-only cache references do not add a development overlay card.
+        error.message
+          .replace(/^.*For short-lived cached data:.*\n/gm, '')
+          .matchAll(/^\s*-\s*\[([a-z-]+)\]/gm),
         (match) => match[1]
       )
     )
@@ -1125,20 +1128,39 @@ it('keeps short-stale App Shell findings as Instant Insights', () => {
   }
 })
 
-it('qualifies caching advice when a build diagnostic may mean a short-lived cache', () => {
-  for (const createError of [
-    createDynamicOrRuntimeBodyError,
-    createDynamicOrRuntimeMetadataError,
-    createDynamicOrRuntimeViewportError,
-    createNonPrerenderableBodyErrorInStaticRoute,
-    createNonPrerenderableMetadataErrorInStaticRoute,
-    createNonPrerenderableViewportErrorInStaticRoute,
-  ]) {
+it('links to all short-cache fixes without changing the original build guidance', () => {
+  const cases = [
+    [createDynamicOrRuntimeBodyError, 'short-lived-cache#route-content'],
+    [createDynamicOrRuntimeMetadataError, 'short-lived-cache#metadata'],
+    [createDynamicOrRuntimeViewportError, 'short-lived-cache#viewport'],
+    [
+      createNonPrerenderableBodyErrorInStaticRoute,
+      'static-short-lived-cache#route-content',
+    ],
+    [
+      createNonPrerenderableMetadataErrorInStaticRoute,
+      'static-short-lived-cache#metadata',
+    ],
+    [
+      createNonPrerenderableViewportErrorInStaticRoute,
+      'static-short-lived-cache#viewport',
+    ],
+  ] as const
+  for (const [createError, page] of cases) {
     const message = createError(ROUTE).message
-    expect(message).toContain(
-      'For short-lived cached data, increase `cacheLife`'
+    const remedies = message
+      .split('Ways to fix this:\n')[1]
+      .split('\n\n')[0]
+      .split('\n')
+    expect(remedies.at(-1)).toBe(
+      `  - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/${page}`
     )
-    expect(message).toContain('300 seconds (five minutes)')
-    expect(message).toContain('For uncached data')
+    expect(message).not.toContain('300 seconds')
+    expect(message).not.toContain('increase `cacheLife`')
+    expect(message).toContain(
+      createError === createDynamicOrRuntimeMetadataError
+        ? 'Cache the metadata with'
+        : 'For uncached data'
+    )
   }
 })

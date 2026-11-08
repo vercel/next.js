@@ -78,15 +78,20 @@ describe('short-lived-cache diagnostics', () => {
         expect(result.exitCode).toBe(1)
         output = result.cliOutput
       }
-      expect(output).toContain('300 seconds (five minutes)')
-      expect(output).toContain('cacheLife')
       if (isNextDev) {
+        expect(output).toContain('300 seconds (five minutes)')
+        expect(output).toContain('cacheLife')
         expect(output).toContain('Next.js encountered a short-lived cache')
         expect(output).toContain(
           `https://nextjs.org/docs/messages/${route.startsWith('static-') ? 'static-short-lived-cache' : 'short-lived-cache'}#${route.endsWith('metadata') ? 'metadata' : route.endsWith('viewport') ? 'viewport' : 'route-content'}`
         )
         expect(output).not.toContain('Next.js encountered URL data')
         expect(output).not.toContain('Cache the data access with')
+      } else {
+        expect(output).toContain(
+          `For short-lived cached data: see https://nextjs.org/docs/messages/${route.startsWith('static-') ? 'static-short-lived-cache' : 'short-lived-cache'}#${route.endsWith('metadata') ? 'metadata' : route.endsWith('viewport') ? 'viewport' : 'route-content'}`
+        )
+        expect(output).not.toContain('300 seconds (five minutes)')
       }
     })
   }

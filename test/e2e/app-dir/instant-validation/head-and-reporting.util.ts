@@ -1431,12 +1431,11 @@ export function registerHeadAndReportingTests(
 
                This route is configured to be fully static, but some data requires rendering at request time.
 
-               For short-lived cached data, increase \`cacheLife\` so \`expire\` is at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0.
-
                Ways to fix this:
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                  - [remove] Remove the data access
                  - [client] Read the data on the client
+                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/static-route-dynamic
                    at main (<anonymous>)
