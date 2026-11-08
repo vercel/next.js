@@ -226,7 +226,7 @@ export function registerErrorAttributionTests(
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
+                 - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -253,7 +253,7 @@ export function registerErrorAttributionTests(
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
+                 - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -278,7 +278,7 @@ export function registerErrorAttributionTests(
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
+                 - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic

@@ -1125,7 +1125,7 @@ it('keeps short-stale App Shell findings as Instant Insights', () => {
   }
 })
 
-it('keeps combined build fixes aligned with the cards and shares the cache option', () => {
+it('keeps combined build fixes aligned with the cards and qualifies the cache option', () => {
   const cases = [
     [createDynamicOrRuntimeBodyError, 'blocking-route'],
     [createDynamicOrRuntimeMetadataError, 'metadata'],
@@ -1153,12 +1153,40 @@ it('keeps combined build fixes aligned with the cards and shares the cache optio
       line.startsWith('  - [cache]')
     )
     expect(cacheOptions).toHaveLength(1)
-    expect(cacheOptions[0]).toContain('"use cache"')
-    expect(cacheOptions[0]).toContain(
-      'or increase `cacheLife` for short-lived caches'
+    expect(cacheOptions[0]).toMatch(
+      /^ {2}- \[cache\] For uncached data or short-lived caches: cache the /
     )
     expect(cacheOptions[0]).toContain('(does not apply to `connection()`)')
+    expect(cacheOptions[0]).not.toContain('cacheLife')
     expect(message).not.toContain('300 seconds')
     expect(message).not.toContain('For short-lived cached data: see')
+  }
+})
+
+it('keeps Cache remedies specific when validation identifies the cause', () => {
+  for (const createError of [
+    createDynamicBodyError,
+    createDynamicMetadataError,
+    createDynamicViewportError,
+    createDynamicBodyErrorInStaticRoute,
+    createDynamicMetadataErrorInStaticRoute,
+    createDynamicViewportErrorInStaticRoute,
+  ]) {
+    const cacheOptions = createError(ROUTE)
+      .message.split('\n')
+      .filter((line) => line.startsWith('  - [cache]'))
+    expect(cacheOptions).toHaveLength(1)
+    expect(cacheOptions[0]).toContain('"use cache"')
+    expect(cacheOptions[0]).not.toContain('cacheLife')
+  }
+  for (const scope of ['body', 'metadata', 'viewport'] as const) {
+    for (const fullyStatic of [false, true]) {
+      const cacheOptions = createShortLivedCacheError(ROUTE, scope, fullyStatic)
+        .message.split('\n')
+        .filter((line) => line.startsWith('  - [cache]'))
+      expect(cacheOptions).toEqual([
+        '  - [cache] Increase the relevant `cacheLife` value',
+      ])
+    }
   }
 })

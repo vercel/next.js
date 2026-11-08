@@ -89,7 +89,7 @@ describe('short-lived-cache diagnostics', () => {
         expect(output).not.toContain('Cache the data access with')
       } else {
         expect(output).toContain(
-          'or increase `cacheLife` for short-lived caches'
+          '  - [cache] For uncached data or short-lived caches: cache the '
         )
         expect(output).not.toContain('300 seconds (five minutes)')
         expect(output).not.toContain('For short-lived cached data: see')

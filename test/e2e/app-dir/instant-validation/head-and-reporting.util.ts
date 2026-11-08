@@ -1432,7 +1432,7 @@ export function registerHeadAndReportingTests(
                This route is configured to be fully static, but some data requires rendering at request time.
 
                Ways to fix this:
-                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
+                 - [cache] For uncached data or short-lived caches: cache the data (does not apply to \`connection()\`)
                  - [remove] Remove the data access
                  - [client] Read the data on the client
 

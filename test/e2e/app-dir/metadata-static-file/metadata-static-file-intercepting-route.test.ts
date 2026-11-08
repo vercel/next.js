@@ -15,7 +15,7 @@ describe('metadata-files-static-output-intercepting-route', () => {
     //
     // Ways to fix this:
     //   - [static] Use a static metadata export instead of `generateMetadata()`
-    //   - [cache] Cache the metadata with `"use cache"` in `generateMetadata()`, or increase `cacheLife` for short-lived caches
+    //   - [cache] For uncached data or short-lived caches: cache the metadata (does not apply to `connection()`)
     //   - [dynamic] Render a marker component that calls `await connection()` inside `<Suspense>` on the page
     //   - [block] Set `export const instant = false` to allow a blocking route
     //
