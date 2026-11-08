@@ -1896,7 +1896,53 @@ export default abstract class Server<
     }
   }
 
+  /**
+   * The route definitions built from the manifests, with what `getRouteMatch`
+   * derives from them. Outside of development the manifests don't change, so
+   * they are built once instead of for every request that is matched here.
+   */
+  private routeDefinitionsCache:
+    | {
+        pagesManifest: PagesManifest | undefined
+        appPathsManifest: PagesManifest | undefined
+        appPathRoutes: Record<string, string[]> | undefined
+        definitions: RouteDefinition[]
+        sortedDynamicDefinitions: RouteDefinition[] | undefined
+        matchers: Map<string, ReturnType<typeof getRouteMatcher>>
+      }
+    | undefined = undefined
+
+  private getCachedRouteDefinitions() {
+    if (this.dev) return undefined
+
+    const cached = this.routeDefinitionsCache
+    if (
+      cached !== undefined &&
+      cached.pagesManifest === this.pagesManifest &&
+      cached.appPathsManifest === this.appPathsManifest &&
+      cached.appPathRoutes === this.appPathRoutes
+    ) {
+      return cached
+    }
+
+    return (this.routeDefinitionsCache = {
+      pagesManifest: this.pagesManifest,
+      appPathsManifest: this.appPathsManifest,
+      appPathRoutes: this.appPathRoutes,
+      definitions: this.buildRouteDefinitions(),
+      sortedDynamicDefinitions: undefined,
+      matchers: new Map(),
+    })
+  }
+
   private getRouteDefinitions(): RouteDefinition[] {
+    return (
+      this.getCachedRouteDefinitions()?.definitions ??
+      this.buildRouteDefinitions()
+    )
+  }
+
+  private buildRouteDefinitions(): RouteDefinition[] {
     // Route definitions are rebuilt from the manifests instead of being held
     // by route matcher providers. This keeps direct BaseServer entrypoints
     // working when requests do not pass through router-server's fsChecker.
@@ -2008,9 +2054,15 @@ export default abstract class Server<
     if (!matchPathname) return null
 
     if (isDynamicRoute(definition.pathname)) {
-      const params = getRouteMatcher(getRouteRegex(definition.pathname))(
-        matchPathname
-      )
+      // Compiling the route regex is the expensive part. The matcher only
+      // depends on the route's pathname, so keep it with the definitions.
+      const matchers = this.getCachedRouteDefinitions()?.matchers
+      let matcher = matchers?.get(definition.pathname)
+      if (matcher === undefined) {
+        matcher = getRouteMatcher(getRouteRegex(definition.pathname))
+        matchers?.set(definition.pathname, matcher)
+      }
+      const params = matcher(matchPathname)
 
       if (!params) return null
 
@@ -2079,9 +2131,19 @@ export default abstract class Server<
       }
     }
 
-    for (const definition of this.getSortedRouteDefinitions(
-      dynamicDefinitions
-    )) {
+    // Every path that gets here has collected all dynamic definitions, in
+    // the order of `definitions`, so their sorted order can be kept as well.
+    const cached = this.getCachedRouteDefinitions()
+    let sortedDynamicDefinitions: RouteDefinition[]
+    if (cached !== undefined && cached.definitions === definitions) {
+      sortedDynamicDefinitions = cached.sortedDynamicDefinitions ??=
+        this.getSortedRouteDefinitions(dynamicDefinitions)
+    } else {
+      sortedDynamicDefinitions =
+        this.getSortedRouteDefinitions(dynamicDefinitions)
+    }
+
+    for (const definition of sortedDynamicDefinitions) {
       const match = this.testRouteDefinition(
         pathname,
         definition,
