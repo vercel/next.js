@@ -87,6 +87,27 @@ describe.each([
       expect(count(result.evaluated.before, 'instrumentation')).toBe(1)
     })
 
+    // Without the option a module is evaluated when its route is loaded, before the route
+    // handles the request. With it, the first read of the module happens inside the request.
+
+    it('evaluates a declared module outside the async context of the request that first uses it', async () => {
+      for (const id of ['1', '2', '3']) {
+        expect(await json(`/api/async-context?id=${id}`)).toEqual({
+          atEvaluation: null,
+          snapshot: null,
+          bound: null,
+          timer: null,
+          asyncFunction: null,
+        })
+      }
+    })
+
+    it('prerenders a page that uses a declared module which fetches when it is evaluated', async () => {
+      const response = await next.fetch('/fetch-at-evaluation')
+      expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
+      expect(await response.text()).toContain('<p id="fetched">fetched</p>')
+    })
+
     // Server actions, client references and "use cache" functions are registered when their
     // module is evaluated. The `declared` ones are in the package with `sideEffects: false`.
 
