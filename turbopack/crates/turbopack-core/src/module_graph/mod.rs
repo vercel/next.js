@@ -57,6 +57,7 @@ pub mod async_module_info;
 pub mod binding_usage_info;
 pub mod chunk_group_info;
 pub mod collect;
+mod evaluation_order;
 pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
