@@ -52,13 +52,16 @@ function createAsyncResourceSnapshot(
   }
 }
 
-const createNodeSnapshot = NodeAsyncResource
-  ? createAsyncResourceSnapshot.bind(null, NodeAsyncResource)
-  : undefined
+// What takes a snapshot in Node.js, in place of `AsyncLocalStorage`. Where
+// `AsyncLocalStorage` does not exist, there is no context to capture.
+const nodeSnapshotSource =
+  NodeAsyncResource && maybeGlobalAsyncLocalStorage
+    ? { snapshot: createAsyncResourceSnapshot.bind(null, NodeAsyncResource) }
+    : undefined
 
 // The function in `./async-local-storage` decides whether a context is
 // captured at all, because adapters patch that decision there. This module
 // only supplies how Node.js captures it.
 export function createSnapshot(): Snapshot {
-  return createSnapshotWith(createNodeSnapshot)
+  return createSnapshotWith(nodeSnapshotSource)
 }

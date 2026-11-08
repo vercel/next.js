@@ -49,26 +49,27 @@ export type Snapshot = <R, TArgs extends any[]>(
 /**
  * Returns a function that runs a callback in the async context of this call.
  *
- * Server code calls `createSnapshot` of `./async-context-snapshot`, which
- * passes the implementation for Node.js as `createNodeSnapshot`. That
- * implementation needs `node:async_hooks`, which this module must not require,
- * because it is also part of browser bundles.
+ * `source` takes the snapshot: `AsyncLocalStorage` by default. Server code
+ * calls `createSnapshot` of `./async-context-snapshot`, which passes the
+ * implementation for Node.js. That implementation needs `node:async_hooks`,
+ * which this module must not require, because it is also part of browser
+ * bundles.
  *
  * Keep the shape of this function: a function declaration with this name in
- * this file, whose `if` statement holds every way of capturing a context.
- * `@opennextjs/cloudflare` patches the compiled file: it removes the `if`
- * statements of the function declaration `createSnapshot` in
- * `server/app-render/async-local-storage.js`, because on its platform a
- * context must not be entered from another request. What is left calls the
- * callback in the context of the caller.
+ * this file, in which `if (source) { return source.snapshot() }` is the only
+ * way to capture a context. Adapters remove that statement from the compiled
+ * code, because on their platform a context must not be entered from another
+ * request. What is left calls the callback in the context of the caller.
+ * `@opennextjs/cloudflare` removes the `if` statements of the function
+ * declaration `createSnapshot` in `server/app-render/async-local-storage.js`.
+ * `@solcreek/adapter-creek` removes the statement by its text, also in the
+ * conditional expression that a minifier makes of it.
  */
 export function createSnapshot(
-  createNodeSnapshot: (() => Snapshot) | undefined
+  source: { snapshot(): Snapshot } | undefined = maybeGlobalAsyncLocalStorage
 ): Snapshot {
-  if (maybeGlobalAsyncLocalStorage) {
-    return createNodeSnapshot
-      ? createNodeSnapshot()
-      : maybeGlobalAsyncLocalStorage.snapshot()
+  if (source) {
+    return source.snapshot()
   }
   return function (fn: any, ...args: any[]) {
     return fn(...args)

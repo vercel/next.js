@@ -111,7 +111,7 @@ describe('async-context-snapshot', () => {
     // `createSnapshot` of the server-only module leaves the decision to that
     // function: it only passes the implementation for Node.js on.
     const passesOn =
-      /(?<=(?:^|[;{}])\s*)(?:export )?function createSnapshot\(\) \{\s*return (?:\(0, \w+\.createSnapshot\)|createSnapshotWith)\(createNodeSnapshot\);?\s*\}/
+      /(?<=(?:^|[;{}])\s*)(?:export )?function createSnapshot\(\) \{\s*return (?:\(0, \w+\.createSnapshot\)|createSnapshotWith)\(nodeSnapshotSource\);?\s*\}/
     const appRequire = createRequire(path.join(next.testDir, 'package.json'))
     const readWithoutComments = (file: string) =>
       fs
