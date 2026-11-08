@@ -169,6 +169,20 @@ export abstract class RouteModule<
   public incrementCache?: IncrementalCache
   public responseCache?: ResponseCache
 
+  /**
+   * The directories `ensureInstrumentation` resolved for the previous call,
+   * with the values they were resolved from.
+   */
+  private resolvedDirs:
+    | {
+        cwd: string
+        relativeProjectDir: string
+        absoluteDistDir: string | undefined
+        absoluteProjectDir: string
+        distDir: string | undefined
+      }
+    | undefined = undefined
+
   constructor({
     userland,
     definition,
@@ -776,16 +790,43 @@ export abstract class RouteModule<
       const { join, relative } =
         require('node:path') as typeof import('node:path')
 
-      absoluteProjectDir = join(
-        /* turbopackIgnore: true */
-        process.cwd(),
+      // This runs twice for every request. The directories are almost always
+      // those of the previous call, so only resolve them when they changed.
+      const cwd = process.cwd()
+      const relativeProjectDir =
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-      )
-
       const absoluteDistDir = getRequestMeta(req, 'distDir')
+      const resolved = this.resolvedDirs
 
-      if (absoluteDistDir) {
-        this.distDir = relative(absoluteProjectDir, absoluteDistDir)
+      if (
+        resolved !== undefined &&
+        resolved.cwd === cwd &&
+        resolved.relativeProjectDir === relativeProjectDir &&
+        resolved.absoluteDistDir === absoluteDistDir
+      ) {
+        absoluteProjectDir = resolved.absoluteProjectDir
+        if (resolved.distDir !== undefined) {
+          this.distDir = resolved.distDir
+        }
+      } else {
+        absoluteProjectDir = join(
+          /* turbopackIgnore: true */
+          cwd,
+          relativeProjectDir
+        )
+
+        let distDir: string | undefined
+        if (absoluteDistDir) {
+          distDir = relative(absoluteProjectDir, absoluteDistDir)
+          this.distDir = distDir
+        }
+        this.resolvedDirs = {
+          cwd,
+          relativeProjectDir,
+          absoluteDistDir,
+          absoluteProjectDir,
+          distDir,
+        }
       }
       const {
         ensureInstrumentationRegistered,
