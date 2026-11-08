@@ -26,9 +26,18 @@ Every decision traces back to one of these. When in doubt, read the source — d
 | Card titles, IDs, groups, snippets, link URLs | `packages/next/src/next-devtools/dev-overlay/components/instant/instant-guidance-data.ts`     | Each `FixCard[]` array is one error family                                                                                             |
 | Error headline (literal text user sees)       | `packages/next/src/server/app-render/sync-io-messages.ts`, `blocking-route-messages.ts`, etc. | `createSyncIOError`, `createDynamicBodyError`, etc. — the template string is the headline                                              |
 | Existing page (content to preserve)           | `errors/<slug>.mdx` in this repo                                                              | Read the full file; relocate useful content that doesn't fit fix cards into its matching fix, Gotchas, or genuinely additional options |
-| Canonical API docs (terminology)              | `docs/01-app/` in this repo                                                                   | Cross-check every API name, directive name, and concept against the published docs                                                     |
+| Canonical API docs (behavior and terminology) | `docs/01-app/` in this repo                                                                   | Verify behavior, requirements, thresholds, defaults, API names, and terminology against the reference                                  |
 | Template structure                            | This skill file (below)                                                                       | The canonical shape of the page                                                                                                        |
 | Vercel writing style                          | The `vercel-technical-writing` skill in `vercel/front` (not present here)                     | Apply end-to-end; see "Voice and style" below for the rules condensed                                                                  |
+
+## Documentation ownership
+
+Canonical API references and guides own API behavior, requirements, limits, numeric thresholds, and defaults. Error pages rephrase that existing information to explain a diagnostic and help the reader choose a fix.
+
+- Verify behavior against the implementation and its canonical documentation. If a requirement is missing from the API reference or guide, add it there first, then summarize it on the error page with a link to the relevant section.
+- Keep complete requirement tables and API explanations in the reference. Error pages may restate facts needed to understand a fix, but must link to the canonical documentation and must not be the only place a requirement is documented.
+- Use code examples to illustrate documented requirements. A value in an example does not define an API minimum or default. For cache lifetimes, the thresholds belong in `cacheLife`'s Prerendering behavior section.
+- Link sibling error pages for diagnostic-specific patterns. Follow their links to the API reference for the underlying behavior and constraints.
 
 ## Before you start
 
@@ -109,7 +118,7 @@ State the check as what the reader sees in the browser, not as framework artifac
 - `snippets` = the same `snippets` array as the matching framework `FixCard` in `instant-guidance-data.ts`. Copy it verbatim. No description prose lives on the card — the snippets carry the visual.
 - Card snippets are pseudocode with at most three displayed lines. Show the solution and relevant data. Highlight only the changed value or operation, leaving setup and omission comments unhighlighted. Put complete, valid examples in Patterns. If the framework snippet needs correction, fix it there first and keep the docs in sync.
 - Self-close the tag (`<FixCard ... />`). The card has no children.
-- **No `prompt` prop.** The "Copy prompt" button builds the prompt dynamically at click time from the page URL and the card's `title` + `href`. The agent receives a prompt that points at the rule docs and names the fix — it then reads the docs page (the same one the user is on) for every constraint and code shape. That is why this skill exists: the docs page itself **is** the prompt's source of truth.
+- **No `prompt` prop.** The "Copy prompt" button builds the prompt dynamically at click time from the page URL and the card's `title` + `href`. The agent receives a prompt that points at the rule docs and names the fix — it then reads the error page for the diagnostic and matching fix, and follows its canonical API-reference links for behavior and constraints. The error page supplies troubleshooting guidance, not a separate API specification.
 
 ### `## <Fix>` sections
 
@@ -137,7 +146,7 @@ State the check as what the reader sees in the browser, not as framework artifac
 - Gotchas: link to the `-client` page when warning about inline render in Client Components.
 - Related validation errors: use the canonical single link to `/docs/messages/instant-navigation-validation`. Add new error pages to the appropriate category in `errors/instant-navigation-validation.mdx`. Do not maintain a duplicate full list or an arbitrary subset of sibling pages on each error page. Keep useful context-specific sibling links inline in the body.
 - Every API reference and file convention must be inline-linked throughout, not reserved for the related-errors section.
-- **Cross-page pattern linking**: When a fix on one page is covered in depth on a sibling page, show only the most common pattern inline and link out to the sibling for the full set. For example, a server page's "Render on the client" fix shows one client pattern and links to the `-client` page; a client page's "Other options" section bridges to the server page's cache fix. Don't duplicate entire sections across sibling pages — keep each page lean and let the sibling be the canonical reference.
+- **Cross-page pattern linking**: When a fix on one page is covered in depth on a sibling page, show only the most common pattern inline and link out to the sibling for the full set. For example, a server page's "Render on the client" fix shows one client pattern and links to the `-client` page; a client page's "Other options" section bridges to the server page's cache fix. Don't duplicate entire sections across sibling pages — keep each error page focused on troubleshooting. API references and guides remain authoritative for the underlying behavior.
 - **First-party only**: link only to `nextjs.org/docs/*`, `react.dev/*`, `developer.mozilla.org/*`, and other canonical first-party references. **Never** link to personal blogs, community write-ups, conference talks, X/Bluesky posts, GitHub gists, or any third-party source — including the page author's own blog. If a third-party post inspired a pattern, internalize the idea and write it in our own voice without citation. Sibling error pages, our own docs, and primary API specs are the only acceptable destinations.
 
 ### Terminology (verify against canonical docs)
@@ -231,6 +240,7 @@ When auditing an existing page, check every item:
 - [ ] Closing validation guidance matches the constraint: ordinary opt-out, sync-IO explanation, or static-requirement removal; shared pages qualify opt-outs so they do not appear to bypass fully static requirements
 - [ ] `## Related validation errors` links to the shared index, and the index includes the new page
 - [ ] Useful existing content preserved in the appropriate fix or Gotchas; Other options contains no framework card fixes
+- [ ] Requirements, numeric thresholds, limits, defaults, and behavior are documented in the canonical API reference or guide; the error page summarizes and links to that source
 - [ ] Terminology matches canonical docs (verified, not assumed)
 - [ ] Vercel technical writing style applied (no banned words, active voice, sentence-case headings)
 - [ ] Framework card `link` URLs point to the correct heading auto-slugs; every local docs target and anchor resolves

@@ -24,15 +24,7 @@ During [prerendering](/docs/app/glossary#prerendering) or Instant Navigation val
 
 This can happen in route content, [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata), or [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport). A cached function can still require rendering at request time when its lifetime is too short.
 
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), a cache must meet these lifetime requirements to be included in prerendered output:
-
-| Setting      | Required value                                                                                            |
-| ------------ | --------------------------------------------------------------------------------------------------------- |
-| `expire`     | At least `300` seconds (five minutes)                                                                     |
-| `stale`      | At least `30` seconds for prerendering, or `300` seconds for an [App Shell](/docs/app/glossary#app-shell) |
-| `revalidate` | Greater than `0`                                                                                          |
-
-For example, the built-in `seconds` profile expires after one minute, so its result is excluded from prerenders. A cache with `stale: 60` can be prerendered but is excluded from an App Shell.
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), Next.js excludes cached results whose lifetime settings do not meet the [`cacheLife` prerendering requirements](/docs/app/api-reference/functions/cacheLife#prerendering-behavior). A cache can qualify for a prerender while still being too short-lived for an [App Shell](/docs/app/glossary#app-shell).
 
 ## Ways to fix this
 
@@ -121,13 +113,13 @@ A route with [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conven
 
 ## Increase the cache lifetime
 
-Choose this fix when the data can remain cached long enough to meet the requirements above. Update the settings inside the cached function that produces the data.
+Choose this fix when the data can remain cached long enough to meet the [`cacheLife` prerendering requirements](/docs/app/api-reference/functions/cacheLife#prerendering-behavior). Update the settings inside the cached function that produces the data.
 
 ### Patterns
 
 #### Increase the relevant lifetime values
 
-Set all values that fall below the required thresholds. This example meets both the prerendering and App Shell requirements:
+Update each setting that excludes the cached result, following the [`cacheLife` reference](/docs/app/api-reference/functions/cacheLife#prerendering-behavior). This example uses values that qualify for both prerendering and the App Shell:
 
 ```ts filename="app/data.ts"
 import { cacheLife } from 'next/cache'
