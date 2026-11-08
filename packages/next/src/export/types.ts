@@ -27,6 +27,11 @@ export interface ExportPagesInput {
   deploymentId: string
   clientAssetToken: string
   exportPaths: ExportPathEntry[]
+  /**
+   * Identifies the export these paths are a batch of. A worker is handed
+   * several batches of one export, and sets itself up once for all of them.
+   */
+  exportId: number
   parentSpanId: number
   dir: string
   distDir: string

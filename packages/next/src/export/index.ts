@@ -78,6 +78,19 @@ import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
 import { getBuildDistDir, getExportPathPageKey } from './utils'
 
+/**
+ * How many batches of pages each static generation worker gets when there are
+ * enough pages to split. More batches even out the load between workers at
+ * the end of the export; each batch costs one worker call.
+ */
+const EXPORT_BATCHES_PER_WORKER = 32
+
+/**
+ * Counts the exports started by this process. The batches of one export carry
+ * its number, so that a worker can tell them from the batches of another one.
+ */
+let exportCount = 0
+
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
 }
@@ -710,62 +723,126 @@ async function exportAppImpl(
       Math.ceil(exportPaths.length / minPageCountPerBatch)
     )
 
-    // Calculate the page count per batch based on the number of workers.
-    const pageCountPerBatch = Math.ceil(exportPaths.length / numWorkers)
+    // The page count per worker if every worker got one equal share.
+    const pageCountPerWorker = Math.ceil(exportPaths.length / numWorkers)
 
-    const batches = Array.from({ length: numWorkers }, (_, i) =>
-      exportPaths.slice(i * pageCountPerBatch, (i + 1) * pageCountPerBatch)
+    // Pages differ in cost (by route, and with how busy a worker's core is),
+    // so one fixed share per worker leaves workers idle while the most
+    // expensive share finishes. Split large shares into smaller contiguous
+    // batches instead, and let every worker take the next batch once it's
+    // done with its current one. Batches never go below the minimum page
+    // count, and are a multiple of the in-worker concurrency so that workers
+    // keep rendering full groups of pages.
+    const maxConcurrency = Math.max(
+      1,
+      nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
     )
+    let pageCountPerBatch = Math.max(
+      minPageCountPerBatch,
+      Math.ceil(exportPaths.length / (numWorkers * EXPORT_BATCHES_PER_WORKER))
+    )
+    pageCountPerBatch =
+      Math.ceil(pageCountPerBatch / maxConcurrency) * maxConcurrency
+    if (!(pageCountPerBatch < pageCountPerWorker)) {
+      pageCountPerBatch = pageCountPerWorker
+    }
 
-    // Distribute remaining pages.
-    const remainingPages = exportPaths.slice(numWorkers * pageCountPerBatch)
-    remainingPages.forEach((page, index) => {
-      batches[index % batches.length].push(page)
-    })
+    const exportId = ++exportCount
+    const batches: ExportPathEntry[][] = []
+    for (let i = 0; i < exportPaths.length; i += pageCountPerBatch) {
+      batches.push(exportPaths.slice(i, i + pageCountPerBatch))
+    }
 
-    return (
-      await Promise.all(
-        batches.map(async (batch) => {
-          // Only send the seeds this batch needs. Sending the whole map to
-          // every worker can exceed the maximum IPC message size.
-          let batchRenderResumeDataCaches: Record<string, string> | undefined
-          if (renderResumeDataCachesByPage) {
-            batchRenderResumeDataCaches = {}
-            for (const exportPath of batch) {
-              const pageKey = getExportPathPageKey(exportPath)
-              if (Object.hasOwn(renderResumeDataCachesByPage, pageKey)) {
-                batchRenderResumeDataCaches[pageKey] =
-                  renderResumeDataCachesByPage[pageKey]
-              }
-            }
+    const exportBatch = (batch: ExportPathEntry[]) => {
+      // Only send the seeds this batch needs. Sending the whole map to
+      // every worker can exceed the maximum IPC message size.
+      let batchRenderResumeDataCaches: Record<string, string> | undefined
+      if (renderResumeDataCachesByPage) {
+        batchRenderResumeDataCaches = {}
+        for (const exportPath of batch) {
+          const pageKey = getExportPathPageKey(exportPath)
+          if (Object.hasOwn(renderResumeDataCachesByPage, pageKey)) {
+            batchRenderResumeDataCaches[pageKey] =
+              renderResumeDataCachesByPage[pageKey]
           }
+        }
+      }
 
-          return worker.exportPages({
-            buildId,
-            deploymentId: nextConfig.deploymentId,
-            clientAssetToken: nextConfig.supportsImmutableAssets
-              ? ''
-              : nextConfig.deploymentId,
-            exportPaths: batch,
-            parentSpanId: span.getId(),
-            pagesDataDir,
-            renderOpts,
-            options,
-            dir,
-            distDir,
-            outDir: options.buildExport
-              ? join(distDir, 'server', 'pages')
-              : outDir,
-            nextConfig,
-            cacheHandler: nextConfig.cacheHandler,
-            cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
-            fetchCache: true,
-            fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-            renderResumeDataCachesByPage: batchRenderResumeDataCaches,
-          })
-        })
-      )
-    ).flat()
+      return worker.exportPages({
+        buildId,
+        deploymentId: nextConfig.deploymentId,
+        clientAssetToken: nextConfig.supportsImmutableAssets
+          ? ''
+          : nextConfig.deploymentId,
+        exportPaths: batch,
+        exportId,
+        parentSpanId: span.getId(),
+        pagesDataDir,
+        renderOpts,
+        options,
+        dir,
+        distDir,
+        outDir: options.buildExport ? join(distDir, 'server', 'pages') : outDir,
+        nextConfig,
+        cacheHandler: nextConfig.cacheHandler,
+        cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
+        fetchCache: true,
+        fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+        renderResumeDataCachesByPage: batchRenderResumeDataCaches,
+      })
+    }
+
+    // At most `numWorkers` batches are in flight, so no more workers are
+    // used than before. Results are kept in batch order, which is the order
+    // of `exportPaths`.
+    //
+    // Every worker starts on its own contiguous share of the batches (the
+    // share it used to be given whole) and works through it in order. A
+    // worker that runs out takes batches from the end of the share that has
+    // the most left. Pages of one route are next to each other in the export
+    // paths, so a worker stays on the routes it has already loaded and
+    // compiled for as long as it can.
+    const results: ExportPagesResult[] = []
+    const laneCount = Math.min(numWorkers, batches.length)
+    const shareNext: number[] = []
+    const shareEnd: number[] = []
+    for (let lane = 0; lane < laneCount; lane++) {
+      shareNext.push(Math.floor((lane * batches.length) / laneCount))
+      shareEnd.push(Math.floor(((lane + 1) * batches.length) / laneCount))
+    }
+    const takeBatchIndex = (lane: number): number => {
+      if (shareNext[lane] < shareEnd[lane]) {
+        return shareNext[lane]++
+      }
+      let fullestShare = -1
+      let mostBatchesLeft = 0
+      for (let share = 0; share < laneCount; share++) {
+        const batchesLeft = shareEnd[share] - shareNext[share]
+        if (batchesLeft > mostBatchesLeft) {
+          mostBatchesLeft = batchesLeft
+          fullestShare = share
+        }
+      }
+      return fullestShare === -1 ? -1 : --shareEnd[fullestShare]
+    }
+    let failed = false
+    const exportNextBatches = async (_: unknown, lane: number) => {
+      while (!failed) {
+        const batchIndex = takeBatchIndex(lane)
+        if (batchIndex === -1) {
+          break
+        }
+        try {
+          results[batchIndex] = await exportBatch(batches[batchIndex])
+        } catch (err) {
+          failed = true
+          throw err
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: laneCount }, exportNextBatches))
+
+    return results.flat()
   }
 
   let initialPhaseExportPaths: ExportPathEntry[] = []
