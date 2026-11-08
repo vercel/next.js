@@ -5,6 +5,7 @@ use bincode::{Decode, Encode};
 use either::Either;
 use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, smallvec};
+use turbo_bitset::Bitset;
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use crate::{
@@ -12,7 +13,6 @@ use crate::{
     module_graph::{
         ModuleGraph,
         async_module_info::AsyncModulesInfo,
-        chunk_group_info::RoaringBitmapWrapper,
         module_batch::{ChunkableModuleBatchGroup, ChunkableModuleOrBatch, ModuleBatch},
     },
 };
@@ -118,7 +118,7 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
 #[derive(Debug, Clone, Hash)]
 pub struct ChunkItemBatchWithAsyncModuleInfo {
     pub chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
-    pub chunk_groups: Option<RoaringBitmapWrapper>,
+    pub chunk_groups: Option<Bitset>,
 }
 
 #[turbo_tasks::value_impl]
@@ -236,7 +236,7 @@ pub struct ChunkItemBatchGroups(Vec<ResolvedVc<ChunkItemBatchGroup>>);
 #[turbo_tasks::value]
 pub struct ChunkItemBatchGroup {
     pub items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
-    pub chunk_groups: RoaringBitmapWrapper,
+    pub chunk_groups: Bitset,
 }
 
 #[turbo_tasks::value_impl]

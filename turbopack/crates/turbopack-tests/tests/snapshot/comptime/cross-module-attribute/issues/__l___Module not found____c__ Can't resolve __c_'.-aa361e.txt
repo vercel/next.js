@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/index.js:22:2  Module not found: Can't resolve './correct-not-inlined'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/index.js:22:3  Module not found: Can't resolve './correct-not-inlined'
   
       18 | import { nonConstant } from './non-constant' with { turbopackConstants: 'true' }
       19 | if (nonConstant.v === 1234) {

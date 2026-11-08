@@ -1,14 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// vercel.json uses pnpm so file: dependencies are installed inside node_modules.
-// npm links them to fixture source, which is transpiled without transpilePackages.
+// pnpm installs file: dependencies inside node_modules. npm would link them to
+// fixture source, which is transpiled without transpilePackages.
 describe('transpile-packages-typescript-foreign', () => {
+  // The build only fails because Vercel reads vercel.json's
+  // `installCommand: "pnpm install"`, which copies the `file:` package into
+  // node_modules. A host that ignores vercel.json may link it instead, and
+  // the build would then succeed.
+  // @force-gate !deploy || vercel
   describe('without transpilePackages', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      // Use the fixture's packageManager version rather than Vercel's default pnpm.
-      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
         pkg: `file:./pkg`,
       },
@@ -25,9 +28,12 @@ describe('transpile-packages-typescript-foreign', () => {
       }
 
       if (process.env.IS_TURBOPACK_TEST) {
-        expect(next.cliOutput).toContain(`pkg/index.ts
-Error: Unknown module type
-This module doesn't have an associated type`)
+        // Reported at the import that pulled the file in.
+        expect(next.cliOutput).toContain(`./app/page.js:1:1
+Error: Unknown module type`)
+        expect(next.cliOutput).toContain(
+          `pkg/index.ts doesn't have an associated module type`
+        )
         expect(
           next.cliOutput.match(/Unknown module type/g).length
         ).toBeLessThanOrEqual(1)
@@ -44,7 +50,6 @@ Module parse failed: Unexpected token`)
   describe('with transpilePackages', () => {
     const { next } = nextTestSetup({
       files: __dirname,
-      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
         pkg: `file:./pkg`,
       },

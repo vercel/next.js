@@ -1,9 +1,10 @@
-// WARNING: Please keep this module lightweight with very few imports since
-// we intend to run it in a child process in the future. Please do NOT
-// add new imports without considering their impact on its dependency graph.
+// WARNING: This module is publicly exposed as
+// `next/experimental/image-optimizer-transform` and consumed outside this repo,
+// so its location and export surface are a stable contract. Please keep this
+// module lightweight with very few imports since it runs in a child process.
+// Please do NOT add new imports without considering their impact on its
+// dependency graph.
 import isAnimated from 'next/dist/compiled/is-animated'
-import type { NextConfigComplete } from '../config-shared'
-import isError from '../../lib/is-error'
 import { detectContentType } from './detect-content-type'
 import {
   AVIF,
@@ -21,11 +22,14 @@ import {
 import { getImageEtag } from './extract-etag'
 import { getMaxAge } from './get-max-age'
 import { ImageError } from './image-error'
+import { getSharp, optimizeImage } from './sharp'
+
+export { ImageError }
+export { getMaxAge }
+export { getSharp }
 
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
-
-let _sharp: typeof import('sharp').default
 
 export interface ImageUpstream {
   buffer: Buffer
@@ -41,39 +45,32 @@ export interface ImageOptimizerTransformParams {
   mimeType: string
 }
 
-export type ImageOptimizerTransformConfig = {
-  experimental: Pick<
-    NextConfigComplete['experimental'],
-    | 'imgOptConcurrency'
-    | 'imgOptOperationCache'
-    | 'imgOptMaxInputPixels'
-    | 'imgOptSequentialRead'
-    | 'imgOptTimeoutInSeconds'
-    | 'imgOptMozjpeg'
-  >
-  images: Pick<
-    NextConfigComplete['images'],
-    'dangerouslyAllowSVG' | 'minimumCacheTTL'
-  >
-}
-
 export interface ImageOptimizerTransformLogger {
   error(...args: unknown[]): void
   warnOnce(message: string): void
 }
 
+// This intentionally doesn't reference `NextConfigComplete`, whose normalized
+// shape is an internal detail. `getImageOptimizerTransformOptions` in
+// `../image-optimizer` maps the Next.js config onto these options.
 export interface ImageOptimizerTransformOptions {
-  previousOutput?: {
-    buffer: Buffer
-    maxAge?: number
-    etag: string
-    upstreamEtag: string
-  }
+  /** Allows SVG sources. Defaults to `false`. */
+  dangerouslyAllowSVG?: boolean
+  /** The minimum `maxAge` of the result, in seconds. Defaults to `0`. */
+  minimumCacheTTL?: number
+  /** The sharp thread pool size. */
+  concurrency?: number | null
+  /** Enables or disables the libvips operation cache. */
+  operationCache?: boolean | null
+  /** The maximum number of pixels in a source image. */
+  maxInputPixels?: number
+  /** Passed to sharp as `sequentialRead`. */
+  sequentialRead?: boolean | null
+  /** Per-image processing timeout. Defaults to `7`. */
+  timeoutInSeconds?: number
+  /** Encodes JPEG output with mozjpeg. Defaults to `true`. */
+  mozjpeg?: boolean
   logger?: ImageOptimizerTransformLogger
-  handleDevOutput?: (
-    buffer: Buffer,
-    contentType: string
-  ) => Promise<{ buffer: Buffer; contentType: string }>
 }
 
 export interface ImageOptimizerResult {
@@ -82,127 +79,25 @@ export interface ImageOptimizerResult {
   maxAge: number
   etag: string
   upstreamEtag: string
+  /**
+   * `true` when `buffer` was produced by sharp. `false` when the upstream
+   * image was passed through (animated, a bypassed type, or optimization
+   * failed).
+   */
+  optimized: boolean
   error?: unknown
-}
-
-export function getSharp(
-  concurrency: number | null | undefined,
-  operationCache: boolean | null | undefined
-) {
-  if (_sharp) {
-    return _sharp
-  }
-  try {
-    _sharp = require('sharp') as typeof import('sharp').default
-    _sharp.block({ operation: ['VipsForeignLoad'] })
-    _sharp.unblock({
-      operation: [
-        'VipsForeignLoadHeif', // avif
-        'VipsForeignLoadJpeg',
-        'VipsForeignLoadNsgif',
-        'VipsForeignLoadPng',
-        'VipsForeignLoadSvg',
-        'VipsForeignLoadTiff',
-        'VipsForeignLoadWebp',
-      ],
-    })
-    if (typeof operationCache === 'boolean') {
-      _sharp.cache(operationCache)
-    }
-    if (_sharp.concurrency() > 1) {
-      // Reducing concurrency should reduce the memory usage too.
-      // We more aggressively reduce in dev but also reduce in prod.
-      // https://sharp.pixelplumbing.com/api-utility#concurrency
-      const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
-      _sharp.concurrency(
-        concurrency ?? Math.floor(Math.max(_sharp.concurrency() / divisor, 1))
-      )
-    }
-  } catch (e: unknown) {
-    if (isError(e) && e.code === 'MODULE_NOT_FOUND') {
-      throw new Error(
-        'Module `sharp` not found. Please run `npm install --cpu=wasm32 sharp` to install it.'
-      )
-    }
-    throw e
-  }
-  return _sharp
-}
-
-export async function optimizeImage({
-  buffer,
-  contentType,
-  quality,
-  width,
-  height,
-  concurrency,
-  operationCache,
-  limitInputPixels,
-  sequentialRead,
-  timeoutInSeconds,
-  mozjpeg = true,
-}: {
-  buffer: Buffer
-  contentType: string
-  quality: number
-  width: number
-  height?: number
-  concurrency?: number | null
-  operationCache?: boolean | null | undefined
-  limitInputPixels?: number
-  sequentialRead?: boolean | null
-  timeoutInSeconds?: number
-  mozjpeg?: boolean
-}): Promise<Buffer> {
-  const sharp = getSharp(concurrency, operationCache)
-  const transformer = sharp(buffer, {
-    limitInputPixels,
-    sequentialRead: sequentialRead ?? undefined,
-  })
-    .timeout({
-      seconds: timeoutInSeconds ?? 7,
-    })
-    .rotate()
-
-  if (height) {
-    transformer.resize(width, height)
-  } else {
-    transformer.resize(width, undefined, {
-      withoutEnlargement: true,
-    })
-  }
-
-  if (contentType === AVIF) {
-    transformer.avif({
-      // Scale the quality to try and match webp. This ratio was derived
-      // from sharp's default 80 (webp) and 50 (avif), and then verified
-      // using dssim and ssimulacra2 visual quality tests.
-      quality: Math.max(Math.round(quality * (50 / 80)), 1),
-      effort: 3,
-    })
-  } else if (contentType === WEBP) {
-    transformer.webp({ quality })
-  } else if (contentType === PNG) {
-    transformer.png({ quality })
-  } else if (contentType === JPEG) {
-    transformer.jpeg({ quality, mozjpeg })
-  }
-
-  const optimizedBuffer = await transformer.toBuffer()
-
-  return optimizedBuffer
 }
 
 export async function imageOptimizerTransform(
   imageUpstream: ImageUpstream,
   paramsResult: ImageOptimizerTransformParams,
-  nextConfig: ImageOptimizerTransformConfig,
   opts: ImageOptimizerTransformOptions = {}
 ): Promise<ImageOptimizerResult> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
+  const { dangerouslyAllowSVG = false, minimumCacheTTL = 0 } = opts
   const maxAge = Math.max(
-    nextConfig.images.minimumCacheTTL,
+    minimumCacheTTL,
     getMaxAge(imageUpstream.cacheControl)
   )
   const upstreamType = await detectContentType(upstreamBuffer)
@@ -220,10 +115,7 @@ export async function imageOptimizerTransform(
     )
     throw new ImageError(400, "The requested resource isn't a valid image.")
   }
-  if (
-    upstreamType.startsWith('image/svg') &&
-    !nextConfig.images.dangerouslyAllowSVG
-  ) {
+  if (upstreamType.startsWith('image/svg') && !dangerouslyAllowSVG) {
     opts.logger?.error(
       `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.`
     )
@@ -242,6 +134,7 @@ export async function imageOptimizerTransform(
       maxAge,
       etag: upstreamEtag,
       upstreamEtag,
+      optimized: false,
     }
   }
   if (BYPASS_TYPES.includes(upstreamType)) {
@@ -251,6 +144,7 @@ export async function imageOptimizerTransform(
       maxAge,
       etag: upstreamEtag,
       upstreamEtag,
+      optimized: false,
     }
   }
 
@@ -265,49 +159,31 @@ export async function imageOptimizerTransform(
     contentType = upstreamType
   }
 
-  if (opts.previousOutput) {
-    return {
-      buffer: opts.previousOutput.buffer,
-      contentType,
-      maxAge: opts.previousOutput.maxAge || maxAge,
-      etag: opts.previousOutput.etag,
-      upstreamEtag: opts.previousOutput.upstreamEtag,
-    }
-  }
-
   try {
-    let optimizedBuffer = await optimizeImage({
+    const optimizedBuffer = await optimizeImage({
+      ...opts,
       buffer: upstreamBuffer,
       contentType,
       quality,
       width,
-      concurrency: nextConfig.experimental.imgOptConcurrency,
-      operationCache: nextConfig.experimental.imgOptOperationCache,
-      limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
-      sequentialRead: nextConfig.experimental.imgOptSequentialRead,
-      timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
-      mozjpeg: nextConfig.experimental.imgOptMozjpeg,
     })
-    if (opts.handleDevOutput) {
-      const output = await opts.handleDevOutput(optimizedBuffer, contentType)
-      optimizedBuffer = output.buffer
-      contentType = output.contentType
-    }
     return {
       buffer: optimizedBuffer,
       contentType,
       maxAge,
       etag: getImageEtag(optimizedBuffer),
       upstreamEtag,
+      optimized: true,
     }
   } catch (error) {
     // If we fail to optimize, fallback to the original image
     return {
       buffer: upstreamBuffer,
       contentType: upstreamType,
-      maxAge: nextConfig.images.minimumCacheTTL,
+      maxAge: minimumCacheTTL,
       etag: upstreamEtag,
       upstreamEtag,
+      optimized: false,
       error,
     }
   }

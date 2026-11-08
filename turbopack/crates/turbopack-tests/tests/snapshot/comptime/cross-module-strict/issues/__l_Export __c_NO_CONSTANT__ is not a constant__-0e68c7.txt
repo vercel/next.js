@@ -1,4 +1,4 @@
-error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-strict/input/other.js:5:0  Export NO_CONSTANT is not a constant
+error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-strict/input/other.js:5:1  Export NO_CONSTANT is not a constant
   
        1 | 'use turbopack: constants'
        2 | 

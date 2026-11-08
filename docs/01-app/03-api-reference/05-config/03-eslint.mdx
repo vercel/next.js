@@ -78,7 +78,11 @@ Get linting working quickly with the ESLint CLI (flat config):
    bunx eslint .
    ```
 
-> **Good to know**: `eslint-config-next` supports ESLint 9 and ESLint 10. ESLint 10 requires Node.js `^20.19.0`, `^22.13.0`, or `>=24`. Some of the plugins included in `eslint-config-next` don't list ESLint 10 in their peer dependencies yet, so your package manager may show peer dependency warnings, or fail when strict peer dependencies are enabled.
+> **Good to know**:
+>
+> - `eslint-config-next` supports ESLint 9 and ESLint 10. ESLint 10 requires Node.js `^20.19.0`, `^22.13.0`, or `>=24`.
+> - Starting with `eslint-config-next@16.4.0`, the default React version detection works with ESLint 10. You can remove a `settings.react.version` override added as a workaround for a `context.getFilename` error.
+> - Some of the plugins included in `eslint-config-next` don't list ESLint 10 in their peer dependencies yet, so your package manager may show peer dependency warnings, or fail when strict peer dependencies are enabled.
 
 ## Reference
 
@@ -240,6 +244,25 @@ export default eslintConfig
 Those rules are based on [`plugin:@typescript-eslint/recommended`](https://typescript-eslint.io/linting/configs#recommended).
 See [typescript-eslint > Configs](https://typescript-eslint.io/linting/configs) for more details.
 
+#### With TypeScript 7
+
+When using TypeScript 7, `eslint-config-next` still needs the TypeScript 6 compiler API for `typescript-eslint`. Installing TypeScript 7 directly as `typescript` causes ESLint configuration loading to fail.
+
+With npm, use these aliases in your `package.json` and run `npm install`:
+
+```json filename="package.json"
+{
+  "devDependencies": {
+    "@typescript/native": "npm:typescript@7.0.2",
+    "typescript": "npm:@typescript/typescript6@6.0.2"
+  }
+}
+```
+
+This provides the TypeScript 6 API to linting tools while `tsc` runs TypeScript 7. The `tsc6` command runs TypeScript 6.
+
+See Microsoft's [side-by-side setup instructions](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0) and the [typescript-eslint tracking issue](https://github.com/typescript-eslint/typescript-eslint/issues/10940) for native TypeScript 7 support.
+
 ### With Prettier
 
 ESLint also contains code formatting rules, which can conflict with your existing [Prettier](https://prettier.io/) setup. We recommend including [eslint-config-prettier](https://github.com/prettier/eslint-config-prettier) in your ESLint config to make ESLint and Prettier work together.
@@ -384,4 +407,5 @@ When you spread `...nextConfig`, you're adding multiple config objects that incl
 
 | Version   | Changes                                                                                                                                                                                                             |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v16.4.0` | `eslint-config-next` added ESLint 10 compatibility, including support for default React version detection.                                                                                                          |
 | `v16.0.0` | `next lint` and the `eslint` next.config.js option were removed in favor of the ESLint CLI. A [codemod](/docs/app/guides/upgrading/codemods#migrate-from-next-lint-to-eslint-cli) is available to help you migrate. |

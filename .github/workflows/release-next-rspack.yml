@@ -70,7 +70,9 @@ jobs:
           package-manager-cache: false
 
       - name: Enable corepack
-        run: corepack enable
+        run: |
+          npm i -g corepack@0.34.7
+          corepack enable
 
       - name: Setup pnpm
         run: corepack prepare

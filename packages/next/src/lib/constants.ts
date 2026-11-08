@@ -21,6 +21,12 @@ export const NEXT_BODY_SUFFIX = '.body'
 
 export const NEXT_NAV_DEPLOYMENT_ID_HEADER = 'x-nextjs-deployment-id'
 
+// Distributed tracing headers must not affect fetch caching or deduplication.
+export const FETCH_CACHE_KEY_EXCLUDED_HEADERS = new Set([
+  'traceparent',
+  'tracestate',
+])
+
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
 export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =

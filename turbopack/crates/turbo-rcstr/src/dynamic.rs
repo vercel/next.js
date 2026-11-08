@@ -45,7 +45,7 @@ pub unsafe fn restore_arc(v: TaggedValue) -> Arc<DynamicPrehashedString> {
     unsafe { Arc::from_raw(ptr) }
 }
 
-/// This can create any kind of [Atom], although this lives in the `dynamic`
+/// This can create any kind of [`RcStr`], although this lives in the `dynamic`
 /// module.
 ///
 /// Takes a [`Cow`] rather than a `&str` so that an already-owned string can be moved into the atom

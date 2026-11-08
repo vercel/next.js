@@ -15,7 +15,7 @@ use std::str::FromStr;
 use proc_macro::{Literal, TokenStream, TokenTree};
 
 /// `MAX_INLINE_LEN` for the active `turbo-rcstr` configuration. Mirrors
-/// [`turbo_rcstr::tagged_value::MAX_INLINE_LEN`]
+/// `turbo_rcstr::tagged_value::MAX_INLINE_LEN`.
 const MAX_INLINE_LEN: usize = if cfg!(feature = "atom_size_128") {
     15
 } else {
