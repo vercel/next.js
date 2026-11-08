@@ -55,6 +55,51 @@ function filterInternalQuery(
   }
 }
 
+function cloneArray(value: readonly unknown[]): unknown[] {
+  for (let i = 0; i < value.length; i++) {
+    const item = value[i]
+    if (typeof item === 'object' && item !== null) {
+      return structuredClone(value) as unknown[]
+    }
+  }
+  return value.slice()
+}
+
+/**
+ * Deep clones a parsed URL. Its values are strings or `null`, and the values
+ * of its query are strings or arrays of strings. Those are copied directly,
+ * which costs a fraction of what `structuredClone` does on every request.
+ * Any other value is still cloned with `structuredClone`.
+ */
+function cloneParsedUrl(
+  parsedUrl: DeepReadonly<NextUrlWithParsedQuery>
+): NextUrlWithParsedQuery {
+  const clone: Record<string, unknown> = { ...parsedUrl }
+
+  for (const key of Object.keys(clone)) {
+    const value = clone[key]
+    if (typeof value !== 'object' || value === null) continue
+
+    if (key !== 'query' || Array.isArray(value)) {
+      clone[key] = structuredClone(value)
+      continue
+    }
+
+    const query: Record<string, unknown> = { ...value }
+    for (const queryKey of Object.keys(query)) {
+      const queryValue = query[queryKey]
+      if (typeof queryValue !== 'object' || queryValue === null) continue
+
+      query[queryKey] = Array.isArray(queryValue)
+        ? cloneArray(queryValue)
+        : structuredClone(queryValue)
+    }
+    clone[key] = query
+  }
+
+  return clone as unknown as NextUrlWithParsedQuery
+}
+
 export function normalizeCdnUrl(
   req: BaseNextRequest | IncomingMessage,
   paramKeys: string[]
@@ -253,9 +298,7 @@ export function getServerUtils({
   ) {
     // Here we deep clone the parsedUrl to avoid mutating the original. We also
     // cast this to a mutable type so we can mutate it within this scope.
-    const rewrittenParsedUrl = structuredClone(
-      parsedUrl
-    ) as NextUrlWithParsedQuery
+    const rewrittenParsedUrl = cloneParsedUrl(parsedUrl)
     const rewriteParams: Record<string, string> = {}
     let fsPathname = rewrittenParsedUrl.pathname
 
