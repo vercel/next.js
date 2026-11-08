@@ -1,17 +1,21 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import type { Page } from 'playwright'
 
 const MARKER = 'RUNTIME_ENTRY_SHARED_MODULE_MARKER'
+// A property name that only React DOM uses.
+const REACT_DOM_MARKER = '__reactFiber$'
 
 describe('pages-runtime-entry-availability', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
-  it('loads a module shared by the client entry and the pages only once', async () => {
+  // Records the scripts that the browser requests.
+  function recordScripts() {
     const requests: Set<string> = new Set()
-    const browser = await next.browser('/', {
-      beforePageLoad(page) {
+    return {
+      beforePageLoad(page: Page) {
         page.on('request', (request) => {
           const url = new URL(request.url(), next.url)
           if (
@@ -22,34 +26,59 @@ describe('pages-runtime-entry-availability', () => {
           }
         })
       },
-    })
-
-    // The scripts that the browser requested so far and that contain the shared module.
-    const chunksWithSharedModule = async () => {
-      const chunks = await Promise.all(
-        [...requests].map(async (url) => ({
-          url,
-          content: await fetch(url).then((response) => response.text()),
-        }))
-      )
-      return chunks
-        .filter((chunk) => chunk.content.includes(MARKER))
-        .map((chunk) => chunk.url)
+      // The scripts requested so far that contain `text`.
+      async containing(text: string) {
+        const scripts = await Promise.all(
+          [...requests].map(async (url) => ({
+            url,
+            content: await fetch(url).then((response) => response.text()),
+          }))
+        )
+        return scripts
+          .filter((script) => script.content.includes(text))
+          .map((script) => script.url)
+      },
     }
+  }
+
+  it('loads a module shared by the client entry and the pages only once', async () => {
+    const scripts = recordScripts()
+    const browser = await next.browser('/', {
+      beforePageLoad: scripts.beforePageLoad,
+    })
 
     expect(await browser.elementByCss('#marker').text()).toBe(MARKER)
     expect(await browser.eval('window.__instrumentationClientMarker')).toBe(
       MARKER
     )
-    expect(await chunksWithSharedModule()).toHaveLength(1)
+    expect(await scripts.containing(MARKER)).toHaveLength(1)
 
     // The chunks of the other page must not bring the module again either.
     await browser.elementByCss('#to-other').click()
     await retry(async () => {
       expect(await browser.elementByCss('#other-marker').text()).toBe(MARKER)
     })
-    expect(await chunksWithSharedModule()).toHaveLength(1)
+    expect(await scripts.containing(MARKER)).toHaveLength(1)
   })
+
+  // File names carry a content hash only in a production build.
+  if (!isNextDev) {
+    it('keeps a module shared by the client entry and the pages out of the script with React DOM', async () => {
+      const scripts = recordScripts()
+      const browser = await next.browser('/', {
+        beforePageLoad: scripts.beforePageLoad,
+      })
+      expect(await browser.elementByCss('#marker').text()).toBe(MARKER)
+
+      // In one script, every edit of the shared module would give React DOM a new file name,
+      // and returning visitors would download it again.
+      const scriptsWithReactDom = await scripts.containing(REACT_DOM_MARKER)
+      expect(scriptsWithReactDom.length).toBeGreaterThan(0)
+      for (const url of await scripts.containing(MARKER)) {
+        expect(scriptsWithReactDom).not.toContain(url)
+      }
+    })
+  }
 })
 
 describe('pages-runtime-entry-availability with async scripts', () => {
