@@ -24,7 +24,7 @@ kind: error
 
 During [prerendering](/docs/app/glossary#prerendering), [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) was read outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't prerender any part of the tree that depends on a per-request value, so navigations to this route block instead of being [instant](/docs/app/guides/instant-navigation).
 
-In development, a [`use cache`](/docs/app/api-reference/directives/use-cache) scope with a short lifetime receives a cache-specific diagnostic. See [Short-lived cache](/docs/messages/short-lived-cache) for the lifetime requirements and fixes.
+For cached data with a short [`cacheLife`](/docs/app/api-reference/functions/cacheLife#prerendering-behavior), see [Next.js encountered a short-lived cache](/docs/messages/short-lived-cache).
 
 Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](/docs/app/api-reference/functions/connection)) have different fixes. See [Next.js encountered uncached data during prerendering](/docs/messages/blocking-prerender-dynamic).
 

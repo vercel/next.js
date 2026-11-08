@@ -24,7 +24,7 @@ A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/
 
 During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) read request-specific data from [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional). Reading these values in `generateViewport()` requires rendering at request time, which conflicts with the route's static requirement.
 
-In development, a [`use cache`](/docs/app/api-reference/directives/use-cache) scope with a short lifetime receives a cache-specific diagnostic. See [Short-lived cache](/docs/messages/short-lived-cache) for the lifetime requirements and fixes.
+For cached data with a short [`cacheLife`](/docs/app/api-reference/functions/cacheLife#prerendering-behavior), see [Next.js encountered a short-lived cache](/docs/messages/short-lived-cache).
 
 Uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) requests, database calls, and [`connection()`](/docs/app/api-reference/functions/connection) have different fixes. See [Uncached data in `generateViewport()` on a route that must be fully static](/docs/messages/static-viewport-dynamic).
 
