@@ -94,16 +94,13 @@ impl<M: Copy + Eq + Hash> EvaluationTrace<M> {
 struct ModuleOrder {
     /// The module and its successor must not be in one group.
     split: bool,
-    /// The two modules can be in one group whose last module has a position in
-    /// `adjacent_from..adjacent_until`: the module is then the last one that an entry point of
-    /// the group evaluates, and the next entry point starts right after it.
+    /// As an entry point, the module can be in one group with its successor if the last module
+    /// of the group has this position or a higher one: the next entry point of the group then
+    /// starts right after the module.
     adjacent_from: u32,
-    adjacent_until: u32,
-    /// The two modules can be in one group whose last module has this position or a higher one:
-    /// one entry point of the group then evaluates both.
-    shared_from: u32,
     /// The lowest and the highest position, over all traces, of the module of this list that
-    /// imports this module first. `NONE` where no later module of the list does.
+    /// imports this module first. `NONE` where no later module of the list does. In a group whose
+    /// last module has a lower position, the module is an entry point.
     importer_min: u32,
     importer_max: u32,
 }
@@ -144,8 +141,9 @@ impl Default for Referrers {
 /// imports first. A group is kept when all of this holds in every trace that evaluates it:
 /// - the trace evaluates the modules of the group in the order of the list, with no other module of
 ///   the list between them,
-/// - each entry point starts right after the previous one is complete, so that everything the trace
-///   evaluates between the first and the last module of the group is evaluated by the group itself,
+/// - each entry point starts right after the module before it in the list is complete, so that
+///   everything the trace evaluates between the first and the last module of the group is evaluated
+///   by the group itself,
 /// - no module that is evaluated at that point imports itself again through a module of the group
 ///   that is not part of it (an import cycle through the group),
 /// - the entry points are the same modules as in every other trace.
@@ -174,8 +172,6 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
                         ModuleOrder {
                             split: false,
                             adjacent_from: 0,
-                            adjacent_until: NONE,
-                            shared_from: 0,
                             importer_min: NONE,
                             importer_max: 0,
                         };
@@ -198,6 +194,9 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
     }
 
     /// Restricts the groups to what one more trace allows.
+    ///
+    /// The trace has to evaluate all modules of a list or none of them, as the trace of a merge
+    /// group entry does for modules that the same merge group entries import.
     pub(crate) fn add_trace(&mut self, trace: &EvaluationTrace<M>) {
         // The list and the position of every module of the trace.
         let positions = trace
@@ -216,7 +215,7 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
             positions: &positions,
         };
 
-        // The last module of each list that the trace evaluated: its position in the list and its
+        // The module of each list that the trace evaluated last: its position in the list and its
         // index in the trace.
         let mut last: FxHashMap<u32, (u32, u32)> = FxHashMap::default();
         for &index in completed {
@@ -224,37 +223,24 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
             if list == NONE {
                 continue;
             }
-            let importer = trace.importer_position(index);
             let order = &mut self.lists[list as usize];
             order.traced = true;
             let module = &mut order.modules[position as usize];
+            let importer = trace.importer_position(index);
             module.importer_min = module.importer_min.min(importer);
             module.importer_max = module.importer_max.max(importer);
 
             match last.insert(list, (position, index)) {
                 Some((previous, previous_index)) if previous + 1 == position => {
-                    let (adjacent, shared_from) = trace.link(previous_index, index);
+                    let adjacent_from = trace.adjacent_from(previous_index, index);
                     let module = &mut order.modules[previous as usize];
-                    module.adjacent_from = module.adjacent_from.max(adjacent.start);
-                    module.adjacent_until = module.adjacent_until.min(adjacent.end);
-                    module.shared_from = module.shared_from.max(shared_from);
+                    module.adjacent_from = module.adjacent_from.max(adjacent_from);
                 }
-                previous => {
-                    // The trace evaluates the modules in another order than the list has them.
-                    if let Some((previous, _)) = previous {
-                        order.modules[previous as usize].split = true;
-                    }
-                    if position > 0 {
-                        order.modules[position as usize - 1].split = true;
-                    }
-                }
-            }
-        }
-        // A trace that stops before the end of a list does not evaluate the rest of it.
-        for (list, (position, _)) in last {
-            let order = &mut self.lists[list as usize];
-            if position as usize + 1 != order.modules.len() {
-                order.modules[position as usize].split = true;
+                // The trace evaluates another module before this one than the list has there.
+                // Every pair of neighbors that the trace does not evaluate one after the other
+                // is found here, at its second module, because the trace evaluates both.
+                _ if position > 0 => order.modules[position as usize - 1].split = true,
+                _ => {}
             }
         }
     }
@@ -266,8 +252,6 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
             for (module, other) in order.modules.iter_mut().zip(&other.modules) {
                 module.split |= other.split;
                 module.adjacent_from = module.adjacent_from.max(other.adjacent_from);
-                module.adjacent_until = module.adjacent_until.min(other.adjacent_until);
-                module.shared_from = module.shared_from.max(other.shared_from);
                 module.importer_min = module.importer_min.min(other.importer_min);
                 module.importer_max = module.importer_max.max(other.importer_max);
             }
@@ -292,14 +276,14 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
             let last = end as u32;
             let keep = order.traced
                 && !module.split
-                && ((module.adjacent_from <= last && last < module.adjacent_until)
-                    || module.shared_from <= last)
-                // The module is an entry point in every trace or in none.
-                && !(module.importer_min <= last && last < module.importer_max)
+                // A module that a module of the group imports first in every trace is evaluated
+                // there, as without merging. A module that none of them imports first in any
+                // trace is an entry point, and the next one has to start right after it.
+                && (module.importer_max <= last
+                    || (module.adjacent_from <= last && last < module.importer_min))
                 && referrers.is_none_or(|referrers| {
                     let referrers = &referrers[position];
-                    module.shared_from <= last
-                        && !referrers.outside
+                    !referrers.outside
                         && referrers.first > position as u32
                         && referrers.last <= last
                 });
@@ -349,71 +333,37 @@ impl<M> PositionedTrace<'_, M> {
         }
     }
 
-    /// Whether following the first importers from `index` leads to `ancestor` through modules of
-    /// the list only.
-    fn is_imported_through_list(&self, mut index: u32, ancestor: u32) -> bool {
-        let ancestor_position = self.modules[ancestor as usize].position;
-        loop {
-            if self.importer_position(index) == NONE {
-                return false;
-            }
-            index = self.modules[index as usize].importer;
-            if index == ancestor {
-                return true;
-            }
-            if self.modules[index as usize].position > ancestor_position {
-                return false;
-            }
-        }
-    }
-
-    /// What this trace allows for `previous` and `next`, two modules that follow each other in a
-    /// list and that the trace evaluates in this order with no other module of the list between
-    /// them: the range of [`ModuleOrder::adjacent_from`] and [`ModuleOrder::adjacent_until`], and
-    /// [`ModuleOrder::shared_from`].
+    /// [`ModuleOrder::adjacent_from`] of `previous` in this trace. `previous` and `next` follow
+    /// each other in a list, and the trace evaluates them in this order with no other module of
+    /// the list between them.
     ///
     /// With `end` as the position of the last module of the group, the entry point that evaluates
     /// `next` is the last module that is reached from `next` by following the first importers
     /// while they are in the list and at most at `end`.
-    fn link(&self, previous: u32, next: u32) -> (Range<u32>, u32) {
+    fn adjacent_from(&self, previous: u32, next: u32) -> u32 {
         // The first module that is evaluated after `previous`.
         let after_previous = self.modules[previous as usize].position + 1;
         let mut adjacent_from = NONE;
-        // Once the group contains the importer of `previous`, `previous` is no entry point.
-        let mut adjacent_until = self.importer_position(previous);
-        let mut shared_from = NONE;
 
         let mut index = next;
         let mut in_list = true;
         loop {
             let module = &self.modules[index as usize];
+            if module.first < after_previous {
+                // This module is evaluated around `previous`, like every module that imports it.
+                break;
+            }
             if in_list {
-                let position = self.positions[index as usize].1;
-                if module.first < after_previous {
-                    // This module evaluates `previous` too. As an entry point it has to evaluate
-                    // it through modules of the group.
-                    if self.is_imported_through_list(previous, index) {
-                        shared_from = position;
-                    }
-                    adjacent_until = adjacent_until.min(position);
-                    break;
-                }
                 // An entry point has to start right after `previous`. A module that is entered
                 // there and imported again while it is evaluated has to be in the group: outside
                 // of it, the merged group would evaluate it instead of finding it in evaluation.
-                if module.first == after_previous
-                    && (adjacent_from == NONE || (index != next && module.reentered))
-                {
-                    adjacent_from = position;
+                if module.first == after_previous && (adjacent_from == NONE || module.reentered) {
+                    adjacent_from = self.positions[index as usize].1;
                 }
-            } else {
-                if module.first < after_previous || adjacent_from == NONE {
-                    break;
-                }
-                if module.reentered {
-                    adjacent_from = NONE;
-                    break;
-                }
+            } else if module.reentered {
+                // This one can't be in the group.
+                adjacent_from = NONE;
+                break;
             }
             if module.importer == NONE {
                 break;
@@ -423,7 +373,7 @@ impl<M> PositionedTrace<'_, M> {
             }
             index = module.importer;
         }
-        (adjacent_from..adjacent_until, shared_from)
+        adjacent_from
     }
 }
 
@@ -454,6 +404,8 @@ mod tests {
         /// The modules that are not ES modules. They are never merged.
         not_mergeable: FxHashSet<usize>,
         entries: Vec<usize>,
+        /// The entries of every chunk group.
+        chunk_groups: Vec<Vec<usize>>,
     }
 
     type Group = (Vec<usize>, Vec<usize>);
@@ -464,7 +416,14 @@ mod tests {
                 references: references.iter().map(|r| r.to_vec()).collect(),
                 not_mergeable: FxHashSet::default(),
                 entries: entries.to_vec(),
+                chunk_groups: vec![entries.to_vec()],
             }
+        }
+
+        /// The same graph with one chunk group per entry, as for the routes of an application.
+        fn with_a_chunk_group_per_entry(mut self) -> Self {
+            self.chunk_groups = self.entries.iter().map(|&entry| vec![entry]).collect();
+            self
         }
 
         /// Whether the reference is evaluated before the importing module and the bitmap of the
@@ -541,9 +500,9 @@ mod tests {
             trace
         }
 
-        /// The lists that one chunk group gives: the modules of each bitmap, in the order of a
+        /// The lists of one chunk group: the modules of each bitmap, in the order of a
         /// depth-first search that follows every reference.
-        fn candidates(&self, bitmaps: &[Vec<usize>]) -> Vec<Vec<usize>> {
+        fn chunk_group_lists(&self, entries: &[usize], bitmaps: &[Vec<usize>]) -> Vec<Vec<usize>> {
             fn visit(graph: &Graph, seen: &mut FxHashSet<usize>, order: &mut Vec<usize>, m: usize) {
                 if seen.insert(m) {
                     for &(to, _) in &graph.references[m] {
@@ -554,7 +513,7 @@ mod tests {
             }
             let mut seen = FxHashSet::default();
             let mut order = vec![];
-            for &entry in &self.entries {
+            for &entry in entries {
                 visit(self, &mut seen, &mut order, entry);
             }
             let mut lists: Vec<Vec<usize>> = vec![];
@@ -565,6 +524,69 @@ mod tests {
                 match lists.iter_mut().find(|l| bitmaps[l[0]] == bitmaps[m]) {
                     Some(list) => list.push(m),
                     None => lists.push(vec![m]),
+                }
+            }
+            lists
+        }
+
+        /// The lists that the chunk groups give. A module that is in the lists of several chunk
+        /// groups stays in one list: the lists are cut around the longest sequence that starts
+        /// with the module in all of them.
+        fn candidates(&self, bitmaps: &[Vec<usize>]) -> Vec<Vec<usize>> {
+            let mut lists: Vec<Vec<usize>> = vec![];
+            // The list and the position of every occurrence of a module, and the modules in the
+            // order in which they are listed first.
+            let mut occurrences = vec![vec![]; self.references.len()];
+            let mut queue = vec![];
+            for chunk_group in &self.chunk_groups {
+                for list in self.chunk_group_lists(chunk_group, bitmaps) {
+                    for (position, &m) in list.iter().enumerate() {
+                        if occurrences[m].is_empty() {
+                            queue.push(m);
+                        }
+                        occurrences[m].push((lists.len(), position));
+                    }
+                    lists.push(list);
+                }
+            }
+
+            // The modules with the lowest position first.
+            queue.sort_by_key(|&m| {
+                std::cmp::Reverse(occurrences[m].iter().map(|&(_, position)| position).min())
+            });
+            while let Some(m) = queue.pop() {
+                let common = std::mem::take(&mut occurrences[m]);
+                if common.len() < 2 {
+                    continue;
+                }
+                let (first_list, first_position) = common[0];
+                let mut len = 1;
+                while lists[first_list]
+                    .get(first_position + len)
+                    .is_some_and(|&next| {
+                        common
+                            .iter()
+                            .all(|&(list, position)| lists[list].get(position + len) == Some(&next))
+                    })
+                {
+                    len += 1;
+                }
+                let common_list = lists[first_list][first_position..first_position + len].to_vec();
+                for (position, &m) in common_list.iter().enumerate().skip(1) {
+                    occurrences[m] = vec![(lists.len(), position)];
+                }
+                lists.push(common_list);
+                for &(list, position) in &common {
+                    let after = lists[list].split_off(position + len);
+                    lists[list].truncate(position);
+                    for (after_position, &m) in after.iter().enumerate() {
+                        for occurrence in &mut occurrences[m] {
+                            if *occurrence == (list, position + len + after_position) {
+                                *occurrence = (lists.len(), after_position);
+                            }
+                        }
+                    }
+                    lists.push(after);
                 }
             }
             lists.retain(|l| l.len() > 1);
@@ -664,7 +686,6 @@ mod tests {
                 graph: &'a Graph,
                 groups: &'a [Group],
                 group_of: Vec<Option<usize>>,
-                group_started: Vec<bool>,
                 started: Vec<bool>,
                 order: Vec<usize>,
             }
@@ -686,21 +707,23 @@ mod tests {
 
                 /// What `__turbopack_context__.i()` and `require()` do.
                 fn load(&mut self, module: usize) {
-                    if self.started[module] {
+                    // An import of a module that is being evaluated gets the exports that exist
+                    // so far.
+                    if std::mem::replace(&mut self.started[module], true) {
                         return;
                     }
                     if let Some(group) = self.group_of[module] {
-                        // One factory for the group: a second import while it runs gets the
-                        // exports that exist so far.
-                        if !std::mem::replace(&mut self.group_started[group], true) {
-                            let groups = self.groups;
-                            for &entry_point in &groups[group].1 {
-                                self.inline(group, entry_point);
-                            }
+                        // One factory for the group. The import of a module of the group whose
+                        // code has not started runs the factory, also when the factory is
+                        // running: all modules of the group are then evaluated a second time.
+                        // No group may be imported like that.
+                        let groups = self.groups;
+                        let mut inlined = FxHashSet::default();
+                        for &entry_point in &groups[group].1 {
+                            self.inline(group, entry_point, &mut inlined);
                         }
                         return;
                     }
-                    self.started[module] = true;
                     let graph = self.graph;
                     for &(to, reference) in &graph.references[module] {
                         if reference == Import {
@@ -713,10 +736,11 @@ mod tests {
                 /// The code of a module inside the factory of its group: the code of an imported
                 /// module of the group is placed at the first import of it, except for the entry
                 /// points, which are placed one after the other.
-                fn inline(&mut self, group: usize, module: usize) {
-                    if std::mem::replace(&mut self.started[module], true) {
+                fn inline(&mut self, group: usize, module: usize, inlined: &mut FxHashSet<usize>) {
+                    if !inlined.insert(module) {
                         return;
                     }
+                    self.started[module] = true;
                     let graph = self.graph;
                     let groups = self.groups;
                     for &(to, reference) in &graph.references[module] {
@@ -726,7 +750,7 @@ mod tests {
                         if self.group_of[to] != Some(group) {
                             self.load(to);
                         } else if !groups[group].1.contains(&to) {
-                            self.inline(group, to);
+                            self.inline(group, to, inlined);
                         }
                     }
                     self.body(module);
@@ -743,7 +767,6 @@ mod tests {
                 graph: self,
                 groups,
                 group_of,
-                group_started: vec![false; groups.len()],
                 started: vec![false; self.references.len()],
                 order: vec![],
             };
@@ -894,7 +917,7 @@ mod tests {
     fn a_group_that_is_loaded_while_it_is_evaluated_has_one_way_in() {
         // 0 imports 1, 2 (not an ES module) and 3. 2 requires 4, which imports 0 and 5, and 5
         // imports 3. So while 0 is evaluated, 5 imports 3 before 0 does. A factory for 1, 3 and
-        // 0 has not run 3 at that point.
+        // 0 has not started 3 at that point, so that import runs the factory a second time.
         let mut graph = Graph::new(
             &[0],
             &[
@@ -914,21 +937,132 @@ mod tests {
         assert_eq!(graph.merged(), vec![(vec![5, 4], vec![4])]);
         graph.assert_same_order(&graph.merged());
         let unchecked = [(vec![1, 3, 0], vec![0])];
-        assert_eq!(graph.evaluate(&unchecked, &[0]), [1, 5, 4, 2, 3, 0]);
+        assert_eq!(
+            graph.evaluate(&unchecked, &[0]),
+            [1, 1, 3, 0, 5, 4, 2, 3, 0]
+        );
         assert_eq!(graph.evaluate(&[], &[0]), [1, 3, 5, 4, 2, 0]);
+    }
+
+    #[test]
+    fn a_module_that_is_an_entry_point_for_one_entry_only_is_not_merged() {
+        // 3 imports 2. 0 imports 3, and 1 imports 2 and then 3: 2 is an entry point for 1, and
+        // 3 imports it first for 0. 2 before 3 is the order in both, so merging them would be
+        // right here: the check gives this case up.
+        let graph = Graph::new(
+            &[0, 1],
+            &[
+                &[(3, Import)],
+                &[(2, Import), (3, Import)],
+                &[],
+                &[(2, Import)],
+            ],
+        )
+        .with_a_chunk_group_per_entry();
+        assert_eq!(graph.candidates(&graph.bitmaps(&graph.roots())), [[2, 3]]);
+        assert_eq!(graph.merged(), vec![]);
+        let unchecked = [(vec![2, 3], vec![2, 3])];
+        graph.assert_same_order(&unchecked);
+
+        // With 4, which is not an ES module, before 2 in 3, merging them would run 2 before 4
+        // for 0.
+        let mut graph = Graph::new(
+            &[0, 1],
+            &[
+                &[(3, Import)],
+                &[(2, Import), (3, Import)],
+                &[],
+                &[(4, Import), (2, Import)],
+                &[],
+            ],
+        )
+        .with_a_chunk_group_per_entry();
+        graph.not_mergeable.insert(4);
+        assert_eq!(graph.merged(), vec![]);
+        assert_eq!(graph.evaluate(&unchecked, &[0]), [2, 4, 3, 0]);
+        assert_eq!(graph.evaluate(&[], &[0]), [4, 2, 3, 0]);
+    }
+
+    #[test]
+    fn an_importer_of_two_entry_points_is_not_merged_with_them() {
+        // 0 imports 2, 3 and 4, 1 imports 4, and 4 imports 2 and 3. 2 and 3 are entry points
+        // for 0, so 4 stays out, and 2 and 3 don't need it.
+        let graph = Graph::new(
+            &[0, 1],
+            &[
+                &[(2, Import), (3, Import), (4, Import)],
+                &[(4, Import)],
+                &[],
+                &[],
+                &[(2, Import), (3, Import)],
+            ],
+        );
+        assert_eq!(
+            graph.candidates(&graph.bitmaps(&graph.roots())),
+            [[2, 3, 4]]
+        );
+        assert_eq!(graph.merged(), vec![(vec![2, 3], vec![2, 3])]);
+        graph.assert_same_order(&graph.merged());
+    }
+
+    #[test]
+    fn modules_below_an_import_cycle_are_merged() {
+        // 0 imports 5, which imports 2, 3 and 4, and 2 imports 5 again. 1 imports 3 and 4. 5
+        // is evaluated around 3 and 4, so the second import of it does not matter to them.
+        let graph = Graph::new(
+            &[0, 1],
+            &[
+                &[(5, Import)],
+                &[(3, Import), (4, Import)],
+                &[(5, Import)],
+                &[],
+                &[],
+                &[(2, Import), (3, Import), (4, Import)],
+            ],
+        );
+        assert_eq!(
+            graph.merged(),
+            vec![(vec![2, 5, 0], vec![0]), (vec![3, 4], vec![3, 4])]
+        );
+        graph.assert_same_order(&graph.merged());
+    }
+
+    #[test]
+    fn a_list_that_no_trace_evaluates_is_not_merged() {
+        let order = EvaluationOrder::new([[1, 2]]);
+        assert_eq!(order.groups(0, None), [0..1, 1..2]);
+
+        let mut order = EvaluationOrder::new([[1, 2]]);
+        let mut trace = EvaluationTrace::new();
+        trace.enter(None, 2);
+        trace.enter(Some(2), 1);
+        trace.leave(1);
+        trace.leave(2);
+        order.add_trace(&trace);
+        assert_eq!(order.groups(0, None), [0..2]);
+        assert_eq!(order.entry_points(0, 0..2).collect::<Vec<_>>(), [1]);
+    }
+
+    /// Deterministic pseudo-random numbers (xorshift64).
+    struct Random(u64);
+
+    impl Random {
+        fn new(seed: u64) -> Self {
+            Self(seed.wrapping_mul(0x9E3779B97F4A7C15) | 1)
+        }
+
+        fn next(&mut self, bound: usize) -> usize {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            (self.0 % bound as u64) as usize
+        }
     }
 
     /// Deterministic pseudo-random graphs: up to twelve modules with up to four references each,
     /// of every kind, some of them backwards (cycles), and some modules that are not ES modules.
-    fn generate_graph(seed: u64) -> Graph {
-        let mut state = seed.wrapping_mul(0x9E3779B97F4A7C15) | 1;
-        let mut next = move |bound: usize| {
-            // xorshift64
-            state ^= state << 13;
-            state ^= state >> 7;
-            state ^= state << 17;
-            (state % bound as u64) as usize
-        };
+    fn generate_graph(random: &mut Random) -> Graph {
+        let mut next = |bound: usize| random.next(bound);
         let len = 2 + next(11);
         let mut graph = Graph {
             references: vec![vec![]; len],
@@ -975,36 +1109,86 @@ mod tests {
                 graph.entries.push(entry);
             }
         }
+        // Every entry starts a chunk group, or shares the one of the entry before it.
+        for &entry in &graph.entries {
+            match graph.chunk_groups.last_mut() {
+                Some(chunk_group) if next(3) == 0 => chunk_group.push(entry),
+                _ => graph.chunk_groups.push(vec![entry]),
+            }
+        }
         graph
+    }
+
+    /// Lists that no chunk group gives: the modules of each bitmap in the order of one
+    /// depth-first search from all entries, without some of the modules, and with some neighbors
+    /// swapped.
+    fn arbitrary_lists(
+        graph: &Graph,
+        bitmaps: &[Vec<usize>],
+        random: &mut Random,
+    ) -> Vec<Vec<usize>> {
+        let mut lists = graph.chunk_group_lists(&graph.entries, bitmaps);
+        for list in &mut lists {
+            list.retain(|_| random.next(4) > 0);
+            for i in 1..list.len() {
+                if random.next(8) == 0 {
+                    list.swap(i - 1, i);
+                }
+            }
+        }
+        lists.retain(|l| l.len() > 1);
+        lists
     }
 
     #[test]
     fn merged_groups_keep_the_evaluation_order_of_random_graphs() {
-        let mut merged_modules = 0;
+        let mut merged_modules = [0, 0];
         let mut unchecked_differs = 0;
-        for seed in 1..=20000 {
-            let graph = generate_graph(seed);
+        // The first 20,000 seeds, and seeds of graphs that need conditions which those don't.
+        for seed in (1..=20000).chain([25209, 35291, 55124, 209372, 735377]) {
+            let mut random = Random::new(seed);
+            let graph = generate_graph(&mut random);
             let roots = graph.roots();
-            let candidates = graph.candidates(&graph.bitmaps(&roots));
-            let groups = graph.groups(&candidates);
-            merged_modules += groups
-                .iter()
-                .map(|(modules, _)| modules.len())
-                .sum::<usize>();
+            let bitmaps = graph.bitmaps(&roots);
 
             // Every root on its own, and all roots one after the other, forwards and backwards.
             let mut loads = roots.iter().map(|&root| vec![root]).collect::<Vec<_>>();
             loads.push(roots.clone());
             loads.push(roots.iter().rev().copied().collect());
-            for loads in &loads {
+            let unmerged = loads
+                .iter()
+                .map(|loads| graph.evaluate(&[], loads))
+                .collect::<Vec<_>>();
+            let differs = |groups: &[Group]| {
+                loads
+                    .iter()
+                    .zip(&unmerged)
+                    .find(|(loads, unmerged)| graph.evaluate(groups, loads) != **unmerged)
+                    .map(|(loads, _)| loads.clone())
+            };
+
+            // The lists that the chunk groups give, and lists that they don't give: the groups
+            // must not depend on how the candidates are found.
+            let candidates = graph.candidates(&bitmaps);
+            let arbitrary = arbitrary_lists(&graph, &bitmaps, &mut random);
+            for (lists, merged_modules) in [&candidates, &arbitrary]
+                .into_iter()
+                .zip(&mut merged_modules)
+            {
+                let groups = graph.groups(lists);
                 assert_eq!(
-                    graph.evaluate(&groups, loads),
-                    graph.evaluate(&[], loads),
-                    "seed {seed}, loading {loads:?}, groups {groups:?}, references {:?}, not \
-                     mergeable {:?}",
+                    differs(&groups),
+                    None,
+                    "seed {seed}, lists {lists:?}, groups {groups:?}, references {:?}, not \
+                     mergeable {:?}, chunk groups {:?}",
                     graph.references,
-                    graph.not_mergeable
+                    graph.not_mergeable,
+                    graph.chunk_groups
                 );
+                *merged_modules += groups
+                    .iter()
+                    .map(|(modules, _)| modules.len())
+                    .sum::<usize>();
             }
 
             // The candidates as they are, with the modules that no module of the list imports as
@@ -1025,15 +1209,13 @@ mod tests {
                 })
                 .filter(|(_, entry_points)| !entry_points.is_empty())
                 .collect::<Vec<_>>();
-            if loads
-                .iter()
-                .any(|loads| graph.evaluate(&unchecked, loads) != graph.evaluate(&[], loads))
-            {
+            if differs(&unchecked).is_some() {
                 unchecked_differs += 1;
             }
         }
         // The check is neither vacuous nor does it give up merging.
+        eprintln!("STATS unchecked_differs={unchecked_differs} merged_modules={merged_modules:?}");
         assert!(unchecked_differs > 200, "{unchecked_differs}");
-        assert!(merged_modules > 30000, "{merged_modules}");
+        assert!(merged_modules[0] > 30000, "{merged_modules:?}");
     }
 }
