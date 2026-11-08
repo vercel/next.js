@@ -22,8 +22,8 @@ describe('standalone mode - shared-cache-controls-old-path', () => {
   let movedOutput: string
 
   beforeAll(async () => {
-    await next.build()
     movedOutput = await fs.mkdtemp(join(os.tmpdir(), 'next-standalone-'))
+    await next.build()
   })
 
   afterAll(async () => {
@@ -45,7 +45,7 @@ describe('standalone mode - shared-cache-controls-old-path', () => {
       /- Local:/,
       { ...env, PORT: port.toString() },
       undefined,
-      { cwd: output }
+      { cwd: output, shouldRejectOnError: true }
     )
     try {
       const res = await fetchViaHTTP(port, '/')
