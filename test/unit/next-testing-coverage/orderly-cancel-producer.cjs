@@ -1,3 +1,6 @@
+const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -82,8 +85,8 @@ async function main() {
   const root = fs.realpathSync(
     fs.mkdtempSync(path.join(repo, '.next-test-orderly-cancel-'))
   )
-  const expected = JSON.parse(
-    fs.readFileSync(path.join(sources, 'pristine.json'))
+  const expected = readExpectedCoverageFixture(
+    path.join(sources, 'pristine.json')
   )[mode][scenario]
   let authored = fs.readFileSync(
     path.join(

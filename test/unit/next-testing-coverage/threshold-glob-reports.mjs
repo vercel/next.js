@@ -1,3 +1,4 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import {
   readFileSync,
@@ -24,8 +25,8 @@ const repo = resolve(rootArg),
   here = dirname(fileURLToPath(import.meta.url)),
   require = createRequire(join(repo, 'package.json')),
   bin = require.resolve('next/dist/bin/next'),
-  pristine = JSON.parse(
-    readFileSync(join(here, 'fixtures/threshold-globs/pristine.json'))
+  pristine = readExpectedCoverageFixture(
+    join(here, 'fixtures/threshold-globs/pristine.json')
   ),
   refs = pristine.rows.map((row) => ({ ...row, ...pristine.report })),
   canonical = (data) =>

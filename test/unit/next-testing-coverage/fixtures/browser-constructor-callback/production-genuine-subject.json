@@ -1,197 +1,45 @@
 {
+  "$coverage": "range-tuples-v1",
   "path": "/private/tmp/s46-real-creator-coverage/genuine-resolved-provider/source149/production/fixture/subject.jsx",
-  "statementMap": {
-    "0": {
-      "start": {
-        "line": 1,
-        "column": 7
-      },
-      "end": {
-        "line": 1,
-        "column": null
-      }
-    },
-    "1": {
-      "start": {
-        "line": 1,
-        "column": 18
-      },
-      "end": {
-        "line": 1,
-        "column": null
-      }
-    },
-    "2": {
-      "start": {
-        "line": 4,
-        "column": 18
-      },
-      "end": {
-        "line": 4,
-        "column": null
-      }
-    },
-    "3": {
-      "start": {
-        "line": 4,
-        "column": 43
-      },
-      "end": {
-        "line": 4,
-        "column": 80
-      }
-    },
-    "4": {
-      "start": {
-        "line": 5,
-        "column": 18
-      },
-      "end": {
-        "line": 5,
-        "column": null
-      }
-    },
-    "5": {
-      "start": {
-        "line": 6,
-        "column": 18
-      },
-      "end": {
-        "line": 6,
-        "column": null
-      }
-    },
-    "6": {
-      "start": {
-        "line": 7,
-        "column": 2
-      },
-      "end": {
-        "line": 7,
-        "column": null
-      }
-    }
+  "statements": {
+    "0": [1, 7, 1, null],
+    "1": [1, 18, 1, null],
+    "2": [4, 18, 4, null],
+    "3": [4, 43, 4, 80],
+    "4": [5, 18, 5, null],
+    "5": [6, 18, 6, null],
+    "6": [7, 2, 7, null]
   },
-  "fnMap": {
+  "functions": {
     "0": {
       "name": "createSubject",
-      "decl": {
-        "start": {
-          "line": 3,
-          "column": 16
-        },
-        "end": {
-          "line": 3,
-          "column": 30
-        }
-      },
-      "loc": {
-        "start": {
-          "line": 3,
-          "column": 37
-        },
-        "end": {
-          "line": 8,
-          "column": null
-        }
-      },
+      "decl": [3, 16, 3, 30],
+      "loc": [3, 37, 8, null],
       "line": 3
     },
     "1": {
       "name": "(anonymous_1)",
-      "decl": {
-        "start": {
-          "line": 4,
-          "column": 22
-        },
-        "end": {
-          "line": 4,
-          "column": 31
-        }
-      },
-      "loc": {
-        "start": {
-          "line": 4,
-          "column": 43
-        },
-        "end": {
-          "line": 4,
-          "column": 80
-        }
-      },
+      "decl": [4, 22, 4, 31],
+      "loc": [4, 43, 4, 80],
       "line": 4
     }
   },
-  "branchMap": {
+  "branches": {
     "0": {
-      "loc": {
-        "start": {
-          "line": 4,
-          "column": 51
-        },
-        "end": {
-          "line": 4,
-          "column": 79
-        }
-      },
+      "loc": [4, 51, 4, 79],
       "type": "cond-expr",
       "locations": [
-        {
-          "start": {
-            "line": 4,
-            "column": 59
-          },
-          "end": {
-            "line": 4,
-            "column": 72
-          }
-        },
-        {
-          "start": {
-            "line": 4,
-            "column": 72
-          },
-          "end": {
-            "line": 4,
-            "column": 79
-          }
-        }
+        [4, 59, 4, 72],
+        [4, 72, 4, 79]
       ],
       "line": 4
     },
     "1": {
-      "loc": {
-        "start": {
-          "line": 6,
-          "column": 25
-        },
-        "end": {
-          "line": 6,
-          "column": 60
-        }
-      },
+      "loc": [6, 25, 6, 60],
       "type": "cond-expr",
       "locations": [
-        {
-          "start": {
-            "line": 6,
-            "column": 33
-          },
-          "end": {
-            "line": 6,
-            "column": 46
-          }
-        },
-        {
-          "start": {
-            "line": 6,
-            "column": 46
-          },
-          "end": {
-            "line": 6,
-            "column": 60
-          }
-        }
+        [6, 33, 6, 46],
+        [6, 46, 6, 60]
       ],
       "line": 6
     }
@@ -210,14 +58,8 @@
     "1": 2
   },
   "b": {
-    "0": [
-      1,
-      1
-    ],
-    "1": [
-      1,
-      1
-    ]
+    "0": [1, 1],
+    "1": [1, 1]
   },
   "meta": {
     "lastBranch": 2,

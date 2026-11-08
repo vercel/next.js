@@ -1,44 +1,18 @@
 {
   "model": {
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 5,
-          "column": 2
-        },
-        "end": {
-          "line": 9,
-          "column": null
-        }
-      }
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [5, 2, 9, null]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "MultilineReturn",
-        "decl": {
-          "start": {
-            "line": 4,
-            "column": 16
-          },
-          "end": {
-            "line": 4,
-            "column": 31
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 4,
-            "column": 69
-          },
-          "end": {
-            "line": 10,
-            "column": null
-          }
-        },
+        "decl": [4, 16, 4, 31],
+        "loc": [4, 69, 10, null],
         "line": 4
       }
     },
-    "branchMap": {},
+    "branches": {},
     "s": {
       "0": 0
     },
@@ -58,45 +32,19 @@
     }
   },
   "observed": {
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 5,
-          "column": 2
-        },
-        "end": {
-          "line": 8,
-          "column": null
-        }
-      }
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [5, 2, 8, null]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "MultilineReturn",
-        "decl": {
-          "start": {
-            "line": 4,
-            "column": 16
-          },
-          "end": {
-            "line": 4,
-            "column": 32
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 4,
-            "column": 47
-          },
-          "end": {
-            "line": 10,
-            "column": null
-          }
-        },
+        "decl": [4, 16, 4, 32],
+        "loc": [4, 47, 10, null],
         "line": 4
       }
     },
-    "branchMap": {},
+    "branches": {},
     "s": {
       "0": 2
     },

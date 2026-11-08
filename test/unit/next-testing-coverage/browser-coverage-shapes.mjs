@@ -1,3 +1,4 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
@@ -261,11 +262,8 @@ async function run(shape, threshold) {
         shapes.flatMap((shape) => expected[shape].cases).sort()
       )
       if (shapes.includes('classic')) {
-        const full = JSON.parse(
-          readFileSync(
-            join(here, 'fixtures/browser-production/classic.expected.json'),
-            'utf8'
-          )
+        const full = readExpectedCoverageFixture(
+          join(here, 'fixtures/browser-production/classic.expected.json')
         ).coverage['layout-classic.tsx']
         assert.deepEqual(
           { ...actual['layout-classic.tsx'], path: 'layout-classic.tsx' },

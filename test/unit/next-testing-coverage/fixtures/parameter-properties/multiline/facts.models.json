@@ -1,92 +1,28 @@
 {
   "model": {
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 6,
-          "column": 11
-        },
-        "end": {
-          "line": 6,
-          "column": 40
-        }
-      }
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [6, 11, 6, 40]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "constructor",
-        "decl": {
-          "start": {
-            "line": 2,
-            "column": 2
-          },
-          "end": {
-            "line": 2,
-            "column": 13
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 5,
-            "column": 4
-          },
-          "end": {
-            "line": 5,
-            "column": null
-          }
-        },
+        "decl": [2, 2, 2, 13],
+        "loc": [5, 4, 5, null],
         "line": 5
       },
       "1": {
         "name": "read",
-        "decl": {
-          "start": {
-            "line": 6,
-            "column": 2
-          },
-          "end": {
-            "line": 6,
-            "column": 6
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 6,
-            "column": 9
-          },
-          "end": {
-            "line": 6,
-            "column": null
-          }
-        },
+        "decl": [6, 2, 6, 6],
+        "loc": [6, 9, 6, null],
         "line": 6
       }
     },
-    "branchMap": {
+    "branches": {
       "0": {
-        "loc": {
-          "start": {
-            "line": 4,
-            "column": 12
-          },
-          "end": {
-            "line": 4,
-            "column": 20
-          }
-        },
+        "loc": [4, 12, 4, 20],
         "type": "default-arg",
-        "locations": [
-          {
-            "start": {
-              "line": 4,
-              "column": 19
-            },
-            "end": {
-              "line": 4,
-              "column": 20
-            }
-          }
-        ],
+        "locations": [[4, 19, 4, 20]],
         "line": 4
       }
     },
@@ -114,113 +50,31 @@
     }
   },
   "observed": {
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 3,
-          "column": 11
-        },
-        "end": {
-          "line": 3,
-          "column": 24
-        }
-      },
-      "1": {
-        "start": {
-          "line": 4,
-          "column": 12
-        },
-        "end": {
-          "line": 4,
-          "column": 19
-        }
-      },
-      "2": {
-        "start": {
-          "line": 6,
-          "column": 11
-        },
-        "end": {
-          "line": 6,
-          "column": 41
-        }
-      }
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [3, 11, 3, 24],
+      "1": [4, 12, 4, 19],
+      "2": [6, 11, 6, 41]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "constructor",
-        "decl": {
-          "start": {
-            "line": 2,
-            "column": 2
-          },
-          "end": {
-            "line": 2,
-            "column": null
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 5,
-            "column": 4
-          },
-          "end": {
-            "line": 5,
-            "column": null
-          }
-        },
+        "decl": [2, 2, 2, null],
+        "loc": [5, 4, 5, null],
         "line": 5
       },
       "1": {
         "name": "read",
-        "decl": {
-          "start": {
-            "line": 6,
-            "column": 2
-          },
-          "end": {
-            "line": 6,
-            "column": 9
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 6,
-            "column": 9
-          },
-          "end": {
-            "line": 6,
-            "column": null
-          }
-        },
+        "decl": [6, 2, 6, 9],
+        "loc": [6, 9, 6, null],
         "line": 6
       }
     },
-    "branchMap": {
+    "branches": {
       "0": {
-        "loc": {
-          "start": {
-            "line": 4,
-            "column": 4
-          },
-          "end": {
-            "line": 4,
-            "column": 20
-          }
-        },
+        "loc": [4, 4, 4, 20],
         "type": "default-arg",
-        "locations": [
-          {
-            "start": {
-              "line": 4,
-              "column": 19
-            },
-            "end": {
-              "line": 4,
-              "column": 20
-            }
-          }
-        ],
+        "locations": [[4, 19, 4, 20]],
         "line": 4
       }
     },

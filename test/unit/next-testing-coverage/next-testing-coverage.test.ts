@@ -1,4 +1,9 @@
 const { readCoverageFixture } = require('./coverage-fixtures.cjs')
+const {
+  expandExpectedCoverageFixture,
+  parseExpectedCoverageFixture,
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 import {
   runNodeHelper,
   runNodeHelperSync,
@@ -12585,7 +12590,7 @@ describe('native-owned classic JSX conditional child boundaries', () => {
       map.setSourceContent(identity, source)
       return JSON.parse(map.toString())
     }
-    const expected = JSON.parse(
+    const expected = parseExpectedCoverageFixture(
       await readFile(
         join(__dirname, 'fixtures/browser-production/classic.expected.json'),
         'utf8'
@@ -13136,7 +13141,7 @@ describe('native-owned named JSX fragment roles', () => {
         },
       },
     ]
-    const expected = JSON.parse(
+    const expected = parseExpectedCoverageFixture(
       await readFile(
         join(__dirname, 'fixtures/browser-production/pragmafrag.expected.json'),
         'utf8'
@@ -14018,7 +14023,9 @@ describe('configured coverage threshold glob groups', () => {
     )
   }, 370000)
 
-  const pristine = require('./fixtures/threshold-globs/pristine.json') as {
+  const pristine = readExpectedCoverageFixture(
+    require.resolve('./fixtures/threshold-globs/pristine.json')
+  ) as {
     sourceFiles: Record<string, { source: string; sha256: string }>
     coverage: Record<string, Pick<StandardCoverageData, 's' | 'f' | 'b'>>
     rows: {
@@ -16007,8 +16014,9 @@ describe('Istanbul mapped fact wire and publication contract', () => {
   beforeAll(async () => {
     root = await realpath(await mkdtemp(join(tmpdir(), 'next-istanbul-facts-')))
     const file = join(root, 'subject.mjs')
-    const source = require('./fixtures/istanbul-provider/pristine.json')
-      .sourceFiles['subject.mjs'].source
+    const source = readExpectedCoverageFixture(
+      require.resolve('./fixtures/istanbul-provider/pristine.json')
+    ).sourceFiles['subject.mjs'].source
     await writeFile(file, source)
     const { coverageHash } = await import(
       'next/dist/experimental/testing/coverage/artifact'
@@ -21752,7 +21760,7 @@ describe('native-qualified Browser Promise executor arrow coverage', () => {
             node.end <= leases![0].moduleEnd &&
             node.params[0]?.name === 'resolve'
         )!,
-        genuine = JSON.parse(
+        genuine = parseExpectedCoverageFixture(
           await readFile(join(corpus, `${mode}-genuine-subject.json`), 'utf8')
         )
       expect(leases).toHaveLength(1)
@@ -23149,7 +23157,9 @@ describe('formatter same-stack configuration publication', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
-  const models = require('./fixtures/threshold-user-edits/expected.json')
+  const models = readExpectedCoverageFixture(
+    require.resolve('./fixtures/threshold-user-edits/expected.json')
+  )
   it.each(models.rows.map((row: { variant: string }) => row.variant))(
     'preserves coverage, formatter order and concurrent config edits for %s',
     async (variant) => {
@@ -23275,7 +23285,11 @@ describe('configured coverage watermarks', () => {
     process.env.FORCE_COLOR = '1'
     try {
       const text = await writeReports(
-        relocate(require('./fixtures/coverage-text/map.expected.json')),
+        relocate(
+          readExpectedCoverageFixture(
+            require.resolve('./fixtures/coverage-text/map.expected.json')
+          )
+        ),
         root,
         ['text', 'text-summary'],
         { text: { maxCols: 90, skipFull: true } },
@@ -23516,4 +23530,118 @@ describe('public Browser coverage regressions', () => {
       cases: 1,
     })
   }, 300000)
+})
+
+describe('independent expected coverage fixture encoding', () => {
+  it('retains explicit IDs, malformed locations, omitted fields and fresh values', () => {
+    const compact = {
+      $coverage: 'range-tuples-v1',
+      path: 'subject.mjs',
+      statements: {
+        7: [2, 1, 3, null],
+        missing: { start: {}, end: {} },
+      },
+      functions: {
+        5: { name: 'choose', decl: [1, 0, 1, 9], loc: [2, 1, 3, null] },
+      },
+      branches: {
+        9: {
+          type: 'if',
+          line: null,
+          loc: [2, 1, 3, null],
+          locations: [[2, 1, 2, 8]],
+        },
+      },
+      s: { 7: 2, missing: 0 },
+      f: { 5: 1 },
+      b: { 9: [1] },
+    }
+    const first = expandExpectedCoverageFixture(compact)
+    const second = parseExpectedCoverageFixture(JSON.stringify(compact))
+    expect(Object.keys(first)).toEqual([
+      'path',
+      'statementMap',
+      'fnMap',
+      'branchMap',
+      's',
+      'f',
+      'b',
+    ])
+    expect(first.statementMap['7']).toEqual({
+      start: { line: 2, column: 1 },
+      end: { line: 3, column: null },
+    })
+    expect(first.statementMap.missing).toEqual({ start: {}, end: {} })
+    expect(Object.hasOwn(first.fnMap['5'], 'line')).toBe(false)
+    expect(first.branchMap['9'].line).toBeNull()
+    expect(first).toEqual(second)
+    first.fnMap['5'].loc.start.column = 20
+    first.s['7'] = 20
+    expect(second.fnMap['5'].loc.start.column).toBe(1)
+    expect(second.s['7']).toBe(2)
+    expect(compact.functions['5'].loc).toEqual([2, 1, 3, null])
+    const revived = parseExpectedCoverageFixture(
+      JSON.stringify(compact),
+      (key: string, value: any) =>
+        key === 'column' && value === null ? Infinity : value
+    )
+    expect(revived.statementMap['7'].end.column).toBe(Infinity)
+    expect(revived.branchMap['9'].line).toBeNull()
+    expect(expandExpectedCoverageFixture({ loc: [1, 2, 3, 4] })).toEqual({
+      loc: [1, 2, 3, 4],
+    })
+    expect(() =>
+      expandExpectedCoverageFixture({ ...compact, $coverage: 'future' })
+    ).toThrow('Unknown expected coverage fixture format')
+    expect(() =>
+      expandExpectedCoverageFixture({ ...compact, statements: { 7: [1, 2] } })
+    ).toThrow('four coordinates')
+  })
+
+  it('uses native reviver invocation when its call property is overridden', () => {
+    const text = '{"value":1}'
+    const reviver = (_key: string, value: any) =>
+      typeof value === 'number' ? value + 1 : value
+    Object.defineProperty(reviver, 'call', {
+      value: () => {
+        throw new Error('reviver.call must not be used')
+      },
+    })
+    expect(parseExpectedCoverageFixture(text, reviver)).toEqual(
+      JSON.parse(text, reviver)
+    )
+  })
+
+  it.each([
+    'frozen replacement',
+    'frozen deletion',
+    'array deletion',
+    'function sibling',
+  ])('preserves native JSON reviver behavior for %s', (kind) => {
+    const text = '{"a":1,"b":2,"items":[1,2]}'
+    function run(
+      parse: (
+        text: string,
+        reviver: (this: any, key: string, value: any) => any
+      ) => any
+    ) {
+      const calls: string[] = []
+      const value = parse(text, function (this: any, key: string, value: any) {
+        calls.push(key)
+        if (key === 'a' && kind.startsWith('frozen')) {
+          Object.freeze(this)
+          return kind === 'frozen deletion' ? undefined : 20
+        }
+        if (kind === 'array deletion' && key === '0') return undefined
+        if (kind === 'function sibling') {
+          if (key === 'a') this.b = Object.assign(() => {}, { child: 1 })
+          if (key === 'child') return value + 1
+          if (key === 'b') return value.child
+        }
+        return value
+      })
+      return { value, calls, itemKeys: Object.keys(value.items) }
+    }
+    expect(run(parseExpectedCoverageFixture)).toEqual(run(JSON.parse))
+  })
 })

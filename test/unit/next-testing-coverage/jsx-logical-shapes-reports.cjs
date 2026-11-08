@@ -1,3 +1,6 @@
+const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -98,18 +101,12 @@ for (const name of ['fragment-parenthesized', 'element-unparenthesized'])
       )
       assert.deepEqual(
         canonical,
-        JSON.parse(
-          fs.readFileSync(
-            resolveFixturePath(
-              path.join(source, mode, 'pristine-coverage.json')
-            )
-          )
-        )
-      )
-      const genuine = JSON.parse(
-        fs.readFileSync(
+        readExpectedCoverageFixture(
           resolveFixturePath(path.join(source, mode, 'pristine-coverage.json'))
         )
+      )
+      const genuine = readExpectedCoverageFixture(
+        resolveFixturePath(path.join(source, mode, 'pristine-coverage.json'))
       )
       assert.deepEqual(canonical, genuine)
       genuineReports++

@@ -1,8 +1,10 @@
-const { readFileSync } = require('node:fs')
+const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 
 // Keep invariant expectations once while giving each profile its own objects.
 function readCoverageFixture(file) {
-  const fixture = JSON.parse(readFileSync(file, 'utf8'))
+  const fixture = readExpectedCoverageFixture(file)
   if (!fixture.defaults && !fixture.coverageMaps) return fixture
   const { defaults, coverageMaps, ...value } = fixture
   for (const key of ['rows', 'profiles']) {

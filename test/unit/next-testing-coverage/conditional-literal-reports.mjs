@@ -1,3 +1,4 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import {
@@ -22,12 +23,10 @@ const load = createRequire(join(consumer, 'package.json'))
 if (!process.argv.includes('--source'))
   for (const name of ['vitest', 'vite', '@vitest/mocker'])
     assert.throws(() => load.resolve(name))
-const row = JSON.parse(
-  readFileSync(
-    join(
-      dirname(fileURLToPath(import.meta.url)),
-      'fixtures/conditional-literal/pristine.json'
-    )
+const row = readExpectedCoverageFixture(
+  join(
+    dirname(fileURLToPath(import.meta.url)),
+    'fixtures/conditional-literal/pristine.json'
   )
 ).rows.find((r) => r.name === profile)
 assert(row, 'Unknown conditional coverage profile')

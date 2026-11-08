@@ -1,3 +1,4 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -38,13 +39,10 @@ if (phase !== 'child') {
 } else {
   assert(['ts', 'mts'].includes(extension))
   const load = createRequire(path.join(consumer, 'package.json'))
-  const fixture = JSON.parse(
-    fs.readFileSync(
-      new URL(
-        './fixtures/istanbul-typescript-functions/' + extension + '.json',
-        import.meta.url
-      ),
-      'utf8'
+  const fixture = readExpectedCoverageFixture(
+    new URL(
+      './fixtures/istanbul-typescript-functions/' + extension + '.json',
+      import.meta.url
     )
   )
   const hash = (value) => createHash('sha256').update(value).digest('hex')

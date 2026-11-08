@@ -1,3 +1,4 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -40,8 +41,8 @@ if (phase !== 'child') {
       path.dirname(fileURLToPath(import.meta.url)),
       'fixtures/conditional-literal'
     ),
-    facts = JSON.parse(
-      fs.readFileSync(path.join(fixture, 'facts.json')),
+    facts = readExpectedCoverageFixture(
+      path.join(fixture, 'facts.json'),
       (key, value) => (key === 'column' && value === null ? Infinity : value)
     ),
     source = fs.readFileSync(path.join(fixture, 'subject.mjs.txt'), 'utf8'),

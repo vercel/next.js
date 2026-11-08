@@ -1,77 +1,24 @@
 {
   "model": {
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 5,
-          "column": 2
-        },
-        "end": {
-          "line": 14,
-          "column": null
-        }
-      }
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [5, 2, 14, null]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "Multiline",
-        "decl": {
-          "start": {
-            "line": 4,
-            "column": 16
-          },
-          "end": {
-            "line": 4,
-            "column": 25
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 4,
-            "column": 45
-          },
-          "end": {
-            "line": 15,
-            "column": null
-          }
-        },
+        "decl": [4, 16, 4, 25],
+        "loc": [4, 45, 15, null],
         "line": 4
       }
     },
-    "branchMap": {
+    "branches": {
       "0": {
-        "loc": {
-          "start": {
-            "line": 7,
-            "column": 7
-          },
-          "end": {
-            "line": 11,
-            "column": 7
-          }
-        },
+        "loc": [7, 7, 11, 7],
         "type": "binary-expr",
         "locations": [
-          {
-            "start": {
-              "line": 7,
-              "column": 7
-            },
-            "end": {
-              "line": 7,
-              "column": 13
-            }
-          },
-          {
-            "start": {
-              "line": 8,
-              "column": 8
-            },
-            "end": {
-              "line": 10,
-              "column": null
-            }
-          }
+          [7, 7, 7, 13],
+          [8, 8, 10, null]
         ],
         "line": 7
       }
@@ -98,78 +45,25 @@
     }
   },
   "observed": {
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 5,
-          "column": 2
-        },
-        "end": {
-          "line": 13,
-          "column": null
-        }
-      }
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [5, 2, 13, null]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "Multiline",
-        "decl": {
-          "start": {
-            "line": 4,
-            "column": 16
-          },
-          "end": {
-            "line": 4,
-            "column": 26
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 4,
-            "column": 43
-          },
-          "end": {
-            "line": 15,
-            "column": null
-          }
-        },
+        "decl": [4, 16, 4, 26],
+        "loc": [4, 43, 15, null],
         "line": 4
       }
     },
-    "branchMap": {
+    "branches": {
       "0": {
-        "loc": {
-          "start": {
-            "line": 7,
-            "column": 7
-          },
-          "end": {
-            "line": 10,
-            "column": null
-          }
-        },
+        "loc": [7, 7, 10, null],
         "type": "binary-expr",
         "locations": [
-          {
-            "start": {
-              "line": 7,
-              "column": 7
-            },
-            "end": {
-              "line": 7,
-              "column": null
-            }
-          },
-          {
-            "start": {
-              "line": 8,
-              "column": 8
-            },
-            "end": {
-              "line": 10,
-              "column": null
-            }
-          }
+          [7, 7, 7, null],
+          [8, 8, 10, null]
         ],
         "line": 7
       }

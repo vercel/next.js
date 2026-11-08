@@ -77,79 +77,26 @@
         "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:0\nFNDA:0,choose\nDA:1,0\nLF:1\nLH:0\nBRDA:1,0,0,0\nBRDA:1,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
         "coverage-final.json": {
           "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 1,
-                  "column": 46
-                }
-              }
+            "statements": {
+              "0": [1, 30, 1, 46]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": null
-                  }
-                },
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
                 "line": 1
               }
             },
-            "branchMap": {
+            "branches": {
               "0": {
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 37
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 46
-                  }
-                },
+                "loc": [1, 37, 1, 46],
                 "type": "cond-expr",
                 "locations": [
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 43
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 44
-                    }
-                  },
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 45
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 46
-                    }
-                  }
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
                 ],
                 "line": 1
               }
@@ -259,79 +206,26 @@
         "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:0\nFNDA:0,choose\nDA:1,0\nLF:1\nLH:0\nBRDA:1,0,0,0\nBRDA:1,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
         "coverage-final.json": {
           "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 1,
-                  "column": 46
-                }
-              }
+            "statements": {
+              "0": [1, 30, 1, 46]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": null
-                  }
-                },
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
                 "line": 1
               }
             },
-            "branchMap": {
+            "branches": {
               "0": {
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 37
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 46
-                  }
-                },
+                "loc": [1, 37, 1, 46],
                 "type": "cond-expr",
                 "locations": [
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 43
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 44
-                    }
-                  },
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 45
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 46
-                    }
-                  }
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
                 ],
                 "line": 1
               }
@@ -441,79 +335,26 @@
         "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:0\nFNDA:0,choose\nDA:1,0\nLF:1\nLH:0\nBRDA:1,0,0,0\nBRDA:1,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
         "coverage-final.json": {
           "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 1,
-                  "column": 46
-                }
-              }
+            "statements": {
+              "0": [1, 30, 1, 46]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": null
-                  }
-                },
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
                 "line": 1
               }
             },
-            "branchMap": {
+            "branches": {
               "0": {
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 37
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 46
-                  }
-                },
+                "loc": [1, 37, 1, 46],
                 "type": "cond-expr",
                 "locations": [
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 43
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 44
-                    }
-                  },
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 45
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 46
-                    }
-                  }
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
                 ],
                 "line": 1
               }
@@ -623,79 +464,26 @@
         "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:0\nFNDA:0,choose\nDA:1,0\nLF:1\nLH:0\nBRDA:1,0,0,0\nBRDA:1,0,1,0\nBRF:2\nBRH:0\nend_of_record\n",
         "coverage-final.json": {
           "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 1,
-                  "column": 46
-                }
-              }
+            "statements": {
+              "0": [1, 30, 1, 46]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": null
-                  }
-                },
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
                 "line": 1
               }
             },
-            "branchMap": {
+            "branches": {
               "0": {
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 37
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 46
-                  }
-                },
+                "loc": [1, 37, 1, 46],
                 "type": "cond-expr",
                 "locations": [
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 43
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 44
-                    }
-                  },
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 45
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 46
-                    }
-                  }
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
                 ],
                 "line": 1
               }
@@ -805,79 +593,26 @@
         "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:2,choose\nDA:1,2\nLF:1\nLH:1\nBRDA:1,0,0,1\nBRDA:1,0,1,1\nBRF:2\nBRH:2\nend_of_record\n",
         "coverage-final.json": {
           "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 1,
-                  "column": 46
-                }
-              }
+            "statements": {
+              "0": [1, 30, 1, 46]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": null
-                  }
-                },
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
                 "line": 1
               }
             },
-            "branchMap": {
+            "branches": {
               "0": {
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 37
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 46
-                  }
-                },
+                "loc": [1, 37, 1, 46],
                 "type": "cond-expr",
                 "locations": [
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 43
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 44
-                    }
-                  },
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 45
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 46
-                    }
-                  }
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
                 ],
                 "line": 1
               }
@@ -993,79 +728,26 @@
         "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:1,1\nLF:1\nLH:1\nBRDA:1,0,0,0\nBRDA:1,0,1,1\nBRF:2\nBRH:1\nend_of_record\n",
         "coverage-final.json": {
           "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 1,
-                  "column": 46
-                }
-              }
+            "statements": {
+              "0": [1, 30, 1, 46]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": null
-                  }
-                },
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
                 "line": 1
               }
             },
-            "branchMap": {
+            "branches": {
               "0": {
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 37
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 46
-                  }
-                },
+                "loc": [1, 37, 1, 46],
                 "type": "cond-expr",
                 "locations": [
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 43
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 44
-                    }
-                  },
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 45
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 46
-                    }
-                  }
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
                 ],
                 "line": 1
               }
@@ -1175,79 +857,26 @@
         "lcov.info": "TN:\nSF:subject.mjs\nFN:1,choose\nFNF:1\nFNH:1\nFNDA:1,choose\nDA:1,1\nLF:1\nLH:1\nBRDA:1,0,0,1\nBRDA:1,0,1,0\nBRF:2\nBRH:1\nend_of_record\n",
         "coverage-final.json": {
           "<fixture>/subject.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "<fixture>/subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 1,
-                  "column": 30
-                },
-                "end": {
-                  "line": 1,
-                  "column": 46
-                }
-              }
+            "statements": {
+              "0": [1, 30, 1, 46]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": null
-                  }
-                },
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 1, null],
                 "line": 1
               }
             },
-            "branchMap": {
+            "branches": {
               "0": {
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 37
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 46
-                  }
-                },
+                "loc": [1, 37, 1, 46],
                 "type": "cond-expr",
                 "locations": [
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 43
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 44
-                    }
-                  },
-                  {
-                    "start": {
-                      "line": 1,
-                      "column": 45
-                    },
-                    "end": {
-                      "line": 1,
-                      "column": 46
-                    }
-                  }
+                  [1, 43, 1, 44],
+                  [1, 45, 1, 46]
                 ],
                 "line": 1
               }

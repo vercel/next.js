@@ -1,3 +1,6 @@
+const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 if (process.argv[2] === 'supervise') {
   ;(async () => {
     const fs = require('node:fs'),
@@ -57,10 +60,8 @@ if (process.argv[2] === 'supervise') {
     consumer = path.resolve(consumerArg),
     out = path.resolve(outArg),
     repo = path.resolve(__dirname, '../../..'),
-    pristine = JSON.parse(
-      fs.readFileSync(
-        path.join(__dirname, 'fixtures/istanbul-provider/pristine.json')
-      )
+    pristine = readExpectedCoverageFixture(
+      path.join(__dirname, 'fixtures/istanbul-provider/pristine.json')
     ),
     fixture = fs.mkdtempSync(
       path.join(consumer, '.next-istanbul-afterall-identity-')

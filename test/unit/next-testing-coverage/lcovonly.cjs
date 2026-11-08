@@ -1,3 +1,6 @@
+const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -112,11 +115,9 @@ for (const mode of ['development', 'production'])
         )
         assert.deepEqual(
           portable,
-          JSON.parse(
-            fs.readFileSync(
-              resolveFixturePath(
-                path.join(source, 'pristine-coverage-' + mode + '.json')
-              )
+          readExpectedCoverageFixture(
+            resolveFixturePath(
+              path.join(source, 'pristine-coverage-' + mode + '.json')
             )
           )
         )

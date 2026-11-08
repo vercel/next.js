@@ -1,3 +1,6 @@
+const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -11,7 +14,9 @@ const source = path.join(
   __dirname,
   '../app-dir/next-testing-stable-release-gaps/fixtures/standard-coverage'
 )
-const expected = require('./configured-watch.expected.json')
+const expected = readExpectedCoverageFixture(
+  path.join(__dirname, './configured-watch.expected.json')
+)
 const scenario = process.argv
   .find((value) => value.startsWith('--scenario='))
   ?.split('=')[1]
@@ -410,10 +415,9 @@ async function defaults(mode) {
     })
     report(run.fixture, 'watch-a', 'all')
     const directory = path.join(run.fixture, 'watch-a')
-    const pristine =
-      require('./project-configured-coverage.expected.json').profiles.find(
-        (row) => row.mode === mode && row.name === 'defaults'
-      )
+    const pristine = readExpectedCoverageFixture(
+      path.join(__dirname, './project-configured-coverage.expected.json')
+    ).profiles.find((row) => row.mode === mode && row.name === 'defaults')
     for (const file of [
       'index.html',
       'subject.mjs.html',

@@ -4,149 +4,42 @@
   "authoredSource": "export type Input = boolean\nexport function choose(value: Input) {\n  return <section data-state={value ? 'yes' : 'no'}><span>{value ? 'hit' : 'miss'}</span><span>fixed</span></section>\n}\nexport function unused() { return <span>unused</span> }\n",
   "emittedSource": "import { jsxDEV as _jsxDEV } from \"react/jsx-dev-runtime\";\nexport function choose(value) {\n    return /*#__PURE__*/ _jsxDEV(\"section\", {\n        \"data-state\": value ? 'yes' : 'no',\n        children: [\n            /*#__PURE__*/ _jsxDEV(\"span\", {\n                children: value ? 'hit' : 'miss'\n            }, void 0, false, {\n                fileName: \"<fixture>/subject.tsx\",\n                lineNumber: 3,\n                columnNumber: 53\n            }, this),\n            /*#__PURE__*/ _jsxDEV(\"span\", {\n                children: \"fixed\"\n            }, void 0, false, {\n                fileName: \"<fixture>/subject.tsx\",\n                lineNumber: 3,\n                columnNumber: 90\n            }, this)\n        ]\n    }, void 0, true, {\n        fileName: \"<fixture>/subject.tsx\",\n        lineNumber: 3,\n        columnNumber: 10\n    }, this);\n}\nexport function unused() {\n    return /*#__PURE__*/ _jsxDEV(\"span\", {\n        children: \"unused\"\n    }, void 0, false, {\n        fileName: \"<fixture>/subject.tsx\",\n        lineNumber: 5,\n        columnNumber: 35\n    }, this);\n}\n",
   "rawCoverage": {
+    "$coverage": "range-tuples-v1",
     "path": "<fixture>/subject.tsx",
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 3,
-          "column": 4
-        },
-        "end": {
-          "line": 25,
-          "column": 13
-        }
-      },
-      "1": {
-        "start": {
-          "line": 28,
-          "column": 4
-        },
-        "end": {
-          "line": 34,
-          "column": 13
-        }
-      }
+    "statements": {
+      "0": [3, 4, 25, 13],
+      "1": [28, 4, 34, 13]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "choose",
-        "decl": {
-          "start": {
-            "line": 2,
-            "column": 16
-          },
-          "end": {
-            "line": 2,
-            "column": 22
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 2,
-            "column": 30
-          },
-          "end": {
-            "line": 26,
-            "column": 1
-          }
-        },
+        "decl": [2, 16, 2, 22],
+        "loc": [2, 30, 26, 1],
         "line": 2
       },
       "1": {
         "name": "unused",
-        "decl": {
-          "start": {
-            "line": 27,
-            "column": 16
-          },
-          "end": {
-            "line": 27,
-            "column": 22
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 27,
-            "column": 25
-          },
-          "end": {
-            "line": 35,
-            "column": 1
-          }
-        },
+        "decl": [27, 16, 27, 22],
+        "loc": [27, 25, 35, 1],
         "line": 27
       }
     },
-    "branchMap": {
+    "branches": {
       "0": {
-        "loc": {
-          "start": {
-            "line": 4,
-            "column": 22
-          },
-          "end": {
-            "line": 4,
-            "column": 42
-          }
-        },
+        "loc": [4, 22, 4, 42],
         "type": "cond-expr",
         "locations": [
-          {
-            "start": {
-              "line": 4,
-              "column": 30
-            },
-            "end": {
-              "line": 4,
-              "column": 35
-            }
-          },
-          {
-            "start": {
-              "line": 4,
-              "column": 38
-            },
-            "end": {
-              "line": 4,
-              "column": 42
-            }
-          }
+          [4, 30, 4, 35],
+          [4, 38, 4, 42]
         ],
         "line": 4
       },
       "1": {
-        "loc": {
-          "start": {
-            "line": 7,
-            "column": 26
-          },
-          "end": {
-            "line": 7,
-            "column": 48
-          }
-        },
+        "loc": [7, 26, 7, 48],
         "type": "cond-expr",
         "locations": [
-          {
-            "start": {
-              "line": 7,
-              "column": 34
-            },
-            "end": {
-              "line": 7,
-              "column": 39
-            }
-          },
-          {
-            "start": {
-              "line": 7,
-              "column": 42
-            },
-            "end": {
-              "line": 7,
-              "column": 48
-            }
-          }
+          [7, 34, 7, 39],
+          [7, 42, 7, 48]
         ],
         "line": 7
       }
@@ -175,146 +68,39 @@
   },
   "expectedReport": {
     "<fixture>/subject.tsx": {
+      "$coverage": "range-tuples-v1",
       "path": "<fixture>/subject.tsx",
-      "statementMap": {
-        "0": {
-          "start": {
-            "line": 3,
-            "column": 2
-          },
-          "end": {
-            "line": 3,
-            "column": null
-          }
-        },
-        "1": {
-          "start": {
-            "line": 5,
-            "column": 27
-          },
-          "end": {
-            "line": 5,
-            "column": 54
-          }
-        }
+      "statements": {
+        "0": [3, 2, 3, null],
+        "1": [5, 27, 5, 54]
       },
-      "fnMap": {
+      "functions": {
         "0": {
           "name": "choose",
-          "decl": {
-            "start": {
-              "line": 2,
-              "column": 16
-            },
-            "end": {
-              "line": 2,
-              "column": 23
-            }
-          },
-          "loc": {
-            "start": {
-              "line": 2,
-              "column": 37
-            },
-            "end": {
-              "line": 4,
-              "column": null
-            }
-          }
+          "decl": [2, 16, 2, 23],
+          "loc": [2, 37, 4, null]
         },
         "1": {
           "name": "unused",
-          "decl": {
-            "start": {
-              "line": 5,
-              "column": 16
-            },
-            "end": {
-              "line": 5,
-              "column": 25
-            }
-          },
-          "loc": {
-            "start": {
-              "line": 5,
-              "column": 25
-            },
-            "end": {
-              "line": 5,
-              "column": null
-            }
-          }
+          "decl": [5, 16, 5, 25],
+          "loc": [5, 25, 5, null]
         }
       },
-      "branchMap": {
+      "branches": {
         "0": {
-          "loc": {
-            "start": {
-              "line": 3,
-              "column": 30
-            },
-            "end": {
-              "line": 3,
-              "column": 52
-            }
-          },
+          "loc": [3, 30, 3, 52],
           "type": "cond-expr",
           "locations": [
-            {
-              "start": {
-                "line": 3,
-                "column": 38
-              },
-              "end": {
-                "line": 3,
-                "column": 46
-              }
-            },
-            {
-              "start": {
-                "line": 3,
-                "column": 46
-              },
-              "end": {
-                "line": 3,
-                "column": 52
-              }
-            }
+            [3, 38, 3, 46],
+            [3, 46, 3, 52]
           ]
         },
         "1": {
-          "loc": {
-            "start": {
-              "line": 3,
-              "column": 59
-            },
-            "end": {
-              "line": 3,
-              "column": 88
-            }
-          },
+          "loc": [3, 59, 3, 88],
           "type": "cond-expr",
           "locations": [
-            {
-              "start": {
-                "line": 3,
-                "column": 67
-              },
-              "end": {
-                "line": 3,
-                "column": 75
-              }
-            },
-            {
-              "start": {
-                "line": 3,
-                "column": 75
-              },
-              "end": {
-                "line": 3,
-                "column": 88
-              }
-            }
+            [3, 67, 3, 75],
+            [3, 75, 3, 88]
           ]
         }
       },

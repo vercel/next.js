@@ -117,45 +117,19 @@
       "reports": {
         "coverage-final.json": {
           "fully.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "fully.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 1,
-                  "column": 31
-                },
-                "end": {
-                  "line": 1,
-                  "column": 47
-                }
-              }
+            "statements": {
+              "0": [1, 31, 1, 47]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "fully",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 21
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": null
-                  }
-                }
+                "decl": [1, 16, 1, 21],
+                "loc": [1, 29, 1, null]
               }
             },
-            "branchMap": {},
+            "branches": {},
             "s": {
               "0": 1
             },
@@ -165,121 +139,32 @@
             "b": {}
           },
           "subject.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
+            "statements": {
+              "0": [2, 2, 2, null],
+              "1": [2, 12, 2, null],
+              "2": [3, 2, 3, null],
+              "3": [6, 2, 6, null]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 4, null]
               },
               "1": {
                 "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
+                "decl": [5, 16, 5, 22],
+                "loc": [5, 25, 7, null]
               }
             },
-            "branchMap": {
+            "branches": {
               "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
+                "loc": [2, 2, 2, null],
                 "type": "if",
                 "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
+                  [2, 2, 2, null],
                   {
                     "start": {},
                     "end": {}
@@ -435,45 +320,19 @@
       "reports": {
         "coverage-final.json": {
           "fully.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "fully.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 1,
-                  "column": 31
-                },
-                "end": {
-                  "line": 1,
-                  "column": 47
-                }
-              }
+            "statements": {
+              "0": [1, 31, 1, 47]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "fully",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 21
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": null
-                  }
-                }
+                "decl": [1, 16, 1, 21],
+                "loc": [1, 29, 1, null]
               }
             },
-            "branchMap": {},
+            "branches": {},
             "s": {
               "0": 1
             },
@@ -483,154 +342,38 @@
             "b": {}
           },
           "subject.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              },
-              "4": {
-                "start": {
-                  "line": 8,
-                  "column": 30
-                },
-                "end": {
-                  "line": 8,
-                  "column": 67
-                }
-              }
+            "statements": {
+              "0": [2, 2, 2, null],
+              "1": [2, 12, 2, null],
+              "2": [3, 2, 3, null],
+              "3": [6, 2, 6, null],
+              "4": [8, 30, 8, 67]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 4, null]
               },
               "1": {
                 "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
+                "decl": [5, 16, 5, 22],
+                "loc": [5, 25, 7, null]
               },
               "2": {
                 "name": "loadUnused",
-                "decl": {
-                  "start": {
-                    "line": 8,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 8,
-                    "column": 26
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 8,
-                    "column": 28
-                  },
-                  "end": {
-                    "line": 8,
-                    "column": null
-                  }
-                }
+                "decl": [8, 16, 8, 26],
+                "loc": [8, 28, 8, null]
               }
             },
-            "branchMap": {
+            "branches": {
               "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
+                "loc": [2, 2, 2, null],
                 "type": "if",
                 "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
+                  [2, 2, 2, null],
                   {
                     "start": {},
                     "end": {}
@@ -792,45 +535,19 @@
       "reports": {
         "coverage-final.json": {
           "actual-dynamic.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "actual-dynamic.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 1,
-                  "column": 26
-                },
-                "end": {
-                  "line": 1,
-                  "column": 34
-                }
-              }
+            "statements": {
+              "0": [1, 26, 1, 34]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "loaded",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 24
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": null
-                  }
-                }
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 24, 1, null]
               }
             },
-            "branchMap": {},
+            "branches": {},
             "s": {
               "0": 1
             },
@@ -970,121 +687,32 @@
       "reports": {
         "coverage-final.json": {
           "subject.mjs": {
+            "$coverage": "range-tuples-v1",
             "path": "subject.mjs",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "1": {
-                "start": {
-                  "line": 2,
-                  "column": 12
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
-              "2": {
-                "start": {
-                  "line": 3,
-                  "column": 2
-                },
-                "end": {
-                  "line": 3,
-                  "column": null
-                }
-              },
-              "3": {
-                "start": {
-                  "line": 6,
-                  "column": 2
-                },
-                "end": {
-                  "line": 6,
-                  "column": null
-                }
-              }
+            "statements": {
+              "0": [2, 2, 2, null],
+              "1": [2, 12, 2, null],
+              "2": [3, 2, 3, null],
+              "3": [6, 2, 6, null]
             },
-            "fnMap": {
+            "functions": {
               "0": {
                 "name": "choose",
-                "decl": {
-                  "start": {
-                    "line": 1,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 1,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 1,
-                    "column": 29
-                  },
-                  "end": {
-                    "line": 4,
-                    "column": null
-                  }
-                }
+                "decl": [1, 16, 1, 22],
+                "loc": [1, 29, 4, null]
               },
               "1": {
                 "name": "unused",
-                "decl": {
-                  "start": {
-                    "line": 5,
-                    "column": 16
-                  },
-                  "end": {
-                    "line": 5,
-                    "column": 22
-                  }
-                },
-                "loc": {
-                  "start": {
-                    "line": 5,
-                    "column": 25
-                  },
-                  "end": {
-                    "line": 7,
-                    "column": null
-                  }
-                }
+                "decl": [5, 16, 5, 22],
+                "loc": [5, 25, 7, null]
               }
             },
-            "branchMap": {
+            "branches": {
               "0": {
-                "loc": {
-                  "start": {
-                    "line": 2,
-                    "column": 2
-                  },
-                  "end": {
-                    "line": 2,
-                    "column": null
-                  }
-                },
+                "loc": [2, 2, 2, null],
                 "type": "if",
                 "locations": [
-                  {
-                    "start": {
-                      "line": 2,
-                      "column": 2
-                    },
-                    "end": {
-                      "line": 2,
-                      "column": null
-                    }
-                  },
+                  [2, 2, 2, null],
                   {
                     "start": {},
                     "end": {}
@@ -1274,21 +902,13 @@
       "reports": {
         "coverage-final.json": {
           "typed.ts": {
+            "$coverage": "range-tuples-v1",
             "path": "typed.ts",
-            "statementMap": {
-              "0": {
-                "start": {
-                  "line": 1,
-                  "column": 29
-                },
-                "end": {
-                  "line": 1,
-                  "column": null
-                }
-              }
+            "statements": {
+              "0": [1, 29, 1, null]
             },
-            "fnMap": {},
-            "branchMap": {},
+            "functions": {},
+            "branches": {},
             "s": {
               "0": 1
             },

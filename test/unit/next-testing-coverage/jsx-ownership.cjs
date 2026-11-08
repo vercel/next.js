@@ -1,3 +1,6 @@
+const {
+  parseExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
@@ -73,7 +76,7 @@ const { coverageHash } = require(
       projects,
       signal,
     })
-    const data = JSON.parse(
+    const data = parseExpectedCoverageFixture(
       await fs.readFile(
         resolveFixturePath(fixture + '/pristine-coverage.json')
       ),

@@ -18,133 +18,35 @@
     "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-strings-development/subject.ts"
   },
   "generated": {
+    "$coverage": "range-tuples-v1",
     "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-strings-development/.next/.next-test-e8bc250a-8457-4d2d-8917-bf86dde86c32/server/chunks/_next-test-ts-runtime176-strings-development_0jqzv2m77of7p._.js",
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 1,
-          "column": 0
-        },
-        "end": {
-          "line": 38,
-          "column": null
-        }
-      },
-      "12": {
-        "start": {
-          "line": 28,
-          "column": 26
-        },
-        "end": {
-          "line": 32,
-          "column": 5
-        }
-      },
-      "13": {
-        "start": {
-          "line": 29,
-          "column": 4
-        },
-        "end": {
-          "line": 29,
-          "column": null
-        }
-      },
-      "14": {
-        "start": {
-          "line": 30,
-          "column": 4
-        },
-        "end": {
-          "line": 30,
-          "column": null
-        }
-      },
-      "15": {
-        "start": {
-          "line": 31,
-          "column": 4
-        },
-        "end": {
-          "line": 31,
-          "column": null
-        }
-      }
+    "statements": {
+      "0": [1, 0, 38, null],
+      "12": [28, 26, 32, 5],
+      "13": [29, 4, 29, null],
+      "14": [30, 4, 30, null],
+      "15": [31, 4, 31, null]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "(anonymous_0)",
-        "decl": {
-          "start": {
-            "line": 1,
-            "column": 1
-          },
-          "end": {
-            "line": 1,
-            "column": 2
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 1,
-            "column": 5
-          },
-          "end": {
-            "line": 38,
-            "column": 3
-          }
-        },
+        "decl": [1, 1, 1, 2],
+        "loc": [1, 5, 38, 3],
         "line": 1
       },
       "6": {
         "name": "(anonymous_6)",
-        "decl": {
-          "start": {
-            "line": 28,
-            "column": 26
-          },
-          "end": {
-            "line": 28,
-            "column": 34
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 28,
-            "column": 42
-          },
-          "end": {
-            "line": 32,
-            "column": 1
-          }
-        },
+        "decl": [28, 26, 28, 34],
+        "loc": [28, 42, 32, 1],
         "line": 28
       }
     },
-    "branchMap": {
+    "branches": {
       "0": {
-        "loc": {
-          "start": {
-            "line": 34,
-            "column": 4
-          },
-          "end": {
-            "line": 34,
-            "column": null
-          }
-        },
+        "loc": [34, 4, 34, null],
         "type": "if",
         "locations": [
-          {
-            "start": {
-              "line": 34,
-              "column": 4
-            },
-            "end": {
-              "line": 34,
-              "column": null
-            }
-          },
+          [34, 4, 34, null],
           {
             "start": {},
             "end": {}

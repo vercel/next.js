@@ -33,123 +33,34 @@
   ],
   "coverage": {
     "layout-pragmafrag.tsx": {
+      "$coverage": "range-tuples-v1",
       "path": "layout-pragmafrag.tsx",
-      "statementMap": {
-        "0": {
-          "start": {
-            "line": 7,
-            "column": 2
-          },
-          "end": {
-            "line": 7,
-            "column": null
-          }
-        },
-        "1": {
-          "start": {
-            "line": 9,
-            "column": 13
-          },
-          "end": {
-            "line": 9,
-            "column": null
-          }
-        },
-        "2": {
-          "start": {
-            "line": 9,
-            "column": 28
-          },
-          "end": {
-            "line": 9,
-            "column": null
-          }
-        }
+      "statements": {
+        "0": [7, 2, 7, null],
+        "1": [9, 13, 9, null],
+        "2": [9, 28, 9, null]
       },
-      "fnMap": {
+      "functions": {
         "0": {
           "name": "Card",
-          "decl": {
-            "start": {
-              "line": 6,
-              "column": 16
-            },
-            "end": {
-              "line": 6,
-              "column": 21
-            }
-          },
-          "loc": {
-            "start": {
-              "line": 6,
-              "column": 39
-            },
-            "end": {
-              "line": 8,
-              "column": null
-            }
-          },
+          "decl": [6, 16, 6, 21],
+          "loc": [6, 39, 8, null],
           "line": 6
         },
         "1": {
           "name": "(anonymous_1)",
-          "decl": {
-            "start": {
-              "line": 9,
-              "column": 13
-            },
-            "end": {
-              "line": 9,
-              "column": 28
-            }
-          },
-          "loc": {
-            "start": {
-              "line": 9,
-              "column": 28
-            },
-            "end": {
-              "line": 9,
-              "column": null
-            }
-          },
+          "decl": [9, 13, 9, 28],
+          "loc": [9, 28, 9, null],
           "line": 9
         }
       },
-      "branchMap": {
+      "branches": {
         "0": {
-          "loc": {
-            "start": {
-              "line": 7,
-              "column": 12
-            },
-            "end": {
-              "line": 7,
-              "column": 36
-            }
-          },
+          "loc": [7, 12, 7, 36],
           "type": "cond-expr",
           "locations": [
-            {
-              "start": {
-                "line": 7,
-                "column": 21
-              },
-              "end": {
-                "line": 7,
-                "column": 29
-              }
-            },
-            {
-              "start": {
-                "line": 7,
-                "column": 29
-              },
-              "end": {
-                "line": 7,
-                "column": 36
-              }
-            }
+            [7, 21, 7, 29],
+            [7, 29, 7, 36]
           ],
           "line": 7
         }

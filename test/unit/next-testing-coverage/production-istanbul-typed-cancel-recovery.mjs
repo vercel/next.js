@@ -1,3 +1,4 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import {
@@ -35,13 +36,11 @@ export async function runProductionIstanbulTypedCancelRecovery({
   if (!source)
     for (const name of ['vitest', 'vite', '@vitest/mocker'])
       assert.throws(() => load.resolve(name))
-  const row = JSON.parse(
-    readFileSync(
-      join(
-        dirname(fileURLToPath(import.meta.url)),
-        'fixtures/istanbul-provider',
-        fixtureFile
-      )
+  const row = readExpectedCoverageFixture(
+    join(
+      dirname(fileURLToPath(import.meta.url)),
+      'fixtures/istanbul-provider',
+      fixtureFile
     )
   )
   const configured = JSON.parse(row.config.replace(/^export default /, ''))

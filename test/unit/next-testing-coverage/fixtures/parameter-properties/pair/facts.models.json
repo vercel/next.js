@@ -1,68 +1,24 @@
 {
   "model": {
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 3,
-          "column": 11
-        },
-        "end": {
-          "line": 3,
-          "column": 40
-        }
-      }
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [3, 11, 3, 40]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "constructor",
-        "decl": {
-          "start": {
-            "line": 2,
-            "column": 2
-          },
-          "end": {
-            "line": 2,
-            "column": 13
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 2,
-            "column": 58
-          },
-          "end": {
-            "line": 2,
-            "column": null
-          }
-        },
+        "decl": [2, 2, 2, 13],
+        "loc": [2, 58, 2, null],
         "line": 2
       },
       "1": {
         "name": "read",
-        "decl": {
-          "start": {
-            "line": 3,
-            "column": 2
-          },
-          "end": {
-            "line": 3,
-            "column": 6
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 3,
-            "column": 9
-          },
-          "end": {
-            "line": 3,
-            "column": null
-          }
-        },
+        "decl": [3, 2, 3, 6],
+        "loc": [3, 9, 3, null],
         "line": 3
       }
     },
-    "branchMap": {},
+    "branches": {},
     "s": {
       "0": 0
     },
@@ -84,89 +40,27 @@
     }
   },
   "observed": {
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 2,
-          "column": 21
-        },
-        "end": {
-          "line": 2,
-          "column": 34
-        }
-      },
-      "1": {
-        "start": {
-          "line": 2,
-          "column": 44
-        },
-        "end": {
-          "line": 2,
-          "column": 56
-        }
-      },
-      "2": {
-        "start": {
-          "line": 3,
-          "column": 11
-        },
-        "end": {
-          "line": 3,
-          "column": 41
-        }
-      }
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [2, 21, 2, 34],
+      "1": [2, 44, 2, 56],
+      "2": [3, 11, 3, 41]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "constructor",
-        "decl": {
-          "start": {
-            "line": 2,
-            "column": 2
-          },
-          "end": {
-            "line": 2,
-            "column": 14
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 2,
-            "column": 58
-          },
-          "end": {
-            "line": 2,
-            "column": null
-          }
-        },
+        "decl": [2, 2, 2, 14],
+        "loc": [2, 58, 2, null],
         "line": 2
       },
       "1": {
         "name": "read",
-        "decl": {
-          "start": {
-            "line": 3,
-            "column": 2
-          },
-          "end": {
-            "line": 3,
-            "column": 9
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 3,
-            "column": 9
-          },
-          "end": {
-            "line": 3,
-            "column": null
-          }
-        },
+        "decl": [3, 2, 3, 9],
+        "loc": [3, 9, 3, null],
         "line": 3
       }
     },
-    "branchMap": {},
+    "branches": {},
     "s": {
       "0": 1,
       "1": 1,

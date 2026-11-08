@@ -3,7 +3,7 @@
     "package": "vitest",
     "version": "5.0.4",
     "profiles": 6,
-    "guarantee": "JSON file order follows each run\u2019s selected specifications; concurrent hooks preserve each file\u2019s sequence."
+    "guarantee": "JSON file order follows each run’s selected specifications; concurrent hooks preserve each file’s sequence."
   },
   "sources": {
     "a": "import { test, expect, beforeEach, afterEach, onTestFinished } from 'vitest'\nimport { watch, existsSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'\nimport { choose } from './subject.mjs'\nconst label = \"a\"\nmkdirSync('parallel-cancel', { recursive: true })\nconst record = (event, data = {}) => appendFileSync('parallel-cancel/trace.jsonl', JSON.stringify({event, label, pid: process.pid, ...data})+'\\n')\nprocess.on('exit', code => record('worker-exit', {code}))\nbeforeEach(context => record('beforeEach', {name: context.task.name}))\nafterEach(context => record('afterEach', {name: context.task.name, state: context.task.result?.state, aborted: context.signal.aborted, reason: context.signal.reason?.message}))\ntest(label+' active', async () => {\n  onTestFinished(context => record('onTestFinished', {state: context.task.result?.state}))\n  choose(true)\n  record('body-start')\n  await new Promise(resolve => {\n    if (existsSync('.next/cancel-controls/'+label+'-release')) { resolve(); return }\n    const watcher = watch('.next/cancel-controls', () => {\n      if (existsSync('.next/cancel-controls/'+label+'-release')) { watcher.close(); resolve() }\n    })\n    writeFileSync('.next/cancel-controls/'+label+'-started', 'ready')\n  })\n  record('body-finished')\n}, 10000)\ntest(label+' queued', () => record('queued-body'))\n",
@@ -122,123 +122,34 @@
   "coverageReports": {
     "cancelled": {
       "subject.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "subject.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 2,
-              "column": 2
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          },
-          "1": {
-            "start": {
-              "line": 2,
-              "column": 12
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          },
-          "2": {
-            "start": {
-              "line": 3,
-              "column": 2
-            },
-            "end": {
-              "line": 3,
-              "column": null
-            }
-          },
-          "3": {
-            "start": {
-              "line": 6,
-              "column": 2
-            },
-            "end": {
-              "line": 6,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [2, 2, 2, null],
+          "1": [2, 12, 2, null],
+          "2": [3, 2, 3, null],
+          "3": [6, 2, 6, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "choose",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 29
-              },
-              "end": {
-                "line": 4,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 29, 4, null],
             "line": 1
           },
           "1": {
             "name": "unused",
-            "decl": {
-              "start": {
-                "line": 5,
-                "column": 16
-              },
-              "end": {
-                "line": 5,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 5,
-                "column": 25
-              },
-              "end": {
-                "line": 7,
-                "column": null
-              }
-            },
+            "decl": [5, 16, 5, 22],
+            "loc": [5, 25, 7, null],
             "line": 5
           }
         },
-        "branchMap": {
+        "branches": {
           "0": {
-            "loc": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
+            "loc": [2, 2, 2, null],
             "type": "if",
             "locations": [
-              {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
+              [2, 2, 2, null],
               {
                 "start": {},
                 "end": {}
@@ -277,46 +188,20 @@
         }
       },
       "unimported.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "unimported.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 2,
-              "column": 2
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [2, 2, 2, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "untouched",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 25
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 28
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 25],
+            "loc": [1, 28, 3, null],
             "line": 1
           }
         },
-        "branchMap": {},
+        "branches": {},
         "s": {
           "0": 0
         },
@@ -338,123 +223,34 @@
     },
     "recovery": {
       "subject.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "subject.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 2,
-              "column": 2
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          },
-          "1": {
-            "start": {
-              "line": 2,
-              "column": 12
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          },
-          "2": {
-            "start": {
-              "line": 3,
-              "column": 2
-            },
-            "end": {
-              "line": 3,
-              "column": null
-            }
-          },
-          "3": {
-            "start": {
-              "line": 6,
-              "column": 2
-            },
-            "end": {
-              "line": 6,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [2, 2, 2, null],
+          "1": [2, 12, 2, null],
+          "2": [3, 2, 3, null],
+          "3": [6, 2, 6, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "choose",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 29
-              },
-              "end": {
-                "line": 4,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 29, 4, null],
             "line": 1
           },
           "1": {
             "name": "unused",
-            "decl": {
-              "start": {
-                "line": 5,
-                "column": 16
-              },
-              "end": {
-                "line": 5,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 5,
-                "column": 25
-              },
-              "end": {
-                "line": 7,
-                "column": null
-              }
-            },
+            "decl": [5, 16, 5, 22],
+            "loc": [5, 25, 7, null],
             "line": 5
           }
         },
-        "branchMap": {
+        "branches": {
           "0": {
-            "loc": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
+            "loc": [2, 2, 2, null],
             "type": "if",
             "locations": [
-              {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
+              [2, 2, 2, null],
               {
                 "start": {},
                 "end": {}
@@ -493,46 +289,20 @@
         }
       },
       "unimported.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "unimported.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 2,
-              "column": 2
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [2, 2, 2, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "untouched",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 25
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 28
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 25],
+            "loc": [1, 28, 3, null],
             "line": 1
           }
         },
-        "branchMap": {},
+        "branches": {},
         "s": {
           "0": 0
         },

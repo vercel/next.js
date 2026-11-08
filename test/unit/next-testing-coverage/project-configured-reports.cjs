@@ -1,3 +1,6 @@
+const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -10,7 +13,9 @@ const source = path.join(
   __dirname,
   '../app-dir/next-testing-stable-release-gaps/fixtures/standard-coverage'
 )
-const expected = require('./project-configured-coverage.expected.json')
+const expected = readExpectedCoverageFixture(
+  path.join(__dirname, './project-configured-coverage.expected.json')
+)
 const base = {
   provider: 'v8',
   enabled: true,

@@ -1,65 +1,21 @@
 {
   "helper.ts": {
+    "$coverage": "range-tuples-v1",
     "path": "helper.ts",
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 1,
-          "column": 0
-        },
-        "end": {
-          "line": 1,
-          "column": null
-        }
-      },
-      "1": {
-        "start": {
-          "line": 2,
-          "column": 30
-        },
-        "end": {
-          "line": 2,
-          "column": null
-        }
-      },
-      "2": {
-        "start": {
-          "line": 3,
-          "column": 48
-        },
-        "end": {
-          "line": 3,
-          "column": 66
-        }
-      }
+    "statements": {
+      "0": [1, 0, 1, null],
+      "1": [2, 30, 2, null],
+      "2": [3, 48, 3, 66]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "prefix",
-        "decl": {
-          "start": {
-            "line": 3,
-            "column": 16
-          },
-          "end": {
-            "line": 3,
-            "column": 23
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 3,
-            "column": 46
-          },
-          "end": {
-            "line": 3,
-            "column": null
-          }
-        },
+        "decl": [3, 16, 3, 23],
+        "loc": [3, 46, 3, null],
         "line": 3
       }
     },
-    "branchMap": {},
+    "branches": {},
     "s": {
       "0": 0,
       "1": 0,
@@ -83,80 +39,27 @@
     }
   },
   "subject.ts": {
+    "$coverage": "range-tuples-v1",
     "path": "subject.ts",
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 3,
-          "column": 32
-        },
-        "end": {
-          "line": 3,
-          "column": 63
-        }
-      },
-      "1": {
-        "start": {
-          "line": 5,
-          "column": 50
-        },
-        "end": {
-          "line": 5,
-          "column": 83
-        }
-      }
+    "statements": {
+      "0": [3, 32, 3, 63],
+      "1": [5, 50, 5, 83]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "read",
-        "decl": {
-          "start": {
-            "line": 3,
-            "column": 2
-          },
-          "end": {
-            "line": 3,
-            "column": 7
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 3,
-            "column": 30
-          },
-          "end": {
-            "line": 3,
-            "column": null
-          }
-        },
+        "decl": [3, 2, 3, 7],
+        "loc": [3, 30, 3, null],
         "line": 3
       },
       "1": {
         "name": "exercise",
-        "decl": {
-          "start": {
-            "line": 5,
-            "column": 16
-          },
-          "end": {
-            "line": 5,
-            "column": 25
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 5,
-            "column": 48
-          },
-          "end": {
-            "line": 5,
-            "column": null
-          }
-        },
+        "decl": [5, 16, 5, 25],
+        "loc": [5, 48, 5, null],
         "line": 5
       }
     },
-    "branchMap": {},
+    "branches": {},
     "s": {
       "0": 0,
       "1": 0

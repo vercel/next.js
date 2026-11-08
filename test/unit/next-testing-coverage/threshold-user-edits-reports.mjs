@@ -1,3 +1,4 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
@@ -20,8 +21,8 @@ const fixtureFiles = join(
   dirname(fileURLToPath(import.meta.url)),
   'fixtures/threshold-user-edits'
 )
-const expected = JSON.parse(
-  fs.readFileSync(join(fixtureFiles, 'expected.json'))
+const expected = readExpectedCoverageFixture(
+  join(fixtureFiles, 'expected.json')
 )
 const row = expected.rows.find((row) => row.variant === variant)
 assert(row, 'Missing configuration edit scenario')

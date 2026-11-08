@@ -1,5 +1,5 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
-import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 const [consumer, mutation] = process.argv.slice(2)
@@ -15,12 +15,10 @@ const { SourceMapConsumer, SourceMapGenerator } = load(
 const { remapIstanbulCoverage } = load(
   'next/dist/compiled/next-test-instrumentation'
 )
-const original = JSON.parse(
-  fs.readFileSync(
-    new URL(
-      './fixtures/istanbul-provider/jsx-child-token-pristine.json',
-      import.meta.url
-    )
+const original = readExpectedCoverageFixture(
+  new URL(
+    './fixtures/istanbul-provider/jsx-child-token-pristine.json',
+    import.meta.url
   )
 )
 const canonical = (value) => {

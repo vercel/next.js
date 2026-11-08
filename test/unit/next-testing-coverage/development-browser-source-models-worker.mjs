@@ -1,3 +1,4 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { serialize } from 'node:v8'
 import { createRequire } from 'node:module'
@@ -6,7 +7,7 @@ import { join, basename, dirname } from 'node:path'
 import { randomUUID, createHash } from 'node:crypto'
 const [repo, fixture, out, referenceFile] = process.argv.slice(2),
   require = createRequire(join(repo, 'package.json')),
-  reference = JSON.parse(readFileSync(referenceFile, 'utf8'))
+  reference = readExpectedCoverageFixture(referenceFile)
 const { parse } = require('next/dist/compiled/acorn')
 const producerFacts = []
 function inspectProducer(artifact, file, label) {

@@ -1,3 +1,6 @@
+const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -25,7 +28,7 @@ const revive = (key, value) =>
 let controls = 0
 function load(shape, mode) {
   const root = path.join(__dirname, 'fixtures/jsx-owners', shape + '-' + mode)
-  const data = JSON.parse(fs.readFileSync(root + '/facts.json'), revive)
+  const data = readExpectedCoverageFixture(root + '/facts.json', revive)
   const code = fs.readFileSync(root + '/emitted.js.txt', 'utf8')
   const source = fs.readFileSync(root + '/authored.tsx.txt', 'utf8')
   data.authored = authoredParse(source, {

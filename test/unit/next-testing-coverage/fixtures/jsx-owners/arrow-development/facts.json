@@ -1,56 +1,21 @@
 {
   "file": "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-arrow-development/subject.tsx",
   "observed": {
+    "$coverage": "range-tuples-v1",
     "path": "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-arrow-development/subject.tsx",
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 4,
-          "column": 13
-        },
-        "end": {
-          "line": 5,
-          "column": null
-        }
-      },
-      "1": {
-        "start": {
-          "line": 5,
-          "column": 2
-        },
-        "end": {
-          "line": 5,
-          "column": null
-        }
-      }
+    "statements": {
+      "0": [4, 13, 5, null],
+      "1": [5, 2, 5, null]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "(anonymous_0)",
-        "decl": {
-          "start": {
-            "line": 4,
-            "column": 13
-          },
-          "end": {
-            "line": 4,
-            "column": 22
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 5,
-            "column": 2
-          },
-          "end": {
-            "line": 5,
-            "column": null
-          }
-        },
+        "decl": [4, 13, 4, 22],
+        "loc": [5, 2, 5, null],
         "line": 5
       }
     },
-    "branchMap": {},
+    "branches": {},
     "s": {
       "0": 1,
       "1": 2
@@ -72,56 +37,21 @@
     }
   },
   "model": {
+    "$coverage": "range-tuples-v1",
     "path": "/private/tmp/next-testing-parallel-20261019/tooling-editor143/.next-test-jsx144-arrow-development/subject.tsx",
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 4,
-          "column": 21
-        },
-        "end": {
-          "line": 6,
-          "column": null
-        }
-      },
-      "1": {
-        "start": {
-          "line": 5,
-          "column": 2
-        },
-        "end": {
-          "line": 5,
-          "column": null
-        }
-      }
+    "statements": {
+      "0": [4, 21, 6, null],
+      "1": [5, 2, 5, null]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "(anonymous_0)",
-        "decl": {
-          "start": {
-            "line": 4,
-            "column": 21
-          },
-          "end": {
-            "line": 4,
-            "column": 22
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 5,
-            "column": 2
-          },
-          "end": {
-            "line": 5,
-            "column": null
-          }
-        },
+        "decl": [4, 21, 4, 22],
+        "loc": [5, 2, 5, null],
         "line": 5
       }
     },
-    "branchMap": {},
+    "branches": {},
     "s": {
       "0": 0,
       "1": 0

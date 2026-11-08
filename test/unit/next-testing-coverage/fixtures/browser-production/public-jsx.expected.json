@@ -46,46 +46,20 @@
     ],
     "coverage": {
       "helper.js": {
+        "$coverage": "range-tuples-v1",
         "path": "helper.js",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 1,
-              "column": 31
-            },
-            "end": {
-              "line": 1,
-              "column": 49
-            }
-          }
+        "statements": {
+          "0": [1, 31, 1, 49]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "label",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 21
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 29
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 21],
+            "loc": [1, 29, 1, null],
             "line": 1
           }
         },
-        "branchMap": {},
+        "branches": {},
         "s": {
           "0": 2
         },
@@ -105,66 +79,22 @@
         }
       },
       "subject.jsx": {
+        "$coverage": "range-tuples-v1",
         "path": "subject.jsx",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 1,
-              "column": 7
-            },
-            "end": {
-              "line": 1,
-              "column": null
-            }
-          },
-          "1": {
-            "start": {
-              "line": 1,
-              "column": 18
-            },
-            "end": {
-              "line": 1,
-              "column": null
-            }
-          },
-          "2": {
-            "start": {
-              "line": 4,
-              "column": 2
-            },
-            "end": {
-              "line": 4,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [1, 7, 1, null],
+          "1": [1, 18, 1, null],
+          "2": [4, 2, 4, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "Basic",
-            "decl": {
-              "start": {
-                "line": 3,
-                "column": 16
-              },
-              "end": {
-                "line": 3,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 3,
-                "column": 32
-              },
-              "end": {
-                "line": 5,
-                "column": null
-              }
-            },
+            "decl": [3, 16, 3, 22],
+            "loc": [3, 32, 5, null],
             "line": 3
           }
         },
-        "branchMap": {},
+        "branches": {},
         "s": {
           "0": 1,
           "1": 1,
@@ -188,66 +118,22 @@
         }
       },
       "unimported.jsx": {
+        "$coverage": "range-tuples-v1",
         "path": "unimported.jsx",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 1,
-              "column": 7
-            },
-            "end": {
-              "line": 1,
-              "column": null
-            }
-          },
-          "1": {
-            "start": {
-              "line": 1,
-              "column": 18
-            },
-            "end": {
-              "line": 1,
-              "column": null
-            }
-          },
-          "2": {
-            "start": {
-              "line": 4,
-              "column": 2
-            },
-            "end": {
-              "line": 4,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [1, 7, 1, null],
+          "1": [1, 18, 1, null],
+          "2": [4, 2, 4, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "Basic",
-            "decl": {
-              "start": {
-                "line": 3,
-                "column": 16
-              },
-              "end": {
-                "line": 3,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 3,
-                "column": 32
-              },
-              "end": {
-                "line": 5,
-                "column": null
-              }
-            },
+            "decl": [3, 16, 3, 22],
+            "loc": [3, 32, 5, null],
             "line": 3
           }
         },
-        "branchMap": {},
+        "branches": {},
         "s": {
           "0": 0,
           "1": 0,
@@ -482,66 +368,22 @@
       "directory": "cli-coverage",
       "coverage": {
         "subject.jsx": {
+          "$coverage": "range-tuples-v1",
           "path": "subject.jsx",
-          "statementMap": {
-            "0": {
-              "start": {
-                "line": 1,
-                "column": 7
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "1": {
-              "start": {
-                "line": 1,
-                "column": 18
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
-            "2": {
-              "start": {
-                "line": 4,
-                "column": 2
-              },
-              "end": {
-                "line": 4,
-                "column": null
-              }
-            }
+          "statements": {
+            "0": [1, 7, 1, null],
+            "1": [1, 18, 1, null],
+            "2": [4, 2, 4, null]
           },
-          "fnMap": {
+          "functions": {
             "0": {
               "name": "Basic",
-              "decl": {
-                "start": {
-                  "line": 3,
-                  "column": 16
-                },
-                "end": {
-                  "line": 3,
-                  "column": 22
-                }
-              },
-              "loc": {
-                "start": {
-                  "line": 3,
-                  "column": 32
-                },
-                "end": {
-                  "line": 5,
-                  "column": null
-                }
-              },
+              "decl": [3, 16, 3, 22],
+              "loc": [3, 32, 5, null],
               "line": 3
             }
           },
-          "branchMap": {},
+          "branches": {},
           "s": {
             "0": 1,
             "1": 1,

@@ -1,122 +1,33 @@
 {
+  "$coverage": "range-tuples-v1",
   "path": "<subject.ts>",
-  "statementMap": {
-    "0": {
-      "start": {
-        "line": 1,
-        "column": 15
-      },
-      "end": {
-        "line": 1,
-        "column": null
-      }
-    },
-    "1": {
-      "start": {
-        "line": 2,
-        "column": 42
-      },
-      "end": {
-        "line": 2,
-        "column": 149
-      }
-    },
-    "2": {
-      "start": {
-        "line": 2,
-        "column": 83
-      },
-      "end": {
-        "line": 2,
-        "column": 92
-      }
-    },
-    "3": {
-      "start": {
-        "line": 2,
-        "column": 133
-      },
-      "end": {
-        "line": 2,
-        "column": 146
-      }
-    }
+  "statements": {
+    "0": [1, 15, 1, null],
+    "1": [2, 42, 2, 149],
+    "2": [2, 83, 2, 92],
+    "3": [2, 133, 2, 146]
   },
-  "fnMap": {
+  "functions": {
     "0": {
       "name": "total",
-      "decl": {
-        "start": {
-          "line": 2,
-          "column": 16
-        },
-        "end": {
-          "line": 2,
-          "column": 22
-        }
-      },
-      "loc": {
-        "start": {
-          "line": 2,
-          "column": 40
-        },
-        "end": {
-          "line": 2,
-          "column": null
-        }
-      },
+      "decl": [2, 16, 2, 22],
+      "loc": [2, 40, 2, null],
       "line": 2
     },
     "1": {
       "name": "(anonymous_1)",
-      "decl": {
-        "start": {
-          "line": 2,
-          "column": 63
-        },
-        "end": {
-          "line": 2,
-          "column": 65
-        }
-      },
-      "loc": {
-        "start": {
-          "line": 2,
-          "column": 83
-        },
-        "end": {
-          "line": 2,
-          "column": 92
-        }
-      },
+      "decl": [2, 63, 2, 65],
+      "loc": [2, 83, 2, 92],
       "line": 2
     },
     "2": {
       "name": "(anonymous_2)",
-      "decl": {
-        "start": {
-          "line": 2,
-          "column": 94
-        },
-        "end": {
-          "line": 2,
-          "column": 102
-        }
-      },
-      "loc": {
-        "start": {
-          "line": 2,
-          "column": 133
-        },
-        "end": {
-          "line": 2,
-          "column": 146
-        }
-      },
+      "decl": [2, 94, 2, 102],
+      "loc": [2, 133, 2, 146],
       "line": 2
     }
   },
-  "branchMap": {},
+  "branches": {},
   "s": {
     "0": 1,
     "1": 1,

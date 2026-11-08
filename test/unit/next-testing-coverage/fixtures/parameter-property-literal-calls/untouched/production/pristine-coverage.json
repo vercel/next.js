@@ -1,201 +1,47 @@
 {
   "subject.ts": {
+    "$coverage": "range-tuples-v1",
     "path": "subject.ts",
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 1,
-          "column": 0
-        },
-        "end": {
-          "line": 1,
-          "column": null
-        }
-      },
-      "1": {
-        "start": {
-          "line": 2,
-          "column": 42
-        },
-        "end": {
-          "line": 2,
-          "column": 55
-        }
-      },
-      "2": {
-        "start": {
-          "line": 4,
-          "column": 21
-        },
-        "end": {
-          "line": 4,
-          "column": 37
-        }
-      },
-      "3": {
-        "start": {
-          "line": 6,
-          "column": 4
-        },
-        "end": {
-          "line": 6,
-          "column": null
-        }
-      },
-      "4": {
-        "start": {
-          "line": 7,
-          "column": 4
-        },
-        "end": {
-          "line": 7,
-          "column": null
-        }
-      },
-      "5": {
-        "start": {
-          "line": 11,
-          "column": 18
-        },
-        "end": {
-          "line": 11,
-          "column": null
-        }
-      },
-      "6": {
-        "start": {
-          "line": 12,
-          "column": 2
-        },
-        "end": {
-          "line": 12,
-          "column": null
-        }
-      }
+    "statements": {
+      "0": [1, 0, 1, null],
+      "1": [2, 42, 2, 55],
+      "2": [4, 21, 4, 37],
+      "3": [6, 4, 6, null],
+      "4": [7, 4, 7, null],
+      "5": [11, 18, 11, null],
+      "6": [12, 2, 12, null]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "initial",
-        "decl": {
-          "start": {
-            "line": 2,
-            "column": 9
-          },
-          "end": {
-            "line": 2,
-            "column": 17
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 2,
-            "column": 40
-          },
-          "end": {
-            "line": 2,
-            "column": null
-          }
-        },
+        "decl": [2, 9, 2, 17],
+        "loc": [2, 40, 2, null],
         "line": 2
       },
       "1": {
         "name": "constructor",
-        "decl": {
-          "start": {
-            "line": 4,
-            "column": 2
-          },
-          "end": {
-            "line": 4,
-            "column": 14
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 4,
-            "column": 49
-          },
-          "end": {
-            "line": 4,
-            "column": null
-          }
-        },
+        "decl": [4, 2, 4, 14],
+        "loc": [4, 49, 4, null],
         "line": 4
       },
       "2": {
         "name": "add",
-        "decl": {
-          "start": {
-            "line": 5,
-            "column": 2
-          },
-          "end": {
-            "line": 5,
-            "column": 6
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 5,
-            "column": 29
-          },
-          "end": {
-            "line": 8,
-            "column": null
-          }
-        },
+        "decl": [5, 2, 5, 6],
+        "loc": [5, 29, 8, null],
         "line": 5
       },
       "3": {
         "name": "exercise",
-        "decl": {
-          "start": {
-            "line": 10,
-            "column": 16
-          },
-          "end": {
-            "line": 10,
-            "column": 37
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 10,
-            "column": 37
-          },
-          "end": {
-            "line": 13,
-            "column": null
-          }
-        },
+        "decl": [10, 16, 10, 37],
+        "loc": [10, 37, 13, null],
         "line": 10
       }
     },
-    "branchMap": {
+    "branches": {
       "0": {
-        "loc": {
-          "start": {
-            "line": 4,
-            "column": 14
-          },
-          "end": {
-            "line": 4,
-            "column": 49
-          }
-        },
+        "loc": [4, 14, 4, 49],
         "type": "default-arg",
-        "locations": [
-          {
-            "start": {
-              "line": 4,
-              "column": 37
-            },
-            "end": {
-              "line": 4,
-              "column": 49
-            }
-          }
-        ],
+        "locations": [[4, 37, 4, 49]],
         "line": 4
       }
     },

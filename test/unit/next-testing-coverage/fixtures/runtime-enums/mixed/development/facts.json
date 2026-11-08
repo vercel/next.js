@@ -18,163 +18,38 @@
     "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-mixed-development/subject.ts"
   },
   "generated": {
+    "$coverage": "range-tuples-v1",
     "path": "/private/tmp/next-testing-parallel-20261019/coverage-fragment172/.next-test-ts-runtime176-mixed-development/.next/.next-test-8e4460bd-1d64-49af-955a-57c4af31109b/server/chunks/_next-test-ts-runtime176-mixed-development_1dciimtsl0mpl._.js",
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 1,
-          "column": 0
-        },
-        "end": {
-          "line": 36,
-          "column": null
-        }
-      },
-      "12": {
-        "start": {
-          "line": 25,
-          "column": 25
-        },
-        "end": {
-          "line": 30,
-          "column": 5
-        }
-      },
-      "13": {
-        "start": {
-          "line": 26,
-          "column": 4
-        },
-        "end": {
-          "line": 26,
-          "column": null
-        }
-      },
-      "14": {
-        "start": {
-          "line": 27,
-          "column": 4
-        },
-        "end": {
-          "line": 27,
-          "column": null
-        }
-      },
-      "15": {
-        "start": {
-          "line": 28,
-          "column": 4
-        },
-        "end": {
-          "line": 28,
-          "column": null
-        }
-      },
-      "16": {
-        "start": {
-          "line": 29,
-          "column": 4
-        },
-        "end": {
-          "line": 29,
-          "column": null
-        }
-      },
-      "17": {
-        "start": {
-          "line": 32,
-          "column": 4
-        },
-        "end": {
-          "line": 32,
-          "column": null
-        }
-      },
-      "18": {
-        "start": {
-          "line": 32,
-          "column": 21
-        },
-        "end": {
-          "line": 32,
-          "column": null
-        }
-      }
+    "statements": {
+      "0": [1, 0, 36, null],
+      "12": [25, 25, 30, 5],
+      "13": [26, 4, 26, null],
+      "14": [27, 4, 27, null],
+      "15": [28, 4, 28, null],
+      "16": [29, 4, 29, null],
+      "17": [32, 4, 32, null],
+      "18": [32, 21, 32, null]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "(anonymous_0)",
-        "decl": {
-          "start": {
-            "line": 1,
-            "column": 1
-          },
-          "end": {
-            "line": 1,
-            "column": 2
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 1,
-            "column": 5
-          },
-          "end": {
-            "line": 36,
-            "column": 3
-          }
-        },
+        "decl": [1, 1, 1, 2],
+        "loc": [1, 5, 36, 3],
         "line": 1
       },
       "6": {
         "name": "(anonymous_6)",
-        "decl": {
-          "start": {
-            "line": 25,
-            "column": 25
-          },
-          "end": {
-            "line": 25,
-            "column": 33
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 25,
-            "column": 40
-          },
-          "end": {
-            "line": 30,
-            "column": 1
-          }
-        },
+        "decl": [25, 25, 25, 33],
+        "loc": [25, 40, 30, 1],
         "line": 25
       }
     },
-    "branchMap": {
+    "branches": {
       "0": {
-        "loc": {
-          "start": {
-            "line": 32,
-            "column": 4
-          },
-          "end": {
-            "line": 32,
-            "column": null
-          }
-        },
+        "loc": [32, 4, 32, null],
         "type": "if",
         "locations": [
-          {
-            "start": {
-              "line": 32,
-              "column": 4
-            },
-            "end": {
-              "line": 32,
-              "column": null
-            }
-          },
+          [32, 4, 32, null],
           {
             "start": {},
             "end": {}

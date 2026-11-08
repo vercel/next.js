@@ -1,3 +1,6 @@
+const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 const assert = require('node:assert/strict'),
   fs = require('node:fs'),
   path = require('node:path'),
@@ -10,10 +13,8 @@ const repo = path.resolve(consumerArg),
   out = path.resolve(outputArg),
   req = createRequire(path.join(repo, 'package.json')),
   nextRoot = path.dirname(req.resolve('next/package.json')),
-  m = JSON.parse(
-    fs.readFileSync(
-      path.join(__dirname, 'fixtures/istanbul-provider/pristine.json')
-    )
+  m = readExpectedCoverageFixture(
+    path.join(__dirname, 'fixtures/istanbul-provider/pristine.json')
   ),
   fixture = fs.mkdtempSync(path.join(repo, '.next-istanbul-private-model-')),
   testRoot = path.join(nextRoot, 'dist/experimental/testing')

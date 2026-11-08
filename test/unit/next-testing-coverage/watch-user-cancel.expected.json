@@ -82,123 +82,34 @@
   "coverageReports": [
     {
       "subject.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "subject.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 2,
-              "column": 2
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          },
-          "1": {
-            "start": {
-              "line": 2,
-              "column": 12
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          },
-          "2": {
-            "start": {
-              "line": 3,
-              "column": 2
-            },
-            "end": {
-              "line": 3,
-              "column": null
-            }
-          },
-          "3": {
-            "start": {
-              "line": 6,
-              "column": 2
-            },
-            "end": {
-              "line": 6,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [2, 2, 2, null],
+          "1": [2, 12, 2, null],
+          "2": [3, 2, 3, null],
+          "3": [6, 2, 6, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "choose",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 29
-              },
-              "end": {
-                "line": 4,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 29, 4, null],
             "line": 1
           },
           "1": {
             "name": "unused",
-            "decl": {
-              "start": {
-                "line": 5,
-                "column": 16
-              },
-              "end": {
-                "line": 5,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 5,
-                "column": 25
-              },
-              "end": {
-                "line": 7,
-                "column": null
-              }
-            },
+            "decl": [5, 16, 5, 22],
+            "loc": [5, 25, 7, null],
             "line": 5
           }
         },
-        "branchMap": {
+        "branches": {
           "0": {
-            "loc": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
+            "loc": [2, 2, 2, null],
             "type": "if",
             "locations": [
-              {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
+              [2, 2, 2, null],
               {
                 "start": {},
                 "end": {}
@@ -237,46 +148,20 @@
         }
       },
       "unimported.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "unimported.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 2,
-              "column": 2
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [2, 2, 2, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "untouched",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 25
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 28
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 25],
+            "loc": [1, 28, 3, null],
             "line": 1
           }
         },
-        "branchMap": {},
+        "branches": {},
         "s": {
           "0": 0
         },
@@ -298,46 +183,20 @@
     },
     {
       "second-subject.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "second-subject.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 1,
-              "column": 27
-            },
-            "end": {
-              "line": 1,
-              "column": 35
-            }
-          }
+        "statements": {
+          "0": [1, 27, 1, 35]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "second",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 25
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 25, 1, null],
             "line": 1
           }
         },
-        "branchMap": {},
+        "branches": {},
         "s": {
           "0": 0
         },
@@ -357,123 +216,34 @@
         }
       },
       "subject.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "subject.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 2,
-              "column": 2
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          },
-          "1": {
-            "start": {
-              "line": 2,
-              "column": 12
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          },
-          "2": {
-            "start": {
-              "line": 3,
-              "column": 2
-            },
-            "end": {
-              "line": 3,
-              "column": null
-            }
-          },
-          "3": {
-            "start": {
-              "line": 6,
-              "column": 2
-            },
-            "end": {
-              "line": 6,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [2, 2, 2, null],
+          "1": [2, 12, 2, null],
+          "2": [3, 2, 3, null],
+          "3": [6, 2, 6, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "choose",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 29
-              },
-              "end": {
-                "line": 4,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 29, 4, null],
             "line": 1
           },
           "1": {
             "name": "unused",
-            "decl": {
-              "start": {
-                "line": 5,
-                "column": 16
-              },
-              "end": {
-                "line": 5,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 5,
-                "column": 25
-              },
-              "end": {
-                "line": 7,
-                "column": null
-              }
-            },
+            "decl": [5, 16, 5, 22],
+            "loc": [5, 25, 7, null],
             "line": 5
           }
         },
-        "branchMap": {
+        "branches": {
           "0": {
-            "loc": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
+            "loc": [2, 2, 2, null],
             "type": "if",
             "locations": [
-              {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
+              [2, 2, 2, null],
               {
                 "start": {},
                 "end": {}
@@ -512,46 +282,20 @@
         }
       },
       "unimported.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "unimported.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 2,
-              "column": 2
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [2, 2, 2, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "untouched",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 25
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 28
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 25],
+            "loc": [1, 28, 3, null],
             "line": 1
           }
         },
-        "branchMap": {},
+        "branches": {},
         "s": {
           "0": 0
         },
@@ -573,46 +317,20 @@
     },
     {
       "second-subject.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "second-subject.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 1,
-              "column": 27
-            },
-            "end": {
-              "line": 1,
-              "column": 35
-            }
-          }
+        "statements": {
+          "0": [1, 27, 1, 35]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "second",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 25
-              },
-              "end": {
-                "line": 1,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 25, 1, null],
             "line": 1
           }
         },
-        "branchMap": {},
+        "branches": {},
         "s": {
           "0": 1
         },
@@ -632,123 +350,34 @@
         }
       },
       "subject.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "subject.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 2,
-              "column": 2
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          },
-          "1": {
-            "start": {
-              "line": 2,
-              "column": 12
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          },
-          "2": {
-            "start": {
-              "line": 3,
-              "column": 2
-            },
-            "end": {
-              "line": 3,
-              "column": null
-            }
-          },
-          "3": {
-            "start": {
-              "line": 6,
-              "column": 2
-            },
-            "end": {
-              "line": 6,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [2, 2, 2, null],
+          "1": [2, 12, 2, null],
+          "2": [3, 2, 3, null],
+          "3": [6, 2, 6, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "choose",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 29
-              },
-              "end": {
-                "line": 4,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 22],
+            "loc": [1, 29, 4, null],
             "line": 1
           },
           "1": {
             "name": "unused",
-            "decl": {
-              "start": {
-                "line": 5,
-                "column": 16
-              },
-              "end": {
-                "line": 5,
-                "column": 22
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 5,
-                "column": 25
-              },
-              "end": {
-                "line": 7,
-                "column": null
-              }
-            },
+            "decl": [5, 16, 5, 22],
+            "loc": [5, 25, 7, null],
             "line": 5
           }
         },
-        "branchMap": {
+        "branches": {
           "0": {
-            "loc": {
-              "start": {
-                "line": 2,
-                "column": 2
-              },
-              "end": {
-                "line": 2,
-                "column": null
-              }
-            },
+            "loc": [2, 2, 2, null],
             "type": "if",
             "locations": [
-              {
-                "start": {
-                  "line": 2,
-                  "column": 2
-                },
-                "end": {
-                  "line": 2,
-                  "column": null
-                }
-              },
+              [2, 2, 2, null],
               {
                 "start": {},
                 "end": {}
@@ -787,46 +416,20 @@
         }
       },
       "unimported.mjs": {
+        "$coverage": "range-tuples-v1",
         "path": "unimported.mjs",
-        "statementMap": {
-          "0": {
-            "start": {
-              "line": 2,
-              "column": 2
-            },
-            "end": {
-              "line": 2,
-              "column": null
-            }
-          }
+        "statements": {
+          "0": [2, 2, 2, null]
         },
-        "fnMap": {
+        "functions": {
           "0": {
             "name": "untouched",
-            "decl": {
-              "start": {
-                "line": 1,
-                "column": 16
-              },
-              "end": {
-                "line": 1,
-                "column": 25
-              }
-            },
-            "loc": {
-              "start": {
-                "line": 1,
-                "column": 28
-              },
-              "end": {
-                "line": 3,
-                "column": null
-              }
-            },
+            "decl": [1, 16, 1, 25],
+            "loc": [1, 28, 3, null],
             "line": 1
           }
         },
-        "branchMap": {},
+        "branches": {},
         "s": {
           "0": 0
         },

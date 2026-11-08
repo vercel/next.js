@@ -1,3 +1,4 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
@@ -14,8 +15,8 @@ const consumer = resolve(consumerArg),
   output = resolve(outputArg),
   load = createRequire(join(consumer, 'package.json')),
   here = dirname(fileURLToPath(import.meta.url)),
-  expected = JSON.parse(
-    fs.readFileSync(join(here, 'fixtures/standard-reporters/expected.json'))
+  expected = readExpectedCoverageFixture(
+    join(here, 'fixtures/standard-reporters/expected.json')
   ),
   selected = process.argv
     .find((argument) => argument.startsWith('--profiles='))

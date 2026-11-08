@@ -1,9 +1,14 @@
+const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const { spawn } = require('node:child_process')
 const { EventEmitter } = require('node:events')
-const expected = require('./watch-user-cancel.expected.json')
+const expected = readExpectedCoverageFixture(
+  path.join(__dirname, './watch-user-cancel.expected.json')
+)
 const repo =
   process.env.NEXT_TEST_COVERAGE_CONSUMER_ROOT ||
   path.resolve(__dirname, '../../..')
@@ -43,7 +48,9 @@ const normalizeTrace = (trace) =>
   trace.map(({ pid: _pid, threadId: _threadId, ...event }) => event)
 const parallelExpected =
   kind === 'parallel'
-    ? require('./watch-user-cancel-parallel.expected.json')
+    ? readExpectedCoverageFixture(
+        path.join(__dirname, './watch-user-cancel-parallel.expected.json')
+      )
     : undefined
 const parallelObservations = []
 function compareParallel(capture, phase) {

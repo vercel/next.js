@@ -1,54 +1,19 @@
 {
   "model": {
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 4,
-          "column": 30
-        },
-        "end": {
-          "line": 8,
-          "column": null
-        }
-      },
-      "1": {
-        "start": {
-          "line": 5,
-          "column": 2
-        },
-        "end": {
-          "line": 7,
-          "column": null
-        }
-      }
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [4, 30, 8, null],
+      "1": [5, 2, 7, null]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "(anonymous_0)",
-        "decl": {
-          "start": {
-            "line": 4,
-            "column": 30
-          },
-          "end": {
-            "line": 4,
-            "column": 31
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 5,
-            "column": 2
-          },
-          "end": {
-            "line": 7,
-            "column": null
-          }
-        },
+        "decl": [4, 30, 4, 31],
+        "loc": [5, 2, 7, null],
         "line": 5
       }
     },
-    "branchMap": {},
+    "branches": {},
     "s": {
       "0": 0,
       "1": 0
@@ -70,55 +35,20 @@
     }
   },
   "observed": {
-    "statementMap": {
-      "0": {
-        "start": {
-          "line": 4,
-          "column": 13
-        },
-        "end": {
-          "line": 7,
-          "column": null
-        }
-      },
-      "1": {
-        "start": {
-          "line": 5,
-          "column": 2
-        },
-        "end": {
-          "line": 7,
-          "column": null
-        }
-      }
+    "$coverage": "range-tuples-v1",
+    "statements": {
+      "0": [4, 13, 7, null],
+      "1": [5, 2, 7, null]
     },
-    "fnMap": {
+    "functions": {
       "0": {
         "name": "(anonymous_0)",
-        "decl": {
-          "start": {
-            "line": 4,
-            "column": 13
-          },
-          "end": {
-            "line": 4,
-            "column": 31
-          }
-        },
-        "loc": {
-          "start": {
-            "line": 5,
-            "column": 2
-          },
-          "end": {
-            "line": 7,
-            "column": null
-          }
-        },
+        "decl": [4, 13, 4, 31],
+        "loc": [5, 2, 7, null],
         "line": 5
       }
     },
-    "branchMap": {},
+    "branches": {},
     "s": {
       "0": 1,
       "1": 2

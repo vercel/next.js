@@ -1,3 +1,4 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import {
   readFileSync,
@@ -29,7 +30,7 @@ const referenceFile = join(
   'fixtures/development-browser-source-models',
   `pristine-${kind}.json`
 )
-const reference = JSON.parse(readFileSync(referenceFile))
+const reference = readExpectedCoverageFixture(referenceFile)
 let sdk
 if (sdkArg) sdk = resolve(sdkArg)
 else {

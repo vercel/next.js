@@ -1,4 +1,7 @@
 const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
+const {
   resolveFixturePath,
   fixtureFiles,
 } = require('../../lib/next-testing-fixtures.cjs')
@@ -88,10 +91,8 @@ for (const name of ['anonymous', 'named']) {
       data.path = '<subject.ts>'
       assert.deepEqual(
         data,
-        JSON.parse(
-          fs.readFileSync(
-            resolveFixturePath(path.join(source, 'pristine-coverage.json'))
-          )
+        readExpectedCoverageFixture(
+          resolveFixturePath(path.join(source, 'pristine-coverage.json'))
         )
       )
       for (const file of ['subject.ts', 'contract.test.mjs', 'package.json']) {

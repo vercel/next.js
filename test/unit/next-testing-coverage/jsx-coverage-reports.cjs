@@ -1,3 +1,6 @@
+const {
+  readExpectedCoverageFixture,
+} = require('./expected-coverage-fixtures.cjs')
 const { resolveFixturePath } = require('../../lib/next-testing-fixtures.cjs')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -108,18 +111,14 @@ module.exports = function runJsxCoverageReports({
         )
         assert.deepEqual(
           canonical,
-          JSON.parse(
-            fs.readFileSync(
-              resolveFixturePath(path.join(source, coverageFile(mode)))
-            )
+          readExpectedCoverageFixture(
+            resolveFixturePath(path.join(source, coverageFile(mode)))
           )
         )
         if (genuineCoverage) {
-          const genuine = JSON.parse(
-            fs.readFileSync(
-              resolveFixturePath(
-                path.join(source, mode, 'pristine-coverage.json')
-              )
+          const genuine = readExpectedCoverageFixture(
+            resolveFixturePath(
+              path.join(source, mode, 'pristine-coverage.json')
             )
           )
           assert.deepEqual(canonical, genuine)

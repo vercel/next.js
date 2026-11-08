@@ -1,3 +1,4 @@
+import { readExpectedCoverageFixture } from './expected-coverage-fixtures.cjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -23,8 +24,8 @@ const consumer = resolve(consumerArg),
   output = resolve(outputArg),
   here = dirname(fileURLToPath(import.meta.url)),
   load = createRequire(join(consumer, 'package.json'))
-const pristine = JSON.parse(
-  readFileSync(join(here, 'fixtures/istanbul-provider/pristine.json'))
+const pristine = readExpectedCoverageFixture(
+  join(here, 'fixtures/istanbul-provider/pristine.json')
 )
 const fixture = mkdtempSync(join(consumer, '.next-istanbul-afterall-payload-'))
 mkdirSync(output, { recursive: true })
