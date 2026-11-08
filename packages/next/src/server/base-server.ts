@@ -1462,6 +1462,33 @@ export default abstract class Server<
               }
             }
 
+            // A host rewrite can contain concrete params even when the
+            // platform-supplied query still contains route placeholders.
+            if (
+              !paramsResult.hasValidParams &&
+              didRewrite &&
+              rewrittenParsedUrl.pathname &&
+              typeof getRequestMeta(req, 'postponed') === 'string'
+            ) {
+              const rewrittenPathname = removePathPrefix(
+                rewrittenParsedUrl.pathname,
+                this.nextConfig.basePath
+              )
+              const rewrittenParams = isDynamicRoute(rewrittenPathname)
+                ? false
+                : utils.dynamicRouteMatcher?.(rewrittenPathname)
+              if (rewrittenParams) {
+                paramsResult = utils.normalizeDynamicRouteParams(
+                  rewrittenParams,
+                  true
+                )
+
+                if (paramsResult.hasValidParams) {
+                  params = paramsResult.params
+                }
+              }
+            }
+
             // If the pathname being requested is the same as the source
             // pathname, and we don't have valid params, we want to use the
             // default route matches.
