@@ -78,11 +78,9 @@ impl AvailabilityInfo {
         module_graph: ResolvedVc<ModuleGraph>,
         item: ChunkableModuleOrBatch,
     ) -> Result<bool> {
-        let Some(available_chunk_groups) = self.available_chunk_groups else {
+        if self.available_chunk_groups.is_none() {
             return Ok(false);
-        };
-        let available_chunk_groups = available_chunk_groups.await?;
-        let chunk_group_info = module_graph.chunk_group_info().await?;
+        }
         let module = match item {
             ChunkableModuleOrBatch::Module(module) => ResolvedVc::upcast(module),
             // All modules of a batch have the same chunk groups, so the first one is
@@ -93,6 +91,20 @@ impl AvailabilityInfo {
             },
             ChunkableModuleOrBatch::None(_) => return Ok(false),
         };
+        self.is_module_available(module_graph, module).await
+    }
+
+    /// Whether the module is already part of one of the available chunk groups.
+    pub async fn is_module_available(
+        &self,
+        module_graph: ResolvedVc<ModuleGraph>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<bool> {
+        let Some(available_chunk_groups) = self.available_chunk_groups else {
+            return Ok(false);
+        };
+        let available_chunk_groups = available_chunk_groups.await?;
+        let chunk_group_info = module_graph.chunk_group_info().await?;
         let available = available_chunk_groups.chunk_groups(module_graph)?;
         Ok(chunk_group_info
             .module_chunk_groups

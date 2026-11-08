@@ -4394,17 +4394,11 @@ pub mod tests {
             .to_resolved()
             .await?;
         let chunk_group_info = module_graph.chunk_group_info();
-        let module_chunk_groups = chunk_group_info.await?.module_chunk_groups.await?;
 
         // What chunking the chunk group of `page2.js` sees after the one of `page1.js` was loaded.
         let availability = AvailabilityInfo::root()
             .with_chunk_group(module_graph, ChunkGroupKey::Entry(vec![runtime, page1]))
             .await?;
-        let available = availability
-            .available_chunk_groups()
-            .context("a chunk group is available")?
-            .await?;
-        let available = available.chunk_groups(module_graph)?;
 
         let mut descriptions = Vec::new();
         for name in ["runtime.js", "lib.js", "page1.js", "page2.js", "shared.js"] {
@@ -4426,9 +4420,9 @@ pub mod tests {
                 .await?;
             // The order of the chunk groups depends on the traversal order.
             groups.sort();
-            let is_available = module_chunk_groups
-                .get(&module)
-                .is_some_and(|groups| !groups.is_disjoint(available));
+            let is_available = availability
+                .is_module_available(module_graph, module)
+                .await?;
             descriptions.push(
                 format!(
                     "{name}: {}{}",
@@ -4443,7 +4437,8 @@ pub mod tests {
 
     /// A module that several entry chunk groups list as an entry is part of all of them, and so is
     /// everything only it imports. Availability is derived from this: a chunk group that has
-    /// another one of them available must not emit these modules again.
+    /// another one of them available must not emit these modules again. It does not evaluate the
+    /// shared entry again either: of its entries, only `page2.js` is not available.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_chunk_group_info_shared_entry_module() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(

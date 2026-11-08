@@ -992,15 +992,30 @@ impl ChunkingContext for BrowserChunkingContext {
             // prevents the runtime from blocking on a load that will never happen.
             let other_assets = Vc::cell(assets.clone());
 
-            let entries = Vc::cell(
-                chunk_group
-                    .entries()
-                    .map(|m| {
-                        ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(m)
-                            .context("evaluated_chunk_group entries must be evaluatable assets")
-                    })
-                    .collect::<Result<Vec<_>>>()?,
-            );
+            let entries = chunk_group
+                .entries()
+                .map(|m| {
+                    ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(m)
+                        .context("evaluated_chunk_group entries must be evaluatable assets")
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            // The chunks of this chunk group contain only what is not already available, and the
+            // evaluate chunk waits for these chunks only. An entry that is already available is in
+            // the chunks of a chunk group that was loaded before, and that chunk group evaluates
+            // it. Instantiating it from here too would only work if those chunks happen to be
+            // executed first, which is not the case for e.g. `async` scripts.
+            let mut evaluated_entries = Vec::with_capacity(entries.len());
+            for &entry in &entries {
+                if !input_availability_info
+                    .is_module_available(module_graph, ResolvedVc::upcast(entry))
+                    .await?
+                {
+                    evaluated_entries.push(entry);
+                }
+            }
+            let entries = Vc::cell(entries);
+            let evaluated_entries = Vc::cell(evaluated_entries);
 
             if this.enable_hot_module_replacement {
                 // Follow references (async loaders) to get actual dynamic component chunks, so
@@ -1056,7 +1071,7 @@ impl ChunkingContext for BrowserChunkingContext {
             // entries Next renders into HTML) can be inlined. When `shared_runtime` is disabled the
             // evaluate chunk itself carries the runtime, so it is always emitted as an asset.
             let evaluate_chunk = self
-                .generate_evaluate_chunk(ident, other_assets, entries, *module_graph)
+                .generate_evaluate_chunk(ident, other_assets, evaluated_entries, *module_graph)
                 .to_resolved()
                 .await?;
             let chunk_group_bootstrap_params =
