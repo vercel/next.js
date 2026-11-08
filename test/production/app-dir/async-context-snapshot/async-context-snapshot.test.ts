@@ -85,17 +85,21 @@ describe('async-context-snapshot', () => {
   // in that file, so that a snapshot calls its callback in the context of the
   // caller. Its rule finds nothing if the function moves to another file or is
   // no longer a declaration, and it leaves a context in place that is captured
-  // outside an `if` statement.
+  // outside an `if` statement, or by the server-only module before it calls
+  // that function.
   it('should keep createSnapshot in the shape that adapters patch', () => {
+    // The patterns accept less than the rule handles: no call in the condition
+    // of an `if`, no block that is nested twice, and no `try` statement.
     const shape = new RegExp(
       [
-        // A function declaration: at the start of a line, or after the
-        // comment that the ESM build puts in front of it. The rule does not
+        // A function declaration, where a statement starts. The rule does not
         // look at a function expression or a method.
-        /(?:^|\n|\*\/ )(?:export )?function createSnapshot\([^()]*\) \{/,
-        // `if` statements, with at most one nested block. The rule removes
-        // them, so nothing else may capture a context.
-        /(?:if \([^()]*\) \{(?:[^{}]|\{[^{}]*\})*\}\s*)+/,
+        /(?<=(?:^|[;{}])\s*)(?:export )?function createSnapshot\([^()]*\) \{/,
+        // `if` statements, with a block that has at most one nested block or
+        // with one statement without braces. The rule replaces each of them
+        // with a line comment, so each must end its line, and nothing outside
+        // of them may capture a context.
+        /(?:if \([^()]*\) (?:\{(?:[^{}]|\{[^{}]*\})*\}|[^{};]*;)[^\S\n]*\n\s*)+/,
         // What is left calls the callback directly: a function expression
         // or an arrow function that only passes its arguments on.
         /return (?:function\s*)?\((\w+), \.\.\.(\w+)\)\s*(?:=>\s*)?(?:\{\s*return )?\1\(\.\.\.\2\);?\s*\}?;?/,
@@ -104,13 +108,22 @@ describe('async-context-snapshot', () => {
         .map((part) => part.source)
         .join('\\s*')
     )
+    // `createSnapshot` of the server-only module leaves the decision to that
+    // function: it only passes the implementation for Node.js on.
+    const passesOn =
+      /(?<=(?:^|[;{}])\s*)(?:export )?function createSnapshot\(\) \{\s*return (?:\(0, \w+\.createSnapshot\)|createSnapshotWith)\(createNodeSnapshot\);?\s*\}/
     const appRequire = createRequire(path.join(next.testDir, 'package.json'))
-    // The CommonJS build and the ESM build of the file.
+    const readWithoutComments = (file: string) =>
+      fs
+        .readFileSync(appRequire.resolve(file), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '')
+    // The CommonJS build and the ESM build of both files.
     for (const dist of ['next/dist', 'next/dist/esm']) {
-      const file = appRequire.resolve(
-        `${dist}/server/app-render/async-local-storage`
+      const dir = `${dist}/server/app-render`
+      expect(readWithoutComments(`${dir}/async-local-storage`)).toMatch(shape)
+      expect(readWithoutComments(`${dir}/async-context-snapshot`)).toMatch(
+        passesOn
       )
-      expect(fs.readFileSync(file, 'utf8')).toMatch(shape)
     }
   })
 })
