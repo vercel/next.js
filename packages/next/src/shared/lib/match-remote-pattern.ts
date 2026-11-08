@@ -1,6 +1,25 @@
 import type { RemotePattern } from './image-config'
 import { makeRe } from 'next/dist/compiled/picomatch'
 
+// Builds a regular expression for a hostname pattern. A `*` matches any
+// characters within a single DNS label (it never crosses a `.`), and a
+// label that is exactly `**` matches one or more whole labels. Used by
+// matchRemotePattern() and writeImagesManifest() so both agree.
+export function makeHostnameRegex(hostname: string): RegExp {
+  const source = hostname
+    .split('.')
+    .map((label) => {
+      if (label === '**') {
+        return '.+'
+      }
+      return label.replace(/[*+?^${}()|[\]\\]/g, (char) =>
+        char === '*' ? '[^.]*' : `\\${char}`
+      )
+    })
+    .join('\\.')
+  return new RegExp(`^${source}$`)
+}
+
 // Modifying this function should also modify writeImagesManifest()
 export function matchRemotePattern(
   pattern: RemotePattern | URL,
@@ -22,7 +41,7 @@ export function matchRemotePattern(
       `Pattern should define hostname but found\n${JSON.stringify(pattern)}`
     )
   } else {
-    if (!makeRe(pattern.hostname).test(url.hostname)) {
+    if (!makeHostnameRegex(pattern.hostname).test(url.hostname)) {
       return false
     }
   }

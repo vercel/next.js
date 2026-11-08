@@ -20,6 +20,7 @@ import { resolveBuildPaths } from '../lib/resolve-build-paths'
 import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
+import { makeHostnameRegex } from '../shared/lib/match-remote-pattern'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { getNextBuildDebuggerPortOffset, Worker } from '../lib/worker'
@@ -827,7 +828,7 @@ async function writeImagesManifest(
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
     // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol?.replace(/:$/, '') as 'http' | 'https' | undefined,
-    hostname: makeRe(p.hostname).source,
+    hostname: makeHostnameRegex(p.hostname).source,
     port: p.port,
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
     search: p.search,

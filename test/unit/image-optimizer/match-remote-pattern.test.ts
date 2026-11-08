@@ -445,4 +445,23 @@ describe('matchRemotePattern', () => {
       )
     ).toBe(false)
   })
+
+  it('should not match hostname pattern with single asterisk across labels', () => {
+    const p = { hostname: 'assets.example.*' } as const
+    expect(m(p, new URL('https://assets.example.com'))).toBe(true)
+    expect(m(p, new URL('https://assets.example.org'))).toBe(true)
+    expect(m(p, new URL('https://assets.example.attacker.com'))).toBe(false)
+    expect(m(p, new URL('https://assets.example.co.uk'))).toBe(false)
+    expect(m(p, new URL('https://assets.example'))).toBe(false)
+
+    const p2 = { hostname: 'cdn.*.com' } as const
+    expect(m(p2, new URL('https://cdn.example.com'))).toBe(true)
+    expect(m(p2, new URL('https://cdn.evil.attacker.com'))).toBe(false)
+    expect(m(p2, new URL('https://cdn.com'))).toBe(false)
+
+    const p3 = { hostname: '*.example.com' } as const
+    expect(m(p3, new URL('https://a.example.com'))).toBe(true)
+    expect(m(p3, new URL('https://a.b.example.com'))).toBe(false)
+    expect(m(p3, new URL('https://example.com'))).toBe(false)
+  })
 })
