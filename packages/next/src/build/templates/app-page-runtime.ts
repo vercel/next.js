@@ -1245,12 +1245,8 @@ export function createAppPageEntrypoint({
             !previousIncrementalCacheEntry &&
             !isMinimalMode
           ) {
-            if (routerServerContext?.render404) {
-              await routerServerContext.render404(req, res)
-            } else {
-              res.statusCode = 404
-              res.end('This page could not be found')
-            }
+            // Requests for the same path at the same time share this result,
+            // so `handleResponse` sends the 404, once for each of them.
             return null
           }
 
@@ -1887,6 +1883,7 @@ export function createAppPageEntrypoint({
             }),
           routeKind: RouteKind.APP_PAGE,
           isOnDemandRevalidate,
+          revalidateOnlyGenerated,
           isRoutePPREnabled,
           req,
           nextConfig,
@@ -2030,6 +2027,22 @@ export function createAppPageEntrypoint({
         }
 
         if (!cacheEntry) {
+          // An on-demand revalidation with `unstable_onlyGenerated` found no
+          // cache entry for the path: answer 404 instead of rendering it.
+          if (
+            isOnDemandRevalidate &&
+            revalidateOnlyGenerated &&
+            !isMinimalMode
+          ) {
+            if (routerServerContext?.render404) {
+              await routerServerContext.render404(req, res)
+            } else {
+              res.statusCode = 404
+              res.end('This page could not be found')
+            }
+            return null
+          }
+
           if (ssgCacheKey) {
             // A cache entry might not be generated if a response is written
             // in `getInitialProps` or `getServerSideProps`, but those shouldn't
