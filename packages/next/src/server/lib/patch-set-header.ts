@@ -27,9 +27,11 @@ export function patchSetHeaderWithCookieSupport(
     value: true,
   })
 
-  // A bound function, not a function expression: V8 allocates a function
-  // expression that is assigned to a property in the old generation, where it
-  // would keep `req` and `res` alive until the next major garbage collection.
+  // A bound function, not a function expression. V8 allocates a function
+  // expression that is assigned to a property in the old generation until
+  // TurboFan has optimized the function that creates it, which takes thousands
+  // of requests. There it would keep `req` and `res` alive until the next
+  // major garbage collection.
   res.setHeader = setHeaderWithCookieSupport.bind(res, req, res.setHeader)
 }
 

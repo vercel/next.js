@@ -12,8 +12,10 @@ type InstrumentedLoader = ReturnType<typeof wrapClientComponentLoader>
  * The globals only retain the loader and cacheComponents, rather than
  * request-specific rendering data. They are bound functions, not function
  * expressions: V8 allocates a function expression that is assigned to a
- * property in the old generation, where every replaced handler would keep its
- * loader alive until the next major garbage collection.
+ * property in the old generation until TurboFan has optimized the function
+ * that creates it, which takes thousands of renders. There every replaced
+ * handler would keep its loader alive until the next major garbage
+ * collection.
  */
 export function installGlobalModuleLoadingHandlers(
   ComponentMod: AppPageModule,

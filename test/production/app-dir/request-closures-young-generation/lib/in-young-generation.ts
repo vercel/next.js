@@ -22,7 +22,7 @@ export function inYoungGeneration(value: object): boolean {
 
 /**
  * A function that V8 allocates in the old generation: a function expression
- * that is assigned to a property.
+ * that is assigned to a property, created by a function that is not optimized.
  */
 export function createControl(): object {
   const holder: { fn?: () => object } = {}

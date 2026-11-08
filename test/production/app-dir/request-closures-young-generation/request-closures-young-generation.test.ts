@@ -2,11 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 
 // V8 allocates a function expression that is assigned to a property
 // (`res.setHeader = (name, value) => {}`) in the old generation, because such
-// functions are usually methods that live long. When Next.js creates one for
-// every request, it is garbage in the old generation as soon as the request
-// ends, and until the next major garbage collection it keeps everything alive
-// that it references, here the request and the response. The routes of this
-// app ask V8 where the functions are that Next.js installs for each request.
+// functions are usually methods that live long. It does so until TurboFan has
+// optimized the function that creates it, which takes thousands of requests.
+// When Next.js creates one for every request, it is garbage in the old
+// generation as soon as the request ends, and until the next major garbage
+// collection it keeps everything alive that it references, here the request
+// and the response. The routes of this app ask V8 where the functions are
+// that Next.js installs for each request.
 describe('request-closures-young-generation', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -16,7 +18,9 @@ describe('request-closures-young-generation', () => {
     const res = await next.fetch('/api/set-header')
     expect(await res.json()).toEqual({
       // A function expression that is assigned to a property, as a check
-      // that V8 still treats it the way this test assumes.
+      // that V8 still treats it the way this test assumes. The function that
+      // creates it runs once for each request of this test, so it is not
+      // optimized.
       control: false,
       setHeader: true,
     })
