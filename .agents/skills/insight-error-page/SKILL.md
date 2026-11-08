@@ -38,6 +38,7 @@ Canonical API references and guides own API behavior, requirements, limits, nume
 - Keep complete requirement tables and API explanations in the reference. Error pages may restate facts needed to understand a fix, but must link to the canonical documentation and must not be the only place a requirement is documented.
 - Use code examples to illustrate documented requirements. A value in an example does not define an API minimum or default. For cache lifetimes, the thresholds belong in `cacheLife`'s Prerendering behavior section.
 - Link sibling error pages for diagnostic-specific patterns. Follow their links to the API reference for the underlying behavior and constraints.
+- When a cause gets its own diagnostic, remove its superseded fix sections from unrelated error pages. Keep a brief cross-link only when a reader can still reach that page for the cause, such as a combined production fallback. Verify those destinations in the error factories instead of adding the same link to every sibling page.
 
 ## Before you start
 
@@ -72,7 +73,6 @@ kind: error
   ### Patterns
   ### Trade-off
   ### Gotchas
-  (optional: ### Short-lived caches — only for cache fixes)
 
 ## <Card 2 title>
   ...
@@ -130,7 +130,7 @@ State the check as what the reader sees in the browser, not as framework artifac
   - Optional `Learn more:` link below the snippet
 - `### Trade-off` — 1 paragraph. Mandatory. Describe the trade-off **in the context of this error**, not the generic API trade-off. If the only honest trade-off is the canonical API behavior (e.g. "GSP requires a rebuild when the list changes"), keep it to one sentence and link out to the API reference. Don't repeat what the API reference page already covers.
 - `### Gotchas` — bulleted list. Mandatory (at least 1 bullet).
-- Optional `### Short-lived caches` subsection for cache fixes (document the 5-minute threshold).
+- When a cache fix can still fail because of its lifetime, add a short Gotcha linking to the `cacheLife` reference and the dedicated short-lived-cache error. Do not recreate lifetime fix sections on pages for a different diagnostic.
 
 ### Code snippets
 
@@ -244,7 +244,7 @@ When auditing an existing page, check every item:
 - [ ] Terminology matches canonical docs (verified, not assumed)
 - [ ] Vercel technical writing style applied (no banned words, active voice, sentence-case headings)
 - [ ] Framework card `link` URLs point to the correct heading auto-slugs; every local docs target and anchor resolves
-- [ ] Short-lived caches subsection present under cache fixes (when applicable)
+- [ ] Superseded fix sections are removed when a cause has its own diagnostic; remaining cross-links serve a reachable reader path
 - [ ] No prose semicolons; no paragraph opens with inline code
 - [ ] `Learn more:` texts follow the title/bare-API convention and every target is the best page for the pattern
 
