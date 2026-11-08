@@ -212,6 +212,8 @@ import {
   throwIfDisallowedDynamicInStaticRoute,
   getDisallowedReasonsInStaticRoute,
   type InstantValidationHoleKind,
+  type DeferredDynamicAccess,
+  trackDeferredAllowedDynamicAccesses,
 } from './dynamic-rendering-validation'
 import { logBuildDebugHint } from './blocking-route-messages'
 import { ClientComponentLoadTracker } from '../client-component-renderer-logger'
@@ -10031,6 +10033,19 @@ async function prerenderToStream(
 
       let dynamicValidation = createDynamicValidationState()
 
+      // When we abort the final HTML prerender below, React reports every
+      // task that's still pending, i.e. every dynamic hole. To validate a
+      // hole we need its component stack, which React creates on demand by
+      // calling every component on the stack again. That's expensive, and for
+      // most pages the validation result is known after looking at a single
+      // stack, or even without one. So in a production build we only collect
+      // the reported accesses here, and track them once we know whether the
+      // prelude is empty. This is only set when the accesses are reported
+      // outside of React's work loop (see the abort task below), where a
+      // component stack that is read later is the same as one that's read
+      // right away.
+      let deferredDynamicAccesses = null as null | Array<DeferredDynamicAccess>
+
       const finalClientOnHeaders = createOnHeadersCallback(appendHeader)
 
       let { prelude: unprocessedPrelude, postponed } =
@@ -10066,6 +10081,14 @@ async function prerenderToStream(
                     isPrerenderInterruptedError(err) ||
                     finalClientReactController.signal.aborted
                   ) {
+                    if (deferredDynamicAccesses !== null) {
+                      deferredDynamicAccesses.push({
+                        dynamicReason: err,
+                        errorInfo,
+                      })
+                      return
+                    }
+
                     const componentStack: string | undefined = (
                       errorInfo as any
                     ).componentStack
@@ -10117,6 +10140,23 @@ async function prerenderToStream(
             return pendingFinalClientResult
           },
           () => {
+            if (
+              process.env.NODE_ENV === 'production' &&
+              ensureStaticLevel !== EnsureStaticLevel.Navigation &&
+              !finalClientReactController.signal.aborted
+            ) {
+              // React is not rendering, and the prerender was not aborted
+              // from inside of a render. So everything that's reported from
+              // here on is a task that React finishes outside of its work
+              // loop, after this abort. Only those accesses are deferred:
+              // inside of the work loop, the hooks dispatcher is active while
+              // React calls the components to create a component stack, which
+              // can change the frames it finds. We also don't defer in
+              // development, where the owner stack has to be captured while
+              // the access is reported.
+              deferredDynamicAccesses = []
+            }
+
             workUnitAsyncStorage.run(
               finalClientPrerenderStore,
               finalClientReactController.abort.bind(finalClientReactController)
@@ -10128,6 +10168,21 @@ async function prerenderToStream(
 
       const { prelude, preludeIsEmpty } =
         await processPreludeOp(unprocessedPrelude)
+
+      if (deferredDynamicAccesses !== null) {
+        // Components are called again to create the component stacks, so we
+        // do it in the same scope that they were reported in.
+        workUnitAsyncStorage.run(
+          finalClientPrerenderStore,
+          trackDeferredAllowedDynamicAccesses,
+          deferredDynamicAccesses,
+          workStore,
+          preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
+          dynamicValidation,
+          clientDynamicTracking,
+          allowEmptyStaticShell
+        )
+      }
 
       if (ensureStaticLevel === EnsureStaticLevel.Navigation) {
         throwIfDisallowedDynamicInStaticRoute(
