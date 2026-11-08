@@ -764,31 +764,35 @@ impl ReadRawVcFuture {
     /// Track the value as a dependency with an key.
     pub fn track_with_key(mut self, key: u64) -> Self {
         self.read_cell_options.tracking = ReadCellTracking::Tracked {
-            key: Some(CellKey::Hash(key)),
+            key: Some(CellKey::hash(key)),
         };
         self.map_resolve(|r| r.track_with_key())
     }
 
-    /// Track the value as a [`CellKey::Provisional`] dependency of a
+    /// Track the value as a [`CellKeyKind::Provisional`] dependency of a
     /// [`Vc::keyed_reader`](crate::Vc::keyed_reader) or
     /// [`Vc::lazy_reader`](crate::Vc::lazy_reader) read. Like
     /// [`ReadRawVcFuture::track_with_key`], this also tracks the reads of task outputs while
     /// resolving the [`RawVc`].
     ///
     /// Must be called before the future is polled the first time.
+    ///
+    /// [`CellKeyKind::Provisional`]: crate::CellKeyKind::Provisional
     pub(crate) fn set_track_provisional(&mut self, id: u32) {
         let ReadRawVcState::Resolving(resolve) = &mut self.state else {
             unreachable!("set_track_provisional must be called before the cell is read");
         };
         resolve.read_output_options.tracking = ReadTracking::Tracked;
         self.read_cell_options.tracking = ReadCellTracking::Tracked {
-            key: Some(CellKey::Provisional(id)),
+            key: Some(CellKey::provisional(id)),
         };
     }
 
     /// Track the remaining reads as normal full dependencies, e.g. when a
-    /// [`CellKey::Provisional`] read is polled in a different task execution than the one that
+    /// [`CellKeyKind::Provisional`] read is polled in a different task execution than the one that
     /// allocated its id. Can be called at any time before the future completes.
+    ///
+    /// [`CellKeyKind::Provisional`]: crate::CellKeyKind::Provisional
     pub(crate) fn set_track_full(&mut self) {
         if let ReadRawVcState::Resolving(resolve) = &mut self.state {
             resolve.read_output_options.tracking = ReadTracking::Tracked;

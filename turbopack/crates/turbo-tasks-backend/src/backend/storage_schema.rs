@@ -280,11 +280,11 @@ struct TaskStorageSchema {
     cell_dependencies: AutoSet<CellRef, 3>,
 
     /// Cells this task depends on with a `CellKey`. Rare.
-    /// - `CellKey::Hash`: narrowed to a hashed sub-value, only invalidated when it changes.
-    /// - `CellKey::Provisional`: a temporary dependency on the whole cell made by a
+    /// - `CellKeyKind::Hash`: narrowed to a hashed sub-value, only invalidated when it changes.
+    /// - `CellKeyKind::Provisional`: a temporary dependency on the whole cell made by a
     ///   `Vc::keyed_reader()` or `Vc::lazy_reader()` read that hasn't been refined yet, identified
     ///   by the `keyed_reader()` / `lazy_reader()` call counter of the execution. Invalidated like
-    ///   `cell_dependencies`. Short-lived: the `KeyedReadRef` refines it to `CellKey::Hash`
+    ///   `cell_dependencies`. Short-lived: the `KeyedReadRef` refines it to `CellKeyKind::Hash`
     ///   entries when dropped, an unaccessed `LazyReadRef` removes it when dropped, and any
     ///   remaining ones are converted to `cell_dependencies` when the execution completes.
     #[field(
@@ -337,8 +337,8 @@ struct TaskStorageSchema {
     cell_dependents: AutoSet<CellRef, 3>,
 
     /// Tasks that depend on this task's cells with a `CellKey`. Reverse of
-    /// `cell_dependencies_keyed`. `CellKey::Hash` entries are only invalidated when that sub-value
-    /// changes, `CellKey::Provisional` entries like `cell_dependents`.
+    /// `cell_dependencies_keyed`. `CellKeyKind::Hash` entries are only invalidated when that
+    /// sub-value changes, `CellKeyKind::Provisional` entries like `cell_dependents`.
     #[field(
         storage = "auto_set",
         category = "data",
