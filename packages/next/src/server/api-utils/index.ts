@@ -207,11 +207,23 @@ const LAZY_PROPS = Symbol('next.lazyProps')
 type LazyPropsGetters = { [prop: string]: () => unknown }
 
 type LazyPropsRequest = IncomingMessage & {
-  [LAZY_PROPS]?: {
-    req: LazyPropsRequest
-    getters: LazyPropsGetters
-  }
+  [LAZY_PROPS]?: LazyPropsRecord
   [prop: string]: unknown
+}
+
+// The getters of the lazy properties of one object. It is created with `new`
+// and its getters are copied: V8 moves the allocation of an object literal
+// to the old generation when most of the objects that it creates survive a
+// garbage collection, as the literals of a request do while anything else
+// keeps the request alive. From then on it would keep every request alive.
+class LazyPropsRecord {
+  req: LazyPropsRequest
+  getters: LazyPropsGetters
+
+  constructor(req: LazyPropsRequest, getters: LazyPropsGetters) {
+    this.req = req
+    this.getters = { ...getters }
+  }
 }
 
 // One pair of accessors per property name, for all requests. V8 allocates the
@@ -253,8 +265,7 @@ function getLazyPropDescriptor(prop: string): PropertyDescriptor {
 /**
  * Execute getter functions only if they are needed
  * @param req request object
- * @param getters functions to get data, by name of property. The request
- * keeps this object.
+ * @param getters functions to get data, by name of property
  */
 export function setLazyProps(
   req: IncomingMessage,
@@ -270,7 +281,7 @@ export function setLazyProps(
     lazyProps === undefined ||
     (lazyProps.req !== lazyReq && !Object.hasOwn(lazyReq, LAZY_PROPS))
   ) {
-    lazyReq[LAZY_PROPS] = { req: lazyReq, getters }
+    lazyReq[LAZY_PROPS] = new LazyPropsRecord(lazyReq, getters)
   } else {
     Object.assign(lazyProps.getters, getters)
   }

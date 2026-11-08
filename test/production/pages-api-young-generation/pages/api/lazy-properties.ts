@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { inYoungGeneration } from '../../lib/in-young-generation'
 
 const lazyProperties = ['cookies', 'previewData', 'preview', 'draftMode']
 
@@ -21,6 +22,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     )
   previousAccessors = accessors
 
+  // The object that holds the getters of the lazy properties is the value of
+  // a symbol-keyed property of the request and refers back to the request.
+  const record = Object.getOwnPropertySymbols(req)
+    .map(
+      (symbol) => (req as unknown as Record<symbol, { req?: unknown }>)[symbol]
+    )
+    .find((value) => value?.req === req)
+
   // Reading a lazy property and assigning to one both turn it into a plain
   // property of this request.
   const cookies = req.cookies
@@ -33,5 +42,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     cookiesAfterRead: Object.getOwnPropertyDescriptor(req, 'cookies'),
     draftModeAfterAssignment: Object.getOwnPropertyDescriptor(req, 'draftMode'),
     preview: req.preview ?? null,
+    recordInYoungGeneration: record ? inYoungGeneration(record) : null,
   })
 }

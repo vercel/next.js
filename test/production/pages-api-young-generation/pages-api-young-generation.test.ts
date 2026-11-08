@@ -55,11 +55,26 @@ describe('pages-api-young-generation', () => {
       cookiesAfterRead: { ...plainProperty, value: { name } },
       draftModeAfterAssignment: { ...plainProperty, value: true },
       preview: null,
+      recordInYoungGeneration: true,
     })
 
     expect(await request('first')).toEqual(expected('first'))
     const second = await request('second')
     expect(second).toEqual(expected('second'))
     expect(second.sameAsPreviousRequest).toBe(true)
+  })
+
+  // V8 moves the allocation of an object literal to the old generation when
+  // most of the objects that it creates survive a garbage collection, and the
+  // objects of a request survive while anything keeps the request alive. The
+  // object that holds the getters of a request is therefore not created by a
+  // literal: in the old generation it would keep each request alive.
+  it('should not move the getters of the lazy request properties to the old generation', async () => {
+    let result: unknown
+    for (let i = 0; i < 2000; i++) {
+      const res = await next.fetch('/api/lazy-properties')
+      result = await res.json()
+    }
+    expect(result).toMatchObject({ recordInYoungGeneration: true })
   })
 })
