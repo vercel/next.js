@@ -104,7 +104,7 @@ pub async fn get_browser_runtime_code(
     let mut code: CodeBuilder = CodeBuilder::new(false, source_map_generation_options);
     let relative_root_path = output_root_to_root_path;
     let chunk_base_path = chunk_base_path.await?;
-    let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
+    let chunk_base_path = chunk_base_path.as_ref().map_or("", |f| f.as_str());
     let asset_suffix = asset_suffix.await?;
     let chunk_loading_global = chunk_loading_global.await?;
     let cross_origin = *cross_origin.await?;

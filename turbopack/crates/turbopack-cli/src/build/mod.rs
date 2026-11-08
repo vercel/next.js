@@ -705,7 +705,7 @@ pub async fn build(args: &BuildArguments, exit: &ExitHandler) -> Result<()> {
         .log_level(
             args.common
                 .log_level
-                .map_or_else(|| IssueSeverity::Warning, |l| l.0),
+                .map_or(IssueSeverity::Warning, |l| l.0),
         )
         .source_maps_type(if args.no_sourcemap {
             None
