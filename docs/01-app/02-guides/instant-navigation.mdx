@@ -32,7 +32,7 @@ On a page load, the entire page renders from the document root. Every component 
 
 On a client navigation between `/store/shoes` and `/store/hats`, only the components below the `/store` layout re-render. A `<Suspense>` boundary in the root layout covers everything on a page load, but on this navigation, it sits above the re-render scope and does not trigger.
 
-This is also why client-side hooks behave differently. `useSearchParams()` suspends during server rendering because search params are not available at build time. But on a client navigation, the router already has the params from the URL and the hook resolves synchronously. The same component can render immediately on a client navigation but sit behind a fallback on a page load.
+This is also why client-side hooks behave differently. `useSearchParams()` suspends during prerendering because search params are not available at build time. But on a client navigation, the router already has the params from the URL and the hook resolves synchronously. The same component can render immediately on a client navigation but sit behind a fallback on a page load.
 
 </details>
 
@@ -334,7 +334,7 @@ A route can be reached two ways, and a `<Suspense>` boundary can cover one witho
 - **Initial page load**: Use `page.goto()` to test the static UI from the document response.
 - **Client navigation**: Click a `<Link>` to test the destination's prefetched UI. [Per-link prefetching](/docs/app/guides/optimizing-prefetching) can add request-specific content to this UI.
 
-```typescript filename="e2e/navigation.test.ts" highlight={6-14,20-25}
+```typescript filename="e2e/navigation.test.ts" highlight={6-18,29-41}
 import { test, expect } from '@playwright/test'
 import { instant } from '@next/playwright'
 
@@ -344,26 +344,46 @@ test.describe('Product page (/store/[slug])', () => {
       page,
       async () => {
         await page.goto('/store/hats')
-        await expect(page.locator('h1')).toContainText('Baseball Cap')
-        await expect(page.getByText('In stock')).toHaveCount(0)
+        await expect(
+          page.getByText('Loading product...').filter({ visible: true })
+        ).toBeVisible()
+        await expect(
+          page.getByText('In stock').filter({ visible: true })
+        ).toHaveCount(0)
       },
       { baseURL }
     )
-    await expect(page.getByText('In stock')).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(
+      'Baseball Cap'
+    )
+    await expect(
+      page.getByText('In stock').filter({ visible: true })
+    ).toBeVisible()
   })
 
   test('is instant on a client navigation', async ({ page }) => {
     await page.goto('/store/shoes')
     await instant(page, async () => {
-      await page.click('a[href="/store/hats"]')
+      await page
+        .locator('a[href="/store/hats"]')
+        .filter({ visible: true })
+        .click()
       await page.waitForURL((url) => url.pathname === '/store/hats')
-      await expect(page.locator('h1')).toContainText('Baseball Cap')
-      await expect(page.getByText('In stock')).toHaveCount(0)
+      await expect(page.getByRole('heading', { level: 1 })).toContainText(
+        'Baseball Cap'
+      )
+      await expect(
+        page.getByText('In stock').filter({ visible: true })
+      ).toHaveCount(0)
     })
-    await expect(page.getByText('In stock')).toBeVisible()
+    await expect(
+      page.getByText('In stock').filter({ visible: true })
+    ).toBeVisible()
   })
 })
 ```
+
+The example route has no `generateStaticParams`, so its product heading is outside the initial static shell. Check the product fallback inside the initial-load scope and the heading after it finishes. On a client navigation, per-link prefetching makes the product heading available inside the scope.
 
 Pass Playwright's `baseURL` to `instant()` when `page.goto()` is the first navigation. The helper needs the origin before requesting the document.
 
@@ -373,15 +393,18 @@ Inside the callback, an initial page load shows the static UI and a client navig
 
 For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
 
+Cache Components keeps previous pages hidden in the DOM after navigation. Use `getByRole`, which excludes hidden elements by default, or filter other locators with `.filter({ visible: true })` so assertions target the visible page. See [Testing preserved UI](/docs/app/guides/preserving-ui-state#testing).
+
 Run these against `next dev`, where the testing API is enabled automatically. For CI with a production build, enable [`exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) only for the test build:
 
-```ts filename="next.config.ts" highlight={3,8}
+```ts filename="next.config.ts" highlight={3,9}
 import type { NextConfig } from 'next'
 
 const exposeTestingApi = process.env.EXPOSE_TESTING_API === '1'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  partialPrefetching: true,
   experimental: {
     exposeTestingApiInProductionBuild: exposeTestingApi,
   },

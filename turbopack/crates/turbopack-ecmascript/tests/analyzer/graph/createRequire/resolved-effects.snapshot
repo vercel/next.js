@@ -28,7 +28,7 @@
   ⚠️  This value might have side effects
 - *1* module.createRequire: The Node.js module.createRequire method: https://nodejs.org/api/module.html#modulecreaterequirefilename
 
-0 -> 20 free var = FreeVar(globalThis)
+19 -> 20 free var = FreeVar(globalThis)
 
 0 -> 21 member call = module*0*["createRequire"](???*1*)
 - *0* module: The Node.js `module` module: https://nodejs.org/api/module.html

@@ -1,5 +1,9 @@
-export const revalidate = 900
+'use cache'
 
-export default function Page() {
+import { cacheLife } from 'next/cache'
+
+export default async function Page() {
+  cacheLife({ revalidate: 900 })
+
   return <p>hello world</p>
 }

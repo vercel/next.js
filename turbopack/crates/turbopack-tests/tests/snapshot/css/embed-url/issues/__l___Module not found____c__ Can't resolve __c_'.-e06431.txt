@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css:8:10  Module not found: Can't resolve './missing1.png'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css:8:11  Module not found: Can't resolve './missing1.png'
   
        4 |   background-image: url('image.png');
        5 | }

@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css:10:20  Module not found: Can't resolve 'missing3.png'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css:10:21  Module not found: Can't resolve 'missing3.png'
   
        6 | 
        7 | .style-unresolveable {

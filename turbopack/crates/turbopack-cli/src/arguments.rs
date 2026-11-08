@@ -43,6 +43,9 @@ pub enum Target {
 
 #[derive(Debug, Args, Clone)]
 pub struct CommonArguments {
+    #[clap(flatten)]
+    pub go: GoBuildOptions,
+
     /// The entrypoints of the project. Resolved relative to the project's
     /// directory (`--dir`).
     #[clap(value_parser)]
@@ -139,6 +142,10 @@ pub struct BuildArguments {
     #[clap(flatten)]
     pub common: CommonArguments,
 
+    /// Rebuild all entrypoints when their dependencies change.
+    #[clap(long)]
+    pub watch: bool,
+
     /// Don't generate sourcemaps.
     #[clap(long)]
     pub no_sourcemap: bool,
@@ -186,5 +193,25 @@ impl FromStr for IssueSeverityCliOption {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         <IssueSeverityCliOption as clap::ValueEnum>::from_str(s, true).map_err(|s| anyhow!("{}", s))
+    }
+}
+
+/// Go toolchain options shared by build and dev.
+#[derive(Clone, Debug, Args)]
+pub struct GoBuildOptions {
+    /// Go binary from an installation that stays immutable throughout this session.
+    #[clap(long, default_value = "go")]
+    pub go: PathBuf,
+    /// Build tags for imported Go packages.
+    #[clap(long, default_value = "")]
+    pub tags: String,
+}
+
+impl Default for GoBuildOptions {
+    fn default() -> Self {
+        Self {
+            go: PathBuf::from("go"),
+            tags: String::new(),
+        }
     }
 }

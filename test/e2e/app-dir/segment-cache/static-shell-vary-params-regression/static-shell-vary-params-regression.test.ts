@@ -15,10 +15,10 @@ describe('segment cache - static shell vary params regression', () => {
 
   // Regression test for a segment cache keying bug.
   //
-  // During the Shell prefetch phase the client walks at the StaticShell
-  // strategy, and it used to key whatever came back at `tree.shellVaryPath`,
-  // which replaces every non-root param with Fallback. That's only correct
-  // when the payload really is the param-independent shell.
+  // During the Shell prefetch phase, the client used to store whatever came
+  // back at `tree.shellVaryPath`, which replaces every non-root param with
+  // Fallback. That's only correct when the payload really doesn't depend on
+  // the params.
   //
   // On an optional catch-all, the index (empty slug) is the case that hit
   // this: prefetching /docs poisoned /docs/alpha and /docs/beta, so later

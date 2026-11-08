@@ -2,6 +2,7 @@ use std::{fmt::Display, mem::replace, sync::Arc};
 
 use bincode::{Decode, Encode};
 use indexmap::map::Entry;
+use rustc_hash::FxHashSet;
 use turbo_dyn_eq_hash::{
     DynEq, DynHash, impl_eq_for_dyn, impl_hash_for_dyn, impl_partial_eq_for_dyn,
 };
@@ -45,6 +46,59 @@ impl Invalidator {
             self.task,
             (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
         );
+    }
+
+    /// Invalidates all `invalidators` together, as one batch. Duplicates are fine, every task is
+    /// invalidated once. Large batches may be split into chunks that are invalidated in parallel.
+    pub fn invalidate_all(
+        invalidators: impl IntoIterator<Item = Invalidator>,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) {
+        let tasks = Self::unique_tasks(invalidators);
+        if !tasks.is_empty() {
+            turbo_tasks.invalidate_many(&tasks);
+        }
+    }
+
+    /// Like [`Invalidator::invalidate_all`], recording `reason` for the batch.
+    pub fn invalidate_all_with_reason<T: InvalidationReason>(
+        invalidators: impl IntoIterator<Item = Invalidator>,
+        turbo_tasks: &dyn TurboTasksApi,
+        reason: T,
+    ) {
+        Self::invalidate_all_with_reasons(invalidators, turbo_tasks, [reason]);
+    }
+
+    /// Like [`Invalidator::invalidate_all`], recording all `reasons` for the batch. The reasons
+    /// are not tied to individual tasks, they are only reported in the aggregated update info.
+    pub fn invalidate_all_with_reasons<T: InvalidationReason>(
+        invalidators: impl IntoIterator<Item = Invalidator>,
+        turbo_tasks: &dyn TurboTasksApi,
+        reasons: impl IntoIterator<Item = T>,
+    ) {
+        let tasks = Self::unique_tasks(invalidators);
+        if tasks.is_empty() {
+            return;
+        }
+        let reasons = reasons
+            .into_iter()
+            .map(|reason| (Arc::new(reason) as Arc<dyn InvalidationReason>).into())
+            .collect();
+        turbo_tasks.invalidate_many_with_reasons(&tasks, reasons);
+    }
+
+    /// The backend requires unique task ids in a batch.
+    fn unique_tasks(invalidators: impl IntoIterator<Item = Invalidator>) -> Vec<TaskId> {
+        let invalidators = invalidators.into_iter();
+        let capacity = invalidators.size_hint().0;
+        let mut seen = FxHashSet::with_capacity_and_hasher(capacity, Default::default());
+        let mut tasks = Vec::with_capacity(capacity);
+        for invalidator in invalidators {
+            if seen.insert(invalidator.task) {
+                tasks.push(invalidator.task);
+            }
+        }
+        tasks
     }
 }
 

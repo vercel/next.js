@@ -28,6 +28,15 @@ export default function Page() {
           Partially static page (prefetch=true)
         </LinkAccordion>
       </li>
+      <li>
+        <LinkAccordion
+          href="/partially-static"
+          prefetch="navigation"
+          id="partially-static-navigation"
+        >
+          Partially static page (prefetch=navigation)
+        </LinkAccordion>
+      </li>
     </ul>
   )
 }

@@ -14,13 +14,15 @@ use turbopack_core::{
     module::Module,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     proxied_asset::ProxiedAsset,
-    reference_type::{EntryReferenceSubType, ReferenceType},
+    reference_type::ReferenceType,
     source::Source,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkData, utils::StringifyJs};
 
-use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
+use crate::{
+    embed_js::next_js_file_path, next_pages::PagesEntryKind, util::get_asset_path_from_pathname,
+};
 
 #[turbo_tasks::function]
 pub async fn create_page_loader_entry_module(
@@ -49,10 +51,7 @@ pub async fn create_page_loader_entry_module(
     ));
 
     let module = client_context
-        .process(
-            entry_asset,
-            ReferenceType::Entry(EntryReferenceSubType::Page),
-        )
+        .process(entry_asset, PagesEntryKind::Page.reference_type())
         .module()
         .to_resolved()
         .await?;

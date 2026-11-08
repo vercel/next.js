@@ -8,7 +8,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody};
 use turbo_tasks_fs::{
@@ -22,7 +22,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::Layer,
     issue::{IssueExt, IssueSeverity},
-    module_graph::{ModuleGraph, SingleModuleGraph},
+    module_graph::{ModuleGraph, ModuleGraphOptions, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ResolveResult,
@@ -80,7 +80,7 @@ pub const GOOGLE_FONTS_INTERNAL_PREFIX: RcStr =
 
 #[turbo_tasks::value(transparent)]
 #[derive(Deserialize)]
-struct FontData(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, FontDataEntry>);
+struct FontData(FxHashMap<RcStr, FontDataEntry>);
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontGoogleReplacer {
@@ -795,8 +795,7 @@ async fn get_mock_stylesheet(
     let module_graph = ModuleGraph::from_graphs(
         vec![SingleModuleGraph::new_with_entries(
             entries.graph_entries().to_resolved().await?,
-            false,
-            false,
+            ModuleGraphOptions::default(),
         )],
         None,
     );

@@ -259,9 +259,6 @@ describe('cached navigations', () => {
     )
   })
 
-  // The legacy Vercel builder incorrectly prerenders params omitted from
-  // generateStaticParams.
-  // @gate !deploy || adapter
   it('caches params from a cold RSC navigation for repeated navigations', async () => {
     const top = 't2'
     const route = `/required-fallback-params/${top}/b1`
