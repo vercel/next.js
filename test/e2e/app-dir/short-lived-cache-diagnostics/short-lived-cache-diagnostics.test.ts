@@ -79,8 +79,8 @@ describe('short-lived-cache diagnostics', () => {
         output = result.cliOutput
       }
       if (isNextDev) {
-        expect(output).toContain('300 seconds (five minutes)')
-        expect(output).toContain('cacheLife')
+        expect(output).not.toContain('300 seconds (five minutes)')
+        expect(output).toContain('  - [cache] Increase the cache lifetime')
         expect(output).toContain('Next.js encountered a short-lived cache')
         expect(output).toContain(
           `https://nextjs.org/docs/messages/${route.startsWith('static-') ? 'static-short-lived-cache' : 'short-lived-cache'}#${route.endsWith('metadata') ? 'metadata' : route.endsWith('viewport') ? 'viewport' : 'route-content'}`

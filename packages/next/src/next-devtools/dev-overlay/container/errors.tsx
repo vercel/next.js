@@ -497,7 +497,14 @@ export function getBlockingRouteErrorDetails(
     if (scope === 'metadata')
       return { type: 'dynamic-metadata', variant: 'short-cache', inNavigation }
     if (scope === 'viewport')
-      return { type: 'dynamic-viewport', variant: 'short-cache', inNavigation }
+      return {
+        type: 'dynamic-viewport',
+        variant: 'short-cache',
+        inNavigation,
+        explanation: inNavigation
+          ? CACHE_STAGE_VIEWPORT_EXPLANATION
+          : undefined,
+      }
     return { type: 'blocking-route', variant: 'short-cache', inNavigation }
   }
 
@@ -996,8 +1003,9 @@ export function Errors({
     case 'blocking-route': {
       switch (errorDetails.variant) {
         case 'short-cache':
-          errorMessage =
-            'Next.js encountered a short-lived cache outside of Suspense.'
+          errorMessage = errorDetails.inNavigation
+            ? 'Next.js encountered a short-lived cache during a navigation.'
+            : 'Next.js encountered a short-lived cache during prerendering.'
           break
         case 'runtime':
           errorMessage = errorDetails.inNavigation

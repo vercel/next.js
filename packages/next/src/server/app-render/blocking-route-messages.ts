@@ -15,11 +15,26 @@ export function createShortLivedCacheError(
     ? ' on a route that must be fully static'
     : inNavigation
       ? ' during prerendering or a navigation'
-      : ''
-  const lifetime = fullyStatic
-    ? '`expire` must be at least 300 seconds (five minutes), `stale` at least 30 seconds, and `revalidate` greater than 0.'
-    : 'For prerendering, `expire` must be at least 300 seconds (five minutes), `stale` at least 30 seconds, and `revalidate` greater than 0. The App Shell additionally requires `stale` of at least 300 seconds.'
-  let remedies = '  - [cache] Increase the relevant `cacheLife` value\n'
+      : scope === 'body'
+        ? ' during prerendering'
+        : ''
+  let explanation: string
+  if (fullyStatic) {
+    explanation =
+      'This route is configured to be fully static, but the short-lived cache requires rendering at request time.'
+  } else if (scope === 'metadata') {
+    explanation =
+      "This route's metadata is blocked, but the rest of its content can be prerendered."
+  } else if (scope === 'viewport') {
+    explanation = inNavigation
+      ? 'This prevents Next.js from creating the App Shell, leading to a slower user experience.'
+      : 'This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind `<Suspense>` because it affects the initial page load.'
+  } else {
+    explanation = inNavigation
+      ? 'Accessing a short-lived cache outside of `<Suspense>` prevents the navigation from being instant, leading to a slower user experience.'
+      : 'Accessing a short-lived cache outside of `<Suspense>` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.'
+  }
+  let remedies = '  - [cache] Increase the cache lifetime\n'
   if (fullyStatic) {
     remedies +=
       scope === 'body'
@@ -43,7 +58,7 @@ export function createShortLivedCacheError(
   }
   return new Error(
     `Route "${route}": Next.js encountered a short-lived cache${location}${requirement}.\n\n` +
-      `This \`"use cache"\` entry is excluded from the required prerendered output because of its \`cacheLife\`. ${lifetime}\n\n` +
+      `${explanation}\n\n` +
       `Ways to fix this:\n${remedies}\n` +
       `Learn more: ${getShortLivedCacheDocsUrl(scope, fullyStatic)}`
   )
