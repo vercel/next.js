@@ -28,6 +28,7 @@ type Probe = {
   url: string
   // What a router in front of the function sends as `x-matched-path`.
   matchedPath: string
+  method?: string
   headers?: Record<string, string>
 }
 
@@ -127,6 +128,7 @@ describe('per-route-prerender-manifest', () => {
       > = {}
       for (const probe of requests) {
         const res = await fetch(`http://localhost:${port}${probe.url}`, {
+          method: probe.method,
           headers: server
             ? probe.headers
             : {
@@ -796,7 +798,12 @@ describe('per-route-prerender-manifest', () => {
     }
   })
 
-  it('does not read the complete manifest in a server', async () => {
+  /**
+   * Runs the project as a custom server while it lacks the given prerender
+   * manifests, and checks its answers: they are the same whether a route reads
+   * its own manifest or the complete one.
+   */
+  async function runServer(hidden: string[]) {
     // `entry` is the route module that serves the request. An automatically
     // static page is a file without one, and has no prerender data to read.
     const requests = [
@@ -835,31 +842,66 @@ describe('per-route-prerender-manifest', () => {
               text: 'app prerendered route handler',
             },
           ]),
-      { url: '/no-such-page', entry: '', text: 'could not be found' },
+      {
+        url: '/no-such-page',
+        entry: '',
+        status: 404,
+        text: 'could not be found',
+      },
+      // Only the manifest tells a server that an App Router route without
+      // parameters is prerendered. It then answers no method but `GET` and
+      // `HEAD`, and a middleware prefetch gets the page.
+      {
+        name: 'POST /',
+        method: 'POST',
+        url: '/',
+        entry: 'app/page',
+        status: 405,
+      },
+      ...(isCacheComponents
+        ? []
+        : [
+            {
+              name: 'POST /legacy/handler',
+              method: 'POST',
+              url: '/legacy/handler',
+              entry: 'app/legacy/handler/route',
+              status: 405,
+            },
+          ]),
+      {
+        name: 'middleware prefetch of /',
+        url: '/',
+        headers: { 'x-middleware-prefetch': '1' },
+        entry: 'app/page',
+        text: 'app static page',
+      },
     ].map((request) => ({
       ...request,
-      name: request.url,
+      name: request.name ?? request.url,
+      status: request.status ?? 200,
       matchedPath: request.url,
     }))
 
-    const result = await runLauncher(next.testDir, requests, { server: true })
+    const result = await withoutManifests(hidden, () =>
+      runLauncher(next.testDir, requests, { server: true })
+    )
 
     expect(
       Object.fromEntries(
-        requests.map(({ name }) => [name, result.responses[name].text])
+        requests.map(({ name }) => {
+          const { status, text } = result.responses[name]
+          return [name, { status, text }]
+        })
       )
     ).toEqual(
       Object.fromEntries(
-        requests.map(({ name, text }) => [name, expect.stringContaining(text)])
+        requests.map(({ name, status, text }) => [
+          name,
+          { status, text: text && expect.stringContaining(text) },
+        ])
       )
     )
-
-    const routeManifests = requests
-      .filter(({ entry }) => entry)
-      .map(({ entry }) => `.next/${manifestOf(entry)}`)
-    expect(result.manifestReads).toEqual(expect.arrayContaining(routeManifests))
-    expect(result.manifestReads).not.toContain('.next/prerender-manifest.json')
-    expect(result.missingManifests).toEqual([])
 
     // A server takes the revalidation and expiry times of a prerendered path
     // from the manifest: without them the path is stale and has other caching
@@ -881,6 +923,33 @@ describe('per-route-prerender-manifest', () => {
       },
       ...(isCacheComponents ? {} : { '/legacy/handler': prerendered }),
     })
+
+    return {
+      ...result,
+      // The manifests of the routes that served a request.
+      routeManifests: requests
+        .filter(({ entry }) => entry)
+        .map(({ entry }) => `.next/${manifestOf(entry)}`),
+    }
+  }
+
+  it('does not read the complete manifest in a server', async () => {
+    const result = await runServer([])
+
+    expect(result.manifestReads).toEqual(
+      expect.arrayContaining(result.routeManifests)
+    )
+    expect(result.manifestReads).not.toContain('.next/prerender-manifest.json')
+    expect(result.missingManifests).toEqual([])
+  })
+
+  it('reads the complete manifest in a server without per-route manifests', async () => {
+    // Like an output that predates the per-route manifests, or a server whose
+    // files were copied without them.
+    const result = await runServer(routeManifestPaths)
+
+    // Once, for all routes.
+    expect(result.manifestReads).toEqual(['.next/prerender-manifest.json'])
   })
 
   it('fails a route in a server that has no prerender manifest', async () => {
