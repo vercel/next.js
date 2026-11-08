@@ -10,6 +10,17 @@ const isCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 const ROUTE_MANIFEST = 'route-prerender-manifest.json'
 
+// The fields of a prerendered path that a route reads while it serves a
+// request. A route's manifest keeps these and drops the others.
+const RUNTIME_ROUTE_FIELDS = [
+  'dataRoute',
+  'srcRoute',
+  'renderingMode',
+  'initialRevalidateSeconds',
+  'initialExpireSeconds',
+  'prefetchDataRoute',
+]
+
 type Probe = {
   name: string
   // The route's entry below `.next/server`.
@@ -30,6 +41,7 @@ type NodeOutput = AdapterOutputs[
 const RESPONSE_HEADERS = [
   'cache-control',
   'content-type',
+  'x-nextjs-cache',
   'x-nextjs-postponed',
   'x-nextjs-prerender',
   'x-next-cache-tags',
@@ -402,6 +414,12 @@ describe('per-route-prerender-manifest', () => {
               url: '/legacy/strict/a',
               matchedPath: '/legacy/strict/a',
             },
+            {
+              name: 'app prerendered route handler',
+              entry: 'app/legacy/handler/route',
+              url: '/legacy/handler',
+              matchedPath: '/legacy/handler',
+            },
           ]),
       {
         name: 'pages getStaticProps',
@@ -512,36 +530,43 @@ describe('per-route-prerender-manifest', () => {
 
     for (const file of routeManifestPaths) {
       const manifest = readJSON(file)
+      // Two entries can prerender the same path (parallel routes). Each has
+      // the entry, with the same data: that of the complete manifest.
       for (const [route, entry] of Object.entries<any>(manifest.routes)) {
-        // Two entries can prerender the same path (parallel routes). Each
-        // has the entry, with the same data.
-        if (route in routes) {
-          expect({ file, route, entry }).toEqual({
-            file,
-            route,
-            entry: routes[route],
-          })
-        }
         routes[route] = entry
-        // The entry has a subset of the fields, with the same values.
-        expect(complete.routes[route]).toMatchObject(entry)
+        // Exactly the fields that a route reads, with the same values: a
+        // route that lacks one serves with other caching headers.
+        expect(complete.routes).toHaveProperty([route])
+        const completeEntry = complete.routes[route]
+        expect({ file, route, entry }).toStrictEqual({
+          file,
+          route,
+          entry: Object.fromEntries(
+            RUNTIME_ROUTE_FIELDS.filter((field) => field in completeEntry).map(
+              (field) => [field, completeEntry[field]]
+            )
+          ),
+        })
       }
+      // A dynamic route's entry is whole.
       for (const [route, entry] of Object.entries<any>(
         manifest.dynamicRoutes
       )) {
-        if (route in dynamicRoutes) {
-          expect({ file, route, entry }).toEqual({
-            file,
-            route,
-            entry: dynamicRoutes[route],
-          })
-        }
         dynamicRoutes[route] = entry
+        expect({ file, route, entry }).toStrictEqual({
+          file,
+          route,
+          entry: complete.dynamicRoutes[route],
+        })
       }
-      for (const route of manifest.notFoundRoutes) {
-        expect(manifest.routes).toHaveProperty([route])
-        notFoundRoutes.add(route)
-      }
+      // The paths of this route that returned `notFound`, and no other.
+      expect({ file, notFoundRoutes: manifest.notFoundRoutes }).toStrictEqual({
+        file,
+        notFoundRoutes: complete.notFoundRoutes.filter(
+          (route: string) => route in manifest.routes
+        ),
+      })
+      for (const route of manifest.notFoundRoutes) notFoundRoutes.add(route)
     }
 
     // Together they hold what the complete manifest holds.
@@ -801,6 +826,15 @@ describe('per-route-prerender-manifest', () => {
         entry: 'app/api/static/route',
         text: 'app static route handler',
       },
+      ...(isCacheComponents
+        ? []
+        : [
+            {
+              url: '/legacy/handler',
+              entry: 'app/legacy/handler/route',
+              text: 'app prerendered route handler',
+            },
+          ]),
       { url: '/no-such-page', entry: '', text: 'could not be found' },
     ].map((request) => ({
       ...request,
@@ -826,6 +860,27 @@ describe('per-route-prerender-manifest', () => {
     expect(result.manifestReads).toEqual(expect.arrayContaining(routeManifests))
     expect(result.manifestReads).not.toContain('.next/prerender-manifest.json')
     expect(result.missingManifests).toEqual([])
+
+    // A server takes the revalidation and expiry times of a prerendered path
+    // from the manifest: without them the path is stale and has other caching
+    // headers.
+    const prerendered = {
+      headers: {
+        'cache-control': 's-maxage=31536000',
+        'x-nextjs-cache': 'HIT',
+      },
+    }
+    expect(result.responses).toMatchObject({
+      '/': prerendered,
+      '/isr/a': prerendered,
+      '/blog/a': prerendered,
+      '/ssg': {
+        headers: {
+          'cache-control': 's-maxage=10, stale-while-revalidate=31535990',
+        },
+      },
+      ...(isCacheComponents ? {} : { '/legacy/handler': prerendered }),
+    })
   })
 
   it('fails a route in a server that has no prerender manifest', async () => {
