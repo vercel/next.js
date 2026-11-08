@@ -13,7 +13,6 @@ import { isResSent } from '../../../shared/lib/utils'
 import { interopDefault } from '../../../lib/interop-default'
 import {
   setLazyProp,
-  setApiResponseMethods,
   sendStatusCode,
   redirect,
   clearPreviewData,
@@ -326,6 +325,50 @@ async function revalidate(
       `Failed to revalidate ${urlPath}: ${isError(err) ? err.message : err}`
     )
   }
+}
+
+type ApiResponseMethods = Pick<
+  NextApiResponse,
+  | 'write'
+  | 'end'
+  | 'status'
+  | 'send'
+  | 'json'
+  | 'redirect'
+  | 'setDraftMode'
+  | 'setPreviewData'
+  | 'clearPreviewData'
+  | 'revalidate'
+>
+
+/**
+ * Sets the functions that are created for each request on the response of an
+ * API route.
+ *
+ * V8 allocates a function expression that is assigned to a property
+ * (`res.json = (body) => {}`) in the old generation until it optimizes the
+ * function around the assignment, and there it keeps the request and the
+ * response alive until the next major garbage collection. So the caller
+ * creates the functions in an object literal and this function assigns them.
+ * The minifier inlines this function as `res.write = (methods = {...}).write`,
+ * which still creates the functions in the object literal.
+ * `test/production/pages-api-young-generation` fails if a later form
+ * allocates them in the old generation again.
+ */
+function setApiResponseMethods(
+  res: NextApiResponse,
+  methods: ApiResponseMethods
+): void {
+  res.write = methods.write
+  res.end = methods.end
+  res.status = methods.status
+  res.send = methods.send
+  res.json = methods.json
+  res.redirect = methods.redirect
+  res.setDraftMode = methods.setDraftMode
+  res.setPreviewData = methods.setPreviewData
+  res.clearPreviewData = methods.clearPreviewData
+  res.revalidate = methods.revalidate
 }
 
 export async function apiResolver(

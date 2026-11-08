@@ -3,11 +3,11 @@ import { nextTestSetup } from 'e2e-utils'
 // V8 allocates two kinds of objects in the old generation from the start: a
 // function expression that is assigned to a property
 // (`res.json = (body) => {}`), until TurboFan has optimized the function that
-// creates it, which takes thousands of requests, and the internal pair of
-// functions of an accessor property. When Next.js creates one for every
-// request, it is garbage in the old generation as soon as the request ends,
-// and until the next major garbage collection it keeps everything alive that
-// it references, here the request and the response.
+// creates it, which takes hundreds to thousands of requests, and the internal
+// pair of functions of an accessor property. When Next.js creates one for
+// every request, it is garbage in the old generation as soon as the request
+// ends, and until the next major garbage collection it keeps everything alive
+// that it references, here the request and the response.
 describe('pages-api-young-generation', () => {
   const { next } = nextTestSetup({
     files: __dirname,
