@@ -22,6 +22,7 @@ import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
+import { Sema } from 'next/dist/compiled/async-sema'
 import os from 'os'
 import { getNextBuildDebuggerPortOffset, Worker } from '../lib/worker'
 import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
@@ -507,6 +508,8 @@ export type PrerenderManifestRuntime = {
 
 type RoutePrerenderData = Pick<PrerenderManifest, 'routes' | 'dynamicRoutes'>
 
+const ROUTE_PRERENDER_MANIFEST_WRITE_CONCURRENCY = 32
+
 function getPprAppPageClassification(
   route: string,
   result:
@@ -785,6 +788,8 @@ async function writeRoutePrerenderManifests(
   >,
   notFoundRoutes: readonly string[]
 ): Promise<void> {
+  // An application can have more routes than the process may open files.
+  const sema = new Sema(ROUTE_PRERENDER_MANIFEST_WRITE_CONCURRENCY)
   const writes: Promise<void>[] = []
   for (const [manifestPath, data] of routes) {
     const manifest: PrerenderManifestRuntime = {
@@ -811,9 +816,14 @@ async function writeRoutePrerenderManifests(
 
     const filePath = path.join(distDir, manifestPath)
     writes.push(
-      fs
-        .mkdir(path.dirname(filePath), { recursive: true })
-        .then(() => writeFileUtf8(filePath, JSON.stringify(manifest)))
+      sema.acquire().then(async () => {
+        try {
+          await fs.mkdir(path.dirname(filePath), { recursive: true })
+          await writeFileUtf8(filePath, JSON.stringify(manifest))
+        } finally {
+          sema.release()
+        }
+      })
     )
   }
   await Promise.all(writes)
