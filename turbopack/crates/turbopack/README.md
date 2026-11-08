@@ -12,7 +12,7 @@
   <a aria-label="Vercel logo" href="https://vercel.com/">
     <img src="https://img.shields.io/badge/MADE%20BY%20Vercel-000000.svg?style=for-the-badge&logo=Vercel&labelColor=000">
   </a>
-  <a aria-label="Crates.io version" href="https://crates.io/crates/turbopack">
+  <a aria-label="Crates.io version" href="https://github.com/vercel/next.js/tree/canary/turbopack/crates/turbopack">
     <img alt="" src="https://img.shields.io/crates/v/turbopack.svg?style=for-the-badge&labelColor=000000">
   </a>
   <a aria-label="License" href="https://github.com/vercel/turbo/blob/main/LICENSE">
