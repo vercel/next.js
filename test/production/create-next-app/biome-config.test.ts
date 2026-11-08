@@ -39,42 +39,93 @@ describe('create-next-app Biome configuration', () => {
     })
   })
 
-  it('should run biome check successfully on generated TypeScript project', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'test-biome-ts-check'
-      const { exitCode } = await run(
-        [
-          projectName,
-          '--ts',
-          '--biome',
-          '--no-tailwind',
-          '--no-src-dir',
-          '--app',
-          '--no-import-alias',
-          '--no-react-compiler',
-          '--no-agents-md',
-        ],
-        nextTgzFilename,
-        { cwd }
+  it.each(
+    ['app', 'pages'].flatMap((router) =>
+      ['js', 'ts'].flatMap((mode) =>
+        [false, true].flatMap((srcDir) =>
+          [false, true].map((empty) => ({ router, mode, srcDir, empty }))
+        )
       )
+    )
+  )(
+    'should configure the Tailwind stylesheet for $router ($mode, srcDir: $srcDir, empty: $empty)',
+    async ({ router, mode, srcDir, empty }) => {
+      await useTempDir(async (cwd) => {
+        const projectName = 'test-biome-tailwind'
+        const { exitCode } = await run(
+          [
+            projectName,
+            `--${mode}`,
+            '--biome',
+            '--tailwind',
+            srcDir ? '--src-dir' : '--no-src-dir',
+            router === 'app' ? '--app' : '--no-app',
+            ...(empty ? ['--empty'] : []),
+            '--no-import-alias',
+            '--no-react-compiler',
+            '--no-agents-md',
+            '--skip-install',
+          ],
+          nextTgzFilename,
+          { cwd }
+        )
 
-      expect(exitCode).toBe(0)
+        expect(exitCode).toBe(0)
 
-      const projectDir = join(cwd, projectName)
+        const projectDir = join(cwd, projectName)
+        const biomeConfig = JSON.parse(
+          await readFile(join(projectDir, 'biome.json'), 'utf8')
+        )
+        const stylesheet = `${srcDir ? 'src/' : ''}${router === 'app' ? 'app' : 'styles'}/globals.css`
 
-      // Run biome check on the generated project
-      const { exitCode: biomeExitCode, stdout } = await execa(
-        'npm',
-        ['run', 'lint'],
-        {
+        expect(biomeConfig.tailwind).toEqual({ stylesheet })
+        expect(await readFile(join(projectDir, stylesheet), 'utf8')).toContain(
+          '@import "tailwindcss"'
+        )
+      })
+    }
+  )
+
+  it.each([false, true])(
+    'should run biome check successfully on generated TypeScript project (Tailwind: %s)',
+    async (tailwind) => {
+      await useTempDir(async (cwd) => {
+        const projectName = 'test-biome-ts-check'
+        const { exitCode } = await run(
+          [
+            projectName,
+            '--ts',
+            '--biome',
+            tailwind ? '--tailwind' : '--no-tailwind',
+            tailwind ? '--src-dir' : '--no-src-dir',
+            '--app',
+            '--no-import-alias',
+            '--no-react-compiler',
+            '--no-agents-md',
+          ],
+          nextTgzFilename,
+          { cwd }
+        )
+
+        expect(exitCode).toBe(0)
+
+        const projectDir = join(cwd, projectName)
+
+        // Run biome check on the generated project
+        const {
+          exitCode: biomeExitCode,
+          stdout,
+          stderr,
+        } = await execa('npm', ['run', 'lint'], {
           cwd: projectDir,
-        }
-      )
+        })
 
-      expect(biomeExitCode).toBe(0)
-      expect(stdout).toContain('Checked')
-    })
-  })
+        expect(biomeExitCode).toBe(0)
+        expect(stdout + stderr).toContain('Checked')
+        expect(stdout + stderr).not.toContain('deprecated')
+      })
+    }
+  )
 
   it('should run biome check successfully on generated JavaScript project', async () => {
     await useTempDir(async (cwd) => {
@@ -100,16 +151,17 @@ describe('create-next-app Biome configuration', () => {
       const projectDir = join(cwd, projectName)
 
       // Run biome check on the generated project
-      const { exitCode: biomeExitCode, stdout } = await execa(
-        'npm',
-        ['run', 'lint'],
-        {
-          cwd: projectDir,
-        }
-      )
+      const {
+        exitCode: biomeExitCode,
+        stdout,
+        stderr,
+      } = await execa('npm', ['run', 'lint'], {
+        cwd: projectDir,
+      })
 
       expect(biomeExitCode).toBe(0)
-      expect(stdout).toContain('Checked')
+      expect(stdout + stderr).toContain('Checked')
+      expect(stdout + stderr).not.toContain('deprecated')
     })
   })
 
@@ -137,16 +189,16 @@ describe('create-next-app Biome configuration', () => {
       const projectDir = join(cwd, projectName)
 
       // Run biome format on the generated project
-      const { exitCode: biomeFormatCode, stdout } = await execa(
-        'npm',
-        ['run', 'format'],
-        {
-          cwd: projectDir,
-        }
-      )
+      const {
+        exitCode: biomeFormatCode,
+        stdout,
+        stderr,
+      } = await execa('npm', ['run', 'format'], {
+        cwd: projectDir,
+      })
 
       expect(biomeFormatCode).toBe(0)
-      expect(stdout).toContain('Formatted')
+      expect(stdout + stderr).toContain('Formatted')
     })
   })
 
