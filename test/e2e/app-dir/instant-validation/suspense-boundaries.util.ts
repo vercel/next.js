@@ -964,7 +964,7 @@ export function registerSuspenseBoundariesTests(
                  ],
                },
              ],
-             "description": "Next.js encountered a short-lived cache outside of Suspense.",
+             "description": "Next.js encountered a short-lived cache during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (21:9) @ DynamicContent
@@ -982,10 +982,10 @@ export function registerSuspenseBoundariesTests(
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache": Next.js encountered a short-lived cache during prerendering or a navigation.
 
-           This \`"use cache"\` entry is excluded from the required prerendered output because of its \`cacheLife\`. For prerendering, \`expire\` must be at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0. The App Shell additionally requires \`stale\` of at least 300 seconds.
+           Accessing a short-lived cache outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - [cache] Increase the relevant \`cacheLife\` value
+             - [cache] Increase the cache lifetime
              - [stream] Wrap the short-lived cache access in \`<Suspense fallback={...}>\`
              - [block] Set \`export const instant = false\` to allow a blocking route
 
@@ -1021,7 +1021,7 @@ export function registerSuspenseBoundariesTests(
                  ],
                },
              ],
-             "description": "Next.js encountered a short-lived cache outside of Suspense.",
+             "description": "Next.js encountered a short-lived cache during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/excluded-caches/invalid-non-prefetchable-cache/page.tsx (21:9) @ DynamicContent

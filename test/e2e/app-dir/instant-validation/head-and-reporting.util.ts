@@ -941,7 +941,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered a short-lived cache outside of Suspense.",
+                 "description": "Next.js encountered a short-lived cache during a navigation.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9) @ PrefetchContent
@@ -959,10 +959,10 @@ export function registerHeadAndReportingTests(
                 .toMatchInlineSnapshot(`
                   "Error: Route "/shells/invalid-non-shell-cache": Next.js encountered a short-lived cache during prerendering or a navigation.
 
-                  This \`"use cache"\` entry is excluded from the required prerendered output because of its \`cacheLife\`. For prerendering, \`expire\` must be at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0. The App Shell additionally requires \`stale\` of at least 300 seconds.
+                  Accessing a short-lived cache outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
 
                   Ways to fix this:
-                    - [cache] Increase the relevant \`cacheLife\` value
+                    - [cache] Increase the cache lifetime
                     - [stream] Wrap the short-lived cache access in \`<Suspense fallback={...}>\`
                     - [block] Set \`export const instant = false\` to allow a blocking route
 
@@ -997,7 +997,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered a short-lived cache outside of Suspense.",
+                 "description": "Next.js encountered a short-lived cache during a navigation.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9) @ PrefetchContent
@@ -2327,7 +2327,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered a short-lived cache outside of Suspense.",
+                 "description": "Next.js encountered a short-lived cache during a navigation.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9) @ SessionContent
@@ -2345,10 +2345,10 @@ export function registerHeadAndReportingTests(
                 .toMatchInlineSnapshot(`
                "Error: Route "/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache": Next.js encountered a short-lived cache during prerendering or a navigation.
 
-               This \`"use cache"\` entry is excluded from the required prerendered output because of its \`cacheLife\`. For prerendering, \`expire\` must be at least 300 seconds (five minutes), \`stale\` at least 30 seconds, and \`revalidate\` greater than 0. The App Shell additionally requires \`stale\` of at least 300 seconds.
+               Accessing a short-lived cache outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Increase the relevant \`cacheLife\` value
+                 - [cache] Increase the cache lifetime
                  - [stream] Wrap the short-lived cache access in \`<Suspense fallback={...}>\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
@@ -2384,7 +2384,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered a short-lived cache outside of Suspense.",
+                 "description": "Next.js encountered a short-lived cache during a navigation.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9) @ SessionContent

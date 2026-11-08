@@ -469,7 +469,7 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Next.js encountered a short-lived cache outside of Suspense.",
+               "description": "Next.js encountered a short-lived cache during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
@@ -590,7 +590,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Next.js encountered a short-lived cache outside of Suspense.",
+               "description": "Next.js encountered a short-lived cache during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
@@ -874,7 +874,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Next.js encountered a short-lived cache outside of Suspense.",
+               "description": "Next.js encountered a short-lived cache during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
@@ -995,7 +995,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Next.js encountered a short-lived cache outside of Suspense.",
+               "description": "Next.js encountered a short-lived cache during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
