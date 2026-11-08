@@ -102,6 +102,15 @@ describe('browser-chunks', () => {
     ).sort()
 
     expect(instantMessagesSources).toMatchInlineSnapshot(`[]`)
+
+    // The list above is also empty when the source maps are missing or name
+    // their sources in another way. This text is one of the messages of that
+    // module, so no chunk may contain it either.
+    expect(
+      jsContents.some((content) =>
+        content.includes('Next.js encountered dynamic data during prefetching')
+      )
+    ).toBe(false)
   })
 
   it('must not include heavy dependencies into browser chunks', () => {
