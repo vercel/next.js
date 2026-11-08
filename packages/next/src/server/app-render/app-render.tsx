@@ -9000,6 +9000,31 @@ function withTurbopackBootstrapScript(
   )
 }
 
+// A prerender aborts about ten controllers per page, at the end of each of
+// its renders. Without an argument, every `abort()` call constructs a new
+// DOMException with a stack trace as the reason. These are expected aborts
+// that happen from our own tasks, never from user code, so the stack trace
+// of the reason only ever has frames of Next.js and Node.js timers in it.
+// They share one reason instead, of the kind `abort()` would have created.
+//
+// Most of these signals only tell our own request APIs that the render is
+// over. The reason of the ones that we pass to React is observable: React
+// passes it to `onError` for every task it aborts, and exposes it to user
+// code as `cacheSignal().reason`. That code sees the same type, name and
+// message as before. What differs is the `stack` (it is the one of the first
+// prerender abort in this process) and the identity (it is the same object
+// for every prerender). Don't use this for an abort that reports a problem.
+let prerenderAbortReason: DOMException | undefined
+function getPrerenderAbortReason(): DOMException {
+  if (prerenderAbortReason === undefined) {
+    prerenderAbortReason = new DOMException(
+      'This operation was aborted',
+      'AbortError'
+    )
+  }
+  return prerenderAbortReason
+}
+
 async function prerenderToStream(
   res: BaseNextResponse,
   ctx: AppRenderContext,
@@ -9501,8 +9526,8 @@ async function prerenderToStream(
       initialServerReactController.signal.addEventListener(
         'abort',
         () => {
-          initialServerRenderController.abort()
-          initialServerPrerenderController.abort()
+          initialServerRenderController.abort(getPrerenderAbortReason())
+          initialServerPrerenderController.abort(getPrerenderAbortReason())
         },
         { once: true }
       )
@@ -9511,7 +9536,7 @@ async function prerenderToStream(
       trackPendingModules(cacheSignal)
       await cacheSignal.cacheReady()
 
-      initialServerReactController.abort()
+      initialServerReactController.abort(getPrerenderAbortReason())
 
       // We don't need to continue the prerender process if we already
       // detected invalid dynamic usage in the initial prerender phase.
@@ -9627,7 +9652,7 @@ async function prerenderToStream(
         initialClientReactController.signal.addEventListener(
           'abort',
           () => {
-            initialClientRenderController.abort()
+            initialClientRenderController.abort(getPrerenderAbortReason())
           },
           { once: true }
         )
@@ -9659,7 +9684,10 @@ async function prerenderToStream(
         await clientCacheSignal.cacheReady()
         workUnitAsyncStorage.run(
           initialClientPrerenderStore,
-          initialClientReactController.abort.bind(initialClientReactController)
+          initialClientReactController.abort.bind(
+            initialClientReactController,
+            getPrerenderAbortReason()
+          )
         )
       }
 
@@ -9864,7 +9892,7 @@ async function prerenderToStream(
           finalServerReactController.signal.addEventListener(
             'abort',
             () => {
-              finalServerRenderController.abort()
+              finalServerRenderController.abort(getPrerenderAbortReason())
             },
             { once: true }
           )
@@ -9947,7 +9975,10 @@ async function prerenderToStream(
 
           workUnitAsyncStorage.run(
             finalServerPrerenderStore,
-            finalServerReactController.abort.bind(finalServerReactController)
+            finalServerReactController.abort.bind(
+              finalServerReactController,
+              getPrerenderAbortReason()
+            )
           )
         }
       )
@@ -10132,7 +10163,7 @@ async function prerenderToStream(
             finalClientReactController.signal.addEventListener(
               'abort',
               () => {
-                finalClientRenderController.abort()
+                finalClientRenderController.abort(getPrerenderAbortReason())
               },
               { once: true }
             )
@@ -10159,7 +10190,10 @@ async function prerenderToStream(
 
             workUnitAsyncStorage.run(
               finalClientPrerenderStore,
-              finalClientReactController.abort.bind(finalClientReactController)
+              finalClientReactController.abort.bind(
+                finalClientReactController,
+                getPrerenderAbortReason()
+              )
             )
           }
         )
