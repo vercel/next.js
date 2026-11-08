@@ -1432,10 +1432,9 @@ export function registerHeadAndReportingTests(
                This route is configured to be fully static, but some data requires rendering at request time.
 
                Ways to fix this:
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [remove] Remove the data access
                  - [client] Read the data on the client
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/static-route-dynamic
                    at main (<anonymous>)

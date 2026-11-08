@@ -114,9 +114,8 @@ describe('Cache Components Errors - Client Components', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at Client (app/client-awaited-io/client.tsx:6:19)
@@ -142,9 +141,8 @@ describe('Cache Components Errors - Client Components', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at <unknown> (app/client-awaited-io/client.tsx:5:26)
@@ -173,9 +171,8 @@ describe('Cache Components Errors - Client Components', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at Client (webpack:///app/client-awaited-io/client.tsx:6:19)
@@ -201,9 +198,8 @@ describe('Cache Components Errors - Client Components', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at a (<next-dist-dir>)

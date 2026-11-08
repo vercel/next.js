@@ -281,9 +281,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
@@ -397,9 +396,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at a (<next-dist-dir>)
@@ -473,9 +471,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
@@ -544,9 +541,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at body (<anonymous>)
@@ -574,9 +570,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
@@ -690,9 +685,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at a (<next-dist-dir>)
@@ -766,9 +760,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
@@ -837,9 +830,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at body (<anonymous>)
@@ -867,9 +859,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
@@ -983,9 +974,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at a (<next-dist-dir>)
@@ -1059,9 +1049,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
@@ -1130,9 +1119,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at body (<anonymous>)
@@ -1160,9 +1148,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
@@ -1276,9 +1263,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at a (<next-dist-dir>)
@@ -1352,9 +1338,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
@@ -1423,9 +1408,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at body (<anonymous>)
@@ -1453,9 +1437,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
@@ -1569,9 +1552,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at a (<next-dist-dir>)
@@ -1645,9 +1627,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
@@ -1716,9 +1697,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at body (<anonymous>)
@@ -2436,9 +2416,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
@@ -2476,9 +2455,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at b (<next-dist-dir>)
@@ -2572,9 +2550,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
@@ -2619,9 +2596,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at body (<anonymous>)
@@ -2669,9 +2645,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
@@ -2799,9 +2774,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                   - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                    - [block] Set \`export const instant = false\` to allow a blocking route
-                   - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                  Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                      at b (<next-dist-dir>)
@@ -2895,9 +2869,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
@@ -2987,9 +2960,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
 
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
                  - [block] Set \`export const instant = false\` to allow a blocking route
-                 - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
                    at body (<anonymous>)

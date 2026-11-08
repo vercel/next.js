@@ -89,9 +89,10 @@ describe('short-lived-cache diagnostics', () => {
         expect(output).not.toContain('Cache the data access with')
       } else {
         expect(output).toContain(
-          `For short-lived cached data: see https://nextjs.org/docs/messages/${route.startsWith('static-') ? 'static-short-lived-cache' : 'short-lived-cache'}#${route.endsWith('metadata') ? 'metadata' : route.endsWith('viewport') ? 'viewport' : 'route-content'}`
+          'or increase `cacheLife` for short-lived caches'
         )
         expect(output).not.toContain('300 seconds (five minutes)')
+        expect(output).not.toContain('For short-lived cached data: see')
       }
     })
   }

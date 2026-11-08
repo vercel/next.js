@@ -1046,10 +1046,7 @@ describe('fully static route errors', () => {
     expect(cards.map((card) => card.group)).not.toContain('block')
     expect(cards.map((card) => card.group)).toEqual(
       Array.from(
-        // Build-only cache references do not add a development overlay card.
-        error.message
-          .replace(/^.*For short-lived cached data:.*\n/gm, '')
-          .matchAll(/^\s*-\s*\[([a-z-]+)\]/gm),
+        error.message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm),
         (match) => match[1]
       )
     )
@@ -1128,39 +1125,40 @@ it('keeps short-stale App Shell findings as Instant Insights', () => {
   }
 })
 
-it('links to all short-cache fixes without changing the original build guidance', () => {
+it('keeps combined build fixes aligned with the cards and shares the cache option', () => {
   const cases = [
-    [createDynamicOrRuntimeBodyError, 'short-lived-cache#route-content'],
-    [createDynamicOrRuntimeMetadataError, 'short-lived-cache#metadata'],
-    [createDynamicOrRuntimeViewportError, 'short-lived-cache#viewport'],
-    [
-      createNonPrerenderableBodyErrorInStaticRoute,
-      'static-short-lived-cache#route-content',
-    ],
-    [
-      createNonPrerenderableMetadataErrorInStaticRoute,
-      'static-short-lived-cache#metadata',
-    ],
-    [
-      createNonPrerenderableViewportErrorInStaticRoute,
-      'static-short-lived-cache#viewport',
-    ],
+    [createDynamicOrRuntimeBodyError, 'blocking-route'],
+    [createDynamicOrRuntimeMetadataError, 'metadata'],
+    [createDynamicOrRuntimeViewportError, 'viewport'],
+    [createNonPrerenderableBodyErrorInStaticRoute, 'static-route'],
+    [createNonPrerenderableMetadataErrorInStaticRoute, 'static-metadata'],
+    [createNonPrerenderableViewportErrorInStaticRoute, 'static-viewport'],
   ] as const
-  for (const [createError, page] of cases) {
+  for (const [createError, kind] of cases) {
     const message = createError(ROUTE).message
     const remedies = message
       .split('Ways to fix this:\n')[1]
       .split('\n\n')[0]
       .split('\n')
-    expect(remedies.at(-1)).toBe(
-      `  - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/${page}`
+    // A combined build error preserves the applicable card groups from all causes.
+    const cardGroups = new Set(
+      (['runtime', 'dynamic', 'short-cache'] as const).flatMap((variant) =>
+        getCards(kind, variant).map((card) => card.group)
+      )
     )
+    expect(
+      remedies.map((line) => line.match(/\[([a-z-]+)\]/)![1]).sort()
+    ).toEqual([...cardGroups].sort())
+    const cacheOptions = remedies.filter((line) =>
+      line.startsWith('  - [cache]')
+    )
+    expect(cacheOptions).toHaveLength(1)
+    expect(cacheOptions[0]).toContain('"use cache"')
+    expect(cacheOptions[0]).toContain(
+      'or increase `cacheLife` for short-lived caches'
+    )
+    expect(cacheOptions[0]).toContain('(does not apply to `connection()`)')
     expect(message).not.toContain('300 seconds')
-    expect(message).not.toContain('increase `cacheLife`')
-    expect(message).toContain(
-      createError === createDynamicOrRuntimeMetadataError
-        ? 'Cache the metadata with'
-        : 'For uncached data'
-    )
+    expect(message).not.toContain('For short-lived cached data: see')
   }
 })

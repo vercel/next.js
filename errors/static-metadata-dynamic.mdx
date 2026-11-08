@@ -24,7 +24,7 @@ A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/
 
 During [prerendering](/docs/app/glossary#prerendering), [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) performed an uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) request, database call, or [`connection()`](/docs/app/api-reference/functions/connection). The operation requires rendering at request time, which conflicts with the route's static requirement.
 
-If a production build reports this error for short-lived cached data, see [Next.js encountered a short-lived cache on a route that must be fully static](/docs/messages/static-short-lived-cache#metadata).
+During `next build`, Next.js may also show this error for short-lived cached data. See [Next.js encountered a short-lived cache on a route that must be fully static](/docs/messages/static-short-lived-cache#metadata) for the applicable fixes.
 
 Request-specific reads from [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) have different fixes. See [Runtime data in `generateMetadata()` on a route that must be fully static](/docs/messages/static-metadata-runtime).
 

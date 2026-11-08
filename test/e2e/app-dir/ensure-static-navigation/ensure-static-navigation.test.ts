@@ -237,10 +237,9 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
          Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/uncached-data/page.tsx:15:16)
@@ -293,10 +292,9 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
          Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/connection/page.tsx:17:19)
@@ -349,10 +347,9 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
          Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/instant-false/connection-blocking/page.tsx:20:19)
@@ -405,10 +402,9 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
          Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/suspense-above-body/connection-blocking/page.tsx:20:19)
@@ -461,10 +457,9 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
          Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at UseServerData (app/default/dynamic-data-passed-to-client/client.tsx:6:19)
@@ -677,9 +672,8 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data: cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache the data used by \`generateMetadata()\` with \`"use cache"\`, or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateMetadata()\` with static data
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#metadata
 
          Learn more: https://nextjs.org/docs/messages/static-metadata-dynamic
              at Module.generateMetadata (app/default/dynamic-metadata/page.tsx:7:19)
@@ -730,9 +724,8 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data: cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache the data used by \`generateViewport()\` with \`"use cache"\`, or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateViewport()\` with static data
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#viewport
 
          Learn more: https://nextjs.org/docs/messages/static-viewport-dynamic
              at Module.generateViewport (app/default/dynamic-viewport/page.tsx:7:19)
@@ -952,10 +945,9 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
          Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/excluded-caches/non-prerenderable-cache/page.tsx:17:9)
@@ -1168,9 +1160,8 @@ describe('ensureStatic = "navigation"', () => {
 
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [block] Set \`export const instant = false\` to allow a blocking route
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/short-lived-cache#route-content
 
          Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              at ClientIO (app/default/blocking-use-io/client.tsx:6:6)
@@ -1225,10 +1216,9 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
          Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/mixed-server-client/connection-and-browser/page.tsx:21:19)
@@ -1282,10 +1272,9 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
          Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/mixed-server-client/connection-and-use-search-params/page.tsx:21:19)
@@ -1365,10 +1354,9 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
          Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/mixed-server-client/connection-and-use-io/page.tsx:21:19)
@@ -1386,10 +1374,9 @@ describe('ensureStatic = "navigation"', () => {
          This route is configured to be fully static, but some data requires rendering at request time.
 
          Ways to fix this:
-           - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [cache] Cache uncached data with \`"use cache"\` or increase \`cacheLife\` for short-lived caches (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - [client] Read the data on the client
-           - [cache] For short-lived cached data: see https://nextjs.org/docs/messages/static-short-lived-cache#route-content
 
          Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at ClientIO (app/default/mixed-server-client/connection-and-use-io/client.tsx:6:6)
