@@ -84,27 +84,33 @@ describe('async-context-snapshot', () => {
   // removes every `if` statement of the function declaration `createSnapshot`
   // in that file, so that a snapshot calls its callback in the context of the
   // caller. Its rule finds nothing if the function moves to another file or is
-  // no longer a declaration, and it changes nothing if a context is captured
-  // outside the `if` statement.
+  // no longer a declaration, and it leaves a context in place that is captured
+  // outside an `if` statement.
   it('should keep createSnapshot in the shape that adapters patch', () => {
-    const file = createRequire(path.join(next.testDir, 'package.json')).resolve(
-      'next/dist/server/app-render/async-local-storage'
+    const shape = new RegExp(
+      [
+        // A function declaration: at the start of a line, or after the
+        // comment that the ESM build puts in front of it. The rule does not
+        // look at a function expression or a method.
+        /(?:^|\n|\*\/ )(?:export )?function createSnapshot\([^()]*\) \{/,
+        // `if` statements, with at most one nested block. The rule removes
+        // them, so nothing else may capture a context.
+        /(?:if \([^()]*\) \{(?:[^{}]|\{[^{}]*\})*\}\s*)+/,
+        // What is left calls the callback directly: a function expression
+        // or an arrow function that only passes its arguments on.
+        /return (?:function\s*)?\((\w+), \.\.\.(\w+)\)\s*(?:=>\s*)?(?:\{\s*return )?\1\(\.\.\.\2\);?\s*\}?;?/,
+        /\}/,
+      ]
+        .map((part) => part.source)
+        .join('\\s*')
     )
-    expect(fs.readFileSync(file, 'utf8')).toMatch(
-      new RegExp(
-        [
-          /function createSnapshot\(\w*\) \{/,
-          // The only statement that captures a context, without a nested block.
-          /if \(maybeGlobalAsyncLocalStorage\) \{[^{}]*\}/,
-          // What is left without it calls the callback directly.
-          /return function\(fn, \.\.\.args\) \{/,
-          /return fn\(\.\.\.args\);/,
-          /\};/,
-          /\}/,
-        ]
-          .map((part) => part.source)
-          .join('\\s*')
+    const appRequire = createRequire(path.join(next.testDir, 'package.json'))
+    // The CommonJS build and the ESM build of the file.
+    for (const dist of ['next/dist', 'next/dist/esm']) {
+      const file = appRequire.resolve(
+        `${dist}/server/app-render/async-local-storage`
       )
-    )
+      expect(fs.readFileSync(file, 'utf8')).toMatch(shape)
+    }
   })
 })
