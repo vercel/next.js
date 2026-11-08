@@ -26,6 +26,6 @@ module.exports = {
     maxInactiveAge: 1000 * 60 * 60,
   },
   async generateBuildId() {
-    return 'custom-buildid'
+    return process.env.CUSTOM_BUILD_ID || 'custom-buildid'
   },
 }

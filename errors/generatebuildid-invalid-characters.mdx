@@ -1,0 +1,28 @@
+---
+title: '`generateBuildId` returned an invalid build ID'
+---
+
+## Why This Error Occurred
+
+The `generateBuildId` function in `next.config.js` returned a string that is empty or contains `/`, `\`, `?`, `#` or whitespace.
+
+Next.js uses the build ID as a single segment of URL paths such as `/_next/data/<build-id>/<page>.json` and `/_next/static/<build-id>/…`, and as a directory name inside the build output. A build ID like `release/v1` adds an extra path segment, so the server no longer recognizes those URLs. Client-side navigations to dynamic routes then fail silently, because the page data requests return `404`.
+
+## Possible Ways to Fix It
+
+Return a value that is safe as a single URL path segment, for example a git hash or a version string without `/`:
+
+```js filename="next.config.js"
+module.exports = {
+  generateBuildId: async () => {
+    // e.g. "release-v1" or the latest git commit hash
+    return process.env.GIT_HASH
+  },
+}
+```
+
+If you need to include a value that contains `/`, replace those characters first, e.g. `process.env.RELEASE.replaceAll('/', '-')`.
+
+## Useful Links
+
+- [`generateBuildId` configuration](/docs/app/api-reference/config/next-config-js/generateBuildId)
