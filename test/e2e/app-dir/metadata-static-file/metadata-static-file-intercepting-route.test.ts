@@ -15,7 +15,8 @@ describe('metadata-files-static-output-intercepting-route', () => {
     //
     // Ways to fix this:
     //   - [static] Use a static metadata export instead of `generateMetadata()`
-    //   - [cache] For uncached data or short-lived caches: cache the metadata or increase the cache lifetime (does not apply to `connection()`)
+    //   - [cache] For uncached data: cache the metadata with `"use cache"` in `generateMetadata()` (does not apply to `connection()`)
+    //   - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#metadata
     //   - [dynamic] Render a marker component that calls `await connection()` inside `<Suspense>` on the page
     //   - [block] Set `export const instant = false` to allow a blocking route
     //

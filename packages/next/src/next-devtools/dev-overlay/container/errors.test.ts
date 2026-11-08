@@ -1044,12 +1044,15 @@ describe('fully static route errors', () => {
     expect(cards.length).toBeGreaterThan(0)
     expect(cards.map((card) => card.group)).not.toContain('stream')
     expect(cards.map((card) => card.group)).not.toContain('block')
-    expect(cards.map((card) => card.group)).toEqual(
-      Array.from(
-        error.message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm),
-        (match) => match[1]
-      )
-    )
+    // Combined messages can offer two conditional remedies in the Cache group.
+    expect(cards.map((card) => card.group)).toEqual([
+      ...new Set(
+        Array.from(
+          error.message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm),
+          (match) => match[1]
+        )
+      ),
+    ])
     for (const card of cards) {
       expect(card.link?.split('#')[0]).toBe(
         getStaticRouteDocsUrl(kind, variant)
@@ -1125,46 +1128,89 @@ it('keeps short-stale App Shell findings as Instant Insights', () => {
   }
 })
 
-it('keeps combined build fixes aligned with the cards and qualifies the cache option', () => {
+it('offers both conditional Cache remedies when the build cannot identify the cause', () => {
   const cases = [
-    [createDynamicOrRuntimeBodyError, 'blocking-route'],
-    [createDynamicOrRuntimeMetadataError, 'metadata'],
-    [createDynamicOrRuntimeViewportError, 'viewport'],
-    [createNonPrerenderableBodyErrorInStaticRoute, 'static-route'],
-    [createNonPrerenderableMetadataErrorInStaticRoute, 'static-metadata'],
-    [createNonPrerenderableViewportErrorInStaticRoute, 'static-viewport'],
+    [
+      createDynamicOrRuntimeBodyError,
+      'blocking-route',
+      'short-lived-cache#route-content',
+    ],
+    [
+      createDynamicOrRuntimeMetadataError,
+      'metadata',
+      'short-lived-cache#metadata',
+    ],
+    [
+      createDynamicOrRuntimeViewportError,
+      'viewport',
+      'short-lived-cache#viewport',
+    ],
+    [
+      createNonPrerenderableBodyErrorInStaticRoute,
+      'static-route',
+      'static-short-lived-cache#route-content',
+    ],
+    [
+      createNonPrerenderableMetadataErrorInStaticRoute,
+      'static-metadata',
+      'static-short-lived-cache#metadata',
+    ],
+    [
+      createNonPrerenderableViewportErrorInStaticRoute,
+      'static-viewport',
+      'static-short-lived-cache#viewport',
+    ],
   ] as const
-  for (const [createError, kind] of cases) {
+  for (const [createError, kind, page] of cases) {
     const message = createError(ROUTE).message
     const remedies = message
       .split('Ways to fix this:\n')[1]
       .split('\n\n')[0]
       .split('\n')
-    // A combined build error preserves the applicable card groups from all causes.
     const cardGroups = new Set(
       (['runtime', 'dynamic', 'short-cache'] as const).flatMap((variant) =>
         getCards(kind, variant).map((card) => card.group)
       )
     )
     expect(
-      remedies.map((line) => line.match(/\[([a-z-]+)\]/)![1]).sort()
+      [
+        ...new Set(remedies.map((line) => line.match(/\[([a-z-]+)\]/)![1])),
+      ].sort()
     ).toEqual([...cardGroups].sort())
     const cacheOptions = remedies.filter((line) =>
       line.startsWith('  - [cache]')
     )
-    expect(cacheOptions).toHaveLength(1)
+    expect(cacheOptions).toHaveLength(2)
     expect(cacheOptions[0]).toMatch(
-      /^ {2}- \[cache\] For uncached data or short-lived caches: cache the /
+      /^ {2}- \[cache\] For uncached data(?: \([^)]*\))?: /
     )
-    expect(cacheOptions[0]).toContain('or increase the cache lifetime')
+    expect(cacheOptions[0]).toContain('"use cache"')
     expect(cacheOptions[0]).toContain('(does not apply to `connection()`)')
-    expect(cacheOptions[0]).not.toContain('cacheLife')
+    expect(cacheOptions[1]).toBe(
+      `  - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/${page}`
+    )
+    expect(remedies.indexOf(cacheOptions[1])).toBe(
+      remedies.indexOf(cacheOptions[0]) + 1
+    )
     expect(message).not.toContain('300 seconds')
-    expect(message).not.toContain('For short-lived cached data: see')
   }
 })
 
 it('keeps Cache remedies specific when validation identifies the cause', () => {
+  for (const createError of [
+    createRuntimeBodyError,
+    createRuntimeMetadataError,
+    createRuntimeViewportError,
+    createRuntimeBodyErrorInStaticRoute,
+    createRuntimeMetadataErrorInStaticRoute,
+    createRuntimeViewportErrorInStaticRoute,
+  ]) {
+    expect(
+      createError(ROUTE)
+        .message.split('\n')
+        .filter((line) => line.startsWith('  - [cache]'))
+    ).toEqual([])
+  }
   for (const createError of [
     createDynamicBodyError,
     createDynamicMetadataError,

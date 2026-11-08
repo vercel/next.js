@@ -55,7 +55,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] For uncached data or short-lived caches: cache the metadata or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#metadata
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -72,7 +73,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] For uncached data or short-lived caches: cache the metadata or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#metadata
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -129,7 +131,8 @@ export function registerMetadataAndViewportTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -156,7 +159,8 @@ export function registerMetadataAndViewportTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -179,7 +183,8 @@ export function registerMetadataAndViewportTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -206,7 +211,8 @@ export function registerMetadataAndViewportTests(
 
              Ways to fix this:
                - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               - [cache] For uncached data or short-lived caches: cache the data or increase the cache lifetime (does not apply to \`connection()\`)
+               - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+               - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#route-content
                - [block] Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
@@ -288,7 +294,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] For uncached data or short-lived caches: cache the metadata or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#metadata
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -305,7 +312,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] For uncached data or short-lived caches: cache the metadata or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#metadata
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -359,7 +367,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] For uncached data or short-lived caches: cache the metadata or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#metadata
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -376,7 +385,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] For uncached data or short-lived caches: cache the metadata or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#metadata
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -430,7 +440,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] For uncached data or short-lived caches: cache the metadata or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#metadata
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -447,7 +458,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static metadata export instead of \`generateMetadata()\`
-             - [cache] For uncached data or short-lived caches: cache the metadata or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data: cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#metadata
              - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
@@ -526,7 +538,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static viewport export instead of \`generateViewport()\`
-             - [cache] For uncached data or short-lived caches: cache the viewport data or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#viewport
              - [block] Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime
@@ -543,7 +556,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static viewport export instead of \`generateViewport()\`
-             - [cache] For uncached data or short-lived caches: cache the viewport data or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#viewport
              - [block] Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime
@@ -635,7 +649,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static viewport export instead of \`generateViewport()\`
-             - [cache] For uncached data or short-lived caches: cache the viewport data or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#viewport
              - [block] Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime
@@ -652,7 +667,8 @@ export function registerMetadataAndViewportTests(
 
            Ways to fix this:
              - [static] Use a static viewport export instead of \`generateViewport()\`
-             - [cache] For uncached data or short-lived caches: cache the viewport data or increase the cache lifetime (does not apply to \`connection()\`)
+             - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
+             - [cache] For short-lived caches: increase the cache lifetime. See https://nextjs.org/docs/messages/short-lived-cache#viewport
              - [block] Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime
