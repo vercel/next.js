@@ -23,7 +23,6 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
 import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
-import { ROUTE_PRERENDER_MANIFEST } from '../server/lib/route-cache-key'
 
 const debug = debugOriginal('next:build:build-traces')
 
@@ -496,22 +495,6 @@ export async function collectBuildTraces({
 
             for (const file of existingTrace.files || []) {
               curTracedFiles.add(file)
-            }
-
-            // Every route reads its own prerender manifest at runtime through
-            // a computed path, so the tracer does not find it, and the build
-            // writes it after tracing. It sits in the directory named after
-            // the entry file: see `getRoutePrerenderManifestPath`.
-            //
-            // `/_app` and `/_document` are not routes.
-            if (
-              (isApp || isPages) &&
-              entryName !== 'pages/_app' &&
-              entryName !== 'pages/_document'
-            ) {
-              curTracedFiles.add(
-                `${path.posix.basename(entryName)}/${ROUTE_PRERENDER_MANIFEST}`
-              )
             }
 
             await fs.writeFile(

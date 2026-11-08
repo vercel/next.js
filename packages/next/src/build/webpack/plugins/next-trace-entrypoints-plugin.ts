@@ -8,6 +8,7 @@ import {
   TRACE_OUTPUT_VERSION,
   type CompilerNameValues,
 } from '../../../shared/lib/constants'
+import { ROUTE_PRERENDER_MANIFEST } from '../../../server/lib/route-cache-key'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   NODE_ESM_RESOLVE_OPTIONS,
@@ -260,6 +261,29 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               )
             )
           }
+        }
+
+        // Every route reads its own prerender manifest at runtime through a
+        // computed path, so the tracer does not find it, and the build writes
+        // it after tracing. It sits in the directory named after the entry
+        // file: see `getRoutePrerenderManifestPath`. An automatically static
+        // page lists it too: its trace is not completed later, but adapters
+        // still add its entry to the functions of other pages (`pages/404`).
+        //
+        // `/_app` and `/_document` are not routes.
+        if (
+          (entrypoint.name.startsWith('app/') ||
+            entrypoint.name.startsWith('pages/')) &&
+          entrypoint.name !== 'pages/_app' &&
+          entrypoint.name !== 'pages/_document'
+        ) {
+          entryFiles.add(
+            nodePath.join(
+              traceOutputPath,
+              nodePath.basename(entrypoint.name),
+              ROUTE_PRERENDER_MANIFEST
+            )
+          )
         }
 
         const finalFiles: string[] = []
