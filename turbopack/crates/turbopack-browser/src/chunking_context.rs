@@ -1002,9 +1002,8 @@ impl ChunkingContext for BrowserChunkingContext {
 
             // The chunks of this chunk group contain only what is not already available, and the
             // evaluate chunk waits for these chunks only. An entry that is already available is in
-            // the chunks of a chunk group that was loaded before, and that chunk group evaluates
-            // it. Instantiating it from here too would only work if those chunks happen to be
-            // executed first, which is not the case for e.g. `async` scripts.
+            // the chunks of another chunk group, which evaluates it. Instantiating it here too
+            // would only work if those chunks ran first, which `async` scripts do not guarantee.
             let mut evaluated_entries = Vec::with_capacity(entries.len());
             for &entry in &entries {
                 if !input_availability_info
