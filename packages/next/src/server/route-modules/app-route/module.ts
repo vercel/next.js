@@ -1391,11 +1391,13 @@ function interceptRequest<T extends Request>(
 
   if (!isIntercepted) {
     // The request was not constructed with the intercepted properties: it is
-    // a request in the edge runtime, a clone, which is a `Request`, or a
-    // request from before the route was loaded. It becomes an instance of
-    // the class for its own class. Its prototype changes after it has its
-    // state: in Node.js 20 and 22, a property that is added to an object
-    // after that makes every later access to it slow.
+    // a request in the edge runtime, a clone, which is a `Request`, a request
+    // from before the route was loaded, or the request of a prerender with
+    // `dynamic = 'error'` (every route handler with `output: 'export'`),
+    // which the route only intercepts while it prerenders. It becomes an
+    // instance of the class for its own class. Its prototype changes after
+    // it has its state: in Node.js 20 and 22, a property that is added to an
+    // object after that makes every later access to it slow.
     Object.setPrototypeOf(
       request,
       getInterceptedRequestClass(request.constructor as typeof NextRequest)
