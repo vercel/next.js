@@ -12,7 +12,7 @@ error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/ba
       19 | // Never called: these only check that the hint names the matching magic comment.
       20 | export function partiallyDynamicImport(options = {}) {
   
-  This request is too dynamic to resolve at build time. If it's only known at runtime, opt out of bundling with `new URL(/* turbopackIgnore: true */ url, import.meta.url)`.
+  Turbopack couldn't resolve 'undefined', which this request may evaluate to. If the request is only known at runtime, opt out of bundling with `new URL(/* turbopackIgnore: true */ url, import.meta.url)`.
   
   
   | It was not possible to find the requested file.
