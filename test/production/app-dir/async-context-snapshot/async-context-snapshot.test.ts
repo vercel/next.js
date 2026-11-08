@@ -1,4 +1,5 @@
 import fs from 'fs'
+import { createRequire } from 'module'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
@@ -77,5 +78,33 @@ describe('async-context-snapshot', () => {
           .includes('async_hooks')
       )
     ).toEqual([])
+  })
+
+  // Adapters patch the compiled `async-local-storage.js`. `@opennextjs/cloudflare`
+  // removes every `if` statement of the function declaration `createSnapshot`
+  // in that file, so that a snapshot calls its callback in the context of the
+  // caller. Its rule finds nothing if the function moves to another file or is
+  // no longer a declaration, and it changes nothing if a context is captured
+  // outside the `if` statement.
+  it('should keep createSnapshot in the shape that adapters patch', () => {
+    const file = createRequire(path.join(next.testDir, 'package.json')).resolve(
+      'next/dist/server/app-render/async-local-storage'
+    )
+    expect(fs.readFileSync(file, 'utf8')).toMatch(
+      new RegExp(
+        [
+          /function createSnapshot\(\w*\) \{/,
+          // The only statement that captures a context, without a nested block.
+          /if \(maybeGlobalAsyncLocalStorage\) \{[^{}]*\}/,
+          // What is left without it calls the callback directly.
+          /return function\(fn, \.\.\.args\) \{/,
+          /return fn\(\.\.\.args\);/,
+          /\};/,
+          /\}/,
+        ]
+          .map((part) => part.source)
+          .join('\\s*')
+      )
+    )
   })
 })

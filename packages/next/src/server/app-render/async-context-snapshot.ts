@@ -1,9 +1,13 @@
 import type { AsyncResource } from 'async_hooks'
-import { maybeGlobalAsyncLocalStorage } from './async-local-storage'
+import {
+  createSnapshot as createSnapshotWith,
+  maybeGlobalAsyncLocalStorage,
+  type Snapshot,
+} from './async-local-storage'
 
 // This module is for server code only: it requires `node:async_hooks`, which
 // a browser bundle cannot resolve. `./async-local-storage` is also part of
-// browser bundles, so the functions below must not move there.
+// browser bundles, so the code that needs `AsyncResource` must not move there.
 
 // In Node.js, `AsyncLocalStorage.bind()` and `AsyncLocalStorage.snapshot()`
 // return a function made by `AsyncResource.prototype.bind()`, which defines the
@@ -39,20 +43,22 @@ export function bindSnapshot<T>(
   return fn
 }
 
-export function createSnapshot(): <R, TArgs extends any[]>(
-  fn: (...args: TArgs) => R,
-  ...args: TArgs
-) => R {
-  if (maybeGlobalAsyncLocalStorage) {
-    if (NodeAsyncResource) {
-      const resource = new NodeAsyncResource('bound-anonymous-fn')
-      return function (fn: any, ...args: any[]) {
-        return resource.runInAsyncScope(fn, undefined, ...args)
-      }
-    }
-    return maybeGlobalAsyncLocalStorage.snapshot()
-  }
+function createAsyncResourceSnapshot(
+  AsyncResourceClass: typeof AsyncResource
+): Snapshot {
+  const resource = new AsyncResourceClass('bound-anonymous-fn')
   return function (fn: any, ...args: any[]) {
-    return fn(...args)
+    return resource.runInAsyncScope(fn, undefined, ...args)
   }
+}
+
+const createNodeSnapshot = NodeAsyncResource
+  ? createAsyncResourceSnapshot.bind(null, NodeAsyncResource)
+  : undefined
+
+// The function in `./async-local-storage` decides whether a context is
+// captured at all, because adapters patch that decision there. This module
+// only supplies how Node.js captures it.
+export function createSnapshot(): Snapshot {
+  return createSnapshotWith(createNodeSnapshot)
 }
