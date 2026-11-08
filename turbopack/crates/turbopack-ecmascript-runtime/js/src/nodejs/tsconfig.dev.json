@@ -10,6 +10,7 @@
     "runtime/nodejs-globals.d.ts",
     "runtime/runtime-base.ts",
     "runtime/dev-base.ts",
+    "runtime/deferred-evaluation.ts",
     "dev/*.ts"
   ]
 }

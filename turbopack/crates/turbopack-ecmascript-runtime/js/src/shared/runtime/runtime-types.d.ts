@@ -159,6 +159,7 @@ interface TurbopackBaseContext<M> {
   t: RuntimeRequire
   f: ModuleContextFactory
   i: EsmImport
+  d: EsmImport
   A: InvokeAsyncLoader
   s: EsmExport
   S: EsmReexport

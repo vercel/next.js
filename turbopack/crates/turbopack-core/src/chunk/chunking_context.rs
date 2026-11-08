@@ -561,7 +561,8 @@ pub trait ChunkingContext {
     async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>>;
 
     /// The references for which the generated code evaluates the referenced module on the first
-    /// read of an imported binding. Empty unless the chunking context opts in.
+    /// read of an imported binding. Empty unless the chunking context opts in. One that does needs
+    /// a runtime with the function for such an import (`TURBOPACK_IMPORT_DEFERRED`).
     #[turbo_tasks::function]
     fn deferred_references(self: Vc<Self>) -> Vc<DeferredReferences> {
         Vc::cell(Default::default())
