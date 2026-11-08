@@ -25,6 +25,7 @@ describe('browser-chunks', () => {
   })
 
   let sources: string[] = []
+  let jsFiles: string[] = []
   let jsContents: string[] = []
   beforeAll(async () => {
     const chunksDir = join(next.testDir, '.next')
@@ -38,10 +39,9 @@ describe('browser-chunks', () => {
     )
     sources = sourcemaps.flatMap((sourcemap) => JSON.parse(sourcemap).sources)
 
+    jsFiles = chunks.filter((filename) => filename.endsWith('.js'))
     jsContents = await Promise.all(
-      chunks
-        .filter((filename) => filename.endsWith('.js'))
-        .map((f) => readFile(join(chunksDir, f), 'utf8'))
+      jsFiles.map((f) => readFile(join(chunksDir, f), 'utf8'))
     )
   })
 
@@ -107,10 +107,12 @@ describe('browser-chunks', () => {
     // their sources in another way. This text is one of the messages of that
     // module, so no chunk may contain it either.
     expect(
-      jsContents.some((content) =>
-        content.includes('Next.js encountered dynamic data during prefetching')
+      jsFiles.filter((_, i) =>
+        jsContents[i].includes(
+          'Next.js encountered dynamic data during prefetching'
+        )
       )
-    ).toBe(false)
+    ).toEqual([])
   })
 
   it('must not include heavy dependencies into browser chunks', () => {
