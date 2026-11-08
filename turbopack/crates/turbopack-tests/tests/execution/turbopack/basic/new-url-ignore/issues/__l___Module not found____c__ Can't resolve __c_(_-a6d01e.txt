@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/new-url-ignore/input/index.js:21:9  Module not found: Can't resolve (<dynamic> | 'undefined')
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/new-url-ignore/input/index.js:21:10  Module not found: Can't resolve (<dynamic> | 'undefined')
   
       17 | }
       18 | 
