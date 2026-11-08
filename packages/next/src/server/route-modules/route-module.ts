@@ -183,6 +183,13 @@ export abstract class RouteModule<
       }
     | undefined = undefined
 
+  /** The server utils of the previous request, with the inputs they were created from. */
+  private previousServerUtils:
+    | (Parameters<typeof getServerUtils>[0] & {
+        serverUtils: ReturnType<typeof getServerUtils>
+      })
+    | undefined = undefined
+
   constructor({
     userland,
     definition,
@@ -989,15 +996,47 @@ export abstract class RouteModule<
     // the pathname format (e.g., /app/[slug]).
     const normalizedSrcPage = normalizeAppPath(srcPage)
 
-    const serverUtils = getServerUtils({
-      page: normalizedSrcPage,
-      i18n: isPagesRoute ? i18n : undefined,
-      basePath,
-      rewrites,
-      pageIsDynamic,
-      trailingSlash: process.env.__NEXT_TRAILING_SLASH as any as boolean,
-      caseSensitive: Boolean(routesManifest.caseSensitive),
-    })
+    // The server utils only depend on the page and on values from the routes
+    // manifest. Creating them compiles the route regex of a dynamic route, so
+    // reuse those of the previous request while the inputs are the same.
+    // Outside of development the manifest is loaded once, so they always are.
+    const serverUtilsI18n = isPagesRoute ? i18n : undefined
+    const trailingSlash = process.env.__NEXT_TRAILING_SLASH as any as boolean
+    const caseSensitive = Boolean(routesManifest.caseSensitive)
+    const previousServerUtils = this.previousServerUtils
+    let serverUtils: ReturnType<typeof getServerUtils>
+    if (
+      previousServerUtils !== undefined &&
+      previousServerUtils.page === normalizedSrcPage &&
+      previousServerUtils.i18n === serverUtilsI18n &&
+      previousServerUtils.basePath === basePath &&
+      previousServerUtils.rewrites === rewrites &&
+      previousServerUtils.pageIsDynamic === pageIsDynamic &&
+      previousServerUtils.trailingSlash === trailingSlash &&
+      previousServerUtils.caseSensitive === caseSensitive
+    ) {
+      serverUtils = previousServerUtils.serverUtils
+    } else {
+      serverUtils = getServerUtils({
+        page: normalizedSrcPage,
+        i18n: serverUtilsI18n,
+        basePath,
+        rewrites,
+        pageIsDynamic,
+        trailingSlash,
+        caseSensitive,
+      })
+      this.previousServerUtils = {
+        page: normalizedSrcPage,
+        i18n: serverUtilsI18n,
+        basePath,
+        rewrites,
+        pageIsDynamic,
+        trailingSlash,
+        caseSensitive,
+        serverUtils,
+      }
+    }
 
     const domainLocale = detectDomainLocale(
       i18n?.domains,
