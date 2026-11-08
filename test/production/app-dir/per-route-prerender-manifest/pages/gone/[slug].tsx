@@ -3,7 +3,8 @@ export function getStaticPaths() {
 }
 
 export function getStaticProps({ params }: { params: { slug: string } }) {
-  if (params.slug === 'missing') {
+  // `missing` at build time, any other `*missing` in a request.
+  if (params.slug.endsWith('missing')) {
     return { notFound: true }
   }
   return { props: { slug: params.slug } }
