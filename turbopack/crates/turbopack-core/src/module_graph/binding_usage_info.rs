@@ -9,10 +9,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
-    chunk::{
-        ChunkingType,
-        chunking_context::{DeferredReferences, UnusedReferences},
-    },
+    chunk::chunking_context::{DeferredReferences, UnusedReferences},
     module::Module,
     module_graph::{
         GraphEdgeIndex, GraphTraversalAction, ModuleGraph, RefData,
@@ -125,7 +122,7 @@ impl BindingUsageInfo {
     ///
     /// A reference is in this set when the importing module asked for it
     /// ([`BindingUsage::deferrable`][crate::resolve::BindingUsage::deferrable]) and
-    /// - it is a hoisted import of a named export (not of the namespace object),
+    /// - it imports a named export (not the namespace object),
     /// - it resolves to one module (the generated code has a single binding for it),
     /// - the target is side effect free in the sense of `compute_side_effect_free_module_info`,
     ///   i.e. an import of it that is not used is removed,
@@ -531,10 +528,8 @@ async fn compute_deferred_references(
     graph_ref.traverse_edges_unordered(|parent, target| {
         if let Some((parent, ref_data)) = parent
             && ref_data.binding_usage.deferrable
-            && parent != target
             && !modules_in_cycles.contains(&parent)
             && !modules_in_cycles.contains(&target)
-            && is_used(ref_data, &target)
         {
             pairs
                 .entry((parent, target))
@@ -547,7 +542,8 @@ async fn compute_deferred_references(
     }
 
     // The used references between each of these pairs, or `None` when one of them needs the
-    // target to be evaluated before the importing module.
+    // target to be evaluated before the importing module. A used import of the module itself is
+    // an import cycle, so no pair collects one.
     // A reference that resolves to several modules has one edge per module. The generated code
     // has a single binding for it, so it stays eager.
     let mut reference_targets: FxHashMap<ResolvedVc<Box<dyn ModuleReference>>, u32> =
@@ -556,7 +552,7 @@ async fn compute_deferred_references(
         let Some((parent, ref_data)) = parent else {
             return Ok(());
         };
-        if parent == target || !is_used(ref_data, &target) {
+        if !is_used(ref_data, &target) {
             return Ok(());
         }
         if ref_data.binding_usage.deferrable {
@@ -565,12 +561,9 @@ async fn compute_deferred_references(
         let Some(pair) = pairs.get_mut(&(parent, target)) else {
             return Ok(());
         };
+        // Only an import asks to be deferred, and a used import is hoisted.
         let deferrable = ref_data.binding_usage.deferrable
-            && matches!(ref_data.binding_usage.export, ExportUsage::Named(_))
-            && matches!(
-                ref_data.chunking_type,
-                ChunkingType::Parallel { hoisted: true, .. }
-            );
+            && matches!(ref_data.binding_usage.export, ExportUsage::Named(_));
         match pair {
             Some(references) if deferrable => references.push(ref_data.reference),
             pair => *pair = None,

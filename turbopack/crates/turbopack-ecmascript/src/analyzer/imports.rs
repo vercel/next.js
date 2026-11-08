@@ -1991,6 +1991,48 @@ mod tests {
     }
 
     #[test]
+    fn only_a_binding_reference_is_read_in_functions() {
+        // `import { a } from './m'` and `import * as ns from './m'` each declare an evaluation
+        // reference next to the one for the binding, and a module fragment imports its parts.
+        // Only the binding references can be deferred to a read.
+        let mut map = ImportMap::default();
+        let symbols = [
+            ImportedSymbol::ModuleEvaluation,
+            ImportedSymbol::Symbol("a".into()),
+            ImportedSymbol::Exports,
+            ImportedSymbol::Part(0),
+            ImportedSymbol::PartEvaluation(0),
+        ];
+        for (i, imported_symbol) in symbols.into_iter().enumerate() {
+            map.ensure_reference(
+                ImportMapReference {
+                    module_path: "./m".into(),
+                    imported_symbol,
+                    annotations: None,
+                    span: DUMMY_SP,
+                },
+                i,
+            );
+        }
+        let only_read_in_functions = |map: &ImportMap| {
+            (0..5)
+                .map(|i| map.is_only_read_in_functions(i))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            only_read_in_functions(&map),
+            vec![false, true, true, false, false]
+        );
+
+        // `a` is read while the module is evaluated.
+        map.evaluation_time_reads.insert(1);
+        assert_eq!(
+            only_read_in_functions(&map),
+            vec![false, false, true, false, false]
+        );
+    }
+
+    #[test]
     fn export_registration_mode_normal_without_reexports() {
         // No exports at all, and a plain import.
         let map = map_with(1, vec![], &[]);

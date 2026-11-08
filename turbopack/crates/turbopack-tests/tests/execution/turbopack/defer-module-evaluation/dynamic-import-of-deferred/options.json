@@ -1,0 +1,4 @@
+{
+  "deferModuleEvaluation": true,
+  "followReexports": false
+}
