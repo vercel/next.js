@@ -11,6 +11,13 @@ import { RouteKind } from '../route-kind'
 
 export const ROUTE_CACHE_DIRECTORY = 'route-cache'
 
+/**
+ * The file name of a route's prerender manifest. The name of no other manifest
+ * is a path suffix of it, so a tool that matches manifests by path suffix does
+ * not take the complete `prerender-manifest.json` for it.
+ */
+export const ROUTE_PRERENDER_MANIFEST = 'route-prerender-manifest.json'
+
 export type ResponseCacheOwner = {
   readonly kind: RouteKind
   /** Canonical Pages pathname or full App module name, including groups and slots. */
@@ -50,8 +57,8 @@ export function getRoutePrerenderManifestPath(
   page: string
 ): string {
   return kind === RouteKind.PAGES || kind === RouteKind.PAGES_API
-    ? `server/pages${normalizePagePath(page)}/prerender-manifest.json`
-    : `server/app${page.replace(/%5F/g, '_')}/prerender-manifest.json`
+    ? `server/pages${normalizePagePath(page)}/${ROUTE_PRERENDER_MANIFEST}`
+    : `server/app${page.replace(/%5F/g, '_')}/${ROUTE_PRERENDER_MANIFEST}`
 }
 
 /**

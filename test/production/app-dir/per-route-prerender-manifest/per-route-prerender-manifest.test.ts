@@ -138,7 +138,7 @@ describe('per-route-prerender-manifest', () => {
     completeManifestPath = path.join(distDir, 'prerender-manifest.json')
     routeManifestPaths = findFiles(
       path.join(distDir, 'server'),
-      'prerender-manifest.json'
+      'route-prerender-manifest.json'
     )
 
     const { previewModeId } = readJSON(
@@ -357,21 +357,24 @@ describe('per-route-prerender-manifest', () => {
       path.relative(distDir, file).replace(/\\/g, '/')
     expect(routeManifestPaths.map(relative)).toEqual(
       expect.arrayContaining([
-        'server/app/page/prerender-manifest.json',
-        'server/app/isr/[slug]/page/prerender-manifest.json',
-        'server/app/api/static/route/prerender-manifest.json',
-        'server/app/(group)/grouped/page/prerender-manifest.json',
-        'server/app/par/@slot/deep/page/prerender-manifest.json',
-        'server/pages/ssg/prerender-manifest.json',
-        'server/pages/nested/prerender-manifest.json',
-        'server/pages/blog/[slug]/prerender-manifest.json',
-        'server/pages/api/hello/prerender-manifest.json',
-        'server/pages/_error/prerender-manifest.json',
+        'server/app/page/route-prerender-manifest.json',
+        'server/app/isr/[slug]/page/route-prerender-manifest.json',
+        'server/app/api/static/route/route-prerender-manifest.json',
+        'server/app/(group)/grouped/page/route-prerender-manifest.json',
+        'server/app/par/@slot/deep/page/route-prerender-manifest.json',
+        'server/pages/ssg/route-prerender-manifest.json',
+        'server/pages/nested/route-prerender-manifest.json',
+        'server/pages/blog/[slug]/route-prerender-manifest.json',
+        'server/pages/api/hello/route-prerender-manifest.json',
+        'server/pages/_error/route-prerender-manifest.json',
       ])
     )
     expect(
       readJSON(
-        path.join(distDir, 'server/pages/gone/[slug]/prerender-manifest.json')
+        path.join(
+          distDir,
+          'server/pages/gone/[slug]/route-prerender-manifest.json'
+        )
       )
     ).toMatchObject({
       routes: {
@@ -398,11 +401,11 @@ describe('per-route-prerender-manifest', () => {
       const manifests = files.filter((file) =>
         file.endsWith('prerender-manifest.json')
       )
-      // `page.js.nft.json` lists `page/prerender-manifest.json`.
+      // `page.js.nft.json` lists `page/route-prerender-manifest.json`.
       expect({ trace, manifests }).toEqual({
         trace,
         manifests: [
-          `${path.basename(trace, '.js.nft.json')}/prerender-manifest.json`,
+          `${path.basename(trace, '.js.nft.json')}/route-prerender-manifest.json`,
         ],
       })
       expect(fs.existsSync(path.join(path.dirname(trace), manifests[0]))).toBe(
@@ -418,7 +421,7 @@ describe('per-route-prerender-manifest', () => {
     // The complete manifest was not there to be read.
     expect(own.manifestReads.sort()).toEqual(
       [...new Set(probes.map((probe) => probe.entry))]
-        .map((entry) => `.next/server/${entry}/prerender-manifest.json`)
+        .map((entry) => `.next/server/${entry}/route-prerender-manifest.json`)
         .sort()
     )
     // A route without a manifest of its own falls back to the complete one.

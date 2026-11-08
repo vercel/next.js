@@ -211,7 +211,7 @@ impl Asset for NftJsonAsset {
                             .fs
                             .root()
                             .await?
-                            .join(&format!("{entry}/prerender-manifest.json"))?,
+                            .join(&format!("{entry}/route-prerender-manifest.json"))?,
                     )?;
                 }
             }

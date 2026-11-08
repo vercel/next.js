@@ -50,7 +50,7 @@ describe('minimal-mode-response-cache', () => {
       // Remove the prerendered output, which is served by the CDN in minimal
       // mode, but keep each route's prerender manifest: that is loaded by the
       // route module at runtime, and just happens to sit alongside the output.
-      if (file.endsWith('prerender-manifest.json')) {
+      if (file.endsWith('route-prerender-manifest.json')) {
         continue
       }
       if (file.match(/(pages|app)[/\\]/) && !file.endsWith('.js')) {

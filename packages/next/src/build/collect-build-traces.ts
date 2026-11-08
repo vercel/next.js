@@ -23,7 +23,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
 import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
-import { PRERENDER_MANIFEST } from '../shared/lib/constants'
+import { ROUTE_PRERENDER_MANIFEST } from '../server/lib/route-cache-key'
 
 const debug = debugOriginal('next:build:build-traces')
 
@@ -510,7 +510,7 @@ export async function collectBuildTraces({
               entryName !== 'pages/_document'
             ) {
               curTracedFiles.add(
-                `${path.posix.basename(entryName)}/${PRERENDER_MANIFEST}`
+                `${path.posix.basename(entryName)}/${ROUTE_PRERENDER_MANIFEST}`
               )
             }
 
