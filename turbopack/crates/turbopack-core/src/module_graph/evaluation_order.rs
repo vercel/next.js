@@ -259,9 +259,10 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
                     let module = &mut order.modules[previous as usize];
                     module.adjacent_from = module.adjacent_from.max(adjacent_from);
                 }
-                // The trace evaluates another module before this one than the list has there.
-                // Every pair of neighbors that the trace does not evaluate one after the other
-                // is found here, at its second module, because the trace evaluates both.
+                // The trace evaluates this module right after another module than the one
+                // before it in the list. Every pair of neighbors that the trace does not
+                // evaluate one after the other is found here, at its second module, because the
+                // trace evaluates both.
                 _ if position > 0 => order.modules[position as usize - 1].split = true,
                 _ => {}
             }
