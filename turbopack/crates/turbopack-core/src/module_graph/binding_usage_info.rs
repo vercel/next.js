@@ -126,8 +126,8 @@ impl BindingUsageInfo {
     ///   i.e. an import of it that is not used is removed,
     /// - the target is not an async module (the read is synchronous),
     /// - neither module is part of an import cycle, and
-    /// - every other used reference between the two modules is in this set too (they share one
-    ///   namespace binding in the importing module).
+    /// - every other used reference between the two modules is in this set too (an eager one
+    ///   evaluates the target before the importing module anyway, and the two stay mergeable).
     ///
     /// Such a reference doesn't execute the target "immediately before the parent" anymore, so
     /// the two modules can't be merged. Code generation only honors the set when the chunking
@@ -418,6 +418,8 @@ pub async fn compute_binding_usage_info(
                     &graph_ref,
                     side_effect_free_modules,
                     &unused_references,
+                    // The cycle condition reads this set as "every module in an import cycle".
+                    // It relies on all of them being in it, not only the ones that break a cycle.
                     &export_circuit_breakers,
                 )
                 .await?
