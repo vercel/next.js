@@ -808,16 +808,23 @@ pub async fn compute_chunk_group_info(
             }
         }
 
-        let entry_chunk_group_keys = entries
-            .iter()
-            .flat_map(|&chunk_group| {
-                let chunk_group_key =
-                    entry_to_chunk_group_id(chunk_group.clone(), &mut chunk_groups_map);
-                chunk_group
-                    .entries()
-                    .map(move |e| (e, chunk_group_key.clone()))
-            })
-            .collect::<FxHashMap<_, _>>();
+        // The chunk groups that each entry module is an entry of. Several chunk groups can list
+        // the same module as an entry (e.g. a runtime entry that is evaluated first in every one of
+        // them), and that module is part of all of them.
+        let mut entry_chunk_group_keys: FxHashMap<
+            ResolvedVc<Box<dyn Module>>,
+            FxIndexSet<ChunkGroupKey>,
+        > = FxHashMap::default();
+        for &chunk_group in &entries {
+            let chunk_group_key =
+                entry_to_chunk_group_id(chunk_group.clone(), &mut chunk_groups_map);
+            for entry in chunk_group.entries() {
+                entry_chunk_group_keys
+                    .entry(entry)
+                    .or_default()
+                    .insert(chunk_group_key.clone());
+            }
+        }
 
         // `inherits_from[source]` is the set of chunk groups that inherit heuristics from `source`.
         let mut inherits_from: FxHashMap<u32, Bitset> = FxHashMap::default();
@@ -908,7 +915,7 @@ pub async fn compute_chunk_group_info(
                                     merge_tag: merge_tag.clone(),
                                 });
                             ChunkGroupInheritance::ChunkGroup(Either::Right(Either::Right(
-                                chunk_groups,
+                                Either::Left(chunk_groups),
                             )))
                         }
                         ChunkingType::Traced { .. } => {
@@ -939,13 +946,15 @@ pub async fn compute_chunk_group_info(
                         }
                     }
                 } else {
-                    ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                    // An entry is part of every chunk group that lists it as an entry.
+                    ChunkGroupInheritance::ChunkGroup(Either::Right(Either::Right(Either::Right(
                         // TODO remove clone
                         entry_chunk_group_keys
                             .get(&node)
                             .context("Module chunk group not found")?
-                            .clone(),
-                    )))
+                            .iter()
+                            .cloned(),
+                    ))))
                 };
 
                 Ok(match chunk_groups {
