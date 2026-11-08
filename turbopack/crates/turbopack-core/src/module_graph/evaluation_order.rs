@@ -8,6 +8,27 @@
 //!
 //! [`EvaluationOrder`] checks lists of modules that are candidates for merging against
 //! [`EvaluationTrace`]s and splits each list into the groups that are safe to merge.
+//!
+//! # Example
+//!
+//! `v` imports `u`. Route `a` imports `s1`, a module `x` of its own, `s2` and `v`. Route `b`
+//! imports `s1`, `s2` and `v`. Both routes import `s1`, `s2`, `u` and `v`, so these four are one
+//! list, at the positions 0 to 3. The trace of `a` is `s1 x s2 u v`, the trace of `b` is
+//! `s1 s2 u v`. For each module and its successor in the list, the traces give:
+//!
+//! | Module | `importer_min`, `importer_max` | `adjacent_from` |
+//! |---|---|---|
+//! | `s1` | none: no module of the list imports it | none: for `a`, `x` runs before `s2` starts |
+//! | `s2` | none | 2: `u` starts right after `s2` |
+//! | `u` | 3 and 3: `v` imports it first | none: `v` does not start after `u` |
+//!
+//! The list is cut from its end. `u` stays with `v`, which imports it first in every trace.
+//! `s2` is an entry point, and it stays because the group reaches position 2. `s1` is cut off.
+//! The group is `s2 u v` with the entry points `s2` and `v`.
+//!
+//! If `b` imported `u` itself before `v`, `u` would be an entry point for `b` and not for `a`
+//! (`importer_min` 3, `importer_max` none). The group would end before `v` then, although
+//! `u v` is the order for both routes.
 
 use std::{hash::Hash, ops::Range, sync::Arc};
 
@@ -147,6 +168,8 @@ impl Default for Referrers {
 /// - no module that is evaluated at that point imports itself again through a module of the group
 ///   that is not part of it (an import cycle through the group),
 /// - the entry points are the same modules as in every other trace.
+///
+/// The module documentation has an example.
 #[derive(Clone)]
 pub(crate) struct EvaluationOrder<M> {
     /// The list and the position in the list of every module.
@@ -1023,6 +1046,51 @@ mod tests {
         assert_eq!(
             graph.merged(),
             vec![(vec![2, 5, 0], vec![0]), (vec![3, 4], vec![3, 4])]
+        );
+        graph.assert_same_order(&graph.merged());
+    }
+
+    #[test]
+    fn the_example_of_the_module_documentation() {
+        // 0 and 1 are the routes `a` and `b`, 2 is `s1`, 3 is `x`, 4 is `s2`, 5 is `u`, 6 is `v`.
+        let graph = Graph::new(
+            &[0, 1],
+            &[
+                &[(2, Import), (3, Import), (4, Import), (6, Import)],
+                &[(2, Import), (4, Import), (6, Import)],
+                &[],
+                &[],
+                &[],
+                &[],
+                &[(5, Import)],
+            ],
+        );
+        assert_eq!(
+            graph.candidates(&graph.bitmaps(&graph.roots())),
+            [vec![2, 4, 5, 6], vec![3, 0]]
+        );
+        assert_eq!(
+            graph.merged(),
+            vec![(vec![4, 5, 6], vec![4, 6]), (vec![3, 0], vec![0])]
+        );
+        graph.assert_same_order(&graph.merged());
+
+        // `b` imports `u` itself.
+        let graph = Graph::new(
+            &[0, 1],
+            &[
+                &[(2, Import), (3, Import), (4, Import), (6, Import)],
+                &[(2, Import), (4, Import), (5, Import), (6, Import)],
+                &[],
+                &[],
+                &[],
+                &[],
+                &[(5, Import)],
+            ],
+        );
+        assert_eq!(
+            graph.merged(),
+            vec![(vec![4, 5], vec![4, 5]), (vec![3, 0], vec![0])]
         );
         graph.assert_same_order(&graph.merged());
     }
