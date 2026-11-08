@@ -256,7 +256,11 @@ export function setLazyProp<T>(
   getter: () => T
 ): void {
   const lazyReq: LazyPropsRequest = req
-  const lazyProps = (lazyReq[LAZY_PROPS] ??= { req, getters: {} })
+  // An own property: an object that inherits from a request with lazy
+  // properties keeps its getters apart from those of the request.
+  const lazyProps = Object.hasOwn(lazyReq, LAZY_PROPS)
+    ? lazyReq[LAZY_PROPS]!
+    : (lazyReq[LAZY_PROPS] = { req, getters: {} })
   lazyProps.getters[prop] = getter
   Object.defineProperty(req, prop, getLazyPropDescriptor(prop))
 }
