@@ -207,6 +207,15 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         } else {
             None
         };
+        // Whether the referenced module is executed right before the referencing module.
+        let is_hoisted = |r: &RefData| {
+            matches!(
+                r.chunking_type,
+                ChunkingType::Parallel { hoisted: true, .. }
+            ) && !deferred_references
+                .as_ref()
+                .is_some_and(|d| d.contains(&r.reference))
+        };
 
         let graphs = &module_graph.graphs;
         let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
@@ -298,20 +307,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 // On the down traversal, establish which edges are mergeable and set the list
                 // indices.
                 let (parent_module, hoisted) =
-                    parent_info.map_or((None, false), |(node, ty, _)| {
-                        (
-                            Some(node),
-                            match &ty.chunking_type {
-                                ChunkingType::Parallel { hoisted, .. } => {
-                                    *hoisted
-                                        && !deferred_references
-                                            .as_ref()
-                                            .is_some_and(|d| d.contains(&ty.reference))
-                                }
-                                _ => false,
-                            },
-                        )
-                    });
+                    parent_info.map_or((None, false), |(node, ty, _)| (Some(node), is_hoisted(ty)));
                 let module = node;
 
                 Ok(if parent_module.is_some_and(|p| p == module) {
@@ -839,13 +835,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             |parent_info, module, trace| {
                                 let importer = match parent_info {
                                     None => None,
-                                    Some((parent, RefData { chunking_type, .. })) => {
-                                        if parent == module
-                                            || !matches!(
-                                                chunking_type,
-                                                ChunkingType::Parallel { hoisted: true, .. }
-                                            )
-                                        {
+                                    Some((parent, r)) => {
+                                        if parent == module || !is_hoisted(r) {
                                             return Ok(GraphTraversalAction::Exclude);
                                         }
                                         Some(parent)
