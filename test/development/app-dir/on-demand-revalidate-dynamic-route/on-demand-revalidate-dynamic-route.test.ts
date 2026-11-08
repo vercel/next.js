@@ -6,7 +6,10 @@ describe('on-demand-revalidate-dynamic-route', () => {
     files: __dirname,
   })
 
-  // A request that never answers fails its test instead of the run.
+  // An only-generated revalidation that never answers fails its test instead
+  // of the run. A plain revalidation has no limit of its own: it cannot hang
+  // in that way, and the first ones compile the API route and the pages,
+  // which can take longer than this on a busy machine.
   const withTimeout = () => ({ signal: AbortSignal.timeout(30_000) })
 
   async function revalidate(path: string, { onlyGenerated = false } = {}) {
@@ -14,7 +17,7 @@ describe('on-demand-revalidate-dynamic-route', () => {
       `/api/revalidate?path=${encodeURIComponent(path)}${
         onlyGenerated ? '&onlyGenerated=1' : ''
       }`,
-      withTimeout()
+      onlyGenerated ? withTimeout() : undefined
     )
 
     return res.json()
