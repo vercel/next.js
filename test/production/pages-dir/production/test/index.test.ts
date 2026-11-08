@@ -358,11 +358,17 @@ describe('Production Usage', () => {
 
   it('should not contain the names of the development manifests in client chunks', async () => {
     const chunks = await listClientChunks(join(next.testDir, '.next'))
+    const chunksWithManifestNames: string[] = []
     for (const chunk of chunks.filter((file) => file.endsWith('.js'))) {
       const content = await next.readFile(join('.next', chunk))
-      expect(content).not.toContain('_devPagesManifest.json')
-      expect(content).not.toContain('_devMiddlewareManifest.json')
+      if (
+        content.includes('_devPagesManifest.json') ||
+        content.includes('_devMiddlewareManifest.json')
+      ) {
+        chunksWithManifestNames.push(chunk)
+      }
     }
+    expect(chunksWithManifestNames).toEqual([])
   })
 
   describe('With basic usage', () => {
