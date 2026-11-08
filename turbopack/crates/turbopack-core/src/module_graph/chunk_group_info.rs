@@ -946,14 +946,13 @@ pub async fn compute_chunk_group_info(
                         }
                     }
                 } else {
-                    // An entry is part of every chunk group that lists it as an entry.
+                    // An entry is part of every chunk group that lists it as an entry. Every entry
+                    // is visited without a parent exactly once, so its keys can be taken.
                     ChunkGroupInheritance::ChunkGroup(Either::Right(Either::Right(Either::Right(
-                        // TODO remove clone
                         entry_chunk_group_keys
-                            .get(&node)
+                            .remove(&node)
                             .context("Module chunk group not found")?
-                            .iter()
-                            .cloned(),
+                            .into_iter(),
                     ))))
                 };
 
