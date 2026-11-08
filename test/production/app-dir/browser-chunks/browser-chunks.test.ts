@@ -76,6 +76,15 @@ describe('browser-chunks', () => {
     ).sort()
 
     expect(constantsSources).toMatchInlineSnapshot(`[]`)
+
+    // The list above is also empty when the source maps are missing or name
+    // their sources in another way. This header name is one of the constants
+    // that only the server uses, so no chunk may contain it either.
+    expect(
+      jsContents.some((content) =>
+        content.includes('x-prerender-revalidate-if-generated')
+      )
+    ).toBe(false)
   })
 
   it('must not bundle any dev overlay into browser chunks', () => {
