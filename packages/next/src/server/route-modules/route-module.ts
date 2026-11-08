@@ -168,6 +168,9 @@ export abstract class RouteModule<
   /** The canonical source identity shared by cache reads, writes, and metadata. */
   public readonly cacheOwner: ResponseCacheOwner
 
+  /** The prerender manifest that this route serves with in production. */
+  private prerenderManifest?: DeepReadonly<PrerenderManifestRuntime>
+
   /**
    * The shared modules that are exposed and required for the route module.
    */
@@ -382,28 +385,29 @@ export abstract class RouteModule<
             // neither, the route serves without prerender data: it must not
             // fail for a file that it may not need. A manifest that is there
             // but cannot be parsed fails the request, like any other manifest.
-            (loadManifestFromRelativePath<PrerenderManifestRuntime>({
-              projectDir,
-              distDir: this.distDir,
-              manifest: getRoutePrerenderManifestPath(
-                this.definition.kind,
-                // A Pages module name can end in `/index` with Turbopack. The
-                // pathname names the entry file with both bundlers.
-                router === 'pages'
-                  ? this.definition.pathname
-                  : this.definition.page
-              ),
-              shouldCache: true,
-              handleMissing: true,
-            }) ??
-            loadManifestFromRelativePath<PrerenderManifest>({
-              projectDir,
-              distDir: this.distDir,
-              manifest: PRERENDER_MANIFEST,
-              shouldCache: true,
-              handleMissing: true,
-            }) ??
-            EMPTY_PRERENDER_MANIFEST),
+            (this.prerenderManifest ??=
+              loadManifestFromRelativePath<PrerenderManifestRuntime>({
+                projectDir,
+                distDir: this.distDir,
+                manifest: getRoutePrerenderManifestPath(
+                  this.definition.kind,
+                  // A Pages module name can end in `/index` with Turbopack.
+                  // The pathname names the entry file with both bundlers.
+                  router === 'pages'
+                    ? this.definition.pathname
+                    : this.definition.page
+                ),
+                shouldCache: true,
+                handleMissing: true,
+              }) ??
+              loadManifestFromRelativePath<PrerenderManifest>({
+                projectDir,
+                distDir: this.distDir,
+                manifest: PRERENDER_MANIFEST,
+                shouldCache: true,
+                handleMissing: true,
+              }) ??
+              EMPTY_PRERENDER_MANIFEST),
         loadManifestFromRelativePath<PreviewPropsManifest>({
           projectDir,
           distDir: this.distDir,

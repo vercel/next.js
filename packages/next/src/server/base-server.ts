@@ -403,7 +403,7 @@ export default abstract class Server<
   }): Promise<FindComponentsResult | null>
   protected abstract getPrerenderManifest(): DeepReadonly<PrerenderManifest>
   protected abstract getRoutePrerenderManifest(
-    route: ResponseCacheOwner | undefined
+    route: ResponseCacheOwner
   ): DeepReadonly<PrerenderManifestRuntime>
   protected abstract getPreviewProps(): DeepReadonly<PreviewPropsManifest>
   protected abstract getNextFontManifest():
@@ -2603,10 +2603,11 @@ export default abstract class Server<
     let staticPaths: string[] | undefined
     let hasFallback = false
 
-    // Only the entries of the page being rendered are read below.
-    const prerenderManifest = this.getRoutePrerenderManifest(
-      components.routeModule?.cacheOwner
-    )
+    // Only the entries of the page being rendered are read below. A page
+    // without a route module is a static file, which has no prerender data.
+    const prerenderManifest = components.routeModule
+      ? this.getRoutePrerenderManifest(components.routeModule.cacheOwner)
+      : undefined
 
     if (
       hasFallback ||
@@ -2617,7 +2618,7 @@ export default abstract class Server<
     ) {
       isSSG = true
     } else if (!this.dev) {
-      isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
+      isSSG ||= !!prerenderManifest?.routes[toRoute(pathname)]
     }
 
     // Toggle whether or not this is a Data request
@@ -2712,8 +2713,8 @@ export default abstract class Server<
     const isRoutePPREnabled: boolean =
       couldSupportPPR &&
       ((
-        prerenderManifest.routes[pathname] ??
-        prerenderManifest.dynamicRoutes[pathname]
+        prerenderManifest?.routes[pathname] ??
+        prerenderManifest?.dynamicRoutes[pathname]
       )?.renderingMode === 'PARTIALLY_STATIC' ||
         // Ideally we'd want to check the appConfig to see if this page has PPR
         // enabled or not, but that would require plumbing the appConfig through

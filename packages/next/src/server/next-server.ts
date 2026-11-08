@@ -2003,29 +2003,37 @@ export default class NextNodeServer extends BaseServer<
     return this._cachedPrerenderManifest
   }
 
+  private readonly routePrerenderManifests = new WeakMap<
+    ResponseCacheOwner,
+    DeepReadonly<PrerenderManifestRuntime>
+  >()
   protected getRoutePrerenderManifest(
-    route: ResponseCacheOwner | undefined
+    route: ResponseCacheOwner
   ): DeepReadonly<PrerenderManifestRuntime> {
-    // A production build writes a manifest for every route with only that
-    // route's entries, so the complete manifest is not parsed unless the
-    // output has none for the route.
-    if (route && !this.dev) {
-      const manifest = loadManifest<PrerenderManifestRuntime>(
-        join(
-          /* turbopackIgnore: true */ this.distDir,
-          getRoutePrerenderManifestPath(route.kind, route.sourceRoute)
-        ),
-        true,
-        undefined,
-        false,
-        true
-      )
-      if (manifest) {
-        return manifest
-      }
+    if (this.dev) {
+      return this.getPrerenderManifest()
     }
 
-    return this.getPrerenderManifest()
+    // A route module passes the same owner on every request.
+    let manifest = this.routePrerenderManifests.get(route)
+    if (!manifest) {
+      // A production build writes a manifest for every route with only that
+      // route's entries, so the complete manifest is not parsed unless the
+      // output has none for the route.
+      manifest =
+        loadManifest<PrerenderManifestRuntime>(
+          join(
+            /* turbopackIgnore: true */ this.distDir,
+            getRoutePrerenderManifestPath(route.kind, route.sourceRoute)
+          ),
+          true,
+          undefined,
+          false,
+          true
+        ) ?? this.getPrerenderManifest()
+      this.routePrerenderManifests.set(route, manifest)
+    }
+    return manifest
   }
 
   private _cachedPreviewPropsManifest: PreviewPropsManifest | undefined
