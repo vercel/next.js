@@ -327,6 +327,11 @@ module.exports = {
         statusCode: 301,
       },
       {
+        source: '/docs/router-status-hash/:code',
+        destination: '/docs/v2/network/status-codes#/codes?code=:code',
+        statusCode: 301,
+      },
+      {
         source: '/docs/github',
         destination: '/docs/v2/advanced/now-for-github',
         statusCode: 301,
