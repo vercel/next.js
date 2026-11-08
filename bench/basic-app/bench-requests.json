@@ -1,0 +1,33 @@
+{
+  "/api/projects/7": {
+    "query": "limit=20&fields=name,status,framework",
+    "headers": {
+      "authorization": "Bearer bench-0123456789abcdef",
+      "cookie": "session=s%3Abench-session-0123456789abcdef; theme=dark; locale=en-US"
+    }
+  },
+  "/api/echo": {
+    "method": "POST",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "event": "deployment.succeeded",
+      "id": "evt_0123456789abcdef",
+      "createdAt": "2026-07-01T12:00:00.000Z",
+      "payload": {
+        "project": "storefront",
+        "target": "production",
+        "url": "https://storefront-abc123-acme-team.vercel.app",
+        "regions": ["iad1", "sfo1", "fra1"],
+        "meta": {
+          "branch": "main",
+          "commit": "Fix hydration mismatch in pricing table",
+          "sha": "0123456789abcdef0123456789abcdef01234567",
+          "durationSeconds": 84
+        }
+      },
+      "attempt": 1
+    }
+  }
+}

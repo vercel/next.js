@@ -142,7 +142,34 @@ Each run reports, per route, alongside latency:
   They also double as a check that both sides of a comparison rendered the
   same output. The script _count_ is not stable: Fizz wraps whatever Flight
   rows are pending into one script per flush, so the count varies with write
-  timing. Compare bytes, not counts.
+  timing. Compare bytes, not counts. One route is an exception: the
+  `/dashboard` panels resolve on 4–16 ms timers and race the shell flush, so
+  its document size varies by up to 1.5% between requests of the same build.
+- **server cpu** — CPU time the server process spent per request in each
+  phase, summed over its threads and read from `/proc` (Linux only). Unlike
+  latency and throughput it does not include the load generator's own cost.
+
+## Route handlers
+
+`bench/basic-app` also has App Router route handlers. They are not in the
+default route list; pass them with `--routes`:
+
+```bash
+pnpm bench:render-pipeline --routes=/api/app,/api/projects/7,/api/deployments,/api/echo
+```
+
+- `/api/app` — `GET` returning a small JSON body: framework overhead per request.
+- `/api/projects/7` — `GET` with a dynamic segment that reads search params,
+  a request header and a cookie.
+- `/api/deployments` — `GET` returning a JSON body in the tens of KB.
+- `/api/echo` — `POST` that parses a JSON body and echoes it.
+
+`bench/basic-app/bench-requests.json` maps a route to the request to send
+for it (query string, method, headers, JSON body); routes without an entry
+get a plain `GET`. Responses that are not HTML skip the Flight byte
+analysis and report a body hash instead, which serves the same purpose as
+document bytes do for pages: checking that both sides of a comparison
+returned the same output.
 
 ## Client trace pass (opt-in)
 
