@@ -41,6 +41,8 @@ describe('route-runtime-bundled-modules', () => {
 
     const { stdout } = await execa(process.execPath, ['invoke-route.js'], {
       cwd: next.testDir,
+      // The error of a failed process does not contain what it printed.
+      stderr: 'inherit',
     })
     const result: {
       status: number
