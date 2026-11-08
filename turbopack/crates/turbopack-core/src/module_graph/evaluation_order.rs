@@ -1051,6 +1051,40 @@ mod tests {
     }
 
     #[test]
+    fn a_module_between_that_is_imported_again_splits_them() {
+        // 0 imports 2 and 3, 3 imports 4, 4 imports 5, and 5 imports 2, 6 and 7. 6 and 7 import
+        // 4 again. 1 imports 7. So 4 is entered between 2 and 6, and it is not in their list: a
+        // factory for 2 and 6 would evaluate 4 at the import in 6, instead of finding it in
+        // evaluation.
+        let graph = Graph::new(
+            &[0, 1],
+            &[
+                &[(2, Import), (3, Import)],
+                &[(7, Import)],
+                &[],
+                &[(4, Import)],
+                &[(5, Import)],
+                &[(2, Import), (6, Import), (7, Import)],
+                &[(4, Import)],
+                &[(4, Import)],
+            ],
+        )
+        .with_a_chunk_group_per_entry();
+        assert_eq!(
+            graph.candidates(&graph.bitmaps(&graph.roots())),
+            [[3, 0], [2, 6], [5, 4]]
+        );
+        assert_eq!(
+            graph.merged(),
+            vec![(vec![3, 0], vec![0]), (vec![5, 4], vec![4])]
+        );
+        graph.assert_same_order(&graph.merged());
+        let unchecked = [(vec![2, 6], vec![2, 6])];
+        assert_eq!(graph.evaluate(&unchecked, &[0]), [2, 7, 5, 4, 6, 3, 0]);
+        assert_eq!(graph.evaluate(&[], &[0]), [2, 6, 7, 5, 4, 3, 0]);
+    }
+
+    #[test]
     fn the_example_of_the_module_documentation() {
         // 0 and 1 are the routes `a` and `b`, 2 is `s1`, 3 is `x`, 4 is `s2`, 5 is `u`, 6 is `v`.
         let graph = Graph::new(
@@ -1107,7 +1141,7 @@ mod tests {
         trace.leave(1);
         trace.leave(2);
         order.add_trace(&trace);
-        assert_eq!(order.groups(0, None), [0..2]);
+        assert_eq!(order.groups(0, None), [Range { start: 0, end: 2 }]);
         assert_eq!(order.entry_points(0, 0..2).collect::<Vec<_>>(), [1]);
     }
 
