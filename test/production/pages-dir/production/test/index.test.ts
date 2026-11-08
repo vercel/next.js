@@ -336,11 +336,15 @@ describe('Production Usage', () => {
 
   it('should not contain the server and build constants in client chunks', async () => {
     const chunks = await listClientChunks(join(next.testDir, '.next'))
+    const chunksWithConstants: string[] = []
     for (const chunk of chunks.filter((file) => file.endsWith('.js'))) {
       const content = await next.readFile(join('.next', chunk))
       // A value that only `lib/constants` has.
-      expect(content).not.toContain('x-prerender-revalidate-if-generated')
+      if (content.includes('x-prerender-revalidate-if-generated')) {
+        chunksWithConstants.push(chunk)
+      }
     }
+    expect(chunksWithConstants).toEqual([])
   })
 
   // This test checks webpack chunks in particular
