@@ -747,7 +747,6 @@ export default abstract class Server<
 
   private handleNextDataRequest: RouteHandler<ServerRequest, ServerResponse> =
     async (req, res, parsedUrl) => {
-      const middleware = await this.getMiddleware()
       const params = matchNextDataPathname(parsedUrl.pathname)
 
       // ignore for non-next data URLs
@@ -782,6 +781,11 @@ export default abstract class Server<
       pathname = getRouteFromAssetPath(pathname, '.json')
 
       // ensure trailing slash is normalized per config
+      //
+      // The middleware is only looked up here, for `_next/data` requests:
+      // this handler runs for every request, and the lookup resolves and
+      // requires the middleware manifests.
+      const middleware = await this.getMiddleware()
       if (middleware) {
         if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
           pathname += '/'
