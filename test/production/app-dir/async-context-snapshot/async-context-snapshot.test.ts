@@ -86,7 +86,8 @@ describe('async-context-snapshot', () => {
   // caller. Its rule finds nothing if the function moves to another file or is
   // no longer a declaration, and it leaves a context in place that is captured
   // outside an `if` statement, or by the server-only module before it calls
-  // that function.
+  // that function. Only that rule is pinned here. Text patterns that other
+  // tools apply to the built output are not.
   it('should keep createSnapshot in the shape that adapters patch', () => {
     // The patterns accept less than the rule handles: no call in the condition
     // of an `if`, no block that is nested twice, and no `try` statement.
