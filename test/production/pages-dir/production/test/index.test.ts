@@ -313,6 +313,29 @@ describe('Production Usage', () => {
     }
   })
 
+  it('should not contain the App Router param helpers in client chunks', async () => {
+    const chunks = (await listClientChunks(join(next.testDir, '.next'))).filter(
+      (file) => file.endsWith('.js')
+    )
+    const contents = await Promise.all(
+      chunks.map((file) => next.readFile(join('.next', file)))
+    )
+
+    // The router always bundles the module that builds the route regexes. If
+    // this part of a regex is not found, the chunks were not read, and the
+    // check below would pass for the wrong reason.
+    expect(contents.some((content) => content.includes('([^/]+?)'))).toBe(true)
+
+    // Messages of `get-dynamic-param` and `resolve-param-value`, which only
+    // the App Router uses on the server.
+    const chunksWithParamHelpers = chunks.filter(
+      (_, index) =>
+        contents[index].includes('Could not resolve param value for segment') ||
+        contents[index].includes('Unexpected empty path segments match')
+    )
+    expect(chunksWithParamHelpers).toEqual([])
+  })
+
   // This test checks webpack chunks in particular
   ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     'should not contain currentScript usage for publicPath',
