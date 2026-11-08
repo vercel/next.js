@@ -763,6 +763,7 @@ async function writePrerenderManifest(
   manifest.dynamicRoutes = sortPagesObject(manifest.dynamicRoutes)
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
 }
+
 function pickFields<T extends object, K extends keyof T>(
   value: T,
   fields: readonly K[]

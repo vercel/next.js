@@ -118,6 +118,7 @@ describe('SharedCacheControls', () => {
     const cacheControl = sharedCacheControls.get('/route4', appRoute('/route4'))
     expect(cacheControl).toEqual({ revalidate: 30, expire: 50 })
   })
+
   it('looks the prerender manifest up by the owner of the response', () => {
     const owners: string[] = []
     sharedCacheControls = new SharedCacheControls((route) => {

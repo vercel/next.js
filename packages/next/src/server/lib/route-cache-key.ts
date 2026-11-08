@@ -12,9 +12,9 @@ import { RouteKind } from '../route-kind'
 export const ROUTE_CACHE_DIRECTORY = 'route-cache'
 
 /**
- * The file name of a route's prerender manifest. The name of no other manifest
- * is a path suffix of it, so a tool that matches manifests by path suffix does
- * not take the complete `prerender-manifest.json` for it.
+ * The file name of a route's prerender manifest. It ends with the name of the
+ * complete `prerender-manifest.json`, so a tool has to match the whole file
+ * name to tell the two apart.
  */
 export const ROUTE_PRERENDER_MANIFEST = 'route-prerender-manifest.json'
 
