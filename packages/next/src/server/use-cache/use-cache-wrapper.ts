@@ -2057,7 +2057,14 @@ export async function cache(
     }
   }
 
+  // This error is created for every call of a cached function, and almost
+  // never used. Capturing a stack trace is the expensive part of creating an
+  // error, and the one that the constructor captures is replaced right away by
+  // the one that starts at the caller of `cache`. So only capture the latter.
+  const stackTraceLimit = Error.stackTraceLimit
+  Error.stackTraceLimit = 0
   const timeoutError = new UseCacheTimeoutError(workStore.route)
+  Error.stackTraceLimit = stackTraceLimit
   Error.captureStackTrace(timeoutError, cache)
   applyOwnerStack(timeoutError)
 
