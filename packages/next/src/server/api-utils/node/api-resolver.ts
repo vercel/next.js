@@ -13,6 +13,7 @@ import { isResSent } from '../../../shared/lib/utils'
 import { interopDefault } from '../../../lib/interop-default'
 import {
   setLazyProp,
+  setApiResponseMethods,
   sendStatusCode,
   redirect,
   clearPreviewData,
@@ -387,42 +388,43 @@ export async function apiResolver(
     const maxContentLength = getMaxContentLength(responseLimit)
     const writeData = apiRes.write
     const endResponse = apiRes.end
-    apiRes.write = (...args: any[2]) => {
-      contentLength += Buffer.byteLength(args[0] || '')
-      return writeData.apply(apiRes, args)
-    }
-    apiRes.end = (...args: any[2]) => {
-      if (args.length && typeof args[0] !== 'function') {
+    setApiResponseMethods(apiRes, {
+      write: (...args: any[2]) => {
         contentLength += Buffer.byteLength(args[0] || '')
-      }
+        return writeData.apply(apiRes, args)
+      },
+      end: (...args: any[2]) => {
+        if (args.length && typeof args[0] !== 'function') {
+          contentLength += Buffer.byteLength(args[0] || '')
+        }
 
-      if (responseLimit && contentLength >= maxContentLength) {
-        console.warn(
-          `API response for ${req.url} exceeds ${bytes.format(
-            maxContentLength
-          )}. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-response-size-limit`
-        )
-      }
+        if (responseLimit && contentLength >= maxContentLength) {
+          console.warn(
+            `API response for ${req.url} exceeds ${bytes.format(
+              maxContentLength
+            )}. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-response-size-limit`
+          )
+        }
 
-      return endResponse.apply(apiRes, args)
-    }
-    apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
-    apiRes.send = (data) => sendData(apiReq, apiRes, data)
-    apiRes.json = (data) => sendJson(apiRes, data)
-    apiRes.redirect = (statusOrUrl: number | string, url?: string) =>
-      redirect(apiRes, statusOrUrl, url)
-    apiRes.setDraftMode = (options = { enable: true }) =>
-      setDraftMode(apiRes, Object.assign({}, apiContext, options))
-    apiRes.setPreviewData = (data, options = {}) =>
-      setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
-    apiRes.clearPreviewData = (options = {}) =>
-      clearPreviewData(apiRes, options)
-    apiRes.revalidate = (
-      urlPath: string,
-      opts?: {
-        unstable_onlyGenerated?: boolean
-      }
-    ) => revalidate(urlPath, opts || {}, req, apiContext)
+        return endResponse.apply(apiRes, args)
+      },
+      status: (statusCode) => sendStatusCode(apiRes, statusCode),
+      send: (data) => sendData(apiReq, apiRes, data),
+      json: (data) => sendJson(apiRes, data),
+      redirect: (statusOrUrl: number | string, url?: string) =>
+        redirect(apiRes, statusOrUrl, url),
+      setDraftMode: (options = { enable: true }) =>
+        setDraftMode(apiRes, Object.assign({}, apiContext, options)),
+      setPreviewData: (data, options = {}) =>
+        setPreviewData(apiRes, data, Object.assign({}, apiContext, options)),
+      clearPreviewData: (options = {}) => clearPreviewData(apiRes, options),
+      revalidate: (
+        urlPath: string,
+        opts?: {
+          unstable_onlyGenerated?: boolean
+        }
+      ) => revalidate(urlPath, opts || {}, req, apiContext),
+    })
 
     const resolver = interopDefault(resolverModule)
     let wasPiped = false

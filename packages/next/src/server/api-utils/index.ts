@@ -202,6 +202,48 @@ interface LazyProps {
   req: IncomingMessage
 }
 
+const LAZY_PROPS = Symbol('next.lazyProps')
+
+type LazyPropsRequest = IncomingMessage & {
+  [LAZY_PROPS]?: {
+    req: IncomingMessage
+    getters: { [prop: string]: () => unknown }
+  }
+}
+
+// One pair of accessors per property name, for all requests. V8 allocates the
+// internal pair of an accessor property in the old generation, so accessors
+// that close over a request keep it alive until the next major garbage
+// collection. These read the request and its getter from the receiver.
+const lazyPropDescriptors = new Map<string, PropertyDescriptor>()
+
+function getLazyPropDescriptor(prop: string): PropertyDescriptor {
+  let descriptor = lazyPropDescriptors.get(prop)
+  if (!descriptor) {
+    const optsReset = { configurable: true, enumerable: true, writable: true }
+    descriptor = {
+      configurable: true,
+      enumerable: true,
+      get(this: LazyPropsRequest) {
+        const { req, getters } = this[LAZY_PROPS]!
+        const getter = getters[prop]
+        const value = getter()
+        // we set the property on the object to avoid recalculating it
+        Object.defineProperty(req, prop, { ...optsReset, value })
+        return value
+      },
+      set(this: LazyPropsRequest, value: unknown) {
+        Object.defineProperty(this[LAZY_PROPS]!.req, prop, {
+          ...optsReset,
+          value,
+        })
+      },
+    }
+    lazyPropDescriptors.set(prop, descriptor)
+  }
+  return descriptor
+}
+
 /**
  * Execute getter function only if its needed
  * @param LazyProps `req` and `params` for lazyProp
@@ -213,19 +255,51 @@ export function setLazyProp<T>(
   prop: string,
   getter: () => T
 ): void {
-  const opts = { configurable: true, enumerable: true }
-  const optsReset = { ...opts, writable: true }
+  const lazyReq: LazyPropsRequest = req
+  const lazyProps = (lazyReq[LAZY_PROPS] ??= { req, getters: {} })
+  lazyProps.getters[prop] = getter
+  Object.defineProperty(req, prop, getLazyPropDescriptor(prop))
+}
 
-  Object.defineProperty(req, prop, {
-    ...opts,
-    get: () => {
-      const value = getter()
-      // we set the property on the object to avoid recalculating it
-      Object.defineProperty(req, prop, { ...optsReset, value })
-      return value
-    },
-    set: (value) => {
-      Object.defineProperty(req, prop, { ...optsReset, value })
-    },
-  })
+type ApiResponseMethods = Pick<
+  NextApiResponse,
+  | 'write'
+  | 'end'
+  | 'status'
+  | 'send'
+  | 'json'
+  | 'redirect'
+  | 'setDraftMode'
+  | 'setPreviewData'
+  | 'clearPreviewData'
+  | 'revalidate'
+>
+
+/**
+ * Sets the functions that are created for each request on the response of an
+ * API route.
+ *
+ * V8 allocates a function expression that is assigned to a property
+ * (`res.json = (body) => {}`) in the old generation until it optimizes the
+ * function around the assignment, and there it keeps the request and the
+ * response alive until the next major garbage collection. So the caller
+ * creates the functions in an object literal and this function assigns them.
+ * It is not in the module of its only caller, so that the minifier does not
+ * inline it: an object of functions that is only read in place ends as
+ * direct assignments of the function expressions again.
+ */
+export function setApiResponseMethods(
+  res: NextApiResponse,
+  methods: ApiResponseMethods
+): void {
+  res.write = methods.write
+  res.end = methods.end
+  res.status = methods.status
+  res.send = methods.send
+  res.json = methods.json
+  res.redirect = methods.redirect
+  res.setDraftMode = methods.setDraftMode
+  res.setPreviewData = methods.setPreviewData
+  res.clearPreviewData = methods.clearPreviewData
+  res.revalidate = methods.revalidate
 }
