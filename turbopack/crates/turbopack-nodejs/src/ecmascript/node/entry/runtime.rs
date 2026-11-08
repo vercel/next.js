@@ -108,7 +108,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
         );
 
         // The chunks of this chunking context call the runtime function for a deferred import
-        // exactly when it returns deferred references.
+        // only when it returns deferred references.
         let include_deferred_evaluation_runtime =
             !Vc::upcast::<Box<dyn ChunkingContext>>(*this.chunking_context)
                 .deferred_references()

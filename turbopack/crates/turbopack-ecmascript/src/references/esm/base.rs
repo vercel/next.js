@@ -749,6 +749,8 @@ impl EsmAssetReference {
                     },
                 ..
             }) = &mut ident
+            // Holds for every deferred reference today (its target is never merged, and only an
+            // identifier that crosses a merged re-export names another module): guards the id below.
             && asset == referenced_asset
             && matches!(
                 *asset.get_exports().await?,
@@ -1064,6 +1066,8 @@ impl EsmAssetReference {
                                             // would cause hygiene to rename one of them).
                                             (
                                                 if deferred {
+                                                    // Never the key of an eager import of the
+                                                    // module: the two can't replace each other.
                                                     format!("deferred {} {:?}", id, ctxt).into()
                                                 } else {
                                                     format!("{} {:?}", id, ctxt).into()
