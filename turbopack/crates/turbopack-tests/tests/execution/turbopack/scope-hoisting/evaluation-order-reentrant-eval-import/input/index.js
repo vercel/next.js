@@ -5,7 +5,15 @@ it('should evaluate modules in import order when a cycle of imports holds a modu
   // being evaluated. `p.js` imports `c.js` between `a.js` and `b.js`, which `m.js` and `t.js`
   // import one after the other.
   await import('./r.js')
-  expect(globalThis.evaluationOrder).toEqual(['a', 'c', 'b', 'p', 'n', 'm', 'r'])
+  expect(globalThis.evaluationOrder).toEqual([
+    'a',
+    'c',
+    'b',
+    'p',
+    'n',
+    'm',
+    'r',
+  ])
 
   const { t } = await import('./t.js')
   expect(t).toBe('ab')
