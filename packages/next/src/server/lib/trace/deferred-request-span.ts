@@ -11,7 +11,9 @@
  * forwards its context (`traceparent`) to the render together with a
  * `next-deferred` `tracestate` entry describing it, and the render emits the
  * span with exactly that span ID (see `startSpanWithIds`) once its request
- * handling has settled. Otherwise, the middleware emits it.
+ * handling has settled. Otherwise (a direct response, a redirect, an external
+ * rewrite, a trace context the user set for the render, or a failure), the span
+ * isn't emitted: only requests that continue to a render get one.
  *
  * The entry is versioned: `1;<span ID>;<start time>;<name>;<http.method>;<http.target>`,
  * with the start time in microseconds since the epoch and the other fields
@@ -19,12 +21,12 @@
  * It isn't signed: an entry a client sends itself is accepted when valid,
  * which only affects trace data.
  *
- * Limitations: the span isn't emitted when no render picks the entry up (e.g.
- * a page served from a cache without invoking a function, or a render that
- * crashes or times out), with an SDK without the internals used here, or when
- * the render's sampler drops it. The middleware's spans then have a parent
- * that is never exported. The middleware's and the render's clocks may
- * differ.
+ * Limitations: the span isn't emitted when the request doesn't continue to a
+ * render (see above), when no render picks the entry up (e.g. a page served
+ * from a cache without invoking a function, or a render that crashes or times
+ * out), with an SDK without the internals used here, or when the render's
+ * sampler drops it. The middleware's spans then have a parent that is never
+ * exported. The middleware's and the render's clocks may differ.
  */
 
 export const DEFERRED_REQUEST_SPAN_KEY = 'next-deferred'

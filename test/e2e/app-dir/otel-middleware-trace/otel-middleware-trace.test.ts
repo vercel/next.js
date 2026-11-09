@@ -147,10 +147,11 @@ interface TracedResponse {
 // without an incoming `traceparent`) the inserted `Next.request` root have
 // ended. Pass the incoming trace context and the one the middleware sets as
 // `known`, and `incoming` when the request has a `traceparent`. Pass
-// `uninvokedRender` when the request continues to a page served without a
-// function invocation when deployed (e.g. a static page): nothing emits the
-// deferred `Next.request` then. One-time spans (see `isOneTimeSpan`) are
-// omitted unless `includeOneTimeSpans` is set.
+// `noRenderInTrace` when, deployed, no render continues the middleware's
+// trace: a redirect, a direct response, an external rewrite, a trace context
+// the user set for the render, or a page served without a function invocation
+// (e.g. a static page). Nothing emits `Next.request` then. One-time spans (see
+// `isOneTimeSpan`) are omitted unless `includeOneTimeSpans` is set.
 async function traceRequest(
   res: Response,
   body: Body,
@@ -158,12 +159,12 @@ async function traceRequest(
     includeOneTimeSpans = false,
     known = [],
     incoming = false,
-    uninvokedRender = false,
+    noRenderInTrace = false,
   }: {
     includeOneTimeSpans?: boolean
     known?: KnownTraceContext[]
     incoming?: boolean
-    uninvokedRender?: boolean
+    noRenderInTrace?: boolean
   } = {}
 ): Promise<TracedRequest> {
   const text = await res.text()
@@ -178,7 +179,7 @@ async function traceRequest(
   if (middlewareTraceId) {
     traceIds.push(middlewareTraceId)
     expected.push('Middleware.execute')
-    if (isNextDeploy && !incoming && !uninvokedRender) {
+    if (isNextDeploy && !incoming && !noRenderInTrace) {
       expected.push('Next.request')
     }
   }
@@ -884,7 +885,8 @@ describe.each(VARIANTS)(
       async () =>
         traceRequest(
           await next.fetch('/redirect', { redirect: 'manual' }),
-          'none'
+          'none',
+          { noRenderInTrace: true }
         ),
       async ({ res, tree: getTree }) => {
         expect(res.status).toBe(307)
@@ -923,7 +925,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/redirect}
+            "[trace A] [remote]
             └─ middleware GET (Middleware.execute) {http.target=/redirect}"
           `)
         } else {
@@ -935,7 +937,10 @@ describe.each(VARIANTS)(
 
     traceTest(
       'traces a direct middleware response',
-      async () => traceRequest(await next.fetch('/direct'), 'none'),
+      async () =>
+        traceRequest(await next.fetch('/direct'), 'none', {
+          noRenderInTrace: true,
+        }),
       async ({ res, text, tree: getTree }) => {
         expect(res.status).toBe(200)
         expect(text).toBe('direct response from middleware')
@@ -974,7 +979,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/direct}
+            "[trace A] [remote]
             └─ middleware GET (Middleware.execute) {http.target=/direct}"
           `)
         } else {
@@ -988,7 +993,10 @@ describe.each(VARIANTS)(
     // app renders it.
     traceTest(
       'traces a middleware rewrite to an external origin',
-      async () => traceRequest(await next.fetch('/rewrite-external'), 'none'),
+      async () =>
+        traceRequest(await next.fetch('/rewrite-external'), 'none', {
+          noRenderInTrace: true,
+        }),
       async ({ res, tree: getTree }) => {
         expect(res.status).toBe(200)
         expectNoInternalHeaders(res)
@@ -1026,7 +1034,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/rewrite-external}
+            "[trace A] [remote]
             └─ middleware GET (Middleware.execute) {http.target=/rewrite-external}"
           `)
         } else {
@@ -1043,7 +1051,7 @@ describe.each(VARIANTS)(
       'traces a middleware rewrite to a static page',
       async () =>
         traceRequest(await next.fetch('/rewrite-static'), 'none', {
-          uninvokedRender: true,
+          noRenderInTrace: true,
         }),
       async ({ res, text, tree: getTree }) => {
         expect(res.status).toBe(200)
@@ -1125,7 +1133,7 @@ describe.each(VARIANTS)(
       'traces a middleware rewrite to an ISR page',
       async () =>
         traceRequest(await next.fetch('/rewrite-isr'), 'none', {
-          uninvokedRender: true,
+          noRenderInTrace: true,
         }),
       async ({ res, text, tree: getTree }) => {
         expect(res.status).toBe(200)
@@ -1998,7 +2006,10 @@ describe.each(VARIANTS)(
         const res = await next.fetch('/user-traceparent', {
           headers: { 'x-test-traceparent': toTraceparent(setByMiddleware) },
         })
-        return traceRequest(res, 'html', { known: [setByMiddleware] })
+        return traceRequest(res, 'html', {
+          known: [setByMiddleware],
+          noRenderInTrace: true,
+        })
       },
       async ({ res, tree: getTree }) => {
         expect(res.status).toBe(200)
@@ -2081,7 +2092,7 @@ describe.each(VARIANTS)(
           `)
         } else if (['deploy, middleware', 'deploy, proxy'].includes(env)) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/user-traceparent}
+            "[trace A] [remote]
             └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
             [trace set by middleware] [set by middleware traceparent]
             └─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
@@ -2102,7 +2113,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/user-traceparent}
+            "[trace A] [remote]
             └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
             [trace set by middleware] [set by middleware traceparent]
             └─ GET /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
@@ -2125,7 +2136,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/user-traceparent}
+            "[trace A] [remote]
             └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
             [trace set by middleware] [set by middleware traceparent]
             └─ POST /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}
@@ -2146,7 +2157,7 @@ describe.each(VARIANTS)(
           ].includes(env)
         ) {
           expect(tree).toMatchInlineSnapshot(`
-            "[trace A] GET (Next.request) {http.target=/user-traceparent}
+            "[trace A] [remote]
             └─ middleware GET (Middleware.execute) {http.target=/user-traceparent}
             [trace set by middleware] [set by middleware traceparent]
             └─ POST /headers-echo (BaseServer.handleRequest) {http.target=/user-traceparent, http.route=/headers-echo, next.route=/headers-echo, http.status_code=200}

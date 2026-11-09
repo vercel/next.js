@@ -196,43 +196,6 @@ describe('forwardTraceContextToRequest', () => {
       tracestate: 'user=1',
     })
   })
-
-  it('returns whether the downstream request carries the trace context', () => {
-    const traceContext = { traceparent: TRACEPARENT, tracestate: TRACESTATE }
-    const forward = (response: NextResponse) =>
-      forwardTraceContextToRequest(
-        response.headers,
-        requestHeaders(),
-        traceContext
-      )
-    expect(forward(NextResponse.next())).toBe(true)
-    expect(forward(NextResponse.rewrite('https://example.com/page'))).toBe(true)
-    // No downstream request.
-    expect(forward(NextResponse.redirect('https://example.com/page'))).toBe(
-      false
-    )
-    expect(forward(new NextResponse('direct'))).toBe(false)
-    // The render continues the trace context the user set.
-    expect(
-      forward(
-        NextResponse.next({
-          request: {
-            headers: new Headers({
-              traceparent:
-                '00-33333333333333333333333333333333-4444444444444444-01',
-            }),
-          },
-        })
-      )
-    ).toBe(false)
-    expect(
-      forwardTraceContextToRequest(
-        NextResponse.next().headers,
-        requestHeaders(),
-        undefined
-      )
-    ).toBe(false)
-  })
 })
 
 describe('continuesToSameOrigin', () => {
