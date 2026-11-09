@@ -12,11 +12,23 @@
  * runtime was loaded in: its top-level code does not see the stores of whatever evaluates it
  * first, and the timers, promises and bound functions it creates do not keep them.
  */
-const deferredEvaluationContext = new (
+const { AsyncResource: DeferredEvaluationResource } =
   require('async_hooks') as typeof import('async_hooks')
-).AsyncResource('TurbopackDeferredModuleEvaluation')
+const deferredEvaluationContext = new DeferredEvaluationResource(
+  'TurbopackDeferredModuleEvaluation'
+)
+
+function createDeferredEvaluationResource() {
+  return new DeferredEvaluationResource('TurbopackDeferredModuleEvaluation')
+}
 
 function deferredModule(body: () => void): void {
-  deferredEvaluationContext.runInAsyncScope(body)
+  // Each evaluation gets a resource of its own, created in the context of this runtime. Before
+  // Node.js 24, `AsyncLocalStorage.enterWith()` keeps the store on the resource that is current:
+  // on a shared one, every module that is evaluated later would see a store that the top-level
+  // code of one module entered.
+  deferredEvaluationContext
+    .runInAsyncScope(createDeferredEvaluationResource)
+    .runInAsyncScope(body)
 }
 contextPrototype.d = deferredModule
