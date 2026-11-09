@@ -204,6 +204,25 @@ where
         }
     }
 
+    /// Removes `key` by swapping the last entry into its place, like
+    /// [IndexMap::swap_remove](https://docs.rs/indexmap/latest/indexmap/map/struct.IndexMap.html#method.swap_remove).
+    ///
+    /// This always swaps, also for ordered storages, so it's O(1) there but changes the order of
+    /// the remaining entries. For unordered storages it's the same as [`Self::remove`].
+    pub fn swap_remove(&mut self, key: &K) -> Option<V> {
+        match self {
+            RawAutoMap::List(list, _) => {
+                for i in 0..list.len() {
+                    if list[i].0 == *key {
+                        return Some(list.swap_remove(i).1);
+                    }
+                }
+                None
+            }
+            RawAutoMap::Map(map) => map.swap_remove(key),
+        }
+    }
+
     /// see [HashMap::extend](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.extend)
     pub fn extend(&mut self, iter: impl IntoIterator<Item = (K, V)>) {
         let iter = iter.into_iter();
@@ -1353,6 +1372,44 @@ mod tests {
         map.retain(|k, _| *k != expected[1]);
         expected.remove(1);
         assert_eq!(keys(&map), expected);
+    }
+
+    #[test]
+    fn test_auto_index_map_swap_remove() {
+        // List mode: the last entry moves into the removed slot.
+        let mut map: AutoIndexMap<usize, usize> = (0..5).map(|i| (i, i * 10)).collect();
+        assert!(matches!(map, RawAutoMap::List(..)));
+        assert_eq!(map.swap_remove(&1), Some(10));
+        assert_eq!(map.swap_remove(&1), None);
+        assert_eq!(map.swap_remove(&99), None);
+        assert_eq!(keys(&map), vec![0, 4, 2, 3]);
+        // Removing the last entry doesn't move anything.
+        assert_eq!(map.swap_remove(&3), Some(30));
+        assert_eq!(keys(&map), vec![0, 4, 2]);
+
+        // Map mode: same semantics as `IndexMap::swap_remove`.
+        let n = MAX_USEFUL_LINEAR_SCAN * 2;
+        let mut map: AutoIndexMap<usize, usize> = (0..n).map(|i| (i, i * 10)).collect();
+        assert!(matches!(map, RawAutoMap::Map(..)));
+        assert_eq!(map.swap_remove(&0), Some(0));
+        assert_eq!(map.swap_remove(&0), None);
+        let mut expected: Vec<usize> = (0..n).collect();
+        expected.swap_remove(0);
+        assert_eq!(keys(&map), expected);
+        assert_eq!(map.get(&(n - 1)), Some(&((n - 1) * 10)));
+    }
+
+    #[test]
+    fn test_auto_map_swap_remove_is_remove() {
+        for n in [5, MAX_USEFUL_LINEAR_SCAN * 2] {
+            let mut swapped: AutoMap<usize, usize> = (0..n).map(|i| (i, i * 10)).collect();
+            let mut removed = swapped.clone();
+            for key in [1, 3, n - 1, n + 7] {
+                assert_eq!(swapped.swap_remove(&key), removed.remove(&key));
+            }
+            assert_eq!(keys(&swapped), keys(&removed));
+            assert_eq!(swapped, removed);
+        }
     }
 
     #[test]
