@@ -1542,7 +1542,7 @@ mod tests {
         let mut merged_modules = [0, 0];
         let mut unchecked_differs = 0;
         // The first 20,000 seeds, and seeds of graphs that need conditions which those don't.
-        for seed in (1..=20000).chain([25209, 35291, 55124, 209372, 735377]) {
+        for seed in (1..=20000).chain([25209, 35291, 55124, 99669, 209372, 735377]) {
             let mut random = Random::new(seed);
             let graph = generate_graph(&mut random);
             let roots = graph.roots();
@@ -1612,7 +1612,7 @@ mod tests {
         }
         // The check is neither vacuous nor does it give up merging. The seeds are fixed, so a
         // change of these numbers is a change of the groups.
-        assert_eq!(unchecked_differs, 393);
+        assert_eq!(unchecked_differs, 394);
         assert_eq!(merged_modules, [33306, 16697]);
     }
 
