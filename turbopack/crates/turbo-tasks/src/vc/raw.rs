@@ -12,7 +12,7 @@ use bincode::{
     Decode, Encode,
     de::Decoder,
     enc::Encoder,
-    error::{DecodeError, EncodeError, IntegerType},
+    error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
 use serde::{Deserialize, Serialize};
@@ -49,20 +49,19 @@ pub struct CellId(NonZeroU32);
 // would always take 5 bytes.
 impl Encode for CellId {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        self.raw().encode(&mut encoder.with_fixint())
+        self.0.encode(&mut encoder.with_fixint())
     }
 }
 
 impl<Context> Decode<Context> for CellId {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        let raw = u32::decode(&mut decoder.with_fixint())?;
-        if raw >> CELL_INDEX_BITS == 0 {
-            return Err(DecodeError::NonZeroTypeIsZero {
-                non_zero_type: IntegerType::U32,
-            });
+        let raw = NonZeroU32::decode(&mut decoder.with_fixint())?;
+        // A non-zero word can still have zero `ValueTypeId` bits, which `type_id` relies on never
+        // happening.
+        if raw.get() >> CELL_INDEX_BITS == 0 {
+            return Err(DecodeError::Other("CellId has a zero ValueTypeId"));
         }
-        // SAFETY: the type id bits are non-zero, which is all `from_raw` requires.
-        Ok(unsafe { Self::from_raw(raw) })
+        Ok(CellId(raw))
     }
 }
 

@@ -9,7 +9,7 @@ use bincode::{
     Decode, Encode,
     de::Decoder,
     enc::Encoder,
-    error::{DecodeError, EncodeError, IntegerType},
+    error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
 use serde::{Deserialize, Serialize, de::Visitor};
@@ -187,9 +187,7 @@ impl Encode for TaskId {
 
 impl<Context> Decode<Context> for TaskId {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        Self::new(u32::decode(&mut decoder.with_fixint())?).ok_or(DecodeError::NonZeroTypeIsZero {
-            non_zero_type: IntegerType::U32,
-        })
+        NonZero::<u32>::decode(&mut decoder.with_fixint()).map(Self::from)
     }
 }
 
@@ -288,14 +286,13 @@ macro_rules! make_registered_serializable {
 
         impl Encode for $ty {
             fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-                self.id.get().encode(&mut encoder.with_fixint())
+                self.id.encode(&mut encoder.with_fixint())
             }
         }
 
         impl<Context> Decode<Context> for $ty {
             fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-                let value = Self::new(<$primitive>::decode(&mut decoder.with_fixint())?)
-                    .ok_or(DecodeError::Other(concat!("zero ", stringify!($ty))))?;
+                let value = Self::from(NonZero::<$primitive>::decode(&mut decoder.with_fixint())?);
                 if let Some(error) = $validate_type_id(value) {
                     Err(DecodeError::OtherString(error.to_string()))
                 } else {
