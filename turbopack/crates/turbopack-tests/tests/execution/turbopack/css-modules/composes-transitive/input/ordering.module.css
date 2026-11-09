@@ -1,0 +1,36 @@
+/* `a` and `b` compose each other. Expanding `a` first must not change the order for `b`. */
+.a {
+  composes: b;
+  composes: e;
+}
+
+.b {
+  composes: a;
+  composes: d;
+}
+
+.d {
+  color: red;
+}
+
+.e {
+  color: blue;
+}
+
+/* Diamond: `shared` is reachable twice but only listed once, at its first occurrence. */
+.shared {
+  color: green;
+}
+
+.left {
+  composes: shared;
+}
+
+.right {
+  composes: shared;
+}
+
+.diamond {
+  composes: left right;
+  composes: global-name from global;
+}

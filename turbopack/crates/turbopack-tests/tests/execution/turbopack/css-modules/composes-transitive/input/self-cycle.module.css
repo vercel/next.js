@@ -1,0 +1,9 @@
+.p {
+  composes: q;
+  color: red;
+}
+
+.q {
+  composes: p;
+  color: blue;
+}

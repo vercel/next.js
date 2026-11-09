@@ -18,8 +18,8 @@ __turbopack_context__.v({
 }),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css [test] (css module)",((__turbopack_context__) => {
 
 __turbopack_context__.v({
-  "another-composed-module-style": "Iu_hLa_another-composed-module-style" + " " + __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css [test] (css module)")["foo-module-style"],
-  "composed-module-style": "Iu_hLa_composed-module-style" + " " + __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css [test] (css module)")["foo-module-style"],
+  "another-composed-module-style": "Iu_hLa_another-composed-module-style CEkn7G_foo-module-style",
+  "composed-module-style": "Iu_hLa_composed-module-style CEkn7G_foo-module-style",
   "inner": "Iu_hLa_inner",
   "module-style": "Iu_hLa_module-style",
 });
