@@ -43,6 +43,9 @@ const NONE: u32 = u32::MAX;
 ///
 /// A module that is not followed into its own imports still has to be recorded: it is evaluated
 /// between the modules around it.
+///
+/// A trace records one root, starting from nothing: [`EvaluationOrder::add_trace`] takes the trace
+/// by value, so the next root needs a new one.
 pub(crate) struct EvaluationTrace<M> {
     indices: FxHashMap<M, u32>,
     modules: Vec<TracedModule<M>>,
@@ -100,13 +103,6 @@ impl<M: Copy + Eq + Hash> EvaluationTrace<M> {
         let index = self.indices[&module];
         self.modules[index as usize].position = self.completed.len() as u32;
         self.completed.push(index);
-    }
-
-    /// Empties the trace to record another one.
-    pub(crate) fn clear(&mut self) {
-        self.indices.clear();
-        self.modules.clear();
-        self.completed.clear();
     }
 }
 
@@ -222,7 +218,11 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
     ///
     /// The trace has to evaluate all modules of a list or none of them, as the trace of a merge
     /// group entry does for modules that the same merge group entries import.
-    pub(crate) fn add_trace(&mut self, trace: &EvaluationTrace<M>) {
+    ///
+    /// What a trace restricts depends on that trace only, and restrictions add up (`|=`, `min` and
+    /// `max` per module, here and in [`Self::merge`]). So the result is the same in whatever order
+    /// the traces are added, and however they are spread over clones that are merged afterwards.
+    pub(crate) fn add_trace(&mut self, trace: EvaluationTrace<M>) {
         // The list and the position of every module of the trace.
         let positions = trace
             .modules
@@ -671,7 +671,7 @@ mod tests {
             for (i, &root) in roots.iter().enumerate() {
                 if !self.not_mergeable.contains(&root) {
                     let order = if i % 2 == 0 { &mut order } else { &mut other };
-                    order.add_trace(&self.trace(root));
+                    order.add_trace(self.trace(root));
                 }
             }
             order.merge(&other);
@@ -1155,7 +1155,7 @@ mod tests {
         trace.enter(Some(2), 1);
         trace.leave(1);
         trace.leave(2);
-        order.add_trace(&trace);
+        order.add_trace(trace);
         assert_eq!(order.groups(0, None), [Range { start: 0, end: 2 }]);
         assert_eq!(order.entry_points(0, 0..2).collect::<Vec<_>>(), [1]);
     }
@@ -1168,7 +1168,7 @@ mod tests {
         let mut trace = EvaluationTrace::new();
         trace.enter(None, 2);
         trace.leave(2);
-        order.add_trace(&trace);
+        order.add_trace(trace);
     }
 
     /// Deterministic pseudo-random numbers (xorshift64).

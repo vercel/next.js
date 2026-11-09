@@ -813,6 +813,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 .map(|&m| ResolvedVc::upcast::<Box<dyn Module>>(m))
         }));
         if !lists.is_empty() {
+            // The roots are traced in parallel, in chunks whose number depends on the number of
+            // CPUs. The groups don't: every root has a trace of its own, and what the traces
+            // restrict adds up in any order (see `EvaluationOrder::add_trace`).
             let traced = turbo_tasks::parallel::map_collect_chunked_owned::<_, _, Result<Vec<_>>>(
                 entry_modules
                     .keys()
@@ -822,9 +825,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     .collect(),
                 |roots| {
                     let mut order = order.clone();
-                    let mut trace = EvaluationTrace::new();
                     for root in roots {
-                        trace.clear();
+                        let mut trace = EvaluationTrace::new();
                         module_graph.traverse_edges_dfs(
                             [root],
                             &mut trace,
@@ -861,7 +863,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             false,
                             false,
                         )?;
-                        order.add_trace(&trace);
+                        order.add_trace(trace);
                     }
                     Ok(order)
                 },
