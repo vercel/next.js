@@ -143,6 +143,8 @@ export function headers(): Promise<ReadonlyHeaders> {
             )
           } else if (workUnitStore.asyncApiPromises) {
             return workUnitStore.asyncApiPromises.headers
+          } else if (workUnitStore.headersPromise) {
+            return workUnitStore.headersPromise()
           } else {
             return makeUntrackedHeaders(workUnitStore.headers)
           }

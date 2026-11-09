@@ -134,7 +134,10 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               return workUnitStore.asyncApiPromises.cookies
             }
           } else {
-            return makeUntrackedCookies(underlyingCookies)
+            return (
+              workUnitStore.cookiesPromise?.(underlyingCookies) ??
+              makeUntrackedCookies(underlyingCookies)
+            )
           }
         default:
           workUnitStore satisfies never

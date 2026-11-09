@@ -263,6 +263,13 @@ export function createRequestStoreForAPI(
  * every pointer from the old generation as a root. With the state in fields
  * and the getters shared on the prototype, nothing is allocated in the old
  * generation per request.
+ *
+ * The store also keeps the promises that `headers()` and `cookies()` return,
+ * next to the objects they resolve to. A module-level `WeakMap` from the
+ * object to its promise has the same lifetime on paper, but a scavenge treats
+ * the values of a `WeakMap` as strong, and such a value references its key:
+ * the promise, the headers or cookies and the request behind them then
+ * survive until the next major GC.
  */
 class RequestStoreImpl implements RequestStore {
   public readonly type: 'request'
@@ -286,6 +293,11 @@ class RequestStoreImpl implements RequestStore {
   private _mutableCookies: ResponseCookies | undefined
   private _userspaceMutableCookies: ResponseCookies | undefined
   private _draftMode: DraftModeProvider | undefined
+  private _headersPromise: Promise<ReadonlyHeaders> | undefined
+  private _cookiesPromise: Promise<ReadonlyRequestCookies> | undefined
+  private _userspaceMutableCookiesPromise:
+    | Promise<ReadonlyRequestCookies>
+    | undefined
 
   constructor(inputs: RequestStoreInputs) {
     const { url } = inputs
@@ -306,6 +318,9 @@ class RequestStoreImpl implements RequestStore {
     this._mutableCookies = undefined
     this._userspaceMutableCookies = undefined
     this._draftMode = undefined
+    this._headersPromise = undefined
+    this._cookiesPromise = undefined
+    this._userspaceMutableCookiesPromise = undefined
     this.resumeDataCache = inputs.resumeDataCache ?? null
     this.isHmrRefresh = inputs.isHmrRefresh
     this.serverComponentsHmrCache =
@@ -345,7 +360,40 @@ class RequestStoreImpl implements RequestStore {
   }
 
   set cookies(value: ReadonlyRequestCookies) {
-    this._cookies = value
+    if (value !== this._cookies) {
+      this._cookies = value
+      // The promise belongs to the object it resolves to.
+      this._cookiesPromise = undefined
+    }
+  }
+
+  headersPromise(): Promise<ReadonlyHeaders> {
+    if (!this._headersPromise) {
+      this._headersPromise = Promise.resolve(this.headers)
+    }
+    return this._headersPromise
+  }
+
+  cookiesPromise(
+    underlyingCookies: ReadonlyRequestCookies
+  ): Promise<ReadonlyRequestCookies> | undefined {
+    if (underlyingCookies === this._cookies) {
+      if (!this._cookiesPromise) {
+        this._cookiesPromise = Promise.resolve(underlyingCookies)
+      }
+      return this._cookiesPromise
+    }
+    if (
+      underlyingCookies ===
+      (this._userspaceMutableCookies as unknown as ReadonlyRequestCookies)
+    ) {
+      if (!this._userspaceMutableCookiesPromise) {
+        this._userspaceMutableCookiesPromise =
+          Promise.resolve(underlyingCookies)
+      }
+      return this._userspaceMutableCookiesPromise
+    }
+    return undefined
   }
 
   get mutableCookies(): ResponseCookies {
