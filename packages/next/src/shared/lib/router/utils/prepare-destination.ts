@@ -45,6 +45,24 @@ function unescapeSegments(str: string) {
   return str.replace(/__ESC_COLON_/gi, ':')
 }
 
+/**
+ * The compiled patterns of the values of `has` and `missing` items, by their
+ * source. The values come from the configuration, so there are as many
+ * entries as it has distinct values. Without this a `RegExp` was compiled for
+ * every item whose key is present, on every request.
+ */
+const hasValueMatchers = new Map<string, RegExp>()
+
+function getHasValueMatcher(value: string | undefined): RegExp {
+  const source = `^${value}$`
+  let matcher = hasValueMatchers.get(source)
+  if (matcher === undefined) {
+    matcher = new RegExp(source)
+    hasValueMatchers.set(source, matcher)
+  }
+  return matcher
+}
+
 export function matchHas(
   req: BaseNextRequest | IncomingMessage,
   query: Params,
@@ -93,7 +111,7 @@ export function matchHas(
       params[getSafeParamName(key!)] = value
       return true
     } else if (value) {
-      const matcher = new RegExp(`^${hasItem.value}$`)
+      const matcher = getHasValueMatcher(hasItem.value)
       const matches = Array.isArray(value)
         ? value.slice(-1)[0].match(matcher)
         : value.match(matcher)
