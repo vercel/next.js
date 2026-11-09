@@ -81,3 +81,14 @@ it('evaluates a module that is not deferred in the async context of the import t
     'outer',
   ])
 })
+
+it('evaluates a CommonJS module, which is never deferred, in the async context of its importer', async () => {
+  // The import of `commonjs.js` is only read inside a function, but only a module with ES module
+  // exports is deferred.
+  const later = await request.run(
+    'request 9',
+    () => import('./later-commonjs.js')
+  )
+  expect(events.slice(-2)).toEqual(['commonjs', 'later-commonjs'])
+  expect(later.commonjsAtEvaluation()).toBe('request 9')
+})

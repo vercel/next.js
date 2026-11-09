@@ -29,7 +29,9 @@ use turbopack_core::{
 
 use crate::{
     EcmascriptModuleContent,
-    chunk::{chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable},
+    chunk::{
+        EcmascriptExports, chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable,
+    },
     merged_module::MergedEcmascriptModule,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::{TURBOPACK_ASYNC_MODULE, TURBOPACK_DEFERRED_MODULE},
@@ -307,8 +309,10 @@ where
     }
 }
 
-/// Whether the factory of `chunk_item` evaluates a module of
-/// [`ChunkingContext::deferred_modules`]: its own module, or a module that was merged into it.
+/// Whether the factory of `chunk_item` evaluates a module whose evaluation is deferred: its own
+/// module, or a module that was merged into it. That is a module of
+/// [`ChunkingContext::deferred_modules`] with ES module exports, the condition under which the
+/// read imports it (`EsmAssetReference::get_ident`).
 async fn evaluates_deferred_module(chunk_item: Vc<Box<dyn EcmascriptChunkItem>>) -> Result<bool> {
     let deferred_modules = chunk_item
         .into_trait_ref()
@@ -316,13 +320,24 @@ async fn evaluates_deferred_module(chunk_item: Vc<Box<dyn EcmascriptChunkItem>>)
         .chunking_context()
         .deferred_modules();
     let module = chunk_item.module().to_resolved().await?;
-    let Some(merged) = ResolvedVc::try_downcast_type::<MergedEcmascriptModule>(module) else {
-        return deferred_modules.contains_key(&module).await;
-    };
-    for (module, _) in &merged.await?.modules {
-        if deferred_modules
-            .contains_key(&ResolvedVc::upcast(*module))
-            .await?
+    let modules: Vec<ResolvedVc<Box<dyn Module>>> =
+        match ResolvedVc::try_downcast_type::<MergedEcmascriptModule>(module) {
+            Some(merged) => merged
+                .await?
+                .modules
+                .iter()
+                .map(|(module, _)| ResolvedVc::upcast(*module))
+                .collect(),
+            None => vec![module],
+        };
+    for module in modules {
+        if deferred_modules.contains_key(&module).await?
+            && let Some(module) =
+                ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
+            && matches!(
+                *module.get_exports().await?,
+                EcmascriptExports::EsmExports(_)
+            )
         {
             return Ok(true);
         }

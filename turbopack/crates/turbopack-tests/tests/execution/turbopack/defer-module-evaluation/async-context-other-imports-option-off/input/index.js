@@ -59,6 +59,12 @@ it('evaluates every module at startup, outside the async context of a request', 
   )
   expect(laterInner.innerAtEvaluation).toBe(undefined)
   expect(request.run('request 8', readInner)).toBe(undefined)
+  // A module that is only loaded while a request is handled is evaluated in that async context.
+  const laterCommonjs = await request.run(
+    'request 9',
+    () => import('./later-commonjs.js')
+  )
+  expect(laterCommonjs.commonjsAtEvaluation()).toBe('request 9')
   expect(events).toEqual([
     'dynamic',
     'required',
@@ -68,5 +74,7 @@ it('evaluates every module at startup, outside the async context of a request', 
     'outer',
     'later',
     'later-inner',
+    'commonjs',
+    'later-commonjs',
   ])
 })
