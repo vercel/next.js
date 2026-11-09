@@ -786,7 +786,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             }
         }
 
-        // Dedupe the lists. A list of one module has nothing to merge.
+        // Dedupe the lists. A list of one module has nothing to merge, and an empty list has no
+        // first module for the bitmap lookup below.
         let lists = lists
             .into_iter()
             .flatten()
