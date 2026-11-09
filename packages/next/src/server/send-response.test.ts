@@ -36,7 +36,7 @@ describe('sendResponse', () => {
     const { res, nodeRes } = createMocks()
     const response = new Response('decoded body')
     // a decoded fetch response carries the origin url and its pre-decode headers
-    Object.defineProperty(response, 'url', { value: 'https://example.com/' })
+    // a stream body behaves like a decoded fetch response (strip applies)
     response.headers.set('content-encoding', 'gzip')
 
     await sendResponse({} as never, nodeRes, response, undefined)

@@ -57,8 +57,12 @@ export async function sendResponse(
         return
       }
 
+      const bodyIsOpaqueBuffer =
+        response.body === null ||
+        response.body instanceof Uint8Array ||
+        response.body instanceof ArrayBuffer
       const preserveContentEncoding =
-        name.toLowerCase() === 'content-encoding' && response.url === ''
+        name.toLowerCase() === 'content-encoding' && bodyIsOpaqueBuffer
       if (FORBIDDEN_HEADERS.includes(name) && !preserveContentEncoding) {
         return
       }
