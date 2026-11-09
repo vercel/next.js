@@ -1,7 +1,8 @@
 import './setup.js'
 
 it('should evaluate modules once and in import order when a registered function requires an importer of a module that is being evaluated', async () => {
-  // `holder.js` registers a function that requires `above.js`, which imports `entry.js`.
+  // `holder.js` registers a function that requires `above.js`, which is not merged and imports
+  // `entry.js`.
   await import('./a.js')
   expect(globalThis.evaluationOrder).toEqual(['registry', 'holder', 'a'])
 
