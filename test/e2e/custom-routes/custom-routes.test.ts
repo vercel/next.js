@@ -14,8 +14,8 @@ import {
 } from 'next-test-utils'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// Deploy mode exclusion: This suite starts an HTTP server on a local port and
+// patches that port into next.config.js, which a deployment can't reach.
 // @force-gate !deploy
 describe('Custom routes', () => {
   const { next } = nextTestSetup({
@@ -3474,8 +3474,8 @@ describe('Custom routes', () => {
     })
   }
 })
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// Deploy mode exclusion: This suite starts an HTTP server on a local port and
+// patches that port into next.config.js, which a deployment can't reach.
 // @force-gate !deploy
 describe('Custom routes no-op rewrite', () => {
   const { next, isTurbopack, isNextStart } = nextTestSetup({
@@ -3532,8 +3532,8 @@ describe('Custom routes no-op rewrite', () => {
   })
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// Deploy mode exclusion: This suite starts an HTTP server on a local port and
+// patches that port into next.config.js, which a deployment can't reach.
 // @force-gate !deploy
 describe('Custom routes solo types', () => {
   const { next } = nextTestSetup({

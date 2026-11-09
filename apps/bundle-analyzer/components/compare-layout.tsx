@@ -30,6 +30,8 @@ export interface CompareLayoutModel {
   baselineSnapshot: SnapshotMetadata
   baselineIsLatest: boolean
   comparisonSnapshot: SnapshotMetadata | null
+  /** Route counts from each side's route summaries, not saved metadata. */
+  baselineRouteCount: number
   comparisonRouteCount: number | null
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
   selectedRoute: string | null
@@ -71,7 +73,7 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
           className="xl:min-w-0 xl:flex-1 xl:basis-0 xl:border-r xl:border-border"
         />
         <CompareContextStrip
-          baselineSnapshot={model.baselineSnapshot}
+          baselineRouteCount={model.baselineRouteCount}
           comparisonRouteCount={model.comparisonRouteCount}
           routeDiff={model.routeDiff}
           compressed
@@ -144,19 +146,20 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
  * A/B label pills below identify which snapshot is which.
  */
 export function CompareContextStrip({
-  baselineSnapshot,
+  baselineRouteCount,
   comparisonRouteCount,
   routeDiff,
   compressed,
   className,
 }: {
-  baselineSnapshot: SnapshotMetadata
+  baselineRouteCount: number
   comparisonRouteCount: number | null
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
   compressed: boolean
   className?: string
 }) {
-  const baselineRoutes = baselineSnapshot.routeCount
+  // Counted from the summaries, not `routeCount` saved in older metadata.
+  const baselineRoutes = baselineRouteCount
   const comparisonRoutes =
     comparisonRouteCount ??
     routeDiff?.rows.filter((r) => r.status !== 'removed').length ??

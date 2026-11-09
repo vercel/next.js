@@ -12,6 +12,7 @@ use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIt
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    json::RcJsonRawValue,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
@@ -30,6 +31,9 @@ pub struct BuildManifest {
     pub client_relative_path: FileSystemPath,
 
     pub polyfill_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    /// The standalone browser runtime that applies React's instruction set when
+    /// `experimental.externalBrowserRuntime` is enabled. `None` otherwise.
+    pub external_browser_runtime_file: Option<ResolvedVc<Box<dyn OutputAsset>>>,
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
@@ -42,7 +46,7 @@ pub struct BuildManifest {
     /// Per-page inline chunk group bootstrap params, as JSON. Empty when the
     /// bootstrap is emitted as a per-route chunk instead (e.g. dev).
     #[bincode(with = "turbo_bincode::indexmap")]
-    pub pages_chunk_group_bootstrap_params: FxIndexMap<RcStr, RcStr>,
+    pub pages_chunk_group_bootstrap_params: FxIndexMap<RcStr, RcJsonRawValue>,
     /// The `globalThis[...]` chunk-loading global the runtime drains.
     pub chunk_loading_global: RcStr,
 }
@@ -72,6 +76,7 @@ impl OutputAssetsReference for BuildManifest {
             .flatten()
             .chain(root_main_files)
             .chain(self.polyfill_files.iter().copied())
+            .chain(self.external_browser_runtime_file)
             .chain(per_page_files)
             .collect();
 
@@ -97,17 +102,19 @@ impl Asset for BuildManifest {
 
         #[derive(Serialize, Default, Debug)]
         #[serde(rename_all = "camelCase")]
-        pub struct SerializedBuildManifest {
+        pub struct SerializedBuildManifest<'a> {
             pub dev_files: Vec<RcStr>,
             pub amp_dev_files: Vec<RcStr>,
             pub polyfill_files: Vec<RcStr>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub external_browser_runtime_file: Option<RcStr>,
             pub low_priority_files: Vec<RcStr>,
             pub root_main_files: Vec<RcStr>,
             pub pages: FxIndexMap<RcStr, Vec<RcStr>>,
             pub amp_first_pages: Vec<RcStr>,
             pub root_main_files_tree: FxIndexMap<RcStr, Vec<RcStr>>,
             // The values are already JSON; store them as `RawValue` so they are emitted verbatim.
-            pub pages_chunk_group_bootstrap_params: FxIndexMap<RcStr, Box<RawValue>>,
+            pub pages_chunk_group_bootstrap_params: FxIndexMap<RcStr, &'a RawValue>,
             pub chunk_loading_global: RcStr,
         }
 
@@ -148,6 +155,22 @@ impl Asset for BuildManifest {
             })
             .try_join()
             .await?;
+
+        let external_browser_runtime_file: Option<RcStr> = match self.external_browser_runtime_file
+        {
+            Some(chunk) => {
+                let chunk_path = chunk.path().await?;
+                Some(
+                    client_relative_path
+                        .get_path_to(&chunk_path)
+                        .context(
+                            "failed to resolve client-relative path to external browser runtime",
+                        )?
+                        .into(),
+                )
+            }
+            None => None,
+        };
 
         let root_main_files: Vec<RcStr> = self
             .root_main_files
@@ -201,13 +224,14 @@ impl Asset for BuildManifest {
         let manifest = SerializedBuildManifest {
             pages: FxIndexMap::from_iter(pages),
             polyfill_files,
+            external_browser_runtime_file,
             root_main_files,
             root_main_files_tree: FxIndexMap::from_iter(root_main_files_tree),
             pages_chunk_group_bootstrap_params: self
                 .pages_chunk_group_bootstrap_params
                 .iter()
-                .map(|(k, v)| Ok((k.clone(), RawValue::from_string(v.to_string())?)))
-                .collect::<Result<FxIndexMap<_, _>>>()?,
+                .map(|(k, v)| (k.clone(), &**v))
+                .collect(),
             chunk_loading_global: self.chunk_loading_global.clone(),
             ..Default::default()
         };

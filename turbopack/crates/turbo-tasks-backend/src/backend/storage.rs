@@ -11,7 +11,6 @@ use std::{
 
 use anyhow::{Context, Result};
 use hashbrown::hash_table;
-use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
@@ -195,7 +194,7 @@ impl TaskDataCategory {
 /// resulting buffer sizes.
 ///
 /// TODO: The `Result` return type is an artifact of the bincode `Encode` trait requiring
-/// fallible encoding. In practice, encoding to a `SmallVec` is infallible (no I/O), and the only
+/// fallible encoding. In practice, encoding to a `Vec` is infallible (no I/O), and the only
 /// real failure mode — a `TypedSharedReference` whose value type has no bincode impl — is a
 /// programmer error caught by the panic in the caller. Consider making the bincode encoding trait
 /// infallible (i.e. returning `()` instead of `Result<(), EncodeError>`) to eliminate the
@@ -205,7 +204,7 @@ pub(crate) fn encode_task_contents(
     data: &TaskStorage,
     category: SpecificTaskDataCategory,
     scratch_buffer: &mut TurboBincodeBuffer,
-) -> Result<TurboBincodeBuffer> {
+) -> Result<Box<[u8]>> {
     scratch_buffer.clear();
     let mut encoder = new_turbo_bincode_encoder(scratch_buffer);
     data.encode(category, &mut encoder)?;
@@ -223,7 +222,7 @@ pub(crate) fn encode_task_contents(
                 )
             })?;
     }
-    Ok(SmallVec::from_slice(scratch_buffer))
+    Ok(Box::from(&scratch_buffer[..]))
 }
 
 /// Converts a task's current state into the [`SnapshotItem`] that persistence writes for it.
@@ -347,7 +346,7 @@ pub struct Storage {
     /// Maps `CachedTaskType` → `TaskId` for deduplication of persistent task creation.
     /// This is backed by the TaskCache table in the database.
     ///
-    /// LockOrdering: See the comments on [map].
+    /// LockOrdering: See the comments on [`map`](Self::map).
     pub task_cache: FxDashMap<CachedTaskTypeArc, TaskId>,
 }
 
@@ -724,26 +723,6 @@ impl Storage {
             // avoid a lock cycle with get_or_create_persistent_task, which takes task_cache
             // before map. Allocated lazily on first conflict.
             let mut deferred_task_cache_removals: Vec<CachedTaskTypeArc> = Vec::new();
-            // Remove a task type from `task_cache`, deferring on contention. Shared by the
-            // GC-deleted path below and the ordinary key eviction.
-            let remove_from_task_cache =
-                |evicted: &mut EvictionCounts,
-                 deferred: &mut Vec<CachedTaskTypeArc>,
-                 task_type: &CachedTaskTypeArc| {
-                    match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
-                        TryLockAndRemove::Removed => {
-                            evicted.key_evictions += 1;
-                        }
-                        TryLockAndRemove::NotFound => {
-                            // Generally this should be rare, it more or less implies something
-                            // else is concurrently holding the Arc
-                        }
-                        TryLockAndRemove::WouldBlock => {
-                            // Contention, to avoid a deadlock just defer
-                            deferred.push(task_type.clone());
-                        }
-                    }
-                };
             shard.retain(|(task_id, task)| {
                 // Transient tasks can not be evicted at all, unless they are fully
                 // delete by the GC.
@@ -761,14 +740,10 @@ impl Storage {
                             [UnevictableReason::MarkedForDeletion.index()] += 1;
                         return true;
                     }
-                    // Tombstoned, or never persisted: nothing on disk to protect.
-                    if let Some(task_type) = task.get_persistent_task_type() {
-                        remove_from_task_cache(
-                            &mut evicted,
-                            &mut deferred_task_cache_removals,
-                            task_type,
-                        );
-                    }
+                    // Tombstoned, or never persisted: nothing on disk to protect. GC already
+                    // removed it from `task_cache`, so nothing can hand out its
+                    // id, and `task_by_type` finds nothing once the tombstone
+                    // is committed.
                     evicted.full += 1;
                     return false;
                 }
@@ -783,11 +758,19 @@ impl Storage {
                         // Because `get_or_create_task` acquires 'task_cache' then `storage.map` and
                         // we do the opposite we need to be defensive here.  Attempting here is just
                         // an optimization to avoid pushing into `deferred_task_cache_removals`
-                        remove_from_task_cache(
-                            &mut evicted,
-                            &mut deferred_task_cache_removals,
-                            task_type,
-                        );
+                        match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
+                            TryLockAndRemove::Removed => {
+                                evicted.key_evictions += 1;
+                            }
+                            TryLockAndRemove::NotFound => {
+                                // Generally this should be rare, it more or less implies something
+                                // else is concurrently holding the Arc
+                            }
+                            TryLockAndRemove::WouldBlock => {
+                                // Contention, to avoid a deadlock just defer
+                                deferred_task_cache_removals.push(task_type.clone());
+                            }
+                        }
                     }
                     KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
                 }
@@ -1349,7 +1332,7 @@ mod tests {
     ) -> SnapshotItem {
         SnapshotItem::Put {
             task_id,
-            meta: Some(TurboBincodeBuffer::default()),
+            meta: Some(Box::default()),
             data: None,
             task_type_hash: None,
             #[cfg(feature = "print_cache_item_size")]

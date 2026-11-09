@@ -8,8 +8,11 @@ describe('no-double-tailwind-execution', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      '@tailwindcss/postcss': '^4',
-      tailwindcss: '^4',
+      // TODO: Restore "^4" once CI no longer runs Node.js 20.9.0 (#101084) or
+      // Tailwind fixes 4.3.4. Its CommonJS build require()s the ESM-only
+      // magic-string 1.x, which Node.js 20.9.0 can't load.
+      '@tailwindcss/postcss': '4.3.3',
+      tailwindcss: '4.3.3',
     },
     env: {
       DEBUG: 'tailwindcss',

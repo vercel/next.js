@@ -50,6 +50,7 @@ import {
 } from './stream-utils'
 import type { DebugChannelPair } from '../debug-channel-server'
 import type { FlightComponentMod } from '../stream-ops'
+import { encodeTextChunk } from '../../stream-utils/node-web-streams-helper'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
@@ -221,7 +222,10 @@ export async function collectStagedSegmentData(
       break
     }
     case ValidationPrefetchKind.LegacySpeculative: {
-      partialStages = [RenderStage.Static, RenderStage.PrefetchRuntime]
+      partialStages = [
+        RenderStage.NavigationStatic,
+        RenderStage.PrefetchRuntime,
+      ]
       break
     }
   }
@@ -292,7 +296,6 @@ async function collectSegmentDataForStage(
       case RenderStage.ShellStatic:
       case RenderStage.PrefetchStatic_prefetchApi:
       case RenderStage.PrefetchStatic:
-      case RenderStage.Static:
       case RenderStage.NavigationStatic:
         return 'Prerender'
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
@@ -383,7 +386,12 @@ async function collectSegmentDataForStage(
           if (controller.currentStage === RenderStage.Before) {
             throw new InvariantError('Unexpected chunk emitted in Before stage')
           }
-          writeChunk(stageEntry, controller.currentStage, targetStage, chunk)
+          writeChunk(
+            stageEntry,
+            controller.currentStage,
+            targetStage,
+            encodeTextChunk(chunk)
+          )
         }
       })(),
       // accumulate Debug chunks
@@ -621,9 +629,10 @@ export async function createCombinedPayloadStream(
         // Accumulate Flight chunks
         (async () => {
           for await (const chunk of stream) {
-            allChunks.push(chunk)
+            const bytes = encodeTextChunk(chunk)
+            allChunks.push(bytes)
             if (isRenderable) {
-              renderableChunks.push(chunk)
+              renderableChunks.push(bytes)
             }
           }
         })(),
@@ -1302,8 +1311,8 @@ export async function createCombinedPayloadAtDepth(
         instantConfig === true ||
         (typeof instantConfig === 'object' && instantConfig !== null)
       ) {
-        const rawFactory: unknown = (layoutOrPageMod as any)
-          .__debugCreateInstantConfigStack
+        const rawFactory: unknown =
+          layoutOrPageMod.__debugCreateInstantConfigStack
         localCreateInstantStack =
           typeof rawFactory === 'function' ? (rawFactory as () => Error) : null
       }
@@ -1325,8 +1334,7 @@ export async function createCombinedPayloadAtDepth(
         break
       }
       case ValidationPrefetchKind.LegacySpeculative: {
-        // In legacy speculative prefetches, we always use static.
-        stage = overrideStageForPartialSegments ?? RenderStage.Static
+        stage = overrideStageForPartialSegments ?? RenderStage.NavigationStatic
         break
       }
     }
@@ -1452,7 +1460,8 @@ export async function createCombinedPayloadAtDepth(
       break
     }
     case ValidationPrefetchKind.LegacySpeculative: {
-      headStage = overrideStageForPartialSegments ?? RenderStage.Static
+      headStage =
+        overrideStageForPartialSegments ?? RenderStage.NavigationStatic
       break
     }
   }

@@ -1,4 +1,5 @@
 import type { NextConfigComplete } from '../server/config-shared'
+import type { ExportPathEntry } from './types'
 
 export function hasCustomExportOutput(config: NextConfigComplete) {
   // In the past, a user had to run "next build" to generate
@@ -13,4 +14,11 @@ export function getBuildDistDir(config: NextConfigComplete): string {
   // A custom distDir is the export destination in this mode. Build artifacts
   // and manifests still live in .next until they are exported.
   return hasCustomExportOutput(config) ? '.next' : config.distDir
+}
+
+export function getExportPathPageKey({
+  page,
+  path,
+}: Pick<ExportPathEntry, 'page' | 'path'>): string {
+  return page !== path ? `${page}: ${path}` : path
 }

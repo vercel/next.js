@@ -227,6 +227,7 @@ impl NextDynamicGraph {
                 },
                 |_, _, _| Ok(()),
                 false,
+                false,
             )?;
             Ok(Vc::cell(result))
         }
@@ -611,6 +612,7 @@ impl ClientReferencesGraph {
 
                     // Client reference used by the template, not a server component
                     client_references.push(ClientReference {
+                        parent_module: node,
                         server_component: None,
                         ty,
                     });
@@ -664,6 +666,7 @@ impl ClientReferencesGraph {
                         };
 
                         client_references.push(ClientReference {
+                            parent_module: module,
                             server_component: Some(sc),
                             ty,
                         });
@@ -824,6 +827,7 @@ async fn validate_pages_css_imports_individual(
             Ok(GraphTraversalAction::Continue)
         },
         |_, _, _| Ok(()),
+        false,
         false,
     )?;
 

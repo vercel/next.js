@@ -37,7 +37,7 @@ export async function getAnonymousMeta(): Promise<AnonymousMeta> {
     systemRelease: os.release(),
     systemArchitecture: os.arch(),
     // Machine information
-    cpuCount: cpus.length,
+    cpuCount: os.availableParallelism(),
     cpuModel: cpus.length ? cpus[0].model : null,
     cpuSpeed: cpus.length ? cpus[0].speed : null,
     memoryInMb: Math.trunc(os.totalmem() / Math.pow(1024, 2)),

@@ -25,7 +25,7 @@ use std::{
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
+    CellId, CellKey, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
@@ -267,9 +267,9 @@ struct TaskStorageSchema {
     )]
     output_dependencies: AutoSet<TaskId, 6>,
 
-    /// Cells this task depends on as a whole (keyless `CellDependency::All`). The common case;
-    /// kept separate from `cell_dependencies_hashed` so it stores a bare `CellRef` instead of the
-    /// wider `CellDependency` enum (no tag, no `u64`).
+    /// Cells this task depends on as a whole (keyless). The common case; kept separate from
+    /// `cell_dependencies_keyed` so it stores a bare `CellRef` instead of a `(CellRef, CellKey)`
+    /// pair.
     #[field(
         storage = "auto_set",
         category = "data",
@@ -279,7 +279,14 @@ struct TaskStorageSchema {
     )]
     cell_dependencies: AutoSet<CellRef, 3>,
 
-    /// Cells this task depends on, narrowed to a hashed sub-value (`CellDependency::Hash`). Rare.
+    /// Cells this task depends on with a `CellKey`. Rare.
+    /// - `CellKey::Hash`: narrowed to a hashed sub-value, only invalidated when it changes.
+    /// - `CellKey::Provisional`: a temporary dependency on the whole cell made by a
+    ///   `Vc::keyed_reader()` or `Vc::lazy_reader()` read that hasn't been refined yet, identified
+    ///   by the `keyed_reader()` / `lazy_reader()` call counter of the execution. Invalidated like
+    ///   `cell_dependencies`. Short-lived: the `KeyedReadRef` refines it to `CellKey::Hash`
+    ///   entries when dropped, an unaccessed `LazyReadRef` removes it when dropped, and any
+    ///   remaining ones are converted to `cell_dependencies` when the execution completes.
     #[field(
         storage = "auto_set",
         category = "data",
@@ -287,7 +294,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
+    cell_dependencies_keyed: AutoSet<(CellRef, CellKey), 1>,
 
     /// Collectibles this task depends on.
     #[field(
@@ -307,9 +314,9 @@ struct TaskStorageSchema {
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_cell_dependencies: AutoSet<CellRef, 3>,
 
-    /// Outdated hashed cell dependencies to be cleaned up (transient).
+    /// Outdated cell dependencies with a `CellKey` to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
-    outdated_cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
+    outdated_cell_dependencies_keyed: AutoSet<(CellRef, CellKey), 1>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
@@ -329,15 +336,16 @@ struct TaskStorageSchema {
     )]
     cell_dependents: AutoSet<CellRef, 3>,
 
-    /// Tasks that depend on a hashed sub-value of this task's cells. Reverse of
-    /// `cell_dependencies_hashed`.
+    /// Tasks that depend on this task's cells with a `CellKey`. Reverse of
+    /// `cell_dependencies_keyed`. `CellKey::Hash` entries are only invalidated when that sub-value
+    /// changes, `CellKey::Provisional` entries like `cell_dependents`.
     #[field(
         storage = "auto_set",
         category = "data",
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents_hashed: AutoSet<(CellRef, u64), 1>,
+    cell_dependents_keyed: AutoSet<(CellRef, CellKey), 1>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
@@ -670,7 +678,33 @@ impl TaskStorage {
     /// # Panics
     /// Panics if `idx` is out of bounds.
     fn lazy_take_at<T>(&mut self, idx: usize, extract: impl FnOnce(LazyField) -> T) -> T {
-        extract(self.lazy.swap_remove(idx))
+        extract(self.remove_lazy_at(idx))
+    }
+
+    /// Removes the lazy field at `idx` via swap_remove.
+    ///
+    /// Fields are removed from finished tasks (e.g. `dirty` once a task is clean) long after
+    /// `cleanup_after_execution` last shrank the Vec, so shrink it once it is mostly empty. Not on
+    /// every removal: a slightly smaller `realloc` keeps the block in place and releases nothing,
+    /// but costs a call each time a field comes and goes.
+    fn remove_lazy_at(&mut self, idx: usize) -> LazyField {
+        let field = self.lazy.swap_remove(idx);
+        self.lazy.shrink_amortized();
+        field
+    }
+
+    /// The index of the lazy field matched by `matches`, creating it with `create` if absent.
+    fn get_or_create_lazy_index(
+        &mut self,
+        matches: impl Fn(&LazyField) -> bool,
+        create: impl FnOnce() -> LazyField,
+    ) -> usize {
+        if let Some(idx) = self.lazy.iter().position(matches) {
+            idx
+        } else {
+            self.lazy.push_exact(create());
+            self.lazy.len() - 1
+        }
     }
 
     /// Get or create a lazy field, returning a mutable reference.
@@ -696,14 +730,8 @@ impl TaskStorage {
         extract: impl for<'a> FnOnce(&'a mut LazyField) -> &'a mut T,
         create: impl FnOnce() -> LazyField,
     ) -> &mut T {
-        // Find the index of matching field (immutable borrow)
-        let idx = self.lazy.iter().position(matches);
-        if let Some(idx) = idx {
-            extract(&mut self.lazy[idx])
-        } else {
-            self.lazy.push(create());
-            extract(self.lazy.last_mut().unwrap())
-        }
+        let idx = self.get_or_create_lazy_index(matches, create);
+        extract(&mut self.lazy[idx])
     }
 
     /// Take a lazy field by predicate, removing it from the Vec.
@@ -718,7 +746,7 @@ impl TaskStorage {
         extract: impl FnOnce(LazyField) -> T,
     ) -> Option<T> {
         let idx = self.lazy.iter().position(matches)?;
-        Some(extract(self.lazy.swap_remove(idx)))
+        Some(extract(self.remove_lazy_at(idx)))
     }
 
     /// Set a lazy field value, replacing any existing value.
@@ -737,16 +765,16 @@ impl TaskStorage {
             let old = std::mem::replace(&mut self.lazy[idx], new_value);
             Some(extract(old))
         } else {
-            self.lazy.push(new_value);
+            self.lazy.push_exact(new_value);
             None
         }
     }
 
     /// Encode fields for the specified category
-    pub fn encode<E: bincode::enc::Encoder>(
+    pub fn encode(
         &self,
         category: SpecificTaskDataCategory,
-        encoder: &mut E,
+        encoder: &mut turbo_bincode::TurboBincodeEncoder<'_>,
     ) -> Result<(), bincode::error::EncodeError> {
         match category {
             SpecificTaskDataCategory::Meta => self.encode_meta(encoder),
@@ -792,7 +820,7 @@ impl TaskStorage {
         };
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
-            self.lazy.push(LazyField::Activeness(activeness));
+            self.lazy.push_exact(LazyField::Activeness(activeness));
         }
 
         // Set the task as scheduled so it can be executed
@@ -852,7 +880,7 @@ impl TaskStorage {
     ///
     /// The `Data`-category dependent sets are deliberately not consulted:
     ///
-    /// - `cell_dependents` / `cell_dependents_hashed` are redundant with ancestry. A cell dependent
+    /// - `cell_dependents` / `cell_dependents_keyed` are redundant with ancestry. A cell dependent
     ///   is either a child, whose child edge already orders the teardown, or a sibling reached by
     ///   passing a `ResolvedVc` laterally, which needs a common ancestor that collects both in the
     ///   same pass. Counting them deadlocked the caller/callee cycle `NftJsonAsset::content` ->
@@ -978,7 +1006,7 @@ impl IsTransient for CellRef {
         CellRef::is_transient(self)
     }
 }
-impl IsTransient for (CellRef, u64) {
+impl IsTransient for (CellRef, CellKey) {
     fn is_transient(&self) -> bool {
         self.0.is_transient()
     }

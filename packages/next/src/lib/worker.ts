@@ -125,7 +125,7 @@ export class Worker {
     const createWorker = () => {
       const workerEnv: NodeJS.ProcessEnv = {
         ...process.env,
-        ...((farmOptions.forkOptions?.env || {}) as any),
+        ...(farmOptions.forkOptions?.env || {}),
         IS_NEXT_WORKER: 'true',
         NODE_OPTIONS: formattedNodeOptions,
       }
