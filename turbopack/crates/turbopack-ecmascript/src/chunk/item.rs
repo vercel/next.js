@@ -29,9 +29,7 @@ use turbopack_core::{
 
 use crate::{
     EcmascriptModuleContent,
-    chunk::{
-        EcmascriptExports, chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable,
-    },
+    chunk::{chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable},
     merged_module::MergedEcmascriptModule,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::{TURBOPACK_ASYNC_MODULE, TURBOPACK_DEFERRED_MODULE},
@@ -309,10 +307,8 @@ where
     }
 }
 
-/// Whether the factory of `chunk_item` evaluates a module whose evaluation is deferred: its own
-/// module, or a module that was merged into it. That is a module of
-/// [`ChunkingContext::deferred_modules`] with ES module exports, the condition under which the
-/// read imports it (`EsmAssetReference::get_ident`).
+/// Whether the factory of `chunk_item` evaluates a module whose evaluation is deferred
+/// ([`ChunkingContext::deferred_modules`]): its own module, or a module that was merged into it.
 async fn evaluates_deferred_module(chunk_item: Vc<Box<dyn EcmascriptChunkItem>>) -> Result<bool> {
     let deferred_modules = chunk_item
         .into_trait_ref()
@@ -331,14 +327,7 @@ async fn evaluates_deferred_module(chunk_item: Vc<Box<dyn EcmascriptChunkItem>>)
             None => vec![module],
         };
     for module in modules {
-        if deferred_modules.contains_key(&module).await?
-            && let Some(module) =
-                ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
-            && matches!(
-                *module.get_exports().await?,
-                EcmascriptExports::EsmExports(_)
-            )
-        {
+        if deferred_modules.contains_key(&module).await? {
             return Ok(true);
         }
     }

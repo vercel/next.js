@@ -6,7 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::chunking_context::{DeferredModules, DeferredReferences, UnusedReferences},
@@ -127,14 +127,17 @@ impl BindingUsageInfo {
     /// - the target is side effect free in the sense of `compute_side_effect_free_module_info`,
     ///   i.e. an import of it that is not used is removed,
     /// - the target is not an async module (the read is synchronous),
-    /// - neither module is part of an import cycle, and
+    /// - neither module is part of an import cycle,
+    /// - the code generated for the reference can defer the target
+    ///   ([`ModuleReference::can_defer_evaluation`]), and
     /// - every other used reference between the two modules is in this set too (an eager one
     ///   evaluates the target before the importing module anyway, and the two stay mergeable).
     ///
     /// Such a reference doesn't execute the target "immediately before the parent" anymore, so
     /// the two modules can't be merged. Code generation only honors the set when the chunking
     /// context returns it from
-    /// [`ChunkingContext::deferred_references`][crate::chunk::ChunkingContext::deferred_references].
+    /// [`ChunkingContext::deferred_references`][crate::chunk::ChunkingContext::deferred_references],
+    /// and then it defers every reference of the set.
     #[turbo_tasks::function]
     pub async fn deferred_references(&self) -> Result<Vc<DeferredReferences>> {
         Ok(Vc::cell(match self.deferred_imports {
@@ -605,12 +608,29 @@ async fn compute_deferred_references(
     // it imports now happens at the first read, or never, instead of before the importing
     // module. An unused import of the declared module already drops that side effect.
     let side_effect_free_modules = compute_side_effect_free_module_info(graph).await?;
+    // Asked last, and only for the pairs that are left: the set holds exactly the references for
+    // which code generation defers the module. An import that it evaluates before the importing
+    // module has to stay hoisted for the merged modules.
+    let deferred_pairs = pairs
+        .into_iter()
+        .filter(|((_, target), _)| {
+            side_effect_free_modules.contains(target) && !async_modules.contains(target)
+        })
+        .map(async |((_, target), references)| {
+            let references = references.unwrap_or_default();
+            for reference in &references {
+                if !*reference.can_defer_evaluation().await? {
+                    return Ok(None);
+                }
+            }
+            Ok(Some((target, references)))
+        })
+        .try_flat_join()
+        .await?;
     let mut deferred = DeferredImports::default();
-    for ((_, target), references) in pairs {
-        if side_effect_free_modules.contains(&target) && !async_modules.contains(&target) {
-            deferred.references.extend(references.into_iter().flatten());
-            deferred.modules.insert(target);
-        }
+    for (target, references) in deferred_pairs {
+        deferred.references.extend(references);
+        deferred.modules.insert(target);
     }
     Ok(deferred.cell())
 }

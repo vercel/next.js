@@ -721,10 +721,11 @@ impl EsmAssetReference {
     /// Like [`ReferencedAsset::get_ident`] for the asset this reference resolved to, but also
     /// decides whether the evaluation of that asset is deferred to the first read of `export`.
     ///
-    /// That is the case when the chunking context lists this reference as deferred and the
-    /// identifier is a named export of an ES module, read from the module's namespace. All
-    /// references from one module to another are deferred together, so the binding declared by
-    /// [`EsmAssetReference::code_generation`] and the reads generated from this identifier agree.
+    /// That is the case when the chunking context lists this reference as deferred. Such a
+    /// reference reads a named export from the namespace of a module with ES module exports
+    /// ([`ModuleReference::can_defer_evaluation`]). All references from one module to another are
+    /// deferred together, so the binding declared by [`EsmAssetReference::code_generation`] and
+    /// the reads generated from this identifier agree.
     pub(crate) async fn get_ident(
         self: ResolvedVc<Self>,
         referenced_asset: &ReferencedAsset,
@@ -750,10 +751,6 @@ impl EsmAssetReference {
             // Holds for every deferred reference today (its target is never merged, and only an
             // identifier that crosses a merged re-export names another module): guards the id below.
             && asset == referenced_asset
-            && matches!(
-                *asset.get_exports().await?,
-                EcmascriptExports::EsmExports(_)
-            )
             && chunking_context
                 .deferred_references()
                 .contains_key(&ResolvedVc::upcast(self))
@@ -876,6 +873,23 @@ impl ModuleReference for EsmAssetReference {
                 },
                 |c| c.as_chunking_type(true, true),
             )
+    }
+
+    /// The deferred read imports the module and reads the export from its namespace object
+    /// ([`EsmAssetReference::get_ident`]). That is only generated for a module with ES module
+    /// exports: a CommonJS module, for example, is imported before this module is evaluated.
+    #[turbo_tasks::function]
+    async fn can_defer_evaluation(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            if let ReferencedAsset::Some(asset) = self.get_referenced_asset().await? {
+                matches!(
+                    *asset.get_exports().await?,
+                    EcmascriptExports::EsmExports(_)
+                )
+            } else {
+                false
+            },
+        ))
     }
 
     fn binding_usage(&self) -> BindingUsage {

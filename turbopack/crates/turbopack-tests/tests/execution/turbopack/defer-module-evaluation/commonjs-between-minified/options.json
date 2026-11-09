@@ -1,0 +1,5 @@
+{
+  "deferModuleEvaluation": true,
+  "minify": true,
+  "numericModuleIds": true
+}
