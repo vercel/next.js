@@ -4,7 +4,7 @@ import type { AddressInfo } from 'net'
 import { join } from 'path'
 import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
-import { waitForNoRedbox } from 'next-test-utils'
+import { retry, waitForNoRedbox } from 'next-test-utils'
 import * as cheerio from 'cheerio'
 import { createExportServer } from './server.mjs'
 
@@ -41,6 +41,7 @@ describe('Cache Components static export', () => {
         `export default ${JSON.stringify({
           output: 'export',
           cacheComponents: true,
+          experimental: { optimisticRouting: true },
           ...config,
         })}`
       )
@@ -154,9 +155,114 @@ describe('Cache Components static export', () => {
       }
     })
 
+    it('exports optional catchalls and nested generated parameters', async () => {
+      const routes = [
+        { pathname: '/optional', id: 'optional', text: 'Optional: root' },
+        {
+          pathname: '/optional/nested/path',
+          id: 'optional',
+          text: 'Optional: nested/path',
+        },
+        ...['en', 'ja'].map((lang) => ({
+          pathname: `/nested/${lang}/posts/${lang}-first`,
+          id: 'nested',
+          text: `Nested: ${lang}/${lang}-first`,
+        })),
+      ]
+      for (const { pathname, id, text } of routes) {
+        const response = await fetch(origin + routePath(pathname))
+        expect(response.status).toBe(200)
+        const $ = cheerio.load(await response.text())
+        expect($('#' + id).text()).toBe(text)
+      }
+      for (const pathname of [
+        '/optional/unknown',
+        '/nested/en/posts/unknown',
+      ]) {
+        expect((await fetch(origin + routePath(pathname))).status).toBe(404)
+      }
+      if (isNextStart) {
+        const manifest = await next.readJSON('.next/prerender-manifest.json')
+        for (const { pathname } of routes) {
+          expect(manifest.routes[pathname]).toBeDefined()
+        }
+        for (const pattern of [
+          '/optional/[[...parts]]',
+          '/nested/[lang]/posts/[slug]',
+        ]) {
+          expect(manifest.dynamicRoutes[pattern].fallback).toBe(false)
+          expect(manifest.routes[pattern]).toBeUndefined()
+          expect(await next.hasFile(`out${pattern}`)).toBe(false)
+          for (const suffix of ['html', 'rsc', 'meta', 'segments']) {
+            expect(
+              await next.hasFile(`.next/server/app${pattern}.${suffix}`)
+            ).toBe(false)
+          }
+        }
+      }
+    })
+
     // Prefetching requires production; dev validates the same pages above.
     // @force-gate start
     describe('static-host prefetching', () => {
+      it('does not reuse a generated sibling for an ungenerated parameter', async () => {
+        const requiredFiles = await next.readJSON(
+          '.next/required-server-files.json'
+        )
+        expect(requiredFiles.config.experimental.optimisticRouting).toBe(true)
+        let act: ReturnType<typeof createRouterAct>
+        const browser = await next.browser(routePath('/'), {
+          baseUrl: port,
+          beforePageLoad(page: Playwright.Page) {
+            act = createRouterAct(page, { includeAppShellRequests: true })
+          },
+        })
+        await browser.eval('window.__navigationMarker = "preserved"')
+        await act(
+          () =>
+            browser
+              .elementByCss('[data-link-accordion="/unread/known"]')
+              .click(),
+          { includes: 'A generated route that does not read params' }
+        )
+        await act(
+          () =>
+            browser
+              .elementByCss(`a[href="${routePath('/unread/known')}"]`)
+              .click(),
+          'no-requests'
+        )
+        expect(await browser.elementById('unread').text()).toBe(
+          'A generated route that does not read params'
+        )
+        expect(await browser.eval('window.__navigationMarker')).toBe(
+          'preserved'
+        )
+        await act(
+          () =>
+            browser
+              .elementByCss('[data-link-accordion="/unread/unknown"]')
+              .click(),
+          'no-requests'
+        )
+        await browser
+          .elementByCss(`a[href="${routePath('/unread/unknown')}"]`)
+          .click()
+        await retry(async () => {
+          expect(
+            await browser.eval(
+              () => document.querySelector('#unknown-export-route')?.textContent
+            )
+          ).toBe('Unknown export route')
+        })
+        expect(
+          await browser.eval(() => document.querySelector('#unread'))
+        ).toBe(null)
+        expect(new URL(await browser.url()).pathname).toBe(
+          routePath('/unread/unknown')
+        )
+      })
+
       it.each([
         { pathname: '/posts/first', prefetch: 'default', text: 'Post: first' },
         { pathname: '/posts/second', prefetch: 'full', text: 'Post: second' },

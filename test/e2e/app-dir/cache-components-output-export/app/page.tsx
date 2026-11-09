@@ -27,6 +27,9 @@ export default async function Page() {
       <LinkAccordion href="/browser-only" prefetch={false}>
         No prefetch
       </LinkAccordion>
+      <LinkAccordion href="/unread/known" prefetch={true}>
+        Generated route without params
+      </LinkAccordion>
     </main>
   )
 }
