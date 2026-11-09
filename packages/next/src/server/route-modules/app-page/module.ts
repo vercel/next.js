@@ -39,6 +39,7 @@ import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
 import type { UrlWithParsedQuery } from 'url'
 import type { IncomingHttpHeaders, IncomingMessage } from 'http'
+import { handleAction } from '../../app-render/action-handler'
 import { createDevResponseLifecycle } from '../../app-render/dev-response-lifecycle'
 import {
   applyAppPageRscRequestMetaFromHeaders,
@@ -191,7 +192,13 @@ export class AppPageRouteModule extends RouteModule<
     context: AppPageRouteHandlerContext
   ): Promise<RenderResult> {
     return renderToHTMLOrFlight(
-      req,
+      (input) =>
+        handleAction({
+          ...input,
+          req,
+          res,
+          serverActionRequestMetadata: context.serverActionRequestMetadata,
+        }),
       res,
       context.requestUrl,
       context.requestHeaders,
