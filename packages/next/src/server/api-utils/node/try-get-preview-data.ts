@@ -14,6 +14,43 @@ import {
 import { RequestCookies } from '../../web/spec-extension/cookies'
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
 
+/**
+ * Whether the header object of a Node.js request rules out both preview
+ * cookies, without parsing its cookies.
+ *
+ * A cookie's name is a part of the `cookie` header exactly as it was sent, so
+ * a header that does not contain a name does not hold that cookie. The header
+ * is looked up the way `HeadersAdapter` does it: the first key that is
+ * `cookie` in any casing. Anything else (a `Headers` instance, a value that is
+ * not a string) is left to the cookie parser.
+ */
+function hasNoPreviewCookies(
+  headers: (IncomingMessage | BaseNextRequest | Request)['headers']
+): boolean {
+  if (typeof headers.get === 'function') {
+    return false
+  }
+
+  const nodeHeaders = headers as IncomingMessage['headers']
+  let cookie: unknown
+  for (const key of Object.keys(nodeHeaders)) {
+    if (key.toLowerCase() === 'cookie') {
+      cookie = nodeHeaders[key]
+      break
+    }
+  }
+
+  if (typeof cookie === 'undefined') {
+    return true
+  }
+
+  return (
+    typeof cookie === 'string' &&
+    !cookie.includes(COOKIE_NAME_PRERENDER_BYPASS) &&
+    !cookie.includes(COOKIE_NAME_PRERENDER_DATA)
+  )
+}
+
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest | Request,
   res: ServerResponse | BaseNextResponse,
@@ -33,6 +70,13 @@ export function tryGetPreviewData(
   // TODO: use request metadata instead of a symbol
   if (SYMBOL_PREVIEW_DATA in req) {
     return req[SYMBOL_PREVIEW_DATA] as any
+  }
+
+  // Case: neither cookie is set, known from the header alone. Most requests
+  // end here, and creating the headers adapter and parsing every cookie to
+  // find that out is the larger part of this function's cost.
+  if (hasNoPreviewCookies(req.headers)) {
+    return false
   }
 
   const headers = HeadersAdapter.from(req.headers)
