@@ -14894,6 +14894,7 @@ function markRootSuspended(
     lanes &= ~lane;
   }
   0 !== spawnedLane &&
+    0 !== (suspendedLanes & 261930) &&
     markSpawnedDeferredLane(root, spawnedLane, suspendedLanes);
 }
 function flushSyncWork$1() {
@@ -22575,14 +22576,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2551 = React.version;
 if (
-  "19.3.0-experimental-e84e1492-20261031" !==
+  "19.3.0-experimental-4ae637b6-20261109" !==
   isomorphicReactPackageVersion$jscomp$inline_2551
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2551,
-      "19.3.0-experimental-e84e1492-20261031"
+      "19.3.0-experimental-4ae637b6-20261109"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -22604,10 +22605,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_3229 = {
   bundleType: 0,
-  version: "19.3.0-experimental-e84e1492-20261031",
+  version: "19.3.0-experimental-4ae637b6-20261109",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-e84e1492-20261031"
+  reconcilerVersion: "19.3.0-experimental-4ae637b6-20261109"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_3230 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -22887,7 +22888,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-experimental-e84e1492-20261031";
+exports.version = "19.3.0-experimental-4ae637b6-20261109";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
