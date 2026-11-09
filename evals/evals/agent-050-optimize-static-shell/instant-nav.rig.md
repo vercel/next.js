@@ -1,7 +1,7 @@
 # instant-nav rig: release fixture
 
 - BUILD: `EXPOSE_TESTING_API=1 npm run build`
-- EXPOSE: `EXPOSE_TESTING_API=1` enables `experimental.exposeTestingApiInProductionBuild` during the measured build
+- EXPOSE: `EXPOSE_TESTING_API=1` enables `experimental.exposeTestingApiInProductionBuild` during the measured build and server startup
 - RUN: `npm run test:instant -- tests/release-shell.spec.ts`; Playwright's existing `webServer` owns `next start` on port 3311
 - TEST USER: public; no authentication; an optional `viewer` cookie changes the viewer label
 - DRIFT: none known
