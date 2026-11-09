@@ -1,7 +1,9 @@
 use anyhow::Result;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    FixintU64, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, HashAlgorithm, Xxh3Hash64Hasher, hash_xxh3_hash64};
 use turbopack_core::{
@@ -64,7 +66,10 @@ pub async fn endpoints_outputs(endpoints: Vc<Endpoints>) -> Result<Vc<OutputAsse
 }
 
 #[turbo_tasks::function]
-pub async fn outputs_hash(outputs: Vc<OutputAssets>, hash_salt: Vc<RcStr>) -> Result<Vc<u64>> {
+pub async fn outputs_hash(
+    outputs: Vc<OutputAssets>,
+    hash_salt: Vc<RcStr>,
+) -> Result<Vc<FixintU64>> {
     let output_assets = expand_output_assets(
         outputs
             .await?
@@ -131,7 +136,7 @@ pub async fn sources_hash(
     module_graph: Vc<ModuleGraph>,
     modules: Vc<Modules>,
     hash_salt: Vc<RcStr>,
-) -> Result<Vc<u64>> {
+) -> Result<Vc<FixintU64>> {
     let modules = modules.await?;
 
     let mut all_modules = FxIndexSet::default();

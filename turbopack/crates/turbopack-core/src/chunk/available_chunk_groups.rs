@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
 use turbo_bitset::Bitset;
-use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
+use turbo_tasks::{FixintU64, FxIndexSet, ResolvedVc, Vc};
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::module_graph::{
@@ -160,7 +160,7 @@ impl AvailableChunkGroups {
     /// [`ChunkGroupInfo::chunk_group_ident_hashes`]:
     /// crate::module_graph::chunk_group_info::ChunkGroupInfo::chunk_group_ident_hashes
     #[turbo_tasks::function]
-    pub async fn hash(&self) -> Result<Vc<u64>> {
+    pub async fn hash(&self) -> Result<Vc<FixintU64>> {
         let ident_hashes = self
             .module_graph
             .chunk_group_info()

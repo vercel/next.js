@@ -24,6 +24,7 @@ mod dyn_task_inputs;
 mod effect;
 mod error;
 pub mod event;
+mod fixint;
 pub mod graph;
 mod id;
 mod id_factory;
@@ -91,6 +92,7 @@ pub use crate::{
         resolve_strongly_consistent_and_take_and_apply_effects, take_effects,
     },
     error::PrettyPrintError,
+    fixint::{FixintU64, FixintU128},
     id::{
         ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
     },
