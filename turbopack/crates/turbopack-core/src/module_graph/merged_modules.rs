@@ -185,6 +185,9 @@ where
 /// Determine which modules can be merged together:
 /// - if all chunks execute a sequence of modules in the same order, they can be merged together and
 ///   treated as one.
+/// - a sequence is only merged where every merge group entry that imports it, loaded on its own,
+///   evaluates its modules one right after the other: merging must not change the order in which
+///   modules are evaluated (see `EvaluationOrder`).
 /// - if a merged module has an incoming edge not contained in the group, it has to expose its
 ///   exports into the module cache.
 pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<MergedModuleInfo>> {
@@ -285,6 +288,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .into_iter()
             .collect();
 
+        // The modules that are evaluated right before the module that imports them first. A
+        // hoisted import between two of them inherits the bitmap, and the evaluation traces
+        // further below follow the same imports, so both have to use this one predicate.
+        let is_evaluated_in_place = |module: &ResolvedVc<Box<dyn Module>>| {
+            mergeable.contains(module) && !async_modules.contains(module)
+        };
+
         let inner_span = tracing::info_span!("fixed point traversal").entered();
 
         let mut next_index = 0u32;
@@ -315,10 +325,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     GraphTraversalAction::Skip
                 } else if hoisted
                     && let Some(parent_module) = parent_module
-                    && mergeable.contains(&parent_module)
-                    && mergeable.contains(&module)
-                    && !async_modules.contains(&parent_module)
-                    && !async_modules.contains(&module)
+                    && is_evaluated_in_place(&parent_module)
+                    && is_evaluated_in_place(&module)
                 {
                     // ^ TODO technically we could merge a sync child into an async parent
 
@@ -811,11 +819,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             list.iter()
                 .map(|&m| ResolvedVc::upcast::<Box<dyn Module>>(m))
         }));
-        // Whether the imports of a module are evaluated before it in the same trace: the modules
-        // that inherit bitmaps.
-        let is_evaluated_in_place = |module: &ResolvedVc<Box<dyn Module>>| {
-            mergeable.contains(module) && !async_modules.contains(module)
-        };
         if !lists.is_empty() {
             let traced = turbo_tasks::parallel::map_collect_chunked_owned::<_, _, Result<Vec<_>>>(
                 entry_modules
@@ -875,18 +878,16 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // module, or by an import of a module that is not merged and requires it). It then skips
         // that module, and imports the rest in another order than in its trace above.
         // `import()` is not part of this: it never evaluates a module synchronously.
+        // An entry that is not evaluated in place needs no exception: nothing inherits its bit, so
+        // no list has it.
         let mut reentrant_entries = Bitset::new();
         if !lists.is_empty() {
             module_graph.traverse_cycles(
                 |r| r.chunking_type.is_parallel(),
                 |cycle| {
                     if cycle.len() > 1 {
-                        reentrant_entries.extend(
-                            cycle
-                                .iter()
-                                .filter(|m| is_evaluated_in_place(m))
-                                .filter_map(|m| entry_modules.get(*m).copied()),
-                        );
+                        reentrant_entries
+                            .extend(cycle.iter().filter_map(|m| entry_modules.get(*m).copied()));
                     }
                     Ok(())
                 },
@@ -915,8 +916,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             let referrers = (!bitmap.is_disjoint(&reentrant_entries)).then(|| {
                 let mut referrers = (0..list.len())
                     .map(|position| Referrers {
-                        outside: exposed_modules_imported.contains(&module(position))
-                            || entry_modules.contains_key(&module(position)),
+                        // A merge group entry needs no mark of its own: it completes last in its
+                        // own trace, so the traces already cut it from its successor.
+                        outside: exposed_modules_imported.contains(&module(position)),
                         ..Default::default()
                     })
                     .collect::<Vec<_>>();
