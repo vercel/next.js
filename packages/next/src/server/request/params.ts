@@ -187,7 +187,9 @@ export function createServerParamsForRoute(
             workUnitStore
           )
         } else {
-          return createRenderParamsInProd(underlyingParams)
+          // The route module creates the params object for this call, so a
+          // cache that is keyed by the object could never return its promise.
+          return Promise.resolve(underlyingParams)
         }
       default:
         workUnitStore satisfies never
