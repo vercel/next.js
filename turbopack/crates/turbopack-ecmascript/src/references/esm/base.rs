@@ -876,7 +876,7 @@ impl ModuleReference for EsmAssetReference {
     }
 
     /// The deferred read imports the module and reads the export from its namespace object
-    /// ([`EsmAssetReference::get_ident`]). That is only generated for a module with ES module
+    /// (`EsmAssetReference::get_ident`). That is only generated for a module with ES module
     /// exports: a CommonJS module, for example, is imported before this module is evaluated.
     #[turbo_tasks::function]
     async fn can_defer_evaluation(self: Vc<Self>) -> Result<Vc<bool>> {
