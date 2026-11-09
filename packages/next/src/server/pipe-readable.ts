@@ -22,6 +22,35 @@ const HAS_CLIENT_COMPONENT_METRICS_ENABLED =
 // below it is not compressed.
 const SMALL_BODY_BYTES = 1024
 
+/**
+ * Returns a chunk of a web stream as a `Buffer` over the same memory: same
+ * bytes, same offset, no copy.
+ *
+ * The `compression` middleware copies every chunk it is given that is not a
+ * `Buffer` before it passes it to zlib. A copy of the body per response, in
+ * an `ArrayBuffer` that V8 only stops counting as external memory when a GC
+ * sweeps it, is enough to make V8 run major GCs where scavenges would do
+ * while compressed responses are sent. `pipeNodeReadableToNodeResponse` below
+ * hands over a `Buffer` for the same reason.
+ *
+ * Without the middleware nothing changes: a Node.js stream wraps a
+ * `Uint8Array` it is given in the same view. With it, the response now
+ * refers to the chunk's memory until zlib has read it, where it used to copy
+ * it at once. That is what the response already does whenever it is not
+ * compressed (the socket is corked until the next tick), so a stream must not
+ * change a chunk after it has enqueued it either way.
+ *
+ * An empty chunk is passed on as it is: there is nothing to copy, and a view
+ * cannot be created on a detached buffer, which has no bytes.
+ */
+function toBufferView(chunk: Uint8Array): Uint8Array {
+  if (chunk.byteLength === 0 || Buffer.isBuffer(chunk)) {
+    return chunk
+  }
+
+  return Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+}
+
 /** What `pipeToNodeResponse` writes a body to: the underlying sink of a `WritableStream`. */
 type ResponseSink = {
   write(chunk: Uint8Array): Promise<void>
@@ -104,6 +133,8 @@ function createWriterFromResponse(
   // Create the sink that writes to the response.
   return {
     write: async (chunk) => {
+      chunk = toBufferView(chunk)
+
       // You'd think we'd want to use `start` instead of placing this in `write`
       // but this ensures that we don't actually flush the headers until we've
       // started writing chunks.
