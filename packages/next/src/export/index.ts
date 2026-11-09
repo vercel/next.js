@@ -726,13 +726,12 @@ async function exportAppImpl(
     // The page count per worker if every worker got one equal share.
     const pageCountPerWorker = Math.ceil(exportPaths.length / numWorkers)
 
-    // Pages differ in cost (by route, and with how busy a worker's core is),
-    // so one fixed share per worker leaves workers idle while the most
-    // expensive share finishes. Split large shares into smaller contiguous
-    // batches instead, and let every worker take the next batch once it's
-    // done with its current one. Batches never go below the minimum page
-    // count, and are a multiple of the in-worker concurrency so that workers
-    // keep rendering full groups of pages.
+    // Pages differ in cost by route, so one contiguous share per worker
+    // leaves workers idle while the most expensive share finishes. Split
+    // large shares into smaller contiguous batches instead, and deal them out
+    // to the workers in turn (see below). Batches never go below the minimum
+    // page count, and are a multiple of the in-worker concurrency so that
+    // workers keep rendering full groups of pages.
     const maxConcurrency = Math.max(
       1,
       nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
@@ -753,7 +752,7 @@ async function exportAppImpl(
       batches.push(exportPaths.slice(i, i + pageCountPerBatch))
     }
 
-    const exportBatch = (batch: ExportPathEntry[]) => {
+    const exportBatch = (batch: ExportPathEntry[], lane: number) => {
       // Only send the seeds this batch needs. Sending the whole map to
       // every worker can exceed the maximum IPC message size.
       let batchRenderResumeDataCaches: Record<string, string> | undefined
@@ -776,6 +775,7 @@ async function exportAppImpl(
           : nextConfig.deploymentId,
         exportPaths: batch,
         exportId,
+        lane,
         parentSpanId: span.getId(),
         pagesDataDir,
         renderOpts,
@@ -796,44 +796,23 @@ async function exportAppImpl(
     // used than before. Results are kept in batch order, which is the order
     // of `exportPaths`.
     //
-    // Every worker starts on its own contiguous share of the batches (the
-    // share it used to be given whole) and works through it in order. A
-    // worker that runs out takes batches from the end of the share that has
-    // the most left. Pages of one route are next to each other in the export
-    // paths, so a worker stays on the routes it has already loaded and
-    // compiled for as long as it can.
+    // The batches are dealt out in turn: with n workers, a worker gets every
+    // n-th batch and works through its batches in order. Pages of one route
+    // are next to each other in the export paths, so every worker gets its
+    // part of every large route and the workers finish together. Which worker
+    // renders which page depends only on the export paths and the number of
+    // workers, like before, and not on how fast each worker happens to be.
     const results: ExportPagesResult[] = []
     const laneCount = Math.min(numWorkers, batches.length)
-    const shareNext: number[] = []
-    const shareEnd: number[] = []
-    for (let lane = 0; lane < laneCount; lane++) {
-      shareNext.push(Math.floor((lane * batches.length) / laneCount))
-      shareEnd.push(Math.floor(((lane + 1) * batches.length) / laneCount))
-    }
-    const takeBatchIndex = (lane: number): number => {
-      if (shareNext[lane] < shareEnd[lane]) {
-        return shareNext[lane]++
-      }
-      let fullestShare = -1
-      let mostBatchesLeft = 0
-      for (let share = 0; share < laneCount; share++) {
-        const batchesLeft = shareEnd[share] - shareNext[share]
-        if (batchesLeft > mostBatchesLeft) {
-          mostBatchesLeft = batchesLeft
-          fullestShare = share
-        }
-      }
-      return fullestShare === -1 ? -1 : --shareEnd[fullestShare]
-    }
     let failed = false
     const exportNextBatches = async (_: unknown, lane: number) => {
-      while (!failed) {
-        const batchIndex = takeBatchIndex(lane)
-        if (batchIndex === -1) {
-          break
-        }
+      for (
+        let batchIndex = lane;
+        batchIndex < batches.length && !failed;
+        batchIndex += laneCount
+      ) {
         try {
-          results[batchIndex] = await exportBatch(batches[batchIndex])
+          results[batchIndex] = await exportBatch(batches[batchIndex], lane)
         } catch (err) {
           failed = true
           throw err
