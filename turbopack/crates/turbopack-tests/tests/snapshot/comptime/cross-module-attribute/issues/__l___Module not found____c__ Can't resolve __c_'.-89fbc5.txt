@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/index.js:14:2  Module not found: Can't resolve './correct-not-inlined'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/index.js:14:3  Module not found: Can't resolve './correct-not-inlined'
   
       10 | import { UPPER } from './other' with { turbopackConstants: 'false' }
       11 | if (UPPER === 'UPPER') {

@@ -706,7 +706,10 @@ export async function createFetch(
       //
       // Append the cache busting search param to the redirected URL and
       // fetch again.
-      // TODO: We should abort the previous request.
+      //
+      // Cancel the body of the response we're discarding, so the browser
+      // aborts the request instead of leaving it open.
+      browserResponse.body?.cancel().catch(() => {})
       fetchUrl = new URL(responseUrl)
       await setCacheBustingSearchParam(fetchUrl, headers)
       browserResponse = await fetch(fetchUrl, fetchOptions)

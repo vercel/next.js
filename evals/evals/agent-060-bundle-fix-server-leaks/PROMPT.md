@@ -1,0 +1,1 @@
+Cut down the JavaScript this app ships to the browser across all routes. Go ahead and change the code where you can verify the improvement. Save a report of what you changed and anything else you found to `bundle-report.md`.

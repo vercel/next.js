@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/index.js:24:2  Module not found: Can't resolve './dead-code'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/index.js:24:3  Module not found: Can't resolve './dead-code'
   
       20 | // TODO ideally would inline NaN and Infinity, but currently doesn't
       21 | if (NAN != undefined && INFINITY) {

@@ -127,7 +127,7 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 ### Magic Comments
 
-Turbopack supports webpack-compatible magic comments for controlling import behavior. These comments work with dynamic `import()`, `require()`, `require.resolve()`, and `new Worker()` expressions (not static `import` statements).
+Turbopack supports webpack-compatible magic comments for controlling import behavior. These comments work with dynamic `import()`, `require()`, `require.resolve()`, `new Worker()`, and `new URL()` expressions (not static `import` statements).
 
 | Comment                   | Webpack | Turbopack | Description                    |
 | ------------------------- | ------- | --------- | ------------------------------ |
@@ -288,7 +288,7 @@ const withoutTests = import.meta.glob(['./src/**/*.js', '!**/*.test.js'])
 Use the `base` option to resolve the patterns against a different directory. The keys of the result are then relative to `base` rather than to the importing file:
 
 ```js
-const modules = import.meta.glob('*.md', { base: '../../content' })
+const modules = import.meta.glob('**/*.md', { base: '../../content' })
 // {
 //   './alpha.md': () => import('../../content/alpha.md'),
 //   './nested/deep.md': () => import('../../content/nested/deep.md'),
@@ -525,9 +525,10 @@ Turbopack is a **Rust-based**, **incremental** bundler designed to make local de
 
 ## Version Changes
 
-| Version   | Changes                                                                                                                                                         |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v16.0.0` | Turbopack support for `build` is stable, and Turbopack becomes the default bundler for Next.js. Automatic support for Babel when a configuration file is found. |
-| `v15.5.0` | Turbopack support for `build` beta                                                                                                                              |
-| `v15.3.0` | Experimental support for `build`                                                                                                                                |
-| `v15.0.0` | Turbopack for `dev` stable                                                                                                                                      |
+| Version   | Changes                                                                                                                                                           |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v16.4.0` | With the [`base`](#base-path) option, `import.meta.glob` keys are relative to `base` (`'./alpha.md'`) instead of the importing file (`'../../content/alpha.md'`). |
+| `v16.0.0` | Turbopack support for `build` is stable, and Turbopack becomes the default bundler for Next.js. Automatic support for Babel when a configuration file is found.   |
+| `v15.5.0` | Turbopack support for `build` beta                                                                                                                                |
+| `v15.3.0` | Experimental support for `build`                                                                                                                                  |
+| `v15.0.0` | Turbopack for `dev` stable                                                                                                                                        |

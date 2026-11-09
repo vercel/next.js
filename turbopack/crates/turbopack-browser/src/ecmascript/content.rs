@@ -7,23 +7,22 @@ use turbo_tasks::{ResolvedVc, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, MinifyType, ModuleId},
+    chunk::{ChunkingContext, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkContent, EcmascriptChunkContentEntries, strict_chunk_wrapper,
-        strict_factory_mode, write_module_factories,
+        ChunkMinification, EcmascriptChunkContent, EcmascriptChunkContentEntries,
+        strict_chunk_wrapper, strict_factory_mode, write_module_factories,
     },
     hmr::{
         EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
         version::EcmascriptChunkVersion,
     },
-    minify::minify,
-    utils::StringifyJs,
+    utils::{PropertyAccessJs, StringifyJs},
 };
 
 use super::chunk::EcmascriptBrowserChunk;
@@ -61,10 +60,6 @@ impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
-        let source_maps = *this
-            .chunking_context
-            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
-            .await?;
         // Lifetime hack to pull out the var into this scope
         let chunk_path;
         let script_or_path = match *this.chunking_context.current_chunk_method().await? {
@@ -84,8 +79,11 @@ impl EcmascriptBrowserChunkContent {
             }
         };
         let mut code = CodeBuilder::new(
-            source_maps,
             *this.chunking_context.debug_ids_enabled().await?,
+            *this
+                .chunking_context
+                .source_map_generation_options()
+                .await?,
         );
 
         let supports_arrow_functions = *this
@@ -95,9 +93,17 @@ impl EcmascriptBrowserChunkContent {
             .supports_arrow_functions()
             .await?;
         let content = this.content.await?;
-        let chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
+        let emit_source_maps = this
+            .chunking_context
+            .emitted_source_map_type()
+            .await?
+            .is_some();
+        let minification =
+            ChunkMinification::for_chunking_context(Vc::upcast(*this.chunking_context)).await?;
+        let chunk_items = content
+            .chunk_item_code_module_ids_and_paths(minification, emit_source_maps)
+            .await?;
         let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
-
         let strict_chunk_wrapper =
             strict_chunk_wrapper(strict_factory_mode, supports_arrow_functions);
         if let Some((prefix, _)) = strict_chunk_wrapper {
@@ -111,38 +117,45 @@ impl EcmascriptBrowserChunkContent {
         // When the runtime executes (see the `evaluate` module), it will pick up and
         // register all pending chunks, and replace the list of pending chunks
         // with itself so later chunks can register directly with it.
+        //
+        // The scaffolding is written in minified form, so it needs no minification pass of its
+        // own when the factories are minified individually.
         let chunk_loading_global = this.chunking_context.chunk_loading_global().await?;
+        let global = PropertyAccessJs("globalThis", &chunk_loading_global);
         write!(
             code,
             // `||=` would be better but we need to be es2020 compatible
             //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
-            r#"(globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([{script_or_path},"#,
-            chunk_loading_global = StringifyJs(&chunk_loading_global),
+            "({global}||({global}=[])).push([{script_or_path}",
         )?;
+        if !chunk_items.is_empty() {
+            code += ",";
+        }
         write_module_factories(
             &mut code,
             &chunk_items,
             strict_factory_mode,
             supports_arrow_functions,
         )?;
-        write!(code, "\n]);")?;
-
+        code += "]);";
         if let Some((_, suffix)) = strict_chunk_wrapper {
             code += suffix;
         }
 
-        let mut code = code.build();
-
-        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
-        }
-
-        Ok(code.cell())
+        Ok(minification
+            .finish_chunk(code.build(), emit_source_maps)?
+            .cell())
     }
 
     #[turbo_tasks::function]
     pub(crate) async fn has_source_map(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.code().await?.has_source_map()))
+        let emitted_ty = *self
+            .await?
+            .chunking_context
+            .emitted_source_map_type()
+            .await?;
+        let code = self.code().await?;
+        Ok(Vc::cell(code.should_emit_source_map(emitted_ty)?))
     }
 }
 
@@ -155,7 +168,10 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| *this.source_map)
+                    .to_rope_with_magic_comments(
+                        *this.chunking_context.emitted_source_map_type().await?,
+                        || *this.source_map,
+                    )
                     .await?,
             ))
             .cell(),
@@ -197,19 +213,23 @@ impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 
     #[turbo_tasks::function]
-    async fn by_section(self: Vc<Self>, section: RcStr) -> Result<Vc<FileContent>> {
+    async fn by_section(
+        self: Vc<Self>,
+        section: RcStr,
+        ty: SourceMapType,
+    ) -> Result<Vc<FileContent>> {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.
         if let Ok(id) = ModuleId::parse(&section) {
             let entries = self.entries().await?;
             for (entry_id, entry) in entries.iter() {
                 if id == *entry_id {
-                    let sm = entry.code.generate_source_map();
+                    let sm = entry.code.generate_source_map(ty);
                     return Ok(sm);
                 }
             }

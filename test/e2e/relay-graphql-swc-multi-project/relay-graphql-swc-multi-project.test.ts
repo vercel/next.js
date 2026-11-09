@@ -20,9 +20,6 @@ function relayCompilerValidate(next: NextInstance) {
 }
 
 describe('Relay Compiler Transform - Multi Project Config', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-  // @force-gate !deploy
   describe('project-a', () => {
     const { next } = nextTestSetup({
       files: __dirname,
@@ -63,9 +60,6 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-  // @force-gate !deploy
   describe('project-b', () => {
     const { next } = nextTestSetup({
       files: __dirname,

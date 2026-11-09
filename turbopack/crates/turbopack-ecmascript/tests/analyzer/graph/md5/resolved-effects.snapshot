@@ -1,4 +1,4 @@
-0 -> 2 free var = FreeVar(module)
+1 -> 2 free var = FreeVar(module)
 
 0 -> 3 typeof = typeof((???*0* | new ???*1*((???*2* | undefined["length"]))))
 - *0* arguments[0]

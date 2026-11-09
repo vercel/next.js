@@ -92,7 +92,7 @@ pub async fn get_app_route_entry(
     let userland_module = module_asset_context
         .process(
             source,
-            ReferenceType::Entry(EntryReferenceSubType::AppRoute),
+            ReferenceType::Entry(EntryReferenceSubType::default()),
         )
         .module()
         .to_resolved()
