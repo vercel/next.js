@@ -190,6 +190,7 @@ patchedDependencies:
   '@vercel/agent-eval@2.2.1': f89d8e50c6627841d89b2307f56a606d7a8c179061e145d95c3213f51e2d8b82
   '@vercel/blob': cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893
   '@vercel/og@1.0.1': 3d59af991a9f85bbc368d2891b4e965f10dd11c86b9786e79fc4a362bb01401b
+  compression@1.7.4: 7e779d7a3da65e58a0b96f6bf1e29d19859b9e03e6bdb7973b1d4be42d6d67d6
   minizlib@3.1.0: 587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67
   playwright-core@1.61.0: 1a56033776b3ac43fe8f35b6c9afa6d9f13a0d5163892f2a31d7661504b93b93
   postcss-scss: 88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093
@@ -1621,7 +1622,7 @@ importers:
         version: 3.0.3
       compression:
         specifier: 1.7.4
-        version: 1.7.4(supports-color@9.4.0)
+        version: 1.7.4(patch_hash=7e779d7a3da65e58a0b96f6bf1e29d19859b9e03e6bdb7973b1d4be42d6d67d6)(supports-color@9.4.0)
       conf:
         specifier: 5.0.0
         version: 5.0.0
@@ -26466,7 +26467,7 @@ snapshots:
     dependencies:
       mime-db: 1.47.0
 
-  compression@1.7.4(supports-color@8.1.1):
+  compression@1.7.4(patch_hash=7e779d7a3da65e58a0b96f6bf1e29d19859b9e03e6bdb7973b1d4be42d6d67d6)(supports-color@8.1.1):
     dependencies:
       accepts: 1.3.7
       bytes: 3.0.0
@@ -26478,7 +26479,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  compression@1.7.4(supports-color@9.4.0):
+  compression@1.7.4(patch_hash=7e779d7a3da65e58a0b96f6bf1e29d19859b9e03e6bdb7973b1d4be42d6d67d6)(supports-color@9.4.0):
     dependencies:
       accepts: 1.3.7
       bytes: 3.0.0
@@ -38256,7 +38257,7 @@ snapshots:
       bonjour-service: 1.3.0
       chokidar: 3.6.0
       colorette: 2.0.20
-      compression: 1.7.4(supports-color@8.1.1)
+      compression: 1.7.4(patch_hash=7e779d7a3da65e58a0b96f6bf1e29d19859b9e03e6bdb7973b1d4be42d6d67d6)(supports-color@8.1.1)
       connect-history-api-fallback: 2.0.0
       express: 4.21.2(supports-color@8.1.1)
       graceful-fs: 4.2.11
