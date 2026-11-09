@@ -206,6 +206,30 @@ unsafe fn base_alloc_size(ptr: *const u8, layout: Layout) -> usize {
     return layout.size();
 }
 
+/// Whether shrinking a block of usable size `old_size` to `new_size` bytes has to move it to
+/// actually release memory.
+///
+/// mimalloc's `realloc` keeps the block in place whenever the new size is at least half the old
+/// one. That makes `shrink_to_fit` a no-op for any collection grown by doubling, so its slack (up
+/// to 50%) stays allocated for as long as the value lives. When a smaller size class would fit,
+/// move the bytes into a fresh block instead.
+#[inline]
+#[allow(unused_variables)]
+fn shrink_needs_move(old_size: usize, align: usize, new_size: usize) -> bool {
+    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
+    {
+        // Below half, mimalloc moves the block itself. Over-aligned blocks go through
+        // `mi_malloc_aligned`, whose usable size `mi_good_size` doesn't predict.
+        new_size < old_size
+            && new_size >= old_size / 2
+            && align <= 16
+            // SAFETY: a pure size-class lookup.
+            && unsafe { libmimalloc_sys::mi_good_size(new_size) } < old_size
+    }
+    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
+    false
+}
+
 unsafe impl GlobalAlloc for TurboMalloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ret = unsafe { base_alloc().alloc(layout) };
@@ -233,6 +257,20 @@ unsafe impl GlobalAlloc for TurboMalloc {
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let old_size = unsafe { base_alloc_size(ptr, layout) };
+        if shrink_needs_move(old_size, layout.align(), new_size) {
+            // SAFETY: the caller guarantees `new_size` is nonzero and doesn't overflow when rounded
+            // up to `layout.align()`, which comes from a `Layout`.
+            let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
+            let ret = unsafe { self.alloc(new_layout) };
+            if !ret.is_null() {
+                // SAFETY: both blocks are at least `new_size` bytes and distinct.
+                unsafe {
+                    std::ptr::copy_nonoverlapping(ptr, ret, new_size);
+                    self.dealloc(ptr, layout);
+                }
+            }
+            return ret;
+        }
         let ret = unsafe { base_alloc().realloc(ptr, layout, new_size) };
         if !ret.is_null() {
             // SAFETY: the caller must ensure that the `new_size` does not overflow.
@@ -277,6 +315,29 @@ mod tests {
             SIZE / 2
         );
         drop(buffer);
+    }
+
+    /// `shrink_to_fit` releases the slack of a collection grown by doubling, which mimalloc's own
+    /// `realloc` would keep (it shrinks in place down to half the block).
+    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
+    #[test]
+    fn shrink_to_fit_releases_slack() {
+        for (cap, len) in [
+            (64, 40),
+            (4096, 2100),
+            (1 << 20, 600_000),
+            (16 << 20, 9 << 20),
+        ] {
+            let mut v = Vec::<u8>::with_capacity(cap);
+            v.extend((0..len).map(|i| i as u8));
+            v.shrink_to_fit();
+            let usable = unsafe { mimalloc::MiMalloc.usable_size(v.as_ptr()) };
+            assert!(
+                usable >= len && usable < cap,
+                "{cap} -> {len}: kept a {usable} byte block"
+            );
+            assert!(v.iter().enumerate().all(|(i, &b)| b == i as u8));
+        }
     }
 
     #[test]
