@@ -69,6 +69,26 @@ export function compareAppPaths(a: string, b: string): number {
   return a.localeCompare(b)
 }
 
+/** Select the direct children/root entry used to serve an App pathname. */
+export function selectAppPageEntry(
+  pathname: string,
+  appPaths: readonly string[],
+  normalizePathname: (appPath: string) => string = (appPath) =>
+    normalizeAppPath(appPath).replace(/%5F/g, '_')
+): string {
+  let entry: string | undefined
+  for (const appPath of appPaths) {
+    if (normalizePathname(appPath) !== pathname) continue
+    if (entry === undefined || compareAppPaths(entry, appPath) < 0) {
+      entry = appPath
+    }
+  }
+  if (entry === undefined) {
+    throw new Error(`Invariant: no direct app page entry found for ${pathname}`)
+  }
+  return entry
+}
+
 /**
  * Strips the `.rsc` extension if it's in the pathname.
  * Since this function is used on full urls it checks `?` for searchParams handling.

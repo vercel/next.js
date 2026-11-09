@@ -17,6 +17,7 @@ import {
   getCacheHeader,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 describe('Prerender', () => {
   const { next } = nextTestSetup({
@@ -57,10 +58,13 @@ describe('Prerender', () => {
       const lastRetry = i === retries - 1
       const jsonPath = join(
         next.testDir,
-        '.next',
-        'server',
-        'pages',
-        `${prerenderPath}.html`
+        next.getPrerenderFilePath(prerenderPath, '.html', {
+          router: 'pages',
+          route: {
+            kind: RouteKind.PAGES,
+            sourceRoute: '/blocking-fallback/[slug]',
+          },
+        })
       )
       try {
         const jsonStats = await fs.stat(jsonPath)
@@ -379,17 +383,21 @@ describe('Prerender', () => {
 
   const navigateTest = (isDev = false) => {
     it('should navigate between pages successfully', async () => {
-      // TODO: Compiling this many pages in parallel hits some race condition
-      // causing "SyntaxError: Unexpected non-whitespace character after JSON at position 614"
-      // which persists throughout Next.js Server instance lifetime.
-      // Compiling in batches to avoid that unknown bug.
-      const toBuildBatches = [
-        ['/', '/another', '/something', '/normal'],
-        ['/blog/post-1', '/blog/post-1/comment-1', '/catchall/first'],
+      // Parallel dev warmup has triggered JSON parsing failures that persist
+      // for the lifetime of the server. Warm these routes serially so this
+      // test can exercise navigation after compilation.
+      const toBuild = [
+        '/',
+        '/another',
+        '/something',
+        '/normal',
+        '/blog/post-1',
+        '/blog/post-1/comment-1',
+        '/catchall/first',
       ]
 
-      for (const toBuild of toBuildBatches) {
-        await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      for (const page of toBuild) {
+        await renderViaHTTP(next.url, page)
       }
 
       const browser = await next.browser('/')

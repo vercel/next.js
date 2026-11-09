@@ -1,3 +1,4 @@
+import { selectAppPageEntry } from '../../shared/lib/router/utils/app-paths'
 import { isAppPageRoute } from '../../lib/is-app-page-route'
 
 import { APP_PATHS_MANIFEST } from '../../shared/lib/constants'
@@ -37,8 +38,9 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
     // Format the routes.
     const matchers: Array<AppPageRouteMatcher> = []
     for (const [pathname, appPaths] of Object.entries(allAppPaths)) {
-      // TODO-APP: (wyattjoh) this is a hack right now, should be more deterministic
-      const page = appPaths[0]
+      const page = selectAppPageEntry(pathname, appPaths, (appPath) =>
+        this.normalizers.pathname.normalize(appPath)
+      )
 
       const filename = this.normalizers.filename.normalize(manifest[page])
       const bundlePath = this.normalizers.bundlePath.normalize(page)

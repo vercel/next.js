@@ -302,6 +302,16 @@ describe('app-root-param-getters - cache dedup with root params', () => {
 
   if (skipped) return
 
+  it('should key a joining outer cache by the root params read by its inner cache', async () => {
+    const english = await next.render$('/ca/en/nested?prime=1')
+    expect(english('#first').text()).toBe('en')
+    expect(english('#second').text()).toBe('en')
+
+    const french = await next.render$('/ca/fr/nested')
+    expect(french('#first')).toHaveLength(0)
+    expect(french('#second').text()).toBe('fr')
+  })
+
   it('should dedupe same root params and isolate different root params', async () => {
     // Three concurrent requests: ca/en, ca/fr, ca/fr.
     const [$en, $fr1, $fr2] = await Promise.all([
