@@ -279,6 +279,15 @@ export interface Options {
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
+/**
+ * A pathname that `new URL(pathname, base).pathname` returns unchanged: an
+ * absolute path of unreserved characters. The URL parser neither encodes nor
+ * decodes those. It would resolve an authority (a leading `//`) and dot
+ * segments, which the first character and `DOT_SEGMENT` exclude.
+ */
+const PLAIN_PATHNAME = /^\/(?:[A-Za-z0-9\-._~][A-Za-z0-9\-._~/]*)?$/
+const DOT_SEGMENT = /\/\.{1,2}(?:\/|$)/
+
 export type LoadedRenderOpts<
   NextModule extends GenericComponentMod = GenericComponentMod,
 > = RenderOpts & LoadComponentsReturnType<NextModule> & RequestLifecycleOpts
@@ -1683,21 +1692,25 @@ export default abstract class Server<
           return this.renderError(err, req, res, '/_error', parsedUrl.query)
         }
 
-        const parsedMatchedPath = new URL(invokePath || '/', 'http://n')
-        const invokePathnameInfo = getNextPathnameInfo(
-          parsedMatchedPath.pathname,
-          {
-            nextConfig: this.nextConfig,
-            parseData: false,
-          }
-        )
+        // The URL parser returns a pathname of unreserved characters without
+        // dot segments as it is, which is what most invoke paths are.
+        const invokePathname =
+          typeof invokePath === 'string' &&
+          PLAIN_PATHNAME.test(invokePath) &&
+          !DOT_SEGMENT.test(invokePath)
+            ? invokePath
+            : new URL(invokePath || '/', 'http://n').pathname
+        const invokePathnameInfo = getNextPathnameInfo(invokePathname, {
+          nextConfig: this.nextConfig,
+          parseData: false,
+        })
 
         if (invokePathnameInfo.locale) {
           addRequestMeta(req, 'locale', invokePathnameInfo.locale)
         }
 
-        if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
-          parsedUrl.pathname = parsedMatchedPath.pathname
+        if (parsedUrl.pathname !== invokePathname) {
+          parsedUrl.pathname = invokePathname
           addRequestMeta(req, 'rewrittenPathname', invokePathnameInfo.pathname)
         }
         const pathnameNoBasePath = removePathPrefix(
