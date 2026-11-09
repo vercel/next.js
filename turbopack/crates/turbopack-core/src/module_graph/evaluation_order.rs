@@ -141,8 +141,8 @@ impl ListOrder {
     }
 }
 
-/// The references to a module of a list, for the lists that can be evaluated again while they are
-/// being evaluated.
+/// The references to a module of a list, for the lists whose groups need one way in (see
+/// [`EvaluationOrder::groups`]).
 #[derive(Clone)]
 pub(crate) struct Referrers {
     /// Whether the module is referenced by a module that is not in the list. The roots of the
@@ -329,10 +329,11 @@ impl<M: Copy + Eq + Hash> EvaluationOrder<M> {
     /// The groups of a list, as ranges of positions. A range of one module is a module that is
     /// not merged.
     ///
-    /// `referrers` is passed for a list that can be evaluated again while it is being evaluated.
-    /// Every module that is imported at that point has to be the single entry point of its group
-    /// then, so that it is found in the same state with and without merging. So such a group has
-    /// one entry point, and no other module of it is referenced from outside.
+    /// `referrers` is passed for a list whose groups need one way in. That is a list that can be
+    /// evaluated again while it is being evaluated: every module that is imported at that point
+    /// has to be the single entry point of its group then, so that it is found in the same state
+    /// with and without merging. So such a group has one entry point, and no other module of it
+    /// is referenced from outside.
     pub(crate) fn groups(&self, list: usize, referrers: Option<&[Referrers]>) -> Vec<Range<usize>> {
         let order = &self.lists[list];
         let Some(mut end) = order.modules.len().checked_sub(1) else {
@@ -662,34 +663,70 @@ mod tests {
             lists
         }
 
-        /// The roots, as indices into `roots`, that are part of an import cycle: such a root can be
-        /// loaded while a module that it imports is being evaluated.
-        fn reentrant_roots(&self, roots: &[usize]) -> Vec<usize> {
-            (0..roots.len())
-                .filter(|&bit| {
-                    let root = roots[bit];
+        /// The modules that every module can reach by its references.
+        fn reachable_from(&self) -> Vec<FxHashSet<usize>> {
+            (0..self.references.len())
+                .map(|from| {
                     let mut seen = FxHashSet::default();
-                    let mut stack = vec![root];
+                    let mut stack = vec![from];
                     while let Some(m) = stack.pop() {
                         for &(to, _) in &self.references[m] {
-                            if to == root && m != root {
-                                return true;
-                            }
                             if seen.insert(to) {
                                 stack.push(to);
                             }
                         }
                     }
-                    false
+                    seen
                 })
                 .collect()
+        }
+
+        /// The modules of the import cycles that a module is part of, the module included.
+        fn cycle_of(reachable_from: &[FxHashSet<usize>], module: usize) -> FxHashSet<usize> {
+            reachable_from[module]
+                .iter()
+                .copied()
+                .filter(|&m| m == module || reachable_from[m].contains(&module))
+                .chain([module])
+                .collect()
+        }
+
+        /// The roots, as indices into `roots`, that are part of an import cycle: first those whose
+        /// cycle has a reference that does not inherit, then the others. A root of the first kind
+        /// can be loaded while a module that it imports is being evaluated. In a cycle of
+        /// references that inherit, a root is only loaded like that by an import, which is a step
+        /// of the trace of another root.
+        fn roots_on_cycles(
+            &self,
+            roots: &[usize],
+            reachable_from: &[FxHashSet<usize>],
+        ) -> (Vec<usize>, Vec<usize>) {
+            let (mut reentrant, mut on_import_cycles) = (vec![], vec![]);
+            for (bit, &root) in roots.iter().enumerate() {
+                let cycle = Self::cycle_of(reachable_from, root);
+                if cycle.len() == 1 {
+                    continue;
+                }
+                let inherits = cycle.iter().all(|&from| {
+                    self.references[from].iter().all(|&(to, reference)| {
+                        to == from || !cycle.contains(&to) || self.inherits(from, to, reference)
+                    })
+                });
+                if inherits {
+                    on_import_cycles.push(bit);
+                } else {
+                    reentrant.push(bit);
+                }
+            }
+            (reentrant, on_import_cycles)
         }
 
         /// The groups that are merged: the modules and the entry points of each.
         fn groups(&self, lists: &[Vec<usize>]) -> Vec<Group> {
             let roots = self.roots();
             let bitmaps = self.bitmaps(&roots);
-            let reentrant = self.reentrant_roots(&roots);
+            let reachable_from = self.reachable_from();
+            let (reentrant, on_import_cycles) = self.roots_on_cycles(&roots, &reachable_from);
             let mut order = EvaluationOrder::new(lists.iter().map(|l| l.iter().copied()));
             // Every second trace goes to a clone, as when the traces are recorded in parallel.
             let mut other = order.clone();
@@ -702,8 +739,15 @@ mod tests {
             order.merge(&other);
             let mut groups = vec![];
             for (list_idx, list) in lists.iter().enumerate() {
-                let is_reentrant = bitmaps[list[0]].iter().any(|bit| reentrant.contains(bit));
-                let referrers = is_reentrant.then(|| {
+                // A list with the bit of a root on a cycle of imports is only checked like the
+                // lists of a reentrant root if it holds a module that is part of a cycle.
+                let bitmap = &bitmaps[list[0]];
+                let has_one_way_in = bitmap.iter().any(|bit| reentrant.contains(bit))
+                    || (bitmap.iter().any(|bit| on_import_cycles.contains(bit))
+                        && list
+                            .iter()
+                            .any(|&m| Self::cycle_of(&reachable_from, m).len() > 1));
+                let referrers = has_one_way_in.then(|| {
                     let mut referrers = vec![Referrers::default(); list.len()];
                     for from in self.reachable() {
                         for &(to, _) in &self.references[from] {
@@ -1005,6 +1049,64 @@ mod tests {
             [1, 1, 3, 0, 5, 4, 2, 3, 0]
         );
         assert_eq!(graph.evaluate(&[], &[0]), [1, 3, 5, 4, 2, 0]);
+    }
+
+    #[test]
+    fn a_cycle_of_imports_needs_no_single_way_in() {
+        // 0 imports 1, 2 and 3, and 3 imports 0 again. 4 imports 1 and 2. While 3 is evaluated,
+        // only its import loads 0, which is a step of the trace of 0. So 1 and 2 are merged
+        // although other groups import both.
+        let graph = Graph::new(
+            &[0, 4],
+            &[
+                &[(1, Import), (2, Import), (3, Import)],
+                &[],
+                &[],
+                &[(0, Import)],
+                &[(1, Import), (2, Import)],
+            ],
+        )
+        .with_a_chunk_group_per_entry();
+        assert_eq!(
+            graph.merged(),
+            vec![(vec![3, 0], vec![0]), (vec![1, 2], vec![1, 2])]
+        );
+        graph.assert_same_order(&graph.merged());
+        for loads in [[0, 4], [4, 0]] {
+            assert_eq!(
+                graph.evaluate(&graph.merged(), &loads),
+                graph.evaluate(&[], &loads)
+            );
+        }
+
+        // With a `require()` in a function of 3 instead, 0 is loaded whenever that function is
+        // called, also while a module that 0 imports is being evaluated. No trace covers that,
+        // so the groups of 0 have one way in.
+        let graph = Graph::new(
+            &[0, 4],
+            &[
+                &[(1, Import), (2, Import), (3, Import)],
+                &[],
+                &[],
+                &[(0, Later)],
+                &[(1, Import), (2, Import)],
+            ],
+        )
+        .with_a_chunk_group_per_entry();
+        assert_eq!(graph.merged(), vec![(vec![3, 0], vec![0])]);
+
+        // A list that holds a module of a cycle keeps one way in. 0 and 1 import each other, and
+        // 2 imports 0 and then 1: the order is 1, 0 for both roots, but 1 is referenced from
+        // outside of the list.
+        let graph = Graph::new(
+            &[0, 2],
+            &[&[(1, Import)], &[(0, Import)], &[(0, Import), (1, Import)]],
+        )
+        .with_a_chunk_group_per_entry();
+        assert_eq!(graph.candidates(&graph.bitmaps(&graph.roots())), [[1, 0]]);
+        assert_eq!(graph.merged(), vec![]);
+        let unchecked = [(vec![1, 0], vec![0])];
+        graph.assert_same_order(&unchecked);
     }
 
     #[test]
@@ -1389,6 +1491,6 @@ mod tests {
         // The check is neither vacuous nor does it give up merging. The seeds are fixed, so a
         // change of these numbers is a change of the groups.
         assert_eq!(unchecked_differs, 393);
-        assert_eq!(merged_modules, [33298, 16695]);
+        assert_eq!(merged_modules, [33335, 16706]);
     }
 }

@@ -882,18 +882,77 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // `import()` is not part of this: it never evaluates a module synchronously.
         // An entry that is not mergeable and synchronous needs no exception: nothing inherits its
         // bit, so no list has it.
+        //
+        // Such a load goes through a reference of the cycle that does not inherit the bitmap. A
+        // cycle of hoisted imports between modules that are mergeable and synchronous has none:
+        // while one of its modules is being evaluated, only a hoisted import loads an entry on
+        // it, and the entry inherits the bitmap of the importing module. So that import is a step
+        // of the trace of the merge group entry that is loaded at that point, and every module
+        // that the entry imports has the bit of that one too: the traces cover it.
+        //
+        // A list with the bit of an entry on such a cycle of imports still has one way in if it
+        // holds a module that is part of an import cycle: two modules of a cycle that are merged
+        // share a scope, which changes the error that a read of a binding of the other one gives
+        // before it is initialized. The other lists only hold modules that are completely
+        // evaluated before any other module reads them.
         let mut reentrant_entries = Bitset::new();
+        let mut import_cycle_entries = Bitset::new();
+        let mut cycle_modules: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
         if !lists.is_empty() {
+            // The entries on each cycle of modules that are all mergeable and synchronous, and
+            // the cycle of each of these modules.
+            let mut import_cycles: Vec<(Vec<u32>, bool)> = Vec::new();
+            let mut import_cycle_of: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> =
+                FxHashMap::default();
             module_graph.traverse_cycles(
                 |r| r.chunking_type.is_parallel(),
                 |cycle| {
                     if cycle.len() > 1 {
-                        reentrant_entries
-                            .extend(cycle.iter().filter_map(|m| entry_modules.get(*m).copied()));
+                        cycle_modules.extend(cycle.iter().map(|&&m| m));
+                        let entries = cycle.iter().filter_map(|m| entry_modules.get(*m).copied());
+                        if !cycle.iter().all(|&m| is_mergeable_and_sync(m)) {
+                            reentrant_entries.extend(entries);
+                        } else {
+                            let entries = entries.collect::<Vec<_>>();
+                            if !entries.is_empty() {
+                                import_cycle_of
+                                    .extend(cycle.iter().map(|&&m| (m, import_cycles.len())));
+                                import_cycles.push((entries, false));
+                            }
+                        }
                     }
                     Ok(())
                 },
             )?;
+            // What is left to rule out is a reference between two modules of such a cycle that is
+            // not hoisted, a `require()`. Only the references of these modules are visited.
+            module_graph.traverse_edges_dfs(
+                import_cycle_of.keys().copied().collect::<Vec<_>>(),
+                &mut (),
+                |parent_info, module, _| {
+                    let Some((parent, RefData { chunking_type, .. })) = parent_info else {
+                        return Ok(GraphTraversalAction::Continue);
+                    };
+                    if matches!(chunking_type, ChunkingType::Parallel { hoisted: false, .. })
+                        && parent != module
+                        && let Some(&cycle) = import_cycle_of.get(&parent)
+                        && import_cycle_of.get(&module) == Some(&cycle)
+                    {
+                        import_cycles[cycle].1 = true;
+                    }
+                    Ok(GraphTraversalAction::Exclude)
+                },
+                |_, _, _| Ok(()),
+                false,
+                false,
+            )?;
+            for (entries, has_require) in import_cycles {
+                if has_require {
+                    reentrant_entries.extend(entries);
+                } else {
+                    import_cycle_entries.extend(entries);
+                }
+            }
         }
 
         // The modules of each group, and its entry points.
@@ -915,7 +974,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             let bitmap = module_merged_groups
                 .get(&module(0))
                 .context("every module should have a bitmap")?;
-            let referrers = (!bitmap.is_disjoint(&reentrant_entries)).then(|| {
+            let has_one_way_in = !bitmap.is_disjoint(&reentrant_entries)
+                || (!bitmap.is_disjoint(&import_cycle_entries)
+                    && (0..list.len()).any(|position| cycle_modules.contains(&module(position))));
+            let referrers = has_one_way_in.then(|| {
                 let mut referrers = (0..list.len())
                     .map(|position| Referrers {
                         // A merge group entry needs no mark of its own: it completes last in its
