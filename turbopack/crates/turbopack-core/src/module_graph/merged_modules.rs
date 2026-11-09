@@ -182,6 +182,42 @@ where
     all.into_iter().map(|(_, key, set)| (key, set)).collect()
 }
 
+/// Whether a call can evaluate the target of a reference of this kind in the middle of the
+/// evaluation of another module. The code that is generated for the reference decides it:
+/// - `Parallel`, hoisted (`import`): no. The target is evaluated before the body of the importer,
+///   which is a step of the evaluation traces.
+/// - `Parallel`, not hoisted (`require()`, `require.context()`): yes. The call evaluates the target
+///   where it stands.
+/// - `Shared` (a `require()` with that chunking type, a server utility): yes. Only the chunk group
+///   of the target differs. The same synchronous call evaluates it, and no trace follows it.
+/// - `Emitted` (`__turbopack_emit__()`): yes. The collected list has an `import()` function for the
+///   target, which evaluates it synchronously.
+/// - `Collected`: yes, by that same function. Only the graph of the module batches has it.
+/// - `PerEntry` (`__turbopack_collect__()`): yes. The call requires the collecting module.
+/// - `Async` (`import()`): no. Every form of the generated code evaluates the target in a callback
+///   of a promise, which runs when no module is being evaluated.
+/// - `Isolated` (a client reference, a worker): no. The referencing module has no code that
+///   evaluates the target. The target is the entry of a chunk group of its own, and what loads that
+///   chunk group (the framework, another thread) is relied on to do so when no module is being
+///   evaluated, as for every other chunk group entry.
+/// - `Traced`: no. The target is not part of a chunk, and nothing evaluates it.
+///
+/// A reference without a chunking type is no edge of the module graph. Its code only finds a module
+/// that another reference placed in a chunk.
+fn is_loaded_by_a_call(chunking_type: &ChunkingType) -> bool {
+    match chunking_type {
+        ChunkingType::Parallel { hoisted: false, .. }
+        | ChunkingType::Shared { .. }
+        | ChunkingType::Emitted { .. }
+        | ChunkingType::Collected { .. }
+        | ChunkingType::PerEntry => true,
+        ChunkingType::Parallel { hoisted: true, .. }
+        | ChunkingType::Async
+        | ChunkingType::Isolated { .. }
+        | ChunkingType::Traced { .. } => false,
+    }
+}
+
 /// Determine which modules can be merged together:
 /// - if all chunks execute a sequence of modules in the same order, they can be merged together and
 ///   treated as one.
@@ -889,10 +925,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // of this:
         // - The modules of the cycle are all mergeable and synchronous. Then no import of the cycle
         //   starts a trace of its own while a module of the cycle is being evaluated.
-        // - No `require()` loads an entry in the bitmap of the list, as its target or while it
-        //   evaluates its target. A `require()` in a function runs whenever the function is called:
-        //   also during the evaluation of a module that no reference connects to it, which can be a
-        //   module of the list.
+        // - No call loads an entry in the bitmap of the list, as its target or while it evaluates
+        //   its target (`is_loaded_by_a_call`). Such a call in a function runs whenever the
+        //   function is called: also during the evaluation of a module that no reference connects
+        //   to it, which can be a module of the list.
         // - The list holds no module of an import cycle. Merged modules of a cycle share a scope,
         //   which changes the error that a read of a binding of the other one gives before it is
         //   initialized. The other modules are completely evaluated before another module reads
@@ -917,24 +953,19 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 },
             )?;
         }
-        // The entries that a `require()` loads. Without an entry on a cycle of imports, no list
-        // asks for them.
+        // The entries that a call loads: a `require()`, a shared reference or an emitted module
+        // of the collect API. Without an entry on a cycle of imports, no list asks for them.
         let mut required_entries = Bitset::new();
         if !import_cycle_entries.is_zero() {
             let mut required = Vec::new();
             module_graph.traverse_edges_unordered(|parent_info, module| {
-                if parent_info.is_some_and(|(_, r)| {
-                    matches!(
-                        r.chunking_type,
-                        ChunkingType::Parallel { hoisted: false, .. } | ChunkingType::Shared { .. }
-                    )
-                }) {
+                if parent_info.is_some_and(|(_, r)| is_loaded_by_a_call(&r.chunking_type)) {
                     required.push(module);
                 }
                 Ok(())
             })?;
-            // A required module evaluates what it imports. An `import()` evaluates its target
-            // later, when no module is being evaluated.
+            // A module that a call loads evaluates what it imports. Every other target of such a
+            // call below it is in `required` itself.
             module_graph.traverse_edges_dfs(
                 required,
                 &mut (),
