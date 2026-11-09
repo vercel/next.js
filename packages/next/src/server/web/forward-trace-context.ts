@@ -112,19 +112,12 @@ export function forwardTraceContextToRequest(
     return
   }
 
-  const keys = userOverrides
-    .split(',')
-    .map((key) => key.trim())
-    .filter(Boolean)
-  if (
-    keys.includes('traceparent') &&
-    responseHeaders.get(REQUEST_HEADER_PREFIX + 'traceparent') !==
-      requestHeaders.get('traceparent')
-  ) {
+  if (hasUserTraceparent(responseHeaders, requestHeaders.get('traceparent'))) {
     // The user explicitly set the `traceparent`: keep both trace headers as
     // the user set them.
     return
   }
+  const keys = getOverrideKeys(userOverrides)
   setTraceContextOverrides(
     responseHeaders,
     keys.filter((key) => !isTraceHeader(key)),
@@ -150,6 +143,47 @@ export function continuesToSameOrigin(
   } catch {
     return false
   }
+}
+
+/**
+ * Whether the middleware's response continues the request to a render in the
+ * middleware's trace: it continues to the app (see `continuesToSameOrigin`),
+ * and the user didn't explicitly set a `traceparent` request-header override
+ * (a value other than `receivedTraceparent`, the one the middleware
+ * received), which moves the render to the user's trace (see
+ * `forwardTraceContextToRequest`).
+ */
+export function continuesInSameTrace(
+  responseHeaders: Headers,
+  requestURL: URL,
+  receivedTraceparent: string | null
+): boolean {
+  return (
+    continuesToSameOrigin(responseHeaders, requestURL) &&
+    !hasUserTraceparent(responseHeaders, receivedTraceparent)
+  )
+}
+
+// Whether the request-header overrides set a `traceparent` other than the one
+// the middleware received.
+function hasUserTraceparent(
+  responseHeaders: Headers,
+  receivedTraceparent: string | null
+) {
+  const userOverrides = responseHeaders.get(OVERRIDE_HEADERS)
+  return (
+    !!userOverrides &&
+    getOverrideKeys(userOverrides).includes('traceparent') &&
+    responseHeaders.get(REQUEST_HEADER_PREFIX + 'traceparent') !==
+      receivedTraceparent
+  )
+}
+
+function getOverrideKeys(overrides: string) {
+  return overrides
+    .split(',')
+    .map((key) => key.trim())
+    .filter(Boolean)
 }
 
 function isTraceHeader(key: string) {

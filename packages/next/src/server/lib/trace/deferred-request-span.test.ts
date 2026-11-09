@@ -1,5 +1,6 @@
 import {
   addTraceStateEntry,
+  clearSpanParent,
   DEFERRED_REQUEST_SPAN_KEY,
   encodeDeferredRequestSpan,
   parseDeferredRequestSpan,
@@ -258,6 +259,35 @@ function createSdkTracer(
   }
   return tracer
 }
+
+describe('clearSpanParent', () => {
+  it('clears the parent of an `@opentelemetry/sdk-trace` 2.x span', () => {
+    const span: any = {
+      parentSpanContext: { traceId: TRACE_ID, spanId: SPAN_ID },
+    }
+    expect(clearSpanParent(span, SPAN_ID)).toBe(true)
+    expect(span.parentSpanContext).toBeUndefined()
+  })
+
+  it('clears the parent of an `@opentelemetry/sdk-trace-base` 1.x span', () => {
+    const span: any = { parentSpanId: SPAN_ID }
+    expect(clearSpanParent(span, SPAN_ID)).toBe(true)
+    expect(span.parentSpanId).toBeUndefined()
+  })
+
+  it('leaves a span with another parent, or without one, alone', () => {
+    const other: any = { parentSpanContext: { spanId: 'ffffffffffffffff' } }
+    expect(clearSpanParent(other, SPAN_ID)).toBe(false)
+    expect(other.parentSpanContext).toEqual({ spanId: 'ffffffffffffffff' })
+    expect(clearSpanParent({}, SPAN_ID)).toBe(false)
+    expect(clearSpanParent(undefined, SPAN_ID)).toBe(false)
+  })
+
+  it('returns false when the parent cannot be cleared', () => {
+    const span = Object.freeze({ parentSpanId: SPAN_ID })
+    expect(clearSpanParent(span, SPAN_ID)).toBe(false)
+  })
+})
 
 describe('startSpanWithIds', () => {
   it('starts the span with the given IDs and restores the generator', () => {
