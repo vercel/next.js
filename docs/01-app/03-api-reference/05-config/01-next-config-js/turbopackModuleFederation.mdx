@@ -3,7 +3,13 @@ title: turbopackModuleFederation
 description: Configure Module Federation for Turbopack.
 ---
 
-The experimental `turbopackModuleFederation` option configures [Module Federation](https://webpack.js.org/concepts/module-federation/) as a first-class Turbopack feature.
+The experimental `turbopackModuleFederation` option configures [Module Federation](https://webpack.js.org/concepts/module-federation/) as a first-class Turbopack feature. It uses the [Module Federation enhanced runtime](https://module-federation.io/guide/basic/runtime/runtime-api) by default. Install the runtime package in each app that enables federation; Next.js does not declare it as a peer dependency:
+
+```bash
+pnpm add @module-federation/runtime-tools@^2.9.0
+```
+
+Apps without federation do not need this package. An app with federation but no compatible installation receives a build-time error. A host-only app can omit `name` when its `package.json` has a nonempty `name`; exposed containers must specify a name explicitly. Apps sharing a page should use distinct names.
 
 > **Good to know**:
 >
@@ -158,6 +164,7 @@ module.exports = {
       shared: {
         react: {
           singleton: true,
+          eager: true,
           requiredVersion: '^19.0.0',
         },
       },
@@ -166,15 +173,19 @@ module.exports = {
 }
 ```
 
-Shared entries support `eager`, `import`, `packageName`, `requiredVersion`, `shareKey`, `shareScope`, `singleton`, `strictVersion`, and `version`. Before choosing a provider, Turbopack initializes every configured remote in the entry's share scope so a compatible higher remote version can win over the host fallback.
+Shared entries support `eager`, `import`, `packageName`, `requiredVersion`, `shareKey`, `shareScope`, `singleton`, `strictVersion`, and `version`. By default, the enhanced runtime uses `shareStrategy: 'version-first'` to initialize configured remotes in a share scope before selecting a compatible provider. Set `shareStrategy: 'loaded-first'` to favor providers that have already loaded, reducing eager network requests but making load order relevant to version selection.
 
 When `requiredVersion` is omitted, Next.js looks for the package in the project's `optionalDependencies`, `dependencies`, `peerDependencies`, and `devDependencies`, in that order. Set `requiredVersion: false` to disable the range constraint. Set `import: false` to require another container to provide the module.
+
+For App Router hosts, a default `react` share uses the same vendored React module as Next's renderer. Set `eager: true` for a singleton React provider that must win over a same-version remote fallback, and have the remote declare React as shared too. Otherwise a remote component using hooks may render with a second React instance and fail with an invalid hook call.
+
+Non-eager shared dependencies are available only in the browser. A static import in a Client Component also runs when Next.js prerenders that component on the server. To import a non-eager shared dependency statically, load the component with `next/dynamic({ ssr: false })`. An eager dependency with a local fallback can be used during prerendering; server and Edge federation consumption itself is not supported.
 
 A key ending in `/` shares package subpaths. For example, `'design-system/'` also matches `design-system/button`.
 
 > **Sharing limitations**:
 >
-> - Version ranges support comparators, caret and tilde ranges, partial and `x` ranges, `||` unions, hyphen ranges, and prerelease ordering. Uncommon range syntax may differ from webpack.
+> - Shared version selection and range matching are provided by `@module-federation/runtime-tools`.
 > - Shared namespace bindings are copied when crossing from webpack to Turbopack. Later mutations to an exported binding are not observed as a live binding.
 
 ## Migrating from webpack
@@ -190,14 +201,66 @@ module.exports = {
         catalog: 'catalog@https://catalog.example.com/remoteEntry.js',
       },
       shared: {
-        react: { singleton: true },
+        react: { singleton: true, eager: true },
       },
     },
   },
 }
 ```
 
-The `library` and `runtime` plugin options are not supported. Turbopack emits a global container and manages its runtime directly.
+The webpack `library` and `runtime` plugin options are not supported. Turbopack emits a global container and initializes the enhanced runtime. You can configure `runtimePlugins` as an ordered array of project-relative paths or installed package specifiers, or `[specifier, JSON-serializable options]` tuples. The runtime loads the default export of each module and calls it with the provided options in the browser. Use `implementation` to resolve a compatible runtime-tools implementation from your project instead of the default runtime package; it must provide the `./runtime` and `./webpack-bundler-runtime` entrypoints.
+
+For example, a runtime plugin can observe requests and use the upstream loaded-first strategy:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    turbopackModuleFederation: {
+      remotes: {
+        catalog: 'catalog@https://catalog.example.com/remoteEntry.js',
+      },
+      shareStrategy: 'loaded-first',
+      runtimePlugins: [['./federation-plugin.js', { label: 'storefront' }]],
+    },
+  },
+}
+```
+
+```js filename="federation-plugin.js"
+module.exports = ({ label }) => ({
+  name: 'storefront-observer',
+  beforeRequest(args) {
+    console.log(label, args.id)
+    return args
+  },
+})
+```
+
+## Dynamic remotes and runtime plugins
+
+From a client component, use the installed peer's runtime API to access the same enhanced instance that Turbopack initialized:
+
+```tsx filename="app/dynamic-catalog.tsx"
+'use client'
+
+import { getInstance } from '@module-federation/runtime-tools/runtime'
+
+export async function loadCatalog(url: string) {
+  const instance = getInstance()
+  if (!instance) throw new Error('Federation is not initialized yet')
+  instance.registerRemotes([
+    {
+      name: 'optionalCatalog',
+      entry: url,
+      entryGlobalName: 'catalog',
+      type: 'var',
+    },
+  ])
+  return instance.loadRemote('optionalCatalog/product')
+}
+```
+
+When multiple federated apps share a page, use `getInstance((instance) => instance.name === 'storefront')` to select your app's instance rather than relying on the no-argument accessor. If you set `implementation: 'custom-runtime'`, import these APIs from `custom-runtime/runtime` instead of the default runtime package. Dynamic registration and `loadRemote()` support script entries. Upstream `preloadRemote()` requires a manifest; it does not preload a script-only webpack v1 remote without one.
 
 ## Runtime behavior and limitations
 

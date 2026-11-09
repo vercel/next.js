@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -21,142 +19,71 @@ use turbopack_core::{
 use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::module_federation::{
-    config::{ModuleFederationConfig, ModuleFederationRemote, ModuleFederationShared},
-    shared::{apply_shared_import_map, resolved_fallback_request, shared_provider_version},
+    config::{ModuleFederationConfig, ModuleFederationRemote},
+    runtime::{FEDERATION_RUNTIME_REQUEST, module_federation_runtime_source},
+    shared::apply_shared_import_map,
 };
-
-async fn provider_registrations(
-    project_path: &FileSystemPath,
-    shared: &[ModuleFederationShared],
-    provider_requests: &[Option<RcStr>],
-    host_name: &str,
-) -> Result<String> {
-    let mut registrations = Vec::new();
-    for (shared, provider_request) in shared.iter().zip(provider_requests) {
-        if shared.request.ends_with('/') {
-            continue;
-        }
-        let Some(import) = provider_request else {
-            continue;
-        };
-        let version = shared_provider_version(project_path, shared).await?;
-        registrations.push(format!(
-            r#"
-    const versions_{index} = scope[{key}] ||= Object.create(null);
-    versions_{index}[{version}] ||= {{
-      get: () => import({import}).then((module) => () => module),
-      from: {host_name},
-      eager: {eager}
-    }};"#,
-            index = registrations.len(),
-            key = StringifyJs(&shared.share_key),
-            version = StringifyJs(&version),
-            import = StringifyJs(import),
-            host_name = StringifyJs(host_name),
-            eager = shared.eager,
-        ));
-    }
-    Ok(registrations.join("\n"))
-}
 
 async fn module_federation_remote_init_source(
     project_path: FileSystemPath,
     remote: &ModuleFederationRemote,
-    shared: &[ModuleFederationShared],
-    host_name: &str,
 ) -> Result<ResolvedVc<Box<dyn Source>>> {
     let candidates = remote
         .external
         .iter()
         .map(|external| (&*external.global, &*external.url))
         .collect::<Vec<_>>();
-    let scoped_shared = shared
-        .iter()
-        .filter(|shared| shared.share_scope == remote.share_scope)
-        .cloned()
-        .collect::<Vec<_>>();
-    let mut provider_requests = Vec::with_capacity(scoped_shared.len());
-    for shared in &scoped_shared {
-        provider_requests.push(match &shared.import {
-            Some(import) => Some(resolved_fallback_request(&project_path, import).await?),
-            None => None,
-        });
-    }
-    let registrations =
-        provider_registrations(&project_path, &scoped_shared, &provider_requests, host_name)
-            .await?;
     let code = format!(
         r#"
 const candidates = {candidates};
-const remoteKey = {remote_key};
-const federation = __turbopack_module_federation__;
-const scope = federation.shareScopes[{share_scope}] ||= Object.create(null);
-{registrations}
+const remoteName = {remote_name};
+const shareScope = {share_scope};
 
-async function initializeCandidate(index) {{
-  const [globalName, url] = candidates[index];
-  const cacheKey = `${{remoteKey}}:${{index}}`;
-  let promise = federation.remoteInitializations[cacheKey];
-  if (!promise) {{
-    promise = (async () => {{
-      if (!Object.prototype.hasOwnProperty.call(globalThis, globalName)) {{
-        await __turbopack_load_by_url__(url, true);
-      }}
-      if (!Object.prototype.hasOwnProperty.call(globalThis, globalName)) {{
-        throw new Error(`Container global ${{globalName}} is missing after loading ${{url}}`);
-      }}
-      const container = globalThis[globalName];
-      const initScope = federation.initScopes[{share_scope}] ||= [];
-      await container.init(scope, initScope);
-      return container;
-    }})();
-    federation.remoteInitializations[cacheKey] = promise;
-    void promise.catch(() => {{
-      if (federation.remoteInitializations[cacheKey] === promise) {{
-        delete federation.remoteInitializations[cacheKey];
-      }}
-    }});
+async function getInstance() {{
+  if (typeof window === 'undefined' && typeof importScripts === 'undefined') {{
+    throw new Error(`External script loading is only supported in browser client code: ${{candidates[0]?.[1]}}`);
   }}
-  return promise;
+  return (await import({runtime_request})).instance;
 }}
 
 export async function initializeAll() {{
-  const containers = [];
-  const failures = [];
-  for (let index = 0; index < candidates.length; index++) {{
-    try {{
-      containers.push(await initializeCandidate(index));
-    }} catch (error) {{
-      failures.push(error);
-    }}
-  }}
-  return {{ containers, failures }};
+  const instance = await getInstance();
+  await Promise.all(instance.initializeSharing(shareScope));
+  return {{ containers: [], failures: [] }};
 }}
 
 export async function get(request, fullRequest) {{
+  let instance;
+  try {{
+    instance = await getInstance();
+  }} catch (error) {{
+    throw new Error(`Failed to load federated module ${{fullRequest}}: ${{error?.message || error}}`);
+  }}
   const failures = [];
+  const id = `${{remoteName}}${{request === '.' ? '' : '/' + request.replace(/^\.\//, '')}}`;
   for (let index = 0; index < candidates.length; index++) {{
+    const [entryGlobalName, entry] = candidates[index];
+    if (index) {{
+      instance.registerRemotes([{{name: remoteName, entry, entryGlobalName, type: 'var', shareScope}}], {{force: true}});
+    }}
     try {{
-      const container = await initializeCandidate(index);
-      const initScope = federation.initScopes[{share_scope}] ||= [];
-      const factory = await container.get(request, initScope);
-      if (typeof factory !== "function") {{
-        throw new Error(`Container ${{candidates[index][0]}} returned no factory for ${{request}}`);
-      }}
-      return factory;
+      const namespace = await instance.loadRemote(id);
+      if (namespace == null) throw new Error(`Remote ${{remoteName}} returned no module for ${{request}}`);
+      return () => namespace;
     }} catch (error) {{
       failures.push(error);
     }}
   }}
-  const details = failures.map((failure) => failure?.message || String(failure)).join("; ");
+  const details = failures.map((failure) => failure?.message || String(failure)).join('; ');
   const error = new Error(`Failed to load federated module ${{fullRequest}}: ${{details}}`);
   error.cause = failures;
   throw error;
 }}
 "#,
         candidates = StringifyJs(&candidates),
-        remote_key = StringifyJs(&remote.request),
+        remote_name = StringifyJs(&remote.request),
         share_scope = StringifyJs(&remote.share_scope),
+        runtime_request = StringifyJs(FEDERATION_RUNTIME_REQUEST),
     );
     Ok(ResolvedVc::upcast(
         VirtualSource::new(
@@ -176,22 +103,20 @@ pub async fn apply_module_federation_import_map(
     project_path: FileSystemPath,
     config: &ModuleFederationConfig,
 ) -> Result<()> {
-    let host_name = config.name.clone().unwrap_or_else(|| "host".into());
-    let mut init_requests_by_scope = BTreeMap::<RcStr, Vec<RcStr>>::new();
+    if !config.is_enabled() {
+        return Ok(());
+    }
+    let runtime_source = module_federation_runtime_source(project_path.clone(), config).await?;
+    import_map.insert_exact_alias(
+        FEDERATION_RUNTIME_REQUEST,
+        ImportMapping::Direct(ResolveResult::source(runtime_source).resolved_cell())
+            .resolved_cell(),
+    );
     for (index, remote) in config.remotes.iter().enumerate() {
         let init_request: RcStr =
             format!("__turbopack_module_federation_remote_init__/{index}").into();
-        init_requests_by_scope
-            .entry(remote.share_scope.clone())
-            .or_default()
-            .push(init_request.clone());
-        let init_source = module_federation_remote_init_source(
-            project_path.clone(),
-            remote,
-            &config.shared,
-            &host_name,
-        )
-        .await?;
+        let init_source =
+            module_federation_remote_init_source(project_path.clone(), remote).await?;
         import_map.insert_exact_alias(
             init_request.clone(),
             ImportMapping::Direct(ResolveResult::source(init_source).resolved_cell())
@@ -208,7 +133,7 @@ pub async fn apply_module_federation_import_map(
         import_map.insert_exact_alias(remote.request.clone(), mapping);
         import_map.insert_wildcard_alias(RcStr::from(format!("{}/", remote.request)), mapping);
     }
-    apply_shared_import_map(import_map, project_path, config, &init_requests_by_scope);
+    apply_shared_import_map(import_map, project_path, config, false);
     Ok(())
 }
 

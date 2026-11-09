@@ -1,9 +1,14 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { getInstance, init } from '@module-federation/runtime-tools/runtime'
 import { useEffect, useState } from 'react'
 // @ts-expect-error -- configured as an eager shared module
 import { value as eagerValue } from 'eager-local'
+
+const StaticSharedValue = dynamic(() => import('./static-shared-value'), {
+  ssr: false,
+})
 
 const RemoteComponent = dynamic(
   // @ts-expect-error -- provided by Module Federation at runtime
@@ -13,6 +18,12 @@ const RemoteComponent = dynamic(
 
 export function RemoteMessage() {
   const [message, setMessage] = useState('loading')
+  const [runtimeName, setRuntimeName] = useState('loading')
+  const [runtimeIsolation, setRuntimeIsolation] = useState('loading')
+  const [shareStrategy, setShareStrategy] = useState('loading')
+  const [dynamicMessage, setDynamicMessage] = useState('loading')
+  const [fallbackRemoteMessage, setFallbackRemoteMessage] = useState('loading')
+  const [pluginMarker, setPluginMarker] = useState('loading')
   const [hostShared, setHostShared] = useState('loading')
   const [shared, setShared] = useState('loading')
   const [remoteShared, setRemoteShared] = useState('loading')
@@ -28,6 +39,8 @@ export function RemoteMessage() {
 
   useEffect(() => {
     async function load() {
+      setRuntimeName(getInstance()?.name ?? 'missing')
+      setShareStrategy(getInstance()?.options.shareStrategy ?? 'missing')
       const fallbackModule = await import('local-fallback')
       setFallback(fallbackModule.value)
       const defaultSharedModule = await import('default-shared')
@@ -60,6 +73,34 @@ export function RemoteMessage() {
       // @ts-expect-error -- provided by Module Federation at runtime
       const remote = await import('catalog/message')
       setMessage(remote.message)
+      // @ts-expect-error -- configured with a failing script and a working fallback
+      const fallbackRemote = await import('fallbackCatalog/message')
+      setFallbackRemoteMessage(fallbackRemote.message)
+      setPluginMarker(
+        Reflect.get(globalThis, '__federationPluginMarker') ?? 'missing'
+      )
+      const instance = getInstance()
+      if (!instance) throw new Error('Enhanced federation instance is missing')
+      instance.registerRemotes([
+        {
+          name: 'dynamicCatalog',
+          entry: remoteEntry,
+          entryGlobalName: 'catalog',
+          type: 'var',
+        },
+      ])
+      const dynamicRemote = await instance.loadRemote<typeof remote>(
+        'dynamicCatalog/message'
+      )
+      setDynamicMessage(dynamicRemote?.message ?? 'missing')
+      const other = init({ name: 'independentHost', remotes: [], shared: {} })
+      setRuntimeIsolation(
+        getInstance((host) => host.name === 'nextHost') === instance &&
+          getInstance((host) => host.name === 'independentHost') === other &&
+          instance !== other
+          ? 'isolated'
+          : 'collided'
+      )
       setRemoteShared(remote.remoteShared)
       // @ts-expect-error -- provided by the configured share scope
       const unionModule = await import('range-union')
@@ -100,8 +141,15 @@ export function RemoteMessage() {
   return (
     <>
       <p id="remote-message">{message}</p>
+      <p id="enhanced-runtime-name">{runtimeName}</p>
+      <p id="enhanced-runtime-isolation">{runtimeIsolation}</p>
+      <p id="enhanced-share-strategy">{shareStrategy}</p>
+      <p id="enhanced-dynamic-message">{dynamicMessage}</p>
+      <p id="enhanced-fallback-remote">{fallbackRemoteMessage}</p>
+      <p id="enhanced-plugin-marker">{pluginMarker}</p>
       <RemoteComponent />
       <p id="host-shared-message">{hostShared}</p>
+      <StaticSharedValue />
       <p id="shared-message">{shared}</p>
       <p id="remote-shared-message">{remoteShared}</p>
       <p id="strict-error">{strictError}</p>
