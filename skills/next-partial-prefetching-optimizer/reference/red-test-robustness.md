@@ -82,10 +82,9 @@ prop against `prefetch={true}`.
 ## Lock engagement
 
 [`experimental.exposeTestingApiInProductionBuild`](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)
-must be true for both `next build` and `next start`. If you gate it on an
-environment variable, set it for both commands. A marker that is absent under
-lock and visible after release is the in-band proof that the lock engaged. A
-vacuous no-op cannot satisfy both halves.
+must be true on the measured artifact. A marker that is absent under lock and
+visible after release is the in-band proof that the lock engaged. A vacuous
+no-op cannot satisfy both halves.
 
 Never enable this flag for real production traffic. For a remote rig, verify
 the deployed commit before trusting RED or GREEN.

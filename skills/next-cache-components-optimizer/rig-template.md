@@ -56,16 +56,9 @@ export default nextConfig
 Merge the option into an existing `experimental` object instead of replacing
 the project's other experimental options.
 
-Set the condition while running both `next build` and `next start`. The server
-loads `next.config` again at startup. If the condition is false at startup,
-`instant()` does not hold back request-time content on initial page loads, even
-though client navigations still pause. Setting it only for `next start` is too
-late because the testing API is compiled into the production artifact.
-When the artifact was built without it, Next.js does not activate the
-navigation lock, so the test cannot distinguish shell content from streamed
-dynamic content. Rebuild with the condition enabled before interpreting the
-results. Use the project's existing environment naming when it already
-distinguishes test, staging, preview, and production builds.
+Follow the [option reference](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)
+for build and server setup. Use the project's existing environment naming when
+it already distinguishes test, staging, preview, and production builds.
 
 ### Test command and base URL
 
@@ -85,10 +78,10 @@ EXPOSE_TESTING_API=1 pnpm build
 EXPOSE_TESTING_API=1 BASE_URL=http://localhost:3000 pnpm playwright test tests/static-shell.spec.ts
 ```
 
-The Playwright process passes `EXPOSE_TESTING_API=1` to its `webServer` process.
 If the rig does not use `webServer`, start
 `EXPOSE_TESTING_API=1 pnpm start --port 3000` in a separate terminal after the
-build, keep it running during the test command, and stop it afterward. Use only one server lifecycle for the measured app.
+build, keep it running during the test command,
+and stop it afterward. Use only one server lifecycle for the measured app.
 
 Adapt the script names and port to the project. Follow the public
 [`instant()` testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): use `page.goto()` for an initial-load
@@ -152,7 +145,7 @@ Place this file at the repository root or next to the end-to-end configuration:
 # instant-nav rig: <project>
 
 - BUILD: <commands or platform that builds and serves the measured production artifact>
-- EXPOSE: <condition that enables exposeTestingApiInProductionBuild during build and server startup>
+- EXPOSE: <condition that enables exposeTestingApiInProductionBuild during build>
 - RUN: <focused Playwright command and how it receives BASE_URL>
 - TEST USER: <public/no auth, or account and login>; state: <flags, role, data, locale>
 - DRIFT: <differences that could change the asserted UI>
@@ -172,8 +165,7 @@ is valid only with a reason, such as `TEST USER: public; no authentication` or
 Before recording the static-shell contract:
 
 1. Build with the testing API condition enabled.
-2. Start or locate that exact artifact with the testing API condition enabled
-   and confirm the base URL responds.
+2. Start or locate that exact artifact and confirm the base URL responds.
 3. Run one focused `instant()` smoke test using the intended navigation type.
 4. Confirm the test can reach the route and eventual destination UI in the
    recorded test context.
