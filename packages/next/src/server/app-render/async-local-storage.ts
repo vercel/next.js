@@ -36,6 +36,45 @@ class FakeAsyncLocalStorage<Store extends {}>
 const maybeGlobalAsyncLocalStorage =
   typeof globalThis !== 'undefined' && (globalThis as any).AsyncLocalStorage
 
+type AsyncResourceConstructor = typeof import('async_hooks').AsyncResource
+
+// The `AsyncResource` of Node.js, when the global `AsyncLocalStorage` is the
+// one of Node.js. A snapshot is taken with it directly, because
+// `AsyncLocalStorage.snapshot()` and `AsyncLocalStorage.bind()` are costly for
+// something that is done for every request: they redefine properties of the
+// function they return, and wrap the accessors of its deprecated
+// `asyncResource` property with `util.deprecate()`, which changes the
+// prototype of the wrapper. That allocates hidden classes and accessor pairs
+// in the old generation that point at the new function, so everything the
+// function can reach, which is the async context and with it the stores of
+// the request, survives every scavenge until the next major GC.
+//
+// This module is also bundled for the Edge runtime and for the browser, so the
+// module is looked up at runtime instead of being required, and only in
+// bundles for Node.js. The branch has to be the `else` of the Edge check to be
+// removed from Edge bundles, where `process.getBuiltinModule` would be
+// reported as an unsupported Node.js API, and it is removed from browser
+// bundles, where a reference to `process` would pull in a polyfill.
+let NodeAsyncResource: AsyncResourceConstructor | undefined
+if (process.env.NEXT_RUNTIME === 'edge') {
+  // The Edge runtime has no `AsyncResource`.
+} else if (process.env.NEXT_RUNTIME === 'nodejs') {
+  if (
+    maybeGlobalAsyncLocalStorage &&
+    typeof process.getBuiltinModule === 'function'
+  ) {
+    const asyncHooks = process.getBuiltinModule('node:async_hooks') as
+      | typeof import('async_hooks')
+      | undefined
+    if (
+      asyncHooks &&
+      asyncHooks.AsyncLocalStorage === maybeGlobalAsyncLocalStorage
+    ) {
+      NodeAsyncResource = asyncHooks.AsyncResource
+    }
+  }
+}
+
 export function createAsyncLocalStorage<
   Store extends {},
 >(): AsyncLocalStorage<Store> {
@@ -96,6 +135,18 @@ export function createSnapshot(): <R, TArgs extends any[]>(
   fn: (...args: TArgs) => R,
   ...args: TArgs
 ) => R {
+  if (NodeAsyncResource !== undefined) {
+    // Does what `AsyncLocalStorage.snapshot()` does: the resource captures the
+    // current async context, and `runInAsyncScope` runs `fn` in it. The
+    // resource has the type that `snapshot()` gives it.
+    const resource = new NodeAsyncResource('bound-anonymous-fn')
+    return function runInSnapshot<R, TArgs extends any[]>(
+      fn: (...args: TArgs) => R,
+      ...args: TArgs
+    ): R {
+      return resource.runInAsyncScope(fn, undefined, ...args)
+    }
+  }
   if (maybeGlobalAsyncLocalStorage) {
     return maybeGlobalAsyncLocalStorage.snapshot()
   }
