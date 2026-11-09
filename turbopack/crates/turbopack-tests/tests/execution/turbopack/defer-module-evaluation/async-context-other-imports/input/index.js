@@ -92,3 +92,24 @@ it('evaluates a CommonJS module, which is never deferred, in the async context o
   expect(events.slice(-2)).toEqual(['commonjs', 'later-commonjs'])
   expect(later.commonjsAtEvaluation()).toBe('request 9')
 })
+
+it('evaluates a module that its importer also reads at its top level, and that importer, in the async context of the import that reaches them', async () => {
+  // `later-top-level-read.js` reads one export of `top-level-read.js` at its top level, and
+  // another export and the namespace object inside a function. Neither import is deferred: the
+  // same importer reads the module at its top level, and a namespace object is not a named
+  // export. So neither the module nor its importer, which it is merged with, is evaluated in the
+  // async context of the runtime.
+  const later = await request.run(
+    'request 10',
+    () => import('./later-top-level-read.js')
+  )
+  expect(events.slice(-2)).toEqual(['top-level-read', 'later-top-level-read'])
+  expect(later.atEvaluation).toEqual({
+    importer: 'request 10',
+    imported: 'request 10',
+  })
+  expect(later.inFunction()).toEqual([
+    'request 10',
+    ['atEvaluation', 'inFunction'],
+  ])
+})

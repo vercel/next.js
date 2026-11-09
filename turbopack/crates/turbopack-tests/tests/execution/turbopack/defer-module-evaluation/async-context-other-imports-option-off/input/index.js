@@ -65,6 +65,18 @@ it('evaluates every module at startup, outside the async context of a request', 
     () => import('./later-commonjs.js')
   )
   expect(laterCommonjs.commonjsAtEvaluation()).toBe('request 9')
+  const laterTopLevelRead = await request.run(
+    'request 10',
+    () => import('./later-top-level-read.js')
+  )
+  expect(laterTopLevelRead.atEvaluation).toEqual({
+    importer: 'request 10',
+    imported: 'request 10',
+  })
+  expect(laterTopLevelRead.inFunction()).toEqual([
+    'request 10',
+    ['atEvaluation', 'inFunction'],
+  ])
   expect(events).toEqual([
     'dynamic',
     'required',
@@ -76,5 +88,7 @@ it('evaluates every module at startup, outside the async context of a request', 
     'later-inner',
     'commonjs',
     'later-commonjs',
+    'top-level-read',
+    'later-top-level-read',
   ])
 })
