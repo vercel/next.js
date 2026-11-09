@@ -462,8 +462,9 @@ export async function exportPages(
 
   renderOpts.incrementalCache = incrementalCache
 
-  const maxConcurrency =
-    nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
+  const maxConcurrency = input.renderOneAtATime
+    ? 1
+    : (nextConfig.experimental.staticGenerationMaxConcurrency ?? 8)
   const results: ExportPagesResult = []
 
   const exportPageWithRetry = async (

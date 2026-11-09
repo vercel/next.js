@@ -799,7 +799,8 @@ async function exportAppImpl(
     worker: StaticWorker,
     exportPaths: ExportPathEntry[],
     renderResumeDataCachesByPage?: Record<string, string>,
-    routePrefetchHintsByPage?: Record<string, PrefetchHints>
+    routePrefetchHintsByPage?: Record<string, PrefetchHints>,
+    renderOneAtATime: boolean = false
   ): Promise<ExportPagesResult> => {
     // Batch filtered pages into smaller batches, and call the export worker on
     // each batch. We've set a default minimum of 25 pages per batch to ensure
@@ -893,6 +894,7 @@ async function exportAppImpl(
         fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
         renderResumeDataCachesByPage: batchRenderResumeDataCaches,
         routePrefetchHintsByPage: batchRoutePrefetchHints,
+        renderOneAtATime,
       })
     }
 
@@ -1027,9 +1029,22 @@ async function exportAppImpl(
         }
       }
 
+      // With Cache Components, a worker renders these pages one at a time.
+      // They are the first pages of different routes, in a worker that has
+      // rendered nothing yet, and they read the same `use cache` entries (those
+      // of the layouts they share). Rendered together, which page generates
+      // such an entry and which pages wait for that generation depends on
+      // how long each route takes to load, and a page that waited gets the
+      // entry later in its final render than a page that generated it or
+      // found it in the cache handler: the same Flight rows in another order.
+      // One at a time, no page waits for another page's entry, as when the
+      // pages are rendered among the other pages of their route.
       const decidingResults = await exportPagesInBatches(
         worker,
-        decidingExportPaths
+        decidingExportPaths,
+        undefined,
+        undefined,
+        renderOpts.cacheComponents === true
       )
       collectRoutePrefetchHints(
         decidingExportPaths,

@@ -52,6 +52,11 @@ export interface ExportPagesInput {
    * such a route are built with the same inlining decisions.
    */
   routePrefetchHintsByPage: Record<string, PrefetchHints> | undefined
+  /**
+   * Render these paths one at a time instead of
+   * `staticGenerationMaxConcurrency` at a time.
+   */
+  renderOneAtATime: boolean
 }
 
 export interface ExportPageInput {
