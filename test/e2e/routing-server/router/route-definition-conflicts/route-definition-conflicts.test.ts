@@ -5,17 +5,11 @@ import { retry } from 'next-test-utils'
 // This companion mutates a local fixture and inspects build/compile diagnostics.
 // @force-gate !deploy
 describe('documented route definition conflicts', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
 
-  // TODO: webpack dev answers with an error status once a page and a Route
-  // Handler share a URL, but prints no conflict message, while `next build`
-  // and Turbopack dev print one. This is a bundler inconsistency the docs
-  // don't cover: they only say a `route.js` can't sit beside `page.js`:
-  // https://nextjs.org/docs/app/getting-started/route-handlers#convention
-  // @gate !(webpack && dev)
   it('rejects a page and Route Handler at the same URL', async () => {
     // Prove the page is valid before introducing the competing definition.
     await next.start()
@@ -42,11 +36,14 @@ describe('documented route definition conflicts', () => {
       } else {
         await expect(next.start()).rejects.toThrow()
       }
-      await retry(() => {
-        expect(next.cliOutput).toMatch(conflict)
-        expect(next.cliOutput).toMatch(/page/i)
-        expect(next.cliOutput).toMatch(/route/i)
-      })
+      // webpack dev reports the conflict only through the error status.
+      if (isTurbopack || !isNextDev) {
+        await retry(() => {
+          expect(next.cliOutput).toMatch(conflict)
+          expect(next.cliOutput).toMatch(/page/i)
+          expect(next.cliOutput).toMatch(/route/i)
+        })
+      }
     } finally {
       await next.deleteFile('app/route.ts')
       // Recovery must replace the conflicting inventory without a dev restart.

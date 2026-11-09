@@ -656,7 +656,7 @@ export default function myImageLoader({ src, width, quality }) {
 
 #### `path`
 
-If you want to change or prefix the default path for the Image Optimization API, you can do so with the `path` property. The default value for `path` is `/_next/image`.
+`path` sets the URL that `next/image` uses for optimized images. The default value for `path` is `/_next/image`.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -665,6 +665,10 @@ module.exports = {
   },
 }
 ```
+
+With the example above, `next/image` renders `src` values such as `/my-prefix/_next/image?url=...&w=...&q=...`.
+
+`path` does not change where Next.js serves the Image Optimization API. The server always serves it at `/_next/image`, prefixed with [`basePath`](/docs/app/api-reference/config/next-config-js/basePath) if you set one. Next.js doesn't add `basePath` to a custom `path`. When you change `path`, something in front of Next.js, such as a reverse proxy or CDN, has to route requests for that path to `/_next/image` with the same query string. Otherwise those requests return `404`.
 
 #### `deviceSizes`
 
