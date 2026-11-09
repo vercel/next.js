@@ -7,6 +7,32 @@ import { RequestCookies } from './cookies'
 export const INTERNALS = Symbol('internal request')
 
 /**
+ * The headers of a request as `RequestCookies` uses them: it reads the
+ * `cookie` header once, when it is constructed, and sets that header when a
+ * cookie changes. The first read is answered with `cookie`; everything else
+ * goes to `headers`.
+ */
+function withInitialCookie(headers: Headers, cookie: string | null): Headers {
+  let initial = true
+  const view: Pick<Headers, 'get' | 'set' | 'delete'> = {
+    get(name) {
+      if (initial && name === 'cookie') {
+        initial = false
+        return cookie
+      }
+      return headers.get(name)
+    },
+    set(name, value) {
+      headers.set(name, value)
+    },
+    delete(name) {
+      headers.delete(name)
+    },
+  }
+  return view as Headers
+}
+
+/**
  * This class extends the [Web `Request` API](https://developer.mozilla.org/docs/Web/API/Request) with additional convenience methods.
  *
  * Read more: [Next.js Docs: `NextRequest`](https://nextjs.org/docs/app/api-reference/functions/next-request)
@@ -14,7 +40,10 @@ export const INTERNALS = Symbol('internal request')
 export class NextRequest extends Request {
   /** @internal */
   [INTERNALS]: {
-    cookies: RequestCookies
+    /** Created when the cookies are first read. */
+    cookies: RequestCookies | undefined
+    /** The `cookie` header the request had when it was constructed. */
+    cookie: string | null
     url: string
     nextUrl: NextURL
   }
@@ -43,7 +72,8 @@ export class NextRequest extends Request {
       nextConfig: init.nextConfig,
     })
     this[INTERNALS] = {
-      cookies: new RequestCookies(this.headers),
+      cookies: undefined,
+      cookie: this.headers.get('cookie'),
       nextUrl,
       url: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
         ? url
@@ -74,7 +104,18 @@ export class NextRequest extends Request {
   }
 
   public get cookies() {
-    return this[INTERNALS].cookies
+    const internals = this[INTERNALS]
+    let cookies = internals.cookies
+    if (cookies === undefined) {
+      // The cookies are parsed when they are first read, not for every
+      // request. They are the cookies of the request as it was constructed:
+      // the header is taken then, so a change to `headers` in between does
+      // not show, as before.
+      cookies = internals.cookies = new RequestCookies(
+        withInitialCookie(this.headers, internals.cookie)
+      )
+    }
+    return cookies
   }
 
   public get nextUrl() {
