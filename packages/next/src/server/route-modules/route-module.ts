@@ -169,6 +169,19 @@ export abstract class RouteModule<
   public incrementCache?: IncrementalCache
   public responseCache?: ResponseCache
 
+  /**
+   * What `prepare` derives from the page alone, for the page of the previous
+   * request. A route module serves one page, so these are computed once.
+   */
+  private previousPage:
+    | {
+        srcPage: string
+        isDynamic: boolean | undefined
+        normalized: string | undefined
+        normalizedIsDynamic: boolean | undefined
+      }
+    | undefined = undefined
+
   constructor({
     userland,
     definition,
@@ -936,7 +949,16 @@ export abstract class RouteModule<
     this.normalizeUrl(req, parsedUrl)
     let originalPathname = parsedUrl.pathname || '/'
     const originalQuery = { ...parsedUrl.query }
-    const pageIsDynamic = isDynamicRoute(srcPage)
+    let page = this.previousPage
+    if (page === undefined || page.srcPage !== srcPage) {
+      page = this.previousPage = {
+        srcPage,
+        isDynamic: undefined,
+        normalized: undefined,
+        normalizedIsDynamic: undefined,
+      }
+    }
+    const pageIsDynamic = (page.isDynamic ??= isDynamicRoute(srcPage))
 
     let localeResult: PathLocale | undefined
     let detectedLocale: string | undefined
@@ -965,7 +987,7 @@ export abstract class RouteModule<
     // Normalize the page path for route matching. The srcPage contains the
     // internal page path (e.g., /app/[slug]/page), but route matchers expect
     // the pathname format (e.g., /app/[slug]).
-    const normalizedSrcPage = normalizeAppPath(srcPage)
+    const normalizedSrcPage = (page.normalized ??= normalizeAppPath(srcPage))
 
     const serverUtils = getServerUtils({
       page: normalizedSrcPage,
@@ -1245,7 +1267,10 @@ export abstract class RouteModule<
     }
 
     let resolvedPathname = normalizedSrcPage
-    if (isDynamicRoute(resolvedPathname) && params) {
+    if (
+      (page.normalizedIsDynamic ??= isDynamicRoute(normalizedSrcPage)) &&
+      params
+    ) {
       resolvedPathname = serverUtils.interpolateDynamicPath(
         resolvedPathname,
         params
